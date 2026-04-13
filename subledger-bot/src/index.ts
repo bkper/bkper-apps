@@ -1,0 +1,113 @@
+import 'source-map-support/register.js';
+import { HttpFunction } from '@google-cloud/functions-framework/build/src/functions';
+import { Bkper } from 'bkper-js';
+import { Request, Response } from 'express';
+import express from 'express';
+import httpContext from 'express-http-context';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+import { AppContext } from './AppContext.js';
+import { EventHandlerGroupCreatedOrUpdated } from './EventHandlerGroupCreatedOrUpdated.js';
+import { EventHandlerGroupDeleted } from './EventHandlerGroupDeleted.js';
+import { EventHandlerTransactionChecked } from './EventHandlerTransactionChecked.js';
+import { EventHandlerTransactionDeleted } from './EventHandlerTransactionDeleted.js';
+import { EventHandlerTransactionRestored } from './EventHandlerTransactionRestored.js';
+import { EventHandlerTransactionUpdated } from './EventHandlerTransactionUpdated.js';
+import { EventHandlerTransactionPosted } from './EventHandlerTransactionPosted.js';
+import { EventHandlerAccountCreatedOrUpdated } from './EventHandlerAccountCreatedOrUpdated.js';
+import { EventHandlerAccountDeleted } from './EventHandlerAccountDeleted.js';
+
+// Ensure env at right location
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: resolve(__dirname, '../.env') });
+
+const app = express();
+app.use(httpContext.middleware);
+app.use('/', handleEvent);
+export const doPost: HttpFunction = app;
+
+function init(req: Request, res: Response): AppContext {
+
+  res.setHeader('Content-Type', 'application/json');
+
+  const apiKey = process.env.BKPER_API_KEY;
+
+  const bkper = new Bkper({
+      oauthTokenProvider: async () => req.headers['bkper-oauth-token'] as string,
+      apiKeyProvider: apiKey ? async () => apiKey : undefined,
+      agentIdProvider: async () => req.headers['bkper-agent-id'] as string
+  })
+
+  return new AppContext(httpContext, bkper);
+
+}
+
+async function handleEvent(req: Request, res: Response) {
+
+  const context = init(req, res);
+
+  try {
+
+    let event: bkper.Event = req.body
+    let result: { result: string[] | string | boolean } = { result: false };
+
+    console.log(`Received ${event.type} event from ${event.user.username}...`)
+
+    switch (event.type) {
+      case 'TRANSACTION_POSTED':
+        result.result = await new EventHandlerTransactionPosted(context).handleEvent(event);
+        break;
+      case 'TRANSACTION_CHECKED':
+        result.result = await new EventHandlerTransactionChecked(context).handleEvent(event);
+        break;
+      case 'TRANSACTION_UPDATED':
+        result.result = await new EventHandlerTransactionUpdated(context).handleEvent(event);
+        break;
+      case 'TRANSACTION_DELETED':
+        result.result = await new EventHandlerTransactionDeleted(context).handleEvent(event);
+        break;
+      case 'TRANSACTION_RESTORED':
+        result.result = await new EventHandlerTransactionRestored(context).handleEvent(event);
+        break;
+      case 'ACCOUNT_CREATED':
+        result.result = await new EventHandlerAccountCreatedOrUpdated(context).handleEvent(event);
+        break;
+      case 'ACCOUNT_UPDATED':
+        result.result = await new EventHandlerAccountCreatedOrUpdated(context).handleEvent(event);
+        break;
+      case 'ACCOUNT_DELETED':
+        result.result = await new EventHandlerAccountDeleted(context).handleEvent(event);
+        break;
+      case 'GROUP_CREATED':
+        result.result = await new EventHandlerGroupCreatedOrUpdated(context).handleEvent(event);
+        break;
+      case 'GROUP_DELETED':
+        result.result = await new EventHandlerGroupDeleted(context).handleEvent(event);
+        break;
+      case 'GROUP_UPDATED':
+        result.result = await new EventHandlerGroupCreatedOrUpdated(context).handleEvent(event);
+        break;
+      case 'GROUP_DELETED':
+        result.result = await new EventHandlerGroupCreatedOrUpdated(context).handleEvent(event);
+        break;
+    }
+
+    console.log(`Result: ${JSON.stringify(result)}`)
+    res.send(response(result))
+
+  } catch (err) {
+    console.error(err);
+    //@ts-ignore
+    res.send(response({ error: err.stack ? err.stack.split("\n") : err }))
+  }
+
+}
+
+function response(result: any): string {
+  const body = JSON.stringify(result, null, 4);
+  return body;
+}
+

@@ -1,0 +1,40 @@
+id: inventory-bot
+name: Inventory Bot
+description: Automatically tracks inventory items in a dedicated Inventory Book, synchronizing with Financial Books to manage purchases, sales, and calculate Cost of Goods Sold (COGS) using the FIFO method
+logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-light.svg
+logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-dark.svg
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-inventory-bot
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+menuUrl: https://script.google.com/macros/s/AKfycbzQEzvupNCQbCDHkN_jLgRoraB1ROZ5gX1W1VQ129Kh3wKvWxA6VmDt7qwy09LGwFBY/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuUrlDev: https://script.google.com/macros/s/AKfycbz7i2sEi2ftvstt-fy1hRJh8N627meMRj_4l2HQb60/dev?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuPopupWidth: 600
+menuPopupHeight: 600
+webhookUrl: https://us-central1-inventory-bot-405017.cloudfunctions.net/prodGen2
+apiVersion: v5
+events:
+  - TRANSACTION_CHECKED
+  - TRANSACTION_UNCHECKED
+  - TRANSACTION_POSTED
+  - TRANSACTION_DELETED
+propertiesSchema:
+  book:
+    keys:
+      - inventory_book
+      - exc_code
+  transaction:
+    keys:
+      - good
+      - quantity
+      - purchase_code
+      - purchase_invoice
+      - sale_invoice
+      - credit_note
+      - order
+  group:
+    keys:
+      - exc_code

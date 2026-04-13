@@ -1,0 +1,55 @@
+id: stock-bot
+name: Portfolio Bot
+description: Automatically manages investment portfolios by tracking stocks, bonds, and other financial instruments on a dedicated portfolio book. Synchronizes transactions, maintains precise quantities, and calculates realized gains/losses using the FIFO method.
+logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/portfolio-agent-light.svg
+logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/portfolio-agent-dark.svg
+website: https://bkper.com/apps/stock-bot
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/stock-bot
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+scriptId: 14dxucr5SCH4th01ndHLdN4HA0civDnVqk4HR9lAfsWaPCr4mOnOZFa_c
+menuUrl: https://script.google.com/macros/s/AKfycbwtsLZgfLUKpXPSQzDjjGMgJEkvwXN5CklmeCHtpEPpXDK66g/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuUrlDev: https://script.google.com/a/bkper.com/macros/s/AKfycbywpzjsUP7qAeDoAt-Jgs-Jc_pRRmxQnPnx1wgWKg/dev?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuPopupWidth: 600
+menuPopupHeight: 600
+webhookUrl: https://us-central1-bkper-stock-bot.cloudfunctions.net/prodGen2
+apiVersion: v5
+events:
+  - TRANSACTION_POSTED
+  - TRANSACTION_CHECKED
+  - TRANSACTION_UNCHECKED
+  - TRANSACTION_UPDATED
+  - TRANSACTION_DELETED
+  - TRANSACTION_RESTORED
+  - ACCOUNT_CREATED
+  - ACCOUNT_UPDATED
+  - ACCOUNT_DELETED
+  - GROUP_CREATED
+  - GROUP_UPDATED
+  - GROUP_DELETED
+  - BOOK_UPDATED
+propertiesSchema:
+  book:
+    keys:
+      - stock_book
+      - stock_historical
+      - stock_fair
+  transaction:
+    keys:
+      - quantity
+      - order
+      - interest
+      - fees
+      - instrument
+      - trade_date
+      - cost_hist
+  group:
+    keys:
+      - stock_exc_code
+  account:
+    keys:
+      - stock_fees_account

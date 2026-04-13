@@ -1,0 +1,41 @@
+id: subledger-bot
+name: Subledger Bot
+description: Automatically connect books in a Ledger-Subledger relationship, synchronizing transactions between parent and child books for consolidated financial reporting.
+logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/subledger-agent-light.svg
+logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/subledger-agent-dark.svg
+website: https://bkper.com/apps/subledger-bot
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/subledger-bot
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+webhookUrl: https://us-central1-bkper-subledger-bot.cloudfunctions.net/prodGen2
+apiVersion: v5
+events:
+  - TRANSACTION_POSTED
+  - TRANSACTION_CHECKED
+  - TRANSACTION_UPDATED
+  - TRANSACTION_DELETED
+  - TRANSACTION_RESTORED
+  - ACCOUNT_CREATED
+  - ACCOUNT_UPDATED
+  - ACCOUNT_DELETED
+  - GROUP_CREATED
+  - GROUP_UPDATED
+  - GROUP_DELETED
+propertiesSchema:
+  book:
+    keys:
+      - parent_book_id
+  group:
+    keys:
+      - child_book_id
+      - parent_account
+  account:
+    keys:
+      - parent_account
+  transaction:
+    keys:
+      - parent_amount

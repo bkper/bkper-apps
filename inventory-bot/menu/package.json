@@ -1,0 +1,25 @@
+{
+  "license": "MIT",
+  "scripts": {
+    "login": "bun --cwd ./server login",
+    "open": "bun --cwd ./server open",
+    "pull": "bun --cwd ./server pull",
+    "upgrade": "bun --cwd ./server/src upgrade",
+    "predev": "bun run login",
+    "dev": "bun run-s prepush build:server watches",
+    "tests": "bun build:server",
+    "prepush": "bun --cwd ../ clasp:store",
+    "build:server": "bun --cwd ./server build",
+    "watches": "bun run-p watch:client watch:server",
+    "watch:client": "watch 'bun --cwd ./client build' ./client/src",
+    "watch:server": "bun --cwd ./server push --watch --force",
+    "patch": "yarn --cwd ./server build && yarn --cwd  ./client build && yarn --cwd  ./server patch",
+    "minor": "yarn --cwd ./server build && yarn --cwd  ./client build && yarn --cwd  ./server minor",
+    "major": "yarn --cwd ./server build && yarn --cwd  ./client build && yarn --cwd  ./server major"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "watch": "^1.0.2",
+    "yarn": "^1.22.22"
+  }
+}

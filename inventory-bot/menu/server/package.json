@@ -1,0 +1,43 @@
+{
+    "name": "inventory-bot-gas",
+    "version": "2.2.3",
+    "license": "MIT",
+    "scripts": {
+        "login": "clasp login",
+        "clean": "rimraf build",
+        "prebuild": "bun install && run-s clean tests",
+        "build": "bun run-s build:*",
+        "build:types": "clasp-types --root ./ --client --src ./src --out ../client/",
+        "tests": "run-s test:*",
+        "test:bundle": "tsc src/helper.ts test/*.ts --skipLibCheck --sourcemap --outFile build/test-bundle.js --module system",
+        "test:run": "mocha --require source-map-support/register build/test-bundle.js",
+        "open": "clasp open",
+        "pull": "clasp pull",
+        "push": "clasp push",
+        "update": "bun run-s update:*",
+        "update:gs": "bun update @bkper/bkper-gs-types --latest",
+        "update:api": "bun update @bkper/bkper-api-types --latest",
+        "update:gas": "bun update @types/google-apps-script --latest",
+        "predeploy": "bun push",
+        "patch": "yarn version --patch --no-git-tag-version",
+        "minor": "yarn version --minor --no-git-tag-version",
+        "major": "yarn version --major --no-git-tag-version",
+        "deploy": "clasp deploy --description $npm_package_version --deploymentId AKfycbzQEzvupNCQbCDHkN_jLgRoraB1ROZ5gX1W1VQ129Kh3wKvWxA6VmDt7qwy09LGwFBY",
+        "postversion": "git add -A && git commit -m \"gas-$npm_package_version\" && git push && bun run deploy && echo \"Successfully released version $npm_package_version!\""
+    },
+    "devDependencies": {
+        "@bkper/bkper-api-types": "^5.32.0",
+        "@bkper/bkper-gs-types": "^3.42.0",
+        "@google/clasp": "^2.3.0",
+        "@types/chai": "^5.0.1",
+        "@types/google-apps-script": "^2.0.8",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "20.0.0",
+        "chai": "^4.2.0",
+        "clasp-types": "^1.3.1",
+        "mocha": "^6.2.0",
+        "npm-run-all": "^4.1.5",
+        "rimraf": "^6.0.1",
+        "source-map-support": "^0.5.21"
+    }
+}

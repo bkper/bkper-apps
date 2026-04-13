@@ -1,0 +1,10 @@
+.DS_Store
+node_modules
+yarn-error.log
+.history
+.env
+tsconfig.tsbuildinfo
+
+/menu/client/@types/
+/menu/client/build/
+/menu/server/src/*.html

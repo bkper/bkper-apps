@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  	<!-- Shoelace -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/themes/light.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/themes/dark.css" />
+
+	<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/shoelace-autoloader.js"></script>
+
+  <link inline href="BotViewStyle.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+  <div class='header'>
+    Cost of goods sold for&nbsp;<strong>
+      <?!= book.name ?>
+    </strong>
+  </div>
+
+  <div class='body'>
+    <div class='sub-header'>
+      Calculate using FIFO method for accounts:
+    </div>
+
+    <div class='accounts-panel'>
+      <ul id='account-list'></ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <sl-button id="calculate-button" variant="default" onclick="calculate()">Calculate</sl-button>
+    <sl-button id="close-button" variant="default" onclick="closeWindow()">Close</sl-button>
+  </div>
+
+  <div class="footer">
+    <sl-button id="reset-button" variant="default" outline size="small" onclick="reset()">Reset</sl-button>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script inline src="../build/BotViewScript.js"></script>
+
+</body>
+
+</html>

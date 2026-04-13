@@ -1,0 +1,389 @@
+
+<html>
+  <header>
+
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+
+    <style>
+      body, div, table td, select {
+        font-family:  Arial, sans-serif !important;
+        font-size: 10pt;
+      }
+
+      .header, .body, .footer{
+        padding: 20px;
+      }
+
+      .body {
+        padding-bottom: 0;
+      }
+
+      .header {
+        font-size: 120%;
+        background-color: #f5f5f5;
+        text-align: center;
+      }
+
+      .sub-header {
+        display: flex;
+        height: 40px;
+        font-size: 14px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #account-list {
+        font-weight: bold;
+        padding-bottom: 10px;
+      }
+
+      .footer, .accounts-panel .account {
+        display: flex;
+        align-items: center;
+      }
+
+      .account {
+        margin: 5px 0;
+      }
+
+      .accounts-panel .account div {
+        padding-right: 5px;
+      }
+
+      .accounts-panel .account div img {
+        height: 12px;
+      }
+
+      .options-panel {
+        padding-top: 10px;
+      }
+      
+      #date-div {
+        display: flex;
+        justify-content: center;
+        padding: 10px;
+        padding-top: 20px;
+      }
+
+      .footer {
+        justify-content: center;
+      }
+
+      #footer-panel a {
+        margin-left: 10px;
+        font-size: 12px;
+        color: grey;
+      }
+
+      .rr-service {
+        display: block;
+      }
+
+      .fd-service {
+        display: none;
+      }
+
+      #error-panel {
+        display: flex;
+        justify-content: center;
+        color: red;
+      }
+
+      .success-icon, .error-icon {
+        margin-right: 5px;
+      }
+
+    </style>
+    
+  </header>
+
+  <body>
+
+    <div class='header'>
+      Realized Results for&nbsp;<strong><?!= book.name ?></strong>
+    </div>
+
+    <div class='body'>
+      <div class='sub-header'>
+        Calculate using FIFO method
+      </div>
+
+      <div class='accounts-panel'>
+        <div id='account-list'>
+          <? if (group.name) { ?>
+            <?!= `Accounts from ${group.name}:` ?>
+          <? } else if (accounts.length == 1) { ?>
+            <?!= `Account:` ?>
+          <? } else { ?>
+            <?!= `Uncalculated accounts:` ?>
+          <? } ?>
+        </div>
+          <? for (var i = 0; i < accounts.length; i++) { ?>
+            <div class='account'>
+              <div><?!= accounts[i].name ?></div>
+              <div id='result-<?!= accounts[i].id ?>'></div>
+            </div>
+          <? } ?>
+      </div>
+
+      <div class='options-panel'>
+        <div id='checkbox-div'>
+          <input type="checkbox" id="autoMtM" name="Perform #mtm valuations?">Perform #mtm valuations?</input>
+        </div>
+        <div id='date-div'>
+          <input type="date" id="forward-date" name="forward-date" value='<?!= dateToday ?>'/>
+        </div>
+      </div>
+    </div>
+
+    <? if (permissionGranted) { ?>
+      <div class="footer" id='footer-panel'>
+        <?!= enableReset ? "<button id='reset-button' class='rr-service' onclick='resetRealizedResults()'>Reset</button>" : "" ?>
+        <?!= enableFullReset ? "<button id='full-reset-button' class='fd-service' onclick='fullResetRealizedResults()'>Full Reset</button>" : "" ?>
+        <button id="forward-date-button" class='fd-service' onclick="setForwardDate()">Forward Date</button>
+        <button id="calculate-button" class='rr-service' onclick="calculateRealizedResults()">Calculate</button>
+        <button id="close-button" onclick="closeWindow()">Close</button>
+        <a id="change-view-link" onclick="changeServiceView()">Set Forward Date</a>
+      </div>
+    <? } ?>
+
+    <div id="error-panel">
+      <? if (!permissionGranted) { ?>
+        <?!= permissionError ?>
+      <? } ?>
+    </div>
+
+  </body>
+
+</html>
+
+
+<script>
+
+  async function calculateRealizedResults() {
+    disableButtons(true);
+    google.script.run
+      .withSuccessHandler(async () => {
+        showAccountsWaiting();
+        await fireCalculateForAll().catch(showError);
+        disableButtons(false);
+      })
+      .withFailureHandler((error) => {
+        showError(error);
+        disableButtons(false);
+      })
+      .validate('<?!= book.id ?>')
+    ;
+  }
+
+  async function resetRealizedResults() {
+    disableButtons(true);
+    google.script.run
+      .withSuccessHandler(async () => {
+        showAccountsWaiting();
+        await fireResetForAll().catch(showError);
+        disableButtons(false);
+      })
+      .withFailureHandler((error) => {
+        showError(error);
+        disableButtons(false);
+      })
+      .validate('<?!= book.id ?>')
+    ;
+  }
+
+  async function fullResetRealizedResults() {
+    disableButtons(true);
+    google.script.run
+      .withSuccessHandler(async () => {
+        showAccountsWaiting();
+        await fireFullResetForAll().catch(showError);
+        disableButtons(false);
+      })
+      .withFailureHandler((error) => {
+        showError(error);
+        disableButtons(false);
+      })
+      .validate('<?!= book.id ?>')
+    ;
+  }
+
+  async function setForwardDate() {
+    disableButtons(true);
+    google.script.run
+      .withSuccessHandler(async () => {
+        showAccountsWaiting();
+        await fireForwardForAll().catch(showError);
+        disableButtons(false);
+      })
+      .withFailureHandler((error) => {
+        showError(error);
+        disableButtons(false);
+      })
+      .validate('<?!= book.id ?>')
+    ;
+  }
+
+  async function fireCalculateForAll() {
+    <? for (var i = 0; i < chunckedAccountsIds.length; i++) { ?>
+      await runChunk('calculateRealizedResults', <?!= chunckedAccountsIds[i] ?>);
+    <? } ?>
+  }
+
+  async function fireResetForAll() {
+    <? for (var i = 0; i < chunckedAccountsIds.length; i++) { ?>
+      await runChunk('resetRealizedResults', <?!= chunckedAccountsIds[i] ?>);
+    <? } ?>
+  }
+
+  async function fireFullResetForAll() {
+    <? for (var i = 0; i < chunckedAccountsIds.length; i++) { ?>
+      await runChunk('fullResetRealizedResults', <?!= chunckedAccountsIds[i] ?>);
+    <? } ?>
+  }
+
+  async function fireForwardForAll() {
+    <? for (var i = 0; i < accounts.length; i++) { ?>
+      await promiseRun('setForwardDate' , '<?!= book.id ?>', '<?!= accounts[i].id ?>', getDateInput()).then(hideAccountWaiting);
+    <? } ?>
+  }
+
+  function runChunk(func) {
+
+    // this is a trick to convert the arguments array into an array, and drop the first one
+    const chunkIds = Array.prototype.slice.call(arguments).slice(1);
+
+    let promises = [];
+    for (var i = 0; i < chunkIds.length; i++) {
+      // Calculate
+      if (func == 'calculateRealizedResults') {
+        promises.push(promiseRun(func , '<?!= book.id ?>', `${chunkIds[i]}`, getAutoMtM(), getDateInput()).then(hideAccountWaiting));
+      // Reset
+      } else if (func == 'resetRealizedResults') {
+        promises.push(promiseRun(func , '<?!= book.id ?>', `${chunkIds[i]}`).then(hideAccountWaiting));
+      // Full reset
+      } else if (func == 'fullResetRealizedResults') {
+        promises.push(promiseRun(func , '<?!= book.id ?>', `${chunkIds[i]}`).then(hideAccountWaiting));
+      }
+    }
+
+    return Promise.all(promises);
+  }
+
+  function promiseRun(func) {
+
+    // this is a trick to convert the arguments array into an array, and drop the first one
+    var runArgs = Array.prototype.slice.call(arguments).slice(1);
+
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler((result) => resolve(result))
+        .withFailureHandler((error) => {
+          let summary = { accountId: runArgs[1], error: true, result: error };
+          resolve(summary);
+        })
+      [func].apply(this, runArgs);
+    })
+
+  }
+
+  function showAccountsWaiting() {
+    <? for (var i = 0; i < accounts.length; i++) { ?>
+      showAccountWaiting('<?!= accounts[i].id ?>');
+    <? } ?>
+  }
+
+  function showAccountWaiting(accountId) {
+    document.getElementById(`result-${accountId}`).innerHTML = `<img src='https://storage.googleapis.com/bkper-public/addons/loading_3dots.gif'/>`;
+  }
+
+  function hideAccountWaiting(summary) {
+    if (summary.error) {
+      document.getElementById(`result-${summary.accountId}`).innerHTML = `<img class='error-icon' src='https://storage.googleapis.com/bkper-public/addons/error.png'>Error:</img>` + ' ' + summary.result;
+    } else {
+      document.getElementById(`result-${summary.accountId}`).innerHTML = `<img class='success-icon' src='https://storage.googleapis.com/bkper-public/addons/check.png'></img>` + summary.result;
+    }
+  }
+
+  function getAutoMtM() {
+    return document.getElementById("autoMtM").checked;
+  }
+
+  function getDateInput() {
+    return document.getElementById("forward-date").value;
+  }
+
+  function disableButtons(disable) {
+    if (disable) {
+      <? if (enableReset) { ?>
+        document.getElementById('reset-button').setAttribute('disabled', true);
+      <? } ?>
+      <? if (enableFullReset) { ?>
+        document.getElementById('full-reset-button').setAttribute('disabled', true);
+      <? } ?>
+      document.getElementById('calculate-button').setAttribute('disabled', true);
+      document.getElementById('close-button').setAttribute('disabled', true);
+      document.getElementById('forward-date').setAttribute('disabled', true);
+      document.getElementById('forward-date-button').setAttribute('disabled', true);
+    } else {
+      <? if (enableReset) { ?>
+        document.getElementById('reset-button').removeAttribute('disabled');
+      <? } ?>
+      <? if (enableFullReset) { ?>
+        document.getElementById('full-reset-button').removeAttribute('disabled');
+      <? } ?>
+      document.getElementById('calculate-button').removeAttribute('disabled');
+      document.getElementById('close-button').removeAttribute('disabled');
+      document.getElementById('forward-date').removeAttribute('disabled');
+      document.getElementById('forward-date-button').removeAttribute('disabled');
+    }
+  }
+
+  function showError(error) {
+    window.alert(error);
+  }
+
+  function closeWindow() {
+    try {
+      // Try to communicate with parent (iframe context)
+      parent.postMessage({ type: 'close' }, '*');
+      // Fallback for standalone usage
+      window.top.close();
+    } catch (error) {
+      console.log("Attempt to automatically close window failed: " + error);
+      showError(error);
+    }
+  }
+
+  function changeServiceView() {
+    let changeViewLink = document.getElementById('change-view-link');
+    if (changeViewLink.innerHTML == 'Set Forward Date') {
+      changeViewLink.innerHTML = 'Calculate RR';
+    } else {
+      changeViewLink.innerHTML = 'Set Forward Date';
+    }
+    let realizedResultsElements = document.getElementsByClassName('rr-service');
+    for (const element of realizedResultsElements) {
+      if (element.style.display == "none") {
+        element.style.display = "block";
+      } else {
+        element.style.display = "none";
+      }
+    }
+    let forwardDateElements = document.getElementsByClassName('fd-service');
+    for (const element of forwardDateElements) {
+      if (!element.style.display || element.style.display == "none") {
+        element.style.display = "block";
+      } else {
+        element.style.display = "none";
+      }
+    }
+    let mtmCheckboxDiv = document.getElementById('checkbox-div');
+    if (mtmCheckboxDiv.style.visibility == "hidden") {
+      mtmCheckboxDiv.style.visibility = "visible";
+    } else {
+      mtmCheckboxDiv.style.visibility = "hidden";
+    }
+  }
+
+</script>

@@ -49,11 +49,12 @@ flowchart LR
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
 ```
 
-| Step | Amount | From | | To | Effect |
+| # | Amount | From | | To | Description |
 |---|---|---|---|---|---|
-| ① You post | **440** | Product `Incoming` | >> | Bank `Asset` | Revenue +440, Bank +440 |
-| ② Bot records | **40** | Output Tax `Liability` | >> | Product `Incoming` | Tax liability +40, Revenue −40 |
-| **Net** | | | | | **Revenue 400, Output Tax 40, Bank +440** |
+| You | **440** | Product `Incoming` | >> | Bank `Asset` | Service sold |
+| Bot | **40** | Output Tax `Liability` | >> | Product `Incoming` | #vatout Service sold |
+
+**Result:** Revenue 400, Output Tax 40, Bank +440
 
 Account properties on the **incoming** account (e.g. *Product*):
 
@@ -75,11 +76,12 @@ flowchart LR
     classDef outgoing fill:#f6deda,stroke:#bf4436,color:#bf4436
 ```
 
-| Step | Amount | From | | To | Effect |
+| # | Amount | From | | To | Description |
 |---|---|---|---|---|---|
-| ① You post | **220** | Bank `Asset` | >> | Expense `Outgoing` | Bank −220, Expense +220 |
-| ② Bot records | **20** | Expense `Outgoing` | >> | Input Tax `Asset` | Expense −20, Tax asset +20 |
-| **Net** | | | | | **Expense 200, Input Tax 20, Bank −220** |
+| You | **220** | Bank `Asset` | >> | Expense `Outgoing` | Supplies purchased |
+| Bot | **20** | Expense `Outgoing` | >> | Input Tax `Asset` | #vatin Supplies purchased |
+
+**Result:** Expense 200, Input Tax 20, Bank −220
 
 Account properties on the **outgoing** account (e.g. *Expense*):
 
@@ -217,10 +219,10 @@ flowchart LR
     classDef liability fill:#fef3d8,stroke:#cc9200,color:#cc9200
 ```
 
-| Step | Amount | From | | To |
+| # | Amount | From | | To |
 |---|---|---|---|---|
-| ① Offset | **50** | Input Tax `Asset` | >> | Output Tax `Liability` |
-| ② Pay remaining | **10** | Bank `Asset` | >> | Output Tax `Liability` |
+| 1 | **50** | Input Tax `Asset` | >> | Output Tax `Liability` |
+| 2 | **10** | Bank `Asset` | >> | Output Tax `Liability` |
 
 After settlement, both Input Tax and Output Tax have zero balance.
 

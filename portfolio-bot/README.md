@@ -12,6 +12,9 @@ flowchart LR
     BOT -->|"track quantities and positions"| INST
 ```
 
+The Portfolio Bot also adds an item to the **More** menu. Open **More > Portfolio Bot** to access operational actions in the book, such as realized results and forward date.
+
+![Portfolio Bot Menu](https://raw.githubusercontent.com/bkper/bkper-apps/main/portfolio-bot/images/more-menu.png)
 
 ## Overview
 

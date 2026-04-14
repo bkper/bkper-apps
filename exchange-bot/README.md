@@ -15,9 +15,9 @@ flowchart LR
 
 The Bkper Exchange Bot must be installed on all books in a Collection. For every transaction in a book within the Collection, it records another transaction on other Books with different currencies in the Collection. 
 
-The Bkper Exchange Bot installation adds a menu item to books to record gains and loss transactions, based on exchange rates variation.
+The Bkper Exchange Bot installation adds an item to the **More** menu. Open **More > Exchange Bot** to access gain/loss updates based on exchange rate variation.
 
-![Exchange Bot Menu](https://docs.google.com/drawings/d/e/2PACX-1vSA-k4mJouFSGPUc8wH2J6o67qKs7jxYkk4VygH-6WA5uwdPAw5k5Jq42MhIvznj0EszPrAlIU_pHXm/pub?w=1200&h=400)
+![Exchange Bot Menu](https://raw.githubusercontent.com/bkper/bkper-apps/main/exchange-bot/images/more-menu.png)
 
 The Bkper Exchange Bot default exchange rates are read at the moment of the gain/loss update from [Open Exchange Rates](https://openexchangerates.org/) Any other exchange rate source url can be used.
 
@@ -69,9 +69,9 @@ exc_code: USD
 
 ### Group Properties
 
-As the rates changes over time, the balances on accounts with different currencies than the book should be adjusted and by gain/loss transactions. The transactions are triggered by an item on menu:
+As the rates changes over time, the balances on accounts with different currencies than the book should be adjusted and by gain/loss transactions. The transactions are triggered from the same **More > Exchange Bot** menu item:
 
-![Exchange Bot Menu](https://docs.google.com/drawings/d/e/2PACX-1vSA-k4mJouFSGPUc8wH2J6o67qKs7jxYkk4VygH-6WA5uwdPAw5k5Jq42MhIvznj0EszPrAlIU_pHXm/pub?w=1200&h=400)
+![Exchange Bot Menu](https://raw.githubusercontent.com/bkper/bkper-apps/main/exchange-bot/images/more-menu.png)
 
 The accounts will be selected by matching the **group names** with exc_code from associated books, or by the ```exc_code``` property set on Groups.
 

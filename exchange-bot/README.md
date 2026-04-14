@@ -2,7 +2,15 @@ The Exchange Bot automatically convert transaction amounts between books using h
 
 It works by mirroring transactions from one book to other books, automatically applying updated conversion rates.
 
-![Exchange Bot](https://docs.google.com/drawings/d/e/2PACX-1vTAW6vvlAPHup58L5mwdiQnUVoSxHbf890GJiHYVkLmzhAc0kaGsb8B721vc1pRFVXp2OWx8rBiACMR/pub?w=949&h=436)
+```mermaid
+flowchart LR
+    EUR["EUR Book"]
+    BOT["Exchange Bot"]
+    USD["USD Book"]
+
+    EUR -->|"mirror transactions"| BOT
+    BOT -->|"record converted transactions"| USD
+```
 
 
 The Bkper Exchange Bot must be installed on all books in a Collection. For every transaction in a book within the Collection, it records another transaction on other Books with different currencies in the Collection. 
@@ -23,7 +31,18 @@ The chart of account (CoA) is synchronized on books in a Collection by the Bkper
 
 The Exchange Bot works by listening for TRANSACTION_CHECKED events in your book, applying exchange rates from the an **exchange rates endpoint** and recording another transaction to the associated books:
 
-![Exchange Bot Flow](https://docs.google.com/drawings/d/e/2PACX-1vSgg3HznU8deJsYNuZx57XvOusDTg-t6MwNIBpF2RuJRMzz-eFY4LhbCP1giOaO1mR3pD3K1gvEIz5i/pub?w=2880&h=1248)
+```mermaid
+sequenceDiagram
+    participant Source as Source Book
+    participant Bot as Exchange Bot
+    participant Rates as Exchange Rates Endpoint
+    participant Target as Connected Book
+
+    Source->>Bot: Transaction checked or posted event
+    Bot->>Rates: Fetch exchange rates
+    Rates-->>Bot: Rates JSON
+    Bot->>Target: Create or update mirrored transaction
+```
 
 The books are associated by its [Collection](https://help.bkper.com/en/articles/4208937-work-with-multiple-books), so a transaction in one book is mirrored on all books of the Collection.
 

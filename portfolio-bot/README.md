@@ -93,6 +93,7 @@ The Portfolio Bot automatically adds properties to transactions in the Portfolio
 
 **As a rule of thumb:** only make edits, updates, deletes on the Financial book and never on the Inventory book.
 
-## Detailed user Guide on Bkper Help center
-[Bkper Portfolio Bot](https://help.bkper.com/en/articles/5388213-bkper-portfolio-bot)   
+## Learn more
+
+- [Structuring Books & Collections](https://bkper.com/docs/guides/accounting-principles/modeling/structuring-books-collections) — how bots connect books for consolidated reporting
 

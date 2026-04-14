@@ -35,5 +35,7 @@ The Subledger bot must be installed in all the Books of the Subledger structure 
 
 - ```child_book_id```: The id of the child book bound to the given group, found on ```bookId``` param of the url.
 
+## Learn more
 
-
+- [Structuring Books & Collections](https://bkper.com/docs/guides/accounting-principles/modeling/structuring-books-collections) — how bots connect books for consolidated reporting
+- [Tracking departments & projects](https://bkper.com/docs/guides/accounting-principles/modeling/tracking-departments-projects) — approaches to segment-level bookkeeping

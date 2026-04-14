@@ -1,100 +1,242 @@
+# Tax Bot
 
-The Tax Bot automatically calculates and records VAT, GST, and other taxes based on transaction amounts, providing real-time visibility into tax receivables and payables. Supports both tax-included and tax-excluded calculations with customizable tax rates configured at account or group level.
+The Tax Bot automatically calculates and records tax entries — VAT, GST, income tax, or any rate-based tax — whenever a transaction is posted in your book. It supports two rate types with rates configured on accounts or groups.
 
-**Taxes** are calculated based on the transaction amount and some properties set in the account or group, specifying the rates to apply.
+Once triggered, the bot records one or more additional transactions representing the tax entries, giving you real-time visibility into tax receivables and payables without manual calculations.
 
-They can be **included** in overall transaction amount, or **excluded** from the transaction amount.
+## How it works
 
-Once the taxes calculated, the Tax Bot will record one or more transactions with the entry for the taxes.
+The Tax Bot listens for the `TRANSACTION_POSTED` event. When a transaction is posted, it checks the properties of both accounts involved. If either account (or its group) has `tax_description` with `tax_included_rate` or `tax_excluded_rate`, the bot calculates the tax and records a new transaction.
 
-<div style="text-align: center;">
-  <img src='https://bkper.com/images/bots/bkper-tax-bot/bkper-tax-bot.gif' alt='Bkper Tax Bot in action'/>
-</div>
+**You post:**
 
-
-### Included tax on sale example
-![Tax on sale example](https://docs.google.com/drawings/d/e/2PACX-1vSwYOxDA3k5U5I_jVsa2qzJOCXDiUWTLet_TY2VMFetrkGOwjKKNCZb6ygfSLz1V-bWrsDixVvSRRvX/pub?w=936&h=488)
-
-
-### Included tax on purchase example
-![Tax on sale example](https://docs.google.com/drawings/d/e/2PACX-1vSQ5qwre1ivZZulAcKPRARYgpDiOyRdJ52LdaImkVPsCiYZOZGqqkUg-k4YgLhR4GHsOjwv7D5eLDQo/pub?w=936&h=488)
-    
-
-The examples use simplified cash basis for easy understanding. You can also set more complex tax flows involving accounts [payable](https://help.bkper.com/en/articles/2569171-accounts-payable) and [receivable](https://help.bkper.com/en/articles/2569170-accounts-receivable) instead of the direct Bank Account.
-
-
-#### Learn more about sales taxes and bots on Bkper:
-
-[Tax Bot quick intro video](https://www.youtube-nocookie.com/embed/HLtw8ODVPwU)
-
-[Bkper bots Installation](https://help.bkper.com/en/articles/3873607-bkper-bots-installation)    
-
-[Sales taxes on Bkper](https://help.bkper.com/en/articles/2569187-sales-taxes-vat)  
-
-
-## Configuration
-
-The Tax Bot is triggered on the ```TRANSACTION_POSTED``` event. Once triggered it will check [group and account properties](https://help.bkper.com/en/articles/3666485-custom-properties-on-books-and-accounts) if it has the ```tax_included_rate``` or ```tax_excluded_rate``` properties. When it finds these properties it will read the corresponding values from your book and apply the Tax Bot's logic. In this case it will calculate the tax and record another transaction with the available data.      
-
-[Learn more...](https://help.bkper.com/en/articles/4127778-bkper-tax-bot).
-
-
-### Accounts and/or Group properties
-
-Set the following account properties on accounts (or group) that should trigger the Tax Bot.    
-
-- ```tax_excluded_rate```: The tax rate to apply, calculating the tax based on the transaction amount.
-- ```tax_included_rate```: The tax rate to apply, extracting the tax already included in the transaction amount.
-- ```tax_description```: The description of the generated transaction
-
-
-Generating addional 7% of income tax:
-```yaml
-tax_excluded_rate: 7
-tax_description: #incometax
+```
+01/07  440.00  Product  >>  Bank  Service sold
 ```
 
-Extracting 12.85% of VAT, already included in the transaction:
-```yaml
-tax_included_rate: 12.85
-tax_description: #vatin
+**The bot records** (assuming `tax_included_rate: 10` on the *Product* account):
+
+```
+01/07   40.00  Output Tax  >>  Product  #vatout Service sold
 ```
 
-#### Expressions
+The tax (40.00) is extracted from the recorded amount, reducing revenue from 440 to 400 and creating a 40 tax liability.
 
-Expressions are like variables that allow you to dynamically use values from the posting event that triggered the Tax Bot, consisting of the **account name** and the **transaction description**. This allows you to complete accounts on the newly recorded transaction by the bot and to have a significant description that links to the original transaction. 
+## Included vs excluded rate
 
-You can add these expressions to the **tax_description** property of the account that has to trigger the tax bot to dynamically generate the new transaction.
+Both rate types extract tax from the recorded amount. The difference is the **formula** used to calculate the tax:
 
-- ```${account.name}```: The account name of the account that triggered the Tax Bot.
-- ```${account.name.origin}```: The account name when participates as origin in the transaction. Empty otherwise.
-- ```${account.name.destinaton}```: The account name when participates as destination in the transaction. Empty otherwise.
-- ```${account.contra.name}```: The contra account name of the account that triggered the Tax Bot.
-- ```${account.contra.name.origin}```: The contra account name when participates as origin in the transaction. Empty otherwise.
-- ```${account.contra.name.destinaton}```: The contra account name when participates as destination in the transaction. Empty otherwise.
-- ```${transaction.description}```: The same description that comes from the posted transaction that triggered the Tax Bot. 
+| Rate type | Formula | Example: rate 10%, amount 110 |
+|---|---|---|
+| `tax_included_rate` | `amount × rate ÷ (100 + rate)` | `110 × 10 ÷ 110 = 10.00` |
+| `tax_excluded_rate` | `amount × rate ÷ 100` | `110 × 10 ÷ 100 = 11.00` |
 
-Example of the account property using these expressions:
-``` yaml
+**Included rate** — the rate is a percentage of the **net** amount. Use when the price already contains tax (common with VAT-inclusive pricing). A 10% included rate on 110 gives 10 of tax and 100 net.
+
+**Excluded rate** — the rate applies directly to the recorded amount. Use when the rate is defined as a percentage of the gross. A 10% excluded rate on 110 gives 11 of tax.
+
+## Tax on sales (included)
+
+You sell a product for 440 (VAT included at 10%). The customer pays 440, of which 400 is revenue and 40 is the government's money passing through you.
+
+```mermaid
+flowchart LR
+    P["Product"]:::incoming -- "440" --> B["Bank"]:::asset
+    OT["Output Tax"]:::liability -- "40" --> P
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef liability fill:#fef3d8,stroke:#cc9200,color:#cc9200
+    classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
+```
+
+| Step | Amount | From | | To | Effect |
+|---|---|---|---|---|---|
+| ① You post | **440** | Product `Incoming` | >> | Bank `Asset` | Revenue +440, Bank +440 |
+| ② Bot records | **40** | Output Tax `Liability` | >> | Product `Incoming` | Tax liability +40, Revenue −40 |
+| **Net** | | | | | **Revenue 400, Output Tax 40, Bank +440** |
+
+Account properties on the **incoming** account (e.g. *Product*):
+
+```yaml
+tax_included_rate: 10
+tax_description: Output Tax ${account.name} #vatout ${transaction.description}
+```
+
+## Tax on purchases (included)
+
+You buy supplies for 220 (VAT included at 10%). You pay 220, of which 200 is your real expense and 20 is a tax credit you reclaim from the government.
+
+```mermaid
+flowchart LR
+    B["Bank"]:::asset -- "220" --> E["Expense"]:::outgoing
+    E -- "20" --> IT["Input Tax"]:::asset
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef outgoing fill:#f6deda,stroke:#bf4436,color:#bf4436
+```
+
+| Step | Amount | From | | To | Effect |
+|---|---|---|---|---|---|
+| ① You post | **220** | Bank `Asset` | >> | Expense `Outgoing` | Bank −220, Expense +220 |
+| ② Bot records | **20** | Expense `Outgoing` | >> | Input Tax `Asset` | Expense −20, Tax asset +20 |
+| **Net** | | | | | **Expense 200, Input Tax 20, Bank −220** |
+
+Account properties on the **outgoing** account (e.g. *Expense*):
+
+```yaml
+tax_included_rate: 10
 tax_description: ${account.name} Input Tax #vatin ${transaction.description}
 ```
 
+## Configuration
 
-### Transaction properties
+<details>
+<summary><strong>Account & Group properties</strong></summary>
 
-- ```tax_round```: The number of decimal digits to round the taxes. This should be lower than the books decimal digits settings.
-- ```tax_included_amount```: The fixed tax amount to override the included taxes calculated based on Group or Account ```tax_included_rate``` definition
-- ```tax_excluded_amount```: The fixed tax amount to override the excluded taxes calculated based on Group or Account ```tax_excluded_rate``` definition
+Set these on accounts or groups that should trigger the Tax Bot. When set on a group, all accounts in that group inherit the tax behavior.
 
-Example:
+| Property | Description |
+|---|---|
+| `tax_excluded_rate` | Tax rate applied directly to the recorded amount: `amount × rate ÷ 100` |
+| `tax_included_rate` | Tax rate extracted using the net formula: `amount × rate ÷ (100 + rate)` |
+| `tax_description` | Description for the generated tax transaction. Supports [expressions](#expressions) to dynamically reference accounts and descriptions |
+
+**Example — 10% included VAT on sales:**
+
+```yaml
+tax_included_rate: 10
+tax_description: Output Tax ${account.name} #vatout ${transaction.description}
+```
+
+**Example — 10% excluded rate:**
+
+```yaml
+tax_excluded_rate: 10
+tax_description: Output Tax ${account.name} #tax ${transaction.description}
+```
+
+> You cannot set both `tax_included_rate` and `tax_excluded_rate` on the same account. To apply multiple tax rates, use [groups](#multiple-taxes-on-one-transaction).
+
+</details>
+
+<details>
+<summary><strong>Transaction properties</strong></summary>
+
+Optional properties to override or fine-tune tax calculations on individual transactions.
+
+| Property | Description |
+|---|---|
+| `tax_round` | Number of decimal digits to round the tax amount. Must be lower than the book's decimal digits setting |
+| `tax_included_amount` | Fixed tax amount to override the calculated included tax |
+| `tax_excluded_amount` | Fixed tax amount to override the calculated excluded tax |
+
+**Example — round tax to 1 decimal:**
+
 ```yaml
 tax_round: 1
 ```
 
-### Book property
+</details>
 
-- ```tax_copy_properties```: The properties the Tax Bot should copy from the source to the generated tax transaction, splitted by space.
+<details>
+<summary><strong>Book properties</strong></summary>
 
+| Property | Description |
+|---|---|
+| `tax_copy_properties` | Space-separated list of property keys to copy from the source transaction to the generated tax transaction |
 
+**Example:**
 
-See the [Sales Taxes article](https://help.bkper.com/en/articles/2569187-sales-taxes-vat) to learn more about included and not included taxes. 
+```yaml
+tax_copy_properties: project department
+```
+
+</details>
+
+## Expressions
+
+<details>
+<summary><strong>Dynamic variables for <code>tax_description</code></strong></summary>
+
+Expressions reference values from the posting event that triggered the Tax Bot. Use them in `tax_description` to dynamically build the accounts and description on the generated tax transaction.
+
+| Expression | Description |
+|---|---|
+| `${account.name}` | The account that triggered the Tax Bot |
+| `${account.name.origin}` | The account name when it participates as the From Account (empty otherwise) |
+| `${account.name.destination}` | The account name when it participates as the To Account (empty otherwise) |
+| `${account.contra.name}` | The contra account of the account that triggered the Tax Bot |
+| `${account.contra.name.origin}` | The contra account name as the From Account (empty otherwise) |
+| `${account.contra.name.destination}` | The contra account name as the To Account (empty otherwise) |
+| `${transaction.description}` | The description from the posted transaction |
+
+**Example:**
+
+```yaml
+tax_description: Output Tax ${account.name} #vatout ${transaction.description}
+```
+
+For a transaction `440.00 Product >> Bank  Service sold` with `tax_included_rate: 10` on the *Product* account, the bot generates:
+
+```
+40.00 Output Tax >> Product #vatout Service sold
+```
+
+Here `${account.name}` resolved to `Product` and `${transaction.description}` resolved to `Service sold`. Bkper parses the result to find the accounts — `Output Tax` as the From account and `Product` as the To account.
+
+</details>
+
+## Advanced
+
+<details>
+<summary><strong>Multiple taxes on one transaction</strong></summary>
+
+A single account can only have one `tax_included_rate` or `tax_excluded_rate`. To apply multiple tax rates (e.g. state + federal) to the same transaction, create separate **groups** — each with its own rate — and add the relevant accounts to both groups.
+
+![Account in two tax groups](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/docs/tax-bot-multiple-groups.png)
+
+For each posted transaction, the Tax Bot records a separate tax entry for each group:
+
+![Two tax transactions from a single posted transaction](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/docs/tax-bot-multiple-results.png)
+
+</details>
+
+<details>
+<summary><strong>Closing a tax period</strong></summary>
+
+At the end of a tax period, close the outstanding Input Tax and Output Tax balances. Offset the credits against the liability, then pay (or reclaim) the difference.
+
+**Example:** Input Tax = 50, Output Tax = 60. You owe 10.
+
+```mermaid
+flowchart LR
+    IT["Input Tax"]:::asset -- "50" --> OT["Output Tax"]:::liability
+    B["Bank"]:::asset -- "10" --> OT
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef liability fill:#fef3d8,stroke:#cc9200,color:#cc9200
+```
+
+| Step | Amount | From | | To |
+|---|---|---|---|---|
+| ① Offset | **50** | Input Tax `Asset` | >> | Output Tax `Liability` |
+| ② Pay remaining | **10** | Bank `Asset` | >> | Output Tax `Liability` |
+
+After settlement, both Input Tax and Output Tax have zero balance.
+
+</details>
+
+<details>
+<summary><strong>Status icons</strong></summary>
+
+| Icon | Meaning |
+|---|---|
+| Blue | Working properly |
+| Red | Error occurred |
+| Absent | Not installed on this book |
+
+</details>
+
+## Learn more
+
+- [Sales Taxes / VAT](https://bkper.com/docs/guides/accounting-principles/fundamentals/sales-taxes-vat) — conceptual guide on recording tax transactions in Bkper

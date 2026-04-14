@@ -89,3 +89,8 @@ To use the Inventory Bot:
 4. **Review results**: The bot provides detailed results of its calculations, showing the cost of goods sold for each account.
 
 5. **Reset if needed**: If you need to recalculate COGS for any reason, you can use the reset function to clear previous calculations and start fresh.
+
+## Learn more
+
+- [Inventory & Depreciation](https://bkper.com/docs/guides/accounting-principles/fundamentals/inventory-depreciation) — conceptual guide on tracking inventory in Bkper
+- [Structuring Books & Collections](https://bkper.com/docs/guides/accounting-principles/modeling/structuring-books-collections) — how bots connect books for consolidated reporting

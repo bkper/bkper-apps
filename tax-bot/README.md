@@ -140,20 +140,7 @@ tax_round: 1
 
 </details>
 
-<details>
-<summary><strong>Book properties</strong></summary>
-
-| Property | Description |
-|---|---|
-| `tax_copy_properties` | Space-separated list of property keys to copy from the source transaction to the generated tax transaction |
-
-**Example:**
-
-```yaml
-tax_copy_properties: project department
-```
-
-</details>
+> Generated tax transactions automatically copy eligible source transaction properties. No book-level property configuration is required.
 
 ## Expressions
 

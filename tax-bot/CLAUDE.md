@@ -29,7 +29,7 @@ The project follows an event-driven architecture:
 The bot uses a property-based configuration system:
 - **Account/Group Properties**: `tax_included_rate`, `tax_excluded_rate`, `tax_description`
 - **Transaction Properties**: `tax_round`, `tax_included_amount`, `tax_excluded_amount`
-- **Book Properties**: `tax_copy_properties`
+- **Generated Tax Transactions**: automatically copy eligible source transaction properties
 
 ## Development Commands
 

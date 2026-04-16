@@ -1,12 +1,27 @@
 # Exchange Bot
 
-The Exchange Bot automatically mirrors transactions across books in different currencies, converting amounts using real-time exchange rates. It also calculates unrealized FX gains and losses, giving you a consolidated multi-currency view without manual replication.
+The Exchange Bot automatically mirrors transactions across books in different currencies, converting amounts using exchange rates for the transaction date. It also calculates unrealized FX gains and losses, giving you a consolidated multi-currency view without manual replication.
 
 Each currency lives in its own book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book in the same [collection](https://bkper.com/docs/core-concepts#collections).
+
+## Setup requirements
+
+Before using the bot:
+
+- Put all participating currency books in the same collection
+- Set `exc_code` on each participating book
+- Install the Exchange Bot on each participating book
+- Keep account names consistent across books — the bot mirrors accounts and groups by name and creates missing ones automatically
 
 ## How it works
 
 The Exchange Bot listens for transaction events across all books in a collection. When a transaction is posted, it fetches the exchange rate for that date and records a converted copy in every other currency book.
+
+It also keeps mirrored data aligned after the initial post:
+
+- checked, updated, deleted, and restored transactions stay synchronized across books
+- account and group creates, updates, and deletions are propagated across books
+- selected book settings and shared Exchange Bot properties are copied across connected books
 
 ```mermaid
 sequenceDiagram
@@ -34,7 +49,7 @@ You sell a product for 1,000 USD. The customer pays into your US bank account. Y
 **The bot records in the EUR book** (at a rate of 0.92):
 
 ```
-15/03    920.00  Product  >>  Deutsche Bank  Invoice #1042
+15/03    920.00  Product  >>  Citi Bank  Invoice #1042
 ```
 
 ```mermaid
@@ -46,14 +61,14 @@ flowchart LR
     USD -. "rate 0.92" .-> EUR
 
     subgraph EUR["EUR Book"]
-        P2["Product"]:::incoming -- "920" --> B2["Deutsche Bank"]:::asset
+        P2["Product"]:::incoming -- "920" --> B2["Citi Bank"]:::asset
     end
 
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
 ```
 
-Both books stay in sync automatically. The chart of accounts is replicated across all books in the collection.
+Both books stay in sync automatically. The chart of accounts is replicated across all books in the collection, using the same account and group names in each book.
 
 ## International wire transfer
 
@@ -94,11 +109,13 @@ Over time, exchange rate fluctuations change the value of balances held in forei
 
 Open any book in the collection and select **More > Exchange Bot**. Set the date and click **Gain/Loss**. The bot adjusts each account's balance to reflect current rates, recording the difference in automatically created exchange accounts (suffixed with **EXC**).
 
+To run Gain/Loss successfully, the user must have access to the related books in the collection, and the collection must not have pending bot tasks or bot errors.
+
 **Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 — a gain of 20.
 
 ```mermaid
 flowchart LR
-    CB["Citi Bank"]:::asset -- "20" --> EXC["Citi Bank EXC"]:::liability
+    EXC["Citi Bank EXC"]:::liability -- "20" --> CB["Citi Bank"]:::asset
 
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
     classDef liability fill:#fef3d8,stroke:#cc9200,color:#cc9200
@@ -106,7 +123,7 @@ flowchart LR
 
 | # | Amount | From | | To | Description |
 |---|---|---|---|---|---|
-| Bot | **20** | Citi Bank `Asset` | >> | Citi Bank EXC `Liability` | Exchange gain |
+| Bot | **20** | Citi Bank EXC `Liability` | >> | Citi Bank `Asset` | `#exchange_gain` |
 
 After the update, the Citi Bank balance in the EUR book reflects the current exchange rate, and the gain is tracked separately in the EXC account.
 
@@ -122,7 +139,7 @@ Set these on each book in the collection.
 | `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`) |
 | `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/) |
 | `exc_on_check` | No | Set to `true` to mirror on CHECK events instead of POST. Default: `false` |
-| `exc_base` | No | Set to `true` to only mirror transactions to books matching the exchange base from accounts |
+| `exc_base` | No | Marks this book as a base book. When at least one base book exists in the collection, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code` |
 | `exc_historical` | No | Set to `true` to consider balances since the beginning of the book. Default: uses balances after the [closing date](https://bkper.com/docs/guides/using-bkper/books) |
 | `exc_aggregate` | No | Set to `true` to use a single `Exchange_XXX` account per currency instead of per-account EXC accounts |
 

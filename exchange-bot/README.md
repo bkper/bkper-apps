@@ -2,26 +2,25 @@
 
 The Exchange Bot automatically mirrors transactions across books in different currencies, converting amounts using exchange rates for the transaction date. It also calculates unrealized FX gains and losses, giving you a consolidated multi-currency view without manual replication.
 
-Each currency lives in its own book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book in the same [collection](https://bkper.com/docs/core-concepts#collections).
-
-## Setup requirements
-
-Before using the bot:
-
-- Put all participating currency books in the same collection
-- Set `exc_code` on each participating book
-- Install the Exchange Bot on each participating book
-- Keep account names consistent across books — the bot mirrors accounts and groups by name and creates missing ones automatically
+Each currency lives in its own book within the same [collection](https://bkper.com/docs/core-concepts#collections), with `exc_code` set on each book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book.
 
 ## How it works
 
 The Exchange Bot listens for transaction events across all books in a collection. When a transaction is posted, it fetches the exchange rate for that date and records a converted copy in every other currency book.
 
-It also keeps mirrored data aligned after the initial post:
+**You post in the USD book:**
 
-- checked, updated, deleted, and restored transactions stay synchronized across books
-- account and group creates, updates, and deletions are propagated across books
-- selected book settings and shared Exchange Bot properties are copied across connected books
+```
+15/03  1,000.00  Product  >>  Citi Bank  Invoice #1042
+```
+
+**The bot records in the EUR book** (at a rate of 0.92):
+
+```
+15/03    920.00  Product  >>  Citi Bank  Invoice #1042
+```
+
+The full amount is mirrored — only the currency changes. The bot also keeps mirrored data aligned after the initial post: updated, deleted, and restored transactions stay synchronized, and account and group changes are propagated across books.
 
 ```mermaid
 sequenceDiagram
@@ -38,19 +37,7 @@ sequenceDiagram
 
 ## Mirroring a transaction
 
-You sell a product for 1,000 USD. The customer pays into your US bank account. You have two books in a collection — one for USD and one for EUR — with `exc_code` set on each.
-
-**You post in the USD book:**
-
-```
-15/03  1,000.00  Product  >>  Citi Bank  Invoice #1042
-```
-
-**The bot records in the EUR book** (at a rate of 0.92):
-
-```
-15/03    920.00  Product  >>  Citi Bank  Invoice #1042
-```
+You sell a product for 1,000 USD. The customer pays into your US bank account. You have two books in a collection — one for USD and one for EUR.
 
 ```mermaid
 flowchart LR
@@ -68,7 +55,24 @@ flowchart LR
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
 ```
 
-Both books stay in sync automatically. The chart of accounts is replicated across all books in the collection, using the same account and group names in each book.
+| # | Amount | From | | To | Description | Book |
+|---|---|---|---|---|---|---|
+| You | **1,000** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 | USD |
+| Bot | **920** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 | EUR |
+
+**Result:** Product 1,000 in USD / 920 in EUR, Citi Bank +1,000 in USD / +920 in EUR
+
+Book properties on each book:
+
+```yaml
+exc_code: USD
+```
+
+```yaml
+exc_code: EUR
+```
+
+The chart of accounts is replicated across all books in the collection, using the same account and group names in each book.
 
 ## International wire transfer
 
@@ -103,13 +107,25 @@ flowchart LR
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
 ```
 
+| # | Amount | From | | To | Description | Book |
+|---|---|---|---|---|---|---|
+| You | **5,000** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer | EUR |
+| Bot | **5,408.75** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer | USD |
+
+**Result:** Bank of Europe −5,000 EUR / −5,408.75 USD, Citi Bank +5,000 EUR / +5,408.75 USD
+
+Transaction properties on the posted transaction:
+
+```yaml
+exc_amount: 5,408.75
+exc_code: USD
+```
+
 ## FX gains and losses
 
 Over time, exchange rate fluctuations change the value of balances held in foreign currencies. The Exchange Bot calculates these unrealized gains and losses on demand.
 
 Open any book in the collection and select **More > Exchange Bot**. Set the date and click **Gain/Loss**. The bot adjusts each account's balance to reflect current rates, recording the difference in automatically created exchange accounts (suffixed with **EXC**).
-
-To run Gain/Loss successfully, the user must have access to the related books in the collection, and the collection must not have pending bot tasks or bot errors.
 
 **Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 — a gain of 20.
 
@@ -125,7 +141,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | Bot | **20** | Citi Bank EXC `Liability` | >> | Citi Bank `Asset` | `#exchange_gain` |
 
-After the update, the Citi Bank balance in the EUR book reflects the current exchange rate, and the gain is tracked separately in the EXC account.
+**Result:** Citi Bank 940, Citi Bank EXC −20
 
 ## Configuration
 

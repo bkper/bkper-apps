@@ -1,149 +1,215 @@
-The Exchange Bot automatically convert transaction amounts between books using historical exchange rates, tracking gains and losses due to currency fluctuations, enabling multi-currency accounting and consolidated financial reporting.
+# Exchange Bot
 
-It works by mirroring transactions from one book to other books, automatically applying updated conversion rates.
+The Exchange Bot automatically mirrors transactions across books in different currencies, converting amounts using real-time exchange rates. It also calculates unrealized FX gains and losses, giving you a consolidated multi-currency view without manual replication.
 
-```mermaid
-flowchart LR
-    EUR["EUR Book"]
-    BOT["Exchange Bot"]
-    USD["USD Book"]
+Each currency lives in its own book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book in the same [collection](https://bkper.com/docs/core-concepts#collections).
 
-    EUR -->|"mirror transactions"| BOT
-    BOT -->|"record converted transactions"| USD
-```
+## How it works
 
-
-The Bkper Exchange Bot must be installed on all books in a Collection. For every transaction in a book within the Collection, it records another transaction on other Books with different currencies in the Collection. 
-
-The Bkper Exchange Bot installation adds an item to the **More** menu. Open **More > Exchange Bot** to access gain/loss updates based on exchange rate variation.
-
-![Exchange Bot Menu](https://raw.githubusercontent.com/bkper/bkper-apps/main/exchange-bot/images/more-menu.png)
-
-The Bkper Exchange Bot default exchange rates are read at the moment of the gain/loss update from [Open Exchange Rates](https://openexchangerates.org/) Any other exchange rate source url can be used.
-
-
-
-The chart of account (CoA) is synchronized on books in a Collection by the Bkper Exchange Bot.
-
-
-
-## Configuration
-
-The Exchange Bot works by listening for TRANSACTION_CHECKED events in your book, applying exchange rates from the an **exchange rates endpoint** and recording another transaction to the associated books:
+The Exchange Bot listens for transaction events across all books in a collection. When a transaction is posted, it fetches the exchange rate for that date and records a converted copy in every other currency book.
 
 ```mermaid
 sequenceDiagram
-    participant Source as Source Book
+    participant Source as USD Book
     participant Bot as Exchange Bot
-    participant Rates as Exchange Rates Endpoint
-    participant Target as Connected Book
+    participant Rates as Exchange Rates
+    participant Target as EUR Book
 
-    Source->>Bot: Transaction checked or posted event
-    Bot->>Rates: Fetch exchange rates
-    Rates-->>Bot: Rates JSON
-    Bot->>Target: Create or update mirrored transaction
+    Source->>Bot: Transaction posted
+    Bot->>Rates: Fetch rate for date
+    Rates-->>Bot: USD/EUR 0.92
+    Bot->>Target: Record converted transaction
 ```
 
-The books are associated by its [Collection](https://help.bkper.com/en/articles/4208937-work-with-multiple-books), so a transaction in one book is mirrored on all books of the Collection.
+## Mirroring a transaction
 
-### Book Properties
+You sell a product for 1,000 USD. The customer pays into your US bank account. You have two books in a collection — one for USD and one for EUR — with `exc_code` set on each.
 
-In order to proper setup the Exchange Bot on your books, some book properties should be set:
+**You post in the USD book:**
 
-- ```exc_code```: Required - The book (currency) exchange code.
-- ```exc_rates_url```: Optional - The rates endpoint url to use. Default: [Open Exchange Rates](https://openexchangerates.org/)
-rate.
-- ```exc_base```: Optional - true/false - Defines a book as a base and only mirror transactions to other books that matches the exchange base from accounts.
-- ```exc_on_check```: Optional - true/false - True only to exchange on CHECK event. Default is false, performing exchange on POST events.
-- ```exc_historical```: Optional - true/false - Defines if exchange updates should consider balances since the beginning of the book's operation. If set to false or not present, updates will consider balances after the book's [closing date](https://help.bkper.com/en/articles/5100445-book-closing-and-lock-dates).
-- ```exc_aggregate```: Optional - true - If set to true, one exchange account named Exchange_XXX will be created for each XXX currency. If not present, each adjusted account will have an associated exchange account with suffix EXC.
+```
+15/03  1,000.00  Product  >>  Citi Bank  Invoice #1042
+```
 
+**The bot records in the EUR book** (at a rate of 0.92):
 
-You can associate multiple books.
+```
+15/03    920.00  Product  >>  Deutsche Bank  Invoice #1042
+```
 
-Example:
+```mermaid
+flowchart LR
+    subgraph USD["USD Book"]
+        P1["Product"]:::incoming -- "1,000" --> B1["Citi Bank"]:::asset
+    end
+
+    USD -. "rate 0.92" .-> EUR
+
+    subgraph EUR["EUR Book"]
+        P2["Product"]:::incoming -- "920" --> B2["Deutsche Bank"]:::asset
+    end
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
+```
+
+Both books stay in sync automatically. The chart of accounts is replicated across all books in the collection.
+
+## International wire transfer
+
+When transferring between currencies, the actual rate often differs from the market rate due to spreads and fees. Use transaction properties to specify the exact converted amount.
+
+**You post in the EUR book:**
+
+```
+20/03  5,000.00  Bank of Europe  >>  Citi Bank  Wire transfer
+exc_amount: 5,408.75
+exc_code: USD
+```
+
+**The bot records in the USD book** (using your specified amount instead of the market rate):
+
+```
+20/03  5,408.75  Bank of Europe  >>  Citi Bank  Wire transfer
+```
+
+```mermaid
+flowchart LR
+    subgraph EUR["EUR Book"]
+        BE1["Bank of Europe"]:::asset -- "5,000" --> CB1["Citi Bank"]:::asset
+    end
+
+    EUR -. "exc_amount: 5,408.75" .-> USD
+
+    subgraph USD["USD Book"]
+        BE2["Bank of Europe"]:::asset -- "5,408.75" --> CB2["Citi Bank"]:::asset
+    end
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+```
+
+## FX gains and losses
+
+Over time, exchange rate fluctuations change the value of balances held in foreign currencies. The Exchange Bot calculates these unrealized gains and losses on demand.
+
+Open any book in the collection and select **More > Exchange Bot**. Set the date and click **Gain/Loss**. The bot adjusts each account's balance to reflect current rates, recording the difference in automatically created exchange accounts (suffixed with **EXC**).
+
+**Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 — a gain of 20.
+
+```mermaid
+flowchart LR
+    CB["Citi Bank"]:::asset -- "20" --> EXC["Citi Bank EXC"]:::liability
+
+    classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef liability fill:#fef3d8,stroke:#cc9200,color:#cc9200
+```
+
+| # | Amount | From | | To | Description |
+|---|---|---|---|---|---|
+| Bot | **20** | Citi Bank `Asset` | >> | Citi Bank EXC `Liability` | Exchange gain |
+
+After the update, the Citi Bank balance in the EUR book reflects the current exchange rate, and the gain is tracked separately in the EXC account.
+
+## Configuration
+
+<details>
+<summary><strong>Book properties</strong></summary>
+
+Set these on each book in the collection.
+
+| Property | Required | Description |
+|---|---|---|
+| `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`) |
+| `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/) |
+| `exc_on_check` | No | Set to `true` to mirror on CHECK events instead of POST. Default: `false` |
+| `exc_base` | No | Set to `true` to only mirror transactions to books matching the exchange base from accounts |
+| `exc_historical` | No | Set to `true` to consider balances since the beginning of the book. Default: uses balances after the [closing date](https://bkper.com/docs/guides/using-bkper/books) |
+| `exc_aggregate` | No | Set to `true` to use a single `Exchange_XXX` account per currency instead of per-account EXC accounts |
+
+**Example:**
+
 ```yaml
 exc_code: USD
 ```
 
+</details>
 
-### Group Properties
+<details>
+<summary><strong>Group properties</strong></summary>
 
-As the rates changes over time, the balances on accounts with different currencies than the book should be adjusted and by gain/loss transactions. The transactions are triggered from the same **More > Exchange Bot** menu item:
+Group properties control which accounts participate in multi-currency mirroring. The bot matches accounts by **group name** against `exc_code` from associated books, or by the `exc_code` property set on the group.
 
-![Exchange Bot Menu](https://raw.githubusercontent.com/bkper/bkper-apps/main/exchange-bot/images/more-menu.png)
+| Property | Description |
+|---|---|
+| `exc_code` | The currency code of the accounts in this group |
+| `exc_account` | Optional — name of the exchange account to use for gain/loss |
 
-The accounts will be selected by matching the **group names** with exc_code from associated books, or by the ```exc_code``` property set on Groups.
+</details>
 
-- ```exc_code```: The (currency) exchange code of the accounts of the group.
-- ```exc_account```: Optional - The name of exchange account to use.
+<details>
+<summary><strong>Account properties</strong></summary>
 
+| Property | Description |
+|---|---|
+| `exc_account` | Optional — name of the exchange account to use for gain/loss |
 
-### Account Properties
+By default, an account with suffix `EXC` is created for each account (e.g. *Citi Bank EXC*). Set `exc_account` on an account or its group to override the default.
 
-- ```exc_account```: Optional - The name of the exchange account to use.
+**Example:**
 
-By default, an account with suffix ```EXC``` will be used for each account. You can change the default account by setting a ```exc_account``` custom property in the account **Account** or **Group**, with the name of the exchange account to use. Example:
 ```yaml
 exc_account: Assets_Exchange
 ```
-The first ```exc_account``` property found will be used, so, make sure to have only one group per account with the property set, to avoid unexpected behavior.
 
+> The first `exc_account` found is used. Avoid setting it on multiple groups for the same account.
 
+</details>
 
-### Transaction Properties
+<details>
+<summary><strong>Transaction properties</strong></summary>
 
-To bypass dynamic rates from the endpoint and force use of fixed amount for a given exc_code, just use the following transaction properties:
+Transaction properties override the fetched exchange rate for a specific transaction — useful for wire transfers where the actual rate differs from the market rate.
 
-- ```exc_code```: The exchange code to override.
-- ```exc_amount```: The amount for that transaction, in the specified exchange code.
+| Property | Description |
+|---|---|
+| `exc_code` | The currency code to override |
+| `exc_amount` | The exact amount in the target currency |
 
-This is specially useful for remitences, when fees and spread will be processed later on gain/loss updates.
+The bot also records these properties on mirrored transactions for traceability:
 
-Some additional properties uses to track converted amounts:
+| Property | Description |
+|---|---|
+| `exc_rate` | The exchange rate used for conversion |
+| `exc_date` | The date used to fetch the rate |
 
-- ```exc_code```: The exchange base code used to convert the transaction.
-- ```exc_rate```: The exchange base rate used to convert the transaction.
+**Example — wire transfer with a known amount:**
 
-
-Example:
 ```yaml
 exc_code: UYU
 exc_amount: 1256.43
 ```
 
-That will generate a transaction in the current book of amount $1000, as well as another transaction on UYU book of $U35790.76.
+</details>
 
-### Exchange rates endpoint
+<details>
+<summary><strong>Custom exchange rates endpoint</strong></summary>
 
-By default, the [Open Exchange Rates](https://openexchangerates.org/) endpoint is used to fetch rates, but any endpoint can be provided, from other third party providers such as [Fixer](https://fixer.io/) or you can build your own. 
+By default, the bot uses [Open Exchange Rates](https://openexchangerates.org/). You can use any provider — [Fixer](https://fixer.io/), a custom service, or your own endpoint.
 
-To change the default endpoint, set the ```exc_rates_url``` book property. 
+Set the `exc_rates_url` book property:
 
-Example:
 ```yaml
 exc_rates_url: https://data.fixer.io/api/${date}?access_key=*****
 ```
 
 **Supported expressions:**
 
-- ```${date}```: The date of transaction in the standard ISO format ```yyyy-mm-dd```.
-- ```${agent}```: The agent for the fetch request. 'app' for Gain/Loss update from menu. 'bot' for transaction post.
+| Expression | Description |
+|---|---|
+| `${date}` | Transaction date in ISO format `yyyy-mm-dd` |
+| `${agent}` | Request source: `app` for menu-triggered, `bot` for transaction-triggered |
 
-
-Despite of which endpoint choosed, the json format returned MUST be:
-
-```typescript
-{
-  base: string;
-  date: string; //yyyy-MM-dd
-  rates: {
-    [key: string]: number;
-  }
-}
-```
-
-Example:
+The endpoint must return JSON in this format:
 
 ```json
 {
@@ -154,11 +220,23 @@ Example:
     "CHF": 1.1798,
     "GBP": 0.87295,
     "SEK": 10.2983,
-    "EUR": 1.092,
-    "USD": 1.2234,
+    "USD": 1.2234
   }
 }
 ```
+
+</details>
+
+<details>
+<summary><strong>Status icons</strong></summary>
+
+| Icon | Meaning |
+|---|---|
+| Blue | Working properly |
+| Red | Error occurred |
+| Absent | Not installed on this book |
+
+</details>
 
 ## Learn more
 

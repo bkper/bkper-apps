@@ -182,11 +182,11 @@ Here `${account.name}` resolved to `Product` and `${transaction.description}` re
 
 A single account can only have one `tax_included_rate` or `tax_excluded_rate`. To apply multiple tax rates (e.g. state + federal) to the same transaction, create separate **groups** — each with its own rate — and add the relevant accounts to both groups.
 
-![Account in two tax groups](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/docs/tax-bot-multiple-groups.png)
+![Account in two tax groups](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/images/tax-bot-multiple-groups.png)
 
 For each posted transaction, the Tax Bot records a separate tax entry for each group:
 
-![Two tax transactions from a single posted transaction](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/docs/tax-bot-multiple-results.png)
+![Two tax transactions from a single posted transaction](https://raw.githubusercontent.com/bkper/bkper-apps/main/tax-bot/images/tax-bot-multiple-results.png)
 
 </details>
 

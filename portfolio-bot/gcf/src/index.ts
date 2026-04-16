@@ -18,6 +18,7 @@ import { EventHandlerTransactionRestored } from './EventHandlerTransactionRestor
 import { EventHandlerAccountCreatedOrUpdated } from './EventHandlerAccountCreatedOrUpdated.js';
 import { EventHandlerAccountDeleted } from './EventHandlerAccountDeleted.js';
 import { EventHandlerGroupCreatedOrUpdated } from './EventHandlerGroupCreatedOrUpdated.js';
+import { EventHandlerGroupDeleted } from './EventHandlerGroupDeleted.js';
 import { EventHandlerBookUpdated } from './EventHandlerBookUpdated.js';
 
 // Ensure env at right location
@@ -99,7 +100,7 @@ async function handleEvent(req: Request, res: Response) {
         result = await new EventHandlerGroupCreatedOrUpdated(context).handleEvent(event);
         break;
       case 'GROUP_DELETED':
-        result = await new EventHandlerGroupCreatedOrUpdated(context).handleEvent(event);
+        result = await new EventHandlerGroupDeleted(context).handleEvent(event);
         break;
       case 'BOOK_UPDATED':
         result = await new EventHandlerBookUpdated(context).handleEvent(event);

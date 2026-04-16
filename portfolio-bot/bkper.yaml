@@ -38,6 +38,8 @@ propertiesSchema:
       - stock_book
       - stock_historical
       - stock_fair
+      - exc_base
+      - exc_aggregate
   transaction:
     keys:
       - quantity
@@ -47,9 +49,13 @@ propertiesSchema:
       - instrument
       - trade_date
       - cost_hist
+      - cost_base
+      - cost_hist_base
   group:
     keys:
       - stock_exc_code
+      - exc_account
   account:
     keys:
       - stock_fees_account
+      - exc_account

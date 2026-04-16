@@ -20,7 +20,7 @@ The Exchange Bot listens for transaction events across all books in a collection
 15/03    920.00  Product  >>  Citi Bank  Invoice #1042
 ```
 
-The full amount is mirrored — only the currency changes. The bot also keeps mirrored data aligned after the initial post: updated, deleted, and restored transactions stay synchronized, and account and group changes are propagated across books.
+The full amount is mirrored — only the currency changes.
 
 ```mermaid
 sequenceDiagram
@@ -73,6 +73,15 @@ exc_code: EUR
 ```
 
 The chart of accounts is replicated across all books in the collection, using the same account and group names in each book.
+
+<details>
+<summary><strong>What stays in sync</strong></summary>
+
+- checked, updated, deleted, and restored transactions stay synchronized across books
+- account and group creates, updates, and deletions are propagated across books
+- selected book settings and shared Exchange Bot properties are copied across connected books
+
+</details>
 
 ## International wire transfer
 

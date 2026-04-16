@@ -125,7 +125,11 @@ exc_code: USD
 
 Over time, exchange rate fluctuations change the value of balances held in foreign currencies. The Exchange Bot calculates these unrealized gains and losses on demand.
 
-Open any book in the collection and select **More > Exchange Bot**. Set the date and click **Gain/Loss**. The bot adjusts each account's balance to reflect current rates, recording the difference in automatically created exchange accounts (suffixed with **EXC**).
+Open any book in the collection and select **More > Exchange Bot**. Choose a date and click **Gain/Loss**. The bot adjusts each account's balance using the selected rates and records the difference in automatically created exchange accounts (suffixed with **EXC**).
+
+In the Gain/Loss view, the bot loads exchange rates for the selected date and displays them as editable fields, so you can adjust them before running the update. If one or more books in the collection are marked with `exc_base`, a single run updates Gain/Loss across all base books. If no base books are configured, the run applies across all connected exchange books.
+
+The action is available only when the user has the required permissions and there are no pending bot tasks or bot errors in the connected books.
 
 **Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 — a gain of 20.
 
@@ -154,7 +158,7 @@ Set these on each book in the collection.
 |---|---|---|
 | `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`) |
 | `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/) |
-| `exc_on_check` | No | Set to `true` to mirror on CHECK events instead of POST. Default: `false` |
+| `exc_on_check` | No | Set to `true` to delay normal mirroring of an unchecked transaction until it is checked. Later transaction events, such as updates, may still synchronize related changes. Default: `false` |
 | `exc_base` | No | Marks this book as a base book. When at least one base book exists in the collection, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code` |
 | `exc_historical` | No | Set to `true` to consider balances since the beginning of the book. Default: uses balances after the [closing date](https://bkper.com/docs/guides/using-bkper/books) |
 | `exc_aggregate` | No | Set to `true` to use a single `Exchange_XXX` account per currency instead of per-account EXC accounts |
@@ -201,25 +205,43 @@ exc_account: Assets_Exchange
 <details>
 <summary><strong>Transaction properties</strong></summary>
 
-Transaction properties override the fetched exchange rate for a specific transaction — useful for wire transfers where the actual rate differs from the market rate.
+Transaction properties can override how the bot determines the converted amount for a specific transaction.
 
 | Property | Description |
 |---|---|
-| `exc_code` | The currency code to override |
-| `exc_amount` | The exact amount in the target currency |
+| `exc_code` | Identifies which target currency the `exc_amount` or `exc_rate` override applies to |
+| `exc_amount` | The exact amount to use in the target currency instead of converting by market rate |
+| `exc_rate` | The exact exchange rate to use instead of fetching one |
+| `exc_date` | Overrides the date used to look up the exchange rate. It must match the book’s date format. It is used during mirroring and is not currently written to mirrored transactions. |
+
+Use these properties when the actual conversion should differ from the default rate lookup — for example, in wire transfers, negotiated conversions, or settlements using a different effective date.
 
 The bot also records these properties on mirrored transactions for traceability:
 
 | Property | Description |
 |---|---|
+| `exc_code` | The reference currency used by the mirrored transaction |
+| `exc_amount` | The original amount from the source transaction |
 | `exc_rate` | The exchange rate used for conversion |
-| `exc_date` | The date used to fetch the rate |
 
-**Example — wire transfer with a known amount:**
+**Example — use a different date for the exchange rate lookup:**
+
+```yaml
+exc_date: 15/03/2026
+```
+
+**Example — wire transfer with a known converted amount:**
 
 ```yaml
 exc_code: UYU
 exc_amount: 1256.43
+```
+
+**Example — wire transfer with a known exchange rate:**
+
+```yaml
+exc_code: USD
+exc_rate: 1.08175
 ```
 
 </details>

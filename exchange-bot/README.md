@@ -20,7 +20,7 @@ The Exchange Bot listens for transaction events across all books in a collection
 15/03    920.00  Product  >>  Citi Bank  Invoice #1042
 ```
 
-The full amount is mirrored — only the currency changes.
+The full amount is mirrored - only the currency changes.
 
 ```mermaid
 sequenceDiagram
@@ -37,7 +37,7 @@ sequenceDiagram
 
 ## Mirroring a transaction
 
-You sell a product for 1,000 USD. The customer pays into your US bank account. You have two books in a collection — one for USD and one for EUR.
+You sell a product for 1,000 USD. The customer pays into your US bank account. You have two books in a collection - one for USD and one for EUR.
 
 ```mermaid
 flowchart LR
@@ -55,10 +55,10 @@ flowchart LR
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
 ```
 
-| # | Amount | From | | To | Description | Book |
+| # | Book | Amount | From | | To | Description |
 |---|---|---|---|---|---|---|
-| You | **1,000** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 | USD |
-| Bot | **920** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 | EUR |
+| You | USD | **1,000** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 |
+| Bot | EUR | **920** | Product `Incoming` | >> | Citi Bank `Asset` | Invoice #1042 |
 
 **Result:** Product 1,000 in USD / 920 in EUR, Citi Bank +1,000 in USD / +920 in EUR
 
@@ -116,12 +116,12 @@ flowchart LR
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
 ```
 
-| # | Amount | From | | To | Description | Book |
+| # | Book | Amount | From | | To | Description |
 |---|---|---|---|---|---|---|
-| You | **5,000** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer | EUR |
-| Bot | **5,408.75** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer | USD |
+| You | EUR | **5,000** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer |
+| Bot | USD | **5,408.75** | Bank of Europe `Asset` | >> | Citi Bank `Asset` | Wire transfer |
 
-**Result:** Bank of Europe −5,000 EUR / −5,408.75 USD, Citi Bank +5,000 EUR / +5,408.75 USD
+**Result:** Bank of Europe -5,000 EUR / -5,408.75 USD, Citi Bank +5,000 EUR / +5,408.75 USD
 
 Transaction properties on the posted transaction:
 
@@ -140,7 +140,7 @@ In the Gain/Loss view, the bot loads exchange rates for the selected date and di
 
 The action is available only when the user has the required permissions and there are no pending bot tasks or bot errors in the connected books.
 
-**Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 — a gain of 20.
+**Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 - a gain of 20.
 
 ```mermaid
 flowchart LR
@@ -154,7 +154,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | Bot | **20** | Citi Bank EXC `Liability` | >> | Citi Bank `Asset` | `#exchange_gain` |
 
-**Result:** Citi Bank 940, Citi Bank EXC −20
+**Result:** Citi Bank 940, Citi Bank EXC -20
 
 ## Configuration
 
@@ -165,8 +165,9 @@ Set these on each book in the collection.
 
 | Property | Required | Description |
 |---|---|---|
-| `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`) |
-| `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/) |
+| `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`). Also accepts the legacy key `exchange_code` |
+| `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/). Also accepts the legacy key `exchange_rates_url` |
+| `exc_rates_cache` | No | Cache duration in seconds for exchange rate responses. Default: `3600` when using Open Exchange Rates, minimum `300` |
 | `exc_on_check` | No | Set to `true` to delay normal mirroring of an unchecked transaction until it is checked. Later transaction events, such as updates, may still synchronize related changes. Default: `false` |
 | `exc_base` | No | Marks this book as a base book. When at least one base book exists in the collection, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code` |
 | `exc_historical` | No | Set to `true` to consider balances since the beginning of the book. Default: uses balances after the [closing date](https://bkper.com/docs/guides/using-bkper/books) |
@@ -188,7 +189,7 @@ Group properties control which accounts participate in multi-currency mirroring.
 | Property | Description |
 |---|---|
 | `exc_code` | The currency code of the accounts in this group |
-| `exc_account` | Optional — name of the exchange account to use for gain/loss |
+| `exc_account` | Optional - name of the exchange account to use for gain/loss |
 
 </details>
 
@@ -197,7 +198,7 @@ Group properties control which accounts participate in multi-currency mirroring.
 
 | Property | Description |
 |---|---|
-| `exc_account` | Optional — name of the exchange account to use for gain/loss |
+| `exc_account` | Optional - name of the exchange account to use for gain/loss |
 
 By default, an account with suffix `EXC` is created for each account (e.g. *Citi Bank EXC*). Set `exc_account` on an account or its group to override the default.
 
@@ -221,9 +222,9 @@ Transaction properties can override how the bot determines the converted amount 
 | `exc_code` | Identifies which target currency the `exc_amount` or `exc_rate` override applies to |
 | `exc_amount` | The exact amount to use in the target currency instead of converting by market rate |
 | `exc_rate` | The exact exchange rate to use instead of fetching one |
-| `exc_date` | Overrides the date used to look up the exchange rate. It must match the book’s date format. It is used during mirroring and is not currently written to mirrored transactions. |
+| `exc_date` | Overrides the date used to look up the exchange rate. Must match the book's date format |
 
-Use these properties when the actual conversion should differ from the default rate lookup — for example, in wire transfers, negotiated conversions, or settlements using a different effective date.
+Use these properties when the actual conversion should differ from the default rate lookup - for example, in wire transfers, negotiated conversions, or settlements using a different effective date.
 
 The bot also records these properties on mirrored transactions for traceability:
 
@@ -233,20 +234,20 @@ The bot also records these properties on mirrored transactions for traceability:
 | `exc_amount` | The original amount from the source transaction |
 | `exc_rate` | The exchange rate used for conversion |
 
-**Example — use a different date for the exchange rate lookup:**
+**Example - use a different date for the exchange rate lookup:**
 
 ```yaml
 exc_date: 15/03/2026
 ```
 
-**Example — wire transfer with a known converted amount:**
+**Example - wire transfer with a known converted amount:**
 
 ```yaml
 exc_code: UYU
 exc_amount: 1256.43
 ```
 
-**Example — wire transfer with a known exchange rate:**
+**Example - wire transfer with a known exchange rate:**
 
 ```yaml
 exc_code: USD
@@ -258,7 +259,7 @@ exc_rate: 1.08175
 <details>
 <summary><strong>Custom exchange rates endpoint</strong></summary>
 
-By default, the bot uses [Open Exchange Rates](https://openexchangerates.org/). You can use any provider — [Fixer](https://fixer.io/), a custom service, or your own endpoint.
+By default, the bot uses [Open Exchange Rates](https://openexchangerates.org/). You can use any provider - [Fixer](https://fixer.io/), a custom service, or your own endpoint.
 
 Set the `exc_rates_url` book property:
 
@@ -302,7 +303,31 @@ The endpoint must return JSON in this format:
 
 </details>
 
+<details>
+<summary><strong>Events handled</strong></summary>
+
+The bot responds to the following Bkper events:
+
+| Event | Behavior |
+|---|---|
+| `TRANSACTION_POSTED` | Mirrors the transaction to all connected currency books. Skipped when `exc_on_check: true` and the transaction is not checked |
+| `TRANSACTION_CHECKED` | Mirrors or updates the transaction on connected books. When the amount has changed due to rate differences, the connected transaction is updated and re-checked |
+| `TRANSACTION_UPDATED` | Updates the mirrored transaction on connected books (amount, accounts, description, properties). Deletes the mirror if the converted amount is zero |
+| `TRANSACTION_DELETED` | Deletes the mirrored transaction on connected books |
+| `TRANSACTION_RESTORED` | Restores the mirrored transaction on connected books |
+| `ACCOUNT_CREATED` | Creates the account on all connected books with the same name, type, groups, and properties |
+| `ACCOUNT_UPDATED` | Updates the account on all connected books |
+| `ACCOUNT_DELETED` | Deletes the account on all connected books |
+| `GROUP_CREATED` | Creates the group on all connected books |
+| `GROUP_UPDATED` | Updates the group on all connected books |
+| `GROUP_DELETED` | Deletes the group on all connected books |
+| `BOOK_UPDATED` | Syncs book settings across connected books: page size, period, lock date, closing date, period start month, `exc_rates_url`, `exc_rates_cache`, `exc_on_check`, `exc_aggregate` |
+
+> The bot skips its own transactions to prevent loops (except for deletions, which are always propagated).
+
+</details>
+
 ## Learn more
 
-- [Multiple currencies](https://bkper.com/docs/guides/accounting-principles/modeling/multiple-currencies) — conceptual guide on multi-currency accounting in Bkper
-- [Structuring Books & Collections](https://bkper.com/docs/guides/accounting-principles/modeling/structuring-books-collections) — how bots connect books for consolidated reporting
+- [Multiple currencies](https://bkper.com/docs/guides/accounting-principles/modeling/multiple-currencies) - conceptual guide on multi-currency accounting in Bkper
+- [Structuring Books & Collections](https://bkper.com/docs/guides/accounting-principles/modeling/structuring-books-collections) - how bots connect books for consolidated reporting

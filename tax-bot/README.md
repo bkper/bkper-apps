@@ -217,17 +217,6 @@ After settlement, both Input Tax and Output Tax have zero balance.
 
 </details>
 
-<details>
-<summary><strong>Status icons</strong></summary>
-
-| Icon | Meaning |
-|---|---|
-| Blue | Working properly |
-| Red | Error occurred |
-| Absent | Not installed on this book |
-
-</details>
-
 ## Learn more
 
 - [Sales Taxes / VAT](https://bkper.com/docs/guides/accounting-principles/fundamentals/sales-taxes-vat) — conceptual guide on recording tax transactions in Bkper

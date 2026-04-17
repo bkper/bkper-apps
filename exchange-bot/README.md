@@ -293,17 +293,6 @@ The endpoint must return JSON in this format:
 </details>
 
 <details>
-<summary><strong>Status icons</strong></summary>
-
-| Icon | Meaning |
-|---|---|
-| Blue | Working properly |
-| Red | Error occurred |
-| Absent | Not installed on this book |
-
-</details>
-
-<details>
 <summary><strong>Events handled</strong></summary>
 
 The bot responds to the following Bkper events:

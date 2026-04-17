@@ -51,32 +51,27 @@ The lifecycle has three main stages:
 
 ```mermaid
 sequenceDiagram
-    actor You
     participant FB as Financial Book
     participant Bot as Portfolio Bot
     participant PB as Portfolio Book
     participant BB as Base Book (optional)
 
-    Note over You,PB: Purchase
-    You->>FB: Post purchase order
+    Note over FB,PB: Purchase
+    FB->>Bot: Purchase order posted
     Bot->>FB: Split into fees + interest + instrument trade
-    You->>FB: ✓ Check instrument trade
+    FB->>Bot: Instrument trade checked
     Bot->>PB: Mirror quantity in (Buy >> GOOG)
 
-    Note over You,PB: Sale
-    You->>FB: Post sale order
+    Note over FB,PB: Sale
+    FB->>Bot: Sale order posted
     Bot->>FB: Split into fees + interest + instrument trade
-    You->>FB: ✓ Check instrument trade
+    FB->>Bot: Instrument trade checked
     Bot->>PB: Mirror quantity out (GOOG >> Sell)
 
-    Note over You,FB: Unrealized valuations
-    You->>FB: Record external MTM adjustments
-
-    Note over You,BB: Realized calculations
-    You->>Bot: Calculate realized results from Portfolio Book
-    Bot->>PB: Match sales to purchases (FIFO)
+    Note over PB,BB: Realized calculations
+    Bot->>PB: Calculate realized results
     Bot->>FB: Record realized result entries
-    Bot->>BB: Record FX result entries when a Base Book is configured
+    Bot->>BB: Record FX result entries
 ```
 
 > The Portfolio Book is bot-managed. Do **not** manually post or edit quantity transactions there. Use the Portfolio Book only to run the Portfolio Bot menu.

@@ -39,19 +39,15 @@ When you **check** a purchase or sale transaction on the Financial Book, the bot
 
 ```mermaid
 sequenceDiagram
-    actor You
     participant FB as Financial Book
     participant Bot as Inventory Bot
     participant IB as Inventory Book
 
-    You->>FB: ✓ Check purchase
-    FB->>Bot: Purchase event
+    FB->>Bot: Purchase checked
     Bot->>IB: Mirror quantity in
-    You->>FB: ✓ Check sale
-    FB->>Bot: Sale event
+    FB->>Bot: Sale checked
     Bot->>IB: Mirror quantity out
-    You->>Bot: Calculate COGS
-    Bot->>IB: Match sales to purchases (FIFO)
+    Bot->>IB: Calculate COGS
     Bot->>FB: Record cost of goods sold
 ```
 

@@ -1,8 +1,25 @@
 import { AccountType, Amount, Book, Transaction } from "bkper-js";
 import { InterceptorOrderProcessorDelete } from "./InterceptorOrderProcessorDelete.js";
 import { Result } from "./index.js";
-import { GOOD_PROP, PURCHASE_CODE_PROP, PURCHASE_INVOICE_PROP, QUANTITY_PROP, COGS_HASHTAG, NEEDS_REBUILD_PROP, ADDITIONAL_COSTS_CREDITS_QUERY_RANGE, ORIGINAL_QUANTITY_PROP } from "./constants.js";
+import { GOOD_PROP, PURCHASE_CODE_PROP, PURCHASE_INVOICE_PROP, QUANTITY_PROP, QUANTITY_SOLD_PROP, COGS_HASHTAG, LEGACY_COGS_HASHTAG, NEEDS_REBUILD_PROP, ADDITIONAL_COSTS_CREDITS_QUERY_RANGE, ORIGINAL_QUANTITY_PROP } from "./constants.js";
 import { AppContext } from "./AppContext.js";
+
+function isBotGeneratedCOGSTransaction(transactionPayload: bkper.Transaction): boolean {
+    if (transactionPayload.agentId != 'inventory-bot') {
+        return false;
+    }
+
+    if (!transactionPayload.remoteIds || transactionPayload.remoteIds.length == 0) {
+        return false;
+    }
+
+    if (transactionPayload.properties?.[QUANTITY_SOLD_PROP] != undefined) {
+        return true;
+    }
+
+    const description = transactionPayload.description ?? '';
+    return description.includes(COGS_HASHTAG) || description.includes(LEGACY_COGS_HASHTAG);
+}
 
 export class InterceptorOrderProcessorDeleteFinancial extends InterceptorOrderProcessorDelete {
 
@@ -79,7 +96,7 @@ export class InterceptorOrderProcessorDeleteFinancial extends InterceptorOrderPr
             }
 
             // deleted transaction is the COGS calculated transaction
-            if (transactionPayload.agentId == 'inventory-bot' && transactionPayload.description?.includes(COGS_HASHTAG)) {
+            if (isBotGeneratedCOGSTransaction(transactionPayload)) {
                 const inventoryBook = this.botService.getInventoryBook(financialBook);
                 if (inventoryBook && transactionPayload.remoteIds) {
                     for (const remoteId of transactionPayload.remoteIds) {

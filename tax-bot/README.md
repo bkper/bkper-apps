@@ -6,7 +6,16 @@ Once triggered, the bot records one or more additional transactions representing
 
 ## How it works
 
-The Tax Bot listens for the `TRANSACTION_POSTED` event. When a transaction is posted, it checks the properties of both accounts involved. If either account (or its group) has `tax_description` with `tax_included_rate` or `tax_excluded_rate`, the bot calculates the tax and records a new transaction.
+The Tax Bot listens for transaction events. When a transaction is posted, updated, restored, or deleted, it checks the properties of both accounts involved. If either account (or its group) has `tax_description` with `tax_included_rate` or `tax_excluded_rate`, the bot calculates the tax and records (or removes) the corresponding tax transactions.
+
+**Supported events:**
+
+| Event | Bot action |
+|---|---|
+| `TRANSACTION_POSTED` | Calculates and creates tax entries |
+| `TRANSACTION_UPDATED` | Deletes old tax entries and recreates them if accounts, amount, date, or tax overrides changed |
+| `TRANSACTION_RESTORED` | Recreates tax entries for the restored transaction |
+| `TRANSACTION_DELETED` | Removes the linked tax entries |
 
 **You post:**
 
@@ -24,16 +33,16 @@ The tax (40.00) is extracted from the recorded amount, reducing revenue from 440
 
 ## Included vs excluded rate
 
-Both rate types extract tax from the recorded amount. The difference is the **formula** used to calculate the tax:
+The difference between the two rate types is the **formula** used to calculate the tax:
 
-| Rate type | Formula | Example: rate 10%, amount 110 |
+| Rate type | Formula | Example |
 |---|---|---|
 | `tax_included_rate` | `amount × rate ÷ (100 + rate)` | `110 × 10 ÷ 110 = 10.00` |
-| `tax_excluded_rate` | `amount × rate ÷ 100` | `110 × 10 ÷ 100 = 11.00` |
+| `tax_excluded_rate` | `netAmount × rate ÷ 100` | `100 × 10 ÷ 100 = 10.00` |
 
 **Included rate** — the rate is a percentage of the **net** amount. Use when the price already contains tax (common with VAT-inclusive pricing). A 10% included rate on 110 gives 10 of tax and 100 net.
 
-**Excluded rate** — the rate applies directly to the recorded amount. Use when the rate is defined as a percentage of the gross. A 10% excluded rate on 110 gives 11 of tax.
+**Excluded rate** — the rate applies to the amount **remaining after included taxes are extracted** (`netAmount`). If no included taxes are present, `netAmount` equals the original recorded amount. A 10% excluded rate on 110 (with no included tax) gives 11 of tax.
 
 ## Tax on sales (included)
 
@@ -99,9 +108,9 @@ Set these on accounts or groups that should trigger the Tax Bot. When set on a g
 
 | Property | Description |
 |---|---|
-| `tax_excluded_rate` | Tax rate applied directly to the recorded amount: `amount × rate ÷ 100` |
+| `tax_excluded_rate` | Tax rate applied to the net amount: `netAmount × rate ÷ 100` |
 | `tax_included_rate` | Tax rate extracted using the net formula: `amount × rate ÷ (100 + rate)` |
-| `tax_description` | Description for the generated tax transaction. Supports [expressions](#expressions) to dynamically reference accounts and descriptions |
+| `tax_description` | Description for the generated tax transaction. Bkper parses the first words as the From account, the next words as the To account, and the remainder as the visible description. Supports [expressions](#expressions). **Required.** |
 
 **Example — 10% included VAT on sales:**
 
@@ -117,7 +126,7 @@ tax_excluded_rate: 10
 tax_description: Output Tax ${account.name} #tax ${transaction.description}
 ```
 
-> You cannot set both `tax_included_rate` and `tax_excluded_rate` on the same account. To apply multiple tax rates, use [groups](#multiple-taxes-on-one-transaction).
+> A single account can have both `tax_included_rate` and `tax_excluded_rate`, producing two separate tax transactions. To apply multiple distinct tax rates (e.g. state + federal), use [groups](#multiple-taxes-on-one-transaction).
 
 </details>
 
@@ -128,9 +137,9 @@ Optional properties to override or fine-tune tax calculations on individual tran
 
 | Property | Description |
 |---|---|
-| `tax_round` | Number of decimal digits to round the tax amount. Must be lower than the book's decimal digits setting |
-| `tax_included_amount` | Fixed tax amount to override the calculated included tax |
-| `tax_excluded_amount` | Fixed tax amount to override the calculated excluded tax |
+| `tax_round` | Number of decimal digits to round the tax amount. Maximum `8`. |
+| `tax_included_amount` | Fixed tax amount to override the calculated included tax. Only applies when the account or group also has `tax_included_rate` (or legacy `tax_rate` > 0). |
+| `tax_excluded_amount` | Fixed tax amount to override the calculated excluded tax. Only applies when the account or group also has `tax_excluded_rate` (or legacy `tax_rate` < 0). |
 
 **Example — round tax to 1 decimal:**
 
@@ -138,9 +147,11 @@ Optional properties to override or fine-tune tax calculations on individual tran
 tax_round: 1
 ```
 
+> When multiple accounts or groups trigger taxes on the same transaction, they all share the same single override value from the transaction properties.
+
 </details>
 
-> Generated tax transactions automatically copy eligible source transaction properties. No book-level property configuration is required.
+> Generated tax transactions automatically copy most source transaction properties, with the exception of `tax_round`, `tax_included_amount`, `tax_excluded_amount`, and exchange-rate fields (`exc_rate`, `exc_amount`), which are excluded or transformed. No book-level property configuration is required.
 
 ## Expressions
 
@@ -165,13 +176,31 @@ Expressions reference values from the posting event that triggered the Tax Bot. 
 tax_description: Output Tax ${account.name} #vatout ${transaction.description}
 ```
 
-For a transaction `440.00 Product >> Bank  Service sold` with `tax_included_rate: 10` on the *Product* account, the bot generates:
+For a transaction `440.00 Product >> Bank  Service sold` with `tax_included_rate: 10` on the *Product* account, the bot generates the description string:
 
 ```
-40.00 Output Tax >> Product #vatout Service sold
+Output Tax Product #vatout Service sold
 ```
 
-Here `${account.name}` resolved to `Product` and `${transaction.description}` resolved to `Service sold`. Bkper parses the result to find the accounts — `Output Tax` as the From account and `Product` as the To account.
+Bkper parses this from left to right — `Output Tax` becomes the From account, `Product` becomes the To account, and `#vatout Service sold` is the visible description.
+
+</details>
+
+## Behavior details
+
+<details>
+<summary><strong>How the bot handles tax entries</strong></summary>
+
+| Behavior | Details |
+|---|---|
+| **Tax amounts always positive** | Tax entries are recorded as positive amounts regardless of the original transaction direction. |
+| **100% included tax limit** | If the sum of all included rates on the accounts/groups involved is ≥ 100%, the bot rejects the transaction with an error. |
+| **Property copying** | Most source transaction properties are copied to tax transactions. `tax_round`, `tax_included_amount`, `tax_excluded_amount`, and exchange-rate props (`exc_rate`, `exc_amount`) are excluded or transformed. |
+| **Exchange properties** | `exc_code` and `exc_date` are copied directly. `exc_rate` and `exc_amount` are recalculated for the tax amount. If the recalculated amount rounds to zero, the exchange rate is removed to avoid mirror exchange transactions. |
+| **Remote ID tracking** | Each tax entry is linked to the source transaction via a remote ID (`{taxProperty}_{transaction.id}_{accountOrGroup.id}`), which the bot uses to find and delete entries later. |
+| **Delete behavior** | When a source transaction is deleted or updated, tax entries are unchecked and moved to trash — not permanently deleted. |
+| **Bot loop prevention** | The bot ignores transactions created by `sales-tax-bot` (itself) and `exchange-bot` to avoid recursive processing. |
+| **Update optimization** | On `TRANSACTION_UPDATED`, the bot skips recalculation if only irrelevant fields changed (e.g., description without amount/account changes). |
 
 </details>
 
@@ -180,7 +209,7 @@ Here `${account.name}` resolved to `Product` and `${transaction.description}` re
 <details>
 <summary><strong>Multiple taxes on one transaction</strong></summary>
 
-A single account can only have one `tax_included_rate` or `tax_excluded_rate`. To apply multiple tax rates (e.g. state + federal) to the same transaction, create separate **groups** — each with its own rate — and add the account to both groups.
+A single account can have both `tax_included_rate` and `tax_excluded_rate`, producing two separate tax transactions. To apply additional distinct tax rates (e.g. state + federal) to the same transaction, create separate **groups** — each with its own rate — and add the account to both groups.
 
 For each posted transaction, the Tax Bot records a separate tax entry per group:
 

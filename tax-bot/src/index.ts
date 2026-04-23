@@ -61,9 +61,6 @@ async function handleEvent(req: Request, res: Response) {
       case 'TRANSACTION_RESTORED':
         result.result = await new EventHandlerTransactionPosted(context).handleEvent(event);
         break;
-      case 'TRANSACTION_RESTORED':
-        result.result = await new EventHandlerTransactionPosted(context).handleEvent(event);
-        break;
       case 'TRANSACTION_UPDATED':
         result.result = await new EventHandlerTransactionUpdated(context).handleEvent(event);
         break;

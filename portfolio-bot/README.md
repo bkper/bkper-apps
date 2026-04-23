@@ -21,7 +21,7 @@ flowchart LR
         B["Bank"]:::asset
         EX["Broker"]:::asset
         GOOG["GOOG"]:::asset
-        GU["GOOG Unrealized"]:::incoming
+        GU["GOOG Unrealized"]:::liability
         GR["GOOG Realized"]:::incoming
         F["Broker Fees"]:::outgoing
         B ~~~ EX ~~~ GOOG ~~~ F
@@ -39,6 +39,7 @@ flowchart LR
     financial <-- "sync & calculate" --> portfolio
 
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
+    classDef liability fill:#fff9e5,stroke:#c7a008,color:#9a7b00
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
     classDef outgoing fill:#f6deda,stroke:#bf4436,color:#bf4436
 ```
@@ -74,6 +75,13 @@ sequenceDiagram
     Bot->>BB: Record FX result entries
 ```
 
+In Bkper, any countable resource can move between accounts. On the Financial Book the resource is **money**; on the Portfolio Book the resource is **quantity** (shares or units). The transaction `amount` on the Portfolio Book is the number of units, while monetary values from the Financial Book are stored as transaction properties.
+
+The bot auto-creates several **support accounts** (Unrealized, Realized, FX, Forwarded, MTM). Their account types affect how Bkper groups aggregate them:
+
+- **Asset / Liability** → permanent balances; mixed groups display as **Equity** (gray).
+- **Incoming / Outgoing** → period activity; mixed groups display as **Net Result**.
+
 > The Portfolio Book is bot-managed. Do **not** manually post or edit quantity transactions there. Use the Portfolio Book only to run the Portfolio Bot menu.
 
 > If the bot auto-creates a new instrument account on a Financial Book, assign that account to a group with `stock_exc_code` **before checking** the instrument trade. Otherwise, the Portfolio Book mirror will be skipped.
@@ -101,6 +109,10 @@ You buy 1 share of GOOG for 165 with no fees. Post the order on the Financial Bo
 |---|---|---|---|---|---|---|
 | Bot | Portfolio | **1** | Buy `Incoming` | >> | GOOG `Asset` | `purchase_price: 165` `original_amount: 165` `stock_exc_code: USD` |
 
+> On the Portfolio Book, the Bkper transaction `amount` is the **quantity in units**. The original monetary amount from the Financial Book is preserved as the `original_amount` property.
+>
+> The bot sets the instrument trade's Bkper `date` to the `trade_date` you provided. The original posting date is preserved as the `settlement_date` property.
+
 The Portfolio Book now shows 1 unit of GOOG. The Financial Book shows 165 in GOOG.
 
 ## Sale
@@ -124,6 +136,8 @@ You sell 1 share of GOOG for 180. Post the order, then check the trade.
 |---|---|---|---|---|---|---|
 | Bot | Portfolio | **1** | GOOG `Asset` | >> | Sell `Outgoing` | `sale_price: 180` `original_amount: 180` `stock_exc_code: USD` |
 
+> As with purchases, the Portfolio Book `amount` is the **quantity in units**; the monetary value is the `original_amount` property.
+
 ## Fees and interest
 
 When the order includes `fees` or `interest`, the bot posts separate transactions for each before the instrument trade.
@@ -131,6 +145,8 @@ When the order includes `fees` or `interest`, the bot posts separate transaction
 - **Fees** go to the account defined by `stock_fees_account` on the broker/exchange account.
 - **Interest** goes to or from `<Instrument> Interest` on the Financial Book.
 - The instrument trade amount excludes explicit interest and reconstructs the trade amount apart from fees.
+
+> The bot auto-creates `<Instrument> Interest` as an **Asset** account. This models accrued interest as a recoverable position (prepaid/receivable), not as period income or expense. If you need it as Incoming/Outgoing, create the account manually before posting the first interest-bearing trade.
 
 **Purchase with fees:**
 
@@ -163,19 +179,21 @@ Regular mark-to-market is usually done **externally** (for example with valuatio
 
 ```mermaid
 flowchart LR
-    U["GOOG Unrealized"]:::incoming -- "gain" --> G["GOOG"]:::asset
+    U["GOOG Unrealized"]:::liability -- "gain" --> G["GOOG"]:::asset
     G -- "loss" --> U
 
     classDef asset fill:#dfedf6,stroke:#3478bc,color:#3478bc
-    classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
+    classDef liability fill:#fff9e5,stroke:#c7a008,color:#9a7b00
 ```
 
 | Scenario | Amount | From | | To | Description |
 |---|---|---|---|---|---|
-| Value went up | **15** | GOOG Unrealized `Incoming` | >> | GOOG `Asset` | `#mtm` |
-| Value went down | **10** | GOOG `Asset` | >> | GOOG Unrealized `Incoming` | `#mtm` |
+| Value went up | **15** | GOOG Unrealized `Liability` | >> | GOOG `Asset` | `#mtm` |
+| Value went down | **10** | GOOG `Asset` | >> | GOOG Unrealized `Liability` | `#mtm` |
 
-The Unrealized accounts should be grouped outside the equity group so they show up as equity increases or decreases in financial statements.
+Unrealized accounts represent **unsettled positions** — you have not actually gained or lost anything until the instrument is liquidated. Conceptually this is a Liability (or contra-Asset), so the bot auto-creates `... Unrealized` accounts as **Liability** by default. If you group a Liability-type `GOOG Unrealized` with Asset accounts, Bkper displays the mixed group balance as **Equity** (gray). If you prefer Unrealized to appear as period activity, create the first `... Unrealized` account manually as **Incoming** before the bot runs.
+
+The bot infers the type for new support accounts by scanning existing accounts with the same suffix in the book and picking the most common type. Because the default starts at Liability, you need **at least two** manually-created Incoming Unrealized accounts before the bot will switch to creating subsequent ones as Incoming.
 
 For instruments with an explicit interest leg, the associated interest accounts (`<Instrument> Interest` / `<Instrument> Interest Unrealized`) follow the same pattern.
 
@@ -192,7 +210,7 @@ These help align processed lots and clear residual interest balances during the 
 
 ### Realized gain/loss
 
-At sale, unrealized gains/losses become realized. Open the Portfolio Book and select **More > Portfolio Bot**. Choose the account(s), set the date, and click **Calculate**.
+At sale, unrealized gains/losses become realized. The bot creates `... Realized` and `... Realized Hist` accounts as **Incoming**, because they represent recognized period activity. Open the Portfolio Book and select **More > Portfolio Bot**. Choose the account(s), set the date, and click **Calculate**.
 
 The bot then:
 
@@ -203,16 +221,17 @@ The bot then:
 
 ```mermaid
 flowchart LR
-    R["GOOG Realized"]:::incoming -- "gain" --> U["GOOG Unrealized"]:::incoming
+    R["GOOG Realized"]:::incoming -- "gain" --> U["GOOG Unrealized"]:::liability
     U -- "loss" --> R
 
     classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
+    classDef liability fill:#fff9e5,stroke:#c7a008,color:#9a7b00
 ```
 
 | Scenario | Amount | From | | To | Description |
 |---|---|---|---|---|---|
-| Gain (sold above cost) | **15** | GOOG Realized `Incoming` | >> | GOOG Unrealized `Incoming` | `#stock_gain` |
-| Loss (sold below cost) | **10** | GOOG Unrealized `Incoming` | >> | GOOG Realized `Incoming` | `#stock_loss` |
+| Gain (sold above cost) | **15** | GOOG Realized `Incoming` | >> | GOOG Unrealized `Liability` | `#stock_gain` |
+| Loss (sold below cost) | **10** | GOOG Unrealized `Liability` | >> | GOOG Realized `Incoming` | `#stock_loss` |
 
 In **Both** mode, the bot also creates historical companion entries using separate historical accounts and hashtags:
 
@@ -232,17 +251,19 @@ When a **Base Book** is explicitly configured with `exc_base: true`, the bot sep
 ```mermaid
 flowchart LR
     subgraph base["Base Book (USD)"]
-        FR["GOOG Realized EXC"]:::incoming -- "fx gain" --> FU["GOOG Unrealized EXC"]:::incoming
+        FR["GOOG Realized EXC"]:::incoming -- "fx gain" --> FU["GOOG Unrealized EXC"]:::liability
         FU -- "fx loss" --> FR
     end
 
-    classDef incoming fill:#e2f3e7,stroke:#228c33,color:#228c33
+    classDef liability fill:#fff9e5,stroke:#c7a008,color:#9a7b00
 ```
 
 | Scenario | Book | Amount | From | | To | Description |
 |---|---|---|---|---|---|---|
-| FX gain | Base | **5** | GOOG Realized EXC `Incoming` | >> | GOOG Unrealized EXC `Incoming` | `#exchange_gain` |
-| FX loss | Base | **3** | GOOG Unrealized EXC `Incoming` | >> | GOOG Realized EXC `Incoming` | `#exchange_loss` |
+| FX gain | Base | **5** | GOOG Realized EXC `Incoming` | >> | GOOG Unrealized EXC `Liability` | `#exchange_gain` |
+| FX loss | Base | **3** | GOOG Unrealized EXC `Liability` | >> | GOOG Realized EXC `Incoming` | `#exchange_loss` |
+
+Unrealized FX accounts (`... Unrealized EXC`) default to **Liability**, just like regular Unrealized accounts. Realized FX accounts (`... Realized EXC`, `Exchange_XXX`) conceptually represent recognized period activity and should be **Incoming**, though the current type-inference behavior may group them together.
 
 In **Both** mode, the bot also creates historical companion FX entries:
 
@@ -284,6 +305,8 @@ Open the Portfolio Book, select the account(s), choose **More > Portfolio Bot**,
 5. stores the new forward state on the account (`forwarded_date`, `forwarded_price`, `forwarded_exc_rate`)
 6. sets a closing date on the Portfolio Book to one day before the forward date once all active accounts share that same forward date
 
+The bot records forwarded results against a `<Instrument> Forwarded` account, which it creates as **Liability** by default.
+
 After forwarding, future FIFO calculations use the forwarded valuation as the new baseline.
 
 ### Forward-date restrictions
@@ -316,7 +339,7 @@ Lowering an already-set forward date is an advanced repair flow and requires:
 | Property | Required | Description |
 |---|---|---|
 | `stock_book` | No | Explicitly marks this book as the Portfolio Book. If omitted, the bot falls back to detecting the Portfolio Book by `0` fraction digits. |
-| `stock_historical` | No | Set to `true` to calculate realized results using only historical cost/rates. |
+| `stock_historical` | No | Set to `true` to calculate realized results using only historical cost/rates. The bot propagates this to the Base Book as `exc_historical`. |
 | `stock_fair` | No | Set to `true` to calculate realized results using only fair/market cost/rates. |
 
 If neither `stock_historical` nor `stock_fair` is set, the bot uses **Both**.
@@ -392,6 +415,15 @@ Transactions representing purchase or sale orders use these properties:
 | `cost_hist_base` | No | Optional historical/base-currency cost override used to derive a specific historical trade exchange rate. |
 
 > `cost_base` and `cost_hist_base` are only useful when a Base Book is explicitly configured with `exc_base: true`.
+>
+> The bot also derives and stores these properties automatically on the instrument trade transaction:
+>
+> - `price` — calculated from the trade amount divided by quantity.
+> - `price_hist` — derived when `cost_hist` is provided in Both mode.
+> - `trade_exc_rate` — derived when `cost_base` is provided.
+> - `trade_exc_rate_hist` — derived when `cost_hist_base` is provided in Both mode.
+> - `settlement_date` — the original posting date, preserved when the transaction date is moved to `trade_date`.
+> - `fees` and `interest` — copied from the original order for reference.
 
 </details>
 
@@ -474,11 +506,11 @@ This is expected behavior. It is also why the Portfolio Book should not be edite
 | Event | Behavior |
 |---|---|
 | `TRANSACTION_POSTED` | Splits purchase/sale orders into fees, interest, and instrument-trade transactions on the Financial Book. Ignores Exchange Bot transactions. |
-| `TRANSACTION_CHECKED` | Mirrors checked instrument-trade quantities to the Portfolio Book (`Buy` / `Sell`). Also flags rebuild when the check affects already-realized history. |
+| `TRANSACTION_CHECKED` | Mirrors checked instrument-trade quantities to the Portfolio Book (`Buy` / `Sell`). Also flags rebuild for any instrument trade dated on or before the account's realized date, or for any manual check/uncheck on the Portfolio Book by a non-bot user. |
 | `TRANSACTION_UPDATED` | Reprocesses derived order splits when core order fields change and updates the linked Portfolio Book quantity transaction when a mirrored record exists. |
 | `TRANSACTION_DELETED` | Cascades linked deletions across Financial, Portfolio, and Base Books as applicable, and flags rebuild when needed. |
 | `TRANSACTION_RESTORED` | Restores linked trashed transactions where a matching remote record exists. |
-| `TRANSACTION_UNCHECKED` | Flags the affected account for rebuild. |
+| `TRANSACTION_UNCHECKED` | Flags the affected account for rebuild whenever a Portfolio Book quantity transaction is manually unchecked by a non-bot user. |
 | `ACCOUNT_CREATED` | Mirrors matching instrument accounts into the Portfolio Book when they belong to a `stock_exc_code` group. |
 | `ACCOUNT_UPDATED` | Updates the mirrored Portfolio Book account metadata. |
 | `ACCOUNT_DELETED` | Removes or archives the mirrored Portfolio Book account depending on whether it already has posted history. |
@@ -500,11 +532,14 @@ The bot automatically adds and maintains properties on Portfolio Book transactio
 
 Common bot-managed keys include:
 
-- pricing / amount state: `purchase_price`, `sale_price`, `purchase_amount`, `sale_amount`, `original_quantity`, `original_amount`
-- historical companions: `gain_amount_hist`, `purchase_price_hist`, `sale_price_hist`
+- pricing / amount state: `purchase_price`, `sale_price`, `purchase_amount`, `sale_amount`, `original_quantity`, `original_amount`, `price`, `price_hist`
+- fees and interest: `fees`, `interest`, `settlement_date`
+- historical companions: `gain_amount`, `gain_amount_hist`, `purchase_price_hist`, `sale_price_hist`
 - FIFO logs: `purchase_log`, `fwd_purchase_log`, `liquidation_log`, `parent_id`, `short_sale`
-- exchange-rate state: `purchase_exc_rate`, `sale_exc_rate`, `trade_exc_rate`, `trade_exc_rate_hist`
-- forward state: `forwarded_date`, `forwarded_price`, `forwarded_exc_rate`, `fwd_purchase_price`, `fwd_sale_price`, `fwd_log`, `fwd_liquidation`
+- exchange-rate state: `purchase_exc_rate`, `sale_exc_rate`, `fwd_purchase_exc_rate`, `fwd_sale_exc_rate`, `trade_exc_rate`, `trade_exc_rate_hist`
+- forward state: `forwarded_date`, `forwarded_price`, `forwarded_exc_rate`, `fwd_purchase_price`, `fwd_sale_price`, `fwd_log`, `fwd_liquidation`, `fwd_purchase_amount`, `fwd_sale_amount`, `fwd_tx`, `fwd_tx_remote_ids`
+- historical preservation: `hist_quantity`, `hist_order`, `date`
+- result metadata: `exc_amount`, `exc_code`
 - control flags: `realized_date`, `needs_rebuild`, `open_quantity`
 
 This list is not exhaustive, but these are the main properties you will see while operating the bot.

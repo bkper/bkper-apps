@@ -4,6 +4,15 @@ The Subledger Bot connects books in a parent–child relationship, automatically
 
 This is useful for dividing work between teams (e.g. one team tracking receivables, another tracking payables) or consolidating subsidiary books into a single parent book.
 
+## Why it works this way
+
+In Bkper, every Book is a self-contained zero-sum ledger. The bot must preserve that invariant when consolidating.
+
+- **Permanent accounts** (Asset and Liability) carry cumulative balances. In a subledger, many individual child accounts (like Customer A, Customer B) can map to a single consolidated parent account (like Accounts Receivable). This is many-to-one consolidation.
+- **Non-permanent accounts** (Incoming and Outgoing) track period activity. Revenue and expense categories must exist on both books with the same meaning, so the bot syncs them one-to-one via `child_book_id`.
+
+This is why the bot supports two different strategies: **many-to-one mapping** for permanent positions, and **one-to-one sync** for activity categories.
+
 ## How it works
 
 The bot listens for events in child books. When a transaction is posted in a child book, the bot records a corresponding transaction in the parent book, mapping child accounts to parent accounts based on configured properties.
@@ -55,10 +64,11 @@ When you post a transaction on a child book, the bot maps child accounts to pare
 05/03  300.00  Service B  >>  Accounts Receivable  Invoice #1042
 ```
 
-The bot resolves each account in three steps:
+The bot resolves each account in four steps:
 1. Check the child account for a `parent_account` property
 2. Check the child account's groups for a `parent_account` property
-3. Fall back to a parent account with the same name
+3. Check if the child account belongs to a group linked to the parent via `child_book_id`; if so, fall back to a parent account with the same name
+4. Fall back to a parent account with the same name
 
 In this example, *Customer A* is in a group with `parent_account: Accounts Receivable`, so it maps to the consolidated account. *Service B* exists on both books (synced via `child_book_id`), so it maps by name.
 
@@ -84,7 +94,7 @@ flowchart LR
 | You | Child | **300.00** | Service B `Incoming` | >> | Customer A `Asset` | Invoice #1042 |
 | Bot | Parent | **300.00** | Service B `Incoming` | >> | Accounts Receivable `Asset` | Invoice #1042 |
 
-The bot preserves the original description and adds `child_from` and `child_to` properties on the parent transaction so you can trace it back to the original child accounts.
+The bot copies all visible properties from the child transaction to the parent, preserves the original description, and adds `child_from` and `child_to` properties so you can trace the original child accounts. When the child transaction is later updated, attached URLs and files are also synced to the parent.
 
 ## Syncing accounts
 
@@ -108,6 +118,19 @@ flowchart RL
 
 This keeps shared account structures in sync without manual duplication. The bot also syncs account updates and deletions.
 
+**What gets copied (parent → child):**
+- Account or group name
+- Account type
+- Visible properties
+- Archived state
+- Group memberships (only for groups linked via `child_book_id`)
+
+The `child_book_id` property itself is not copied to the child book.
+
+**Deletion behavior:**
+- If the synced account has posted transactions on the child book, it is removed.
+- If it has no posted transactions, it is archived instead.
+
 ## Configuration
 
 <details>
@@ -119,7 +142,7 @@ Set on the child book's book properties to establish the parent–child relation
 |---|---|
 | `parent_book_id` | The `bookId` of the parent book. Found in the book URL: `app.bkper.com/b/#transactions:bookId=<id>`. Also accepts the legacy key `parent_book` |
 
-All books in the subledger structure (parent and children) must be part of the same [Collection](https://bkper.com/docs/guides/using-bkper/books). The bot must be installed on all participating books.
+All books in the subledger structure (parent and children) must be part of the same [Collection](https://bkper.com/docs/guides/using-bkper/books) so the bot has permission to read and write across both books. The bot must be installed on all participating books.
 
 ```yaml
 parent_book_id: agtzfmJrcGVyLWhyZBcLEgpHbHhBY291bnQY
@@ -140,12 +163,19 @@ Set on accounts or groups in the child book to define how they map to the parent
 
 ```yaml
 # Group: Accounts Receivable (child book)
-parent_account: Accounts Receivable A
+parent_account: Accounts Receivable
 ```
 
-All transactions involving Customer A, Customer B, etc. are recorded on the parent using `Accounts Receivable A`. If the parent account doesn't exist yet, the bot creates it automatically.
+All transactions involving Customer A, Customer B, etc. are recorded on the parent using `Accounts Receivable`. If the parent account doesn't exist yet, the bot creates it automatically.
 
-> When `parent_account` is not set, the bot looks for a parent account with the same name as the child account. If neither account can be resolved on the parent, the transaction is created as a draft for manual resolution.
+> **Auto-creation only works when `parent_account` is set on a group.** When set directly on an individual child account, the bot looks up the parent account but does not create it — the parent transaction is saved as a draft if the account is missing.
+
+> When `parent_account` is not set, the bot looks for a parent account with the same name as the child account. If neither account can be resolved on the parent, the transaction is created as a draft for manual resolution. Draft transactions are incomplete and do not affect balances; you can review them in the parent book, fix the missing account mapping, and post them manually.
+
+> **Group events on the child book are also handled.** If a child group has the `parent_account` property, the bot treats group events as instructions to manage the corresponding parent account:
+> - `GROUP_CREATED` on the child → creates the parent account
+> - `GROUP_UPDATED` on the child → updates the parent account name and type
+> - `GROUP_DELETED` on the child → deletes or archives the parent account
 
 </details>
 
@@ -191,16 +221,16 @@ child_book_id: agtzfmJrcGVyLWhyZBcLEgpHbHhBY291bnQY
 <details>
 <summary><strong>Permanent accounts — many-to-one consolidation</strong></summary>
 
-The child book has individual customer accounts grouped under *Accounts Receivable* with `parent_account: Accounts Receivable A`. The parent book has a single *Accounts Receivable A* account.
+The child book has individual customer accounts grouped under *Accounts Receivable* with `parent_account: Accounts Receivable`. The parent book has a single *Accounts Receivable* account.
 
 | # | Book | Amount | From | | To |
 |---|---|---|---|---|---|
 | You | Child | **200.00** | Service A `Incoming` | >> | Customer A `Asset` |
-| Bot | Parent | **200.00** | Service A `Incoming` | >> | Accounts Receivable A `Asset` |
+| Bot | Parent | **200.00** | Service A `Incoming` | >> | Accounts Receivable `Asset` |
 | You | Child | **300.00** | Service B `Incoming` | >> | Customer A `Asset` |
-| Bot | Parent | **300.00** | Service B `Incoming` | >> | Accounts Receivable A `Asset` |
+| Bot | Parent | **300.00** | Service B `Incoming` | >> | Accounts Receivable `Asset` |
 
-**Result:** Child book shows 500.00 receivable from Customer A. Parent book shows 500.00 in Accounts Receivable A — consolidated from all customers.
+**Result:** Child book shows 500.00 receivable from Customer A. Parent book shows 500.00 in Accounts Receivable — consolidated from all customers.
 
 The parent transactions include `child_from` and `child_to` properties for traceability.
 
@@ -241,17 +271,20 @@ The bot responds to the following Bkper events:
 
 | Event | Direction | Behavior |
 |---|---|---|
-| `TRANSACTION_POSTED` | Child → Parent | Records corresponding transaction on parent |
-| `TRANSACTION_CHECKED` | Child → Parent | Checks the corresponding transaction on parent |
-| `TRANSACTION_UPDATED` | Child → Parent | Updates the corresponding transaction on parent |
-| `TRANSACTION_DELETED` | Child → Parent | Deletes the corresponding transaction on parent |
-| `TRANSACTION_RESTORED` | Child → Parent | Restores the corresponding transaction on parent |
-| `ACCOUNT_CREATED` | Parent → Child | Creates account on child (via `child_book_id` group) |
-| `ACCOUNT_UPDATED` | Parent → Child | Updates account on child |
-| `ACCOUNT_DELETED` | Parent → Child | Deletes account on child |
-| `GROUP_CREATED` | Parent → Child | Creates group on child |
-| `GROUP_UPDATED` | Parent → Child | Updates group on child |
-| `GROUP_DELETED` | Parent → Child | Deletes group on child |
+| `TRANSACTION_POSTED` | Child → Parent | Creates parent transaction. Posts it if both accounts resolve; otherwise saves as draft. |
+| `TRANSACTION_CHECKED` | Child → Parent | If parent transaction exists: checks it (posting first if needed). If missing: creates, posts, and checks it. |
+| `TRANSACTION_UPDATED` | Child → Parent | **Only if parent transaction exists.** Unchecks it first, then updates amount, accounts, description, properties, URLs, and files. |
+| `TRANSACTION_DELETED` | Child → Parent | Unchecks if needed, then trashes the parent transaction. |
+| `TRANSACTION_RESTORED` | Child → Parent | Untrashes the parent transaction. |
+| `ACCOUNT_CREATED` | Parent → Child | Creates account on child (via `child_book_id` group). |
+| `ACCOUNT_UPDATED` | Parent → Child | Updates account on child. |
+| `ACCOUNT_DELETED` | Parent → Child | Deletes or archives account on child (archives if no posted transactions). |
+| `GROUP_CREATED` | Parent → Child | Creates group on child. |
+| `GROUP_UPDATED` | Parent → Child | Updates group on child. |
+| `GROUP_DELETED` | Parent → Child | Deletes group on child. |
+| `GROUP_CREATED` | Child → Parent | If child group has `parent_account`, creates the corresponding parent account. |
+| `GROUP_UPDATED` | Child → Parent | If child group has `parent_account`, updates the corresponding parent account. |
+| `GROUP_DELETED` | Child → Parent | If child group has `parent_account`, deletes or archives the corresponding parent account. |
 
 > Transactions originating from the Exchange Bot are automatically skipped to avoid duplication.
 

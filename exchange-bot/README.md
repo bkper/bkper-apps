@@ -2,7 +2,7 @@
 
 The Exchange Bot automatically mirrors transactions across books in different currencies, converting amounts using exchange rates for the transaction date. It also calculates unrealized FX gains and losses, giving you a consolidated multi-currency view without manual replication.
 
-Each currency lives in its own book within the same [collection](https://bkper.com/docs/core-concepts#collections), with `exc_code` set on each book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book.
+Each currency lives in its own book within the same [collection](https://bkper.com/docs/core-concepts#collections), with `exc_code` set on each book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book — unless your collection uses base books (see `exc_base` below). When base books exist, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code`.
 
 ## How it works
 
@@ -80,6 +80,7 @@ The chart of accounts is replicated across all books in the collection, using th
 - checked, updated, deleted, and restored transactions stay synchronized across books
 - account and group creates, updates, and deletions are propagated across books
 - selected book settings and shared Exchange Bot properties are copied across connected books
+- missing accounts are automatically created when mirroring a transaction if they do not yet exist in the target book
 
 </details>
 
@@ -136,7 +137,9 @@ Over time, exchange rate fluctuations change the value of balances held in forei
 
 Open any book in the collection and select **More > Exchange Bot**. Choose a date and click **Gain/Loss**. The bot adjusts each account's balance using the selected rates and records the difference in automatically created exchange accounts (suffixed with **EXC**).
 
-In the Gain/Loss view, the bot loads exchange rates for the selected date and displays them as editable fields, so you can adjust them before running the update. If one or more books in the collection are marked with `exc_base`, a single run updates Gain/Loss across all base books. If no base books are configured, the run applies across all connected exchange books.
+In the Gain/Loss view, the bot loads exchange rates for the selected date and displays them as editable fields, so you can adjust them before running the update. If one or more books in the collection are marked with `exc_base`, clicking Gain/Loss updates all base books. If no base books are configured, the update applies across all connected exchange books.
+
+By default, the bot creates a separate exchange account per account (suffixed with **EXC**). When a book has `exc_aggregate: true`, it uses a single `Exchange_XXX` account per foreign currency instead.
 
 The action is available only when the user has the required permissions and there are no pending bot tasks or bot errors in the connected books.
 
@@ -190,6 +193,7 @@ Group properties control which accounts participate in multi-currency mirroring.
 |---|---|
 | `exc_code` | The currency code of the accounts in this group |
 | `exc_account` | Optional - name of the exchange account to use for gain/loss |
+| `stock_exc_code` | Set to any value to indicate stock accounts. Changes the gain/loss account name from `{Account} EXC` to `{Account} Unrealized EXC` |
 
 </details>
 
@@ -220,9 +224,9 @@ Transaction properties can override how the bot determines the converted amount 
 | Property | Description |
 |---|---|
 | `exc_code` | Identifies which target currency the `exc_amount` or `exc_rate` override applies to |
-| `exc_amount` | The exact amount to use in the target currency instead of converting by market rate |
-| `exc_rate` | The exact exchange rate to use instead of fetching one |
-| `exc_date` | Overrides the date used to look up the exchange rate. Must match the book's date format |
+| `exc_amount` | The exact amount to use in the target currency instead of converting by market rate. Only applies when `exc_code` matches the target book or the transaction accounts match that book's currency |
+| `exc_rate` | The exact exchange rate to use instead of fetching one. Also honored when mirroring to a base book, even if `exc_code` is omitted or does not match |
+| `exc_date` | Overrides the date used to look up the exchange rate. Must match the book's date format. Future dates are silently clamped to today |
 
 Use these properties when the actual conversion should differ from the default rate lookup - for example, in wire transfers, negotiated conversions, or settlements using a different effective date.
 
@@ -253,6 +257,16 @@ exc_amount: 1256.43
 exc_code: USD
 exc_rate: 1.08175
 ```
+
+**Implicit amount override via description**
+
+As a convenience, the bot also scans the transaction description for a token starting with the target currency code. If you include the converted amount directly in the description, the bot uses it automatically.
+
+```
+20/03  5,000.00  Bank of Europe  >>  Citi Bank  Wire to USD5408.75
+```
+
+When mirroring to the USD book, the bot uses **5408.75** instead of the market rate. The token is replaced in the mirrored description with the source amount and currency (e.g. `EUR5000`).
 
 </details>
 
@@ -299,7 +313,7 @@ The bot responds to the following Bkper events:
 
 | Event | Behavior |
 |---|---|
-| `TRANSACTION_POSTED` | Mirrors the transaction to all connected currency books. Skipped when `exc_on_check: true` and the transaction is not checked |
+| `TRANSACTION_POSTED` | Mirrors the transaction to connected currency books (filtered by base-book rules when `exc_base` is used). Skipped when `exc_on_check: true` and the transaction is not checked |
 | `TRANSACTION_CHECKED` | Mirrors or updates the transaction on connected books. When the amount has changed due to rate differences, the connected transaction is updated and re-checked |
 | `TRANSACTION_UPDATED` | Updates the mirrored transaction on connected books (amount, accounts, description, properties). Deletes the mirror if the converted amount is zero |
 | `TRANSACTION_DELETED` | Deletes the mirrored transaction on connected books |

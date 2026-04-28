@@ -9,7 +9,8 @@ website: https://files.bkper.app
 ownerName: Bkper
 ownerWebsite: https://bkper.com
 
-developers: '*@bkper.com'
+developers: mael *@bkper.com
+users: mael *@bkper.com
 
 deployment:
   web:

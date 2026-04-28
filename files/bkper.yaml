@@ -1,0 +1,10 @@
+id: files
+name: Files
+description: Simple raw file preview for Bkper books
+developers: someuser *@yoursite.com
+users: someuser *@yoursite.com
+deployment:
+  web:
+    main: packages/web/server/src/index.ts
+    client: packages/web/client
+  compatibility_date: '2026-01-28'

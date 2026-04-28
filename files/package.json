@@ -1,0 +1,27 @@
+{
+  "name": "files",
+  "private": true,
+  "workspaces": [
+    "packages/web/client",
+    "packages/web/server"
+  ],
+  "scripts": {
+    "clean": "bun run --filter \"./packages/**\" clean && rm -rf node_modules dist",
+    "predev": "bun install",
+    "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8788\"",
+    "dev:client": "vite dev",
+    "dev:server": "bkper app dev --web --sp 8788",
+    "dev:events": "bkper app dev --events",
+    "prebuild": "bun install",
+    "build": "vite build && bkper app build",
+    "deploy": "npm run build && bkper app deploy",
+    "deploy:preview": "npm run build && bkper app deploy --preview"
+  },
+  "devDependencies": {
+    "bkper": "^4",
+    "concurrently": "^9",
+    "miniflare": "^4",
+    "prettier": "^3",
+    "vite": "^7"
+  }
+}

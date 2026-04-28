@@ -1,182 +1,60 @@
-# My Bkper App
+# Files
 
 ## Overview
 
-A Bkper app that demonstrates the platform's core patterns:
+A minimal Bkper app that previews book files directly in the browser.
 
--   **Client**: Book picker + accounts list with balances (bkper-js + bkper-auth)
--   **Events**: Creates a 20% draft transaction on TRANSACTION_CHECKED
--   **Server**: Minimal Hono server (add API routes as needed)
+## What this app does
 
-## Tech Stack
+Given a URL like `/books/{bookId}/files/{fileId}/{fileName}`:
 
--   Cloudflare Workers for Platforms
--   Hono (web framework)
--   Lit + @bkper/web-design (UI)
--   bkper-js (Bkper SDK)
+1. The **server** (Hono on Cloudflare Workers) serves `index.html` for all `/books/*` routes (SPA fallback).
+2. The **client** (vanilla TypeScript + bkper-js):
+   - Authenticates via `@bkper/web-auth`
+   - Parses `bookId`, `fileId`, and `fileName` from the URL path
+   - Fetches the file via `book.getFile(fileId)` then `file.getContent()` (base64)
+   - Decodes base64 into a Blob, creates a blob URL
+   - Renders the file inline (image, PDF, text, or generic iframe)
+   - Adds a floating **Download** button with the URL filename
 
-## Authentication
-
-This app uses pre-configured OAuth. Do not implement custom OAuth flows, redirect handling, or token refresh.
-
-| Context | Pattern | Location |
-| --- | --- | --- |
-| **Web client** | `@bkper/web-auth` → `auth.getAccessToken()` → `bkper-js` | `packages/web/client/src/components/my-app.ts` |
-| **Event handlers** | `bkper-oauth-token` header → `oauthTokenProvider` | `packages/events/src/index.ts` |
-| **Local dev** | Vite auth middleware uses your CLI credentials (`bkper auth login`) | `vite.config.ts` |
-
-Before starting development:
-
-```bash
-bkper auth login   # one-time setup
-```
-
-## Structure
+## Architecture
 
 ```
 packages/
-├── shared/     — Shared types and utilities
-├── web/
-│   ├── client/ — Frontend UI (Vite + Lit)
-│   └── server/ — Backend API (Hono)
-└── events/     — Event handler (webhooks)
+└── web/
+    ├── client/           # File preview UI
+    │   ├── index.html
+    │   ├── src/index.ts
+    │   └── public/images/logo-light.svg
+    │   └── public/images/logo-dark.svg
+    └── server/           # SPA fallback for /books/* routes
+        └── src/index.ts
 ```
 
-## Development Workflow
+There is **no events package**, **no shared package**, and **no KV usage**.
 
-### Starting Development
+## Key patterns
+
+- **Do not use `file.getUrl()`** — that URL points back to this app. We fetch raw base64 content via `file.getContent()` and render it as a blob URL.
+- **No custom OAuth** — `@bkper/web-auth` handles everything.
+- **No server-side API routes** — the server only does SPA fallback.
+
+## Development
 
 ```bash
-# Install dependencies
 bun install
-
-# Start development
-npm run dev
+bun run dev
 ```
 
-This runs two processes concurrently:
+- Vite client: `http://localhost:5174`
+- Miniflare worker: `http://localhost:8788`
 
--   **`vite dev`** — Client dev server with hot module replacement, configured in `vite.config.ts`
--   **`bkper app dev`** — Miniflare (Workers runtime), esbuild file watching for server/events, and a Cloudflared tunnel for event webhooks
-
-You can also run them independently:
+## Build & Deploy
 
 ```bash
-npm run dev:client   # Vite client dev server only
-npm run dev:server   # Worker runtime (web handler only)
-npm run dev:events   # Worker runtime (events handler only)
-```
-
-### Building for Deployment
-
-```bash
-npm run build
-```
-
-This runs two build steps:
-
--   Vite client build → `dist/web/client/`
--   esbuild worker bundles → `dist/web/server/` and `dist/events/`
-
-### Deploying
-
-Sync and deploy are separate operations:
-
-```bash
-# Sync app metadata (listing, urls, etc.)
-bkper app sync
-
-# Deploy code to Bkper Platform
-bkper app deploy
-
-# Deploy to development environment
-bkper app deploy --preview
-
-# Typical workflow: build, sync URLs, then deploy code
 npm run build && bkper app sync && bkper app deploy
 ```
 
-### Configuration
+## Config
 
-The `bkper.yaml` file is the single source of truth:
-
-```yaml
-deployment:
-    web:
-        main: packages/web/server/src/index.ts # Worker entry point
-        client: packages/web/client # Vite project root
-    events:
-        main: packages/events/src/index.ts # Events handler entry point
-    services:
-        - KV # Cloudflare KV enabled
-    secrets:
-        # Add secrets your app needs (e.g. EXTERNAL_SERVICE_TOKEN)
-    compatibility_date: '2026-01-29' # Workers runtime version
-```
-
-### Local Secrets
-
-1. Copy `.dev.vars.example` to `.dev.vars`
-2. Add your local development values
-3. `.dev.vars` is gitignored
-
-### Generated Files
-
--   `env.d.ts` - TypeScript types for the Worker environment (auto-generated, versioned)
--   `.dev.vars.example` - Template for local secrets (versioned)
-
-## Key URLs
-
-| Environment | Web Handler              | Events Handler                              |
-| ----------- | ------------------------ | ------------------------------------------- |
-| Development | `http://localhost:8787`  | `https://<random>.trycloudflare.com/events` |
-| Production  | `https://{id}.bkper.app` | `https://{id}.bkper.app/events`             |
-
-## Common Tasks
-
-### Adding a New Event Handler
-
-1. Add the event type to `bkper.yaml` under `events:`
-2. Add a case in `packages/events/src/index.ts`
-3. Create handler in `packages/events/src/handlers/`
-4. Trigger the event in Bkper to test
-
-### Adding a New API Route
-
-1. Add the route in `packages/web/server/src/index.ts`
-2. The dev server hot-reloads automatically
-
-### Sharing Code Between Web and Events
-
-Put shared code in `packages/shared/src/` and import from `@my-app/shared`.
-
-### Adding Secrets
-
-1. Add the secret name to `bkper.yaml` under `deployment.secrets:`
-2. Run `npm run build` to regenerate `env.d.ts`
-3. Set the secret value: `bkper app secrets put SECRET_NAME`
-4. For local dev, add to `.dev.vars`
-
-### KV Storage
-
-Cloudflare KV is available for caching and state. Access via the `KV` binding.
-
-```typescript
-// Read
-const value = await c.env.KV.get('my-key');
-
-// Write with TTL
-await c.env.KV.put('my-key', 'value', { expirationTtl: 3600 });
-```
-
-See [Cloudflare KV documentation](https://developers.cloudflare.com/kv/) for more usage patterns.
-
-## Key Files to Modify
-
-| Task              | File                                           |
-| ----------------- | ---------------------------------------------- |
-| Add UI features   | `packages/web/client/src/components/my-app.ts` |
-| Add API endpoints | `packages/web/server/src/index.ts`             |
-| Handle new events | `packages/events/src/index.ts` + `handlers/`   |
-| Share utilities   | `packages/shared/src/`                         |
-| Configure app     | `bkper.yaml`                                   |
+All app config lives in `bkper.yaml`. There are no secrets or environment variables.

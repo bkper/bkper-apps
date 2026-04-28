@@ -1,77 +1,71 @@
-# My App
+# Files
 
-A Bkper app built with Cloudflare Workers, Hono, and Lit.
+A minimal Bkper app that lets you preview any file attached to a book directly in the browser.
 
-## Quick Start
+## What it does
+
+Open a URL like:
+
+```
+https://files.bkper.app/books/{bookId}/files/{fileId}/{fileName}
+```
+
+The app authenticates the user, fetches the file from Bkper, and renders it inline:
+
+- **Images** — centered preview with dark background
+- **PDFs** — native browser embed
+- **Text / JSON** — iframe preview
+- **Anything else** — browser handles inline display or download
+
+A floating **Download** button uses the URL filename so browsers save the file with the correct name.
+
+## Local Development
 
 ```bash
 bun install
-npm run dev
+bun run dev
 ```
 
-Open http://localhost:5173 — select a book to see it in action.
+- Client dev server: `http://localhost:5174`
+- Worker runtime: `http://localhost:8788`
 
-## What's Included
+Test with a real file URL:
 
-This template ships with a working example:
+```
+http://localhost:5174/books/{bookId}/files/{fileId}/{fileName}
+```
 
--   **Client**: Shows a book picker, then lists accounts with balances for the selected book
--   **Events**: Creates a 20% draft transaction when you check a transaction (try it!)
--   **Server**: Minimal skeleton for adding API routes
+## Build & Deploy
+
+```bash
+npm run build && bkper app sync && bkper app deploy
+```
+
+Live at `https://files.bkper.app`.
 
 ## Project Structure
 
 ```
 packages/
-├── shared/               # Shared types and utilities
-├── web/
-│   ├── client/           # Frontend UI (Vite + Lit)
-│   │   └── src/components/my-app.ts  ← Start here for UI
-│   └── server/           # Backend API (Hono)
-│       └── src/index.ts              ← Add API routes here
-└── events/               # Event handlers (webhooks)
-    └── src/
-        ├── index.ts                  ← Event routing
-        └── handlers/                 ← Add handlers here
-vite.config.ts                        ← Client dev server & build config
+└── web/
+    ├── client/           # File preview UI (Vite, vanilla TS, bkper-js)
+    │   ├── index.html
+    │   ├── src/index.ts
+    │   └── public/images/logo-light.svg
+    │   └── public/images/logo-dark.svg
+    └── server/           # SPA fallback for /books/* routes (Hono)
+        └── src/index.ts
 ```
 
-## Development
+## Tech Stack
 
-```bash
-npm run dev
-```
-
-This runs two processes concurrently:
-
--   **`vite dev`** — Client dev server with hot module replacement
--   **`bkper app dev`** — Workers runtime (Miniflare), file watching, and Cloudflare tunnel for event webhooks
-
-You can also run them independently: `npm run dev:client` or `npm run dev:server` / `npm run dev:events`.
-
-Customize the client dev server in `vite.config.ts` — add Vite plugins, adjust settings, etc.
-
-## Deploy
-
-```bash
-npm run deploy
-```
-
-This builds both client (Vite) and workers (esbuild), then deploys to production at `https://{app-id}.bkper.app`.
-
-## Configuration
-
-All configuration lives in `bkper.yaml`. Key settings:
-
--   `id`, `name`, `description` — App identity
--   `events` — Which events to subscribe to
--   `deployment.secrets` — Secret names (set values with `bkper app secrets put`)
--   `deployment.services` — Platform services like KV
-
-For local development, copy `.dev.vars.example` to `.dev.vars` and add your secrets.
+- [Bkper Platform](https://bkper.com/docs/build/apps/overview.md) — hosting, auth, deployment
+- [bkper-js](https://www.npmjs.com/package/bkper-js) — Bkper SDK
+- [@bkper/web-auth](https://www.npmjs.com/package/@bkper/web-auth) — pre-configured OAuth
+- [Vite](https://vitejs.dev/) — client build
+- [Hono](https://hono.dev/) — web server
 
 ## Learn More
 
--   [Bkper Developer Docs](https://bkper.com/docs)
--   [Bkper CLI](https://www.npmjs.com/package/bkper)
--   [bkper-js SDK](https://www.npmjs.com/package/bkper-js)
+- [Bkper Developer Docs](https://bkper.com/docs)
+- [Bkper CLI](https://www.npmjs.com/package/bkper)

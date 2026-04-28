@@ -1,8 +1,16 @@
 id: files
 name: Files
-description: Simple raw file preview for Bkper books
-developers: someuser *@yoursite.com
-users: someuser *@yoursite.com
+description: Simple raw file preview for Bkper books — open any book file directly in the browser.
+
+logoUrl: https://files.bkper.app/images/logo-light.svg
+logoUrlDark: https://files.bkper.app/images/logo-dark.svg
+
+website: https://files.bkper.app
+ownerName: Bkper
+ownerWebsite: https://bkper.com
+
+developers: '*@bkper.com'
+
 deployment:
   web:
     main: packages/web/server/src/index.ts

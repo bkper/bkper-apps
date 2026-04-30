@@ -1,5 +1,5 @@
 {
-  "name": "files",
+  "name": "files-preview-app",
   "private": true,
   "workspaces": [
     "packages/web/client",

@@ -1,4 +1,4 @@
-# Files
+# Files Preview App
 
 A minimal Bkper app that lets you preview any file attached to a book directly in the browser.
 

@@ -4,7 +4,7 @@ Preview any file attached to your Bkper books directly in the browser — no dow
 
 ## What it does
 
-When you open a file from your Bkper book, this app renders it instantly in your browser:
+This app renders files in your browser from a direct URL. When an external integration (like the Google Sheets add-on or another app) links to a file, this app fetches it and displays it inline:
 
 - **Images** — centered preview with a dark background
 - **PDFs** — native browser viewer
@@ -26,6 +26,12 @@ The app works with any file you've attached to a Bkper book, including:
 
 ## How to use it
 
-Files Preview opens automatically when you click a file link inside Bkper. If you're not signed in, you'll be prompted to authenticate first — then the file renders immediately.
+Files Preview opens when you follow a file link from an external Bkper integration. The URL looks like:
+
+```
+https://files.bkper.app/books/{bookId}/files/{fileId}/{fileName}
+```
+
+If you're not signed in, you'll be prompted to authenticate first — then the file renders immediately.
 
 No setup or configuration needed. It just works.

@@ -1,71 +1,31 @@
-# Files Preview App
+# Files Preview
 
-A minimal Bkper app that lets you preview any file attached to a book directly in the browser.
+Preview any file attached to your Bkper books directly in the browser — no downloads required.
 
 ## What it does
 
-Open a URL like:
+When you open a file from your Bkper book, this app renders it instantly in your browser:
 
-```
-https://files.bkper.app/books/{bookId}/files/{fileId}/{fileName}
-```
+- **Images** — centered preview with a dark background
+- **PDFs** — native browser viewer
+- **Text & JSON** — readable inline display
+- **Other files** — your browser handles preview or download automatically
 
-The app authenticates the user, fetches the file from Bkper, and renders it inline:
+A floating **Download** button lets you save the file with its original name whenever you need a local copy.
 
-- **Images** — centered preview with dark background
-- **PDFs** — native browser embed
-- **Text / JSON** — iframe preview
-- **Anything else** — browser handles inline display or download
+## Supported file types
 
-A floating **Download** button uses the URL filename so browsers save the file with the correct name.
+The app works with any file you've attached to a Bkper book, including:
 
-## Local Development
+| Type | Preview behavior |
+|------|-----------------|
+| PNG, JPG, GIF, SVG, WebP | Inline image viewer |
+| PDF | Native browser embed |
+| TXT, CSV, JSON, XML | Readable text display |
+| Other formats | Browser-native preview or download |
 
-```bash
-bun install
-bun run dev
-```
+## How to use it
 
-- Client dev server: `http://localhost:5174`
-- Worker runtime: `http://localhost:8788`
+Files Preview opens automatically when you click a file link inside Bkper. If you're not signed in, you'll be prompted to authenticate first — then the file renders immediately.
 
-Test with a real file URL:
-
-```
-http://localhost:5174/books/{bookId}/files/{fileId}/{fileName}
-```
-
-## Build & Deploy
-
-```bash
-npm run build && bkper app sync && bkper app deploy
-```
-
-Live at `https://files.bkper.app`.
-
-## Project Structure
-
-```
-packages/
-└── web/
-    ├── client/           # File preview UI (Vite, vanilla TS, bkper-js)
-    │   ├── index.html
-    │   ├── src/index.ts
-    │   └── public/images/logo-light.svg
-    │   └── public/images/logo-dark.svg
-    └── server/           # SPA fallback for /books/* routes (Hono)
-        └── src/index.ts
-```
-
-## Tech Stack
-
-- [Bkper Platform](https://bkper.com/docs/build/apps/overview.md) — hosting, auth, deployment
-- [bkper-js](https://www.npmjs.com/package/bkper-js) — Bkper SDK
-- [@bkper/web-auth](https://www.npmjs.com/package/@bkper/web-auth) — pre-configured OAuth
-- [Vite](https://vitejs.dev/) — client build
-- [Hono](https://hono.dev/) — web server
-
-## Learn More
-
-- [Bkper Developer Docs](https://bkper.com/docs)
-- [Bkper CLI](https://www.npmjs.com/package/bkper)
+No setup or configuration needed. It just works.

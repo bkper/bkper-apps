@@ -58,7 +58,7 @@ Every GAS-specific API used by the current menu and its exact replacement:
 
 ### Tasks (recommended order)
 
-#### Task 1 — Scaffold `inventory-bot-cloudflare`
+#### Task 1 — Scaffold `inventory-bot-cloudflare` ✅
 
 Run from the parent directory:
 

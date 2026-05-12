@@ -1,0 +1,30 @@
+id: inventory-bot-cloudflare
+name: Inventory Bot Cloudflare
+description: A Bkper app that does something useful
+logoUrl: https://inventory-bot-cloudflare.bkper.app/images/logo-light.svg
+logoUrlDark: https://inventory-bot-cloudflare.bkper.app/images/logo-dark.svg
+website: https://bkper.com/apps/bkper-cli
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-app-template
+repoPrivate: true
+developers: someuser *@yoursite.com
+users: someuser *@yoursite.com
+menuUrl: https://inventory-bot-cloudflare.bkper.app?bookId=${book.id}
+menuUrlDev: http://localhost:8787?bookId=${book.id}
+menuPopupWidth: 500
+menuPopupHeight: 300
+webhookUrl: https://inventory-bot-cloudflare.bkper.app/events
+apiVersion: v5
+events:
+  - TRANSACTION_CHECKED
+deployment:
+  web:
+    main: packages/web/server/src/index.ts
+    client: packages/web/client
+  events:
+    main: packages/events/src/index.ts
+  services:
+    - KV
+  compatibility_date: 2026-01-28

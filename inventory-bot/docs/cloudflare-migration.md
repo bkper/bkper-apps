@@ -67,7 +67,7 @@ cd /Users/brunocoelho/Desktop/DEVELOPMENT/bkper/bkper-apps
 bkper app init inventory-bot-cloudflare
 ```
 
-#### Task 2 — Post-Init `bkper.yaml` Adjustments
+#### Task 2 — Post-Init `bkper.yaml` Adjustments ✅
 
 | Field | Init Default | After Adjustment | Reason |
 |-------|-------------|-----------------|--------|

@@ -3,7 +3,7 @@ import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { Bkper, Book } from 'bkper-js';
 import { handleTransactionChecked } from './handlers/transaction-checked.js';
-import type { EventResult } from '@my-app/shared';
+import type { EventResult } from '@inventory-bot-cloudflare/shared';
 import type { Env } from '../../../env.js';
 
 // Example KV cache usage (KV is auto-provisioned by Bkper Platform when services: [KV] is set in bkper.yaml)

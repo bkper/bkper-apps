@@ -1,5 +1,5 @@
 {
-  "name": "@my-app/web-server",
+  "name": "@inventory-bot-cloudflare/web-server",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -7,6 +7,8 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
+    "@inventory-bot-cloudflare/shared": "workspace:*",
+    "bkper-js": "latest",
     "hono": "^4"
   },
   "devDependencies": {

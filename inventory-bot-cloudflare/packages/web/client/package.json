@@ -1,5 +1,5 @@
 {
-    "name": "@my-app/web-client",
+    "name": "@inventory-bot-cloudflare/web-client",
     "version": "0.0.1",
     "private": true,
     "type": "module",

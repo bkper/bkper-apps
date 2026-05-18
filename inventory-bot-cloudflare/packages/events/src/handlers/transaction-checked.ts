@@ -1,5 +1,5 @@
 import { Book, Transaction } from 'bkper-js';
-import type { EventResult } from '@my-app/shared';
+import type { EventResult } from '@inventory-bot-cloudflare/shared';
 
 /**
  * Handles TRANSACTION_CHECKED events.

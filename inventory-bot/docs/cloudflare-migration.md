@@ -105,7 +105,7 @@ const bkper = new Bkper({
 
 > **Risk:** Verify that `bkper-js` exposes every method these files use (e.g. `book.getBacklog()`, `transaction.getCreatedAt()`, `account.getGroups()`) before writing any new code. Gaps here are the highest-risk part of the migration.
 
-#### Task 4 — Create Hono API endpoints
+#### Task 4 — Create Hono API endpoints ✅
 
 Replace the `google.script.run` function surface with REST routes on the Hono server:
 

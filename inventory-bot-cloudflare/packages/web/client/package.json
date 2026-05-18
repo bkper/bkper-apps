@@ -9,6 +9,7 @@
     "dependencies": {
         "@bkper/web-auth": "latest",
         "@bkper/web-design": "latest",
+        "@inventory-bot-cloudflare/shared": "workspace:*",
         "lit": "^3.3.2"
     },
     "devDependencies": {

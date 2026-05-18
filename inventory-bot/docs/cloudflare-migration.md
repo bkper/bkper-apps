@@ -117,7 +117,7 @@ Replace the `google.script.run` function surface with REST routes on the Hono se
 | `calculateCostOfSales(ctx, toDate?)` | `POST /api/calculate` |
 | `resetCostOfSales(ctx)` | `POST /api/reset` |
 
-#### Task 5 — Rewrite the client
+#### Task 5 — Rewrite the client ✅
 
 Replace `menu/client/src/BotViewScript.ts` with a standard Vite web client:
 

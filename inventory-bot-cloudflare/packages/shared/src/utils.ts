@@ -1,3 +1,7 @@
+// =============================================================================
+// Web handler (menu) — COGS calculate and reset operations
+// =============================================================================
+
 // Builds a Bkper transaction query for a specific account with optional date bounds
 export function getAccountQuery(accountName: string, beforeDate?: string, afterDate?: string): string {
 	let query = `account:'${accountName}'`;
@@ -27,6 +31,10 @@ export function formatDateISO(date: Date, timeZone: string): string {
 		day: '2-digit',
 	}).format(date);
 }
+
+// =============================================================================
+// General — utility functions available to all packages
+// =============================================================================
 
 // Formats an amount with the specified number of decimal places
 export function formatAmount(amount: number, decimals: number = 2): string {

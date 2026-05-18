@@ -82,7 +82,7 @@ bkper app init inventory-bot-cloudflare
 | `deployment.web` | pre-set by template | kept as-is | Correct for Cloudflare Workers |
 | `deployment.events` | pre-set by template | kept as-is | Ready for Phase 2 |
 
-#### Task 3 — Port business logic to `bkper-js`
+#### Task 3 — Port business logic to `bkper-js` ✅
 
 Migrate these files from the GAS SDK (`BkperApp`) to `bkper-js`. Each becomes an ES module under `packages/shared/` or `packages/web/server/src/`:
 

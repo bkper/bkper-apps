@@ -1,5 +1,5 @@
 import { Account, AccountType, Transaction } from 'bkper-js';
-import { COGS_CALC_DATE_PROP, EXC_CODE_PROP, NEEDS_REBUILD_PROP } from '@inventory-bot-cloudflare/shared';
+import { COGS_CALC_DATE_PROP, EXC_CODE_PROP, NEEDS_REBUILD_PROP } from './shared/constants.js';
 
 // Wraps a bkper-js Account to provide inventory-specific convenience methods
 export class GoodAccount {

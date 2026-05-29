@@ -11,10 +11,11 @@ repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
 menuUrl: https://script.google.com/macros/s/AKfycbzQEzvupNCQbCDHkN_jLgRoraB1ROZ5gX1W1VQ129Kh3wKvWxA6VmDt7qwy09LGwFBY/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
-menuUrlDev: http://localhost:8787?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuUrlDev: https://inventory-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuPopupWidth: 600
 menuPopupHeight: 600
 webhookUrl: https://us-central1-inventory-bot-405017.cloudfunctions.net/prodGen2
+webhookUrlDev: https://inventory-bot-preview.bkper.app/events
 apiVersion: v5
 events:
   - TRANSACTION_CHECKED
@@ -39,9 +40,7 @@ propertiesSchema:
     keys:
       - exc_code
 deployment:
-  web:
-    main: packages/web/server/src/index.ts
-    client: packages/web/client
-  events:
-    main: packages/events/src/index.ts
-  compatibility_date: 2026-01-28
+  server: server/src/index.ts
+  client: client
+  secrets: []
+  compatibility_date: '2026-01-28'

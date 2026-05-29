@@ -1,21 +1,24 @@
-import { Bkper } from 'bkper-js';
-import { AccountType } from 'bkper-js';
+import { AccountType, Bkper } from 'bkper-js';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import type { Context } from 'hono';
-import type { Env } from '../../../../env.js';
-import type { ContextParams } from '@inventory-bot-cloudflare/shared';
-import { APP_NAME, INVENTORY_BOOK_PROP } from '@inventory-bot-cloudflare/shared';
+import { prettyJSON } from 'hono/pretty-json';
+import type { Env } from '../../env.js';
+import { INVENTORY_BOOK_PROP } from './shared/constants.js';
+import type { ContextParams } from './shared/types.js';
 import { getInventoryBook, hasPendingTasks } from './bot-service.js';
 import { calculateCostOfSalesForAccount } from './calculate-cost-of-sales-service.js';
 import { resetCostOfSalesForAccount } from './reset-cost-of-sales-service.js';
+import { registerEventRoutes } from './events/routes.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.use(logger());
+app.use(prettyJSON());
 
 // Health check
 app.get('/health', c => c.json({ status: 'ok' }));
+
+registerEventRoutes(app);
 
 // =============================================================================
 // API routes — called by the web client via fetch('/api/...')
@@ -25,7 +28,7 @@ app.get('/health', c => c.json({ status: 'ok' }));
 // into inventory book coordinates and returns them to the client on menu open
 app.get('/api/context-params', async c => {
 	try {
-		const bkper = getBkper(c);
+		const bkper = getBkper();
 		const bookId = c.req.query('bookId') ?? '';
 		const accountId = c.req.query('accountId');
 		const groupId = c.req.query('groupId');
@@ -70,7 +73,7 @@ app.get('/api/context-params', async c => {
 // bookId, accountId, groupId are already in inventory book space (from context-params)
 app.get('/api/accounts', async c => {
 	try {
-		const bkper = getBkper(c);
+		const bkper = getBkper();
 		const bookId = c.req.query('bookId') ?? '';
 		const accountId = c.req.query('accountId');
 		const groupId = c.req.query('groupId');
@@ -119,7 +122,7 @@ app.get('/api/accounts', async c => {
 // Body: { bookId: string }  — bookId is the inventory book id (from context-params)
 app.post('/api/validate', async c => {
 	try {
-		const bkper = getBkper(c);
+		const bkper = getBkper();
 		const { bookId } = await c.req.json<{ bookId: string }>();
 
 		const inventoryBook = await bkper.getBook(bookId);
@@ -144,7 +147,7 @@ app.post('/api/validate', async c => {
 // Body: { contextParams: ContextParams, toDate?: string }
 app.post('/api/calculate', async c => {
 	try {
-		const bkper = getBkper(c);
+		const bkper = getBkper();
 		const { contextParams, toDate } = await c.req.json<{ contextParams: ContextParams; toDate?: string }>();
 
 		console.log(`book id: ${contextParams.book.id}, account id: ${contextParams.account?.id}, date input: ${toDate}`);
@@ -171,7 +174,7 @@ app.post('/api/calculate', async c => {
 // Body: { contextParams: ContextParams }
 app.post('/api/reset', async c => {
 	try {
-		const bkper = getBkper(c);
+		const bkper = getBkper();
 		const { contextParams } = await c.req.json<{ contextParams: ContextParams }>();
 
 		console.log(`book id: ${contextParams.book.id}, account id: ${contextParams.account?.id}`);
@@ -202,13 +205,9 @@ app.post('/api/reset', async c => {
 // Helpers
 // =============================================================================
 
-// Creates an authenticated Bkper instance using the Bearer token from the request
-function getBkper(c: Context): Bkper {
-	const token = c.req.header('authorization')?.replace('Bearer ', '');
-	return new Bkper({
-		oauthTokenProvider: async () => token,
-		agentIdProvider: async () => APP_NAME,
-	});
+// Platform outbound auth injects the validated user token for Bkper API calls.
+function getBkper(): Bkper {
+	return new Bkper();
 }
 
 // Resolves the sorted list of accounts to calculate from the context params
@@ -249,5 +248,12 @@ async function getAccountsToCalculate(
 		accountId: id,
 	}));
 }
+
+app.notFound(c => {
+	if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/events')) {
+		return c.json({ error: 'Not found' }, 404);
+	}
+	return c.env.ASSETS.fetch(c.req.raw);
+});
 
 export default app;

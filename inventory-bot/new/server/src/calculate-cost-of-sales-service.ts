@@ -15,12 +15,13 @@ import {
 	QUANTITY_SOLD_PROP,
 	SALE_INVOICE_PROP,
 	TOTAL_COST_PROP,
-} from '@inventory-bot-cloudflare/shared';
-import type { LiquidationLogEntry, PurchaseLogEntry } from '@inventory-bot-cloudflare/shared';
-import { formatDateISO, getAccountQuery, getTimeRange, parseDate } from '@inventory-bot-cloudflare/shared';
+} from './shared/constants.js';
+import type { LiquidationLogEntry, PurchaseLogEntry } from './shared/types.js';
+import { formatDateISO, getAccountQuery, getTimeRange, parseDate } from './shared/utils.js';
 import { GoodAccount } from './good-account.js';
 import { Summary } from './summary.js';
 import { CalculateCostOfSalesProcessor } from './calculate-cost-of-sales-processor.js';
+import { resetCostOfSalesForAccount } from './reset-cost-of-sales-service.js';
 import {
 	compareToFIFO,
 	getAllTransactions,
@@ -50,7 +51,6 @@ export async function calculateCostOfSalesForAccount(
 
 	// If the account has a pending rebuild flag, reset it first and report back
 	if (goodAccount.needsRebuild()) {
-		const { resetCostOfSalesForAccount } = await import('./reset-cost-of-sales-service.js');
 		await resetCostOfSalesForAccount(inventoryBook, goodAccountId);
 		return summary.rebuild();
 	}

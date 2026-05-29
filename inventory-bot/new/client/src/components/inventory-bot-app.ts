@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { BkperAuth } from '@bkper/web-auth';
-import type { ContextParams } from '@inventory-bot-cloudflare/shared';
+import type { ContextParams } from '../types';
 
 const isLocalDev =
 	window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

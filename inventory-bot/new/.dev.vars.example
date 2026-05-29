@@ -1,6 +1,3 @@
 # .dev.vars.example
-# Copy this file to .dev.vars and fill in your local development values
-# .dev.vars is gitignored and used by the Bkper CLI for local development
-#
-# Add any secrets your app needs here. Example:
-# EXTERNAL_SERVICE_TOKEN=your-token-here
+# Copy this file to .dev.vars if local-only secrets are added later.
+# The Inventory Bot platform app currently uses Bkper platform outbound auth and does not require local secrets.

@@ -9,12 +9,12 @@ import {
 	PARENT_ID,
 	PURCHASE_LOG_PROP,
 	TOTAL_COST_PROP,
-} from '@inventory-bot-cloudflare/shared';
+} from './shared/constants.js';
 import { GoodAccount } from './good-account.js';
 import { Summary } from './summary.js';
 import { ResetCostOfSalesProcessor } from './reset-cost-of-sales-processor.js';
 import { getAllTransactions, getExchangeCode, getFinancialBook } from './bot-service.js';
-import { getAccountQuery } from '@inventory-bot-cloudflare/shared';
+import { getAccountQuery } from './shared/utils.js';
 
 // Entry point: resets all COGS data for a single good account, reversing any prior calculation
 export async function resetCostOfSalesForAccount(

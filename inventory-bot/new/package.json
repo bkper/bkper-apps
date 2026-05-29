@@ -1,28 +1,33 @@
 {
-  "name": "inventory-bot-cloudflare",
-  "private": true,
-  "workspaces": [
-    "packages/shared",
-    "packages/web/client",
-    "packages/web/server",
-    "packages/events"
-  ],
-  "scripts": {
-    "clean": "bun run --filter \"./packages/**\" clean && rm -rf node_modules dist",
-    "predev": "bun install",
-    "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8787\"",
-    "dev:client": "vite dev",
-    "dev:server": "bkper app dev --web --sp 8787",
-    "dev:events": "bkper app dev --events --sp 8787",
-    "prebuild": "bun install",
-    "build": "vite build && bkper app build",
-    "deploy": "npm run build && bkper app deploy",
-    "deploy:preview": "npm run build && bkper app deploy --preview"
-  },
-  "devDependencies": {
-    "concurrently": "^9",
-    "miniflare": "^4",
-    "prettier": "^3",
-    "vite": "^7"
-  }
+    "name": "inventory-bot-cloudflare",
+    "private": true,
+    "scripts": {
+        "clean": "rm -rf node_modules dist",
+        "predev": "bun install",
+        "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8787\"",
+        "dev:client": "vite dev",
+        "dev:server": "bkper app dev --sp 8787",
+        "prebuild": "bun install",
+        "build": "vite build && bkper app build",
+        "test": "bun test",
+        "typecheck": "tsc --noEmit",
+        "deploy": "bun run build && bkper app sync && bkper app deploy",
+        "deploy:preview": "bun run build && bkper app sync && bkper app deploy --preview"
+    },
+    "devDependencies": {
+        "@bkper/bkper-api-types": "latest",
+        "bkper": "latest",
+        "concurrently": "^9",
+        "miniflare": "^4",
+        "prettier": "^3",
+        "typescript": "^5",
+        "vite": "^7"
+    },
+    "dependencies": {
+        "@bkper/web-auth": "latest",
+        "@bkper/web-design": "latest",
+        "bkper-js": "latest",
+        "hono": "^4",
+        "lit": "^3.3.2"
+    }
 }

@@ -5,6 +5,7 @@ node_modules/
 dist/
 
 # Lockfile - bun.lock SHOULD be committed for reproducible builds
+!bun.lock
 # bun.lockb (old binary format, no longer used)
 
 # Wrangler

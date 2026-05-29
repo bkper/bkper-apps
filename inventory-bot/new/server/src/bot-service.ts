@@ -4,8 +4,8 @@ import {
 	EXC_CODE_PROP,
 	INVENTORY_BOOK_PROP,
 	ORDER_PROP,
-} from '@inventory-bot-cloudflare/shared';
-import { formatDateISO } from '@inventory-bot-cloudflare/shared';
+} from './shared/constants.js';
+import { formatDateISO } from './shared/utils.js';
 
 // Finds the inventory book in the collection — identified by the inventory_book property or fraction digits = 0
 export function getInventoryBook(book: Book): Book | null {

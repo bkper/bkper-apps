@@ -145,10 +145,10 @@ deployment:
 
 ## Key URLs
 
-| Environment | Web Handler              | Events Handler                              |
-| ----------- | ------------------------ | ------------------------------------------- |
-| Development | `http://localhost:8787`  | `https://<random>.trycloudflare.com/events` |
-| Production  | `https://{id}.bkper.app` | `https://{id}.bkper.app/events`             |
+| Environment | Client Dev Server       | Web Handler              | Events Handler                              |
+| ----------- | ----------------------- | ------------------------ | ------------------------------------------- |
+| Development | `http://localhost:5175` | `http://localhost:8787`  | `https://<random>.trycloudflare.com/events` |
+| Production  | n/a                     | `https://{id}.bkper.app` | `https://{id}.bkper.app/events`             |
 
 ## Common Tasks
 

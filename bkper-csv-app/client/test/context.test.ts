@@ -15,8 +15,12 @@ describe('menu context', () => {
         expect(getMenuContext('?ledgerId=legacy-book').bookId).toBe('legacy-book');
     });
 
-    it('normalizes missing query values to an empty query', () => {
+    it('normalizes missing query values to all transactions', () => {
         expect(getMenuContext('?bookId=book-123').query).toBe('');
         expect(getMenuContext('?bookId=book-123&query=undefined').query).toBe('');
+        expect(getMenuContext('?bookId=book-123&query=null').query).toBe('');
+        expect(getMenuContext('?bookId=book-123&query=%24%7Btransactions.query%7D').query).toBe(
+            '',
+        );
     });
 });

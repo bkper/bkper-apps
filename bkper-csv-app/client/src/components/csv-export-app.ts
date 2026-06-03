@@ -12,7 +12,6 @@ import {
     type ExportOptions,
 } from '../export-config';
 import { listTransactionsForExport } from '../export-service';
-import { getExportValidationMessage, QUERY_REQUIRED_MESSAGE } from '../export-validation';
 
 type BooleanExportOption = {
     [Key in keyof ExportOptions]: ExportOptions[Key] extends boolean ? Key : never;
@@ -74,10 +73,6 @@ export class CsvExportApp extends LitElement {
             font-size: 12px;
             line-height: 1.35;
             overflow-wrap: anywhere;
-        }
-
-        .query-warning {
-            color: #a50e0e;
         }
 
         .panel {
@@ -252,11 +247,7 @@ export class CsvExportApp extends LitElement {
         return html`
             <section class="context" aria-label="Export context">
                 <div class="book-name">${this.bookName ?? this.bookId ?? 'Loading book...'}</div>
-                <div class=${this.query ? 'query' : 'query query-warning'}>
-                    ${this.query
-                        ? html`Query: ${this.query}`
-                        : 'No query selected. Set a query or date range before exporting.'}
-                </div>
+                <div class="query">${this.query ? html`Query: ${this.query}` : 'All transactions'}</div>
             </section>
         `;
     }
@@ -274,10 +265,6 @@ export class CsvExportApp extends LitElement {
 
     private renderExportForm() {
         return html`
-            ${getExportValidationMessage(this.query)
-                ? html`<div class="message error">${QUERY_REQUIRED_MESSAGE}</div>`
-                : ''}
-
             <section class="panel" aria-label="Export options">
                 <div class="panel-title">Options</div>
 
@@ -368,12 +355,7 @@ export class CsvExportApp extends LitElement {
                 </button>
                 <button
                     class="primary"
-                    ?disabled=${
-                        this.loading ||
-                        this.exporting ||
-                        !this.bookId ||
-                        Boolean(getExportValidationMessage(this.query))
-                    }
+                    ?disabled=${this.loading || this.exporting || !this.bookId}
                     @click=${() => {
                         void this.exportCsv();
                     }}
@@ -449,12 +431,6 @@ export class CsvExportApp extends LitElement {
             return;
         }
 
-        const validationMessage = getExportValidationMessage(this.query);
-        if (validationMessage) {
-            this.errorMessage = validationMessage;
-            return;
-        }
-
         this.exporting = true;
         this.errorMessage = null;
         this.successMessage = null;
@@ -471,6 +447,12 @@ export class CsvExportApp extends LitElement {
                 },
             });
 
+            if (result.transactions.length === 0) {
+                this.errorMessage = 'No transactions found for this export.';
+                this.progressMessage = null;
+                return;
+            }
+
             this.progressMessage = 'Building CSV...';
             const normalizedOptions = normalizeExportOptions(this.options);
             const builder = configureTransactionsDataTableBuilder(
@@ -484,7 +466,7 @@ export class CsvExportApp extends LitElement {
 
             this.setDownload(url, filename);
             triggerDownload(url, filename);
-            this.successMessage = `CSV ready: ${filename}`;
+            this.successMessage = `CSV ready: ${filename} (${formatTransactionCount(result.transactions.length)})`;
             this.progressMessage = null;
         } catch (error) {
             this.errorMessage = toErrorMessage(error);
@@ -559,6 +541,10 @@ function triggerDownload(url: string, filename: string): void {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+}
+
+function formatTransactionCount(count: number): string {
+    return count === 1 ? '1 transaction' : `${count.toLocaleString()} transactions`;
 }
 
 function isCsvDelimiter(value: string): value is CsvDelimiter {

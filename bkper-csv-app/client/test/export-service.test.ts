@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { listTransactionsForExport, type BookForExport, type TransactionListForExport } from '../src/export-service';
+import {
+    getEffectiveTransactionsQuery,
+    listTransactionsForExport,
+    type BookForExport,
+    type TransactionListForExport,
+} from '../src/export-service';
 
 function transactionList(cursor?: string): TransactionListForExport {
     return {
@@ -16,6 +21,26 @@ function transactionList(cursor?: string): TransactionListForExport {
 }
 
 describe('transaction export loading', () => {
+    it('uses an empty query string to export all transactions when no query is provided', async () => {
+        const calls: Array<{ query?: string; limit?: number; cursor?: string }> = [];
+        const book: BookForExport = {
+            async listTransactions(query, limit, cursor) {
+                calls.push({ query, limit, cursor });
+                return transactionList();
+            },
+        };
+
+        await listTransactionsForExport(book, { query: '   ' });
+
+        expect(calls).toEqual([{ query: '', limit: 1000, cursor: undefined }]);
+    });
+
+    it('resolves effective query values', () => {
+        expect(getEffectiveTransactionsQuery('')).toBe('');
+        expect(getEffectiveTransactionsQuery('   ')).toBe('');
+        expect(getEffectiveTransactionsQuery(' after:2026 ')).toBe('after:2026');
+    });
+
     it('trims query text before loading transactions', async () => {
         const calls: Array<{ query?: string; limit?: number; cursor?: string }> = [];
         const book: BookForExport = {

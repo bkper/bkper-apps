@@ -5,15 +5,33 @@ export interface MenuContext {
 
 export function getMenuContext(search: string): MenuContext {
     const params = new URLSearchParams(search);
-    const query = params.get('query') ?? '';
 
     return {
         bookId: params.get('bookId') ?? params.get('ledgerId'),
-        query: normalizeQuery(query),
+        query: normalizeQuery(params.get('query')),
     };
 }
 
-function normalizeQuery(query: string): string {
+function normalizeQuery(query: string | null): string {
+    if (query == null) {
+        return '';
+    }
+
     const trimmedQuery = query.trim();
-    return trimmedQuery === 'undefined' || trimmedQuery === 'null' ? '' : query;
+    const normalizedQuery = trimmedQuery.toLowerCase();
+
+    if (
+        trimmedQuery === '' ||
+        normalizedQuery === 'undefined' ||
+        normalizedQuery === 'null' ||
+        isUnresolvedMenuExpression(trimmedQuery)
+    ) {
+        return '';
+    }
+
+    return query;
+}
+
+function isUnresolvedMenuExpression(value: string): boolean {
+    return /^\$\{[^}]+}$/.test(value);
 }

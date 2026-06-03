@@ -27,12 +27,16 @@ export interface ListTransactionsOptions {
 
 const DEFAULT_PAGE_SIZE = 1000;
 
+export function getEffectiveTransactionsQuery(query: string): string {
+    return query.trim();
+}
+
 export async function listTransactionsForExport(
     book: BookForExport,
     options: ListTransactionsOptions,
 ): Promise<TransactionsForExport> {
     const transactions: Transaction[] = [];
-    const query = options.query.trim();
+    const query = getEffectiveTransactionsQuery(options.query);
     const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     let cursor: string | undefined;
     let account: Account | undefined;

@@ -16,7 +16,7 @@ function transactionList(cursor?: string): TransactionListForExport {
 }
 
 describe('transaction export loading', () => {
-    it('uses an empty query string when no query is provided', async () => {
+    it('trims query text before loading transactions', async () => {
         const calls: Array<{ query?: string; limit?: number; cursor?: string }> = [];
         const book: BookForExport = {
             async listTransactions(query, limit, cursor) {
@@ -25,9 +25,9 @@ describe('transaction export loading', () => {
             },
         };
 
-        await listTransactionsForExport(book, { query: '   ' });
+        await listTransactionsForExport(book, { query: '  after:2026  ' });
 
-        expect(calls).toEqual([{ query: '', limit: 1000, cursor: undefined }]);
+        expect(calls).toEqual([{ query: 'after:2026', limit: 1000, cursor: undefined }]);
     });
 
     it('loads all transaction pages', async () => {

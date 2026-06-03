@@ -10,12 +10,14 @@ The app adds an **Export CSV** option to the Book menu. When opened, it uses the
 
 1. Install the app in a Bkper Book.
 2. Open the Book transactions page.
-3. Apply any search query or date range you want to export.
+3. Apply a search query or date range for the transactions you want to export.
 4. Choose **Export CSV** from the Book menu.
 5. Review the export options and click **Export CSV**.
 
 By default, the export uses semicolon-separated values, Book-formatted dates and amounts, and the standard transaction columns.
 
 ## Notes
+
+A query or date range is required before exporting, so exports are intentional and scoped.
 
 This app is export-only. It does not import CSV files or create transactions.

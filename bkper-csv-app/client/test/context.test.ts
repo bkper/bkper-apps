@@ -15,7 +15,7 @@ describe('menu context', () => {
         expect(getMenuContext('?ledgerId=legacy-book').bookId).toBe('legacy-book');
     });
 
-    it('normalizes missing query values to all transactions', () => {
+    it('normalizes missing query values to an empty query', () => {
         expect(getMenuContext('?bookId=book-123').query).toBe('');
         expect(getMenuContext('?bookId=book-123&query=undefined').query).toBe('');
     });

@@ -6,6 +6,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 
 | App | Type | Location |
 | --- | --- | --- |
+| Bkper CSV App | Platform app (Vite + Cloudflare Workers) | `bkper-csv-app/` |
 | Exchange Bot | GCP Cloud Functions + Apps Script | `exchange-bot/` |
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
 | Inventory Bot (legacy) | Apps Script + GCP Cloud Functions | `inventory-bot/legacy/` |
@@ -24,10 +25,11 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | --- | --- | --- | --- |
 | files-preview-app | `5174` | `8788` | Configured in `vite.config.ts` and `package.json` |
 | inventory-bot/new | `5175` | `8787` | Assigned for the new Inventory Bot platform app |
+| bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts with other Vite projects running on the host. Always assign an explicit, non-default port.
 
-**Next available:** Vite client `5176`, bkper server `8789`.
+**Next available:** Vite client `5177`, bkper server `8790`.
 
 ### GCP Cloud Functions bots
 

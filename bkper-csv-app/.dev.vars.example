@@ -1,0 +1,3 @@
+# .dev.vars.example
+# The Bkper CSV App does not require secrets for local development.
+# Keep this file as a placeholder for the Bkper app dev workflow.

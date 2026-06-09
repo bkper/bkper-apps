@@ -1,6 +1,6 @@
 {
     "name": "inventory-bot-gas",
-    "version": "2.2.3",
+    "version": "2.3.0",
     "license": "MIT",
     "scripts": {
         "login": "clasp login",

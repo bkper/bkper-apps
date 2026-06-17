@@ -25,8 +25,10 @@ export class CsvExportApp extends LitElement {
     static styles = css`
         :host {
             display: block;
-            color: #202124;
-            font-family: Inter, Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            background: var(--bkper-color-background, white);
+            color: var(--bkper-color-text, #202124);
+            font-family: var(--bkper-font-family, Inter, Roboto, Arial, sans-serif);
             font-size: 14px;
         }
 
@@ -45,20 +47,20 @@ export class CsvExportApp extends LitElement {
 
         .subtitle {
             margin: 0 0 16px;
-            color: #5f6368;
+            color: var(--bkper-color-neutral, #5f6368);
             line-height: 1.4;
         }
 
         .context,
         .panel,
         .message {
-            border: 1px solid #dadce0;
+            border: var(--bkper-border, 1px solid var(--bkper-color-border, #dadce0));
             border-radius: 10px;
             padding: 12px;
         }
 
         .context {
-            background: #f8fafd;
+            background: var(--bkper-color-grey-low, #f8fafd);
             margin-bottom: 12px;
         }
 
@@ -69,7 +71,7 @@ export class CsvExportApp extends LitElement {
         }
 
         .query {
-            color: #5f6368;
+            color: var(--bkper-color-neutral, #5f6368);
             font-size: 12px;
             line-height: 1.35;
             overflow-wrap: anywhere;
@@ -102,19 +104,21 @@ export class CsvExportApp extends LitElement {
         }
 
         select {
-            border: 1px solid #dadce0;
+            border: var(--bkper-border, 1px solid var(--bkper-color-border, #dadce0));
             border-radius: 6px;
             padding: 6px 8px;
+            background: var(--bkper-color-background, white);
+            color: var(--bkper-color-text, #202124);
         }
 
         details {
-            border-top: 1px solid #edf0f2;
+            border-top: var(--bkper-border, 1px solid var(--bkper-color-border, #edf0f2));
             margin-top: 12px;
             padding-top: 10px;
         }
 
         summary {
-            color: #1a73e8;
+            color: var(--bkper-color-link, #1a73e8);
             cursor: pointer;
             font-weight: 600;
         }
@@ -129,7 +133,7 @@ export class CsvExportApp extends LitElement {
 
         button,
         .download-link {
-            border: 1px solid #1a73e8;
+            border: 1px solid var(--bkper-color-primary, #1a73e8);
             border-radius: 7px;
             cursor: pointer;
             font-weight: 600;
@@ -139,20 +143,20 @@ export class CsvExportApp extends LitElement {
 
         button.primary,
         .download-link {
-            background: #1a73e8;
+            background: var(--bkper-color-primary, #1a73e8);
             color: white;
         }
 
         button.secondary {
-            background: white;
-            color: #1a73e8;
+            background: var(--bkper-color-background, white);
+            color: var(--bkper-color-primary, #1a73e8);
         }
 
         button:disabled {
-            border-color: #dadce0;
-            color: #9aa0a6;
+            border-color: var(--bkper-color-border, #dadce0);
+            color: var(--bkper-color-neutral, #9aa0a6);
             cursor: not-allowed;
-            background: #f1f3f4;
+            background: var(--bkper-color-grey-low, #f1f3f4);
         }
 
         .messages {
@@ -162,8 +166,8 @@ export class CsvExportApp extends LitElement {
         }
 
         .message {
-            background: #f8fafd;
-            color: #3c4043;
+            background: var(--bkper-color-grey-low, #f8fafd);
+            color: var(--bkper-color-text, #3c4043);
             line-height: 1.4;
         }
 
@@ -172,15 +176,15 @@ export class CsvExportApp extends LitElement {
         }
 
         .error {
-            background: #fce8e6;
-            border-color: #fad2cf;
-            color: #a50e0e;
+            background: var(--bkper-color-red-low, #fce8e6);
+            border-color: var(--bkper-color-red-medium, #fad2cf);
+            color: var(--bkper-color-red-high, #a50e0e);
         }
 
         .success {
-            background: #e6f4ea;
-            border-color: #ceead6;
-            color: #137333;
+            background: var(--bkper-color-green-low, #e6f4ea);
+            border-color: var(--bkper-color-green-medium, #ceead6);
+            color: var(--bkper-color-green-high, #137333);
         }
     `;
 
@@ -247,7 +251,9 @@ export class CsvExportApp extends LitElement {
         return html`
             <section class="context" aria-label="Export context">
                 <div class="book-name">${this.bookName ?? this.bookId ?? 'Loading book...'}</div>
-                <div class="query">${this.query ? html`Query: ${this.query}` : 'All transactions'}</div>
+                <div class="query">
+                    ${this.query ? html`Query: ${this.query}` : 'All transactions'}
+                </div>
             </section>
         `;
     }
@@ -311,7 +317,8 @@ export class CsvExportApp extends LitElement {
                         <input
                             type="checkbox"
                             .checked=${this.options.includeIds}
-                            @change=${(event: Event) => this.updateBooleanOption('includeIds', event)}
+                            @change=${(event: Event) =>
+                                this.updateBooleanOption('includeIds', event)}
                         />
                         Transaction IDs and remote IDs
                     </label>
@@ -338,7 +345,8 @@ export class CsvExportApp extends LitElement {
                         <input
                             type="checkbox"
                             .checked=${this.options.includeUrls}
-                            @change=${(event: Event) => this.updateBooleanOption('includeUrls', event)}
+                            @change=${(event: Event) =>
+                                this.updateBooleanOption('includeUrls', event)}
                         />
                         URLs and attachments
                     </label>
@@ -378,7 +386,9 @@ export class CsvExportApp extends LitElement {
 
         return html`
             <div class="messages">
-                ${this.progressMessage ? html`<div class="message">${this.progressMessage}</div>` : ''}
+                ${this.progressMessage
+                    ? html`<div class="message">${this.progressMessage}</div>`
+                    : ''}
                 ${this.successMessage || this.downloadUrl
                     ? html`
                           <div class="message success">
@@ -399,7 +409,9 @@ export class CsvExportApp extends LitElement {
                           </div>
                       `
                     : ''}
-                ${this.errorMessage ? html`<div class="message error">${this.errorMessage}</div>` : ''}
+                ${this.errorMessage
+                    ? html`<div class="message error">${this.errorMessage}</div>`
+                    : ''}
             </div>
         `;
     }
@@ -457,7 +469,7 @@ export class CsvExportApp extends LitElement {
             const normalizedOptions = normalizeExportOptions(this.options);
             const builder = configureTransactionsDataTableBuilder(
                 book.createTransactionsDataTable(result.transactions, result.account),
-                normalizedOptions,
+                normalizedOptions
             );
             const dataTable = await builder.build();
             const csv = dataTableToCsv(dataTable, normalizedOptions.delimiter);

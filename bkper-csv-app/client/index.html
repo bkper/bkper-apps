@@ -1,13 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bkper CSV App</title>
-  <link rel="stylesheet" href="https://bkper.app/design/v2/style.css">
-  <script type="module" src="/src/index.ts"></script>
-</head>
-<body class="wa-light">
-  <csv-export-app></csv-export-app>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bkper CSV App</title>
+        <link rel="stylesheet" href="https://bkper.app/design/v2/style.css" />
+        <script
+            src="https://cdn.jsdelivr.net/npm/@bkper/web-components@0.2.0/dist/theme-init.global.js"
+            crossorigin="anonymous"
+        ></script>
+        <script type="module" src="/src/index.ts"></script>
+    </head>
+    <body>
+        <csv-export-app></csv-export-app>
+    </body>
 </html>

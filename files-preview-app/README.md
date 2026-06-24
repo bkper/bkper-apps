@@ -28,7 +28,7 @@ The app works with any file you've attached to a Bkper book, including:
 
 Files Preview opens when you follow a file link from an external Bkper integration. The URL looks like:
 
-```
+```text
 https://files.bkper.app/books/{bookId}/files/{fileId}/{fileName}
 ```
 

@@ -10,13 +10,13 @@ The Exchange Bot listens for transaction events across all books in a collection
 
 **You post in the USD book:**
 
-```
+```text
 15/03  1,000.00  Product  >>  Citi Bank  Invoice #1042
 ```
 
 **The bot records in the EUR book** (at a rate of 0.92):
 
-```
+```text
 15/03    920.00  Product  >>  Citi Bank  Invoice #1042
 ```
 
@@ -90,7 +90,7 @@ When transferring between currencies, the actual rate often differs from the mar
 
 **You post in the EUR book:**
 
-```
+```text
 20/03  5,000.00  Bank of Europe  >>  Citi Bank  Wire transfer
 exc_amount: 5,408.75
 exc_code: USD
@@ -98,7 +98,7 @@ exc_code: USD
 
 **The bot records in the USD book** (using your specified amount instead of the market rate):
 
-```
+```text
 20/03  5,408.75  Bank of Europe  >>  Citi Bank  Wire transfer
 ```
 
@@ -262,7 +262,7 @@ exc_rate: 1.08175
 
 As a convenience, the bot also scans the transaction description for a token starting with the target currency code. If you include the converted amount directly in the description, the bot uses it automatically.
 
-```
+```text
 20/03  5,000.00  Bank of Europe  >>  Citi Bank  Wire to USD5408.75
 ```
 

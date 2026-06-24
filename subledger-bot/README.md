@@ -54,13 +54,13 @@ When you post a transaction on a child book, the bot maps child accounts to pare
 
 **You post on the child book (Receivables):**
 
-```
+```text
 05/03  300.00  Service B  >>  Customer A  Invoice #1042
 ```
 
 **The bot records on the parent book (General Ledger):**
 
-```
+```text
 05/03  300.00  Service B  >>  Accounts Receivable  Invoice #1042
 ```
 

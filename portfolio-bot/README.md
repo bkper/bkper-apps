@@ -92,7 +92,7 @@ You buy 1 share of GOOG for 165 with no fees. Post the order on the Financial Bo
 
 **You post the purchase order:**
 
-```
+```text
 05/06  165  Bank  >>  Broker  buy  instrument: GOOG  quantity: 1  trade_date: 05/07/2025
 ```
 
@@ -121,7 +121,7 @@ You sell 1 share of GOOG for 180. Post the order, then check the trade.
 
 **You post the sale order:**
 
-```
+```text
 05/15  180  Broker  >>  Bank  sell  instrument: GOOG  quantity: 1  trade_date: 05/16/2025
 ```
 
@@ -150,7 +150,7 @@ When the order includes `fees` or `interest`, the bot posts separate transaction
 
 **Purchase with fees:**
 
-```
+```text
 05/06  175  Bank  >>  Broker  buy  instrument: GOOG  quantity: 1  trade_date: 05/07/2025  fees: 10
 ```
 

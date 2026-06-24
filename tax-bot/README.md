@@ -19,13 +19,13 @@ The Tax Bot listens for transaction events. When a transaction is posted, update
 
 **You post:**
 
-```
+```text
 01/07  440.00  Product  >>  Bank  Service sold
 ```
 
 **The bot records** (assuming `tax_included_rate: 10` on the *Product* account):
 
-```
+```text
 01/07   40.00  Output Tax  >>  Product  #vatout Service sold
 ```
 
@@ -178,7 +178,7 @@ tax_description: Output Tax ${account.name} #vatout ${transaction.description}
 
 For a transaction `440.00 Product >> Bank  Service sold` with `tax_included_rate: 10` on the *Product* account, the bot generates the description string:
 
-```
+```text
 Output Tax Product #vatout Service sold
 ```
 

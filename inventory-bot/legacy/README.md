@@ -59,7 +59,7 @@ The bot links mirrored transactions across books using `remoteId`. That link is 
 
 You buy 100 T-shirts for $1,000. Record the purchase on the Financial Book and check it:
 
-```
+```text
 01/15  1000.00  Bank  >>  T-shirts  Purchase order  purchase_invoice: INV-001  purchase_code: INV-001  quantity: 100
 ```
 
@@ -83,7 +83,7 @@ Notes:
 
 You sell 30 T-shirts for $900. Record the sale on the Financial Book and check it:
 
-```
+```text
 02/01  900.00  Revenue  >>  Bank  Sale  sale_invoice: SALE-001  good: T-shirts  quantity: 30
 ```
 
@@ -125,7 +125,7 @@ From the example above, the 30 units sold came from the purchase at $10 each:
 
 When purchases happen at different prices, FIFO takes from the oldest first:
 
-```
+```text
 Purchase 1 → 100 units @ $10
 Purchase 2 →  50 units @ $12
 Purchase 3 →  20 units @ $15

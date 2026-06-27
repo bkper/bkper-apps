@@ -1,6 +1,6 @@
 id: files
 name: Files Preview
-description: Simple raw file preview for Bkper books — open any book file directly in the browser.
+description: Preview and download Bkper book files directly in the browser.
 
 logoUrl: https://files.bkper.app/images/logo-light.svg
 logoUrlDark: https://files.bkper.app/images/logo-dark.svg

@@ -1,6 +1,6 @@
 id: inventory-bot
 name: Inventory Bot
-description: Automatically tracks inventory items in a dedicated Inventory Book, synchronizing with Financial Books to manage purchases, sales, and calculate Cost of Goods Sold (COGS) using the FIFO method
+description: Track inventory in a dedicated book, sync financial books, and calculate FIFO cost of goods sold.
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-dark.svg
 ownerName: Bkper

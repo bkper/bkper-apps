@@ -1,6 +1,6 @@
 id: bkper-csv-app
 name: Bkper CSV App
-description: Export Bkper transactions to CSV from the current book context
+description: Export transactions from the current Bkper book to CSV.
 
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/bkper-csv-app-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/bkper-csv-app-dark.svg

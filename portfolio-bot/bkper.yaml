@@ -1,6 +1,6 @@
 id: stock-bot
 name: Portfolio Bot
-description: Automatically manages investment portfolios by tracking stocks, bonds, and other financial instruments on a dedicated portfolio book. Synchronizes transactions, maintains precise quantities, and calculates realized gains/losses using the FIFO method.
+description: Track investment portfolios, sync transactions and quantities, and calculate FIFO gains and losses.
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/portfolio-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/portfolio-agent-dark.svg
 website: https://bkper.com/apps/stock-bot

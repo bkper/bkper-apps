@@ -7,4 +7,3 @@ tsconfig.tsbuildinfo
 
 /menu/client/@types/
 /menu/client/build/
-/menu/server/src/*.html

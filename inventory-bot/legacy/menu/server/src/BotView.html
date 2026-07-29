@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  	<!-- Shoelace -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/themes/light.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/themes/dark.css" />
+
+	<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.14.0/cdn/shoelace-autoloader.js"></script>
+
+  <style>body,
+div {
+    font-family: var(--sl-font-sans);
+    font-size: var(--sl-font-size-small);
+}
+
+.header,
+.body {
+    padding: var(--sl-spacing-medium);
+}
+
+.body {
+    padding-bottom: 0;
+}
+
+.header {
+    font-size: 120%;
+    background-color: #f5f5f5;
+    text-align: center;
+}
+
+.sub-header {
+    display: flex;
+    height: 40px;
+    font-size: var(--sl-font-size-medium);
+    align-items: center;
+    justify-content: center;
+}
+
+#account-list {
+    padding-bottom: 10px;
+}
+
+.footer,
+.accounts-panel {
+    display: flex;
+    align-items: center;
+}
+
+.accounts-panel {
+    padding-right: 5px;
+    padding-top: 10px;
+}
+
+#date-div {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+    padding-top: 20px;
+}
+
+.footer {
+    justify-content: center;
+    padding: var(--sl-spacing-small);
+    gap: var(--sl-spacing-large);
+}
+
+#error-panel {
+    display: flex;
+    justify-content: center;
+    color: red;
+}
+
+.success-icon,
+.error-icon {
+    margin-right: 5px;
+}</style>
+
+</head>
+
+<body>
+
+  <div class='header'>
+    Cost of goods sold for&nbsp;<strong>
+      <?!= book.name ?>
+    </strong>
+  </div>
+
+  <div class='body'>
+    <div class='sub-header'>
+      Calculate using FIFO method for accounts:
+    </div>
+
+    <div class='accounts-panel'>
+      <ul id='account-list'></ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <sl-button id="calculate-button" variant="default" onclick="calculate()">Calculate</sl-button>
+    <sl-button id="close-button" variant="default" onclick="closeWindow()">Close</sl-button>
+  </div>
+
+  <div class="footer">
+    <sl-button id="reset-button" variant="default" outline size="small" onclick="reset()">Reset</sl-button>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script>let contextParams = undefined;
+// Fetch template variables from Server
+init();
+function init() {
+    // @ts-ignore
+    google.script.url.getLocation(loadTemplate);
+}
+function loadTemplate(location) {
+    const parameters = location.parameter;
+    disableButtons(true);
+    google.script.run.withSuccessHandler((params) => setParams(params)).getContextParams(parameters);
+}
+function setParams(params) {
+    contextParams = params;
+    google.script.run.withSuccessHandler(showAccountsList).getAccountsToCalculate(contextParams);
+}
+function showAccountsList(accountsToCalculate) {
+    const ul = $('#account-list');
+    for (const account of accountsToCalculate) {
+        ul.append($('<li></li>').html(`<p>${account.accountName}</p>`));
+    }
+    ul.show();
+    disableButtons(false);
+}
+function calculate() {
+    disableButtons(true);
+    if (contextParams) {
+        google.script.run.withSuccessHandler(() => {
+            try {
+                fireCalculateForAll();
+            }
+            catch (error) {
+                showError(error);
+            }
+        })
+            .withFailureHandler((error) => {
+            showError(error);
+        })
+            .validate(contextParams.book.id);
+    }
+}
+function fireCalculateForAll() {
+    google.script.run.withSuccessHandler(showResults).withFailureHandler(showError).calculateCostOfSales(contextParams);
+}
+function reset() {
+    disableButtons(true);
+    if (contextParams) {
+        google.script.run.withSuccessHandler(() => {
+            try {
+                fireResetForAll();
+            }
+            catch (error) {
+                showError(error);
+            }
+        })
+            .withFailureHandler((error) => {
+            showError(error);
+        })
+            .validate(contextParams.book.id);
+    }
+}
+function fireResetForAll() {
+    google.script.run.withSuccessHandler(showResults).withFailureHandler(showError).resetCostOfSales(contextParams);
+}
+function showResults(results) {
+    const ul = $('#account-list').empty();
+    for (const account of results) {
+        ul.append($('<li></li>').html(`<p>${account.accountName}: &nbsp;${account.result}</p>`));
+    }
+    ul.show();
+    disableButtons(false);
+}
+function showError(error) {
+    window.alert(error);
+}
+function disableButtons(disable) {
+    if (disable) {
+        $('#calculate-button').prop('disabled', true);
+        $('#close-button').prop('disabled', true);
+        $('#reset-button').prop('disabled', true);
+    }
+    else {
+        $('#calculate-button').prop('disabled', false);
+        $('#close-button').prop('disabled', false);
+        $('#reset-button').prop('disabled', false);
+    }
+}
+function closeWindow() {
+    try {
+        window.top.close();
+    }
+    catch (error) {
+        console.log("Attempt to automatically close window failed: " + error);
+        showError(error);
+    }
+}
+</script>
+
+</body>
+
+</html>

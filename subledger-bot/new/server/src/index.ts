@@ -1,14 +1,20 @@
 import { Hono } from 'hono';
 import type { Env } from '../../env.js';
-import { registerEventRoutes } from './events/routes.js';
+import {
+    defaultEventRouteDependencies,
+    registerEventRoutes,
+    type EventRouteDependencies,
+} from './events/routes.js';
 
 type AppEnv = { Bindings: Env };
 
-export function createApp(): Hono<AppEnv> {
+export function createApp(
+    eventDependencies: EventRouteDependencies = defaultEventRouteDependencies
+): Hono<AppEnv> {
     const app = new Hono<AppEnv>();
 
     app.get('/health', c => c.json({ status: 'ok' }));
-    registerEventRoutes(app);
+    registerEventRoutes(app, eventDependencies);
 
     return app;
 }

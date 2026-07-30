@@ -1,16 +1,22 @@
 import { Book, type Group } from 'bkper-js';
-import { CHILD_BOOK_ID_PROP, PARENT_BOOK_ID_PROP } from '../../constants.js';
 import type { AppContext } from '../../app-context.js';
-import type { EventHandlerContract, EventHandlerResult } from '../types.js';
+import { CHILD_BOOK_ID_PROP, PARENT_BOOK_ID_PROP } from '../../constants.js';
+import type { EventHandlerResult } from '../types.js';
 
-export abstract class EventHandler implements EventHandlerContract {
-    constructor(protected readonly context: AppContext) {}
+export abstract class EventHandler {
+    protected context: AppContext;
 
+    constructor(context: AppContext) {
+        this.context = context;
+    }
+
+    // parent >> child
     protected abstract processParentBookEvent(
         parentBook: Book,
         event: bkper.Event
     ): Promise<string | null>;
 
+    // child >> parent
     protected abstract processChildBookEvent(
         childBook: Book,
         parentBook: Book,
@@ -29,11 +35,12 @@ export abstract class EventHandler implements EventHandlerContract {
         let response: string | null;
         if (parentBookId) {
             const parentBook = await this.context.bkper.getBook(parentBookId);
-            response = await this.processChildBookEvent(baseBook, parentBook, event);
+            const childBook = baseBook;
+            response = await this.processChildBookEvent(childBook, parentBook, event);
         } else {
-            response = await this.processParentBookEvent(baseBook, event);
+            const parentBook = baseBook;
+            response = await this.processParentBookEvent(parentBook, event);
         }
-
         if (response == null || response === '') {
             return false;
         }

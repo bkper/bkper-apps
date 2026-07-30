@@ -1,82 +1,98 @@
 import type { Hono } from 'hono';
+import { Bkper } from 'bkper-js';
 import type { Env } from '../../../env.js';
-import { createAppContext, type AppContextFactory } from '../app-context.js';
-import { createEventHandlerMap, type EventHandlerMapFactory } from './handlers/index.js';
-import type { EventError, EventHandlerMap, EventHandlerResult, EventResult } from './types.js';
+import { AppContext } from '../app-context.js';
+import { EventHandlerAccountCreatedOrUpdated } from './handlers/EventHandlerAccountCreatedOrUpdated.js';
+import { EventHandlerAccountDeleted } from './handlers/EventHandlerAccountDeleted.js';
+import { EventHandlerGroupCreatedOrUpdated } from './handlers/EventHandlerGroupCreatedOrUpdated.js';
+import { EventHandlerGroupDeleted } from './handlers/EventHandlerGroupDeleted.js';
+import { EventHandlerTransactionChecked } from './handlers/EventHandlerTransactionChecked.js';
+import { EventHandlerTransactionDeleted } from './handlers/EventHandlerTransactionDeleted.js';
+import { EventHandlerTransactionPosted } from './handlers/EventHandlerTransactionPosted.js';
+import { EventHandlerTransactionRestored } from './handlers/EventHandlerTransactionRestored.js';
+import { EventHandlerTransactionUpdated } from './handlers/EventHandlerTransactionUpdated.js';
+import type { EventError, EventResult } from './types.js';
 
 type App = Hono<{ Bindings: Env }>;
 
-export interface EventRouteDependencies {
-    createContext: AppContextFactory;
-    createHandlers: EventHandlerMapFactory;
-}
-
-export const defaultEventRouteDependencies: EventRouteDependencies = {
-    createContext: createAppContext,
-    createHandlers: createEventHandlerMap,
-};
-
-export function registerEventRoutes(
-    app: App,
-    dependencies: EventRouteDependencies = defaultEventRouteDependencies
-): void {
+export function registerEventRoutes(app: App): void {
     app.post('/events', async c => {
+        const context = new AppContext(new Bkper());
+
         try {
             const event: bkper.Event = await c.req.json();
-            const context = dependencies.createContext();
-            const handlers = dependencies.createHandlers(context);
+            const result: EventResult = { result: false };
 
             console.log(`Received ${event.type} event from ${event.user!.username}...`);
 
-            const result = await dispatchEvent(event, handlers);
-            const response: EventResult = { result };
+            switch (event.type) {
+                case 'TRANSACTION_POSTED':
+                    result.result = await new EventHandlerTransactionPosted(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'TRANSACTION_CHECKED':
+                    result.result = await new EventHandlerTransactionChecked(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'TRANSACTION_UPDATED':
+                    result.result = await new EventHandlerTransactionUpdated(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'TRANSACTION_DELETED':
+                    result.result = await new EventHandlerTransactionDeleted(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'TRANSACTION_RESTORED':
+                    result.result = await new EventHandlerTransactionRestored(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'ACCOUNT_CREATED':
+                    result.result = await new EventHandlerAccountCreatedOrUpdated(
+                        context
+                    ).handleEvent(event);
+                    break;
+                case 'ACCOUNT_UPDATED':
+                    result.result = await new EventHandlerAccountCreatedOrUpdated(
+                        context
+                    ).handleEvent(event);
+                    break;
+                case 'ACCOUNT_DELETED':
+                    result.result = await new EventHandlerAccountDeleted(context).handleEvent(
+                        event
+                    );
+                    break;
+                case 'GROUP_CREATED':
+                    result.result = await new EventHandlerGroupCreatedOrUpdated(
+                        context
+                    ).handleEvent(event);
+                    break;
+                case 'GROUP_DELETED':
+                    result.result = await new EventHandlerGroupDeleted(context).handleEvent(event);
+                    break;
+                case 'GROUP_UPDATED':
+                    result.result = await new EventHandlerGroupCreatedOrUpdated(
+                        context
+                    ).handleEvent(event);
+                    break;
+            }
 
-            console.log(`Result: ${JSON.stringify(response)}`);
-
-            return c.body(serializeLegacyResponse(response), 200, {
+            console.log(`Result: ${JSON.stringify(result)}`);
+            return c.body(response(result), 200, {
                 'Content-Type': 'application/json',
             });
-        } catch (error: unknown) {
-            console.error(error);
-            const response: EventError = { error: getLegacyError(error) };
-
-            return c.body(serializeLegacyResponse(response), 200, {
+        } catch (err: unknown) {
+            console.error(err);
+            const result: EventError = { error: getLegacyError(err) };
+            return c.body(response(result), 200, {
                 'Content-Type': 'application/json',
             });
         }
     });
-}
-
-async function dispatchEvent(
-    event: bkper.Event,
-    handlers: EventHandlerMap
-): Promise<EventHandlerResult> {
-    switch (event.type) {
-        case 'TRANSACTION_POSTED':
-            return handlers.TRANSACTION_POSTED.handleEvent(event);
-        case 'TRANSACTION_CHECKED':
-            return handlers.TRANSACTION_CHECKED.handleEvent(event);
-        case 'TRANSACTION_UPDATED':
-            return handlers.TRANSACTION_UPDATED.handleEvent(event);
-        case 'TRANSACTION_DELETED':
-            return handlers.TRANSACTION_DELETED.handleEvent(event);
-        case 'TRANSACTION_RESTORED':
-            return handlers.TRANSACTION_RESTORED.handleEvent(event);
-        case 'ACCOUNT_CREATED':
-            return handlers.ACCOUNT_CREATED.handleEvent(event);
-        case 'ACCOUNT_UPDATED':
-            return handlers.ACCOUNT_UPDATED.handleEvent(event);
-        case 'ACCOUNT_DELETED':
-            return handlers.ACCOUNT_DELETED.handleEvent(event);
-        case 'GROUP_CREATED':
-            return handlers.GROUP_CREATED.handleEvent(event);
-        case 'GROUP_UPDATED':
-            return handlers.GROUP_UPDATED.handleEvent(event);
-        case 'GROUP_DELETED':
-            return handlers.GROUP_DELETED.handleEvent(event);
-        default:
-            return false;
-    }
 }
 
 function getLegacyError(error: unknown): unknown {
@@ -92,6 +108,6 @@ function getLegacyError(error: unknown): unknown {
     return error;
 }
 
-function serializeLegacyResponse(response: EventResult | EventError): string {
-    return JSON.stringify(response, null, 4);
+function response(result: EventResult | EventError): string {
+    return JSON.stringify(result, null, 4);
 }

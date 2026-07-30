@@ -3,17 +3,14 @@ import { PARENT_ACCOUNT_PROP } from '../../constants.js';
 import { EventHandler } from './EventHandler.js';
 
 export abstract class EventHandlerTransaction extends EventHandler {
-    protected processParentBookEvent(
-        _parentBook: Book,
-        _event: bkper.Event
-    ): Promise<string | null> {
+    protected processParentBookEvent(parentBook: Book, event: bkper.Event): Promise<string | null> {
         return Promise.resolve(null);
     }
 
     protected processChildBookEvent(
-        _childBook: Book,
-        _parentBook: Book,
-        _event: bkper.Event
+        childBook: Book,
+        parentBook: Book,
+        event: bkper.Event
     ): Promise<string | null> {
         return Promise.resolve(null);
     }
@@ -23,9 +20,11 @@ export abstract class EventHandlerTransaction extends EventHandler {
         parentBook: Book,
         childAccount: Account
     ): Promise<Account | null | undefined> {
+        // If the parent_account property is set directly on the child account, use it to find the parent account
         if (childAccount.getProperty(PARENT_ACCOUNT_PROP)) {
             const parentAccountName = childAccount.getProperty(PARENT_ACCOUNT_PROP);
-            return parentBook.getAccount(parentAccountName);
+            const parentAccount = await parentBook.getAccount(parentAccountName);
+            return parentAccount;
         }
 
         const childGroups = await childAccount.getGroups();
@@ -40,8 +39,8 @@ export abstract class EventHandlerTransaction extends EventHandler {
                             .setName(parentAccountName)
                             .setType(childGroup.getType())
                             .create();
-                    } catch (error: unknown) {
-                        console.log(error);
+                    } catch (err: unknown) {
+                        console.log(err);
                         return null;
                     }
                 }
@@ -56,11 +55,13 @@ export abstract class EventHandlerTransaction extends EventHandler {
             );
 
             if (linkedParentGroup) {
-                const sameNameParentAccount = await parentBook.getAccount(childAccount.getName());
-                return sameNameParentAccount;
+                const parentAccountName = childAccount.getName();
+                const parentAccount = await parentBook.getAccount(parentAccountName);
+                return parentAccount;
             }
         }
 
-        return parentBook.getAccount(childAccount.getName());
+        // Falback for account with same name as child
+        return await parentBook.getAccount(childAccount.getName());
     }
 }

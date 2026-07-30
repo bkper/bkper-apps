@@ -1,65 +1,156 @@
-import { describe, expect, test } from 'bun:test';
-import { Bkper } from 'bkper-js';
-import { AppContext, createAppContext } from '../src/app-context';
-import type { EventRouteDependencies } from '../src/events/routes';
-import {
-    SUBSCRIBED_EVENT_TYPES,
-    type EventHandlerContract,
-    type EventHandlerMap,
-    type SubscribedEventType,
-} from '../src/events/types';
-import { createApp } from '../src/index';
+import { afterEach, describe, expect, test } from 'bun:test';
+import type { Bkper } from 'bkper-js';
+import { AppContext } from '../src/app-context';
+import { EventHandlerAccountCreatedOrUpdated } from '../src/events/handlers/EventHandlerAccountCreatedOrUpdated';
+import { EventHandlerAccountDeleted } from '../src/events/handlers/EventHandlerAccountDeleted';
+import { EventHandlerGroupCreatedOrUpdated } from '../src/events/handlers/EventHandlerGroupCreatedOrUpdated';
+import { EventHandlerGroupDeleted } from '../src/events/handlers/EventHandlerGroupDeleted';
+import { EventHandlerTransactionChecked } from '../src/events/handlers/EventHandlerTransactionChecked';
+import { EventHandlerTransactionDeleted } from '../src/events/handlers/EventHandlerTransactionDeleted';
+import { EventHandlerTransactionPosted } from '../src/events/handlers/EventHandlerTransactionPosted';
+import { EventHandlerTransactionRestored } from '../src/events/handlers/EventHandlerTransactionRestored';
+import { EventHandlerTransactionUpdated } from '../src/events/handlers/EventHandlerTransactionUpdated';
+import app from '../src/index';
+
+type SubscribedEventType =
+    | 'TRANSACTION_POSTED'
+    | 'TRANSACTION_CHECKED'
+    | 'TRANSACTION_UPDATED'
+    | 'TRANSACTION_DELETED'
+    | 'TRANSACTION_RESTORED'
+    | 'ACCOUNT_CREATED'
+    | 'ACCOUNT_UPDATED'
+    | 'ACCOUNT_DELETED'
+    | 'GROUP_CREATED'
+    | 'GROUP_UPDATED'
+    | 'GROUP_DELETED';
+
+type HandlerMethod = (this: object, event: bkper.Event) => Promise<string | boolean>;
+
+interface HandlerClass {
+    prototype: object;
+}
 
 interface RoutingCase {
     type: SubscribedEventType;
+    handlerClass: HandlerClass;
     result: string;
 }
 
+interface HandlerCall {
+    handler: object;
+    type: bkper.Event['type'];
+}
+
 const ROUTING_CASES: readonly RoutingCase[] = [
-    { type: 'TRANSACTION_POSTED', result: 'transaction-posted' },
-    { type: 'TRANSACTION_CHECKED', result: 'transaction-checked' },
-    { type: 'TRANSACTION_UPDATED', result: 'transaction-updated' },
-    { type: 'TRANSACTION_DELETED', result: 'transaction-deleted' },
-    { type: 'TRANSACTION_RESTORED', result: 'transaction-restored' },
-    { type: 'ACCOUNT_CREATED', result: 'account-created-or-updated' },
-    { type: 'ACCOUNT_UPDATED', result: 'account-created-or-updated' },
-    { type: 'ACCOUNT_DELETED', result: 'account-deleted' },
-    { type: 'GROUP_CREATED', result: 'group-created-or-updated' },
-    { type: 'GROUP_UPDATED', result: 'group-created-or-updated' },
-    { type: 'GROUP_DELETED', result: 'group-deleted' },
+    {
+        type: 'TRANSACTION_POSTED',
+        handlerClass: EventHandlerTransactionPosted,
+        result: 'transaction-posted',
+    },
+    {
+        type: 'TRANSACTION_CHECKED',
+        handlerClass: EventHandlerTransactionChecked,
+        result: 'transaction-checked',
+    },
+    {
+        type: 'TRANSACTION_UPDATED',
+        handlerClass: EventHandlerTransactionUpdated,
+        result: 'transaction-updated',
+    },
+    {
+        type: 'TRANSACTION_DELETED',
+        handlerClass: EventHandlerTransactionDeleted,
+        result: 'transaction-deleted',
+    },
+    {
+        type: 'TRANSACTION_RESTORED',
+        handlerClass: EventHandlerTransactionRestored,
+        result: 'transaction-restored',
+    },
+    {
+        type: 'ACCOUNT_CREATED',
+        handlerClass: EventHandlerAccountCreatedOrUpdated,
+        result: 'account-created-or-updated',
+    },
+    {
+        type: 'ACCOUNT_UPDATED',
+        handlerClass: EventHandlerAccountCreatedOrUpdated,
+        result: 'account-created-or-updated',
+    },
+    {
+        type: 'ACCOUNT_DELETED',
+        handlerClass: EventHandlerAccountDeleted,
+        result: 'account-deleted',
+    },
+    {
+        type: 'GROUP_CREATED',
+        handlerClass: EventHandlerGroupCreatedOrUpdated,
+        result: 'group-created-or-updated',
+    },
+    {
+        type: 'GROUP_UPDATED',
+        handlerClass: EventHandlerGroupCreatedOrUpdated,
+        result: 'group-created-or-updated',
+    },
+    {
+        type: 'GROUP_DELETED',
+        handlerClass: EventHandlerGroupDeleted,
+        result: 'group-deleted',
+    },
 ];
 
-function createHandler(result: string): EventHandlerContract {
-    return {
-        handleEvent: async () => result,
-    };
+const restoreHandlers: (() => void)[] = [];
+
+afterEach(() => {
+    while (restoreHandlers.length > 0) {
+        restoreHandlers.pop()?.();
+    }
+});
+
+function replaceHandleEvent(handlerClass: HandlerClass, handleEvent: HandlerMethod): void {
+    const descriptor = Object.getOwnPropertyDescriptor(handlerClass.prototype, 'handleEvent');
+
+    Object.defineProperty(handlerClass.prototype, 'handleEvent', {
+        configurable: true,
+        writable: true,
+        value: handleEvent,
+    });
+
+    restoreHandlers.push(() => {
+        if (descriptor) {
+            Object.defineProperty(handlerClass.prototype, 'handleEvent', descriptor);
+        } else {
+            Reflect.deleteProperty(handlerClass.prototype, 'handleEvent');
+        }
+    });
 }
 
-function createTestHandlers(overrides: Partial<EventHandlerMap> = {}): EventHandlerMap {
-    const accountCreatedOrUpdated = createHandler('account-created-or-updated');
-    const groupCreatedOrUpdated = createHandler('group-created-or-updated');
+function interceptHandlers(): HandlerCall[] {
+    const calls: HandlerCall[] = [];
+    const interceptedClasses = new Set<HandlerClass>();
 
-    return {
-        TRANSACTION_POSTED: createHandler('transaction-posted'),
-        TRANSACTION_CHECKED: createHandler('transaction-checked'),
-        TRANSACTION_UPDATED: createHandler('transaction-updated'),
-        TRANSACTION_DELETED: createHandler('transaction-deleted'),
-        TRANSACTION_RESTORED: createHandler('transaction-restored'),
-        ACCOUNT_CREATED: accountCreatedOrUpdated,
-        ACCOUNT_UPDATED: accountCreatedOrUpdated,
-        ACCOUNT_DELETED: createHandler('account-deleted'),
-        GROUP_CREATED: groupCreatedOrUpdated,
-        GROUP_UPDATED: groupCreatedOrUpdated,
-        GROUP_DELETED: createHandler('group-deleted'),
-        ...overrides,
-    };
-}
+    for (const routingCase of ROUTING_CASES) {
+        if (interceptedClasses.has(routingCase.handlerClass)) {
+            continue;
+        }
+        interceptedClasses.add(routingCase.handlerClass);
 
-function createDependencies(handlers: EventHandlerMap): EventRouteDependencies {
-    return {
-        createContext: createAppContext,
-        createHandlers: () => handlers,
-    };
+        replaceHandleEvent(routingCase.handlerClass, async function (event) {
+            calls.push({ handler: this, type: event.type });
+            const matchedCase = ROUTING_CASES.find(
+                candidate =>
+                    candidate.handlerClass === routingCase.handlerClass &&
+                    candidate.type === event.type
+            );
+            if (!matchedCase) {
+                throw new Error(`Unexpected event type ${event.type}`);
+            }
+            return matchedCase.result;
+        });
+    }
+
+    return calls;
 }
 
 function buildEvent(type: string): object {
@@ -72,7 +163,7 @@ function buildEvent(type: string): object {
     };
 }
 
-async function postEvent(app: ReturnType<typeof createApp>, type: string): Promise<Response> {
+async function postEvent(type: string): Promise<Response> {
     return app.request('/events', {
         method: 'POST',
         headers: {
@@ -85,75 +176,78 @@ async function postEvent(app: ReturnType<typeof createApp>, type: string): Promi
     });
 }
 
+function getAppContext(handler: object): AppContext {
+    const context: unknown = Reflect.get(handler, 'context');
+    if (!(context instanceof AppContext)) {
+        throw new Error('Handler has no AppContext');
+    }
+    return context;
+}
+
 describe('legacy event dispatcher', () => {
     for (const routingCase of ROUTING_CASES) {
         test(`routes ${routingCase.type} to its legacy handler`, async () => {
-            const app = createApp(createDependencies(createTestHandlers()));
-            const response = await postEvent(app, routingCase.type);
+            const calls = interceptHandlers();
+            const response = await postEvent(routingCase.type);
 
             expect(response.status).toBe(200);
             expect(await response.text()).toBe(
                 JSON.stringify({ result: routingCase.result }, null, 4)
             );
+            expect(calls.map(call => call.type)).toEqual([routingCase.type]);
         });
     }
 
     test('keeps every subscribed production handler as an explicit no-op stub', async () => {
-        const app = createApp();
-
-        for (const eventType of SUBSCRIBED_EVENT_TYPES) {
-            const response = await postEvent(app, eventType);
+        for (const routingCase of ROUTING_CASES) {
+            const response = await postEvent(routingCase.type);
             expect(await response.json()).toEqual({ result: false });
         }
     });
 
     test('returns the legacy no-op response for unknown events', async () => {
-        const app = createApp(createDependencies(createTestHandlers()));
-        const response = await postEvent(app, 'UNKNOWN_EVENT');
+        const response = await postEvent('UNKNOWN_EVENT');
 
         expect(response.status).toBe(200);
         expect(await response.text()).toBe(JSON.stringify({ result: false }, null, 4));
     });
 
-    test('creates an isolated app context for every request', async () => {
-        const contexts: AppContext[] = [];
-        const dependencies: EventRouteDependencies = {
-            createContext: () => new AppContext(new Bkper()),
-            createHandlers: context => {
-                contexts.push(context);
-                return createTestHandlers();
-            },
-        };
-        const app = createApp(dependencies);
+    test('constructs the selected handler with isolated request context', async () => {
+        const calls = interceptHandlers();
 
-        await postEvent(app, 'UNKNOWN_EVENT');
-        await postEvent(app, 'UNKNOWN_EVENT');
+        await postEvent('TRANSACTION_POSTED');
+        await postEvent('TRANSACTION_POSTED');
 
-        expect(contexts).toHaveLength(2);
-        expect(contexts[0]).not.toBe(contexts[1]);
+        expect(calls).toHaveLength(2);
+        expect(calls[0].handler).not.toBe(calls[1].handler);
+
+        const firstContext = getAppContext(calls[0].handler);
+        const secondContext = getAppContext(calls[1].handler);
+        expect(firstContext).not.toBe(secondContext);
+        expect(firstContext.bkper).not.toBe(secondContext.bkper);
     });
 
-    test('creates Bkper without legacy token or agent providers', () => {
-        const config = createAppContext().bkper.getConfig();
+    test('creates Bkper without legacy token or agent providers', async () => {
+        const calls = interceptHandlers();
 
+        await postEvent('TRANSACTION_POSTED');
+
+        const bkper: Bkper = getAppContext(calls[0].handler).bkper;
+        const config = bkper.getConfig();
         expect(config.oauthTokenProvider).toBeUndefined();
         expect(config.agentIdProvider).toBeUndefined();
         expect(config.apiKeyProvider).toBeUndefined();
     });
 
     test('preserves the legacy stack-array error response', async () => {
-        const failingHandler: EventHandlerContract = {
-            handleEvent: async () => {
-                throw new Error('handler failed');
-            },
-        };
-        const handlers = createTestHandlers({ TRANSACTION_POSTED: failingHandler });
-        const app = createApp(createDependencies(handlers));
+        replaceHandleEvent(EventHandlerTransactionPosted, async () => {
+            throw new Error('handler failed');
+        });
         const originalConsoleError = console.error;
         console.error = () => undefined;
 
         try {
-            const response = await postEvent(app, 'TRANSACTION_POSTED');
+            const response = await postEvent('TRANSACTION_POSTED');
             const body = await response.json();
 
             expect(response.status).toBe(200);

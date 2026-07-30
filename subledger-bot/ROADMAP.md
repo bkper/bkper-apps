@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–4 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, event dispatcher, shared Book-direction behavior, and legacy Account-mapping order. Transaction and synchronization handlers remain stubs, and no remote configuration has changed.
+**Chunks 1–4 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, and legacy Account-mapping order. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Transaction and synchronization handlers remain stubs, and no remote configuration has changed.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -34,6 +34,30 @@ These rules apply to every core migration chunk and are completion gates, not pr
 - Before any other deviation, present the exact legacy code, proposed target code, and why the deviation is unavoidable, then wait for explicit approval.
 - Name class-specific tests after their corresponding legacy classes to keep source-to-target traceability explicit.
 - Before completing a chunk, compare legacy and new implementations side by side and record every deviation. Unexplained or unapproved deviations block completion.
+
+## Chunks 1–4 corrective parity audit
+
+The corrective pass after Chunk 4 removed production structure that existed only to support test injection or generic architecture:
+
+- Removed the app, context, dependency, and handler-map factories.
+- Removed the handler registry, production handler contracts, eager construction of every handler, and shared Account/Group handler instances.
+- Restored direct construction of only the selected handler inside the event switch.
+- Restored the legacy `AppContext`, base-handler constructor shape, and currently ported method and parameter names. Scheduled concrete handlers remain empty stubs until their behavior is ported.
+- Moved dispatcher tests to test-only prototype interception and restored class-specific test filenames.
+
+The remaining differences from legacy in the completed scope are required or already approved for the target runtime:
+
+| Area | Retained difference | Reason |
+| --- | --- | --- |
+| HTTP boundary | Hono Worker with `/health` and `/events` instead of Express/Functions Framework | Cloudflare runtime requirement and approved server-only skeleton |
+| Authentication | Request-scoped `new Bkper()` without header token, API-key, or agent providers | Platform outbound authentication requirement |
+| Request context | `AppContext` carries only `Bkper`; unused `express-http-context` accessors are absent | Express-specific state is neither used by legacy handlers nor available in the Worker |
+| TypeScript | Explicit nullable returns, optional SDK results, non-null event assertions, and `unknown` error narrowing | Strict TypeScript requirement |
+| Source layout | Worker entry point and event modules wrap the preserved handler-class decomposition | Approved Cloudflare workspace and Hono route layout |
+| Unreachable switch branch | The second legacy `GROUP_DELETED` case is omitted; the first case always handles that value | Avoid a Worker build warning without changing valid-event routing |
+| Syntax | Formatting, immutable locals, and strict equality remain where they do not change the value domain or behavior | Avoid cosmetic churn unrelated to migration risk |
+
+Within the behavior ported through Chunk 4, the corrective comparison found no remaining handler factory, registry, shared-instance, constructor-timing, lookup-order, API-call-order, or return-normalization deviation. Future transaction and synchronization behavior remains deferred to its scheduled chunks.
 
 ## Agreed decisions
 

@@ -9,6 +9,8 @@ This is the event-only Cloudflare Worker migration target. The production-author
 - Preserve legacy business behavior during parity work; do not combine migration with fixes or redesigns.
 - Protect Bkper's zero-sum invariant. A consolidated transaction must remain one complete movement with one amount, and unresolved movements must remain drafts.
 
+Follow the mandatory [mechanical parity port rules](../ROADMAP.md#mechanical-parity-port-rules) before changing migration code.
+
 ## Authentication
 
 Create request-scoped `Bkper` instances without token providers. Platform outbound authentication supplies the event user's OAuth context and app agent identity. Never read or forward `Authorization`, `bkper-oauth-token`, or `bkper-agent-id` in Worker code.

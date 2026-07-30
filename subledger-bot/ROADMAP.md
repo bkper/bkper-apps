@@ -22,6 +22,19 @@ The Cloudflare implementation will run in parallel with the current Google Cloud
 6. **Separate implementation from routing.** A deployed Worker does not imply that any webhook should point to it.
 7. **Keep changes small and boring.** Prefer short-lived branches and independently mergeable chunks over one long-running rewrite.
 
+## Mechanical parity port rules
+
+These rules apply to every core migration chunk and are completion gates, not preferences.
+
+- Preserve legacy source class, method, and parameter names; class decomposition; branch and lookup order; constructor timing; instance lifetime; return normalization; logging; API-call order; and side effects.
+- Do not rename, clean up, optimize, refactor, modernize, or otherwise improve legacy code during the port.
+- Do not add factories, registries, handler maps, dependency injection, services, utilities, adapters, shared instances, or other production abstractions unless they already exist in legacy or receive explicit approval before implementation.
+- Testability does not justify changing production architecture. Use deterministic fakes or controlled SDK/network interception around the production shape.
+- Mechanical changes allowed without a separate decision are limited to import paths/module syntax, strict TypeScript annotations and nullability, the Express-to-Hono request boundary, request-scoped platform authentication, and packaging/build configuration already specified here. They must not alter control flow or behavior.
+- Before any other deviation, present the exact legacy code, proposed target code, and why the deviation is unavoidable, then wait for explicit approval.
+- Name class-specific tests after their corresponding legacy classes to keep source-to-target traceability explicit.
+- Before completing a chunk, compare legacy and new implementations side by side and record every deviation. Unexplained or unapproved deviations block completion.
+
 ## Agreed decisions
 
 - Use a parallel source layout:

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–3 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now has its server skeleton, request-scoped context, legacy event dispatcher, and explicit business-handler stubs. Business behavior has not been ported, and no remote configuration has changed.
+**Chunks 1–4 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, event dispatcher, shared Book-direction behavior, and legacy Account-mapping order. Transaction and synchronization handlers remain stubs, and no remote configuration has changed.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 

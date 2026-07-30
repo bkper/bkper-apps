@@ -12,7 +12,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Inventory Bot (legacy) | Apps Script + GCP Cloud Functions | `inventory-bot/legacy/` |
 | Inventory Bot (new) | Platform app (Vite + Cloudflare Workers) | `inventory-bot/new/` |
 | Portfolio Bot | Apps Script + GCP Cloud Functions | `portfolio-bot/` |
-| Subledger Bot | GCP Cloud Functions | `subledger-bot/` |
+| Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | GCP Cloud Functions | `tax-bot/` |
 
 ## Port Allocation
@@ -37,7 +37,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | --- | --- | --- |
 | portfolio-bot/gcf | `3002` | Configured in `portfolio-bot/gcf/package.json` |
 | exchange-bot/events | `3003` | Configured in `exchange-bot/events/package.json` |
-| subledger-bot | `3004` | Configured in `subledger-bot/package.json` |
+| subledger-bot/legacy | `3004` | Configured in `subledger-bot/legacy/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
 | tax-bot | `3041` | Configured in `tax-bot/package.json` |
 

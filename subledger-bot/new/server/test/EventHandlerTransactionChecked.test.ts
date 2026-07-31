@@ -89,6 +89,7 @@ function createSetup(connectedTransaction?: bkper.Transaction): {
     parentBook: Book;
     parentCreditAccount: Account;
     parentDebitAccount: Account;
+    queries: string[];
     removeParentCreditAccount(): void;
 } {
     const childBook = createBook('child-book', 'Child Book');
@@ -103,6 +104,7 @@ function createSetup(connectedTransaction?: bkper.Transaction): {
         ['parent-debit', parentDebitAccount],
         ['Child To', parentDebitAccount],
     ]);
+    const queries: string[] = [];
 
     childBook.getAccount = async id => {
         if (id === 'child-credit') {
@@ -114,16 +116,19 @@ function createSetup(connectedTransaction?: bkper.Transaction): {
         return undefined;
     };
     parentBook.getAccount = async idOrName => parentAccounts.get(idOrName ?? '');
-    parentBook.listTransactions = async () =>
-        new TransactionList(parentBook, {
+    parentBook.listTransactions = async query => {
+        queries.push(query ?? '');
+        return new TransactionList(parentBook, {
             items: connectedTransaction ? [connectedTransaction] : [],
         });
+    };
 
     return {
         childBook,
         parentBook,
         parentCreditAccount,
         parentDebitAccount,
+        queries,
         removeParentCreditAccount(): void {
             parentAccounts.delete('parent-credit');
             parentAccounts.delete('Child From');
@@ -149,6 +154,7 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         expect(result).toBe(
             "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: 2026-07-30 125.5 Child From Child To Invoice #1042"
         );
+        expect(setup.queries).toEqual(['remoteId:child-transaction']);
         expect(requests.map(request => request.url)).toEqual([
             'https://api.bkper.app/v5/books/parent-book/transactions/post?',
             'https://api.bkper.app/v5/books/parent-book/transactions/check?',
@@ -210,6 +216,34 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
             'https://api.bkper.app/v5/books/parent-book/transactions/check?'
         );
         expect(requests[0].transaction.id).toBe('parent-transaction');
+    });
+
+    test('leaves an existing checked transaction unchanged', async () => {
+        const connectedTransaction: bkper.Transaction = {
+            id: 'parent-transaction',
+            date: '2026-07-30',
+            dateFormatted: '2026-07-30',
+            amount: '125.50',
+            description: 'Invoice #1042',
+            posted: true,
+            checked: true,
+            creditAccount: { id: 'parent-credit', name: 'Child From' },
+            debitAccount: { id: 'parent-debit', name: 'Child To' },
+            remoteIds: ['child-transaction'],
+        };
+        const setup = createSetup(connectedTransaction);
+        const requests = captureTransactionRequests();
+
+        const result = await createHandler().processChildEvent(
+            setup.childBook,
+            setup.parentBook,
+            buildEvent(buildChildTransaction())
+        );
+
+        expect(result).toBe(
+            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: CHECKED: 2026-07-30 125.50 Child From Child To Invoice #1042"
+        );
+        expect(requests).toHaveLength(0);
     });
 
     test('posts before checking an existing complete draft', async () => {

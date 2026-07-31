@@ -48,6 +48,28 @@ function createHandler(): TestEventHandlerTransactionRestored {
 }
 
 describe('EventHandlerTransactionRestored legacy behavior', () => {
+    test('does nothing when no trashed remote-id match exists', async () => {
+        const childBook = createBook('child-book', 'Child Book');
+        const parentBook = createBook('parent-book', 'Parent Book');
+        parentBook.listTransactions = async query => {
+            expect(query).toBe('remoteId:child-transaction is:trashed');
+            return new TransactionList(parentBook, { items: [] });
+        };
+        const requests: Request[] = [];
+        globalThis.fetch = Object.assign(
+            async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+                requests.push(input instanceof Request ? input : new Request(input, init));
+                return new Response();
+            },
+            { preconnect: originalFetch.preconnect }
+        );
+
+        const result = await createHandler().processChildEvent(childBook, parentBook, buildEvent());
+
+        expect(result).toBeNull();
+        expect(requests).toHaveLength(0);
+    });
+
     test('finds the trashed remote-id match and untrashes it', async () => {
         const childBook = createBook('child-book', 'Child Book');
         const parentBook = createBook('parent-book', 'Parent Book');

@@ -219,12 +219,20 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         const fixture = createFixture();
         const requests = captureTransactionRequests();
 
-        await createHandler().processChildEvent(
+        const overrideResult = await createHandler().processChildEvent(
             fixture.childBook,
             fixture.parentBook,
             buildEvent(buildChildTransaction({ parent_amount: '250.00' }))
         );
 
+        expect(overrideResult).toBe(
+            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: 2026-07-30 250 Child From Child To Invoice #1042"
+        );
+        expect(requests).toHaveLength(1);
+        expect(requests[0].method).toBe('PATCH');
+        expect(requests[0].url).toBe(
+            'https://api.bkper.app/v5/books/parent-book/transactions/post?'
+        );
         expect(requests[0].transaction.amount).toBe('250');
 
         requests.length = 0;
@@ -266,6 +274,23 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         expect(requests[0].method).toBe('PATCH');
         expect(requests[0].url).toContain('/transactions/post?');
         expect(requests[0].transaction.id).toBe('parent-transaction');
+    });
+
+    test('ignores a child transaction that is not posted', async () => {
+        const fixture = createFixture();
+        const requests = captureTransactionRequests();
+        const childTransaction = buildChildTransaction();
+        childTransaction.posted = false;
+
+        const result = await createHandler().processChildEvent(
+            fixture.childBook,
+            fixture.parentBook,
+            buildEvent(childTransaction)
+        );
+
+        expect(result).toBeNull();
+        expect(fixture.queries).toHaveLength(0);
+        expect(requests).toHaveLength(0);
     });
 
     test('skips transactions created by the Exchange Bot agent', async () => {

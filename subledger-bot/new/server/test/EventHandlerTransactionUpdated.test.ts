@@ -206,9 +206,27 @@ describe('EventHandlerTransactionUpdated legacy behavior', () => {
                 child_from: 'Child From',
                 child_to: 'Child To',
             },
+            remoteIds: ['child-transaction', 'child-transaction'],
             urls: ['https://example.com/invoice', 'https://example.com/attachment'],
         });
         expect(requests[1].transaction.properties?.hidden_).toBeUndefined();
+    });
+
+    test('copies file URLs when the child transaction has no URLs array', async () => {
+        const setup = createSetup(buildConnectedTransaction());
+        const requests = captureTransactionRequests();
+        const childTransaction = buildChildTransaction();
+        childTransaction.urls = undefined;
+
+        await createHandler().processChildEvent(
+            setup.childBook,
+            setup.parentBook,
+            buildEvent(childTransaction)
+        );
+
+        expect(requests).toHaveLength(1);
+        expect(requests[0].method).toBe('PUT');
+        expect(requests[0].transaction.urls).toEqual(['https://example.com/attachment']);
     });
 
     test('does not mutate a connected transaction when either mapped Account is unresolved', async () => {

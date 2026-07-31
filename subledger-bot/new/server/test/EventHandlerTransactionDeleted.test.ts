@@ -48,7 +48,7 @@ function buildEvent(): bkper.Event {
     };
 }
 
-function buildConnectedTransaction(): bkper.Transaction {
+function buildConnectedTransaction(checked = true): bkper.Transaction {
     return {
         id: 'parent-transaction',
         date: '2026-07-30',
@@ -56,7 +56,7 @@ function buildConnectedTransaction(): bkper.Transaction {
         amount: '125.50',
         description: 'Invoice #1042',
         posted: true,
-        checked: true,
+        checked,
         creditAccount: { id: 'parent-credit', name: 'Parent From' },
         debitAccount: { id: 'parent-debit', name: 'Parent To' },
         remoteIds: ['child-transaction'],
@@ -104,6 +104,30 @@ describe('EventHandlerTransactionDeleted legacy behavior', () => {
 
         expect(result).toBeNull();
         expect(requests).toHaveLength(0);
+    });
+
+    test('trashes an unchecked connected transaction without unchecking it', async () => {
+        const childBook = createBook('child-book', 'Child Book');
+        const parentBook = createBook('parent-book', 'Parent Book');
+        parentBook.listTransactions = async () =>
+            new TransactionList(parentBook, { items: [buildConnectedTransaction(false)] });
+        parentBook.getAccount = async id => {
+            if (id === 'parent-credit') {
+                return new Account(parentBook, { id, name: 'Parent From' });
+            }
+            if (id === 'parent-debit') {
+                return new Account(parentBook, { id, name: 'Parent To' });
+            }
+            return undefined;
+        };
+        const requests = captureTransactionRequests();
+
+        await createHandler().processChildEvent(childBook, parentBook, buildEvent());
+
+        expect(requests).toHaveLength(1);
+        expect(requests[0].url).toBe(
+            'https://api.bkper.app/v5/books/parent-book/transactions/trash?'
+        );
     });
 
     test('unchecks before trashing a checked connected transaction', async () => {

@@ -203,6 +203,50 @@ describe('legacy parent Account mapping', () => {
         expect(requests[0].url).not.toContain('/transactions');
     });
 
+    test('returns null when Group-mapped parent Account auto-creation fails', async () => {
+        const childBook = createBook('child-book', 'Child Book');
+        const parentBook = createBook('parent-book', 'Parent Book');
+        const mappedGroup = createGroup(childBook, 'mapped-group', 'Customers', {
+            parent_account: 'Receivables',
+        });
+        const childAccount = createAccount(childBook, 'child-account', 'Customer A');
+        childAccount.getGroups = async () => [mappedGroup];
+        parentBook.getAccount = async () => undefined;
+        const requests: Request[] = [];
+        globalThis.fetch = Object.assign(
+            async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+                const request = input instanceof Request ? input : new Request(input, init);
+                requests.push(request);
+                return new Response(JSON.stringify({ error: 'creation failed' }), {
+                    status: 500,
+                    headers: { 'content-type': 'application/json' },
+                });
+            },
+            { preconnect: originalFetch.preconnect }
+        );
+        const originalConsoleLog = console.log;
+        console.log = () => undefined;
+
+        try {
+            const result = await createHandler().resolveParentAccount(
+                childBook,
+                parentBook,
+                childAccount
+            );
+
+            expect(result).toBeNull();
+            expect(requests.length).toBeGreaterThan(0);
+            expect(
+                requests.every(
+                    request =>
+                        request.url === 'https://api.bkper.app/v5/books/parent-book/accounts?'
+                )
+            ).toBe(true);
+        } finally {
+            console.log = originalConsoleLog;
+        }
+    });
+
     test('uses the same-name parent Account through a linked Group', async () => {
         const childBook = createBook('child-book', 'Child Book');
         const parentBook = createBook('parent-book', 'Parent Book');

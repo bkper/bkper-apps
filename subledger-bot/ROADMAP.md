@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–5 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, and posted/checked transaction creation behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Transaction update/delete/restore and synchronization handlers remain stubs, and no remote configuration has changed.
+**Chunks 1–6 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, and transaction creation/update/delete/restore behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Account and Group synchronization handlers remain stubs, and no remote configuration has changed.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -66,10 +66,23 @@ The posted and checked transaction handlers now preserve the legacy shared trans
 - Complete mapped transactions are built as one `Transaction` carrying one amount and both mapped Accounts before posting.
 - Unresolved mappings create drafts and do not affect balances.
 - The legacy draft-description expression, including its non-awaited Account getter comparisons, remains unchanged in runtime behavior. This known defect was explicitly left unfixed for migration parity.
-- Transaction update/delete/restore classes contain only the legacy-shaped query/found/not-found method stubs required by the now-ported abstract transaction base contract. Their scheduled business behavior remains deferred to Chunk 6.
+- At Chunk 5 completion, transaction update/delete/restore classes contained only the legacy-shaped query/found/not-found method stubs required by the ported abstract transaction base contract; their business behavior was subsequently ported in Chunk 6.
 - Tests use only test-side SDK/network interception; no production factory, dependency injection, registry, or testing hook was introduced.
 
 The remaining source differences in Chunk 5 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, `Promise.resolve(null)` for strict Promise-returning no-op methods, and the already-approved Cloudflare runtime differences. The side-by-side comparison found no unexplained movement-direction, amount, property, remote-id, state-transition, lookup-order, API-call-order, or response deviation.
+
+## Chunk 6 parity audit
+
+The transaction update, delete, and restore handlers now preserve the legacy remote-id queries, checked-state handling, movement updates, URL/file-URL behavior, trash/untrash transitions, API-call order, and result strings.
+
+- Updates occur only when a connected parent transaction and both mapped parent Accounts resolve.
+- Checked parent transactions are unchecked before update or deletion.
+- Update preserves movement direction, applies one amount to the existing complete `Transaction`, copies visible and trace properties, and appends child file URLs to the current child URL array before setting parent URLs.
+- The current `parent_amount: 0` update behavior remains unchanged: a checked connected transaction is unchecked, no update call occurs, and the legacy `EDITED` response describes the existing transaction.
+- Delete unchecks when required before trashing; restore queries `remoteId:<id> is:trashed` before untrashing.
+- Tests use only test-side SDK/network interception; no production factory, dependency injection, registry, or testing hook was introduced.
+
+The remaining source differences in Chunk 6 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, and `Promise.resolve(null)` for strict Promise-returning no-op methods. The side-by-side comparison found no unexplained movement-direction, amount, property, URL, state-transition, query, API-call-order, or response deviation.
 
 ## Agreed decisions
 

@@ -198,9 +198,17 @@ describe('legacy event dispatcher', () => {
         });
     }
 
-    test('keeps every subscribed production handler as an explicit no-op stub', async () => {
-        for (const routingCase of ROUTING_CASES) {
-            const response = await postEvent(routingCase.type);
+    test('keeps parent-side transaction events as no-ops', async () => {
+        const transactionEventTypes: readonly SubscribedEventType[] = [
+            'TRANSACTION_POSTED',
+            'TRANSACTION_CHECKED',
+            'TRANSACTION_UPDATED',
+            'TRANSACTION_DELETED',
+            'TRANSACTION_RESTORED',
+        ];
+
+        for (const eventType of transactionEventTypes) {
+            const response = await postEvent(eventType);
             expect(await response.json()).toEqual({ result: false });
         }
     });

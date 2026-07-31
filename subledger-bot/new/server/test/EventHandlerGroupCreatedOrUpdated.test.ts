@@ -3,6 +3,16 @@ import { Account, AccountType, Bkper, Book, Group } from 'bkper-js';
 import { AppContext } from '../src/app-context';
 import { EventHandlerGroupCreatedOrUpdated } from '../src/events/handlers/EventHandlerGroupCreatedOrUpdated';
 
+class TestEventHandlerGroupCreatedOrUpdated extends EventHandlerGroupCreatedOrUpdated {
+    processChildEvent(
+        childBook: Book,
+        parentBook: Book,
+        event: bkper.Event
+    ): Promise<string | null> {
+        return this.processChildBookEvent(childBook, parentBook, event);
+    }
+}
+
 interface CapturedRequest {
     method: string;
     url: string;
@@ -56,8 +66,8 @@ function captureResourceRequests(): CapturedRequest[] {
     return requests;
 }
 
-function createHandler(bkper = new Bkper()): EventHandlerGroupCreatedOrUpdated {
-    return new EventHandlerGroupCreatedOrUpdated(new AppContext(bkper));
+function createHandler(bkper = new Bkper()): TestEventHandlerGroupCreatedOrUpdated {
+    return new TestEventHandlerGroupCreatedOrUpdated(new AppContext(bkper));
 }
 
 describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
@@ -171,7 +181,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
             properties: { parent_account: 'Travel' },
         };
 
-        const result = await createHandler().processChildBookEvent(
+        const result = await createHandler().processChildEvent(
             childBook,
             parentBook,
             buildEvent(childGroup)
@@ -218,7 +228,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
             properties: { parent_account: 'New Services' },
         };
 
-        const result = await createHandler().processChildBookEvent(
+        const result = await createHandler().processChildEvent(
             childBook,
             parentBook,
             buildEvent(childGroup, { parent_account: 'Old Services' })
@@ -263,7 +273,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
                 { child_book_id: 'old-child-book' }
             )
         );
-        const childResult = await handler.processChildBookEvent(
+        const childResult = await handler.processChildEvent(
             childBook,
             parentBook,
             buildEvent(

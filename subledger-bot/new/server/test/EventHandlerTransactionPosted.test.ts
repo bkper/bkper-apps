@@ -276,6 +276,31 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         expect(requests[0].transaction.id).toBe('parent-transaction');
     });
 
+    test('leaves an existing posted remote-id match unchanged', async () => {
+        const fixture = createFixture();
+        fixture.setConnectedTransaction({
+            id: 'parent-transaction',
+            date: '2026-07-30',
+            amount: '125.50',
+            description: 'Invoice #1042',
+            posted: true,
+            creditAccount: fixture.parentCreditAccount.json(),
+            debitAccount: fixture.parentDebitAccount.json(),
+            remoteIds: ['child-transaction'],
+        });
+        const requests = captureTransactionRequests();
+
+        const result = await createHandler().processChildEvent(
+            fixture.childBook,
+            fixture.parentBook,
+            buildEvent(buildChildTransaction())
+        );
+
+        expect(result).toBeNull();
+        expect(fixture.queries).toEqual(['remoteId:child-transaction']);
+        expect(requests).toHaveLength(0);
+    });
+
     test('ignores a child transaction that is not posted', async () => {
         const fixture = createFixture();
         const requests = captureTransactionRequests();

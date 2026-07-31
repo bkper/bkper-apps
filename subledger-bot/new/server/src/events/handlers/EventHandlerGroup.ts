@@ -50,7 +50,7 @@ export abstract class EventHandlerGroup extends EventHandler {
 
     private async getChildBook(parentGroup: bkper.Group): Promise<Book | null> {
         if (parentGroup.properties![CHILD_BOOK_ID_PROP]) {
-            return await this.context.bkper.getBook(parentGroup.properties![CHILD_BOOK_ID_PROP]);
+            return this.context.bkper.getBook(parentGroup.properties![CHILD_BOOK_ID_PROP]);
         }
         return null;
     }
@@ -69,7 +69,7 @@ export abstract class EventHandlerGroup extends EventHandler {
         parentAccount: Account
     ): Promise<string | null>;
 
-    public async processChildBookEvent(
+    protected async processChildBookEvent(
         childBook: Book,
         parentBook: Book,
         event: bkper.Event

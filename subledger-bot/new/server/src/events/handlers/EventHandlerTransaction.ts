@@ -9,12 +9,12 @@ export interface AmountDescription {
 }
 
 export abstract class EventHandlerTransaction extends EventHandler {
-    protected processParentBookEvent(parentBook: Book, event: bkper.Event): Promise<string | null> {
+    public processParentBookEvent(parentBook: Book, event: bkper.Event): Promise<string | null> {
         return Promise.resolve(null);
     }
 
     // child >> parent
-    protected async processChildBookEvent(
+    public async processChildBookEvent(
         childBook: Book,
         parentBook: Book,
         event: bkper.Event

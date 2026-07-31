@@ -3,6 +3,16 @@ import { Account, AccountType, Bkper, Book, Group } from 'bkper-js';
 import { AppContext } from '../src/app-context';
 import { EventHandlerGroupDeleted } from '../src/events/handlers/EventHandlerGroupDeleted';
 
+class TestEventHandlerGroupDeleted extends EventHandlerGroupDeleted {
+    processChildEvent(
+        childBook: Book,
+        parentBook: Book,
+        event: bkper.Event
+    ): Promise<string | null> {
+        return this.processChildBookEvent(childBook, parentBook, event);
+    }
+}
+
 interface CapturedRequest {
     method: string;
     url: string;
@@ -48,8 +58,8 @@ function captureResourceRequests(
     return requests;
 }
 
-function createHandler(bkper = new Bkper()): EventHandlerGroupDeleted {
-    return new EventHandlerGroupDeleted(new AppContext(bkper));
+function createHandler(bkper = new Bkper()): TestEventHandlerGroupDeleted {
+    return new TestEventHandlerGroupDeleted(new AppContext(bkper));
 }
 
 function createParentGroupDeleteSetup(childGroup?: Group): {
@@ -128,7 +138,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
             properties: { parent_account: 'Mapped Parent' },
         };
 
-        const result = await createHandler().processChildBookEvent(
+        const result = await createHandler().processChildEvent(
             childBook,
             parentBook,
             buildEvent(childGroup)
@@ -162,7 +172,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
             properties: { parent_account: 'Mapped Parent' },
         };
 
-        const result = await createHandler().processChildBookEvent(
+        const result = await createHandler().processChildEvent(
             childBook,
             parentBook,
             buildEvent(childGroup)
@@ -197,7 +207,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
             properties: { parent_account: 'Mapped Parent' },
         };
 
-        const result = await createHandler().processChildBookEvent(
+        const result = await createHandler().processChildEvent(
             childBook,
             parentBook,
             buildEvent(childGroup)

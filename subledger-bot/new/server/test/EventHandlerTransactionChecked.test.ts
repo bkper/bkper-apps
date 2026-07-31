@@ -218,6 +218,33 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         expect(requests[0].transaction.id).toBe('parent-transaction');
     });
 
+    test('returns the legacy checked response for an incomplete connected draft', async () => {
+        const incompleteDraft: bkper.Transaction = {
+            id: 'parent-transaction',
+            date: '2026-07-29',
+            dateFormatted: '2026-07-29',
+            amount: '100',
+            description: 'Original invoice',
+            posted: false,
+            checked: false,
+            debitAccount: { id: 'parent-debit', name: 'Child To' },
+            remoteIds: ['child-transaction'],
+        };
+        const setup = createSetup(incompleteDraft);
+        const requests = captureTransactionRequests();
+
+        const result = await createHandler().processChildEvent(
+            setup.childBook,
+            setup.parentBook,
+            buildEvent(buildChildTransaction())
+        );
+
+        expect(result).toBe(
+            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: CHECKED: 2026-07-29 100.00  Child To Original invoice"
+        );
+        expect(requests).toHaveLength(0);
+    });
+
     test('leaves an existing checked transaction unchanged', async () => {
         const connectedTransaction: bkper.Transaction = {
             id: 'parent-transaction',

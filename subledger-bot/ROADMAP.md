@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–8 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. All core business handlers are now ported, no remote configuration has changed, and the full parity and legacy-drift audit remains pending.
+**Chunks 1–9 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. The full deterministic parity and legacy-drift audit passed against legacy revision `d0cdf996348150158c8d0e59f32e9c47a2c44555`: no production patch has landed since the migration baseline, and all 23 baseline production files remain byte-identical after relocation. The audit also restored the remaining legacy method-visibility and direct Promise-return shapes, completed known transaction-state coverage, and reviewed configuration, dependencies, generated artifacts, and the Worker bundle. No remote configuration has changed; boundary and response hardening is next.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -109,6 +109,19 @@ The Group handlers now preserve the legacy parent-to-child Group synchronization
 - Tests execute the production handlers and real SDK models while intercepting only SDK/network boundaries; no production testing hook or abstraction was introduced, and no transaction endpoint is called.
 
 The remaining source differences in Chunk 8 are strict TypeScript annotations and non-null assertions, type-only imports and module paths, explicit nullable returns, formatting, immutable locals, and explicit `public` modifiers where legacy TypeScript used the equivalent default visibility. The side-by-side comparison found no unexplained Book-selection, lookup-order, Account-type, property, resource-mutation, API-call-order, no-op, error, or response deviation.
+
+## Chunk 9 full parity and legacy-drift audit
+
+The complete behavior matrix and every legacy/Cloudflare handler pair were reviewed against legacy revision `d0cdf996348150158c8d0e59f32e9c47a2c44555`.
+
+- Git history and byte comparison found no production change under `legacy/` since the migration baseline. All 23 baseline production files match their relocated copies exactly, so there is no missing patch to translate.
+- The side-by-side source audit restored the legacy public visibility of the transaction Book-direction methods, the protected visibility of the Group child-to-parent method, and the direct Promise return in Group child-Book loading. Group tests now expose the protected method only through test-side subclasses; no production testability hook remains.
+- Deterministic coverage now explicitly protects the no-op for an already-posted remote-id match and the current response/no-write behavior for a connected checked-event draft that is not ready to post.
+- `new/bkper.yaml` metadata matches the production file exactly apart from the approved `deployment` block. It still has the GCP `webhookUrl`, no `webhookUrlDev`, no client/services, and no secrets.
+- Runtime and tooling dependencies are exactly pinned in `bun.lock` and were current at the audit. The generated `env.d.ts` remains empty, and the reviewed Worker artifact contains the expected Hono and `bkper-js` dependency trees plus authored server sources. Auth-header support present inside the bundled SDK remains dormant because authored code configures no token, API-key, or agent provider.
+- The full local check passes with 74 deterministic tests, strict production and test typechecks, a 582,841-byte Worker bundle, and clean formatting. The legacy build also passes. No credentials, network-backed Book access, live Book writes, deployment, app sync, or routing mutation occurred.
+
+The remaining differences from legacy are the approved Cloudflare/Hono boundary, request-scoped platform authentication, reduced `AppContext`, strict TypeScript annotations and nullability, module paths and type-only imports, immutable locals and formatting, `Promise.resolve(null)` where strict Promise signatures require it, and omission of comments and the unreachable duplicate `GROUP_DELETED` branch. The audit found no unexplained class decomposition, method/parameter name, visibility, constructor timing, instance lifetime, branch/lookup order, API-call order, resource mutation, movement direction, amount, state transition, logging, side-effect, return normalization, or valid-event response deviation.
 
 ## Agreed decisions
 
@@ -269,14 +282,14 @@ The legacy implementation can be patched throughout the migration. Prevent drift
 
 | Legacy change | Production status | Cloudflare test | Cloudflare port | Notes |
 | --- | --- | --- | --- | --- |
-| _Populate during migration_ |  |  |  |  |
+| _No legacy change since the migration baseline_ | Source unchanged through `d0cdf996348150158c8d0e59f32e9c47a2c44555` | N/A | N/A | All 23 baseline production files remain byte-identical after relocation |
 
 ### Audit checkpoints
 
 | Checkpoint | Legacy revision reviewed | Reviewer | Result |
 | --- | --- | --- | --- |
 | Migration baseline | `d1a1bbd8f00281be619cda9d67b4b1d5c13cabc4` | — | Legacy relocation complete; build verified before and after the move |
-| Before preview routing | TBD | TBD | TBD |
+| Before preview routing | `d0cdf996348150158c8d0e59f32e9c47a2c44555` | AI implementation audit; human owner review pending | Deterministic Chunk 9 audit passed; no legacy drift or missing patch |
 | Before production cutover | TBD | TBD | TBD |
 
 ## Verification strategy

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { Account, AccountType, Bkper, Book, Group } from 'bkper-js';
+import { Account, AccountType, Bkper, Book, Group, type Transaction } from 'bkper-js';
 import { AppContext } from '../src/app-context';
 import { EventHandlerTransaction } from '../src/events/handlers/EventHandlerTransaction';
 
@@ -10,6 +10,23 @@ class AccountMappingHandler extends EventHandlerTransaction {
         childAccount: Account
     ): Promise<Account | null | undefined> {
         return this.getParentAccount(childBook, parentBook, childAccount);
+    }
+
+    protected getTransactionQuery(childTransaction: bkper.Transaction): string {
+        return `remoteId:${childTransaction.id}`;
+    }
+
+    protected parentTransactionNotFound(): Promise<string | null> {
+        return Promise.resolve(null);
+    }
+
+    protected parentTransactionFound(
+        childBook: Book,
+        parentBook: Book,
+        childTransaction: bkper.Transaction,
+        parentTransaction: Transaction
+    ): Promise<string | null> {
+        return Promise.resolve(null);
     }
 }
 

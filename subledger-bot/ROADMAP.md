@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–4 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, and legacy Account-mapping order. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Transaction and synchronization handlers remain stubs, and no remote configuration has changed.
+**Chunks 1–5 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, and posted/checked transaction creation behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Transaction update/delete/restore and synchronization handlers remain stubs, and no remote configuration has changed.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -58,6 +58,18 @@ The remaining differences from legacy in the completed scope are required or alr
 | Syntax | Formatting, immutable locals, and strict equality remain where they do not change the value domain or behavior | Avoid cosmetic churn unrelated to migration risk |
 
 Within the behavior ported through Chunk 4, the corrective comparison found no remaining handler factory, registry, shared-instance, constructor-timing, lookup-order, API-call-order, or return-normalization deviation. Future transaction and synchronization behavior remains deferred to its scheduled chunks.
+
+## Chunk 5 parity audit
+
+The posted and checked transaction handlers now preserve the legacy shared transaction flow, remote-id lookup, Exchange Bot transaction-agent skip, movement construction, visible and trace properties, `parent_amount` behavior, draft/post/check transitions, API-call order, and result strings.
+
+- Complete mapped transactions are built as one `Transaction` carrying one amount and both mapped Accounts before posting.
+- Unresolved mappings create drafts and do not affect balances.
+- The legacy draft-description expression, including its non-awaited Account getter comparisons, remains unchanged in runtime behavior. This known defect was explicitly left unfixed for migration parity.
+- Transaction update/delete/restore classes contain only the legacy-shaped query/found/not-found method stubs required by the now-ported abstract transaction base contract. Their scheduled business behavior remains deferred to Chunk 6.
+- Tests use only test-side SDK/network interception; no production factory, dependency injection, registry, or testing hook was introduced.
+
+The remaining source differences in Chunk 5 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, `Promise.resolve(null)` for strict Promise-returning no-op methods, and the already-approved Cloudflare runtime differences. The side-by-side comparison found no unexplained movement-direction, amount, property, remote-id, state-transition, lookup-order, API-call-order, or response deviation.
 
 ## Agreed decisions
 

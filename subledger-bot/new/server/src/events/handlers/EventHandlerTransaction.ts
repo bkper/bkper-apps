@@ -1,18 +1,49 @@
-import { Account, type Book } from 'bkper-js';
-import { PARENT_ACCOUNT_PROP } from '../../constants.js';
+import { Account, Amount, type Book, Transaction } from 'bkper-js';
+import { PARENT_ACCOUNT_PROP, PARENT_AMOUNT } from '../../constants.js';
 import { EventHandler } from './EventHandler.js';
+
+export interface AmountDescription {
+    amount: Amount;
+    description: string;
+    taxAmount: Amount;
+}
 
 export abstract class EventHandlerTransaction extends EventHandler {
     protected processParentBookEvent(parentBook: Book, event: bkper.Event): Promise<string | null> {
         return Promise.resolve(null);
     }
 
-    protected processChildBookEvent(
+    // child >> parent
+    protected async processChildBookEvent(
         childBook: Book,
         parentBook: Book,
         event: bkper.Event
     ): Promise<string | null> {
-        return Promise.resolve(null);
+        const operation = event.data!.object as bkper.TransactionOperation;
+        const baseTransaction = operation.transaction!;
+
+        if (baseTransaction.agentId == 'exchange-bot') {
+            console.log('Skiping Exchange Bot agent.');
+            return null;
+        }
+
+        if (!baseTransaction.posted) {
+            return null;
+        }
+
+        const connectedTransaction = (
+            await parentBook.listTransactions(this.getTransactionQuery(baseTransaction))
+        ).getFirst();
+        if (connectedTransaction) {
+            return this.parentTransactionFound(
+                childBook,
+                parentBook,
+                baseTransaction,
+                connectedTransaction
+            );
+        } else {
+            return this.parentTransactionNotFound(childBook, parentBook, baseTransaction);
+        }
     }
 
     protected async getParentAccount(
@@ -64,4 +95,41 @@ export abstract class EventHandlerTransaction extends EventHandler {
         // Falback for account with same name as child
         return await parentBook.getAccount(childAccount.getName());
     }
+
+    protected async isReadyToPost(newTransaction: Transaction): Promise<boolean> {
+        return (
+            (await newTransaction.getCreditAccount()) != null &&
+            (await newTransaction.getDebitAccount()) != null &&
+            newTransaction.getAmount() != null
+        );
+    }
+
+    protected getAmount(parentBook: Book, childTransaction: bkper.Transaction): Amount | null {
+        const parentAmountProp = childTransaction.properties![PARENT_AMOUNT];
+        if (parentAmountProp) {
+            const parentAmount = parentBook.parseValue(parentAmountProp);
+            if (!parentAmount || parentAmount.eq('0')) {
+                return null;
+            } else {
+                return parentAmount;
+            }
+        } else {
+            return new Amount(childTransaction.amount!);
+        }
+    }
+
+    protected abstract getTransactionQuery(childTransaction: bkper.Transaction): string;
+
+    protected abstract parentTransactionNotFound(
+        childBook: Book,
+        parentBook: Book,
+        childTransaction: bkper.Transaction
+    ): Promise<string | null>;
+
+    protected abstract parentTransactionFound(
+        childBook: Book,
+        parentBook: Book,
+        chilTransaction: bkper.Transaction,
+        parentTransaction: Transaction
+    ): Promise<string | null>;
 }

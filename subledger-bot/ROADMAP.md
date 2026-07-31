@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–9 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. The full deterministic parity and legacy-drift audit passed against legacy revision `d0cdf996348150158c8d0e59f32e9c47a2c44555`: no production patch has landed since the migration baseline, and all 23 baseline production files remain byte-identical after relocation. The audit also restored the remaining legacy method-visibility and direct Promise-return shapes, completed known transaction-state coverage, and reviewed configuration, dependencies, generated artifacts, and the Worker bundle. No remote configuration has changed; boundary and response hardening is next.
+**Chunks 1–9 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. The full deterministic parity and legacy-drift audit passed against legacy revision `d0cdf996348150158c8d0e59f32e9c47a2c44555`: no production patch has landed since the migration baseline, and all 23 baseline production files remain byte-identical after relocation. The audit also restored the remaining legacy method-visibility and direct Promise-return shapes, completed known transaction-state coverage, and reviewed configuration, dependencies, generated artifacts, and the Worker bundle. No remote configuration has changed; preview deployment readiness and the developer-domain canary are next.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -142,9 +142,9 @@ The remaining differences from legacy are the approved Cloudflare/Hono boundary,
 - Preserve the current handler decomposition and valid-event behavior as closely as strict TypeScript allows.
 - Write unit tests first and avoid live Bkper calls during implementation.
 - Keep the production `webhookUrl` on GCP until final cutover.
-- Do not add or sync `webhookUrlDev` until the Worker has passed parity, hardening, typecheck, tests, and build.
+- Do not add or sync `webhookUrlDev` until the Worker has passed parity, typecheck, tests, and build.
 - Once enabled, `webhookUrlDev` will intentionally route developer-mode events for `*@bkper.com` through the preview Worker. No temporary app identity or additional routing isolation is required.
-- Perform boundary/response hardening only in a separate late chunk after core parity, before preview routing.
+- Preserve legacy boundary and response behavior throughout the migration. Consider any validation or response hardening only after migration completion as separately approved optional work.
 - Include preview rollout, production cutover, rollback, stabilization, and deferred GCP decommissioning in this roadmap.
 
 ## Current production baseline
@@ -439,7 +439,7 @@ If an observed legacy behavior could violate zero-sum integrity or cause data lo
 - Add typed event-result definitions and request-scoped app context.
 - Reproduce the legacy event switch and response envelope.
 - Introduce handler stubs with production signatures before implementations.
-- Preserve legacy response behavior during this phase; do not apply boundary hardening yet.
+- Preserve legacy response behavior throughout the migration.
 
 **Tests first**
 
@@ -553,35 +553,11 @@ If an observed legacy behavior could violate zero-sum integrity or cause data lo
 - Valid-event response strings and state transitions match legacy.
 - No Cloudflare preview routing has been enabled.
 
-### Chunk 10 — Boundary and response hardening
-
-This is intentionally separate from core migration parity.
-
-**Scope**
-
-- Validate missing Book and structurally invalid event payloads at ingress.
-- Return template-style no-op, client-error, and handler-error responses as previously agreed.
-- Ensure unexpected errors are represented safely without exposing unnecessary stacks.
-- Confirm valid subscribed events are unaffected.
-
-**Tests first**
-
-- Unsupported/irrelevant event: `200 { "result": false }`.
-- Missing or invalid Book/event payload: clear `400` error.
-- Handler/API failure: `200 { "error": "..." }` for Bkper activity visibility without infrastructure retry behavior.
-- All valid-event parity tests remain unchanged and pass.
-
-**Out of scope**
-
-- Fixing the known business-logic edge cases listed above.
-- Adding new loop guards or changing event semantics without a separate decision.
-
-### Chunk 11 — Preview deployment readiness and developer-domain canary
+### Chunk 10 — Preview deployment readiness and developer-domain canary
 
 **Readiness gate before changing `webhookUrlDev`**
 
 - Full check passes from a clean install.
-- Boundary hardening is complete.
 - Pre-preview legacy drift audit is signed off.
 - Preview bundle is built and reviewed.
 - Rollback endpoint is recorded.
@@ -610,7 +586,7 @@ Running `bkper app dev` can replace `webhookUrlDev` with a tunnel URL. Do not ru
 
 Creating test Books, Accounts, Groups, Transactions, Collections, installing the app, or replaying events are writes. Before any such action, show exact commands or UI actions and obtain explicit confirmation.
 
-### Chunk 12 — Deterministic preview validation
+### Chunk 11 — Deterministic preview validation
 
 Do not use LLM judgment as the final accounting check. Collect reproducible evidence.
 
@@ -639,7 +615,7 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - No unresolved authentication or event-routing errors remain.
 - Preview evidence is reviewed by a human owner.
 
-### Chunk 13 — Final drift audit and production Worker deployment
+### Chunk 12 — Final drift audit and production Worker deployment
 
 **Scope**
 
@@ -656,7 +632,7 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - GCP still receives production events.
 - Rollback remains unchanged and immediately available.
 
-### Chunk 14 — Production webhook cutover
+### Chunk 13 — Production webhook cutover
 
 **Preconditions**
 
@@ -697,7 +673,7 @@ Before running `bkper app sync`, show the exact command and obtain explicit appr
 
 Restore the known GCP URL in `webhookUrl`, review the exact diff, show the exact sync command, obtain explicit approval, and sync. Do not undeploy Cloudflare during incident analysis.
 
-### Chunk 15 — Stabilization
+### Chunk 14 — Stabilization
 
 - Keep GCP deployable and untouched as the rollback target.
 - Continue read-only log and Bkper event monitoring.
@@ -714,7 +690,7 @@ Restore the known GCP URL in `webhookUrl`, review the exact diff, show the exact
 - No rollback has been required for the agreed observation window.
 - Human owner explicitly approves GCP retirement.
 
-### Chunk 16 — Deferred GCP decommissioning
+### Chunk 15 — Deferred GCP decommissioning
 
 This chunk requires separate planning and explicit approval.
 
@@ -760,3 +736,17 @@ The migration is complete only when:
 - Repository instructions and ports reflect the final Cloudflare-only state.
 
 Until all criteria are met, this remains an active migration rather than a completed platform replacement.
+
+## Optional post-migration work — Boundary and response hardening
+
+This work is not part of the GCP-to-Cloudflare migration and is not a migration completion gate. Consider it only after the migration is complete and the Cloudflare implementation has been fully audited through representative production use.
+
+Any boundary or response change must be proposed, reviewed, tested, and rolled out as a separate behavior change. Before implementation, characterize the production behavior and verify the platform delivery, activity-response, and retry contracts rather than assuming the current app-template conventions apply to this established app.
+
+Possible scope, subject to separate approval:
+
+- Validate missing Books or structurally invalid event payloads at ingress.
+- Replace legacy error stacks with safer error messages.
+- Define explicit HTTP statuses for invalid payloads and handler/API failures.
+
+Preserve the legacy no-op response for unsupported or irrelevant events unless a separate decision changes it. Tests must first protect current behavior and then prove that approved changes leave valid subscribed events, resource movements, balances, and the zero-sum invariant unaffected. Fixing known business-logic edge cases or adding loop guards remains separate work.

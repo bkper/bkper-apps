@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–6 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, and transaction creation/update/delete/restore behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Account and Group synchronization handlers remain stubs, and no remote configuration has changed.
+**Chunks 1–7 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account synchronization behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Group synchronization handlers remain stubs, and no remote configuration has changed.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -83,6 +83,19 @@ The transaction update, delete, and restore handlers now preserve the legacy rem
 - Tests use only test-side SDK/network interception; no production factory, dependency injection, registry, or testing hook was introduced.
 
 The remaining source differences in Chunk 6 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, and `Promise.resolve(null)` for strict Promise-returning no-op methods. The side-by-side comparison found no unexplained movement-direction, amount, property, URL, state-transition, query, API-call-order, or response deviation.
+
+## Chunk 7 parity audit
+
+The Account handlers now preserve the legacy parent-to-child Book selection, Account lookup, create/update/delete/archive behavior, Group membership synchronization, API-call order, error shape, and result strings.
+
+- Parent Account events select the first Account Group carrying `child_book_id` and load that child Book.
+- Child Account lookup uses the current parent Account name first, then `previousAttributes.name` for rename events.
+- Create and update preserve name, type, visible properties, archived state, and only Group memberships linked to the selected child Book.
+- Delete preserves the current legacy branch exactly: `hasTransactionPosted()` removes the child Account; otherwise the child Account is archived and updated.
+- Parent Accounts with no linked child Book and child-side Account events remain no-ops.
+- Tests execute the production handlers and real SDK models while intercepting only SDK/network boundaries; no production testing hook or abstraction was introduced, and no transaction endpoint is called.
+
+The remaining source differences in Chunk 7 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, and `Promise.resolve(null)` where strict Promise return types require it. The side-by-side comparison found no unexplained Book-selection, lookup-order, property, archived-state, Group-membership, API-call-order, or response deviation.
 
 ## Agreed decisions
 

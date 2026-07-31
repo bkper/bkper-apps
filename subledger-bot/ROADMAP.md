@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–7 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account synchronization behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. Group synchronization handlers remain stubs, and no remote configuration has changed.
+**Chunks 1–8 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. A corrective parity pass removed unnecessary dispatcher and test-injection abstractions and restored per-case handler construction and the currently ported legacy method shapes. All core business handlers are now ported, no remote configuration has changed, and the full parity and legacy-drift audit remains pending.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -96,6 +96,19 @@ The Account handlers now preserve the legacy parent-to-child Book selection, Acc
 - Tests execute the production handlers and real SDK models while intercepting only SDK/network boundaries; no production testing hook or abstraction was introduced, and no transaction endpoint is called.
 
 The remaining source differences in Chunk 7 are strict TypeScript annotations and non-null assertions, module paths, formatting, immutable locals, and `Promise.resolve(null)` where strict Promise return types require it. The side-by-side comparison found no unexplained Book-selection, lookup-order, property, archived-state, Group-membership, API-call-order, or response deviation.
+
+## Chunk 8 parity audit
+
+The Group handlers now preserve the legacy parent-to-child Group synchronization and child-to-parent Account synchronization, including relationship lookup order, resource mutations, API-call order, and result strings.
+
+- Parent Group events load the child Book only from `child_book_id`, look up the current Group name first, and then use `previousAttributes.name` for rename events.
+- Child Group create and update preserve the parent Group name and visible properties while clearing `child_book_id` through the legacy SDK `deleteProperty` behavior.
+- Child Group events manage a parent Account only when `parent_account` is present, look up its current value before `previousAttributes.parent_account`, and derive the Account type by loading the child Group by id.
+- Parent-to-child Group deletion and child-to-parent Account create/update/delete/archive behavior preserve the current legacy branches exactly, including the existing `hasTransactionPosted()` delete-versus-archive branch.
+- Events without the applicable relationship property remain no-ops, and the shared Exchange Bot event skip remains unchanged.
+- Tests execute the production handlers and real SDK models while intercepting only SDK/network boundaries; no production testing hook or abstraction was introduced, and no transaction endpoint is called.
+
+The remaining source differences in Chunk 8 are strict TypeScript annotations and non-null assertions, type-only imports and module paths, explicit nullable returns, formatting, immutable locals, and explicit `public` modifiers where legacy TypeScript used the equivalent default visibility. The side-by-side comparison found no unexplained Book-selection, lookup-order, Account-type, property, resource-mutation, API-call-order, no-op, error, or response deviation.
 
 ## Agreed decisions
 

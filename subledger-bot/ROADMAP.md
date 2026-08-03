@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–11 complete; Chunk 12 pre-deployment gates passed and production Worker deployment is pending.** The final drift audit found no legacy or deployed-GCP change, and the clean release gate reproduced the exact preview-canary artifact. The Cloudflare target pins `bkper-js` `2.19.0`, retaining deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. Developer-mode events route to preview through `webhookUrlDev`; production events remain on GCP. The exact release revision must be committed and pushed before a separately approved production Worker deployment.
+**Chunks 1–12 complete; Chunk 13 production webhook cutover planning is next.** The production Cloudflare Worker was deployed from pushed revision `655f86f` with the exact preview-canary artifact and passed authenticated `/health` checks. The Cloudflare target pins `bkper-js` `2.19.0`, retaining deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. Production events still route to GCP, developer-mode events route to preview, and the unchanged GCP function remains the immediate rollback target. No production cutover has occurred.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -208,7 +208,7 @@ The final pre-production audit and clean release gate ran on 2026-08-03 without 
 - Bundle inspection confirmed the `https://api.bkper.app` platform endpoint selection and nullable HTTP-404 handling.
 - The gate left no tracked working-tree change. The persisted app configuration still routes production events to GCP and developer events to preview.
 
-The pre-deployment portion of Chunk 12 is complete. Before production deployment, commit this evidence and push the exact release revision. The production Worker deployment remains a separate remote mutation requiring the exact command and explicit approval; it must not change the GCP production webhook.
+The production candidate and audit evidence were committed and pushed as revision `655f86f`. After separate explicit approval, the exact 535,145-byte artifact was deployed to `https://subledger-bot.bkper.app`. Production Worker logs became available immediately. A human owner opened `/health` through the platform-authenticated browser boundary and confirmed `{"status":"ok"}`; Worker logs recorded two matching HTTP 200 requests. The persisted production webhook remained the GCP URL, the developer webhook remained the preview URL, and no production event was routed to Cloudflare. Chunk 12 is complete.
 
 ## Agreed decisions
 
@@ -724,7 +724,7 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - GCP still receives production events.
 - Rollback remains unchanged and immediately available.
 
-**Pre-deployment gate: Complete.** The final source and deployed-GCP drift audits passed, the clean local and legacy gates passed, and the exact production candidate matches the accepted preview artifact. Production deployment, authenticated health verification, and production log verification remain pending.
+**Outcome: Complete.** The final source and deployed-GCP drift audits passed, the clean local and legacy gates passed, and pushed revision `655f86f` deployed the exact accepted preview artifact to production. Authenticated `/health` returned HTTP 200, production logs are available, production events still route to GCP, and the unchanged GCP rollback remains immediately available.
 
 ### Chunk 13 — Production webhook cutover
 

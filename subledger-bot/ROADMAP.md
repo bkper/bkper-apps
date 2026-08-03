@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–9 complete.** The production GCP implementation remains unchanged under `legacy/`. The Cloudflare target now includes the server skeleton, direct event dispatcher, shared Book-direction behavior, legacy Account-mapping order, transaction creation/update/delete/restore behavior, and Account and Group synchronization behavior. The full deterministic parity and legacy-drift audit passed against legacy revision `d0cdf996348150158c8d0e59f32e9c47a2c44555`: no production patch has landed since the migration baseline, and all 23 baseline production files remain byte-identical after relocation. The audit also restored the remaining legacy method-visibility and direct Promise-return shapes, completed known transaction-state coverage, and reviewed configuration, dependencies, generated artifacts, and the Worker bundle. No remote configuration has changed; preview deployment readiness and the developer-domain canary are next.
+**Chunks 1–9 complete; Chunk 10 compatibility fix is ready locally after the first live canary.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The first Cloudflare developer-domain canary exposed dependency drift: GCP runs `bkper-js` `2.18.0`, while the initial preview used `2.42.0`, whose propagated HTTP 404 prevented the legacy missing-Group creation branch. Preview event routing was disabled after the safe failure, so `webhookUrlDev` is absent remotely and developer events again fall back to GCP. The Cloudflare target now pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains GCP's nullable-404 behavior; its full local check passes. Preview rollout remains paused until the rebuilt Worker is deployed and the recorded canary event is replayed successfully.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -123,6 +123,28 @@ The complete behavior matrix and every legacy/Cloudflare handler pair were revie
 
 The remaining differences from legacy are the approved Cloudflare/Hono boundary, request-scoped platform authentication, reduced `AppContext`, strict TypeScript annotations and nullability, module paths and type-only imports, immutable locals and formatting, `Promise.resolve(null)` where strict Promise signatures require it, and omission of comments and the unreachable duplicate `GROUP_DELETED` branch. The audit found no unexplained class decomposition, method/parameter name, visibility, constructor timing, instance lifetime, branch/lookup order, API-call order, resource mutation, movement direction, amount, state transition, logging, side-effect, return normalization, or valid-event response deviation.
 
+## Chunk 10 preview canary evidence and blocker
+
+The first live canary ran on 2026-08-03 after a clean 74-test check, preview deployment, and temporary developer routing to `https://subledger-bot-preview.bkper.app/events`.
+
+- Canary Collection: `4edac894-5d06-49b2-9039-36ea0c687f58` (`Subledger Bot Preview Canary`).
+- Parent Book: `agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4JLp4aIJDA` (`Subledger Preview Parent`).
+- Child Book: `agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4PLeragJDA` (`Subledger Preview Child`), configured with the parent Book id.
+- Baseline mapping: child `Customer A` and `Customer B` Accounts in `Customers`, whose `parent_account` is the parent `Accounts Receivable` Account. Both Books had zero transactions before the canary, and the app was installed on both.
+- Canary action: create parent Group `Revenue` (`2990047024`) with `child_book_id` set to the child Book.
+- Source event: `GROUP_CREATED` event `3f3a12fd-ea03-4ce6-8736-1b82cda89cc5`.
+- Preview evidence: Cloudflare preview logs recorded the matching `/events` request and `Failed to handle group [Revenue] event: BkperError: Group NOT found! ID: Revenue`; the same error appears in the event's `subledger-bot` response.
+- Expected behavior: a missing child Group returns no match and `childGroupNotFound()` creates it without copying `child_book_id`.
+- Actual behavior: `childBook.getGroup('Revenue')` threw on HTTP 404, so the creation branch never ran. No child Group, transaction, or balance was created or changed.
+
+The root cause is dependency semantics rather than the Cloudflare runtime. Direct inspection of GCP revision `prodgen2-00020-cek` and container digest `sha256:1b199f5229bdd716037ecf48cac87a10fd45ef7212405472db5f2f76545fcd64` found installed `bkper-js` `2.18.0`. Versions through `2.25.0` converted HTTP 404 to `null`; commit `fe2e4a3` intentionally changed 404 handling to throw `BkperError` in `2.26.0`. The initial Cloudflare preview pinned `2.42.0`, so its missing child-Group lookup threw before the preserved creation branch could run.
+
+Pinning the target directly to `2.18.0` restored nullable 404 behavior but also restored the legacy direct API URL, causing 24 deterministic URL assertions to fail. `2.19.0` is the minimal migration-compatible version: it preserves nullable 404 behavior while defaulting request-scoped, provider-free SDK calls to `https://api.bkper.app`, the endpoint used by platform outbound authentication. No handler or authentication code changed. With `2.19.0` pinned exactly, all 74 tests, strict typechecks, build, and formatting pass; the reviewed 535,145-byte bundle contains both the modern proxy endpoint selection and nullable 404 handling.
+
+Preview routing remains rolled back after the failure. The persisted production webhook remains the GCP URL, `webhookUrlDev` is absent, and no further live canary writes are approved until the rebuilt preview is deployed. After separate deployment and routing approvals, replay the recorded event and verify the child Group deterministically before continuing.
+
+Operational security follow-up: the read-only GCP function description surfaced the configured API-key environment value in command output. Do not copy it into migration records; rotate it through the approved GCP process.
+
 ## Agreed decisions
 
 - Use a parallel source layout:
@@ -145,6 +167,7 @@ The remaining differences from legacy are the approved Cloudflare/Hono boundary,
 - Do not add or sync `webhookUrlDev` until the Worker has passed parity, typecheck, tests, and build.
 - Once enabled, `webhookUrlDev` will intentionally route developer-mode events for `*@bkper.com` through the preview Worker. No temporary app identity or additional routing isolation is required.
 - Preserve legacy boundary and response behavior throughout the migration. Consider any validation or response hardening only after migration completion as separately approved optional work.
+- Pin the Cloudflare migration target to `bkper-js` `2.19.0`: GCP runs `2.18.0`, and `2.19.0` is the smallest version that preserves its nullable-404 behavior while using the platform-authenticated API endpoint. Do not combine migration with the intentional propagated-404 behavior introduced in `2.26.0`.
 - Include preview rollout, production cutover, rollback, stabilization, and deferred GCP decommissioning in this roadmap.
 
 ## Current production baseline
@@ -736,6 +759,17 @@ The migration is complete only when:
 - Repository instructions and ports reflect the final Cloudflare-only state.
 
 Until all criteria are met, this remains an active migration rather than a completed platform replacement.
+
+## Optional post-migration work — SDK modernization
+
+Upgrading beyond the migration pin of `bkper-js` `2.19.0` is not a migration completion gate. Consider it only after Cloudflare production stabilization and as a separately approved behavior adaptation.
+
+Before upgrading to a version with propagated HTTP 404 errors:
+
+- Characterize every Account, Group, Transaction, and File lookup that currently uses a missing resource as normal control flow.
+- Add focused tests for intentional `BkperError` 404 handling while keeping authentication, permission, network, and server errors observable.
+- Adapt both create-versus-update and lookup-fallback branches deliberately; do not broadly swallow API errors.
+- Roll the SDK upgrade through preview and deterministic Book evidence independently of the infrastructure migration.
 
 ## Optional post-migration work — Boundary and response hardening
 

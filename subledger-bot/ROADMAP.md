@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–12 complete; Chunk 13 cutover configuration is prepared locally and remote sync is pending.** The production Cloudflare Worker was deployed with the exact preview-canary artifact and passed authenticated `/health` checks. Local `webhookUrl` now targets the production Worker, but the persisted remote webhook still routes production events to GCP until a separately approved `bkper app sync`. Developer-mode events continue to route to preview, and the unchanged GCP function remains the immediate rollback target. No production cutover has occurred yet.
+**Chunks 1–13 complete; Chunk 14 stabilization is in progress.** Production cutover completed at `2026-08-03T19:58:25Z`. The 60-minute active window completed without HTTP failures, error-level logs, exceptions, authentication failures, or customer reports. Production events route to Cloudflare, developer-mode events route to preview, and unchanged GCP revision `prodgen2-00020-cek` remains healthy as the immediate rollback target. The initial 24-hour stabilization observation runs through `2026-08-04T21:00:26Z`.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -754,6 +754,19 @@ webhookUrl: https://subledger-bot.bkper.app/events
 
 Before running `bkper app sync`, show the exact command and obtain explicit approval.
 
+**Cutover evidence**
+
+- Pushed cutover revision: `7417949`.
+- Remote sync started at `2026-08-03T19:58:23Z` and completed successfully at `2026-08-03T19:58:25Z`.
+- Persisted `webhookUrl` is `https://subledger-bot.bkper.app/events`.
+- Persisted `webhookUrlDev` remains `https://subledger-bot-preview.bkper.app/events`.
+- Initial Cloudflare production event logs and error-level event logs contained no entries.
+- GCP function `prodGen2` and rollback revision `prodgen2-00020-cek` remained active and healthy immediately after cutover.
+- Thirteen checkpoints ran from `2026-08-03T19:59:24Z` through `2026-08-03T21:00:26Z`.
+- Cloudflare processed 54 production events: 40 `TRANSACTION_POSTED` and 14 `TRANSACTION_UPDATED`. Every request returned HTTP 200; there were no non-200 requests, error-level logs, failures, or exceptions.
+- All 54 events returned the valid legacy no-op response `false`; 17 included the expected Exchange Bot skip. No successful consolidation response appeared during the active window.
+- Persisted routing remained unchanged throughout the window, GCP remained healthy, and the cutover owner reported no customer complaints or failure reports.
+
 **Immediate monitoring**
 
 - Cloudflare production event logs.
@@ -777,7 +790,11 @@ Before running `bkper app sync`, show the exact command and obtain explicit appr
 
 Restore the known GCP URL in `webhookUrl`, review the exact diff, show the exact sync command, obtain explicit approval, and sync. Do not undeploy Cloudflare during incident analysis.
 
+**Outcome: Complete.** The approved config-only cutover succeeded, the full 60-minute active window completed without a rollback trigger, and no customer issue was reported. Direct customer Book, remote-id, movement, and balance checks were not available and are not claimed.
+
 ### Chunk 14 — Stabilization
+
+**Status: In progress.** The agreed initial 24-hour observation ends at `2026-08-04T21:00:26Z`. This is a stabilization checkpoint, not by itself approval to retire GCP; the exit criteria below still govern decommission readiness.
 
 - Keep GCP deployable and untouched as the rollback target.
 - Continue read-only log and Bkper event monitoring.

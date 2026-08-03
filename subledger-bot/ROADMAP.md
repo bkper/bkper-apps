@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–10 complete; Chunk 11 deterministic preview validation is next.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The first Cloudflare developer-domain canary exposed dependency drift: GCP runs `bkper-js` `2.18.0`, while the initial preview used `2.42.0`, whose propagated HTTP 404 prevented the legacy missing-Group creation branch. The Cloudflare target now pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains GCP's nullable-404 behavior. The rebuilt preview passed its full local gate, authenticated `/health` check, and isolated replay canary. Developer-mode events now route to preview through `webhookUrlDev`; production events remain on GCP.
+**Chunks 1–11 complete; Chunk 12 final drift audit and production Worker deployment is next.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The Cloudflare target pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. The rebuilt preview passed its full local gate, authenticated health check, Group and Account synchronization canaries, fully mapped consolidation, and unresolved-mapping draft protection. Developer-mode events route to preview through `webhookUrlDev`; production events remain on GCP.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -154,6 +154,36 @@ The isolated replay canary then passed:
 Chunk 10 is complete. Developer preview routing remains active for the approved `*@bkper.com` domain canary while Chunk 11 exercises the broader deterministic Account, Group, and transaction matrix. Production routing remains on GCP.
 
 Operational security follow-up: the read-only GCP function description surfaced the configured API-key environment value in command output. Do not copy it into migration records; rotate it through the approved GCP process.
+
+## Chunk 11 deterministic preview validation evidence
+
+The representative Account and transaction canaries ran on 2026-08-03 in the dedicated Chunk 10 Collection and Books. All writes were individually approved, and final assertions used read-only CLI queries, event records, and preview Worker logs.
+
+### Account synchronization and mapping setup
+
+- Creating parent `INCOMING` Account `Consulting Revenue` (`3016987020`) in parent Group `Revenue` produced `ACCOUNT_CREATED` event `1783edfc-a97d-4d64-910d-d274c90943be`.
+- Preview returned HTTP 200 with `CHILD ACCOUNT Consulting Revenue CREATED` and created child Account `3036357026` with the same name, type, archived state, and membership in child Group `Revenue`.
+- This established the required same-name non-permanent mapping through the linked parent/child `Revenue` Groups.
+- Child-only `ASSET` Account `Unmapped Canary Asset` (`3015217024`) had no Group or mapping. Its `ACCOUNT_CREATED` event `1a1456ef-cd57-485b-9e2e-5a6e82065b75` returned the expected child-side no-op, and no parent counterpart appeared.
+
+### Fully mapped consolidation
+
+- Child transaction `48e3a0b5-a027-42a7-bfe9-b5f7cf3dd0fb` moved `100.00` from `Consulting Revenue` to `Customer A`, was posted, and carried visible property `canary=chunk11`.
+- `TRANSACTION_POSTED` event `e89bb26c-404e-417f-90f1-bddad7ea1afa` reached preview with HTTP 200 and no error.
+- The parent query `remoteId:48e3a0b5-a027-42a7-bfe9-b5f7cf3dd0fb` returned exactly one transaction, `c7517a63-1d2b-44b7-8954-8dff0da67e3a`.
+- The parent transaction is a complete posted movement of `100.00` from same-name non-permanent Account `Consulting Revenue` to permanent Account `Accounts Receivable`, which resolves the child `Customer A` through Group property `parent_account=Accounts Receivable`.
+- The parent preserved `canary=chunk11` and added `child_from=Consulting Revenue` and `child_to=Customer A`; it remained unchecked and not trashed.
+
+### Unresolved mapping protection
+
+- Both canary Books have `autoPost: true`. Ordinary complete CLI creation therefore posted the fully mapped transaction immediately.
+- Creating the unresolved canary through the stdin transaction payload with explicit `draft: true` persisted child transaction `f7f073fe-2ac9-4fae-8147-fedda360f241` as a draft despite auto-post. The immediate batch response incorrectly reported it as posted, but the authoritative transaction query, `TRANSACTION_CREATED` event `0ec24278-a481-4a67-93bb-f55543bcc333`, zero balance effect, absence of a posted event, and absence of a parent remote-id match all confirmed the persisted draft state.
+- After separately approved posting, event `2f42092c-6974-43ff-a8cb-eba3f20aef8e` reached preview with HTTP 200. The complete child movement of `7.00` ran from `Consulting Revenue` to `Unmapped Canary Asset`.
+- The parent remote-id query returned exactly one transaction, `103ff8ad-ca8e-4209-9e2d-1ea49cc74834`: amount `7`, mapped source `Consulting Revenue`, no destination Account, `draft: true`, `posted: false`, unchecked, not trashed, and carrying `canary=chunk11-unresolved`, `child_from=Consulting Revenue`, and `child_to=Unmapped Canary Asset`.
+- Post-event parent balances remained `100.00` for both `Consulting Revenue` and `Accounts Receivable`; the incomplete parent draft had no balance effect. The only posted parent transaction remained the complete `100.00` movement. No one-sided posted movement exists.
+- Child balances deterministically reflected its two complete movements: `Consulting Revenue` `107.00`, `Customer A` `100.00`, and `Unmapped Canary Asset` `7.00`.
+
+Preview logs showed the expected `Token provider NOT configured!` warnings from `bkper-js` `2.19.0`, successful HTTP 200 event requests, expected result messages, and no errors. A human owner reviewed and accepted the evidence. Chunk 11 is complete; production routing remains on GCP and developer preview routing remains active.
 
 ## Agreed decisions
 
@@ -649,6 +679,8 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - No unexplained duplicate, missing, reversed, or imbalanced movement exists.
 - No unresolved authentication or event-routing errors remain.
 - Preview evidence is reviewed by a human owner.
+
+**Outcome: Complete.** The accepted live evidence covers Group and Account synchronization, same-name non-permanent and many-to-one permanent mappings, complete posted consolidation, visible and trace properties, remote-id uniqueness, and unresolved mapping as an incomplete non-balance-affecting parent draft. Preview logs and event responses contained no errors, and no one-sided posted movement exists.
 
 ### Chunk 12 — Final drift audit and production Worker deployment
 

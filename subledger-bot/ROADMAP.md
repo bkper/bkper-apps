@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–11 complete; Chunk 12 final drift audit and production Worker deployment is next.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The Cloudflare target pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. The rebuilt preview passed its full local gate, authenticated health check, Group and Account synchronization canaries, fully mapped consolidation, and unresolved-mapping draft protection. Developer-mode events route to preview through `webhookUrlDev`; production events remain on GCP.
+**Chunks 1–11 complete; Chunk 12 pre-deployment gates passed and production Worker deployment is pending.** The final drift audit found no legacy or deployed-GCP change, and the clean release gate reproduced the exact preview-canary artifact. The Cloudflare target pins `bkper-js` `2.19.0`, retaining deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. Developer-mode events route to preview through `webhookUrlDev`; production events remain on GCP. The exact release revision must be committed and pushed before a separately approved production Worker deployment.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -184,6 +184,31 @@ The representative Account and transaction canaries ran on 2026-08-03 in the ded
 - Child balances deterministically reflected its two complete movements: `Consulting Revenue` `107.00`, `Customer A` `100.00`, and `Unmapped Canary Asset` `7.00`.
 
 Preview logs showed the expected `Token provider NOT configured!` warnings from `bkper-js` `2.19.0`, successful HTTP 200 event requests, expected result messages, and no errors. A human owner reviewed and accepted the evidence. Chunk 11 is complete; production routing remains on GCP and developer preview routing remains active.
+
+## Chunk 12 final drift audit and release gate evidence
+
+The final pre-production audit and clean release gate ran on 2026-08-03 without any remote mutation.
+
+### Production-source and rollback audit
+
+- Baseline and HEAD resolve `subledger-bot/legacy` to the same Git tree, `31ffa7c77268a31f551ea5212792cc53056aa7eb`: 23 tracked files and zero differences since baseline `d0cdf996348150158c8d0e59f32e9c47a2c44555`.
+- GCP function `prodGen2` remains active on Node.js 22 with entry point `doPost`, 256 MiB memory, 360-second timeout, and five maximum instances. Its update time remains `2026-01-14T14:49:59.333066641Z`.
+- The active Cloud Run revision remains `prodgen2-00020-cek`, using immutable image digest `sha256:1b199f5229bdd716037ecf48cac87a10fd45ef7212405472db5f2f76545fcd64`. Because the artifact is unchanged, the previously inspected installed `bkper-js` version remains `2.18.0`.
+- Field-limited GCP commands omitted environment variables and did not expose the configured API key again.
+- Every legacy/Worker handler pair, shared context, constants, and dispatcher boundary was compared again. No unexplained class, branch, lookup, movement, amount, mutation, API-call-order, state-transition, logging, response, or zero-sum difference was found.
+- The only Worker production-source changes since the prior audit are the already-reviewed method-visibility corrections and direct Promise return in Group child-Book loading.
+
+### Clean release gate
+
+- From a removed `node_modules` and `dist`, `bun install --frozen-lockfile` succeeded.
+- All 74 deterministic tests passed with 271 assertions, followed by strict production and test typechecks, Worker build, and formatting.
+- The legacy GCP build also passed after its existing install/build sequence.
+- The installed target dependency is exactly `bkper-js` `2.19.0`.
+- The 535,145-byte Worker artifact has SHA-256 `c07306ee1e5b3caf5d0c21ac031e22d99a58b34d951cc43a3d9e65dd4e7ed9fa`, exactly matching the bundle that passed the preview canaries.
+- Bundle inspection confirmed the `https://api.bkper.app` platform endpoint selection and nullable HTTP-404 handling.
+- The gate left no tracked working-tree change. The persisted app configuration still routes production events to GCP and developer events to preview.
+
+The pre-deployment portion of Chunk 12 is complete. Before production deployment, commit this evidence and push the exact release revision. The production Worker deployment remains a separate remote mutation requiring the exact command and explicit approval; it must not change the GCP production webhook.
 
 ## Agreed decisions
 
@@ -698,6 +723,8 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - Production Worker logs are available.
 - GCP still receives production events.
 - Rollback remains unchanged and immediately available.
+
+**Pre-deployment gate: Complete.** The final source and deployed-GCP drift audits passed, the clean local and legacy gates passed, and the exact production candidate matches the accepted preview artifact. Production deployment, authenticated health verification, and production log verification remain pending.
 
 ### Chunk 13 — Production webhook cutover
 

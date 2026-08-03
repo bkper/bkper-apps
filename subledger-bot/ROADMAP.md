@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–12 complete; Chunk 13 production webhook cutover planning is next.** The production Cloudflare Worker was deployed from pushed revision `655f86f` with the exact preview-canary artifact and passed authenticated `/health` checks. The Cloudflare target pins `bkper-js` `2.19.0`, retaining deployed GCP's nullable-404 behavior while using the platform-authenticated API endpoint. Production events still route to GCP, developer-mode events route to preview, and the unchanged GCP function remains the immediate rollback target. No production cutover has occurred.
+**Chunks 1–12 complete; Chunk 13 cutover configuration is prepared locally and remote sync is pending.** The production Cloudflare Worker was deployed with the exact preview-canary artifact and passed authenticated `/health` checks. Local `webhookUrl` now targets the production Worker, but the persisted remote webhook still routes production events to GCP until a separately approved `bkper app sync`. Developer-mode events continue to route to preview, and the unchanged GCP function remains the immediate rollback target. No production cutover has occurred yet.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -735,6 +735,16 @@ The canary must cover transaction, Account, and Group paths, including at least 
 - Final drift audit signed off.
 - Cutover owner and rollback owner identified.
 - Monitoring window agreed.
+
+**Agreed execution**
+
+- Cutover owner: Victor.
+- Rollback owner: Victor.
+- Active monitoring window: 60 minutes immediately after remote sync.
+- Stabilization monitoring window: 24 hours after the active window.
+- Monitoring uses Cloudflare production event logs, available Bkper bot responses, authentication and platform failures, and customer-impact reports.
+- The current operator does not have access to customer production Books. Do not claim direct production Book, remote-id, movement, or balance verification; monitor those failure modes only when surfaced through available logs, bot responses, or customer reports.
+- Do not add another canary, change `webhookUrlDev`, or require another operator for this cutover.
 
 **Config-only change**
 

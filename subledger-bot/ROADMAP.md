@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–9 complete; Chunk 10 compatibility fix is ready locally after the first live canary.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The first Cloudflare developer-domain canary exposed dependency drift: GCP runs `bkper-js` `2.18.0`, while the initial preview used `2.42.0`, whose propagated HTTP 404 prevented the legacy missing-Group creation branch. Preview event routing was disabled after the safe failure, so `webhookUrlDev` is absent remotely and developer events again fall back to GCP. The Cloudflare target now pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains GCP's nullable-404 behavior; its full local check passes. Preview rollout remains paused until the rebuilt Worker is deployed and the recorded canary event is replayed successfully.
+**Chunks 1–10 complete; Chunk 11 deterministic preview validation is next.** The production GCP implementation remains unchanged under `legacy/`, and the production webhook still points to GCP. The first Cloudflare developer-domain canary exposed dependency drift: GCP runs `bkper-js` `2.18.0`, while the initial preview used `2.42.0`, whose propagated HTTP 404 prevented the legacy missing-Group creation branch. The Cloudflare target now pins `bkper-js` `2.19.0`, the smallest platform-compatible version that retains GCP's nullable-404 behavior. The rebuilt preview passed its full local gate, authenticated `/health` check, and isolated replay canary. Developer-mode events now route to preview through `webhookUrlDev`; production events remain on GCP.
 
 This is a living roadmap for moving Subledger Bot from Google Cloud Functions to the Bkper Platform on Cloudflare Workers. Work must proceed in small, independently reviewable chunks. Update this document as chunks complete, production patches arrive, or rollout evidence changes.
 
@@ -123,7 +123,7 @@ The complete behavior matrix and every legacy/Cloudflare handler pair were revie
 
 The remaining differences from legacy are the approved Cloudflare/Hono boundary, request-scoped platform authentication, reduced `AppContext`, strict TypeScript annotations and nullability, module paths and type-only imports, immutable locals and formatting, `Promise.resolve(null)` where strict Promise signatures require it, and omission of comments and the unreachable duplicate `GROUP_DELETED` branch. The audit found no unexplained class decomposition, method/parameter name, visibility, constructor timing, instance lifetime, branch/lookup order, API-call order, resource mutation, movement direction, amount, state transition, logging, side-effect, return normalization, or valid-event response deviation.
 
-## Chunk 10 preview canary evidence and blocker
+## Chunk 10 preview canary evidence and resolution
 
 The first live canary ran on 2026-08-03 after a clean 74-test check, preview deployment, and temporary developer routing to `https://subledger-bot-preview.bkper.app/events`.
 
@@ -141,7 +141,17 @@ The root cause is dependency semantics rather than the Cloudflare runtime. Direc
 
 Pinning the target directly to `2.18.0` restored nullable 404 behavior but also restored the legacy direct API URL, causing 24 deterministic URL assertions to fail. `2.19.0` is the minimal migration-compatible version: it preserves nullable 404 behavior while defaulting request-scoped, provider-free SDK calls to `https://api.bkper.app`, the endpoint used by platform outbound authentication. No handler or authentication code changed. With `2.19.0` pinned exactly, all 74 tests, strict typechecks, build, and formatting pass; the reviewed 535,145-byte bundle contains both the modern proxy endpoint selection and nullable 404 handling.
 
-Preview routing remains rolled back after the failure. The persisted production webhook remains the GCP URL, `webhookUrlDev` is absent, and no further live canary writes are approved until the rebuilt preview is deployed. After separate deployment and routing approvals, replay the recorded event and verify the child Group deterministically before continuing.
+The migration-compatible bundle was deployed to preview from source revision `96378e0`; its SHA-256 was `c07306ee1e5b3caf5d0c21ac031e22d99a58b34d951cc43a3d9e65dd4e7ed9fa`. After a separate committed configuration sync, remote routing preserved the GCP production webhook and set `webhookUrlDev` to `https://subledger-bot-preview.bkper.app/events`.
+
+The isolated replay canary then passed:
+
+- Replaying event `3f3a12fd-ea03-4ce6-8736-1b82cda89cc5` only for agent `subledger-bot` returned an `INFO` response ending in `CHILD GROUP Revenue CREATED`.
+- Preview logs recorded the matching authenticated `GROUP_CREATED` request, HTTP 200, `CREATE: Revenue`, and the expected result without an error. The `Token provider NOT configured!` warnings are expected from `bkper-js` `2.19.0`; platform outbound authentication supplied the actual API authorization.
+- Child Group `Revenue` was created exactly once as id `3030867030`, with no properties and therefore no copied `child_book_id`.
+- Read-only transaction queries returned empty arrays for both Books. Balance reports contained only Account headings with no value rows, matching the zero-transaction baseline; no movement or balance changed.
+- A human owner opened `https://subledger-bot-preview.bkper.app/health` through the platform-authenticated browser boundary and confirmed `{"status":"ok"}`. Unauthenticated and CLI bearer-token requests correctly stopped at the platform login redirect rather than reaching the Worker.
+
+Chunk 10 is complete. Developer preview routing remains active for the approved `*@bkper.com` domain canary while Chunk 11 exercises the broader deterministic Account, Group, and transaction matrix. Production routing remains on GCP.
 
 Operational security follow-up: the read-only GCP function description surfaced the configured API-key environment value in command output. Do not copy it into migration records; rotate it through the approved GCP process.
 
@@ -608,6 +618,8 @@ Running `bkper app dev` can replace `webhookUrlDev` with a tunnel URL. Do not ru
 **Book-write policy**
 
 Creating test Books, Accounts, Groups, Transactions, Collections, installing the app, or replaying events are writes. Before any such action, show exact commands or UI actions and obtain explicit confirmation.
+
+**Outcome: Complete.** The committed preview deployment, authenticated health check, developer webhook routing, isolated Group replay, event response, Worker logs, and zero-movement evidence all passed. The initial dependency-drift failure and its migration-compatible resolution are recorded above.
 
 ### Chunk 11 — Deterministic preview validation
 

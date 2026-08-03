@@ -12,6 +12,7 @@ repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
 webhookUrl: https://us-central1-bkper-subledger-bot.cloudfunctions.net/prodGen2
+webhookUrlDev: https://subledger-bot-preview.bkper.app/events
 apiVersion: v5
 events:
     - TRANSACTION_POSTED

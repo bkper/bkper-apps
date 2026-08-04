@@ -1,0 +1,61 @@
+id: exchange-bot
+name: Exchange Bot
+description: Convert transactions between currency books using historical rates, and track exchange gains and losses.
+logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/exchange-agent-light.svg
+logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/exchange-agent-dark.svg
+website: https://bkper.com/apps/exchange-bot
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-apps/tree/main/exchange-bot
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+menuUrl: https://script.google.com/macros/s/AKfycbxz1Fl1A_KpvAtWLSXtGh1oRaFdWibPweoJfa3yYrFRAAC6gRM/exec?bookId=${book.id}
+menuUrlDev: https://exchange-bot-preview.bkper.app?bookId=${book.id}
+menuPopupWidth: 1000
+menuPopupHeight: 500
+webhookUrl: https://us-central1-bkper-cc-bot.cloudfunctions.net/prodGen2
+webhookUrlDev: https://exchange-bot-preview.bkper.app/events
+apiVersion: v5
+events:
+    - TRANSACTION_POSTED
+    - TRANSACTION_CHECKED
+    - TRANSACTION_UPDATED
+    - TRANSACTION_DELETED
+    - TRANSACTION_RESTORED
+    - ACCOUNT_CREATED
+    - ACCOUNT_UPDATED
+    - ACCOUNT_DELETED
+    - GROUP_CREATED
+    - GROUP_UPDATED
+    - GROUP_DELETED
+    - BOOK_UPDATED
+propertiesSchema:
+    book:
+        keys:
+            - exc_code
+            - exc_rates_url
+            - exc_on_check
+            - exc_base
+            - exc_historical
+            - exc_aggregate
+    account:
+        keys:
+            - exc_account
+    group:
+        keys:
+            - exc_account
+            - exc_code
+    transaction:
+        keys:
+            - exc_date
+            - exc_code
+            - exc_amount
+            - exc_rate
+deployment:
+    server: server/src/index.ts
+    client: client
+    secrets:
+        - OPEN_EXCHANGE_RATES_APP_ID
+    compatibility_date: '2026-01-28'

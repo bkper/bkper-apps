@@ -1,0 +1,22 @@
+{
+    "name": "exchange-bot-client",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build",
+        "test": "bun test",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@awesome.me/webawesome": "3.11.0",
+        "@bkper/web-auth": "1.1.0",
+        "@bkper/web-design": "2.1.0",
+        "lit": "3.3.3"
+    },
+    "devDependencies": {
+        "@types/bun": "1.3.14",
+        "typescript": "5.9.3",
+        "vite": "7.3.6"
+    }
+}

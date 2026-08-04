@@ -1,0 +1,4 @@
+*.md
+client/src/api/generated/
+env.d.ts
+.dev.vars.example

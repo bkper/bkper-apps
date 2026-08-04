@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.wrangler/
+.mf/
+.dev.vars
+.env
+.DS_Store
+!bun.lock

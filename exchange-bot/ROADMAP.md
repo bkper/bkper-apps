@@ -184,7 +184,7 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 - The existing Open Exchange Rates application identifier becomes a declared Bkper Platform secret with independent preview and production values.
 - Event-side and menu-side exchange logic remain separate during migration.
 - Strict TypeScript, Bun package management, a committed lockfile, deterministic tests, production builds, formatting, and generated-contract checks form the local gate.
-- Local ports will use Vite `5177` and Worker `8791` if they remain available when the skeleton is implemented. Workspace instructions and port forwarding are updated at that time.
+- Local ports use Vite `5177` and Worker `8793`; Worker ports `8791` and `8792` were already assigned elsewhere in the workspace. Workspace instructions and port forwarding include the target.
 
 ## Open implementation-time decisions
 
@@ -334,15 +334,14 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 2 — Create the full-stack Cloudflare skeleton
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Scaffold the target from the current public app architecture without carrying template demo behavior.
-- Add root, client, and server package boundaries.
-- Add strict TypeScript, formatting, generated environment types, and a committed lockfile.
-- Add a Hono Worker with `/health`, typed `/events` and `/api/v1/*` stubs, OpenAPI generation, JSON API not-found behavior, and static asset fallback.
-- Add the Vite, Lit, Web Awesome, Bkper design, and web-auth client foundation.
-- Assign explicit local ports after rechecking workspace availability.
-- Add target app metadata while keeping production menu and webhook URLs on GAS and GCP.
+- Created the minimal target with root, client, and server package boundaries and no template demo behavior.
+- Added strict TypeScript, formatting, generated environment and OpenAPI types, and a committed lockfile.
+- Added `/health`, non-mutating typed `/events` and `/api/v1/*` stubs, `/openapi.json`, JSON API not-found behavior, and static asset fallback in one Hono Worker.
+- Added the Vite, Lit, Web Awesome, Bkper design, and web-auth client foundation.
+- Assigned Vite `5177` and Worker `8793` and updated workspace port forwarding.
+- Added target app metadata while keeping production menu and webhook URLs on Apps Script and GCP.
 
 **Gate:** The deterministic local check passes with no app sync, deployment, secret write, routing change, or Book write.
 

@@ -310,17 +310,25 @@ While GCP and Apps Script remain production-authoritative, every production patc
 
 Drift audits occur before preview routing, before production deployment, before each production cutover, and before repository consolidation.
 
+### Migration patch ledger
+
+No production patches have been recorded since the migration baseline. Add one concise row here for each future patch.
+
+| Surface | Behavior changed | Target parity test | Port status |
+| --- | --- | --- | --- |
+| — | — | — | — |
+
 ## Migration chunks
 
 ### Chunk 1 — Capture baseline and establish parallel layout
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Record the authoritative GCP and Apps Script source baselines, deployed dependency evidence, event subscriptions, menu configuration, and local verification outcomes.
-- Create the migration patch ledger.
-- Move the current projects into `legacy/events/` and `legacy/menu/` without behavior changes.
-- Preserve the legacy project configuration and developer workflows.
-- Establish the isolated `new/` target directory.
+- Confirmed that the registered production menu, webhook, API version, and twelve event subscriptions match the checked-in configuration. Production remains routed to Apps Script and GCP.
+- Confirmed the deployed Apps Script 1.4.0 output matches the checked-in TypeScript compilation and static assets.
+- Confirmed the active GCP function uses Node.js 22. Exact deployed dependency pins could not be retrieved with the available source-artifact permission; the checked-in manifest remains the dependency baseline.
+- Verified the event project with eight passing unit tests and a successful production build. Verified the menu project with its declared TypeScript 4.9.5 compiler and type packages.
+- Created the migration patch ledger, moved the legacy projects and configuration under `legacy/` without behavior changes, and established the isolated `new/` target directory.
 
 **Gate:** Both relocated legacy projects remain source-equivalent and independently verifiable. Production routing remains unchanged.
 

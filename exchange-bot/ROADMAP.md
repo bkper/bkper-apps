@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–3 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–4 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, request-scoped event context, legacy event dispatcher, and explicit no-op handler stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, and event-side exchange-rate boundaries. Business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -183,16 +183,11 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 - Worker code never reads or forwards `Authorization`, `bkper-oauth-token`, or `bkper-agent-id`.
 - The existing Open Exchange Rates application identifier becomes a declared Bkper Platform secret with independent preview and production values.
 - Event-side and menu-side exchange logic remain separate during migration.
+- Event exchange rates use an opportunistic module-scoped `Map` per Worker isolate with the established 30-minute TTL and cloned values. Cache loss only causes another provider request; correctness never depends on isolate reuse.
 - Strict TypeScript, Bun package management, a committed lockfile, deterministic tests, production builds, formatting, and generated-contract checks form the local gate.
 - Local ports use Vite `5177` and Worker `8793`; Worker ports `8791` and `8792` were already assigned elsewhere in the workspace. Workspace instructions and port forwarding include the target.
 
 ## Open implementation-time decisions
-
-### Exchange-rate cache storage
-
-The Worker-compatible replacement for the existing event cache remains undecided until the exchange-rate runtime compatibility chunk.
-
-The decision must preserve the established observable cache behavior without broadening migration scope. Candidate mechanisms are evaluated only when implementing and testing that boundary. KV is not assumed merely because it is available in the app template.
 
 ### SDK and tooling versions
 
@@ -359,12 +354,13 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 4 — Port event orchestration and exchange-rate boundaries
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port connected-Book discovery, currency and base-Book rules, Account currency matching, Book anchors, chunking, concurrency, and rate preloading.
-- Port event-side endpoint construction, date handling, overrides, fetch retries, conversion, and precision.
-- Resolve and document the Worker-equivalent event cache mechanism using parity evidence.
-- Keep event-side behavior separate from menu-side behavior.
+- Ported connected-Book discovery, currency and base-Book rules, Account currency matching, Book anchors, chunking, concurrency, and rate preloading.
+- Ported event-side endpoint construction, date handling, overrides, conversion, and precision.
+- Replaced the Node HTTP boundary with Worker-native `fetch` while preserving response parsing, retry status ranges, shared retry counts, delays, errors, and logging.
+- Replaced the per-process `node-cache` with an opportunistic per-isolate `Map` preserving the 30-minute TTL and cloned values without KV or another dependency.
+- Kept event-side behavior separate from menu-side behavior.
 
 **Gate:** Connected-Book selection and rate results have no unexplained legacy-to-target difference.
 

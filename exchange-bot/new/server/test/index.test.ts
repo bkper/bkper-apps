@@ -38,7 +38,24 @@ describe('Cloudflare skeleton', () => {
                 {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ type }),
+                    body: JSON.stringify({
+                        type,
+                        user: { username: 'tester' },
+                        book: {
+                            id: 'book-1',
+                            name: 'Test Book',
+                            properties: { exc_code: 'USD' },
+                        },
+                        data: {
+                            object: {
+                                transaction: {
+                                    checked: true,
+                                    date: '2026-01-02',
+                                    properties: {},
+                                },
+                            },
+                        },
+                    }),
                 },
                 env
             );

@@ -1,14 +1,136 @@
+import { Book } from 'bkper-js';
 import type { AppContext } from '../../app-context.js';
+import { BotService } from '../../BotService.js';
+import { EXC_CODE_PROP, EXC_ON_CHECK_PROP } from '../../constants.js';
+import { ExchangeService } from '../../ExchangeService.js';
 import type { EventResultValue } from '../types.js';
 
 export abstract class EventHandler {
     protected context: AppContext;
+    protected botService: BotService;
+    protected exchangeService: ExchangeService;
 
     constructor(context: AppContext) {
         this.context = context;
+        this.botService = new BotService(context);
+        this.exchangeService = new ExchangeService(context);
+    }
+
+    protected async processObject(
+        _baseBook: Book,
+        _connectedBook: Book,
+        _event: bkper.Event
+    ): Promise<string | null> {
+        return null;
     }
 
     async handleEvent(event: bkper.Event): Promise<EventResultValue> {
+        const eventBook = new Book(event.book, this.context.bkper.getConfig());
+        const eventBookExcCode = this.botService.getBaseCode(eventBook);
+
+        if (eventBookExcCode == null || eventBookExcCode == '') {
+            return `Please set the "${EXC_CODE_PROP}" property of this book.`;
+        }
+
+        const logtag = `Handling ${event.type} event on book ${eventBook.getName()} from user ${event.user!.username} ${Math.random()}`;
+        console.time(logtag);
+
+        if (event.type == 'TRANSACTION_POSTED') {
+            const operation = event.data!.object as bkper.TransactionOperation;
+            const transaction = operation.transaction!;
+            if (
+                eventBook.getProperty(EXC_ON_CHECK_PROP, 'exc_auto_check') &&
+                !transaction.checked
+            ) {
+                return false;
+            }
+        }
+
+        const allConnectedBooks = await this.botService.getConnectedBooks(eventBook);
+
+        if (allConnectedBooks == null || allConnectedBooks.length == 0) {
+            return false;
+        }
+        if (allConnectedBooks.length == 1) {
+            const connectedBook = allConnectedBooks[0];
+            if (connectedBook == null || connectedBook.getId() == eventBook.getId()) {
+                return false;
+            }
+        }
+
+        if (
+            event.type == 'TRANSACTION_CHECKED' ||
+            event.type == 'TRANSACTION_POSTED' ||
+            event.type == 'TRANSACTION_UPDATED'
+        ) {
+            await this.preloadRatesIfNeeded(eventBook, event, allConnectedBooks);
+        }
+
+        let result: string[] = [];
+        const chunkSize = 14;
+        for (let i = 0; i < allConnectedBooks.length; i += chunkSize) {
+            const connectedBooks = allConnectedBooks.slice(i, i + chunkSize);
+            const responsesPromises: Promise<string | null>[] = [];
+
+            for (const connectedBook of connectedBooks) {
+                if (connectedBook.getId() == eventBook.getId()) {
+                    continue;
+                }
+                const connectedCode = this.botService.getBaseCode(connectedBook);
+                if (connectedCode != null && connectedCode != '') {
+                    const response = this.processObject(eventBook, connectedBook, event);
+                    if (response) {
+                        responsesPromises.push(response);
+                    }
+                }
+            }
+
+            if (responsesPromises.length > 0) {
+                const partialResult = (await Promise.all(responsesPromises)).filter(
+                    (response): response is string => response != null && response.trim() != ''
+                );
+                if (partialResult.length > 0) {
+                    result = result.concat(partialResult);
+                }
+            }
+        }
+
+        console.timeEnd(logtag);
+
+        if (result.length == 0) {
+            return false;
+        }
+        return result;
+    }
+
+    protected buildBookAnchor(book: Book): string {
+        return `<a href='https://app.bkper.com/b/#transactions:bookId=${book.getId()}'>${book.getName()}</a>`;
+    }
+
+    private async preloadRatesIfNeeded(
+        eventBook: Book,
+        event: bkper.Event,
+        connectedBooks: Book[]
+    ): Promise<void> {
+        if (this.isTheOnlyBaseBookInCollection(eventBook, connectedBooks)) {
+            return;
+        }
+        const operation = event.data!.object as bkper.TransactionOperation;
+        const transaction = operation.transaction!;
+        const ratesEndpointConfig = this.botService.getRatesEndpointConfig(eventBook, transaction);
+        await this.exchangeService.getRates(ratesEndpointConfig.url);
+    }
+
+    private isTheOnlyBaseBookInCollection(eventBook: Book, connectedBooks: Book[]): boolean {
+        if (this.botService.hasBaseBookInCollection(eventBook)) {
+            const baseBooks = connectedBooks.filter(book => this.botService.isBaseBook(book));
+            if (baseBooks.length == 1) {
+                const baseBook = baseBooks[0];
+                if (baseBook && baseBook.getId() == eventBook.getId()) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 }

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–4 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–5 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, and event-side exchange-rate boundaries. Business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, and posted and checked transaction behavior. The remaining business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -366,12 +366,13 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 5 — Port posted and checked transaction behavior
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port existing remote-id lookup and target eligibility.
-- Port Account and Group creation required by transaction mirroring.
-- Port amount and description extraction, trace properties, posting, drafting, and checking.
-- Preserve response strings and no-op branches.
+- Ported existing remote-id lookup, target eligibility, and loop-prevention behavior.
+- Ported Account and Group creation required by transaction mirroring.
+- Ported amount and description extraction, exchange trace properties, posting, drafting, and checking.
+- Preserved response strings, no-op branches, zero-amount behavior, and existing checked-state call order.
+- Added deterministic coverage for complete posted movements, unresolved drafts, automatic resource creation, duplicate prevention, eligibility, checked-state transitions, and trace properties.
 
 **Zero-sum gate:** Every posted mirror is one complete movement with one amount; established unresolved behavior remains non-balance-affecting.
 

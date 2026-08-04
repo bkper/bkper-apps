@@ -2,9 +2,9 @@
 
 ## Status
 
-**Planning. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–3 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-No Cloudflare implementation has been initialized, no preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, request-scoped event context, legacy event dispatcher, and explicit no-op handler stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -196,9 +196,9 @@ The decision must preserve the established observable cache behavior without bro
 
 ### SDK and tooling versions
 
-The target `bkper-js`, Bkper CLI, Miniflare, TypeScript, and related dependency versions remain undecided until the dependency compatibility audit.
+The event-side target pins `bkper-js` 2.19.0, matching the validated Subledger Bot Worker baseline and providing the required platform-compatible SDK behavior. The active GCP image was verified to run `bkper-js` 2.18.0. Client-side SDK selection remains separate because the menu migrates from `bkper-gs` to `bkper-js`.
 
-The Subledger Bot `bkper-js` pin must not be copied automatically. Selection is based on the exact GCP event and Apps Script behaviors required by Exchange Bot, Bkper Platform endpoint compatibility, error and nullability semantics, Worker compatibility, and deterministic parity evidence. Accepted versions are pinned exactly in the committed lockfile.
+Bkper CLI, Miniflare, TypeScript, client-side `bkper-js`, and related dependency versions remain subject to their relevant compatibility audits. Accepted versions are pinned exactly in the committed lockfile.
 
 ## Deterministic verification strategy
 
@@ -326,7 +326,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 - Confirmed that the registered production menu, webhook, API version, and twelve event subscriptions match the checked-in configuration. Production remains routed to Apps Script and GCP.
 - Confirmed the deployed Apps Script 1.4.0 output matches the checked-in TypeScript compilation and static assets.
-- Confirmed the active GCP function uses Node.js 22. Exact deployed dependency pins could not be retrieved with the available source-artifact permission; the checked-in manifest remains the dependency baseline.
+- Confirmed the active GCP function uses Node.js 22 and its immutable active image runs `bkper-js` 2.18.0.
 - Verified the event project with eight passing unit tests and a successful production build. Verified the menu project with its declared TypeScript 4.9.5 compiler and type packages.
 - Created the migration patch ledger, moved the legacy projects and configuration under `legacy/` without behavior changes, and established the isolated `new/` target directory.
 
@@ -347,12 +347,13 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 3 — Port event ingress and dispatch
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Add request-scoped app context and event result types.
-- Reproduce the legacy event switch, handler construction, response envelope, logging, and error behavior.
-- Add explicit handler stubs before business implementations.
-- Confirm Worker code ignores legacy authentication headers and relies on platform outbound auth.
+- Added request-scoped app context and event result types.
+- Reproduced the legacy event switch, handler construction, response envelope, logging, and error behavior.
+- Added explicit no-op handler stubs before business implementations.
+- Confirmed Worker code ignores legacy authentication headers and relies on platform outbound auth.
+- Pinned event-side `bkper-js` 2.19.0.
 
 **Gate:** Every subscribed event and unknown-event behavior is characterized deterministically.
 

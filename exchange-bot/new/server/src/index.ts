@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { Env } from '../../env.js';
+import { registerEventRoutes } from './events/routes.js';
 
 export type AppEnv = { Bindings: Env };
 
@@ -13,11 +14,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
 
     app.get('/health', c => c.json({ status: 'ok' }));
 
-    app.post('/events', async c => {
-        const event: bkper.Event = await c.req.json();
-        void event;
-        return c.json({ result: false });
-    });
+    registerEventRoutes(app);
 
     app.doc('/openapi.json', openApiConfig);
 

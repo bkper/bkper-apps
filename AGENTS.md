@@ -26,7 +26,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | files-preview-app | `5174` | `8788` | Configured in `vite.config.ts` and `package.json` |
 | inventory-bot/new | `5175` | `8787` | Assigned for the new Inventory Bot platform app |
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
-| subledger-bot/new | — | `8790` | Event-only migration Worker configured in `package.json` |
+| subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts with other Vite projects running on the host. Always assign an explicit, non-default port.
 
@@ -38,11 +38,10 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | --- | --- | --- |
 | portfolio-bot/gcf | `3002` | Configured in `portfolio-bot/gcf/package.json` |
 | exchange-bot/events | `3003` | Configured in `exchange-bot/events/package.json` |
-| subledger-bot/legacy | `3004` | Configured in `subledger-bot/legacy/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
 | tax-bot | `3041` | Configured in `tax-bot/package.json` |
 
-**Next available:** `3006`.
+**Next available:** `3004`.
 
 ### Apps Script components
 

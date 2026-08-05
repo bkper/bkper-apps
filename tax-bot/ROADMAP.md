@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunk 1 complete.** The accepted GCP source baseline now lives under `legacy/` without logic changes. Cloudflare implementation, deployment, routing, and Book mutation have not begun.
+**Chunks 1–2 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and a minimal server-only Cloudflare skeleton now exists under `new/`. Business behavior has not been ported, and no deployment, routing, or Book mutation has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -294,14 +294,14 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 2 — Create the minimal Cloudflare skeleton
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Add server-only workspace configuration, strict TypeScript, formatting, lockfile, and deployment metadata.
-- Add `/health` and a typed `/events` stub.
-- Assign local Worker port `8794` and add it to workspace port forwarding while retaining the GCP development port.
-- Preserve the production and developer GCP webhooks.
+- Added server-only workspace configuration, strict TypeScript, formatting, lockfile, and deployment metadata.
+- Added `/health` and a typed `/events` stub.
+- Assigned local Worker port `8794` and added it to workspace port forwarding while retaining the GCP development port.
+- Preserved the production and developer GCP webhooks.
 
-**Gate:** Tests, typecheck, formatting, and Worker build pass with no app sync, deployment, routing change, or Book write.
+**Gate:** Three focused tests, production and test typechecks, formatting, and the Worker build pass with no app sync, deployment, routing change, or Book write.
 
 ### Chunk 3 — Port event ingress and dispatch
 

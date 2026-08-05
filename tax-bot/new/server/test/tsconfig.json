@@ -1,0 +1,7 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "types": ["@bkper/bkper-api-types", "bun"]
+    },
+    "include": ["**/*.ts", "../../env.d.ts"]
+}

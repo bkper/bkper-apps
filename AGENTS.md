@@ -28,10 +28,11 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 | exchange-bot/new | `5177` | `8793` | Isolated Cloudflare migration target; `8791` and `8792` are used elsewhere in the workspace |
+| tax-bot/new | — | `8794` | Event-only migration Worker configured in `package.json` |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
 
-**Next available:** Vite client `5178`, bkper server `8794`.
+**Next available:** Vite client `5178`, bkper server `8795`.
 
 ### GCP Cloud Functions bots
 

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Keep the migration lockfile reproducible
+!bun.lock
+
+# Wrangler
+.wrangler/
+
+# Miniflare persistence
+.mf/
+
+# Local development
+.dev.vars
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

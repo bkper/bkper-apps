@@ -1,0 +1,23 @@
+{
+    "name": "sales-tax-bot",
+    "private": true,
+    "workspaces": [
+        "server"
+    ],
+    "scripts": {
+        "clean": "rm -rf node_modules dist server/node_modules server/dist",
+        "predev": "bun install --frozen-lockfile",
+        "dev": "bkper app dev --sp 8794",
+        "prebuild": "bun install --frozen-lockfile",
+        "build": "bkper app build",
+        "test": "bun --cwd server test",
+        "typecheck": "bun --cwd server typecheck",
+        "format:check": "prettier --check .",
+        "check": "bun run test && bun run typecheck && bun run build && bun run format:check"
+    },
+    "devDependencies": {
+        "bkper": "4.22.1",
+        "miniflare": "4.20260730.0",
+        "prettier": "3.9.6"
+    }
+}

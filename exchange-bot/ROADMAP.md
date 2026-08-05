@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–8 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–9 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, complete transaction behavior, Account, Group, and selected Book-setting synchronization, and a completed event parity and drift audit. Typed menu API work is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, complete audited event behavior, and the typed menu API contract with non-mutating endpoint stubs. Menu-side exchange-rate loading is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -87,8 +87,8 @@ Exchange Bot connects currency Books and mirrors resource movements using exchan
 - Exchange-rate endpoint selection, date substitution, future-date handling, explicit amount and rate overrides, description-based overrides, conversion precision, retries, and cache behavior remain unchanged except for mandatory runtime-equivalent adaptations.
 - Selected Book settings continue to synchronize across connected Books in the established direction and order.
 - The menu continues to load the selected Book context, connected Books, permissions, pending work, bot responses, rates, and eligible base Books using the established rules.
-- Users continue to choose a date, review or edit rates, run Gain/Loss for the established set of Books, see per-Book progress and results, and trigger the established audit flow.
-- Gain/loss Account selection, Account creation, Group assignment, Account type selection, historical handling, balance queries, exchange conversion, movement direction, descriptions, properties, batching, summaries, and audit order remain unchanged.
+- Users continue to choose a date, review or edit rates, run Exchange Update for the established set of Books, and see per-Book progress and results.
+- Exchange Account selection, Account creation, Group assignment, Account type selection, historical handling, balance queries, exchange conversion, movement direction, descriptions, properties, batching, and results remain unchanged. Each successful per-Book Exchange Update internally triggers that Book's audit.
 
 ## Mechanical parity rules
 
@@ -176,7 +176,8 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 - The client uses Vite, Lit, Web Awesome, `@bkper/web-design`, and `@bkper/web-auth`.
 - Client parity preserves the established functionality, workflow, states, and outcomes while adopting the platform design foundation; pixel-for-pixel Apps Script styling is not required.
 - The browser calls only authenticated app API routes for operations previously performed through Apps Script.
-- Each active `google.script.run` operation receives a typed API contract. Exact route names and schemas are decided during the API chunk and documented at `/openapi.json`.
+- The public API initially exposes exactly `GET /api/v1/books/{bookId}/exchange-rates` and `POST /api/v1/books/{bookId}/exchange-update`, documented at `/openapi.json`.
+- GET returns an `ExchangeRates` payload. POST accepts that payload directly, uses its single `date` field, updates one Book, internally triggers that Book's audit, and returns canonical `bkper.Transaction[]` API payloads.
 - Generated OpenAPI client types are consumed by the shipped client.
 - Server API routes and event handlers create request-scoped `Bkper` instances without token, API-key, or agent providers.
 - Platform outbound authentication supplies the validated user context and `exchange-bot` app identity.
@@ -244,37 +245,31 @@ Each behavior chunk follows this workflow:
 - Selected Book settings preserve their synchronization conditions, direction, order, and responses.
 - Resource handlers do not introduce additional transaction movements.
 
-### Menu server behavior matrix
-
-#### View initialization
-
-- Selected Book, connected Books, currency codes, base-Book flags, permissions, pending work, bot responses, default date, warnings, and initial UI state preserve existing behavior.
+### Menu API behavior matrix
 
 #### Rate loading
 
 - The selected date and Book produce the same endpoint configuration and request source.
-- Returned rates preserve provider base, connected currency filtering, and editable values.
+- Returned rates preserve the requested effective date, provider base, connected currency filtering, and editable values.
 - Results and failures preserve established client-visible behavior.
 
-#### Gain/loss update
+#### Exchange Update
 
-- Eligible Books, balance queries, historical behavior, matching Accounts, exchange Account selection, Account creation, Group assignment, Account type selection, conversions, rounding, movement direction, descriptions, properties, batching, summaries, and operation order remain unchanged.
+- Each request updates only its path Book using the supplied `ExchangeRates` payload and effective date.
+- Balance queries, historical behavior, matching Accounts, exchange Account selection, Account creation, Group assignment, Account type selection, conversions, rounding, movement direction, descriptions, properties, batching, and operation order remain unchanged.
 - Every generated transaction remains one complete movement with one amount.
-- Per-Book success and failure responses preserve existing behavior.
-
-#### Audit
-
-- The established set of Books is audited after the established completion condition and in the established order.
+- Accepted Bkper batch payloads are flattened in established order and returned directly as `bkper.Transaction[]`.
+- Each successful update, including a no-op, internally triggers that Book's audit after batch acceptance.
 
 ### Client behavior matrix
 
 - The client reads the selected `bookId` from the menu URL.
 - Authentication initialization and login-required behavior use `@bkper/web-auth`.
+- The client loads the authenticated User, selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
 - Initial loading, permission, warning, waiting, rates, result, retry, error, and close states preserve the existing workflow.
 - Date changes reload rates through the typed API.
-- Rates remain editable before Gain/Loss execution.
-- Gain/Loss requests preserve the established per-Book invocation and completion behavior.
-- The client invokes the audit operation at the established point.
+- Rates remain editable before Exchange Update execution.
+- The client calls Exchange Update once per eligible Book and preserves per-Book progress, failure, and retry behavior.
 - UI tests protect behavior and public contracts rather than static wording or CSS details.
 - Browser verification confirms the completed client visually and interactively before preview acceptance.
 
@@ -412,43 +407,43 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 9 — Define the typed menu API contract
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Define one typed API operation for each active Apps Script server operation.
-- Keep exact routes and schemas centered on the existing menu domain behavior.
-- Add thin Hono routes, typed request and response schemas, standardized transport errors, OpenAPI documentation, and generated client types.
-- Add production service stubs before implementations.
-- Exclude the commented-out transaction-update operation.
+- Defined exactly `GET /api/v1/books/{bookId}/exchange-rates` and `POST /api/v1/books/{bookId}/exchange-update`.
+- Added the shared validated `ExchangeRates` contract with one effective `date` field.
+- Defined POST as one-Book Exchange Update returning canonical `bkper.Transaction[]` API payloads without re-validating Bkper-owned response fields.
+- Added thin routes backed by non-mutating `501 Not Implemented` `ExchangeRatesService` and `ExchangeUpdateService` stubs, centralized transport errors, OpenAPI documentation, generated client contract types, and retained contract tests.
+- Excluded menu initialization, public audit, and the commented-out transaction-update operation.
 
 **Gate:** API and OpenAPI tests protect the intended transport replacement without implementing or changing menu business behavior.
 
-### Chunk 10 — Port view initialization and rate loading
+### Chunk 10 — Port rate loading
 
 **Status: Not started.**
 
-- Port selected-Book context loading and all data used to render the initial menu.
-- Port permission, pending-work, bot-response, connected-Book, base-Book, and default-date behavior.
 - Port menu-side rate endpoint configuration, loading, filtering, and responses.
+- Preserve the requested date as the returned effective date.
 - Move the existing Open Exchange Rates identifier to the declared platform secret boundary.
 
-**Gate:** The target API returns production-equivalent initial context and rate results for deterministic fixtures.
+**Gate:** The target API returns production-equivalent rate results for deterministic fixtures.
 
-### Chunk 11 — Port Gain/Loss and audit operations
+### Chunk 11 — Port Exchange Update and internal audit
 
 **Status: Not started.**
 
-- Port the Apps Script Gain/Loss implementation mechanically into target server services.
-- Preserve balance queries, historical behavior, matching Accounts, exchange Account selection and creation, conversion, rounding, movement construction, batching, summaries, and order.
-- Port the established audit operation and completion boundary.
+- Port the Apps Script Gain/Loss behavior mechanically into the per-Book Exchange Update endpoint.
+- Preserve balance queries, historical behavior, matching Accounts, exchange Account selection and creation, conversion, rounding, movement construction, batching, and order.
+- Return accepted Bkper batch payloads directly in established order and internally trigger the target Book's audit after every successful update, including a no-op.
 
-**Zero-sum gate:** Every generated gain/loss transaction is one complete movement with one amount and the established direction.
+**Zero-sum gate:** Every generated Exchange Update transaction is one complete movement with one amount and the established direction.
 
 ### Chunk 12 — Port the menu client
 
 **Status: Not started.**
 
 - Replace server-rendered Apps Script HTML and `google.script.run` with Lit rendering and the generated authenticated API client.
-- Preserve the date, editable rates, waiting indicators, button actions, per-Book progress, summaries, retry flow, errors, audit trigger, and close behavior.
+- Load the authenticated User, selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date through client-side `bkper-js`.
+- Preserve the date, editable rates, waiting indicators, button actions, per-Book Exchange Update orchestration, progress, results, retry flow, errors, and close behavior.
 - Use Web Awesome components and Bkper design tokens.
 - Add retained controller, API, and component behavior tests.
 - Complete browser-based visual and interactive verification.
@@ -463,7 +458,7 @@ No production patches have been recorded since the migration baseline. Add one c
 - Compare both target surfaces with both legacy implementations.
 - Resolve and pin SDK and tooling versions through compatibility evidence.
 - Verify the complete client and Worker production builds and generated artifacts.
-- Measure representative event and Gain/Loss execution within the target runtime constraints.
+- Measure representative event and Exchange Update execution within the target runtime constraints.
 - Reconcile the patch ledger and explain every mandatory runtime deviation.
 
 **Gate:** No unexplained difference remains across the active production behavior matrix.
@@ -491,13 +486,13 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Deterministic assertions and human review find no duplicate, missing, reversed, partial, or imbalanced posted movement.
 
-### Chunk 16 — Preview menu and Gain/Loss validation
+### Chunk 16 — Preview menu and Exchange Update validation
 
 **Status: Not started.**
 
 - Exercise menu initialization, permissions, warnings, rate loading, rate editing, progress, results, failures, retry, and close behavior.
-- Run isolated Gain/Loss canaries with deterministic Books, balances, dates, and rates.
-- Verify generated Accounts, Groups, transactions, movement direction, amounts, properties, summaries, and audits.
+- Run isolated Exchange Update canaries with deterministic Books, balances, dates, and rates.
+- Verify generated Accounts, Groups, transactions, movement direction, amounts, properties, returned payloads, and per-Book audits.
 - Complete final preview visual verification.
 
 **Gate:** The full menu workflow and resulting Bkper resources match accepted legacy behavior.
@@ -535,10 +530,10 @@ No production patches have been recorded since the migration baseline. Add one c
 
 - Change only the production menu route from Apps Script to the Cloudflare client.
 - Keep the GCP and Apps Script deployments active and unchanged.
-- Monitor client loading, authentication, API requests, rate loading, Gain/Loss operations, audits, Worker logs, and customer-impact reports.
+- Monitor client loading, authentication, API requests, rate loading, Exchange Update operations, per-Book audits, Worker logs, and customer-impact reports.
 - Validate representative menu behavior using accepted deterministic, preview, and production evidence.
 
-**Rollback triggers:** suspected zero-sum or data-loss issues, incorrect movement direction or amount, incomplete Gain/Loss operations, sustained authentication or API failures, material error growth, or missing production menu behavior.
+**Rollback triggers:** suspected zero-sum or data-loss issues, incorrect movement direction or amount, incomplete Exchange Update operations, sustained authentication or API failures, material error growth, or missing production menu behavior.
 
 **Gate:** Full-stack stabilization is explicitly accepted before repository consolidation.
 

@@ -70,8 +70,7 @@ describe('Cloudflare skeleton', () => {
 
         expect(response.status).toBe(404);
         expect(await response.json()).toEqual({
-            success: false,
-            error: { code: 'NOT_FOUND', message: 'Route not found: GET /api/v1/missing' },
+            error: { message: 'Route not found: GET /api/v1/missing' },
         });
     });
 
@@ -79,13 +78,5 @@ describe('Cloudflare skeleton', () => {
         const response = await createApp().request('/menu', {}, env);
 
         expect(await response.text()).toBe('asset');
-    });
-
-    it('publishes an empty OpenAPI contract', async () => {
-        const response = await createApp().request('/openapi.json');
-        const spec = (await response.json()) as { paths: Record<string, unknown> };
-
-        expect(response.status).toBe(200);
-        expect(spec.paths).toEqual({});
     });
 });

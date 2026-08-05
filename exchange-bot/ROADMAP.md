@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–6 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–7 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, and posted, checked, updated, deleted, and restored transaction behavior. The remaining resource business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, complete transaction behavior, and Account, Group, and selected Book-setting synchronization. Event parity and drift auditing remain before menu migration begins. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -389,12 +389,13 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 7 — Port Account, Group, and Book synchronization
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port Account create, update, rename, archive, and delete behavior.
-- Port Group create, update, rename, hierarchy, properties, and delete behavior.
-- Port selected Book-setting synchronization.
-- Preserve all established relationship and no-op conditions.
+- Ported Account lookup, create, update, rename, archive, and delete behavior with the established field, Group, property, and response handling.
+- Ported Group lookup, create, update, rename, hierarchy, hidden state, property preservation, and delete behavior.
+- Ported selected Book-setting synchronization in the established condition and mutation order.
+- Added one deterministic test module per production handler, preserving the existing Exchange Bot and Subledger Bot test organization without shared test abstractions.
+- Confirmed resource synchronization uses only Account, Group, and Book operations and creates no transaction movement.
 
 **Gate:** Resource synchronization has deterministic parity and introduces no additional transaction movement.
 

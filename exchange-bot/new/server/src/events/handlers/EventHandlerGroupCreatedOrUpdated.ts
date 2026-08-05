@@ -1,3 +1,51 @@
+import { type Book, Group } from 'bkper-js';
+import type { AppContext } from '../../app-context.js';
+import { CHILD_BOOK_ID_PROP } from '../../constants.js';
 import { EventHandlerGroup } from './EventHandlerGroup.js';
 
-export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {}
+export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
+    constructor(context: AppContext) {
+        super(context);
+    }
+
+    protected async connectedGroupNotFound(
+        _baseBook: Book,
+        connectedBook: Book,
+        baseGroup: bkper.Group
+    ): Promise<string | null> {
+        let parentGroup = baseGroup.parent
+            ? await connectedBook.getGroup(baseGroup.parent.name)
+            : null;
+        let connectedGroup = await new Group(connectedBook)
+            .setName(baseGroup.name!)
+            .setParent(parentGroup)
+            .setHidden(baseGroup.hidden!)
+            .setVisibleProperties(baseGroup.properties!)
+            .deleteProperty(CHILD_BOOK_ID_PROP)
+            .create();
+        let bookAnchor = super.buildBookAnchor(connectedBook);
+        return `${bookAnchor}: GROUP ${connectedGroup.getName()} CREATED`;
+    }
+
+    protected async connectedGroupFound(
+        _baseBook: Book,
+        connectedBook: Book,
+        baseGroup: bkper.Group,
+        connectedGroup: Group
+    ): Promise<string | null> {
+        let connectedChildBookId = connectedGroup.getProperty(CHILD_BOOK_ID_PROP);
+        let parentGroup = baseGroup.parent
+            ? await connectedBook.getGroup(baseGroup.parent.name)
+            : null;
+
+        await connectedGroup
+            .setName(baseGroup.name!)
+            .setParent(parentGroup)
+            .setHidden(baseGroup.hidden!)
+            .setVisibleProperties(baseGroup.properties!)
+            .setProperty(CHILD_BOOK_ID_PROP, connectedChildBookId)
+            .update();
+        let bookAnchor = super.buildBookAnchor(connectedBook);
+        return `${bookAnchor}: GROUP ${connectedGroup.getName()} UPDATED`;
+    }
+}

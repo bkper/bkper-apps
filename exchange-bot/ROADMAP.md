@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–5 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–6 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, and posted and checked transaction behavior. The remaining business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, and posted, checked, updated, deleted, and restored transaction behavior. The remaining resource business handlers remain explicit no-op stubs. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -378,10 +378,12 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 6 — Port transaction update, delete, and restore
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port update, delete, and restore handlers.
-- Preserve lookup fallback, Account resolution, amount recalculation, zero behavior, checked-state transitions, visible and exchange properties, URLs, file URLs, trash, untrash, call order, and responses.
+- Ported update behavior for existing and missing mirrors, including Account resolution, amount recalculation, movement direction, visible and exchange properties, URLs, file URLs, and checked-state call order.
+- Preserved the established zero-amount path by unchecking checked mirrors before trashing them without creating or updating a posted movement.
+- Ported delete and restore behavior, including remote-id queries, the deletion lookup fallback, trash and untrash transitions, responses, and API-call order.
+- Added deterministic lifecycle coverage for complete updated movements, zero-amount deletion, missing-mirror creation, checked deletion, fallback lookup, and restoration.
 
 **Gate:** No unexplained difference remains in movement direction, amount, state transition, lookup order, resource mutation, or result.
 

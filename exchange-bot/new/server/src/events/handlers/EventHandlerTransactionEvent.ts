@@ -105,7 +105,7 @@ export abstract class EventHandlerTransactionEvent extends EventHandlerTransacti
             await newTransaction.post();
         } else {
             newTransaction.setDescription(
-                `${(newTransaction.getCreditAccount()) == null ? baseCreditAccount.name : ''} ${(newTransaction.getDebitAccount()) == null ? baseDebitAccount.name : ''} ${newTransaction.getDescription()}`.trim()
+                `${newTransaction.getCreditAccount() == null ? baseCreditAccount.name : ''} ${newTransaction.getDebitAccount() == null ? baseDebitAccount.name : ''} ${newTransaction.getDescription()}`.trim()
             );
             await newTransaction.create();
         }

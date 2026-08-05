@@ -106,11 +106,11 @@ export abstract class EventHandlerTransaction extends EventHandler {
         return '';
     }
 
-    protected async connectedTransactionNotFound(
+    protected connectedTransactionNotFound(
         _baseBook: Book,
         _connectedBook: Book,
         _transaction: bkper.Transaction
-    ): Promise<string | null> {
+    ): Promise<string | null> | null {
         return null;
     }
 

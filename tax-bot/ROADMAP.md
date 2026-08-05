@@ -2,9 +2,9 @@
 
 ## Status
 
-**Planning. No implementation, deployment, routing, or Book mutation has begun.**
+**Chunk 1 complete.** The accepted GCP source baseline now lives under `legacy/` without logic changes. Cloudflare implementation, deployment, routing, and Book mutation have not begun.
 
-The existing Google Cloud Function remains production-authoritative. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
+The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
 ## Purpose of this document
 
@@ -36,9 +36,9 @@ The Cloudflare implementation will run in parallel with the GCP implementation u
 
 The confirmed production dependency baseline is `bkper-js` `2.18.0`.
 
-Before behavior porting begins, the checked-in GCP source must be verified against the production-authoritative implementation or an accepted reproducible artifact. The current repository is the candidate source baseline, but source parity must be recorded before it is treated as authoritative.
+The checked-in GCP source was reviewed against the accepted deployed runtime artifact and accepted as the migration source baseline before relocation into `legacy/`.
 
-The repository currently has no deterministic unit test suite or committed dependency lockfile. Baseline verification must therefore distinguish what is proven by source comparison, build output, and production evidence from behavior that is only inferred from code.
+The legacy project has no deterministic unit test suite or committed dependency lockfile. Its pre-move build succeeded, but deterministic behavior coverage remains a Cloudflare migration requirement rather than established legacy evidence.
 
 ## Domain behavior to preserve
 
@@ -99,7 +99,7 @@ tax-bot/
 
 This makes source comparison, production patch synchronization, independent verification, and rollback planning explicit.
 
-The root app metadata must preserve the production GCP webhook until the production routing chunk. Developer routing may move to preview only after the corresponding review and approval.
+The active app metadata under `legacy/` must preserve the production GCP webhook until the production routing chunk. Developer routing may move to preview only after the corresponding review and approval.
 
 ### Intended post-stabilization layout
 
@@ -269,22 +269,28 @@ While GCP remains production-authoritative, every production patch must be:
 
 Repeat the drift audit before preview routing and immediately before production cutover.
 
+### Patch ledger
+
+| Legacy change | Production status | Cloudflare test | Cloudflare port | Notes |
+| --- | --- | --- | --- | --- |
+| _Populate during migration_ |  |  |  |  |
+
 ## Migration chunks
 
 Each chunk must be independently reviewable. All statuses remain planned until their gates are satisfied.
 
 ### Chunk 1 — Establish baseline and parallel layout
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Verify the checked-in source against the accepted production-authoritative source or artifact.
-- Record the confirmed production `bkper-js` `2.18.0` baseline and current runtime behavior evidence.
-- Record current verification limitations without overstating coverage.
-- Move the unchanged GCP project into `legacy/`.
-- Establish `new/` as the isolated Cloudflare target.
-- Keep production and developer GCP webhook behavior unchanged.
+- Accepted the checked-in GCP source as the migration baseline after reviewing the deployed runtime artifact.
+- Confirmed the `bkper-js` `2.18.0` production dependency baseline.
+- Recorded the absence of deterministic legacy tests and a committed dependency lockfile without overstating coverage.
+- Verified the legacy production build before relocation.
+- Moved the unchanged GCP project into `legacy/` and reserved `new/` for the isolated Cloudflare target.
+- Kept production and developer GCP webhook behavior unchanged.
 
-**Gate:** The relocated GCP implementation is source-equivalent, independently buildable, and explicitly remains production-authoritative.
+**Gate:** The accepted GCP source is unchanged under `legacy/`, independently buildable, and remains the active production implementation.
 
 ### Chunk 2 — Create the minimal Cloudflare skeleton
 

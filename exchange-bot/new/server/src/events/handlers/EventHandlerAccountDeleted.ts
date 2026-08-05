@@ -8,7 +8,7 @@ export class EventHandlerAccountDeleted extends EventHandlerAccount {
     }
 
     protected async connectedAccountNotFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
         account: bkper.Account
     ): Promise<string | null> {
@@ -17,9 +17,9 @@ export class EventHandlerAccountDeleted extends EventHandlerAccount {
     }
 
     protected async connectedAccountFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
-        _account: bkper.Account,
+        account: bkper.Account,
         connectedAccount: Account
     ): Promise<string | null> {
         if (connectedAccount.hasTransactionPosted()) {

@@ -8,7 +8,7 @@ export class EventHandlerGroupDeleted extends EventHandlerGroup {
     }
 
     protected async connectedGroupNotFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
         group: bkper.Group
     ): Promise<string | null> {
@@ -17,9 +17,9 @@ export class EventHandlerGroupDeleted extends EventHandlerGroup {
     }
 
     protected async connectedGroupFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
-        _group: bkper.Group,
+        group: bkper.Group,
         connectedGroup: Group
     ): Promise<string | null> {
         await connectedGroup.remove();

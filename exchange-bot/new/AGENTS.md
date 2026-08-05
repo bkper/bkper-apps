@@ -4,9 +4,9 @@ This directory is the isolated Cloudflare migration target. The production GCP e
 
 ## Current scope
 
-- Keep this as a minimal full-stack shell: static client assets, `/health`, `/events`, `/api/v1/*`, and `/openapi.json`.
-- `/events` must remain non-mutating until event parity is ported in later roadmap chunks.
-- Do not add menu business operations before their dedicated roadmap chunks.
+- Event-side parity and drift auditing are complete; preserve the audited event behavior without refactoring or feature changes.
+- Keep the client and `/api/v1/*` menu surface minimal until their dedicated roadmap chunks.
+- The legacy GCP event handler and Apps Script menu remain production-authoritative.
 - Protect Bkper's zero-sum invariant; tests must never write to live Books.
 
 ## Local development

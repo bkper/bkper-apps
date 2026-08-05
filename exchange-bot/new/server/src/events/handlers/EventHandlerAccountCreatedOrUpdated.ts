@@ -41,8 +41,8 @@ export class EventHandlerAccountCreatedOrUpdated extends EventHandlerAccount {
     }
 
     protected syncAccounts(
-        _baseBook: Book,
-        _connectedBook: Book,
+        baseBook: Book,
+        connectedBook: Book,
         baseAccount: bkper.Account,
         connectedAccount: Account
     ): void {

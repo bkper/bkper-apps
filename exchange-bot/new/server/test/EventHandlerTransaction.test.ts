@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { AccountType, Bkper, Book } from 'bkper-js';
+import { AccountType, Bkper, Book, type Transaction } from 'bkper-js';
 import { AppContext } from '../src/app-context.js';
 import { EventHandlerTransaction } from '../src/events/handlers/EventHandlerTransaction.js';
 
@@ -10,6 +10,27 @@ class TestEventHandlerTransaction extends EventHandlerTransaction {
         event: bkper.Event
     ): Promise<string | null> {
         return this.processObject(baseBook, connectedBook, event);
+    }
+
+    protected getTransactionQuery(transaction: bkper.Transaction): string {
+        return '';
+    }
+
+    protected connectedTransactionNotFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction
+    ): null {
+        return null;
+    }
+
+    protected async connectedTransactionFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction,
+        connectedTransaction: Transaction
+    ): Promise<null> {
+        return null;
     }
 }
 

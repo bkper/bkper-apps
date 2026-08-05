@@ -35,6 +35,7 @@ export class ExchangeService {
         }
 
         const convertedRates = this.convertBase(rates, from);
+
         if (convertedRates == null) {
             throw `Code ${from} not found in ${JSON.stringify(rates)}`;
         }
@@ -65,7 +66,7 @@ export class ExchangeService {
         for (const [key, value] of Object.entries(rates.rates)) {
             try {
                 rates.rates[key] = new Amount(value).times(newRate).toString();
-            } catch (_error: unknown) {
+            } catch (erro: unknown) {
                 // ok
             }
         }
@@ -75,24 +76,26 @@ export class ExchangeService {
     async getRates(ratesEndpointUrl: string): Promise<ExchangeRates> {
         const cacheKey = `3_${ratesEndpointUrl}`;
         const random = Math.random();
-        const timeLabel = `getRates ${random}`;
-        console.time(timeLabel);
+        console.time(`getRates ${random}`);
+        let rates: ExchangeRates | undefined = getCachedRates(cacheKey);
+        if (rates != null) {
+            console.timeEnd(`getRates ${random}`);
+            return rates;
+        } else {
+            console.warn(`Fetching rates...`);
 
-        const cachedRates = getCachedRates(cacheKey);
-        if (cachedRates != null) {
-            console.timeEnd(timeLabel);
-            return cachedRates;
-        }
+            try {
+                rates = await fetchRates(ratesEndpointUrl);
+            } catch (err) {
+                throw err;
+            }
 
-        console.warn('Fetching rates...');
-        const rates = await fetchRates(ratesEndpointUrl);
+            if (rates == null) {
+                throw `Unable to get exchange rates from endpoint ${ratesEndpointUrl}`;
+            }
 
-        if (rates == null) {
-            throw `Unable to get exchange rates from endpoint ${ratesEndpointUrl}`;
-        }
-
-        if (!rates.error && (rates.base == null || rates.rates == null)) {
-            throw `Rates json from ${ratesEndpointUrl} in wrong format. Expected:
+            if (!rates.error && (rates.base == null || rates.rates == null)) {
+                throw `Rates json from ${ratesEndpointUrl} in wrong format. Expected:
         {
           base: string;
           date: string;
@@ -101,11 +104,14 @@ export class ExchangeService {
           }
         }
         `;
-        }
+            }
 
-        setCachedRates(cacheKey, rates);
-        console.timeEnd(timeLabel);
-        return rates;
+            setCachedRates(cacheKey, rates);
+
+            console.timeEnd(`getRates ${random}`);
+
+            return rates;
+        }
     }
 }
 
@@ -189,7 +195,7 @@ async function readResponseData(response: Response): Promise<unknown> {
     const text = await response.text();
     try {
         return JSON.parse(text);
-    } catch (_error: unknown) {
+    } catch (error: unknown) {
         return text;
     }
 }

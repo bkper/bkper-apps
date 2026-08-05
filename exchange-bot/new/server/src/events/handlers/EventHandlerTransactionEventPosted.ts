@@ -12,10 +12,10 @@ export class EventHandlerTransactionPosted extends EventHandlerTransactionEvent 
     }
 
     protected async connectedTransactionFound(
-        _baseBook: Book,
-        _connectedBook: Book,
-        _transaction: bkper.Transaction,
-        _connectedTransaction: Transaction
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction,
+        connectedTransaction: Transaction
     ): Promise<string | null> {
         return null;
     }

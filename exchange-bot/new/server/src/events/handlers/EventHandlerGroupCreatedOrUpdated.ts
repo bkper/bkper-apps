@@ -7,9 +7,8 @@ export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
     constructor(context: AppContext) {
         super(context);
     }
-
     protected async connectedGroupNotFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
         baseGroup: bkper.Group
     ): Promise<string | null> {
@@ -26,9 +25,8 @@ export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
         let bookAnchor = super.buildBookAnchor(connectedBook);
         return `${bookAnchor}: GROUP ${connectedGroup.getName()} CREATED`;
     }
-
     protected async connectedGroupFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
         baseGroup: bkper.Group,
         connectedGroup: Group

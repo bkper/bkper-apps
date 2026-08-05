@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–7 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–8 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, complete transaction behavior, and Account, Group, and selected Book-setting synchronization. Event parity and drift auditing remain before menu migration begins. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, event dispatcher and orchestration, connected-Book rules, event-side exchange-rate boundaries, complete transaction behavior, Account, Group, and selected Book-setting synchronization, and a completed event parity and drift audit. Typed menu API work is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -401,12 +401,12 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 8 — Complete event parity and drift audit
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Run the full event behavior matrix.
-- Compare every target event handler with its legacy counterpart.
-- Review dependency behavior, runtime adaptations, configuration, generated artifacts, and bundle contents.
-- Reconcile the production patch ledger.
+- Ran the complete deterministic event matrix, including ingress, orchestration, connected Books, exchange rates, transaction lifecycles, resource synchronization, responses, errors, and zero-sum safeguards.
+- Compared every target event handler and service with its legacy counterpart after reverting non-mandatory porting changes.
+- Confirmed that the legacy event source remains unchanged from the migration baseline. Audited the pinned event-side SDK transition from `bkper-js` 2.18.0 to 2.19.0; the only SDK implementation change is platform-compatible API transport selection and associated error logging.
+- Reviewed target metadata, exact dependency resolution, generated environment and OpenAPI artifacts, and production bundle. Confirmed that production menu and webhook URLs remain on Apps Script and GCP and that the production patch ledger remains empty.
 
 **Gate:** No unexplained event-side difference remains in branch order, lookup order, movement direction, amount, transaction state, API-call order, side effects, or responses.
 

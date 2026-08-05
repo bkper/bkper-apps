@@ -16,13 +16,11 @@ export abstract class EventHandler {
         this.exchangeService = new ExchangeService(context);
     }
 
-    protected async processObject(
-        _baseBook: Book,
-        _connectedBook: Book,
-        _event: bkper.Event
-    ): Promise<string | null> {
-        return null;
-    }
+    protected abstract processObject(
+        baseBook: Book,
+        connectedBook: Book,
+        event: bkper.Event
+    ): Promise<string | null>;
 
     async handleEvent(event: bkper.Event): Promise<EventResultValue> {
         const eventBook = new Book(event.book, this.context.bkper.getConfig());
@@ -36,8 +34,8 @@ export abstract class EventHandler {
         console.time(logtag);
 
         if (event.type == 'TRANSACTION_POSTED') {
-            const operation = event.data!.object as bkper.TransactionOperation;
-            const transaction = operation.transaction!;
+            let operation = event.data!.object as bkper.TransactionOperation;
+            let transaction = operation.transaction!;
             if (
                 eventBook.getProperty(EXC_ON_CHECK_PROP, 'exc_auto_check') &&
                 !transaction.checked
@@ -46,11 +44,13 @@ export abstract class EventHandler {
             }
         }
 
-        const allConnectedBooks = await this.botService.getConnectedBooks(eventBook);
+        let allConnectedBooks = await this.botService.getConnectedBooks(eventBook);
 
+        // No connected books
         if (allConnectedBooks == null || allConnectedBooks.length == 0) {
             return false;
         }
+        // Event book is the only connected book
         if (allConnectedBooks.length == 1) {
             const connectedBook = allConnectedBooks[0];
             if (connectedBook == null || connectedBook.getId() == eventBook.getId()) {
@@ -58,6 +58,7 @@ export abstract class EventHandler {
             }
         }
 
+        // Load and cache rates prior to pararllel run
         if (
             event.type == 'TRANSACTION_CHECKED' ||
             event.type == 'TRANSACTION_POSTED' ||
@@ -67,18 +68,20 @@ export abstract class EventHandler {
         }
 
         let result: string[] = [];
+
         const chunkSize = 14;
         for (let i = 0; i < allConnectedBooks.length; i += chunkSize) {
             const connectedBooks = allConnectedBooks.slice(i, i + chunkSize);
-            const responsesPromises: Promise<string | null>[] = [];
+
+            let responsesPromises: Promise<string | null>[] = [];
 
             for (const connectedBook of connectedBooks) {
                 if (connectedBook.getId() == eventBook.getId()) {
                     continue;
                 }
-                const connectedCode = this.botService.getBaseCode(connectedBook);
+                let connectedCode = this.botService.getBaseCode(connectedBook);
                 if (connectedCode != null && connectedCode != '') {
-                    const response = this.processObject(eventBook, connectedBook, event);
+                    let response = this.processObject(eventBook, connectedBook, event);
                     if (response) {
                         responsesPromises.push(response);
                     }
@@ -86,11 +89,12 @@ export abstract class EventHandler {
             }
 
             if (responsesPromises.length > 0) {
-                const partialResult = (await Promise.all(responsesPromises)).filter(
-                    (response): response is string => response != null && response.trim() != ''
+                let partialResult = await Promise.all(responsesPromises);
+                partialResult = partialResult.filter(
+                    (r): r is string => r != null && r.trim() != ''
                 );
                 if (partialResult.length > 0) {
-                    result = result.concat(partialResult);
+                    result = result.concat(partialResult as string[]);
                 }
             }
         }
@@ -100,6 +104,7 @@ export abstract class EventHandler {
         if (result.length == 0) {
             return false;
         }
+
         return result;
     }
 
@@ -112,18 +117,19 @@ export abstract class EventHandler {
         event: bkper.Event,
         connectedBooks: Book[]
     ): Promise<void> {
+        // No need to load rates if event book is the only base book in the collection
         if (this.isTheOnlyBaseBookInCollection(eventBook, connectedBooks)) {
             return;
         }
         const operation = event.data!.object as bkper.TransactionOperation;
         const transaction = operation.transaction!;
         const ratesEndpointConfig = this.botService.getRatesEndpointConfig(eventBook, transaction);
-        await this.exchangeService.getRates(ratesEndpointConfig.url);
+        await this.exchangeService.getRates(ratesEndpointConfig.url); // Call to put rates on cache
     }
 
     private isTheOnlyBaseBookInCollection(eventBook: Book, connectedBooks: Book[]): boolean {
         if (this.botService.hasBaseBookInCollection(eventBook)) {
-            const baseBooks = connectedBooks.filter(book => this.botService.isBaseBook(book));
+            const baseBooks = connectedBooks.filter(b => this.botService.isBaseBook(b));
             if (baseBooks.length == 1) {
                 const baseBook = baseBooks[0];
                 if (baseBook && baseBook.getId() == eventBook.getId()) {

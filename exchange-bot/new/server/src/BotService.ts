@@ -26,12 +26,15 @@ export class BotService {
     }
 
     getRatesEndpointConfig(book: Book, transaction: bkper.Transaction): RatesEndpointConfig {
+        //Read from properties
         let ratesUrl = book.getProperty(EXC_RATES_URL_PROP, 'exchange_rates_url');
-        let date = transaction.date!;
-        const excDateProp = transaction.properties![EXC_DATE_PROP];
 
+        let date = transaction.date!;
+
+        let excDateProp = transaction.properties![EXC_DATE_PROP];
         if (excDateProp) {
-            const parsedDate = book.parseDate(excDateProp);
+            let parsedDate = book.parseDate(excDateProp);
+            // checks if parsedDate is valid
             if (!Number.isNaN(new Date(parsedDate).getTime())) {
                 date = parsedDate.toISOString().substring(0, 10);
             } else {
@@ -40,23 +43,28 @@ export class BotService {
             }
         }
 
+        //Default values
         if (ratesUrl == null || ratesUrl.trim() == '') {
             ratesUrl =
                 'https://openexchangerates.org/api/historical/${date}.json?show_alternative=true&app_id=' +
                 this.context.env.OPEN_EXCHANGE_RATES_APP_ID;
         }
 
-        const today = new Date();
-        const parsedDate = book.parseDate(date);
+        //Use today if date in future
+        let today = new Date();
+        let parsedDate = book.parseDate(date);
         if (parsedDate.getTime() > today.getTime()) {
             date = today.toISOString().substring(0, 10);
         }
 
+        //deprecated
         ratesUrl = ratesUrl.replace('${transaction.date}', date);
         ratesUrl = ratesUrl.replace('${date}', date);
         ratesUrl = ratesUrl.replace('${agent}', 'bot');
 
-        return { url: ratesUrl };
+        return {
+            url: ratesUrl,
+        };
     }
 
     async getConnectedBooks(book: Book): Promise<Book[]> {
@@ -66,12 +74,14 @@ export class BotService {
         }
         const books: Book[] = [];
 
+        //deprecated
         for (const key in bookVisibleProperties) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
                 books.push(await this.context.bkper.getBook(bookVisibleProperties[key]));
             }
         }
 
+        //deprecated
         const excBooks = book.getProperty('exc_books');
         if (excBooks != null && excBooks.trim() != '') {
             const bookIds = excBooks.split(/[ ,]+/);
@@ -82,7 +92,8 @@ export class BotService {
             }
         }
 
-        const collectionBooks = book.getCollection()?.getBooks();
+        const collectionBooks =
+            book.getCollection() != null ? book.getCollection()!.getBooks() : null;
         if (collectionBooks) {
             for (const collectionBook of collectionBooks) {
                 if (
@@ -100,15 +111,17 @@ export class BotService {
     isBaseBook(book: Book): boolean {
         if (book.getProperty(EXC_BASE_PROP)) {
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     hasBaseBookInCollection(book: Book): boolean {
-        const collectionBooks = book.getCollection()?.getBooks();
+        const collectionBooks =
+            book.getCollection() != null ? book.getCollection()!.getBooks() : null;
         if (collectionBooks) {
-            for (const collectionBook of collectionBooks) {
-                if (this.isBaseBook(collectionBook)) {
+            for (const b of collectionBooks) {
+                if (this.isBaseBook(b)) {
                     return true;
                 }
             }
@@ -178,10 +191,9 @@ export class BotService {
         transaction: bkper.Transaction,
         rates: ExchangeRates
     ): Promise<AmountDescription> {
-        const properties = transaction.properties!;
-        const txExcAmount = properties[EXC_AMOUNT_PROP];
-        const txExcRate = properties[EXC_RATE_PROP];
-        const txExcCode = properties[EXC_CODE_PROP];
+        const txExcAmount = transaction.properties![EXC_AMOUNT_PROP];
+        const txExcRate = transaction.properties![EXC_RATE_PROP];
+        const txExcCode = transaction.properties![EXC_CODE_PROP];
 
         if (
             txExcAmount &&
@@ -210,11 +222,12 @@ export class BotService {
         }
 
         const parts = transaction.description!.split(' ');
+
         for (const part of parts) {
             if (part.startsWith(connectedCode)) {
                 try {
                     const amount = connectedBook.parseValue(part.replace(connectedCode, ''));
-                    const result: AmountDescription = {
+                    const ret: AmountDescription = {
                         amount: amount!,
                         excBaseCode: base,
                         description: transaction.description!.replace(
@@ -222,10 +235,10 @@ export class BotService {
                             `${base}${transaction.amount}`
                         ),
                     };
-                    if (result.amount) {
-                        return result;
+                    if (ret.amount) {
+                        return ret;
                     }
-                } catch (_error: unknown) {
+                } catch (error) {
                     continue;
                 }
             }

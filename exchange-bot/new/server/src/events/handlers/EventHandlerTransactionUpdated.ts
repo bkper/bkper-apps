@@ -1,6 +1,6 @@
 import { Account, type Book, type Transaction } from 'bkper-js';
 import type { AppContext } from '../../app-context.js';
-import { EXC_AMOUNT_PROP, EXC_CODE_PROP, EXC_LOG_PROP, EXC_RATE_PROP } from '../../constants.js';
+import { EXC_CODE_PROP, EXC_RATE_PROP, EXC_LOG_PROP, EXC_AMOUNT_PROP } from '../../constants.js';
 import type { AmountDescription } from './EventHandlerTransaction.js';
 import { EventHandlerTransactionEvent } from './EventHandlerTransactionEvent.js';
 
@@ -53,7 +53,7 @@ export class EventHandlerTransactionUpdated extends EventHandlerTransactionEvent
                 connectedCreditAccount = await new Account(connectedBook)
                     .setName(baseCreditAccount!.getName()!)
                     .create();
-            } catch (_err: unknown) {
+            } catch (err: unknown) {
                 // OK
             }
         }
@@ -63,7 +63,7 @@ export class EventHandlerTransactionUpdated extends EventHandlerTransactionEvent
                 connectedDebitAccount = await new Account(connectedBook)
                     .setName(baseDebitAccount!.getName()!)
                     .create();
-            } catch (_err: unknown) {
+            } catch (err: unknown) {
                 // OK
             }
         }

@@ -40,6 +40,7 @@ export abstract class EventHandlerTransaction extends EventHandler {
         }
 
         let connectedCode = this.botService.getBaseCode(connectedBook);
+
         let ret: Promise<string | null> | null = null;
 
         if (
@@ -102,26 +103,20 @@ export abstract class EventHandlerTransaction extends EventHandler {
         );
     }
 
-    protected getTransactionQuery(_transaction: bkper.Transaction): string {
-        return '';
-    }
+    protected abstract getTransactionQuery(transaction: bkper.Transaction): string;
 
-    protected connectedTransactionNotFound(
-        _baseBook: Book,
-        _connectedBook: Book,
-        _transaction: bkper.Transaction
-    ): Promise<string | null> | null {
-        return null;
-    }
+    protected abstract connectedTransactionNotFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction
+    ): Promise<string | null> | null;
 
-    protected async connectedTransactionFound(
-        _baseBook: Book,
-        _connectedBook: Book,
-        _transaction: bkper.Transaction,
-        _connectedTransaction: Transaction
-    ): Promise<string | null> {
-        return null;
-    }
+    protected abstract connectedTransactionFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction,
+        connectedTransaction: Transaction
+    ): Promise<string | null>;
 
     protected async buildExcLog(
         baseBook: Book,
@@ -185,7 +180,7 @@ export abstract class EventHandlerTransaction extends EventHandler {
                     if (amount) {
                         return amountDescription.amount.div(amount);
                     }
-                } catch (_error: unknown) {
+                } catch (error: unknown) {
                     continue;
                 }
             }

@@ -12,17 +12,16 @@ export class EventHandlerTransactionDeleted extends EventHandlerTransaction {
     }
 
     protected connectedTransactionNotFound(
-        _baseBook: Book,
-        _connectedBook: Book,
-        _transaction: bkper.Transaction
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction
     ): null {
         return null;
     }
-
     protected async connectedTransactionFound(
-        _baseBook: Book,
+        baseBook: Book,
         connectedBook: Book,
-        _transaction: bkper.Transaction,
+        transaction: bkper.Transaction,
         connectedTransaction: Transaction
     ): Promise<string | null> {
         const timeTag = `Deleted found ${Math.random()}`;

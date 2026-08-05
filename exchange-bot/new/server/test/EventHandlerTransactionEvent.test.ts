@@ -11,6 +11,23 @@ class TestEventHandlerTransactionEvent extends EventHandlerTransactionEvent {
     ): Promise<Transaction | null> {
         return this.mirrorTransaction(baseBook, connectedBook, transaction);
     }
+
+    protected connectedTransactionNotFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction
+    ): null {
+        return null;
+    }
+
+    protected async connectedTransactionFound(
+        baseBook: Book,
+        connectedBook: Book,
+        transaction: bkper.Transaction,
+        connectedTransaction: Transaction
+    ): Promise<null> {
+        return null;
+    }
 }
 
 interface CapturedRequest {

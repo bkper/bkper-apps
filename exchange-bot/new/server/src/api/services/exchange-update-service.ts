@@ -14,10 +14,10 @@ import {
     EXC_AGGREGATE,
     EXC_AMOUNT_PROP,
     EXC_CODE_PROP,
-    EXC_HISTORICAL_PROP,
     EXC_RATE_PROP,
     STOCK_EXC_CODE_PROP,
 } from '../../shared/constants.js';
+import { BotService } from './bot-service.js';
 
 interface ConvertedAmount {
     amount: Amount;
@@ -31,11 +31,12 @@ export class ExchangeUpdateService {
         exchangeRates: ExchangeRates
     ): Promise<bkper.Transaction[]> {
         const book = await context.bkper.getBook(bookId);
-        const connectedBooks = await getConnectedBooks(context, book);
-        const baseCode = getBaseCode(book);
+        const botService = new BotService(context);
+        const connectedBooks = await botService.getConnectedBooks(book);
+        const baseCode = botService.getBaseCode(book);
         const bookClosingDate = book.getClosingDate();
-        const historical = isHistorical(book);
-        const date = parseDateParam(exchangeRates.date);
+        const historical = botService.isHistorical(book);
+        const date = botService.parseDateParam(exchangeRates.date);
         const query = getQuery(book, date, bookClosingDate, historical);
         const histQuery = getHistQuery(book, date);
         const bookBalancesReport = await book.getBalancesReport(query);
@@ -43,7 +44,7 @@ export class ExchangeUpdateService {
         const acceptedTransactions: bkper.Transaction[] = [];
 
         for (const connectedBook of connectedBooks) {
-            const connectedCode = getBaseCode(connectedBook);
+            const connectedCode = botService.getBaseCode(connectedBook);
             const accounts = await getMatchingAccounts(book, connectedCode!);
             const transactions: Transaction[] = [];
             const connectedBookBalancesReport = await connectedBook.getBalancesReport(query);
@@ -147,57 +148,6 @@ export class ExchangeUpdateService {
         book.audit();
         return acceptedTransactions;
     }
-}
-
-async function getConnectedBooks(context: AppContext, book: Book): Promise<Set<Book>> {
-    if (book.getVisibleProperties() == null) {
-        return new Set<Book>();
-    }
-    const books = new Set<Book>();
-
-    for (const key in book.getVisibleProperties()) {
-        if (key.startsWith('exc') && key.endsWith('_book')) {
-            books.add(await context.bkper.getBook(book.getVisibleProperties()[key]));
-        }
-    }
-
-    const excBooks = book.getProperty('exc_books');
-    if (excBooks != null && excBooks.trim() != '') {
-        const bookIds = excBooks.split(/[ ,]+/);
-        for (const connectedBookId of bookIds) {
-            if (connectedBookId != null && connectedBookId.trim().length > 10) {
-                books.add(await context.bkper.getBook(connectedBookId));
-            }
-        }
-    }
-
-    const collectionBooks = book.getCollection()?.getBooks();
-    if (collectionBooks) {
-        for (const collectionBook of collectionBooks) {
-            if (collectionBook.getId() != book.getId() && getBaseCode(collectionBook) != null) {
-                books.add(collectionBook);
-            }
-        }
-    }
-
-    return books;
-}
-
-function getBaseCode(book: Book): string | undefined {
-    return book.getProperty(EXC_CODE_PROP, 'exchange_code');
-}
-
-function isHistorical(book: Book): boolean {
-    const historical = book.getProperty(EXC_HISTORICAL_PROP);
-    return historical != null && historical.trim().toLowerCase() === 'true';
-}
-
-function parseDateParam(dateParam: string): Date {
-    const dateSplit = dateParam.split('-');
-    const year = Number(dateSplit[0]);
-    const month = Number(dateSplit[1]) - 1;
-    const day = Number(dateSplit[2]);
-    return new Date(year, month, day, 13, 0, 0, 0);
 }
 
 function getAccountBalance(balancesReport: BalancesReport, account: Account): Amount | null {

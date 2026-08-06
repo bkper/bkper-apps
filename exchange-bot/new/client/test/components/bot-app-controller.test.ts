@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
-import { BotAppController, BotAppState } from '../src/bot-app-controller.js';
-import type { BotAppView } from '../src/bot-app-view.js';
-import { authService } from '../src/services/auth-service.js';
+import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
+import type { BotAppView } from '../../src/components/bot-app-view.js';
+import { authService } from '../../src/services/auth-service.js';
 
 class TestView implements ReactiveControllerHost {
     state = BotAppState.LOADING;

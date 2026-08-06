@@ -1,5 +1,5 @@
 import type { ReactiveController } from 'lit';
-import { authService } from './services/auth-service.js';
+import { authService } from './../services/auth-service.js';
 import type { BotAppView } from './bot-app-view.js';
 
 export enum BotAppState {

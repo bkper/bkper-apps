@@ -1,10 +1,12 @@
 import type { ReactiveController } from 'lit';
 import { authService } from './../services/auth-service.js';
+import { bookService } from './../services/book-service.js';
 import type { BotAppView } from './bot-app-view.js';
 
 export enum BotAppState {
     LOADING = 'LOADING',
-    AUTHENTICATED = 'AUTHENTICATED',
+    READY = 'READY',
+    ERROR = 'ERROR',
 }
 
 export class BotAppController implements ReactiveController {
@@ -20,10 +22,23 @@ export class BotAppController implements ReactiveController {
     }
 
     async initialize(): Promise<void> {
-        await authService.init();
-        if (!authService.accessToken) {
-            return;
+        try {
+            await authService.init();
+            if (!authService.accessToken) {
+                return;
+            }
+
+            const bookId = new URL(self.location.href).searchParams.get('bookId');
+            if (!bookId) {
+                throw new Error('Error: Missing bookId URL param');
+            }
+
+            this.view.book = await bookService.loadBook(bookId);
+            this.view.state = BotAppState.READY;
+        } catch (error: unknown) {
+            this.view.error =
+                error instanceof Error ? error.message : 'The selected Book could not be loaded';
+            this.view.state = BotAppState.ERROR;
         }
-        this.view.state = BotAppState.AUTHENTICATED;
     }
 }

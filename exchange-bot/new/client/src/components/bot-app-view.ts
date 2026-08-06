@@ -1,3 +1,4 @@
+import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
@@ -9,6 +10,12 @@ export class BotAppView extends LitElement {
 
     @state()
     state = BotAppState.LOADING;
+
+    @state()
+    book?: Book;
+
+    @state()
+    error = '';
 
     static styles = botAppViewCSS;
 
@@ -26,7 +33,13 @@ export class BotAppView extends LitElement {
 
     private renderBody(): TemplateResult {
         if (this.state === BotAppState.LOADING) {
-            return html`<wa-spinner></wa-spinner>`;
+            return html`<div class="centered"><wa-spinner></wa-spinner></div>`;
+        }
+        if (this.state === BotAppState.ERROR) {
+            return html`<div class="error" role="alert">${this.error}</div>`;
+        }
+        if (this.book) {
+            return html`<h2 class="book-name">${this.book.getName()}</h2>`;
         }
         return html``;
     }

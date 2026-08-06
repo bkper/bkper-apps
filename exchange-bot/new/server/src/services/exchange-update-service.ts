@@ -1,0 +1,414 @@
+import {
+    Account,
+    AccountType,
+    Amount,
+    type BalancesReport,
+    type Book,
+    type Group,
+    Transaction,
+} from 'bkper-js';
+import type { AppContext } from '../app-context.js';
+import type { ExchangeRates } from '../api/schemas.js';
+import {
+    EXC_ACCOUNT_PROP,
+    EXC_AGGREGATE,
+    EXC_AMOUNT_PROP,
+    EXC_CODE_PROP,
+    EXC_HISTORICAL_PROP,
+    EXC_RATE_PROP,
+    STOCK_EXC_CODE_PROP,
+} from '../constants.js';
+
+interface ConvertedAmount {
+    amount: Amount;
+    rate: Amount;
+}
+
+export class ExchangeUpdateService {
+    static async update(
+        context: AppContext,
+        bookId: string,
+        exchangeRates: ExchangeRates
+    ): Promise<bkper.Transaction[]> {
+        const book = await context.bkper.getBook(bookId);
+        const connectedBooks = await getConnectedBooks(context, book);
+        const baseCode = getBaseCode(book);
+        const bookClosingDate = book.getClosingDate();
+        const historical = isHistorical(book);
+        const date = parseDateParam(exchangeRates.date);
+        const query = getQuery(book, date, bookClosingDate, historical);
+        const histQuery = getHistQuery(book, date);
+        const bookBalancesReport = await book.getBalancesReport(query);
+        const bookHistBalancesReport = historical ? null : await book.getBalancesReport(histQuery);
+        const acceptedTransactions: bkper.Transaction[] = [];
+
+        for (const connectedBook of connectedBooks) {
+            const connectedCode = getBaseCode(connectedBook);
+            const accounts = await getMatchingAccounts(book, connectedCode!);
+            const transactions: Transaction[] = [];
+            const connectedBookBalancesReport = await connectedBook.getBalancesReport(query);
+            const connectedBookHistBalancesReport =
+                !historical && hasHistAccount(accounts)
+                    ? await connectedBook.getBalancesReport(histQuery)
+                    : null;
+
+            for (const account of accounts) {
+                const connectedAccount = await connectedBook.getAccount(account.getName());
+                if (connectedAccount == null) {
+                    continue;
+                }
+                if (historical && isHistAccount(connectedAccount)) {
+                    continue;
+                }
+
+                const connectedAccountBalanceOnDate =
+                    isHistAccount(connectedAccount) && connectedBookHistBalancesReport !== null
+                        ? getAccountBalance(connectedBookHistBalancesReport, connectedAccount)
+                        : getAccountBalance(connectedBookBalancesReport, connectedAccount);
+                if (!connectedAccountBalanceOnDate) {
+                    continue;
+                }
+
+                let expectedBalance: ConvertedAmount;
+                try {
+                    expectedBalance = convert(
+                        connectedAccountBalanceOnDate,
+                        connectedCode!,
+                        baseCode!,
+                        exchangeRates
+                    );
+                } catch (error: unknown) {
+                    console.log(
+                        `Error: 'Invalid amount error' --->   BOOK: ${connectedBook.getName()}   //  ACCOUNT: ${connectedAccount.getName()}   //   DATE: ${date}   //   EXC_CODE: ${connectedCode}`
+                    );
+                    throw error;
+                }
+
+                const accountBalanceOnDate =
+                    isHistAccount(connectedAccount) && bookHistBalancesReport !== null
+                        ? getAccountBalance(bookHistBalancesReport, account)
+                        : getAccountBalance(bookBalancesReport, account);
+                if (!accountBalanceOnDate) {
+                    continue;
+                }
+
+                let delta = accountBalanceOnDate.minus(expectedBalance.amount);
+                const excAccountName = await getExcAccountName(
+                    book,
+                    connectedAccount,
+                    connectedCode!
+                );
+                let excAccount = await book.getAccount(excAccountName);
+                if (excAccount == null) {
+                    excAccount = new Account(book).setName(excAccountName);
+                    const groups = await getExcAccountGroups(book);
+                    for (const group of groups) {
+                        excAccount.addGroup(group);
+                    }
+                    excAccount.setType(await getExcAccountType(book));
+                    await excAccount.create();
+                }
+
+                if (account.isCredit()) {
+                    delta = delta.times(-1);
+                }
+
+                const deltaRounded = book.round(delta);
+                const transaction = new Transaction(book)
+                    .setDate(exchangeRates.date)
+                    .setProperty(EXC_CODE_PROP, connectedCode)
+                    .setProperty(EXC_RATE_PROP, expectedBalance.rate.toString())
+                    .setProperty(EXC_AMOUNT_PROP, '0')
+                    .setAmount(delta.abs());
+
+                if (deltaRounded.gt(0)) {
+                    transaction
+                        .from(account)
+                        .to(excAccount)
+                        .setDescription(
+                            isHistAccount(account) ? '#exchange_loss_hist' : '#exchange_loss'
+                        );
+                    transactions.push(transaction);
+                } else if (deltaRounded.lt(0)) {
+                    transaction
+                        .from(excAccount)
+                        .to(account)
+                        .setDescription(
+                            isHistAccount(account) ? '#exchange_gain_hist' : '#exchange_gain'
+                        );
+                    transactions.push(transaction);
+                }
+            }
+
+            const accepted = await book.batchCreateTransactions(transactions);
+            acceptedTransactions.push(...accepted.map(transaction => transaction.json()));
+        }
+
+        book.audit();
+        return acceptedTransactions;
+    }
+}
+
+async function getConnectedBooks(context: AppContext, book: Book): Promise<Set<Book>> {
+    if (book.getVisibleProperties() == null) {
+        return new Set<Book>();
+    }
+    const books = new Set<Book>();
+
+    for (const key in book.getVisibleProperties()) {
+        if (key.startsWith('exc') && key.endsWith('_book')) {
+            books.add(await context.bkper.getBook(book.getVisibleProperties()[key]));
+        }
+    }
+
+    const excBooks = book.getProperty('exc_books');
+    if (excBooks != null && excBooks.trim() != '') {
+        const bookIds = excBooks.split(/[ ,]+/);
+        for (const connectedBookId of bookIds) {
+            if (connectedBookId != null && connectedBookId.trim().length > 10) {
+                books.add(await context.bkper.getBook(connectedBookId));
+            }
+        }
+    }
+
+    const collectionBooks = book.getCollection()?.getBooks();
+    if (collectionBooks) {
+        for (const collectionBook of collectionBooks) {
+            if (collectionBook.getId() != book.getId() && getBaseCode(collectionBook) != null) {
+                books.add(collectionBook);
+            }
+        }
+    }
+
+    return books;
+}
+
+function getBaseCode(book: Book): string | undefined {
+    return book.getProperty(EXC_CODE_PROP, 'exchange_code');
+}
+
+function isHistorical(book: Book): boolean {
+    const historical = book.getProperty(EXC_HISTORICAL_PROP);
+    return historical != null && historical.trim().toLowerCase() === 'true';
+}
+
+function parseDateParam(dateParam: string): Date {
+    const dateSplit = dateParam.split('-');
+    const year = Number(dateSplit[0]);
+    const month = Number(dateSplit[1]) - 1;
+    const day = Number(dateSplit[2]);
+    return new Date(year, month, day, 13, 0, 0, 0);
+}
+
+function getAccountBalance(balancesReport: BalancesReport, account: Account): Amount | null {
+    try {
+        return balancesReport.getBalancesContainer(account.getName()!).getCumulativeBalance();
+    } catch {
+        return null;
+    }
+}
+
+async function getMatchingAccounts(book: Book, code: string): Promise<Set<Account>> {
+    const accounts = new Map<string, Account>();
+    const group = await book.getGroup(code);
+    if (group != null) {
+        const groupAccounts = await group.getAccounts();
+        for (const account of groupAccounts) {
+            accounts.set(account.getId()!, account);
+        }
+    }
+
+    const groups = await book.getGroups();
+    for (const configuredGroup of groups) {
+        if (configuredGroup.getProperty(EXC_CODE_PROP) == code) {
+            const groupAccounts = await configuredGroup.getAccounts();
+            for (const account of groupAccounts) {
+                accounts.set(account.getId()!, account);
+            }
+        }
+    }
+
+    return new Set(accounts.values());
+}
+
+async function getExcAccountName(
+    book: Book,
+    connectedAccount: Account,
+    connectedCode: string
+): Promise<string> {
+    let excAccount = connectedAccount.getProperty(EXC_ACCOUNT_PROP);
+    if (excAccount) {
+        return excAccount;
+    }
+
+    const groups = await connectedAccount.getGroups();
+    for (const group of groups) {
+        excAccount = group.getProperty(EXC_ACCOUNT_PROP);
+        if (excAccount) {
+            return excAccount;
+        }
+    }
+
+    if (book.getProperty(EXC_AGGREGATE)) {
+        return isHistAccount(connectedAccount)
+            ? `Exchange_${connectedCode} Hist`
+            : `Exchange_${connectedCode}`;
+    }
+
+    for (const group of groups) {
+        if (group.getProperty(STOCK_EXC_CODE_PROP)) {
+            return `${connectedAccount.getName()} Unrealized EXC`;
+        }
+    }
+
+    return `${connectedAccount.getName()} EXC`;
+}
+
+function isHistAccount(account: Account): boolean {
+    return account.getName()!.endsWith(' Hist');
+}
+
+function hasHistAccount(accounts: Set<Account>): boolean {
+    for (const account of accounts) {
+        if (isHistAccount(account)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+async function getExcAccountGroups(book: Book): Promise<Set<Group>> {
+    const accountNames = new Set<string>();
+    const bookAccounts = await book.getAccounts();
+    for (const account of bookAccounts) {
+        const accountName = account.getProperty(EXC_ACCOUNT_PROP);
+        if (accountName) {
+            accountNames.add(accountName);
+        }
+        const name = account.getName()!;
+        if (name.startsWith('Exchange_')) {
+            accountNames.add(name);
+        }
+        if (name.endsWith(' EXC')) {
+            accountNames.add(name);
+        }
+    }
+
+    const groups = new Map<string, Group>();
+    for (const accountName of accountNames) {
+        const account = await book.getAccount(accountName);
+        if (account) {
+            for (const group of await account.getGroups()) {
+                groups.set(group.getId()!, group);
+            }
+        }
+    }
+    return new Set(groups.values());
+}
+
+async function getExcAccountType(book: Book): Promise<AccountType> {
+    const accountNames = new Set<string>();
+    const bookAccounts = await book.getAccounts();
+    for (const account of bookAccounts) {
+        const excAccount = account.getProperty(EXC_ACCOUNT_PROP);
+        if (excAccount) {
+            accountNames.add(excAccount);
+        }
+        const name = account.getName()!;
+        if (name.startsWith('Exchange_')) {
+            accountNames.add(name);
+        }
+        if (name.endsWith(' EXC')) {
+            accountNames.add(name);
+        }
+    }
+
+    const accountTypes = new Map<AccountType, Account[]>();
+    for (const accountName of accountNames) {
+        const account = await book.getAccount(accountName);
+        if (account) {
+            const accountType = account.getType();
+            const mappedAccounts = accountTypes.get(accountType);
+            if (mappedAccounts) {
+                mappedAccounts.push(account);
+            } else {
+                accountTypes.set(accountType, [account]);
+            }
+        }
+    }
+
+    let maxOccurrencesType = AccountType.LIABILITY;
+    let maxOccurrences = 1;
+    for (const [accountType, accounts] of accountTypes) {
+        if (accounts.length > maxOccurrences) {
+            maxOccurrences = accounts.length;
+            maxOccurrencesType = accountType;
+        }
+    }
+    return maxOccurrencesType;
+}
+
+function getQuery(
+    book: Book,
+    date: Date,
+    bookClosingDate: string | undefined,
+    historical: boolean
+): string {
+    const dateAfter = new Date(date.getTime());
+    dateAfter.setDate(dateAfter.getDate() + 1);
+    if (!historical && bookClosingDate) {
+        let openingDate: Date;
+        try {
+            const closingDate = new Date();
+            closingDate.setTime(book.parseDate(bookClosingDate).getTime());
+            closingDate.setDate(closingDate.getDate() + 1);
+            openingDate = closingDate;
+        } catch {
+            throw `Error parsing book closing date: ${bookClosingDate}`;
+        }
+        return `after:${book.formatDate(openingDate)} before:${book.formatDate(dateAfter)}`;
+    }
+    return `before:${book.formatDate(dateAfter)}`;
+}
+
+function getHistQuery(book: Book, date: Date): string {
+    const dateAfter = new Date(date.getTime());
+    dateAfter.setDate(dateAfter.getDate() + 1);
+    return `before:${book.formatDate(dateAfter)}`;
+}
+
+function convert(value: Amount, from: string, to: string, rates: ExchangeRates): ConvertedAmount {
+    const convertedRates = convertBase(rates, from);
+    if (convertedRates == null) {
+        throw `Code ${from} not found in rates`;
+    }
+
+    const rate = convertedRates.rates[to];
+    if (rate == null) {
+        throw `Code ${to} not found in ${JSON.stringify(convertedRates)}`;
+    }
+
+    const amountRate = new Amount(rate);
+    return {
+        rate: amountRate,
+        amount: amountRate.times(value),
+    };
+}
+
+function convertBase(rates: ExchangeRates, toBase: string): ExchangeRates | null {
+    rates.rates[rates.base] = 1;
+    if (rates.base == toBase) {
+        return rates;
+    }
+    const rate = rates.rates[toBase];
+    if (rate == null) {
+        return null;
+    }
+
+    const newRate = new Amount('1').div(rate);
+    rates.base = toBase;
+    for (const [key, value] of Object.entries(rates.rates)) {
+        rates.rates[key] = new Amount(value).times(newRate).toString();
+    }
+    return rates;
+}

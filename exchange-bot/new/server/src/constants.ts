@@ -9,4 +9,6 @@ export const EXC_DATE_PROP = 'exc_date';
 export const EXC_ON_CHECK_PROP = 'exc_on_check';
 export const EXC_LOG_PROP = 'exc_log';
 export const EXC_AGGREGATE = 'exc_aggregate';
+export const EXC_HISTORICAL_PROP = 'exc_historical';
+export const STOCK_EXC_CODE_PROP = 'stock_exc_code';
 export const CHILD_BOOK_ID_PROP = 'child_book_id';

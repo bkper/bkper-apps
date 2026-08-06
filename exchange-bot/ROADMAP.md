@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–10 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–11 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, complete audited event behavior, the typed menu API contract, and menu-side exchange-rate loading. Exchange Update is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, complete audited event behavior, and the typed menu API with rate loading and Exchange Update. The menu client is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -430,11 +430,12 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 11 — Port Exchange Update and internal audit
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port the Apps Script Gain/Loss behavior mechanically into the per-Book Exchange Update endpoint.
-- Preserve balance queries, historical behavior, matching Accounts, exchange Account selection and creation, conversion, rounding, movement construction, batching, and order.
-- Return accepted Bkper batch payloads directly in established order and internally trigger the target Book's audit after every successful update, including a no-op.
+- Ported the Apps Script Gain/Loss behavior mechanically into the per-Book Exchange Update endpoint.
+- Preserved balance queries, historical behavior, matching Accounts, exchange Account selection and creation, conversion, rounding, movement construction, batching, and order.
+- Returned accepted Bkper batch payloads in established order and internally triggered the target Book's audit after every successful update, including a no-op.
+- Added deterministic coverage for no-op audits, gain and loss directions, accepted result order, historical Accounts, and exchange Account creation, Groups, and type.
 
 **Zero-sum gate:** Every generated Exchange Update transaction is one complete movement with one amount and the established direction.
 

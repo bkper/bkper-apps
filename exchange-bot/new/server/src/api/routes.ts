@@ -4,7 +4,7 @@ import { Bkper } from 'bkper-js';
 import { AppContext } from '../app-context.js';
 import type { AppEnv } from '../index.js';
 import { ExchangeRatesService } from '../services/exchange-rates-service.js';
-import { ExchangeUpdateService } from '../services/ExchangeUpdateService.js';
+import { ExchangeUpdateService } from '../services/exchange-update-service.js';
 import {
     apiErrorResponses,
     BookIdParamSchema,

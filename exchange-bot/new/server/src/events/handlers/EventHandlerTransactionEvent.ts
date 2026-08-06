@@ -1,6 +1,11 @@
 import { Account, AccountType, type Book, Group, Transaction } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
-import { EXC_CODE_PROP, EXC_RATE_PROP, EXC_LOG_PROP, EXC_AMOUNT_PROP } from '../../constants.js';
+import type { AppContext } from '../../shared/app-context.js';
+import {
+    EXC_AMOUNT_PROP,
+    EXC_CODE_PROP,
+    EXC_LOG_PROP,
+    EXC_RATE_PROP,
+} from '../../shared/constants.js';
 import { EventHandlerTransaction } from './EventHandlerTransaction.js';
 
 export abstract class EventHandlerTransactionEvent extends EventHandlerTransaction {

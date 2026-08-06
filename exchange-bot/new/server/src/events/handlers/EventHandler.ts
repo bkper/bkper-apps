@@ -1,7 +1,7 @@
 import { Book } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import { BotService } from '../../BotService.js';
-import { EXC_CODE_PROP, EXC_ON_CHECK_PROP } from '../../constants.js';
+import { EXC_CODE_PROP, EXC_ON_CHECK_PROP } from '../../shared/constants.js';
 import { ExchangeService } from '../../ExchangeService.js';
 import type { EventResultValue } from '../types.js';
 

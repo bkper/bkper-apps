@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Bkper, Book } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { ExchangeRatesService } from '../src/services/exchange-rates-service.js';
 
 const originalFetch = globalThis.fetch;

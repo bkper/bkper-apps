@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Bkper, Book, Group } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerGroup } from '../src/events/handlers/EventHandlerGroup.js';
 
 class TestEventHandlerGroup extends EventHandlerGroup {

@@ -1,6 +1,6 @@
 import { type Book, Group } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
-import { CHILD_BOOK_ID_PROP } from '../../constants.js';
+import type { AppContext } from '../../shared/app-context.js';
+import { CHILD_BOOK_ID_PROP } from '../../shared/constants.js';
 import { EventHandlerGroup } from './EventHandlerGroup.js';
 
 export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {

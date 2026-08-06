@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Bkper, Book, Month, Period } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerBookUpdated } from '../src/events/handlers/EventHandlerBookUpdated.js';
 
 class TestEventHandlerBookUpdated extends EventHandlerBookUpdated {

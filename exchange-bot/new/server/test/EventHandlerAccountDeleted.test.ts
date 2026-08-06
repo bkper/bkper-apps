@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, Bkper, Book } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerAccountDeleted } from '../src/events/handlers/EventHandlerAccountDeleted.js';
 
 class TestEventHandlerAccountDeleted extends EventHandlerAccountDeleted {

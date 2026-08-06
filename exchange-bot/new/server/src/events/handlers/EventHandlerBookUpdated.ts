@@ -1,11 +1,11 @@
 import type { Book } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import {
     EXC_ON_CHECK_PROP,
     EXC_RATES_CACHE_PROP,
     EXC_RATES_URL_PROP,
     EXC_AGGREGATE,
-} from '../../constants.js';
+} from '../../shared/constants.js';
 import { EventHandler } from './EventHandler.js';
 
 export class EventHandlerBookUpdated extends EventHandler {

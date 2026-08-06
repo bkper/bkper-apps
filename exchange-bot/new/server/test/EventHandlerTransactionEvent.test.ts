@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, Bkper, Book, type Transaction } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerTransactionEvent } from '../src/events/handlers/EventHandlerTransactionEvent.js';
 
 class TestEventHandlerTransactionEvent extends EventHandlerTransactionEvent {

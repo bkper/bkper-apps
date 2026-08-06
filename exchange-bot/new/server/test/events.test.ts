@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { Bkper } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerAccountCreatedOrUpdated } from '../src/events/handlers/EventHandlerAccountCreatedOrUpdated.js';
 import { EventHandlerAccountDeleted } from '../src/events/handlers/EventHandlerAccountDeleted.js';
 import { EventHandlerBookUpdated } from '../src/events/handlers/EventHandlerBookUpdated.js';

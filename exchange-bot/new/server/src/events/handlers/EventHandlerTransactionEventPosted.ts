@@ -1,5 +1,5 @@
 import type { Book, Transaction } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import { EventHandlerTransactionEvent } from './EventHandlerTransactionEvent.js';
 
 export class EventHandlerTransactionPosted extends EventHandlerTransactionEvent {

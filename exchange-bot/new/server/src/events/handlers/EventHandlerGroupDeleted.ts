@@ -1,5 +1,5 @@
 import type { Book, Group } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import { EventHandlerGroup } from './EventHandlerGroup.js';
 
 export class EventHandlerGroupDeleted extends EventHandlerGroup {

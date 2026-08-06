@@ -1,7 +1,7 @@
 import { Bkper } from 'bkper-js';
 import type { Hono } from 'hono';
 import type { Env } from '../../../env.js';
-import { AppContext } from '../app-context.js';
+import { AppContext } from '../shared/app-context.js';
 import { EventHandlerAccountCreatedOrUpdated } from './handlers/EventHandlerAccountCreatedOrUpdated.js';
 import { EventHandlerAccountDeleted } from './handlers/EventHandlerAccountDeleted.js';
 import { EventHandlerBookUpdated } from './handlers/EventHandlerBookUpdated.js';

@@ -1,6 +1,6 @@
 import type { Book, Transaction } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
-import { EXC_RATE_PROP, EXC_LOG_PROP } from '../../constants.js';
+import type { AppContext } from '../../shared/app-context.js';
+import { EXC_LOG_PROP, EXC_RATE_PROP } from '../../shared/constants.js';
 import type { AmountDescription, ExcLogEntry } from './EventHandlerTransaction.js';
 import { EventHandlerTransactionEvent } from './EventHandlerTransactionEvent.js';
 

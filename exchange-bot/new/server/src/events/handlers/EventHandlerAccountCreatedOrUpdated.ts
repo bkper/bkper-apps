@@ -1,5 +1,5 @@
 import { Account, type AccountType, type Book } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import { EventHandlerAccount } from './EventHandlerAccount.js';
 
 export class EventHandlerAccountCreatedOrUpdated extends EventHandlerAccount {

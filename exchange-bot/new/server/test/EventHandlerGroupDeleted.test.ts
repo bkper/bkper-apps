@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Bkper, Book, Group } from 'bkper-js';
-import { AppContext } from '../src/app-context.js';
+import { AppContext } from '../src/shared/app-context.js';
 import { EventHandlerGroupDeleted } from '../src/events/handlers/EventHandlerGroupDeleted.js';
 
 class TestEventHandlerGroupDeleted extends EventHandlerGroupDeleted {

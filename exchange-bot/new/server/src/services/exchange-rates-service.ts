@@ -1,7 +1,7 @@
 import type { Book } from 'bkper-js';
-import type { AppContext } from '../app-context.js';
+import type { AppContext } from '../shared/app-context.js';
 import type { ExchangeRates } from '../api/schemas.js';
-import { EXC_CODE_PROP, EXC_RATES_URL_PROP } from '../constants.js';
+import { EXC_CODE_PROP, EXC_RATES_URL_PROP } from '../shared/constants.js';
 
 export class ExchangeRatesService {
     static async load(context: AppContext, bookId: string, date: string): Promise<ExchangeRates> {

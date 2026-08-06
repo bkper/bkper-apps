@@ -1,5 +1,5 @@
 import type { Account, Book } from 'bkper-js';
-import type { AppContext } from '../../app-context.js';
+import type { AppContext } from '../../shared/app-context.js';
 import { EventHandlerAccount } from './EventHandlerAccount.js';
 
 export class EventHandlerAccountDeleted extends EventHandlerAccount {

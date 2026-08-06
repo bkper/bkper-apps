@@ -1,5 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
+import { authService } from './services/auth-service.js';
 
 @customElement('exchange-bot-app')
 export class ExchangeBotApp extends LitElement {
@@ -19,6 +20,10 @@ export class ExchangeBotApp extends LitElement {
             color: var(--bkper-color-neutral);
         }
     `;
+
+    protected firstUpdated(): void {
+        void authService.init();
+    }
 
     render() {
         return html`

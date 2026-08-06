@@ -1,4 +1,5 @@
 import type { ReactiveController } from 'lit';
+import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
 import type { BotAppView } from './bot-app-view.js';
@@ -34,6 +35,7 @@ export class BotAppController implements ReactiveController {
             }
 
             this.view.book = await bookService.loadBook(bookId);
+            this.view.date = Utils.getIsoDateInTimeZone(new Date(), this.view.book.getTimeZone());
             this.view.state = BotAppState.READY;
         } catch (error: unknown) {
             this.view.error =

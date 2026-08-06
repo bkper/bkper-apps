@@ -1,3 +1,4 @@
+import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
@@ -13,6 +14,9 @@ export class BotAppView extends LitElement {
 
     @state()
     book?: Book;
+
+    @state()
+    date = '';
 
     @state()
     error = '';
@@ -39,9 +43,23 @@ export class BotAppView extends LitElement {
             return html`<div class="error" role="alert">${this.error}</div>`;
         }
         if (this.book) {
-            return html`<h2 class="book-name">${this.book.getName()}</h2>`;
+            return html`
+                <h2 class="book-name">${this.book.getName()}</h2>
+                <wa-input
+                    class="date-input"
+                    type="date"
+                    label="Date"
+                    .value=${this.date}
+                    @change=${this.handleDateChanged}
+                ></wa-input>
+            `;
         }
         return html``;
+    }
+
+    private handleDateChanged(event: Event): void {
+        const input = event.currentTarget as WaInput;
+        this.date = input.value ?? '';
     }
 }
 

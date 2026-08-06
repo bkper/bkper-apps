@@ -9,6 +9,7 @@ import { bookService } from '../../src/services/book-service.js';
 class TestView implements ReactiveControllerHost {
     state = BotAppState.LOADING;
     book?: Book;
+    date = '';
     error = '';
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
@@ -55,7 +56,11 @@ function createController(view: TestView): BotAppController {
 
 describe('Bot app controller', () => {
     it('loads the selected Book after authentication succeeds', async () => {
-        const book = new Book({ id: 'book-id', name: 'USD Book' });
+        const book = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'America/New_York',
+        });
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
@@ -69,6 +74,7 @@ describe('Bot app controller', () => {
         await initialization;
         expect(bookService.loadBook).toHaveBeenCalledWith('book-id');
         expect(view.book).toBe(book);
+        expect(view.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.state).toBe(BotAppState.READY);
     });
 

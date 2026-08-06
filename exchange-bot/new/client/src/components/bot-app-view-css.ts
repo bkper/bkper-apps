@@ -38,6 +38,11 @@ export const botAppViewCSS = css`
         text-align: center;
     }
 
+    .date-input {
+        width: min(100%, 20rem);
+        margin-top: var(--bkper-spacing-large);
+    }
+
     .error {
         color: var(--bkper-color-danger);
     }

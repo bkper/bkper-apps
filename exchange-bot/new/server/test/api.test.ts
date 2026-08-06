@@ -64,28 +64,23 @@ describe('typed menu API', () => {
         expect(response.status).toBe(400);
     });
 
-    it('keeps both production operations as non-mutating 501 stubs', async () => {
+    it('keeps Exchange Update as a non-mutating 501 stub', async () => {
         let fetchCalls = 0;
         const fetchStub = async (..._args: Parameters<typeof fetch>): Promise<Response> => {
             fetchCalls += 1;
-            throw new Error('Bkper must not be called by Chunk 9 stubs');
+            throw new Error('Bkper must not be called by the Exchange Update stub');
         };
         globalThis.fetch = Object.assign(fetchStub, { preconnect: originalFetch.preconnect });
 
-        const getResponse = await request('/api/v1/books/book-1/exchange-rates?date=2026-08-05');
-        const postResponse = await request('/api/v1/books/book-1/exchange-update', {
+        const response = await request('/api/v1/books/book-1/exchange-update', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(validRates),
         });
 
-        expect(getResponse.status).toBe(501);
-        expect(postResponse.status).toBe(501);
+        expect(response.status).toBe(501);
         expect(fetchCalls).toBe(0);
-        expect(await getResponse.json()).toEqual({
-            error: { message: 'Exchange rate loading is not implemented' },
-        });
-        expect(await postResponse.json()).toEqual({
+        expect(await response.json()).toEqual({
             error: { message: 'Exchange update is not implemented' },
         });
     });

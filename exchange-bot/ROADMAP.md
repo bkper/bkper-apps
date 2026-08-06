@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–9 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–10 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, complete audited event behavior, and the typed menu API contract with non-mutating endpoint stubs. Menu-side exchange-rate loading is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, complete audited event behavior, the typed menu API contract, and menu-side exchange-rate loading. Exchange Update is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -419,11 +419,12 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 10 — Port rate loading
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port menu-side rate endpoint configuration, loading, filtering, and responses.
-- Preserve the requested date as the returned effective date.
-- Move the existing Open Exchange Rates identifier to the declared platform secret boundary.
+- Ported menu-side default and custom rate endpoint configuration with the established date and agent substitutions.
+- Ported Worker-native provider loading and connected-currency filtering across the established Book relationship sources.
+- Preserved the requested date as the returned effective date and moved the Open Exchange Rates identifier to the declared platform secret boundary.
+- Added deterministic coverage for default and custom endpoints, connected currencies, editable rate values, date handling, and provider failures.
 
 **Gate:** The target API returns production-equivalent rate results for deterministic fixtures.
 

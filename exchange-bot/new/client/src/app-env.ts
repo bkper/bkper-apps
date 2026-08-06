@@ -1,4 +1,8 @@
 class AppEnv {
+    getBkperApiKey(): string {
+        return import.meta.env.BKPER_API_KEY!;
+    }
+
     getAuthBaseUrl(): string | undefined {
         return this.isLocal() ? self.location.origin : undefined;
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createApp } from '../src/index.js';
+import { createApp } from '../../src/index.js';
 
 interface OpenApiOperation {
     responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>;

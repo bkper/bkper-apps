@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { createApp } from '../src/index.js';
-import { ExchangeRatesSchema } from '../src/api/schemas.js';
+import { createApp } from '../../src/index.js';
+import { ExchangeRatesSchema } from '../../src/api/schemas.js';
 
 const env = {
     OPEN_EXCHANGE_RATES_APP_ID: 'test-only',

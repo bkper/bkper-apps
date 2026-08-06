@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, BalancesReport, Bkper, Book, Group, Transaction } from 'bkper-js';
-import { AppContext } from '../src/shared/app-context.js';
-import type { ExchangeRates } from '../src/api/schemas.js';
-import { ExchangeUpdateService } from '../src/api/services/exchange-update-service.js';
+import { AppContext } from '../../../src/shared/app-context.js';
+import type { ExchangeRates } from '../../../src/api/schemas.js';
+import { ExchangeUpdateService } from '../../../src/api/services/exchange-update-service.js';
 
 const originalFetch = globalThis.fetch;
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Bkper, Book, Group } from 'bkper-js';
-import { AppContext } from '../src/shared/app-context.js';
-import { EventHandlerGroupCreatedOrUpdated } from '../src/events/handlers/EventHandlerGroupCreatedOrUpdated.js';
+import { AppContext } from '../../../src/shared/app-context.js';
+import { EventHandlerGroupCreatedOrUpdated } from '../../../src/events/handlers/EventHandlerGroupCreatedOrUpdated.js';
 
 class TestEventHandlerGroupCreatedOrUpdated extends EventHandlerGroupCreatedOrUpdated {
     processConnectedBook(

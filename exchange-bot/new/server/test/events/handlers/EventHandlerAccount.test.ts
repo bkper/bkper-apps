@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { Bkper, Book, Group } from 'bkper-js';
-import { AppContext } from '../src/shared/app-context.js';
-import { EventHandlerGroup } from '../src/events/handlers/EventHandlerGroup.js';
+import { Account, Bkper, Book } from 'bkper-js';
+import { AppContext } from '../../../src/shared/app-context.js';
+import { EventHandlerAccount } from '../../../src/events/handlers/EventHandlerAccount.js';
 
-class TestEventHandlerGroup extends EventHandlerGroup {
+class TestEventHandlerAccount extends EventHandlerAccount {
     processConnectedBook(
         baseBook: Book,
         connectedBook: Book,
@@ -12,11 +12,11 @@ class TestEventHandlerGroup extends EventHandlerGroup {
         return this.processObject(baseBook, connectedBook, event);
     }
 
-    protected async connectedGroupNotFound(): Promise<string | null> {
+    protected async connectedAccountNotFound(): Promise<string | null> {
         return 'not-found';
     }
 
-    protected async connectedGroupFound(): Promise<string | null> {
+    protected async connectedAccountFound(): Promise<string | null> {
         return 'found';
     }
 }
@@ -28,14 +28,14 @@ function createBook(id: string, name: string, code?: string): Book {
 function createEvent(previousName?: string): bkper.Event {
     return {
         data: {
-            object: { id: 'base-group', name: 'New Group' },
+            object: { id: 'base-account', name: 'New Name' },
             previousAttributes: previousName ? { name: previousName } : undefined,
         },
     };
 }
 
-function createHandler(): TestEventHandlerGroup {
-    return new TestEventHandlerGroup(
+function createHandler(): TestEventHandlerAccount {
+    return new TestEventHandlerAccount(
         new AppContext(new Bkper(), {
             OPEN_EXCHANGE_RATES_APP_ID: 'test-only',
             ASSETS: { fetch },
@@ -43,35 +43,35 @@ function createHandler(): TestEventHandlerGroup {
     );
 }
 
-describe('legacy shared Group synchronization behavior', () => {
+describe('legacy shared Account synchronization behavior', () => {
     test('looks up current, previous, and trailing-space names in order', async () => {
         const baseBook = createBook('base-book', 'Base Book', 'USD');
         const connectedBook = createBook('connected-book', 'Connected Book', 'EUR');
-        const trailingGroup = new Group(connectedBook, {
-            id: 'connected-group',
-            name: 'New Group ',
+        const trailingAccount = new Account(connectedBook, {
+            id: 'connected-account',
+            name: 'New Name ',
         });
         const lookups: (string | undefined)[] = [];
-        connectedBook.getGroup = async name => {
+        connectedBook.getAccount = async name => {
             lookups.push(name);
-            return name === 'New Group ' ? trailingGroup : undefined;
+            return name === 'New Name ' ? trailingAccount : undefined;
         };
 
         const result = await createHandler().processConnectedBook(
             baseBook,
             connectedBook,
-            createEvent('Old Group')
+            createEvent('Old Name')
         );
 
         expect(result).toBe('found');
-        expect(lookups).toEqual(['New Group', 'Old Group', 'New Group ']);
+        expect(lookups).toEqual(['New Name', 'Old Name', 'New Name ']);
     });
 
     test('does nothing when the connected Book has no exchange code', async () => {
         const baseBook = createBook('base-book', 'Base Book', 'USD');
         const connectedBook = createBook('connected-book', 'Connected Book');
         let lookups = 0;
-        connectedBook.getGroup = async () => {
+        connectedBook.getAccount = async () => {
             lookups += 1;
             return undefined;
         };

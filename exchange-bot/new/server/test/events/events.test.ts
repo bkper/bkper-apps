@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { Bkper } from 'bkper-js';
-import { AppContext } from '../src/shared/app-context.js';
-import { EventHandlerAccountCreatedOrUpdated } from '../src/events/handlers/EventHandlerAccountCreatedOrUpdated.js';
-import { EventHandlerAccountDeleted } from '../src/events/handlers/EventHandlerAccountDeleted.js';
-import { EventHandlerBookUpdated } from '../src/events/handlers/EventHandlerBookUpdated.js';
-import { EventHandlerGroupCreatedOrUpdated } from '../src/events/handlers/EventHandlerGroupCreatedOrUpdated.js';
-import { EventHandlerGroupDeleted } from '../src/events/handlers/EventHandlerGroupDeleted.js';
-import { EventHandlerTransactionDeleted } from '../src/events/handlers/EventHandlerTransactionDeleted.js';
-import { EventHandlerTransactionChecked } from '../src/events/handlers/EventHandlerTransactionEventChecked.js';
-import { EventHandlerTransactionPosted } from '../src/events/handlers/EventHandlerTransactionEventPosted.js';
-import { EventHandlerTransactionRestored } from '../src/events/handlers/EventHandlerTransactionRestored.js';
-import { EventHandlerTransactionUpdated } from '../src/events/handlers/EventHandlerTransactionUpdated.js';
-import type { EventResultValue } from '../src/events/types.js';
-import { createApp } from '../src/index.js';
+import { AppContext } from '../../src/shared/app-context.js';
+import { EventHandlerAccountCreatedOrUpdated } from '../../src/events/handlers/EventHandlerAccountCreatedOrUpdated.js';
+import { EventHandlerAccountDeleted } from '../../src/events/handlers/EventHandlerAccountDeleted.js';
+import { EventHandlerBookUpdated } from '../../src/events/handlers/EventHandlerBookUpdated.js';
+import { EventHandlerGroupCreatedOrUpdated } from '../../src/events/handlers/EventHandlerGroupCreatedOrUpdated.js';
+import { EventHandlerGroupDeleted } from '../../src/events/handlers/EventHandlerGroupDeleted.js';
+import { EventHandlerTransactionDeleted } from '../../src/events/handlers/EventHandlerTransactionDeleted.js';
+import { EventHandlerTransactionChecked } from '../../src/events/handlers/EventHandlerTransactionEventChecked.js';
+import { EventHandlerTransactionPosted } from '../../src/events/handlers/EventHandlerTransactionEventPosted.js';
+import { EventHandlerTransactionRestored } from '../../src/events/handlers/EventHandlerTransactionRestored.js';
+import { EventHandlerTransactionUpdated } from '../../src/events/handlers/EventHandlerTransactionUpdated.js';
+import type { EventResultValue } from '../../src/events/types.js';
+import { createApp } from '../../src/index.js';
 
 type SubscribedEventType =
     | 'TRANSACTION_POSTED'

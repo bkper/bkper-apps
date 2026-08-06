@@ -2,6 +2,7 @@ import type { ReactiveController } from 'lit';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
+import { botApiService } from './../services/bot-api-service.js';
 import type { BotAppView } from './bot-app-view.js';
 
 export enum BotAppState {
@@ -36,11 +37,44 @@ export class BotAppController implements ReactiveController {
 
             this.view.book = await bookService.loadBook(bookId);
             this.view.date = Utils.getIsoDateInTimeZone(new Date(), this.view.book.getTimeZone());
-            this.view.state = BotAppState.READY;
+            this.view.appState = BotAppState.READY;
+
+            await this.loadRates();
         } catch (error: unknown) {
-            this.view.error =
-                error instanceof Error ? error.message : 'The selected Book could not be loaded';
-            this.view.state = BotAppState.ERROR;
+            this.view.error = this.formatError(error, 'The selected Book could not be loaded');
+            this.view.appState = BotAppState.ERROR;
         }
+    }
+
+    async loadRates(): Promise<void> {
+        if (!this.view.book) {
+            return;
+        }
+
+        if (!this.view.date) {
+            this.view.ratesLoading = false;
+            this.view.ratesError = '';
+            this.view.exchangeRates = undefined;
+            return;
+        }
+
+        this.view.ratesLoading = true;
+        this.view.ratesError = '';
+        this.view.exchangeRates = undefined;
+
+        try {
+            this.view.exchangeRates = await botApiService.loadExchangeRates(
+                this.view.book.getId(),
+                this.view.date
+            );
+        } catch (error: unknown) {
+            this.view.ratesError = this.formatError(error, 'Exchange rates could not be loaded');
+        } finally {
+            this.view.ratesLoading = false;
+        }
+    }
+
+    private formatError(error: unknown, message: string): string {
+        return error instanceof Error ? error.message : message;
     }
 }

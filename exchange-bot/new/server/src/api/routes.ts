@@ -7,6 +7,7 @@ import { ExchangeRatesService } from './services/exchange-rates-service.js';
 import { ExchangeUpdateService } from './services/exchange-update-service.js';
 import {
     apiErrorResponses,
+    ApiErrorSchema,
     BookIdParamSchema,
     BkperTransactionSchema,
     ExchangeRatesDateQuerySchema,
@@ -24,6 +25,7 @@ const exchangeRatesRoute = createRoute({
     responses: {
         200: jsonResponse('Exchange rates', ExchangeRatesSchema),
         ...apiErrorResponses,
+        502: jsonResponse('Exchange rates endpoint error', ApiErrorSchema),
     },
 });
 

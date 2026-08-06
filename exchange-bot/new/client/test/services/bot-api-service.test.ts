@@ -45,13 +45,13 @@ describe('bot API service', () => {
     it('exposes the app API error message', async () => {
         globalThis.fetch = Object.assign(
             mock(async () =>
-                Response.json({ error: { message: 'Rates unavailable' } }, { status: 500 })
+                Response.json({ error: { message: '400: Rates unavailable' } }, { status: 502 })
             ),
             { preconnect: originalFetch.preconnect }
         );
 
         expect(botApiService.loadExchangeRates('book-id', '2026-08-06')).rejects.toThrow(
-            'Rates unavailable'
+            /^400: Rates unavailable$/
         );
     });
 });

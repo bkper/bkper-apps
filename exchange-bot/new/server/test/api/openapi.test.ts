@@ -40,6 +40,8 @@ describe('menu API OpenAPI contract', () => {
             type: 'array',
             items: { $ref: '#/components/schemas/BkperTransaction' },
         });
+        expect(getOperation.responses?.['502']).toBeDefined();
+        expect(postOperation.responses?.['502']).toBeUndefined();
         expect(schemas.BkperTransaction).toEqual({
             type: 'object',
             additionalProperties: true,

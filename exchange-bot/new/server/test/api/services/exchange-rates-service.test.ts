@@ -107,13 +107,57 @@ describe('legacy menu exchange-rate loading', () => {
         expect(rates.date).toBe('2026-08-05');
     });
 
-    test('fails when the provider request fails', async () => {
+    test('preserves a meaningful provider error', async () => {
         const bkper = new Bkper();
         bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
-        replaceFetch(async () => new Response('Unavailable', { status: 503 }));
+        replaceFetch(async () =>
+            Response.json(
+                {
+                    message: 'not_available',
+                    description: 'Historical rates are not available.',
+                },
+                { status: 401 }
+            )
+        );
 
         expect(
             ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
-        ).rejects.toThrow('Request failed with status code 503');
+        ).rejects.toMatchObject({
+            status: 502,
+            message: '401: Historical rates are not available.',
+        });
+    });
+
+    test('curates a bodyless provider error', async () => {
+        const bkper = new Bkper();
+        bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
+        replaceFetch(async () => new Response(null, { status: 304, statusText: 'Not Modified' }));
+
+        expect(
+            ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
+        ).rejects.toMatchObject({
+            status: 502,
+            message: '304: Not Modified',
+        });
+    });
+
+    test('curates a provider response body failure', async () => {
+        const bkper = new Bkper();
+        bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
+        const body = new ReadableStream({
+            start(controller) {
+                controller.error(new Error('Body failed'));
+            },
+        });
+        replaceFetch(
+            async () => new Response(body, { status: 500, statusText: 'Internal Server Error' })
+        );
+
+        expect(
+            ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
+        ).rejects.toMatchObject({
+            status: 502,
+            message: '500: Internal Server Error',
+        });
     });
 });

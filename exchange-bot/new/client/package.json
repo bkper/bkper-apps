@@ -9,9 +9,10 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@awesome.me/webawesome": "3.11.0",
+        "@awesome.me/webawesome": "3.9.0",
         "@bkper/web-auth": "1.1.0",
         "@bkper/web-design": "2.1.0",
+        "bkper-js": "2.42.0",
         "lit": "3.3.3"
     },
     "devDependencies": {

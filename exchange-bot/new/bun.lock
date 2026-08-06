@@ -15,9 +15,10 @@
     "client": {
       "name": "exchange-bot-client",
       "dependencies": {
-        "@awesome.me/webawesome": "3.11.0",
+        "@awesome.me/webawesome": "3.9.0",
         "@bkper/web-auth": "1.1.0",
         "@bkper/web-design": "2.1.0",
+        "bkper-js": "2.42.0",
         "lit": "3.3.3",
       },
       "devDependencies": {
@@ -46,7 +47,7 @@
 
     "@asteasolutions/zod-to-openapi": ["@asteasolutions/zod-to-openapi@8.5.0", "", { "dependencies": { "openapi3-ts": "^4.1.2" }, "peerDependencies": { "zod": "^4.0.0" } }, "sha512-SABbKiObg5dLRiTFnqiW1WWwGcg1BJfmHtT2asIBnBHg6Smy/Ms2KHc650+JI4Hw7lSkdiNebEGXpwoxfben8Q=="],
 
-    "@awesome.me/webawesome": ["@awesome.me/webawesome@3.11.0", "", { "dependencies": { "@ctrl/tinycolor": "4.1.0", "@floating-ui/dom": "^1.6.13", "@konnorr/qr-creator": "^1.0.1", "@lit-labs/ssr": "^4.1.0", "@lit-labs/ssr-client": "^1.1.8", "@lit/context": "^1.1.6", "@lit/react": "^1.0.8", "@shoelace-style/animations": "^1.2.0", "@shoelace-style/localize": "^3.2.3", "composed-offset-position": "^0.0.6", "lit": "^3.2.1", "marked": "^11.2.0", "nanoid": "^5.1.5" } }, "sha512-WM8kyP+AdAT3/zwNpc/YzN3Nu5pRD6ksREFZAct/DIn6KMnQs8lPVfiPbJrOpKMk8OaSnQX19iiwFGjoswXVXw=="],
+    "@awesome.me/webawesome": ["@awesome.me/webawesome@3.9.0", "", { "dependencies": { "@ctrl/tinycolor": "4.1.0", "@floating-ui/dom": "^1.6.13", "@konnorr/qr-creator": "^1.0.1", "@lit-labs/ssr": "^4.1.0", "@lit-labs/ssr-client": "^1.1.8", "@lit/context": "^1.1.6", "@lit/react": "^1.0.8", "@shoelace-style/animations": "^1.2.0", "@shoelace-style/localize": "^3.2.2", "composed-offset-position": "^0.0.6", "lit": "^3.2.1", "marked": "^11.2.0", "nanoid": "^5.1.5" } }, "sha512-doKgUCglb/E1d/dYSzXQQthlYmyndFOtG/Vr5HyHjIFqNwn/tbutMsIMYJrYFEjq07vPwcOHKeAulbiqoslRoQ=="],
 
     "@aws-crypto/sha256-browser": ["@aws-crypto/sha256-browser@5.2.0", "", { "dependencies": { "@aws-crypto/sha256-js": "^5.2.0", "@aws-crypto/supports-web-crypto": "^5.2.0", "@aws-crypto/util": "^5.2.0", "@aws-sdk/types": "^3.222.0", "@aws-sdk/util-locate-window": "^3.0.0", "@smithy/util-utf8": "^2.0.0", "tslib": "^2.6.2" } }, "sha512-AXfN/lGotSQwu6HNcEsIASo7kWXZ5HYWvfOmSNKDsEqC4OashTp8alTmaz+F7TC2L083SFv5RdB+qU3Vs1kZqw=="],
 
@@ -444,7 +445,7 @@
 
     "bkper": ["bkper@4.22.2", "", { "dependencies": { "@earendil-works/pi-coding-agent": "0.83.0", "bkper-js": "^2.42.0", "commander": "^13.1.0", "dotenv": "^8.2.0", "esbuild": "^0.27.2", "google-auth-library": "^10.5.0", "mime": "^4.1.0", "openapi-fetch": "^0.15.0", "tar": "^7.0.0", "yaml": "^2.5.1" }, "bin": { "bkper": "lib/cli.js" } }, "sha512-QODPuovVRMIDQq/r5bNwo42rT6Yt087qzC2ACHwOF35JLrz2Wnz35w5+pkeRa5RJbO2+qbKA+cPpVAfighw1NQ=="],
 
-    "bkper-js": ["bkper-js@2.19.0", "", { "dependencies": { "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" }, "peerDependencies": { "@bkper/bkper-api-types": "^5.32.0" } }, "sha512-W4dGreDXhg0o20Qy9UYa8B7S0WPIruBq+jBnUH90cr9NnwiEH/VCNMtRk647LTXY4H3ynY8vKOZ+/k9Ur6Y4+w=="],
+    "bkper-js": ["bkper-js@2.42.0", "", { "dependencies": { "@bkper/bkper-api-types": "^5.44.0", "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" } }, "sha512-r5dowuwHcJC+ZAvg1WSgMZPrXj2oXvvJ18cygvnLGwXMOLi6vjxU7zhCJ3JcxPqQvSZU/vqL0t4eNJ2hkhlpJA=="],
 
     "bowser": ["bowser@2.14.1", "", {}, "sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg=="],
 
@@ -752,9 +753,9 @@
 
     "@redocly/openapi-core/minimatch": ["minimatch@5.1.9", "", { "dependencies": { "brace-expansion": "^2.0.1" } }, "sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw=="],
 
-    "bkper/bkper-js": ["bkper-js@2.42.0", "", { "dependencies": { "@bkper/bkper-api-types": "^5.44.0", "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" } }, "sha512-r5dowuwHcJC+ZAvg1WSgMZPrXj2oXvvJ18cygvnLGwXMOLi6vjxU7zhCJ3JcxPqQvSZU/vqL0t4eNJ2hkhlpJA=="],
-
     "chalk/supports-color": ["supports-color@7.2.0", "", { "dependencies": { "has-flag": "^4.0.0" } }, "sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw=="],
+
+    "exchange-bot-server/bkper-js": ["bkper-js@2.19.0", "", { "dependencies": { "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" }, "peerDependencies": { "@bkper/bkper-api-types": "^5.32.0" } }, "sha512-W4dGreDXhg0o20Qy9UYa8B7S0WPIruBq+jBnUH90cr9NnwiEH/VCNMtRk647LTXY4H3ynY8vKOZ+/k9Ur6Y4+w=="],
 
     "openapi-typescript/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
 

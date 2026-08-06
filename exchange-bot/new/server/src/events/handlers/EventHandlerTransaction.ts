@@ -1,7 +1,7 @@
 import { Amount, type Book, type Transaction } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
 import { EXC_AMOUNT_PROP } from '../../shared/constants.js';
-import type { ExchangeRates } from '../../ExchangeRates.js';
+import type { ExchangeRates } from '../ExchangeRates.js';
 import { EventHandler } from './EventHandler.js';
 
 export interface AmountDescription {

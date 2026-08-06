@@ -1,8 +1,8 @@
 import { Book } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
-import { BotService } from '../../BotService.js';
+import { BotService } from '../services/BotService.js';
 import { EXC_CODE_PROP, EXC_ON_CHECK_PROP } from '../../shared/constants.js';
-import { ExchangeService } from '../../ExchangeService.js';
+import { ExchangeService } from '../services/ExchangeService.js';
 import type { EventResultValue } from '../types.js';
 
 export abstract class EventHandler {

@@ -1,6 +1,6 @@
 import { Amount } from 'bkper-js';
-import type { AppContext } from './shared/app-context.js';
-import type { ExchangeRates } from './ExchangeRates.js';
+import type { AppContext } from '../../shared/app-context.js';
+import type { ExchangeRates } from '../ExchangeRates.js';
 
 const CACHE_TTL_MS = 1_800_000;
 

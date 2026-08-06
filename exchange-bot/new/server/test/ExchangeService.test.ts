@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Amount, Bkper } from 'bkper-js';
 import { AppContext } from '../src/shared/app-context.js';
-import { ExchangeService } from '../src/ExchangeService.js';
-import type { ExchangeRates } from '../src/ExchangeRates.js';
+import { ExchangeService } from '../src/events/services/ExchangeService.js';
+import type { ExchangeRates } from '../src/events/ExchangeRates.js';
 
 const originalFetch = globalThis.fetch;
 const originalSetTimeout = globalThis.setTimeout;

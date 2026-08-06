@@ -3,8 +3,8 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import { Bkper } from 'bkper-js';
 import { AppContext } from '../shared/app-context.js';
 import type { AppEnv } from '../index.js';
-import { ExchangeRatesService } from '../services/exchange-rates-service.js';
-import { ExchangeUpdateService } from '../services/exchange-update-service.js';
+import { ExchangeRatesService } from './services/exchange-rates-service.js';
+import { ExchangeUpdateService } from './services/exchange-update-service.js';
 import {
     apiErrorResponses,
     BookIdParamSchema,

@@ -7,8 +7,8 @@ import {
     type Group,
     Transaction,
 } from 'bkper-js';
-import type { AppContext } from '../shared/app-context.js';
-import type { ExchangeRates } from '../api/schemas.js';
+import type { AppContext } from '../../shared/app-context.js';
+import type { ExchangeRates } from '../schemas.js';
 import {
     EXC_ACCOUNT_PROP,
     EXC_AGGREGATE,
@@ -17,7 +17,7 @@ import {
     EXC_HISTORICAL_PROP,
     EXC_RATE_PROP,
     STOCK_EXC_CODE_PROP,
-} from '../shared/constants.js';
+} from '../../shared/constants.js';
 
 interface ConvertedAmount {
     amount: Amount;

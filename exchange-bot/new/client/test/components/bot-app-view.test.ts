@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppView } from '../../src/components/bot-app-view.js';
 
@@ -13,12 +14,19 @@ const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissio
 ) => TemplateResult;
 
 describe('Bot app view', () => {
-    it('renders the app header component', () => {
+    it('passes the selected Book to the app header', () => {
         const view = new BotAppView();
+        const book = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'America/New_York',
+            permission: Permission.EDITOR,
+        });
+        view.book = book;
 
         const result = view.render();
 
-        expect(result.strings.join('')).toContain('<app-header></app-header>');
+        expect(result.values[0]).toBe(book);
     });
 
     it('renders menu initialization warnings', () => {

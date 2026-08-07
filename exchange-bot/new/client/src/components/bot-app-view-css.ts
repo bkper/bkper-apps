@@ -7,15 +7,14 @@ export const botAppViewCSS = css`
         flex-direction: column;
         min-height: 100vh;
         min-height: 100dvh;
-        padding: var(--bkper-spacing-large);
     }
 
     .body {
         display: flex;
+        box-sizing: border-box;
         flex: 1;
         flex-direction: column;
-        margin-top: var(--bkper-spacing-large);
-        padding: var(--bkper-spacing-small);
+        padding: var(--bkper-spacing-large);
     }
 
     .centered {
@@ -24,9 +23,6 @@ export const botAppViewCSS = css`
         place-items: center;
     }
 
-    .book-name {
-        text-align: center;
-    }
 
     .date-input,
     .rates,

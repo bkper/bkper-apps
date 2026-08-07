@@ -54,7 +54,7 @@ export class BotAppView extends LitElement {
 
     render(): TemplateResult {
         return html`
-            <app-header></app-header>
+            <app-header .book=${this.book}></app-header>
             <div class="body">${this.renderBody()}</div>
         `;
     }
@@ -68,7 +68,6 @@ export class BotAppView extends LitElement {
         }
         if (this.book) {
             return html`
-                <h2 class="book-name">${this.book.getName()}</h2>
                 <wa-input
                     class="date-input"
                     type="date"

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../src/constants.js';
-import { AppHeaderView } from '../../src/components/app-header/app-header-view.js';
+import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../../src/constants.js';
+import { AppHeaderView } from '../../../src/components/app-header/app-header-view.js';
 
 type GetAppLogoUrl = (this: AppHeaderView) => string;
 

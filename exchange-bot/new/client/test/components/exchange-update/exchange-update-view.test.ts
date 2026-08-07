@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ExchangeUpdateView } from '../../src/components/exchange-update/exchange-update-view.js';
+import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 
 type RateChangeHandler = (this: ExchangeUpdateView, code: string, event: Event) => void;
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
-import { AppHeaderController } from '../../src/components/app-header/app-header-controller.js';
-import type { AppHeaderView } from '../../src/components/app-header/app-header-view.js';
+import { AppHeaderController } from '../../../src/components/app-header/app-header-controller.js';
+import type { AppHeaderView } from '../../../src/components/app-header/app-header-view.js';
 
 class TestHost implements ReactiveControllerHost {
     controller?: ReactiveController;

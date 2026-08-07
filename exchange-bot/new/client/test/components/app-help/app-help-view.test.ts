@@ -1,6 +1,6 @@
 import type { WaSelectEvent } from '@awesome.me/webawesome/dist/events/events.js';
 import { afterEach, describe, expect, it } from 'bun:test';
-import { AppHelpView } from '../../src/components/app-help/app-help-view.js';
+import { AppHelpView } from '../../../src/components/app-help/app-help-view.js';
 
 type HandleSelect = (this: AppHelpView, event: WaSelectEvent) => void;
 

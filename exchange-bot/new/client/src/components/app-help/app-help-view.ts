@@ -12,14 +12,15 @@ export class AppHelpView extends LitElement {
 
     render(): TemplateResult {
         return html`
+            <wa-tooltip class="hide-on-phone" for="help-trigger" placement="left">Help</wa-tooltip>
             <wa-dropdown placement="bottom-end" @wa-select=${this.handleSelect}>
                 <wa-button
+                    id="help-trigger"
                     class="trigger"
                     slot="trigger"
                     variant="neutral"
                     appearance="plain"
                     size="small"
-                    title="Help"
                 >
                     <wa-icon name="help" label="Help"></wa-icon>
                 </wa-button>

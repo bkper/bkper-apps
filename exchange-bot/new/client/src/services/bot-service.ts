@@ -7,13 +7,18 @@ class BotService {
         if (book.getVisibleProperties() == null) {
             return new Set<Book>();
         }
+
         const books = new Set<Book>();
         const bkper = new Bkper();
 
         // deprecated
         for (const key in book.getVisibleProperties()) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
-                books.add(await bkper.getBook(book.getVisibleProperties()[key]));
+                const bookId = book.getVisibleProperties()[key];
+                if (bookId) {
+                    const book = await bkper.getBook(bookId);
+                    books.add(book);
+                }
             }
         }
 
@@ -23,13 +28,14 @@ class BotService {
             const bookIds = excBooks.split(/[ ,]+/);
             for (const bookId of bookIds) {
                 if (bookId != null && bookId.trim().length > 10) {
-                    books.add(await bkper.getBook(bookId));
+                    const book = await bkper.getBook(bookId);
+                    books.add(book);
                 }
             }
         }
 
-        const collectionBooks =
-            book.getCollection() != null ? book.getCollection()!.getBooks() : null;
+        const collection = book.getCollection();
+        const collectionBooks = collection?.getBooks();
         if (collectionBooks) {
             for (const collectionBook of collectionBooks) {
                 if (
@@ -95,7 +101,7 @@ class BotService {
     }
 
     private async hasBotErrors(book: Book): Promise<boolean> {
-        const errorEvents = await book.listEvents({ onError: true, limit: 50 });
+        const errorEvents = await book.listEvents({ onError: true, limit: 1 });
         return errorEvents.size() > 0 ? true : false;
     }
 }

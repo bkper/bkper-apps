@@ -114,6 +114,6 @@ describe('bot service', () => {
         expect(await botService.hasPendingTasks(book)).toBe(true);
         expect(await botService.getCollectionBooksWithErrors(book)).toEqual(new Set(['BRL']));
         expect(listEventsCalls).toHaveLength(2);
-        expect(listEventsCalls[0]).toEqual({ onError: true, limit: 50 });
+        expect(listEventsCalls[0]).toEqual({ onError: true, limit: 1 });
     });
 });

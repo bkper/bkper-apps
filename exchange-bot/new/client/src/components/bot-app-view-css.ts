@@ -23,7 +23,6 @@ export const botAppViewCSS = css`
         place-items: center;
     }
 
-
     .date-input,
     .rates,
     .rates-error,

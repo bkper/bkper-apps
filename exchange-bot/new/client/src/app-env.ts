@@ -1,3 +1,5 @@
+import { APP_REPOSITORY_URL, APP_WEBSITE_URL } from './constants';
+
 class AppEnv {
     getBkperApiKey(): string {
         return import.meta.env.BKPER_API_KEY!;
@@ -20,6 +22,14 @@ class AppEnv {
 
     isOffline(): boolean {
         return !this.isOnline();
+    }
+
+    getAppWebsiteUrl(): string {
+        return APP_WEBSITE_URL;
+    }
+
+    getAppRepositoryUrl(): string {
+        return APP_REPOSITORY_URL;
     }
 }
 

@@ -2,6 +2,7 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../constants.js';
+import '../app-help/app-help-view.js';
 import { AppHeaderController } from './app-header-controller.js';
 import { appHeaderCSS } from './app-header-css.js';
 
@@ -22,6 +23,7 @@ export class AppHeaderView extends LitElement {
                     <h1 class="app-title">Exchange Bot</h1>
                 </div>
                 <h2 class="book-name">${this.book?.getName()}</h2>
+                <app-help></app-help>
             </header>
         `;
     }

@@ -13,7 +13,7 @@ export interface BotAppBook {
     base: boolean;
 }
 
-@customElement('bot-app-view')
+@customElement('bot-app')
 export class BotAppView extends LitElement {
     private readonly controller = new BotAppController(this);
 
@@ -148,6 +148,6 @@ export class BotAppView extends LitElement {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'bot-app-view': BotAppView;
+        'bot-app': BotAppView;
     }
 }

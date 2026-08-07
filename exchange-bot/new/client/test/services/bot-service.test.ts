@@ -1,13 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import {
-    Backlog,
-    Bkper,
-    Book,
-    EventList,
-    Group,
-    Permission,
-    type ListEventsOptions,
-} from 'bkper-js';
+import { Backlog, Bkper, Book, EventList, Group, type ListEventsOptions } from 'bkper-js';
 import { botService } from '../../src/services/bot-service.js';
 
 const originalGetBook = Bkper.prototype.getBook;
@@ -67,12 +59,11 @@ describe('bot service', () => {
         ]);
     });
 
-    it('preserves permission, configured-code, and base-Book rules', async () => {
+    it('preserves visible and configured exchange-code rules', async () => {
         const book = createBook(
             'selected-book',
             { exc_code: 'USD' },
             {
-                permission: Permission.EDITOR,
                 collection: {
                     books: [
                         {
@@ -90,17 +81,11 @@ describe('bot service', () => {
             new Group(book, { name: 'EUR', properties: { exchange_code: 'EUR' } }),
             new Group(book, { name: 'Empty', properties: {} }),
         ]);
-        const baseBook = book.getCollection()!.getBooks()[0];
-
-        expect(botService.canUserEditBook(book)).toBe(true);
-        expect(botService.getBooksExcCodesUserCanView(book)).toEqual(new Set(['USD', 'BRL']));
+        expect(botService.getVisibleCollectionExcCodes(book)).toEqual(new Set(['USD', 'BRL']));
         expect(await botService.getBookConfiguredExcCodes(book)).toEqual(new Set(['BRL', 'EUR']));
-        expect(botService.getBaseCode(book)).toBe('USD');
-        expect(botService.isBaseBook(baseBook)).toBe(true);
-        expect(botService.hasBaseBookInCollection(book)).toBe(true);
     });
 
-    it('preserves pending-task, bot-error, and error-text checks', async () => {
+    it('preserves pending-task and bot-error checks', async () => {
         const book = createBook(
             'selected-book',
             { exc_code: 'USD' },
@@ -130,7 +115,5 @@ describe('bot service', () => {
         expect(await botService.getCollectionBooksWithErrors(book)).toEqual(new Set(['BRL']));
         expect(listEventsCalls).toHaveLength(2);
         expect(listEventsCalls[0]).toEqual({ onError: true, limit: 50 });
-        expect(botService.getErrorText(['USD'])).toBe('book');
-        expect(botService.getErrorText(['USD', 'BRL'])).toBe('books');
     });
 });

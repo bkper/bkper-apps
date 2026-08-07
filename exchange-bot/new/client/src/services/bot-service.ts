@@ -1,7 +1,6 @@
-import { Bkper, Permission, type Book } from 'bkper-js';
-
-const EXC_CODE_PROP = 'exc_code';
-const EXC_BASE_PROP = 'exc_base';
+import { Bkper, type Book } from 'bkper-js';
+import { EXC_CODE_PROP } from '../constants.js';
+import { Utils } from '../utils.js';
 
 class BotService {
     async getConnectedBooks(book: Book): Promise<Set<Book>> {
@@ -35,7 +34,7 @@ class BotService {
             for (const collectionBook of collectionBooks) {
                 if (
                     collectionBook.getId() != book.getId() &&
-                    this.getBaseCode(collectionBook) != null
+                    Utils.getExcCode(collectionBook) != null
                 ) {
                     books.add(collectionBook);
                 }
@@ -45,12 +44,12 @@ class BotService {
         return books;
     }
 
-    getBooksExcCodesUserCanView(book: Book): Set<string> {
+    getVisibleCollectionExcCodes(book: Book): Set<string> {
         const collection = book.getCollection();
         if (collection) {
             const excCodes = new Set<string>();
-            for (const collectionBook of collection.getBooks()) {
-                const bookExcCodeProp = collectionBook.getProperty(EXC_CODE_PROP, 'exchange_code');
+            for (const book of collection.getBooks()) {
+                const bookExcCodeProp = book.getProperty(EXC_CODE_PROP, 'exchange_code');
                 if (bookExcCodeProp) {
                     excCodes.add(bookExcCodeProp);
                 }
@@ -60,14 +59,10 @@ class BotService {
         return new Set<string>();
     }
 
-    canUserEditBook(book: Book): boolean {
-        const permission = book.getPermission();
-        return permission === Permission.OWNER || permission === Permission.EDITOR ? true : false;
-    }
-
     async getBookConfiguredExcCodes(book: Book): Promise<Set<string>> {
         const excCodes = new Set<string>();
-        for (const group of await book.getGroups()) {
+        const bookGroups = await book.getGroups();
+        for (const group of bookGroups) {
             const groupExCodeProp = group.getProperty(EXC_CODE_PROP, 'exchange_code');
             if (groupExCodeProp) {
                 excCodes.add(groupExCodeProp);
@@ -76,51 +71,27 @@ class BotService {
         return excCodes;
     }
 
-    getBaseCode(book: Book): string | undefined {
-        return book.getProperty(EXC_CODE_PROP, 'exchange_code');
-    }
-
-    isBaseBook(book: Book): boolean {
-        if (book.getProperty(EXC_BASE_PROP)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    hasBaseBookInCollection(book: Book): boolean {
-        const collectionBooks =
-            book.getCollection() != null ? book.getCollection()!.getBooks() : null;
-        if (collectionBooks) {
-            for (const collectionBook of collectionBooks) {
-                if (this.isBaseBook(collectionBook)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     async hasPendingTasks(book: Book): Promise<boolean> {
-        return (await book.getBacklog()).getCount()! > 0 ? true : false;
-    }
-
-    getErrorText(values: unknown[]): string {
-        return values.length > 1 ? 'books' : 'book';
+        const bookBacklog = await book.getBacklog();
+        const count = bookBacklog.getCount();
+        return count && count > 0 ? true : false;
     }
 
     async getCollectionBooksWithErrors(book: Book): Promise<Set<string>> {
-        const collectionBooksWithErrors = new Set<string>();
+        const books = new Set<string>();
         const collection = book.getCollection();
         if (collection) {
-            for (const collectionBook of collection.getBooks()) {
-                const bookExcCode = this.getBaseCode(collectionBook);
-                if (bookExcCode && (await this.hasBotErrors(collectionBook))) {
-                    collectionBooksWithErrors.add(bookExcCode);
+            for (const book of collection.getBooks()) {
+                const bookExcCode = Utils.getExcCode(book);
+                if (bookExcCode) {
+                    const hasErrors = await this.hasBotErrors(book);
+                    if (hasErrors) {
+                        books.add(bookExcCode);
+                    }
                 }
             }
         }
-        return collectionBooksWithErrors;
+        return books;
     }
 
     private async hasBotErrors(book: Book): Promise<boolean> {

@@ -3,6 +3,7 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { ExchangeRates } from '../api/generated/types.js';
+import './app-header/app-header-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppViewCSS } from './bot-app-view-css.js';
 
@@ -53,12 +54,7 @@ export class BotAppView extends LitElement {
 
     render(): TemplateResult {
         return html`
-            <div class="header">
-                <wa-card appearance="outlined">
-                    <h1 class="app-title">Exchange Bot</h1>
-                    <p class="app-subtitle">Cloudflare migration shell</p>
-                </wa-card>
-            </div>
+            <app-header></app-header>
             <div class="body">${this.renderBody()}</div>
         `;
     }

@@ -10,16 +10,6 @@ export const botAppViewCSS = css`
         padding: var(--bkper-spacing-large);
     }
 
-    .app-title {
-        margin: 0;
-    }
-
-    .app-subtitle {
-        margin: 0;
-        margin-top: var(--bkper-spacing-small);
-        color: var(--bkper-color-neutral);
-    }
-
     .body {
         display: flex;
         flex: 1;

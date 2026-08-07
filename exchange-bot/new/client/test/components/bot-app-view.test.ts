@@ -13,6 +13,14 @@ const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissio
 ) => TemplateResult;
 
 describe('Bot app view', () => {
+    it('renders the app header component', () => {
+        const view = new BotAppView();
+
+        const result = view.render();
+
+        expect(result.strings.join('')).toContain('<app-header></app-header>');
+    });
+
     it('renders menu initialization warnings', () => {
         const view = new BotAppView();
         view.permissionError = 'There are pending bot tasks in USD book';

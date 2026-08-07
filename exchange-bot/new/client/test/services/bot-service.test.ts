@@ -81,11 +81,32 @@ describe('bot service', () => {
             new Group(book, { name: 'EUR', properties: { exchange_code: 'EUR' } }),
             new Group(book, { name: 'Empty', properties: {} }),
         ]);
-        expect(botService.getVisibleCollectionExcCodes(book)).toEqual(new Set(['USD', 'BRL']));
+        expect(botService.getCollectionExcCodes(book)).toEqual(new Set(['USD', 'BRL']));
         expect(await botService.getBookConfiguredExcCodes(book)).toEqual(new Set(['BRL', 'EUR']));
     });
 
-    it('preserves pending-task and bot-error checks', async () => {
+    it('returns Books with pending tasks without requiring an exchange code', async () => {
+        const firstPendingBook = createBook('first-pending-book', { exc_code: 'BRL' });
+        firstPendingBook.getBacklog = mock(async () => new Backlog({ count: 1 }));
+        const cleanBook = createBook('clean-book', { exc_code: 'EUR' });
+        cleanBook.getBacklog = mock(async () => new Backlog({ count: 0 }));
+        const secondPendingBook = createBook('second-pending-book', {
+            exc_code: 'BRL',
+        });
+        secondPendingBook.getBacklog = mock(async () => new Backlog({ count: 1 }));
+        const unconfiguredPendingBook = createBook('unconfigured-pending-book');
+        unconfiguredPendingBook.getBacklog = mock(async () => new Backlog({ count: 1 }));
+
+        const books = await botService.getBooksWithPendingTasks(
+            new Set([firstPendingBook, cleanBook, secondPendingBook, unconfiguredPendingBook])
+        );
+
+        expect(books).toEqual(
+            new Set([firstPendingBook, secondPendingBook, unconfiguredPendingBook])
+        );
+    });
+
+    it('returns Books with event errors without requiring an exchange code', async () => {
         const book = createBook(
             'selected-book',
             { exc_code: 'USD' },
@@ -99,7 +120,6 @@ describe('bot service', () => {
                 },
             }
         );
-        book.getBacklog = mock(async () => new Backlog({ count: 1 }));
         const listEventsCalls: Array<ListEventsOptions | string | null> = [];
         Book.prototype.listEvents = async function (
             ...args:
@@ -107,13 +127,21 @@ describe('bot service', () => {
                 | [string | null, string | null, boolean | null, string | null, number, string?]
         ): Promise<EventList> {
             listEventsCalls.push(args[0]);
-            const items = this.getId() === 'error-book' ? [{ id: 'event-id' }] : [];
+            const items =
+                this.getId() === 'error-book' || this.getId() === 'unconfigured-book'
+                    ? [{ id: 'event-id' }]
+                    : [];
             return new EventList(this, { items });
         };
 
-        expect(await botService.hasPendingTasks(book)).toBe(true);
-        expect(await botService.getCollectionBooksWithErrors(book)).toEqual(new Set(['BRL']));
-        expect(listEventsCalls).toHaveLength(2);
+        const collectionBooks = book.getCollection()?.getBooks() ?? [];
+        const booksWithErrors = await botService.getBooksWithEventErrors(new Set(collectionBooks));
+
+        expect(Array.from(booksWithErrors, book => book.getId())).toEqual([
+            'error-book',
+            'unconfigured-book',
+        ]);
+        expect(listEventsCalls).toHaveLength(3);
         expect(listEventsCalls[0]).toEqual({ onError: true, limit: 1 });
     });
 });

@@ -40,7 +40,8 @@ export const botAppViewCSS = css`
 
     .date-input,
     .rates,
-    .rates-error {
+    .rates-error,
+    .permission-error {
         margin-top: var(--bkper-spacing-large);
     }
 

@@ -50,19 +50,18 @@ class BotService {
         return books;
     }
 
-    getVisibleCollectionExcCodes(book: Book): Set<string> {
+    getCollectionExcCodes(book: Book): Set<string> {
+        const excCodes = new Set<string>();
         const collection = book.getCollection();
         if (collection) {
-            const excCodes = new Set<string>();
-            for (const book of collection.getBooks()) {
-                const bookExcCodeProp = book.getProperty(EXC_CODE_PROP, 'exchange_code');
+            for (const collectionBook of collection.getBooks()) {
+                const bookExcCodeProp = collectionBook.getProperty(EXC_CODE_PROP, 'exchange_code');
                 if (bookExcCodeProp) {
                     excCodes.add(bookExcCodeProp);
                 }
             }
-            return excCodes;
         }
-        return new Set<string>();
+        return excCodes;
     }
 
     async getBookConfiguredExcCodes(book: Book): Promise<Set<string>> {
@@ -77,30 +76,35 @@ class BotService {
         return excCodes;
     }
 
-    async hasPendingTasks(book: Book): Promise<boolean> {
+    async getBooksWithPendingTasks(books: Set<Book>): Promise<Set<Book>> {
+        const booksWithPendingTasks = new Set<Book>();
+        for (const book of books) {
+            const hasPendingTasks = await this.hasPendingTasks(book);
+            if (hasPendingTasks) {
+                booksWithPendingTasks.add(book);
+            }
+        }
+        return booksWithPendingTasks;
+    }
+
+    private async hasPendingTasks(book: Book): Promise<boolean> {
         const bookBacklog = await book.getBacklog();
         const count = bookBacklog.getCount();
         return count && count > 0 ? true : false;
     }
 
-    async getCollectionBooksWithErrors(book: Book): Promise<Set<string>> {
-        const books = new Set<string>();
-        const collection = book.getCollection();
-        if (collection) {
-            for (const book of collection.getBooks()) {
-                const bookExcCode = Utils.getExcCode(book);
-                if (bookExcCode) {
-                    const hasErrors = await this.hasBotErrors(book);
-                    if (hasErrors) {
-                        books.add(bookExcCode);
-                    }
-                }
+    async getBooksWithEventErrors(books: Set<Book>): Promise<Set<Book>> {
+        const booksWithEventErrors = new Set<Book>();
+        for (const book of books) {
+            const hasEventErrors = await this.hasEventErrors(book);
+            if (hasEventErrors) {
+                booksWithEventErrors.add(book);
             }
         }
-        return books;
+        return booksWithEventErrors;
     }
 
-    private async hasBotErrors(book: Book): Promise<boolean> {
+    private async hasEventErrors(book: Book): Promise<boolean> {
         const errorEvents = await book.listEvents({ onError: true, limit: 1 });
         return errorEvents.size() > 0 ? true : false;
     }

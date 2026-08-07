@@ -6,6 +6,12 @@ import type { ExchangeRates } from '../api/generated/types.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppViewCSS } from './bot-app-view-css.js';
 
+export interface BotAppBook {
+    id: string;
+    code: string | undefined;
+    base: boolean;
+}
+
 @customElement('bot-app-view')
 export class BotAppView extends LitElement {
     private readonly controller = new BotAppController(this);
@@ -30,6 +36,18 @@ export class BotAppView extends LitElement {
 
     @state()
     ratesError = '';
+
+    @state()
+    books: BotAppBook[] = [];
+
+    @state()
+    basePermissionGranted = false;
+
+    @state()
+    permissionGranted = false;
+
+    @state()
+    permissionError = '';
 
     static styles = botAppViewCSS;
 
@@ -63,10 +81,17 @@ export class BotAppView extends LitElement {
                     @change=${this.handleDateChanged}
                     @blur=${this.handleDateBlurred}
                 ></wa-input>
-                ${this.renderRates()}
+                ${this.renderRates()} ${this.renderPermissionError()}
             `;
         }
         return html``;
+    }
+
+    private renderPermissionError(): TemplateResult {
+        if (!this.permissionError) {
+            return html``;
+        }
+        return html`<div class="error permission-error" role="alert">${this.permissionError}</div>`;
     }
 
     private renderRates(): TemplateResult {

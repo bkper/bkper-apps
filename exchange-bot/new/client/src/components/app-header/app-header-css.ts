@@ -6,10 +6,13 @@ export const appHeaderCSS = css`
     }
 
     .container {
+        --branding-width: 11rem;
         box-sizing: border-box;
         position: relative;
-        display: flex;
+        display: grid;
+        grid-template-columns: var(--branding-width) minmax(0, 1fr) var(--branding-width);
         align-items: center;
+        gap: var(--bkper-spacing-small);
         width: 100%;
         height: 64px;
         padding: 0 var(--bkper-spacing-small);
@@ -31,14 +34,26 @@ export const appHeaderCSS = css`
     .app-title {
         margin: 0;
         line-height: 1.2;
-        font-size: var(--bkper-font-size-large);
+        font-size: var(--bkper-font-size-medium);
     }
 
     .book-name {
-        position: absolute;
-        left: 50%;
+        min-width: 0;
         margin: 0;
-        transform: translateX(-50%);
-        font-size: var(--bkper-font-size-medium);
+        overflow: hidden;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--bkper-font-size-small);
+    }
+
+    @media (max-width: 767px) {
+        .container {
+            --branding-width: 50px;
+        }
+
+        .app-title {
+            display: none;
+        }
     }
 `;

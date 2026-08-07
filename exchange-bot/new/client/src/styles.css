@@ -1,8 +1,17 @@
+@import '@awesome.me/webawesome/dist/styles/themes/default.css';
 @import '@bkper/web-design';
 
+html,
 body {
+    min-height: 100%;
     margin: 0;
+}
+
+body {
     background: var(--bkper-color-background);
     color: var(--bkper-color-text);
     font-family: var(--bkper-font-family);
+    font-size: var(--bkper-font-size-small);
+    line-height: var(--bkper-line-height-normal);
+    -webkit-font-smoothing: antialiased;
 }

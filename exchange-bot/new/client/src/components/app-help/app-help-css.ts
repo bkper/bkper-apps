@@ -5,8 +5,4 @@ export const appHelpCSS = css`
         display: inline-flex;
         justify-self: end;
     }
-
-    .trigger-icon {
-        font-size: var(--bkper-font-size-medium);
-    }
 `;

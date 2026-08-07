@@ -1,8 +1,5 @@
 import { registerIconLibrary } from '@awesome.me/webawesome';
 
-// Themes
-import '@awesome.me/webawesome/dist/styles/themes/default.css';
-
 // Components
 import '@awesome.me/webawesome/dist/components/button/button.js';
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';

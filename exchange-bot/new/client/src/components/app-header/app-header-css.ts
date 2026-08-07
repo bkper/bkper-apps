@@ -51,9 +51,5 @@ export const appHeaderCSS = css`
         .container {
             --branding-width: 50px;
         }
-
-        .app-title {
-            display: none;
-        }
     }
 `;

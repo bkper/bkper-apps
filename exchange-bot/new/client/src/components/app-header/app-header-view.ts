@@ -5,6 +5,7 @@ import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../constants.js';
 import '../app-help/app-help-view.js';
 import { AppHeaderController } from './app-header-controller.js';
 import { appHeaderCSS } from './app-header-css.js';
+import { sharedCSS } from '../shared-css.js';
 
 @customElement('app-header')
 export class AppHeaderView extends LitElement {
@@ -13,14 +14,14 @@ export class AppHeaderView extends LitElement {
     @property({ attribute: false })
     book?: Book;
 
-    static styles = appHeaderCSS;
+    static styles = [sharedCSS, appHeaderCSS];
 
     render(): TemplateResult {
         return html`
             <header class="container">
                 <div class="app">
                     <img class="app-logo" src=${this.getAppLogoUrl()} alt="Exchange Bot" />
-                    <h1 class="app-title">Exchange Bot</h1>
+                    <h1 class="app-title hide-on-phone">Exchange Bot</h1>
                 </div>
                 <h2 class="book-name">${this.book?.getName()}</h2>
                 <app-help></app-help>

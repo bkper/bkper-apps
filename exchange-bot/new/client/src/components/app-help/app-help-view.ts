@@ -4,10 +4,11 @@ import { LitElement, TemplateResult, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { appHelpCSS } from './app-help-css.js';
 import { appEnv } from '../../app-env.js';
+import { sharedCSS } from '../shared-css.js';
 
 @customElement('app-help')
 export class AppHelpView extends LitElement {
-    static styles = appHelpCSS;
+    static styles = [sharedCSS, appHelpCSS];
 
     render(): TemplateResult {
         return html`
@@ -20,7 +21,7 @@ export class AppHelpView extends LitElement {
                     size="small"
                     title="Help"
                 >
-                    <wa-icon class="trigger-icon" name="help" label="Help"></wa-icon>
+                    <wa-icon name="help" label="Help"></wa-icon>
                 </wa-button>
                 <wa-dropdown-item value="website">
                     <wa-icon slot="icon" name="public"></wa-icon>

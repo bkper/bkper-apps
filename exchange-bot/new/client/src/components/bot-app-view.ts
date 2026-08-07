@@ -6,6 +6,7 @@ import type { ExchangeRates } from '../api/generated/types.js';
 import './app-header/app-header-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppViewCSS } from './bot-app-view-css.js';
+import { sharedCSS } from './shared-css.js';
 
 export interface BotAppBook {
     id: string;
@@ -50,7 +51,7 @@ export class BotAppView extends LitElement {
     @state()
     permissionError = '';
 
-    static styles = botAppViewCSS;
+    static styles = [sharedCSS, botAppViewCSS];
 
     render(): TemplateResult {
         return html`

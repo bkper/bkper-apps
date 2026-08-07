@@ -13,6 +13,7 @@ export enum BotAppState {
 
 export class BotAppController implements ReactiveController {
     private readonly view: BotAppView;
+    private ratesRequestId = 0;
 
     constructor(view: BotAppView) {
         this.view = view;
@@ -47,11 +48,15 @@ export class BotAppController implements ReactiveController {
     }
 
     async loadRates(): Promise<void> {
-        if (!this.view.book) {
+        const requestId = ++this.ratesRequestId;
+
+        const book = this.view.book;
+        if (!book) {
             return;
         }
 
-        if (!this.view.date) {
+        const date = this.view.date;
+        if (!date) {
             this.view.ratesLoading = false;
             this.view.ratesError = '';
             this.view.exchangeRates = undefined;
@@ -63,14 +68,21 @@ export class BotAppController implements ReactiveController {
         this.view.exchangeRates = undefined;
 
         try {
-            this.view.exchangeRates = await botApiService.loadExchangeRates(
-                this.view.book.getId(),
-                this.view.date
-            );
+            const exchangeRates = await botApiService.loadExchangeRates(book.getId(), date);
+            if (requestId === this.ratesRequestId) {
+                this.view.exchangeRates = exchangeRates;
+            }
         } catch (error: unknown) {
-            this.view.ratesError = this.formatError(error, 'Exchange rates could not be loaded');
+            if (requestId === this.ratesRequestId) {
+                this.view.ratesError = this.formatError(
+                    error,
+                    'Exchange rates could not be loaded'
+                );
+            }
         } finally {
-            this.view.ratesLoading = false;
+            if (requestId === this.ratesRequestId) {
+                this.view.ratesLoading = false;
+            }
         }
     }
 

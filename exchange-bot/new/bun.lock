@@ -17,6 +17,7 @@
       "dependencies": {
         "@awesome.me/webawesome": "3.9.0",
         "@bkper/web-auth": "1.1.0",
+        "@bkper/web-components": "0.2.0",
         "@bkper/web-design": "2.1.0",
         "bkper-js": "2.42.0",
         "lit": "3.3.3",
@@ -106,6 +107,8 @@
     "@bkper/bkper-api-types": ["@bkper/bkper-api-types@5.44.0", "", {}, "sha512-NelsZR4Cmcg3ouHs+55SBKVPXH9cuGZsw3e4ci16XCOeXFfKuyC10cqE9+WZR7pjEr9xLzrzZGbvhucM0c0MEg=="],
 
     "@bkper/web-auth": ["@bkper/web-auth@1.1.0", "", {}, "sha512-rfUf0PW1rEnwQxYIiglNIBhKXTanAi/xFC9MWzLinwDD1AuLmdTT8imJ9/nQxeDeTJ9vuZdFx3To6vcqAuvX0g=="],
+
+    "@bkper/web-components": ["@bkper/web-components@0.2.0", "", {}, "sha512-/rJPL7NGk1qL2p802akYhVcu7OZl/jNvjVaszRni8b355NfOuQ5tV8PBCKTsEcpp9oaPOAqssjpArDkO3jAxtw=="],
 
     "@bkper/web-design": ["@bkper/web-design@2.1.0", "", { "dependencies": { "hono": "^4.9.5" } }, "sha512-3lU1vj2BEhLsTVnijV5Zz8zQ2RTwpwEuVLxHsrVIV4R+JvgChGBzXyH0wYIlviIxgJSQWDsW+g9XP2zoVf5JDA=="],
 

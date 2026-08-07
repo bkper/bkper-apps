@@ -3,9 +3,9 @@ import type { ReactiveController } from 'lit';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
-import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { BotAppBook, BotAppView } from './bot-app-view.js';
+import type { BotAppView } from './bot-app-view.js';
+import type { BotAppBook } from './exchange-update/exchange-update-view.js';
 
 export enum BotAppState {
     LOADING = 'LOADING',
@@ -15,7 +15,6 @@ export enum BotAppState {
 
 export class BotAppController implements ReactiveController {
     private readonly view: BotAppView;
-    private ratesRequestId = 0;
 
     constructor(view: BotAppView) {
         this.view = view;
@@ -39,12 +38,9 @@ export class BotAppController implements ReactiveController {
             }
 
             this.view.book = await bookService.loadBook(bookId);
-            this.view.date = Utils.getIsoDateInTimeZone(new Date(), this.view.book.getTimeZone());
 
             await this.loadContext(this.view.book);
             this.view.appState = BotAppState.READY;
-
-            await this.loadRates();
         } catch (error: unknown) {
             this.view.error = this.formatError(error, 'The selected Book could not be loaded');
             this.view.appState = BotAppState.ERROR;
@@ -152,45 +148,6 @@ export class BotAppController implements ReactiveController {
             }
         }
         return missingExcCodes;
-    }
-
-    async loadRates(): Promise<void> {
-        const requestId = ++this.ratesRequestId;
-
-        const book = this.view.book;
-        if (!book) {
-            return;
-        }
-
-        const date = this.view.date;
-        if (!date) {
-            this.view.ratesLoading = false;
-            this.view.ratesError = '';
-            this.view.exchangeRates = undefined;
-            return;
-        }
-
-        this.view.ratesLoading = true;
-        this.view.ratesError = '';
-        this.view.exchangeRates = undefined;
-
-        try {
-            const exchangeRates = await botApiService.loadExchangeRates(book.getId(), date);
-            if (requestId === this.ratesRequestId) {
-                this.view.exchangeRates = exchangeRates;
-            }
-        } catch (error: unknown) {
-            if (requestId === this.ratesRequestId) {
-                this.view.ratesError = this.formatError(
-                    error,
-                    'Exchange rates could not be loaded'
-                );
-            }
-        } finally {
-            if (requestId === this.ratesRequestId) {
-                this.view.ratesLoading = false;
-            }
-        }
     }
 
     private buildContextError(prefixText: string, excCodes: Set<string>): string {

@@ -23,34 +23,8 @@ export const botAppViewCSS = css`
         place-items: center;
     }
 
-    .date-input,
-    .rates,
-    .rates-error,
     .permission-error {
         margin-top: var(--bkper-spacing-large);
-    }
-
-    .date-input,
-    .rate-input {
-        width: min(100%, 20rem);
-    }
-
-    .rates,
-    .rates-error {
-        width: 100%;
-    }
-
-    .rates {
-        display: flex;
-        flex-direction: column;
-        gap: var(--bkper-spacing-small);
-    }
-
-    .rates-loading {
-        margin-top: var(--bkper-spacing-large);
-        display: flex;
-        gap: var(--bkper-spacing-x-small);
-        align-items: center;
     }
 
     .error {
@@ -60,9 +34,5 @@ export const botAppViewCSS = css`
     wa-spinner {
         font-size: 2rem;
         --track-width: 0.125em;
-    }
-
-    .rates-loading wa-spinner {
-        font-size: 1.5rem;
     }
 `;

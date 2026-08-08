@@ -40,10 +40,10 @@ function createController(view: TestView): ExchangeUpdateController {
 }
 
 describe('Exchange update controller', () => {
-    it('initializes the date in the Book timezone and loads its rates', async () => {
+    it('loads rates for the supplied date', async () => {
         const book = new Book({
             id: 'book-id',
-            timeZone: 'America/New_York',
+            timeZone: 'Invalid/Timezone',
         });
         const exchangeRates: ExchangeRates = {
             base: 'USD',
@@ -53,11 +53,12 @@ describe('Exchange update controller', () => {
         botApiService.loadExchangeRates = mock(async () => exchangeRates);
         const view = new TestView();
         view.book = book;
+        view.date = exchangeRates.date;
         const controller = createController(view);
 
         await controller.initialize();
 
-        expect(view.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(view.date).toBe(exchangeRates.date);
         expect(botApiService.loadExchangeRates).toHaveBeenCalledWith('book-id', view.date);
         expect(view.exchangeRates).toBe(exchangeRates);
     });
@@ -72,6 +73,7 @@ describe('Exchange update controller', () => {
         };
         const view = new TestView();
         view.book = book;
+        view.date = '2026-08-06';
         view.exchangeRates = {
             base: 'USD',
             date: '2026-08-05',
@@ -202,6 +204,7 @@ describe('Exchange update controller', () => {
         botApiService.loadExchangeRates = mock(async () => exchangeRates);
         const view = new TestView();
         view.book = new Book({ id: 'book-id', timeZone: 'UTC' });
+        view.date = exchangeRates.date;
         const controller = createController(view);
 
         controller.hostConnected();

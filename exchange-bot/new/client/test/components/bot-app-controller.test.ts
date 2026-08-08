@@ -11,6 +11,7 @@ import { botService } from '../../src/services/bot-service.js';
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
     book?: Book;
+    initialDate = '';
     error = '';
     books: BotAppBook[] = [];
     basePermissionGranted = false;
@@ -95,7 +96,28 @@ describe('Bot app controller', () => {
         await initialization;
         expect(bookService.loadBook).toHaveBeenCalledWith('book-id');
         expect(view.book).toBe(book);
+        expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('keeps default-date failures in the outer initialization error boundary', async () => {
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () =>
+            new Book({
+                id: 'book-id',
+                timeZone: 'Invalid/Timezone',
+                permission: Permission.EDITOR,
+            });
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.initialDate).toBe('');
+        expect(view.error).not.toBe('');
+        expect(view.appState).toBe(BotAppState.ERROR);
     });
 
     it('loads connected Books and preserves base-Book eligibility', async () => {

@@ -1,6 +1,5 @@
 import type { ReactiveController } from 'lit';
 import { botApiService } from './../../services/bot-api-service.js';
-import { Utils } from './../../utils.js';
 import type { ExchangeUpdateView } from './exchange-update-view.js';
 
 export class ExchangeUpdateController implements ReactiveController {
@@ -21,7 +20,6 @@ export class ExchangeUpdateController implements ReactiveController {
         if (!book) {
             return;
         }
-        this.view.date = Utils.getIsoDateInTimeZone(new Date(), book.getTimeZone());
         await this.loadRates();
     }
 

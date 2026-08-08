@@ -22,6 +22,9 @@ export class BotAppView extends LitElement {
     book?: Book;
 
     @state()
+    initialDate = '';
+
+    @state()
     books: BotAppBook[] = [];
 
     @state()
@@ -51,7 +54,11 @@ export class BotAppView extends LitElement {
         }
         if (this.book) {
             return html`
-                <exchange-update .book=${this.book} .books=${this.books}></exchange-update>
+                <exchange-update
+                    .book=${this.book}
+                    .books=${this.books}
+                    .date=${this.initialDate}
+                ></exchange-update>
                 ${this.renderPermissionError()}
             `;
         }

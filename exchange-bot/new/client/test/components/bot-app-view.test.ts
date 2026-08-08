@@ -31,14 +31,17 @@ describe('Bot app view', () => {
         const view = new BotAppView();
         const book = new Book({ id: 'book-id' });
         const books = [{ id: 'book-id', code: 'USD', base: true }];
+        const initialDate = '2026-08-06';
         view.book = book;
         view.books = books;
+        view.initialDate = initialDate;
         view.appState = BotAppState.READY;
 
         const result = renderBody.call(view);
 
         expect(result.values[0]).toBe(book);
         expect(result.values[1]).toBe(books);
+        expect(result.values[2]).toBe(initialDate);
     });
 
     it('renders menu initialization warnings', () => {

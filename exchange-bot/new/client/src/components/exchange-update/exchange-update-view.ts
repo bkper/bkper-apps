@@ -23,7 +23,7 @@ export class ExchangeUpdateView extends LitElement {
     @property({ attribute: false })
     books: BotAppBook[] = [];
 
-    @state()
+    @property({ attribute: false })
     date = '';
 
     @state()

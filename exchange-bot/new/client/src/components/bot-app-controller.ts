@@ -37,9 +37,12 @@ export class BotAppController implements ReactiveController {
                 throw new Error('Error: Missing bookId URL param');
             }
 
-            this.view.book = await bookService.loadBook(bookId);
+            const book = await bookService.loadBook(bookId);
 
-            await this.loadContext(this.view.book);
+            this.view.book = book;
+            this.view.initialDate = this.getInitialDate(book);
+
+            await this.loadContext(book);
             this.view.appState = BotAppState.READY;
         } catch (error: unknown) {
             this.view.error = this.formatError(error, 'The selected Book could not be loaded');
@@ -103,6 +106,11 @@ export class BotAppController implements ReactiveController {
         } else {
             this.view.permissionGranted = true;
         }
+    }
+
+    private getInitialDate(book: Book): string {
+        const timeZone = book.getTimeZone();
+        return Utils.getIsoDateInTimeZone(new Date(), timeZone);
     }
 
     private createBotAppBook(book: Book, hasBaseBook: boolean): BotAppBook {

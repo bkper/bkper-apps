@@ -61,3 +61,82 @@ Keep validation scopes independent from exchange-code configuration. When an exc
 - Collection and deprecated-property connections remain supported.
 - Existing warning precedence remains unchanged.
 - Deterministic client tests cover each fallback without accessing live Books.
+
+## 4. Editable exchange rates accept non-numeric text
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+Exchange-rate fields are regular text inputs. Their values are copied directly into the mutable rates object without client-side validation, so arbitrary non-numeric strings are accepted as edited rates.
+
+### Problem
+
+The client can hold an invalid exchange-rate payload without telling the user which value is invalid. The migration API rejects non-numeric rates at its server-side schema boundary, but relying only on submission-time rejection produces poor feedback and leaves the update form in an invalid state.
+
+### Intended fix
+
+Validate edited rates in the client without silently sanitizing or changing user input. Keep server-side schema validation as the final safety boundary.
+
+### Acceptance criteria
+
+- Non-numeric rates are identified before an exchange update is submitted.
+- Each invalid rate receives a clear inline validation message.
+- Exchange update cannot run while any edited rate is invalid.
+- The accepted rules for zero and negative rates are decided explicitly and covered by tests.
+- Server-side validation continues to reject invalid rate payloads.
+- Deterministic client tests cover valid, invalid, and corrected values.
+
+## 5. Connected Books are not deduplicated by Book id
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+Connected Books are accumulated in a `Set<Book>`. JavaScript Sets compare objects by identity, so separate `Book` instances with the same id are not deduplicated. The same Book can therefore appear more than once when configured through multiple sources, including:
+
+- one or more deprecated `exc_*_book` properties;
+- the deprecated `exc_books` property; and
+- Collection membership with an exchange code.
+
+The client and server API implementations both preserve this behavior.
+
+### Problem
+
+Duplicate Book instances cause repeated context validation and duplicate UI context entries. More importantly, the exchange-update service can process the same connected Book multiple times using the same preloaded balances report, potentially creating duplicate exchange-adjustment movements.
+
+### Intended fix
+
+Deduplicate connected Books by `book.getId()` while preserving first-discovery order across legacy properties and Collection membership. Apply the same rule consistently to the client and server API implementations.
+
+### Acceptance criteria
+
+- A Book configured through multiple deprecated properties is returned once.
+- A Book configured through both deprecated properties and Collection membership is returned once.
+- First-discovery order remains deterministic.
+- Context validation runs once per Book id.
+- Exchange update processes each connected Book id once.
+- Deterministic client and server tests cover duplicate configuration sources without accessing live Books.
+
+## 6. Selected-Book edit permission is checked after pending tasks
+
+**Status:** Deferred optimization until after migration stabilization.
+
+### Current legacy behavior
+
+The menu loads connected Books and checks their backlogs before checking whether the user can edit the selected Book. The migration target preserves this request order for parity. If the user lacks EDITOR or OWNER permission, the pending-task results are discarded by the subsequent early return.
+
+### Problem
+
+Users who cannot edit the selected Book wait for unnecessary backlog requests across the connected context. A backlog request failure can also surface a general loading error before the menu reaches the more relevant selected-Book permission message.
+
+### Intended optimization
+
+Check the selected Book's edit permission before loading connected-Book context or running pending-task and event-error validations. If permission is insufficient, return immediately with the existing permission message. Treat the changed request and error ordering as an intentional post-migration behavior improvement rather than migration parity.
+
+### Acceptance criteria
+
+- EDITOR and OWNER users continue through the complete context validation flow.
+- Other permission levels receive the existing selected-Book permission message without connected-Book, backlog, configured-code, or event-error requests.
+- Missing-permission, pending-task, and event-error warning precedence remains unchanged for users who can edit the selected Book.
+- Deterministic client tests verify the early return and request boundaries without accessing live Books.

@@ -1,6 +1,21 @@
 import { css } from 'lit';
 
 export const exchangeUpdateCSS = css`
+    .intro h2 {
+        margin: 0;
+        font-size: var(--bkper-font-size-large);
+    }
+
+    .intro p {
+        margin: 0;
+        margin-top: var(--bkper-spacing-x-small);
+        color: var(--bkper-color-grey-high);
+    }
+
+    .intro p span {
+        font-weight: var(--bkper-font-weight-bold);
+    }
+
     .date-input,
     .rates,
     .rates-error {
@@ -21,6 +36,12 @@ export const exchangeUpdateCSS = css`
         display: flex;
         flex-direction: column;
         gap: var(--bkper-spacing-small);
+    }
+
+    .actions {
+        display: flex;
+        justify-content: flex-start;
+        margin-top: var(--bkper-spacing-large);
     }
 
     .rates-loading {

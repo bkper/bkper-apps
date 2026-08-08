@@ -39,15 +39,30 @@ export class ExchangeUpdateView extends LitElement {
 
     render(): TemplateResult {
         return html`
+            <div class="intro">
+                <h2>Exchange Update</h2>
+                <p>Choose a date and review or adjust the exchange rates.</p>
+                <p>
+                    Then, click the <span>Run</span> button to keep balances in sync across your
+                    connected currency Books.
+                </p>
+            </div>
             <wa-input
                 class="date-input"
                 type="date"
                 label="Date"
                 .value=${this.date}
+                size="small"
                 @change=${this.handleDateChanged}
                 @blur=${this.handleDateBlurred}
             ></wa-input>
             ${this.renderRates()}
+            <div class="actions">
+                <!-- TODO: Wire the Run button to Exchange Update orchestration. -->
+                <wa-button variant="brand" appearance="accent" size="small" type="button">
+                    Run
+                </wa-button>
+            </div>
         `;
     }
 
@@ -81,6 +96,7 @@ export class ExchangeUpdateView extends LitElement {
                 class="rate-input"
                 label=${code}
                 .value=${String(rate)}
+                size="small"
                 ?disabled=${disabled}
                 @change=${(event: Event) => this.handleRateChanged(code, event)}
             ></wa-input>

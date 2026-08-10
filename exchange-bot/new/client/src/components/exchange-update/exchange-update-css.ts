@@ -58,7 +58,7 @@ export const exchangeUpdateCSS = css`
     }
 
     .update-result.complete wa-icon {
-        font-size: 16px;
+        font-size: 18px;
         color: var(--bkper-color-success);
     }
 

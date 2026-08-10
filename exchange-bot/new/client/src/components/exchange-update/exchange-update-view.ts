@@ -67,7 +67,7 @@ export class ExchangeUpdateView extends LitElement {
                 label="Date"
                 .value=${this.date}
                 ?disabled=${this.areControlsDisabled()}
-                size="small"
+                size="s"
                 @change=${this.handleDateChanged}
                 @blur=${this.handleDateBlurred}
             ></wa-input>
@@ -107,7 +107,7 @@ export class ExchangeUpdateView extends LitElement {
                     class="rate-input"
                     label=${code}
                     .value=${String(rate)}
-                    size="small"
+                    size="s"
                     ?disabled=${isDisabled}
                     @change=${(event: Event) => this.handleRateChanged(code, event)}
                 ></wa-input>
@@ -155,7 +155,7 @@ export class ExchangeUpdateView extends LitElement {
                 <wa-button
                     variant="brand"
                     appearance="accent"
-                    size="small"
+                    size="s"
                     type="button"
                     ?disabled=${runDisabled}
                     @click=${this.handleRunClicked}

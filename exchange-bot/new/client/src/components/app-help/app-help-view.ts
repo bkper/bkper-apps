@@ -20,7 +20,7 @@ export class AppHelpView extends LitElement {
                     slot="trigger"
                     variant="neutral"
                     appearance="plain"
-                    size="small"
+                    size="s"
                 >
                     <wa-icon name="help" label="Help"></wa-icon>
                 </wa-button>

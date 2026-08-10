@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–12 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–13 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, complete audited event behavior, the typed menu API with rate loading and Exchange Update, and the completed menu client. The full-stack parity, dependency, and runtime audit is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target has passed its full-stack parity, dependency, build, generated-artifact, and local runtime audit. Preview deployment and routing readiness are next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -209,7 +209,7 @@ The dependency audit also confirmed:
 - The server still constructs request-scoped `Bkper` instances without OAuth, agent-id, or API-key providers so Platform outbound authentication remains authoritative.
 - The Account, Group, and Transaction mutation methods used by Exchange Bot retain their request payload and operation behavior across this SDK range. Lookup wrapping adds no API calls and does not change movement construction, mutation order, responses, or the zero-sum invariant.
 
-The completed Chunk 8 event dependency/parity audit was reopened for this compatibility migration. Every server `getAccount()`, `getGroup()`, and `getTransaction()` call was reclassified, event responses and mutation paths were rerun deterministically, and the full live/runtime parity measurement remains part of Chunk 13 and the separately approved preview validation chunks.
+The completed Chunk 8 event dependency/parity audit was reopened for this compatibility migration. Every server `getAccount()`, `getGroup()`, and `getTransaction()` call was reclassified, event responses and mutation paths were rerun deterministically, and representative local runtime and request-boundary evidence was completed in Chunk 13. Live external-service latency and deployed runtime behavior remain part of the separately approved preview validation chunks.
 
 Bkper CLI, Miniflare, TypeScript, and related dependency versions remain subject to their relevant compatibility audits. Accepted versions are pinned exactly in the committed lockfile.
 
@@ -472,16 +472,21 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 13 — Full-stack parity, dependency, and runtime audit
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Run the complete event, API, menu-service, and client test suites.
-- Compare both target surfaces with both legacy implementations.
-- Resolve and pin SDK and tooling versions through compatibility evidence.
-- Verify the complete client and Worker production builds and generated artifacts.
-- Measure representative event and Exchange Update execution within the target runtime constraints.
-- Reconcile the patch ledger and explain every mandatory runtime deviation.
+- Passed the complete target gate from a frozen install: strict client and server typechecks, 175 retained tests, client and Worker production builds, formatting, OpenAPI generation, and generated-contract drift checks.
+- Rebuilt the client and Worker twice with identical artifacts. The client bundle contains the expected static entry point and assets, and the Worker bundle contains the expected health, OpenAPI, event, and two menu API routes without Node built-in imports.
+- Reverified the unchanged legacy event source with its eight retained tests and production build. Reverified the unchanged Apps Script source with its declared TypeScript compiler and its intended GAS and Bkper type boundaries. Both legacy source trees remain unchanged from the migration baseline.
+- Compared event orchestration, exchange-rate behavior, transaction lifecycles, resource synchronization, menu initialization, rate loading, Exchange Update, and client orchestration with their authoritative legacy implementations. Movement direction, amount, state, mutation order, responses, and the zero-sum safeguards remain covered by retained deterministic tests.
+- Confirmed exact direct dependency pins and lockfile resolution. Revalidated `bkper-js` 2.42.0 optional-lookup semantics and complete-chart Group caching, including zero network requests for embedded Account-to-Group and empty-Group resolution.
+- Repeated representative complete posted-movement, gain/loss Exchange Update, and SDK chart-cache fixtures without failure. The gain/loss fixture retained connected-Book batch order, one complete gain movement, one complete loss movement, and the final audit. Local fixture timing is supporting evidence only; deployed external latency remains for preview validation.
+- Retained the approved request-boundary optimizations: a connected currency with no matching target Accounts performs no chart load, balance query, or empty batch, while matching Books retain established transaction and batch order.
+- Retained the approved safety deviation from the flawed GAS retry fan-out: a failed Book retries independently and never resubmits another Book whose mutations were already accepted.
+- Retained the approved per-Book audit boundary: every successful Exchange Update request, including a no-op, audits its own path Book rather than waiting for the complete multi-Book client run.
+- Reconfirmed the mandatory Platform adaptations already recorded by earlier chunks: request-scoped outbound authentication, Worker-native rate fetching and isolate cache, SDK 404 absence translation at optional boundaries, the typed API transport and effective date, canonical accepted transaction payloads, generated client types, direct browser authentication, and the omitted Close button.
+- Reconciled the empty production patch ledger and reviewed the complete metadata diff. Production menu and webhook routes remain on Apps Script and GCP. Team-wide developer access is the intended final metadata state, but the temporary single-operator restriction remains in effect through local and preview migration work to prevent local tunnels from receiving colleagues' development events.
 
-**Gate:** No unexplained difference remains across the active production behavior matrix.
+**Gate:** Passed. No unexplained difference remains across the active production behavior matrix; approved safety and runtime deviations are recorded above.
 
 ### Chunk 14 — Preview deployment and routing readiness
 
@@ -489,6 +494,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 - Build and review the preview candidate from a clean frozen install.
 - Review the exact target metadata diff.
+- Temporarily set the sync candidate to the existing single migration operator before app sync so preview routing does not restore team-wide developer access while local tunnels may still run. Restore the generic team setting in the working tree after the sync; do not sync that restoration yet.
 - Configure the preview Open Exchange Rates secret through a separately approved operation.
 - Deploy the target to preview without changing production routing.
 - Point `menuUrlDev` and `webhookUrlDev` to the preview application through a separately approved app sync.
@@ -567,8 +573,9 @@ No production patches have been recorded since the migration baseline. Add one c
 - Verify that source, tests, lockfile, generated contracts, configuration, client assets, and Worker behavior remain unchanged through the move.
 - Preserve legacy source in Git history.
 - Keep the unchanged GCP and Apps Script deployments available as independent routing rollback targets.
+- After consolidation and stabilization acceptance, separately review and sync restoration of the normal team-wide developer access. Do not combine that remote metadata write with the working-tree move.
 
-**Gate:** Cloudflare is the only active implementation in the project root. Consolidation performs no app sync, deployment, routing change, legacy infrastructure mutation, or Book write.
+**Gate:** Cloudflare is the only active implementation in the project root. Consolidation itself performs no app sync, deployment, routing change, legacy infrastructure mutation, or Book write; the separately approved developer-access restoration returns app administration to its normal team-wide state.
 
 ## Rollback strategy
 

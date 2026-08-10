@@ -16,6 +16,24 @@ class BotApiService {
             throw error;
         }
     }
+
+    async performExchangeUpdate(
+        bookId: string,
+        exchangeRates: ExchangeRates
+    ): Promise<bkper.Transaction[]> {
+        try {
+            const url = `/api/v1/books/${encodeURIComponent(bookId)}/exchange-update`;
+            return await new BotApiRequest<bkper.Transaction[]>(url)
+                .setMethod('POST')
+                .setPayload(exchangeRates)
+                .execute();
+        } catch (error: unknown) {
+            if (error instanceof HttpError && isApiError(error.data)) {
+                throw new Error(error.data.error.message);
+            }
+            throw error;
+        }
+    }
 }
 
 function isApiError(payload: unknown): payload is ApiError {

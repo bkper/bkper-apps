@@ -1,6 +1,7 @@
-import { Bkper, type Book } from 'bkper-js';
+import type { Book } from 'bkper-js';
 import { EXC_CODE_PROP } from '../constants.js';
 import { Utils } from '../utils.js';
+import { bookService } from './book-service.js';
 
 class BotService {
     async getConnectedBooks(book: Book): Promise<Set<Book>> {
@@ -9,14 +10,13 @@ class BotService {
         }
 
         const books = new Set<Book>();
-        const bkper = new Bkper();
 
         // deprecated
         for (const key in book.getVisibleProperties()) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
                 const bookId = book.getVisibleProperties()[key];
                 if (bookId) {
-                    const book = await bkper.getBook(bookId);
+                    const book = await bookService.loadBook(bookId);
                     books.add(book);
                 }
             }
@@ -28,7 +28,7 @@ class BotService {
             const bookIds = excBooks.split(/[ ,]+/);
             for (const bookId of bookIds) {
                 if (bookId != null && bookId.trim().length > 10) {
-                    const book = await bkper.getBook(bookId);
+                    const book = await bookService.loadBook(bookId);
                     books.add(book);
                 }
             }
@@ -42,7 +42,8 @@ class BotService {
                     collectionBook.getId() != book.getId() &&
                     Utils.getExcCode(collectionBook) != null
                 ) {
-                    books.add(collectionBook);
+                    const book = await bookService.loadBook(collectionBook.getId());
+                    books.add(book);
                 }
             }
         }

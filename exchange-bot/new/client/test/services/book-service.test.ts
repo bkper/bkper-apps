@@ -17,7 +17,7 @@ describe('book service', () => {
 
         const loadedBook = await bookService.loadBook('book-id');
 
-        expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id');
+        expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', true);
         expect(loadedBook).toBe(book);
     });
 

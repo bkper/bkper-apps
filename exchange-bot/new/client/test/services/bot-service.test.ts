@@ -25,9 +25,9 @@ function createBook(
 
 describe('bot service', () => {
     it('discovers connected Books from legacy properties and Collection in order', async () => {
-        const loadedIds: string[] = [];
-        Bkper.prototype.getBook = mock(async id => {
-            loadedIds.push(id);
+        const loadedBooks: Array<{ id: string; includeAccounts: boolean | undefined }> = [];
+        Bkper.prototype.getBook = mock(async (id, includeAccounts) => {
+            loadedBooks.push({ id, includeAccounts });
             return createBook(id, { exc_code: 'LEGACY' });
         });
         const book = createBook(
@@ -50,7 +50,12 @@ describe('bot service', () => {
 
         const books = await botService.getConnectedBooks(book);
 
-        expect(loadedIds).toEqual(['legacy-book-id', 'legacy-list-one', 'legacy-list-two']);
+        expect(loadedBooks).toEqual([
+            { id: 'legacy-book-id', includeAccounts: true },
+            { id: 'legacy-list-one', includeAccounts: true },
+            { id: 'legacy-list-two', includeAccounts: true },
+            { id: 'collection-brl', includeAccounts: true },
+        ]);
         expect(Array.from(books, connectedBook => connectedBook.getId())).toEqual([
             'legacy-book-id',
             'legacy-list-one',

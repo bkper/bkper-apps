@@ -6,6 +6,7 @@ import {
     EXC_LOG_PROP,
     EXC_RATE_PROP,
 } from '../../shared/constants.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import type { AmountDescription } from './EventHandlerTransaction.js';
 import { EventHandlerTransactionEvent } from './EventHandlerTransactionEvent.js';
 
@@ -52,7 +53,9 @@ export class EventHandlerTransactionUpdated extends EventHandlerTransactionEvent
         let baseCode = this.botService.getBaseCode(baseBook);
         let connectedCode = this.botService.getBaseCode(connectedBook);
 
-        let connectedCreditAccount = await connectedBook.getAccount(baseCreditAccount!.getName());
+        let connectedCreditAccount = await optionalLookup(() =>
+            connectedBook.getAccount(baseCreditAccount!.getName())
+        );
         if (connectedCreditAccount == null) {
             try {
                 connectedCreditAccount = await new Account(connectedBook)
@@ -62,7 +65,9 @@ export class EventHandlerTransactionUpdated extends EventHandlerTransactionEvent
                 // OK
             }
         }
-        let connectedDebitAccount = await connectedBook.getAccount(baseDebitAccount!.getName());
+        let connectedDebitAccount = await optionalLookup(() =>
+            connectedBook.getAccount(baseDebitAccount!.getName())
+        );
         if (connectedDebitAccount == null) {
             try {
                 connectedDebitAccount = await new Account(connectedBook)

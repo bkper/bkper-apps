@@ -257,7 +257,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 
 ## 11. Connected-Book discovery and chart loading perform redundant sequential requests
 
-**Status:** Deferred API optimization until after migration stabilization.
+**Status:** Deferred connected-Book loading optimization until after migration stabilization. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
 ### Current migration behavior
 
@@ -265,7 +265,7 @@ The menu API discovers connected Books through deprecated properties and Collect
 
 Exchange Update loads the target Book with its complete chart once. For each connected Book, it first checks the target chart for matching Accounts. Only when matches exist does it load that connected Book with its complete chart before calculating and creating movements.
 
-This removes the per-Account request pattern and avoids loading a connected chart when no target Accounts match. A matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request.
+Server `bkper-js` 2.42.0 resolves embedded Account Group ids and cached Groups with no Accounts through the complete Book chart. This fixes the 2.19.0 cache amplification that issued per-Account or empty-Group requests. It does not fix this deferred connected-Book loading issue: a matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request. The service also still avoids loading a connected chart when no target Accounts match.
 
 ### Problem
 

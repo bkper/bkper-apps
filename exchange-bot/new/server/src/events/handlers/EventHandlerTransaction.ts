@@ -1,6 +1,7 @@
 import { Amount, type Book, type Transaction } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
 import { EXC_AMOUNT_PROP } from '../../shared/constants.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import type { ExchangeRates } from '../ExchangeRates.js';
 import { EventHandler } from './EventHandler.js';
 
@@ -63,7 +64,9 @@ export abstract class EventHandlerTransaction extends EventHandler {
                     ret = this.connectedTransactionNotFound(baseBook, connectedBook, transaction);
                     if (!ret && transaction.remoteIds && event.type == 'TRANSACTION_DELETED') {
                         for (const remoteId of transaction.remoteIds) {
-                            let connectedTransaction = await connectedBook.getTransaction(remoteId);
+                            let connectedTransaction = await optionalLookup(() =>
+                                connectedBook.getTransaction(remoteId)
+                            );
                             if (connectedTransaction) {
                                 ret = this.connectedTransactionFound(
                                     connectedBook,

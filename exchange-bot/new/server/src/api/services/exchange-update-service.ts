@@ -17,6 +17,7 @@ import {
     EXC_RATE_PROP,
     STOCK_EXC_CODE_PROP,
 } from '../../shared/constants.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { BotService } from './bot-service.js';
 import { type ConvertedAmount, ExchangeService } from './exchange-service.js';
 
@@ -56,7 +57,9 @@ export class ExchangeUpdateService {
                     : null;
 
             for (const account of accounts) {
-                const connectedAccount = await connectedBook.getAccount(account.getName());
+                const connectedAccount = await optionalLookup(() =>
+                    connectedBook.getAccount(account.getName())
+                );
                 if (connectedAccount == null) {
                     continue;
                 }
@@ -101,7 +104,7 @@ export class ExchangeUpdateService {
                     connectedAccount,
                     connectedCode!
                 );
-                let excAccount = await book.getAccount(excAccountName);
+                let excAccount = await optionalLookup(() => book.getAccount(excAccountName));
                 if (excAccount == null) {
                     excAccount = new Account(book).setName(excAccountName);
                     const groups = await getExcAccountGroups(book);
@@ -162,7 +165,7 @@ function getAccountBalance(balancesReport: BalancesReport, account: Account): Am
 
 async function getMatchingAccounts(book: Book, code: string): Promise<Set<Account>> {
     const accounts = new Map<string, Account>();
-    const group = await book.getGroup(code);
+    const group = await optionalLookup(() => book.getGroup(code));
     if (group != null) {
         const groupAccounts = await group.getAccounts();
         for (const account of groupAccounts) {
@@ -248,7 +251,7 @@ async function getExcAccountGroups(book: Book): Promise<Set<Group>> {
 
     const groups = new Map<string, Group>();
     for (const accountName of accountNames) {
-        const account = await book.getAccount(accountName);
+        const account = await optionalLookup(() => book.getAccount(accountName));
         if (account) {
             for (const group of await account.getGroups()) {
                 groups.set(group.getId()!, group);
@@ -277,7 +280,7 @@ async function getExcAccountType(book: Book): Promise<AccountType> {
 
     const accountTypes = new Map<AccountType, Account[]>();
     for (const accountName of accountNames) {
-        const account = await book.getAccount(accountName);
+        const account = await optionalLookup(() => book.getAccount(accountName));
         if (account) {
             const accountType = account.getType();
             const mappedAccounts = accountTypes.get(accountType);

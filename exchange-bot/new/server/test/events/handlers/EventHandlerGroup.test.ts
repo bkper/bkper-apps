@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Bkper, Book, Group } from 'bkper-js';
+import { Bkper, BkperError, Book, Group } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { EventHandlerGroup } from '../../../src/events/handlers/EventHandlerGroup.js';
 
@@ -54,7 +54,10 @@ describe('legacy shared Group synchronization behavior', () => {
         const lookups: (string | undefined)[] = [];
         connectedBook.getGroup = async name => {
             lookups.push(name);
-            return name === 'New Group ' ? trailingGroup : undefined;
+            if (name === 'New Group ') {
+                return trailingGroup;
+            }
+            throw new BkperError(404, 'Group not found', 'notFound');
         };
 
         const result = await createHandler().processConnectedBook(

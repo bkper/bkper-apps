@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Account, Bkper, Book } from 'bkper-js';
+import { Account, Bkper, BkperError, Book } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { EventHandlerAccount } from '../../../src/events/handlers/EventHandlerAccount.js';
 
@@ -54,7 +54,10 @@ describe('legacy shared Account synchronization behavior', () => {
         const lookups: (string | undefined)[] = [];
         connectedBook.getAccount = async name => {
             lookups.push(name);
-            return name === 'New Name ' ? trailingAccount : undefined;
+            if (name === 'New Name ') {
+                return trailingAccount;
+            }
+            throw new BkperError(404, 'Account not found', 'notFound');
         };
 
         const result = await createHandler().processConnectedBook(

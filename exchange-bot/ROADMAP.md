@@ -192,9 +192,25 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 
 ### SDK and tooling versions
 
-The event-side target pins `bkper-js` 2.19.0, matching the validated Subledger Bot Worker baseline and providing the required platform-compatible SDK behavior. The active GCP image was verified to run `bkper-js` 2.18.0. Client-side SDK selection remains separate because the menu migrates from `bkper-gs` to `bkper-js`.
+The server now pins `bkper-js` 2.42.0 exactly. The original 2.19.0 pin was a conservative migration control: it matched the validated Subledger Bot Worker baseline, stayed close to the active GCP image's verified 2.18.0 dependency, and was the nearest version already validated with the Platform transport. No roadmap constraint or production patch required retaining it.
 
-Bkper CLI, Miniflare, TypeScript, client-side `bkper-js`, and related dependency versions remain subject to their relevant compatibility audits. Accepted versions are pinned exactly in the committed lockfile.
+That pin became unacceptable for Exchange Update because 2.19.0 performs an API request for every `Account.getGroups()` call even after `getBook(id, true)` has loaded the complete chart. Local observations showed roughly 30–40 second Exchange Update requests versus roughly 5 seconds in the production GAS app. These observations motivated the compatibility migration; deterministic tests do not establish a new runtime result.
+
+Version 2.42.0 was selected because it includes the 2.29.1 embedded Account-to-Group cache resolution, the 2.31.2 cached-empty-Group fix, and support for omitted OAuth providers under Platform outbound authentication. It also introduces the post-2.26.0 404 contract in which missing `getAccount()`, `getGroup()`, and `getTransaction()` resources throw `BkperError` rather than returning `undefined`.
+
+The server preserves legacy absence semantics through one narrow optional-lookup helper. It converts only `BkperError` with code 404 to `undefined` at audited optional boundaries and rethrows authentication, permission, network, validation, and server failures. The audited optional boundaries are Exchange Update matching and Exchange Account lookups; exact currency Group fallback; configured Exchange Account selection; event Account and Group rename/trailing-space fallbacks; missing mirror Account and Group creation lookups; optional parent Groups; remote transaction fallbacks; and connected Account lookup before creation. The source Account id lookups required to update an existing mirrored transaction remain required and are not wrapped.
+
+The dependency audit also confirmed:
+
+- Complete-chart Account Group references and Groups with no Accounts resolve through Book caches without per-resource requests.
+- SDK retries are now limited to three retries for 401, 403, 408, 429, server responses, and recognized fetch failures; non-retryable client errors fail immediately. Exchange Bot configures no SDK retry handler, and its separate exchange-rate provider retry behavior is unchanged.
+- `BkperError` remains serialized by event ingress through the established stack-array response. API route failures retain their existing curated error boundary.
+- The server still constructs request-scoped `Bkper` instances without OAuth, agent-id, or API-key providers so Platform outbound authentication remains authoritative.
+- The Account, Group, and Transaction mutation methods used by Exchange Bot retain their request payload and operation behavior across this SDK range. Lookup wrapping adds no API calls and does not change movement construction, mutation order, responses, or the zero-sum invariant.
+
+The completed Chunk 8 event dependency/parity audit was reopened for this compatibility migration. Every server `getAccount()`, `getGroup()`, and `getTransaction()` call was reclassified, event responses and mutation paths were rerun deterministically, and the full live/runtime parity measurement remains part of Chunk 13 and the separately approved preview validation chunks.
+
+Bkper CLI, Miniflare, TypeScript, and related dependency versions remain subject to their relevant compatibility audits. Accepted versions are pinned exactly in the committed lockfile.
 
 ## Deterministic verification strategy
 
@@ -400,7 +416,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 - Ran the complete deterministic event matrix, including ingress, orchestration, connected Books, exchange rates, transaction lifecycles, resource synchronization, responses, errors, and zero-sum safeguards.
 - Compared every target event handler and service with its legacy counterpart after reverting non-mandatory porting changes.
-- Confirmed that the legacy event source remains unchanged from the migration baseline. Audited the pinned event-side SDK transition from `bkper-js` 2.18.0 to 2.19.0; the only SDK implementation change is platform-compatible API transport selection and associated error logging.
+- Confirmed that the legacy event source remains unchanged from the migration baseline. The initial audit covered the pinned event-side SDK transition from `bkper-js` 2.18.0 to 2.19.0; the later dedicated 2.42.0 compatibility migration reopened the dependency/parity audit as recorded under SDK and tooling versions.
 - Reviewed target metadata, exact dependency resolution, generated environment and OpenAPI artifacts, and production bundle. Confirmed that production menu and webhook URLs remain on Apps Script and GCP and that the production patch ledger remains empty.
 
 **Gate:** No unexplained event-side difference remains in branch order, lookup order, movement direction, amount, transaction state, API-call order, side effects, or responses.

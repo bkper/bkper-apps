@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { Account, AccountType, BalancesReport, Bkper, Book, Group, Transaction } from 'bkper-js';
+import {
+    Account,
+    AccountType,
+    BalancesReport,
+    Bkper,
+    BkperError,
+    Book,
+    Group,
+    Transaction,
+} from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import type { ExchangeRates } from '../../../src/api/schemas.js';
 import { ExchangeUpdateService } from '../../../src/api/services/exchange-update-service.js';
@@ -99,7 +108,12 @@ describe('legacy menu Exchange Update', () => {
         );
         const targetAccount = createAccount(targetBook, 'target-account', 'Cash');
         const eurGroup = createGroup(targetBook, 'eur-group', 'EUR', [targetAccount]);
-        targetBook.getGroup = async code => (code === 'EUR' ? eurGroup : undefined);
+        targetBook.getGroup = async code => {
+            if (code === 'EUR') {
+                return eurGroup;
+            }
+            throw new BkperError(404, 'Group not found', 'notFound');
+        };
         targetBook.getGroups = async () => [];
         targetBook.getBalancesReport = async () => createReport(targetBook, new Map());
         targetBook.batchCreateTransactions = async transactions => transactions;
@@ -107,7 +121,9 @@ describe('legacy menu Exchange Update', () => {
 
         const eurBook = createBook('eur-book', 'EUR');
         eurBook.getBalancesReport = async () => createReport(eurBook, new Map());
-        eurBook.getAccount = async () => undefined;
+        eurBook.getAccount = async () => {
+            throw new BkperError(404, 'Account not found', 'notFound');
+        };
         const jpyBook = createBook('jpy-book', 'JPY');
         jpyBook.getBalancesReport = async () => createReport(jpyBook, new Map());
         targetBook.getCollection()!.getBooks = () => [targetBook, eurBook, jpyBook];
@@ -385,7 +401,13 @@ describe('legacy menu Exchange Update', () => {
         book.getGroup = async code => (code == 'EUR' ? matchingGroup : undefined);
         book.getGroups = async () => [];
         book.getAccounts = async () => [baseAccount, exchangeOne, exchangeTwo, exchangeThree];
-        book.getAccount = async name => accounts.get(name ?? '');
+        book.getAccount = async name => {
+            const account = accounts.get(name ?? '');
+            if (account) {
+                return account;
+            }
+            throw new BkperError(404, 'Account not found', 'notFound');
+        };
         book.getBalancesReport = async query => {
             baseQueries.push(query);
             return createReport(

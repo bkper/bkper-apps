@@ -1,6 +1,7 @@
 import { type Book, Group } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
 import { CHILD_BOOK_ID_PROP } from '../../shared/constants.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { EventHandlerGroup } from './EventHandlerGroup.js';
 
 export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
@@ -13,7 +14,7 @@ export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
         baseGroup: bkper.Group
     ): Promise<string | null> {
         let parentGroup = baseGroup.parent
-            ? await connectedBook.getGroup(baseGroup.parent.name)
+            ? await optionalLookup(() => connectedBook.getGroup(baseGroup.parent!.name))
             : null;
         let connectedGroup = await new Group(connectedBook)
             .setName(baseGroup.name!)
@@ -33,7 +34,7 @@ export class EventHandlerGroupCreatedOrUpdated extends EventHandlerGroup {
     ): Promise<string | null> {
         let connectedChildBookId = connectedGroup.getProperty(CHILD_BOOK_ID_PROP);
         let parentGroup = baseGroup.parent
-            ? await connectedBook.getGroup(baseGroup.parent.name)
+            ? await optionalLookup(() => connectedBook.getGroup(baseGroup.parent!.name))
             : null;
 
         await connectedGroup

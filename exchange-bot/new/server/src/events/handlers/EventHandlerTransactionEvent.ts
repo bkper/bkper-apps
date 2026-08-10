@@ -6,6 +6,7 @@ import {
     EXC_LOG_PROP,
     EXC_RATE_PROP,
 } from '../../shared/constants.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { EventHandlerTransaction } from './EventHandlerTransaction.js';
 
 export abstract class EventHandlerTransactionEvent extends EventHandlerTransaction {
@@ -28,8 +29,8 @@ export abstract class EventHandlerTransactionEvent extends EventHandlerTransacti
         let connectedCode = this.botService.getBaseCode(connectedBook);
 
         let connectedCreditDebitAccounts = await Promise.all([
-            connectedBook.getAccount(baseCreditAccount.name),
-            connectedBook.getAccount(baseDebitAccount.name),
+            optionalLookup(() => connectedBook.getAccount(baseCreditAccount.name)),
+            optionalLookup(() => connectedBook.getAccount(baseDebitAccount.name)),
         ]);
 
         let connectedCreditAccount = connectedCreditDebitAccounts[0];
@@ -66,8 +67,8 @@ export abstract class EventHandlerTransactionEvent extends EventHandlerTransacti
         }
 
         const creditDebitAccounts = await Promise.all([
-            connectedBook.getAccount(baseCreditAccount.name),
-            connectedBook.getAccount(baseDebitAccount.name),
+            optionalLookup(() => connectedBook.getAccount(baseCreditAccount.name)),
+            optionalLookup(() => connectedBook.getAccount(baseDebitAccount.name)),
         ]);
 
         let newTransaction = new Transaction(connectedBook)
@@ -137,7 +138,9 @@ export abstract class EventHandlerTransactionEvent extends EventHandlerTransacti
         const baseGroups = baseAccount.groups;
         if (baseGroups) {
             for (const baseGroup of baseGroups) {
-                let connectedGroup = await connectedBook.getGroup(baseGroup.name);
+                let connectedGroup = await optionalLookup(() =>
+                    connectedBook.getGroup(baseGroup.name)
+                );
                 if (connectedGroup == null) {
                     let newGroup = new Group(connectedBook);
                     connectedGroup = await newGroup

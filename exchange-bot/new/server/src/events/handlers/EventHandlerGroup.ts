@@ -1,5 +1,6 @@
 import type { Book, Group } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { EventHandler } from './EventHandler.js';
 
 export abstract class EventHandlerGroup extends EventHandler {
@@ -19,19 +20,21 @@ export abstract class EventHandlerGroup extends EventHandler {
             const timeTagWrite = `EventHandlerGroup getGroup. [Book ${connectedBook.getName()}] [Owner ${connectedBook.getOwnerName()}] ${Math.random()}`;
             console.time(timeTagWrite);
 
-            let connectedGroup = await connectedBook.getGroup(group.name);
+            let connectedGroup = await optionalLookup(() => connectedBook.getGroup(group.name));
             if (
                 connectedGroup == null &&
                 event.data!.previousAttributes &&
                 event.data!.previousAttributes['name']
             ) {
-                connectedGroup = await connectedBook.getGroup(
-                    event.data!.previousAttributes['name']
+                connectedGroup = await optionalLookup(() =>
+                    connectedBook.getGroup(event.data!.previousAttributes!['name'])
                 );
             }
 
             if (connectedGroup == null) {
-                connectedGroup = await connectedBook.getGroup(group.name + ' ');
+                connectedGroup = await optionalLookup(() =>
+                    connectedBook.getGroup(group.name + ' ')
+                );
             }
 
             console.timeEnd(timeTagWrite);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import type { Bkper } from 'bkper-js';
+import { BkperError, type Bkper } from 'bkper-js';
 import { AppContext } from '../../src/shared/app-context.js';
 import { EventHandlerAccountCreatedOrUpdated } from '../../src/events/handlers/EventHandlerAccountCreatedOrUpdated.js';
 import { EventHandlerAccountDeleted } from '../../src/events/handlers/EventHandlerAccountDeleted.js';
@@ -244,9 +244,9 @@ describe('legacy event dispatcher', () => {
         expect(config.apiKeyProvider).toBeUndefined();
     });
 
-    test('preserves the legacy stack-array error response', async () => {
+    test('preserves the legacy stack-array error response for BkperError', async () => {
         replaceHandleEvent(EventHandlerTransactionPosted, async () => {
-            throw new Error('handler failed');
+            throw new BkperError(403, 'handler failed', 'forbidden');
         });
         const originalConsoleError = console.error;
         console.error = () => undefined;
@@ -257,7 +257,7 @@ describe('legacy event dispatcher', () => {
 
             expect(response.status).toBe(200);
             expect(body.error).toBeArray();
-            expect(body.error[0]).toBe('Error: handler failed');
+            expect(body.error[0]).toBe('BkperError: handler failed');
         } finally {
             console.error = originalConsoleError;
         }

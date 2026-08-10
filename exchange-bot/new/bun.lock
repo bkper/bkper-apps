@@ -33,7 +33,7 @@
       "name": "exchange-bot-server",
       "dependencies": {
         "@hono/zod-openapi": "1.5.1",
-        "bkper-js": "2.19.0",
+        "bkper-js": "2.42.0",
         "hono": "4.13.0",
         "zod": "4.4.3",
       },
@@ -758,8 +758,6 @@
     "@redocly/openapi-core/minimatch": ["minimatch@5.1.9", "", { "dependencies": { "brace-expansion": "^2.0.1" } }, "sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw=="],
 
     "chalk/supports-color": ["supports-color@7.2.0", "", { "dependencies": { "has-flag": "^4.0.0" } }, "sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw=="],
-
-    "exchange-bot-server/bkper-js": ["bkper-js@2.19.0", "", { "dependencies": { "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" }, "peerDependencies": { "@bkper/bkper-api-types": "^5.32.0" } }, "sha512-W4dGreDXhg0o20Qy9UYa8B7S0WPIruBq+jBnUH90cr9NnwiEH/VCNMtRk647LTXY4H3ynY8vKOZ+/k9Ur6Y4+w=="],
 
     "openapi-typescript/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
 

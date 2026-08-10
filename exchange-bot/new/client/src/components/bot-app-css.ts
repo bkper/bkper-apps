@@ -1,6 +1,6 @@
 import { css } from 'lit';
 
-export const botAppViewCSS = css`
+export const botAppCSS = css`
     :host {
         box-sizing: border-box;
         display: flex;

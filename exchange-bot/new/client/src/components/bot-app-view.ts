@@ -5,7 +5,7 @@ import './app-header/app-header-view.js';
 import type { BotAppBook } from './exchange-update/exchange-update-view.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
-import { botAppViewCSS } from './bot-app-view-css.js';
+import { botAppCSS } from './bot-app-css.js';
 import { sharedCSS } from './shared-css.js';
 
 @customElement('bot-app')
@@ -36,7 +36,7 @@ export class BotAppView extends LitElement {
     @state()
     permissionError = '';
 
-    static styles = [sharedCSS, botAppViewCSS];
+    static styles = [sharedCSS, botAppCSS];
 
     render(): TemplateResult {
         return html`

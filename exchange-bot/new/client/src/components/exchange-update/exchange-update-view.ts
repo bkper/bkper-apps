@@ -8,7 +8,7 @@ import {
     type ExchangeUpdateResult,
     ExchangeUpdateStatus,
 } from './exchange-update-controller.js';
-import { exchangeUpdateCSS } from './exchange-update-view-css.js';
+import { exchangeUpdateCSS } from './exchange-update-css.js';
 import { sharedCSS } from '../shared-css.js';
 
 export interface BotAppBook {

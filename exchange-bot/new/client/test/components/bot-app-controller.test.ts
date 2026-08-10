@@ -3,7 +3,7 @@ import { Book, Permission } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
 import type { BotAppView } from '../../src/components/bot-app-view.js';
-import type { BotAppBook } from '../../src/components/exchange-update/exchange-update-view.js';
+import type { ExchangeBotBook } from '../../src/types.js';
 import { authService } from '../../src/services/auth-service.js';
 import { bookService } from '../../src/services/book-service.js';
 import { botService } from '../../src/services/bot-service.js';
@@ -14,7 +14,7 @@ class TestView implements ReactiveControllerHost {
     initialDate = '';
     error = '';
     embedded = false;
-    books: BotAppBook[] = [];
+    books: ExchangeBotBook[] = [];
     basePermissionGranted = false;
     permissionGranted = false;
     permissionError = '';

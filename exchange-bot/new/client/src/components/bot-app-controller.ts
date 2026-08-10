@@ -6,7 +6,7 @@ import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
 import { botService } from './../services/bot-service.js';
 import type { BotAppView } from './bot-app-view.js';
-import type { BotAppBook } from './exchange-update/exchange-update-view.js';
+import type { ExchangeBotBook } from '../types.js';
 
 export enum BotAppState {
     LOADING = 'LOADING',
@@ -65,7 +65,7 @@ export class BotAppController implements ReactiveController {
 
         // Add books to view
         for (const b of books) {
-            const appBook = this.createBotAppBook(b, hasBaseBook);
+            const appBook = this.createExchangeBotBook(b, hasBaseBook);
             this.view.books.push(appBook);
         }
 
@@ -116,7 +116,7 @@ export class BotAppController implements ReactiveController {
         return Utils.getIsoDateInTimeZone(new Date(), timeZone);
     }
 
-    private createBotAppBook(book: Book, hasBaseBook: boolean): BotAppBook {
+    private createExchangeBotBook(book: Book, hasBaseBook: boolean): ExchangeBotBook {
         return {
             id: book.getId(),
             code: Utils.getExcCode(book),

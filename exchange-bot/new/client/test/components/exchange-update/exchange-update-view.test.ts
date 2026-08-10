@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { TemplateResult } from 'lit';
-import {
-    type BotAppBook,
-    ExchangeUpdateView,
-} from '../../../src/components/exchange-update/exchange-update-view.js';
+import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
+import type { ExchangeBotBook } from '../../../src/types.js';
 import { ExchangeUpdateStatus } from '../../../src/components/exchange-update/exchange-update-controller.js';
 
 type DateChangeHandler = (this: ExchangeUpdateView, event: Event) => void;
@@ -23,7 +21,7 @@ const renderActions = Reflect.get(ExchangeUpdateView.prototype, 'renderActions')
 const renderExchangeUpdateResult = Reflect.get(
     ExchangeUpdateView.prototype,
     'renderExchangeUpdateResult'
-) as (this: ExchangeUpdateView, book: BotAppBook) => TemplateResult;
+) as (this: ExchangeUpdateView, book: ExchangeBotBook) => TemplateResult;
 const renderRate = Reflect.get(ExchangeUpdateView.prototype, 'renderRate') as (
     this: ExchangeUpdateView,
     code: string,
@@ -72,7 +70,7 @@ describe('Exchange update view', () => {
 
     it('renders a spinner and retry progress beside the Book being retried', () => {
         const view = new ExchangeUpdateView();
-        const book: BotAppBook = {
+        const book: ExchangeBotBook = {
             id: 'usd-book',
             code: 'USD',
             isBase: true,

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { Book } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type { ExchangeRates } from '../../../src/api/generated/types.js';
-import type { BotAppBook } from '../../../src/components/exchange-update/exchange-update-view.js';
+import type { ExchangeBotBook } from '../../../src/types.js';
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
@@ -13,7 +13,7 @@ class TestView implements ReactiveControllerHost {
     exchangeRates?: ExchangeRates;
     ratesLoading = false;
     ratesError = '';
-    books: BotAppBook[] = [];
+    books: ExchangeBotBook[] = [];
     executing = false;
     results = new Map<
         string,

@@ -10,13 +10,7 @@ import {
 } from './exchange-update-controller.js';
 import { exchangeUpdateCSS } from './exchange-update-css.js';
 import { sharedCSS } from '../shared-css.js';
-
-export interface BotAppBook {
-    id: string;
-    code: string | undefined;
-    isBase: boolean;
-    fractionDigits?: number;
-}
+import type { ExchangeBotBook } from '../../types.js';
 
 @customElement('exchange-update')
 export class ExchangeUpdateView extends LitElement {
@@ -26,7 +20,7 @@ export class ExchangeUpdateView extends LitElement {
     book?: Book;
 
     @property({ attribute: false })
-    books: BotAppBook[] = [];
+    books: ExchangeBotBook[] = [];
 
     @property({ attribute: false })
     date = '';
@@ -121,7 +115,7 @@ export class ExchangeUpdateView extends LitElement {
         return html`${books.map(book => this.renderExchangeUpdateResult(book))}`;
     }
 
-    private renderExchangeUpdateResult(book: BotAppBook): TemplateResult {
+    private renderExchangeUpdateResult(book: ExchangeBotBook): TemplateResult {
         const result = this.results.get(book.id);
         if (!result) {
             return html``;

@@ -3,7 +3,8 @@ import type { ReactiveController } from 'lit';
 import type { ExchangeRates } from '../../api/generated/types.js';
 import { botApiService } from './../../services/bot-api-service.js';
 import { Utils } from './../../utils.js';
-import type { BotAppBook, ExchangeUpdateView } from './exchange-update-view.js';
+import type { ExchangeBotBook } from '../../types.js';
+import type { ExchangeUpdateView } from './exchange-update-view.js';
 
 export enum ExchangeUpdateStatus {
     WAITING = 'WAITING',
@@ -107,7 +108,7 @@ export class ExchangeUpdateController implements ReactiveController {
     }
 
     private async performExchangeUpdate(
-        book: BotAppBook,
+        book: ExchangeBotBook,
         exchangeRates: ExchangeRates
     ): Promise<void> {
         let retryCount = 0;
@@ -151,7 +152,7 @@ export class ExchangeUpdateController implements ReactiveController {
     }
 
     private summarizeAcceptedTransactions(
-        appBook: BotAppBook,
+        appBook: ExchangeBotBook,
         transactionPayloads: bkper.Transaction[]
     ): string {
         const book = new Book({ id: appBook.id, fractionDigits: appBook.fractionDigits });

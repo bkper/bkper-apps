@@ -2,7 +2,7 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
-import type { BotAppBook } from './exchange-update/exchange-update-view.js';
+import type { ExchangeBotBook } from '../types.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
@@ -28,7 +28,7 @@ export class BotAppView extends LitElement {
     initialDate = '';
 
     @state()
-    books: BotAppBook[] = [];
+    books: ExchangeBotBook[] = [];
 
     @state()
     basePermissionGranted = false;

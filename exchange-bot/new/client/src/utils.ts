@@ -57,9 +57,11 @@ export class Utils {
      * Aggregates accepted Exchange Update movements by Exchange Account.
      *
      * @param transactions - SDK wrappers for transactions accepted by the Exchange Update API.
-     * @returns Signed adjustment totals keyed by Exchange Account name.
+     * @returns A promise that resolves to signed adjustment totals keyed by Exchange Account name.
      */
-    static summarizeExchangeUpdateTransactions(transactions: Transaction[]): Map<string, Amount> {
+    static async summarizeExchangeUpdate(
+        transactions: Transaction[]
+    ): Promise<Map<string, Amount>> {
         const adjustments = new Map<string, Amount>();
 
         for (const transaction of transactions) {
@@ -70,8 +72,9 @@ export class Utils {
                 continue;
             }
 
-            const payload = transaction.json();
-            const accountName = loss ? payload.debitAccount?.name : payload.creditAccount?.name;
+            const accountName = loss
+                ? await transaction.getDebitAccountName()
+                : await transaction.getCreditAccountName();
             const amount = transaction.getAmount();
             if (!accountName || !amount) {
                 continue;

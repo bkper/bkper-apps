@@ -2,6 +2,7 @@ import { Transaction } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import type { ExchangeRates } from '../../api/generated/types.js';
 import { botApiService } from './../../services/bot-api-service.js';
+import { bookService } from './../../services/book-service.js';
 import { Utils } from './../../utils.js';
 import type { ExchangeBotBook } from '../../types.js';
 import type { ExchangeUpdateView } from './exchange-update-view.js';
@@ -117,9 +118,16 @@ export class ExchangeUpdateController implements ReactiveController {
         while (true) {
             try {
                 const result = await botApiService.performExchangeUpdate(bookId, exchangeRates);
+                if (result.createdAccounts.length > 0) {
+                    // Reload the complete chart so transaction Account ids resolve newly created Accounts.
+                    book.book = await bookService.loadBook(bookId);
+                }
                 this.setExchangeUpdateResult(bookId, {
                     status: ExchangeUpdateStatus.COMPLETE,
-                    summary: this.summarizeAcceptedTransactions(book, result.createdTransactions),
+                    summary: await this.summarizeExchangeUpdateResult(
+                        book,
+                        result.createdTransactions
+                    ),
                 });
                 return;
             } catch (error: unknown) {
@@ -149,13 +157,13 @@ export class ExchangeUpdateController implements ReactiveController {
         return !message.includes('not found in') && retryCount < this.maxRetryCount;
     }
 
-    private summarizeAcceptedTransactions(
+    private async summarizeExchangeUpdateResult(
         book: ExchangeBotBook,
         transactionPayloads: bkper.Transaction[]
-    ): string {
+    ): Promise<string> {
         const bookInstance = book.book;
         const transactions = transactionPayloads.map(tx => new Transaction(bookInstance, tx));
-        const summary = Utils.summarizeExchangeUpdateTransactions(transactions);
+        const summary = await Utils.summarizeExchangeUpdate(transactions);
         return JSON.stringify(
             Object.fromEntries(
                 Array.from(summary, ([accountName, amount]) => [

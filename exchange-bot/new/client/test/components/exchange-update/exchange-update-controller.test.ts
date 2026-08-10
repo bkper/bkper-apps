@@ -9,6 +9,7 @@ import type { ExchangeBotBook } from '../../../src/types.js';
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
+import { bookService } from '../../../src/services/book-service.js';
 
 class TestView implements ReactiveControllerHost {
     book?: Book;
@@ -47,20 +48,28 @@ class TestView implements ReactiveControllerHost {
 
 const originalLoadRates = botApiService.loadExchangeRates;
 const originalPerformExchangeUpdate = botApiService.performExchangeUpdate;
+const originalLoadBook = bookService.loadBook;
 
 afterEach(() => {
     botApiService.loadExchangeRates = originalLoadRates;
     botApiService.performExchangeUpdate = originalPerformExchangeUpdate;
+    bookService.loadBook = originalLoadBook;
 });
 
 function createController(view: TestView): ExchangeUpdateController {
     return new ExchangeUpdateController(view as unknown as ExchangeUpdateView);
 }
 
-function createExchangeBotBook(id: string, excCode: string, isBase: boolean): ExchangeBotBook {
+function createExchangeBotBook(
+    id: string,
+    excCode: string,
+    isBase: boolean,
+    accounts: bkper.Account[] = []
+): ExchangeBotBook {
     return {
         book: new Book({
             id,
+            accounts,
             decimalSeparator: DecimalSeparator.COMMA,
             fractionDigits: 2,
         }),
@@ -70,9 +79,10 @@ function createExchangeBotBook(id: string, excCode: string, isBase: boolean): Ex
 }
 
 function createExchangeUpdateApiResult(
-    createdTransactions: bkper.Transaction[] = []
+    createdTransactions: bkper.Transaction[] = [],
+    createdAccounts: bkper.Account[] = []
 ): ExchangeUpdateApiResult {
-    return { createdTransactions, createdAccounts: [] };
+    return { createdTransactions, createdAccounts };
 }
 
 describe('Exchange update controller', () => {
@@ -89,10 +99,15 @@ describe('Exchange update controller', () => {
         botApiService.performExchangeUpdate = mock(async () =>
             createExchangeUpdateApiResult(await updateRequest)
         );
+        bookService.loadBook = mock(async () => {
+            throw new Error('The existing Account chart should be reused');
+        });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
-            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('usd-book', 'USD', true, [
+                { id: 'cash-exchange', name: 'Cash EXC' },
+            ]),
             createExchangeBotBook('brl-book', 'BRL', false),
         ];
         view.exchangeRates = exchangeRates;
@@ -109,12 +124,12 @@ describe('Exchange update controller', () => {
             {
                 amount: '12.345',
                 description: '#exchange_loss',
-                debitAccount: { name: 'Cash EXC' },
+                debitAccount: { id: 'cash-exchange' },
             },
             {
                 amount: '2.345',
                 description: '#exchange_gain',
-                creditAccount: { name: 'Cash EXC' },
+                creditAccount: { id: 'cash-exchange' },
             },
         ]);
         await update;
@@ -123,7 +138,53 @@ describe('Exchange update controller', () => {
             status: 'COMPLETE',
             summary: '{"Cash EXC":"10,00"}',
         });
+        expect(bookService.loadBook).not.toHaveBeenCalled();
         expect(view.executing).toBe(false);
+    });
+
+    it('reloads a stale Account chart before summarizing a newly created Account', async () => {
+        const createdAccount: bkper.Account = {
+            id: 'new-exchange',
+            name: 'New Exchange',
+        };
+        botApiService.performExchangeUpdate = mock(async () =>
+            createExchangeUpdateApiResult(
+                [
+                    {
+                        amount: '4.2',
+                        description: '#exchange_loss',
+                        debitAccount: { id: 'new-exchange' },
+                    },
+                ],
+                [createdAccount]
+            )
+        );
+        const refreshedBook = new Book({
+            id: 'usd-book',
+            accounts: [createdAccount],
+            decimalSeparator: DecimalSeparator.COMMA,
+            fractionDigits: 2,
+        });
+        bookService.loadBook = mock(async () => refreshedBook);
+        const exchangeBotBook = createExchangeBotBook('usd-book', 'USD', true);
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [exchangeBotBook];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book');
+        expect(exchangeBotBook.book).toBe(refreshedBook);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'COMPLETE',
+            summary: '{"New Exchange":"4,20"}',
+        });
     });
 
     it('retries only the failed Book', async () => {

@@ -26,7 +26,7 @@ export class ExchangeUpdateService {
         bookId: string,
         exchangeRates: ExchangeRates
     ): Promise<bkper.Transaction[]> {
-        const book = await context.bkper.getBook(bookId);
+        const book = await context.bkper.getBook(bookId, true);
         const botService = new BotService(context);
         const connectedBooks = await botService.getConnectedBooks(book);
         const baseCode = botService.getBaseCode(book);
@@ -39,10 +39,16 @@ export class ExchangeUpdateService {
         const bookHistBalancesReport = historical ? null : await book.getBalancesReport(histQuery);
         const acceptedTransactions: bkper.Transaction[] = [];
 
-        for (const connectedBook of connectedBooks) {
+        for (let connectedBook of connectedBooks) {
             const connectedCode = botService.getBaseCode(connectedBook);
             const accounts = await getMatchingAccounts(book, connectedCode!);
+            if (accounts.size === 0) {
+                continue;
+            }
+
             const transactions: Transaction[] = [];
+            connectedBook = await context.bkper.getBook(connectedBook.getId(), true);
+
             const connectedBookBalancesReport = await connectedBook.getBalancesReport(query);
             const connectedBookHistBalancesReport =
                 !historical && hasHistAccount(accounts)

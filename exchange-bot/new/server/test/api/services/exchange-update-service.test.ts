@@ -12,7 +12,19 @@ afterEach(() => {
 
 function createContext(book: Book): AppContext {
     const bkper = new Bkper();
-    bkper.getBook = async () => book;
+    bkper.getBook = async bookId => {
+        if (bookId === book.getId()) {
+            return book;
+        }
+        const connectedBook = book
+            .getCollection()
+            ?.getBooks()
+            .find(candidate => candidate.getId() === bookId);
+        if (!connectedBook) {
+            throw new Error(`Unexpected Book load: ${bookId}`);
+        }
+        return connectedBook;
+    };
     return new AppContext(bkper, {
         OPEN_EXCHANGE_RATES_APP_ID: 'test-only',
         ASSETS: { fetch },
@@ -70,6 +82,66 @@ function rates(ratesByCode: Record<string, number | string>): ExchangeRates {
 }
 
 describe('legacy menu Exchange Update', () => {
+    test('loads complete charts only for the target and connected Books with matching Accounts', async () => {
+        const targetBook = createBook(
+            'usd-book',
+            'USD',
+            {},
+            {
+                collection: {
+                    books: [
+                        { id: 'usd-book', properties: { exc_code: 'USD' } },
+                        { id: 'eur-book', properties: { exc_code: 'EUR' } },
+                        { id: 'jpy-book', properties: { exc_code: 'JPY' } },
+                    ],
+                },
+            }
+        );
+        const targetAccount = createAccount(targetBook, 'target-account', 'Cash');
+        const eurGroup = createGroup(targetBook, 'eur-group', 'EUR', [targetAccount]);
+        targetBook.getGroup = async code => (code === 'EUR' ? eurGroup : undefined);
+        targetBook.getGroups = async () => [];
+        targetBook.getBalancesReport = async () => createReport(targetBook, new Map());
+        targetBook.batchCreateTransactions = async transactions => transactions;
+        targetBook.audit = () => {};
+
+        const eurBook = createBook('eur-book', 'EUR');
+        eurBook.getBalancesReport = async () => createReport(eurBook, new Map());
+        eurBook.getAccount = async () => undefined;
+        const jpyBook = createBook('jpy-book', 'JPY');
+        jpyBook.getBalancesReport = async () => createReport(jpyBook, new Map());
+        targetBook.getCollection()!.getBooks = () => [targetBook, eurBook, jpyBook];
+
+        const getBookCalls: Array<[string, boolean | undefined]> = [];
+        const bkper = new Bkper();
+        bkper.getBook = async (bookId, includeAccounts) => {
+            getBookCalls.push([bookId, includeAccounts]);
+            if (bookId === 'usd-book') {
+                return targetBook;
+            }
+            if (bookId === 'eur-book') {
+                return eurBook;
+            }
+            throw new Error(`Unexpected Book load: ${bookId}`);
+        };
+        const context = new AppContext(bkper, {
+            OPEN_EXCHANGE_RATES_APP_ID: 'test-only',
+            ASSETS: { fetch },
+        });
+
+        const result = await ExchangeUpdateService.update(
+            context,
+            'usd-book',
+            rates({ EUR: 0.8, JPY: 150 })
+        );
+
+        expect(result).toEqual([]);
+        expect(getBookCalls).toEqual([
+            ['usd-book', true],
+            ['eur-book', true],
+        ]);
+    });
+
     test('audits a successful no-op update', async () => {
         const book = createBook('usd-book', 'USD');
         book.getBalancesReport = async () => createReport(book, new Map());

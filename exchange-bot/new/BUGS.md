@@ -254,3 +254,37 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Rate edits remain local until the user starts Exchange Update.
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
+
+## 11. Connected-Book discovery and chart loading perform redundant sequential requests
+
+**Status:** Deferred API optimization until after migration stabilization.
+
+### Current migration behavior
+
+The menu API discovers connected Books through deprecated properties and Collection membership. Deprecated-property connections are loaded sequentially as lean Books inside `BotService.getConnectedBooks`, while Collection Books use their embedded payloads.
+
+Exchange Update loads the target Book with its complete chart once. For each connected Book, it first checks the target chart for matching Accounts. Only when matches exist does it load that connected Book with its complete chart before calculating and creating movements.
+
+This removes the per-Account request pattern and avoids loading a connected chart when no target Accounts match. A matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request.
+
+### Problem
+
+Sequential discovery and repeated lean/full loads add avoidable latency and API traffic. Because the client starts one Exchange Update request per eligible target Book, the redundant reads scale across both target and connected Books.
+
+### Intended optimization
+
+Evolve the menu API `BotService.getConnectedBooks` boundary to support caller-selected Book completeness, including an opt-in complete-chart mode. Resolve independent Book loads in parallel with explicit bounded concurrency while preserving deterministic result order. Allow Exchange Update to hydrate only connected Books whose currency codes have matching target Accounts, avoiding both redundant lean/full requests and unnecessary chart loads.
+
+Keep rate loading on lean Book metadata. Do not change connected-Book mutation order, transaction construction, batch order, audit behavior, or movement direction and amount.
+
+### Acceptance criteria
+
+- Callers explicitly choose whether connected Books require lean metadata or complete Accounts and Groups.
+- Exchange-rate loading does not fetch complete charts.
+- Exchange Update does not fetch a connected chart when no target Accounts match its currency code.
+- A matching deprecated-property Book is not loaded once lean and again with its complete chart.
+- Independent read-only Book loads can run in parallel under an explicit concurrency bound.
+- Parallel loading preserves deterministic connected-Book result order.
+- Connected-Book transaction batches retain their established mutation order.
+- Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
+- Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.

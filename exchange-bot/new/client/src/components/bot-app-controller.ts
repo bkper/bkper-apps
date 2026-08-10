@@ -1,5 +1,6 @@
 import type { Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
+import { appEnv } from './../app-env.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
@@ -27,15 +28,14 @@ export class BotAppController implements ReactiveController {
 
     async initialize(): Promise<void> {
         try {
-            this.view.embedded =
-                new URL(self.location.href).searchParams.get('embedded') === 'true';
+            this.view.embedded = appEnv.getSearchParam('embedded') === 'true';
 
             await authService.init();
             if (!authService.accessToken) {
                 return;
             }
 
-            const bookId = new URL(self.location.href).searchParams.get('bookId');
+            const bookId = appEnv.getSearchParam('bookId');
             if (!bookId) {
                 throw new Error('Error: Missing bookId URL param');
             }

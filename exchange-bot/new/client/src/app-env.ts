@@ -9,6 +9,10 @@ class AppEnv {
         return this.isLocal() ? self.location.origin : undefined;
     }
 
+    getSearchParam(name: string): string | null {
+        return new URL(self.location.href).searchParams.get(name);
+    }
+
     isLocal(): boolean {
         return self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
     }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { Book } from 'bkper-js';
+import { Book, DecimalSeparator } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type { ExchangeRates } from '../../../src/api/generated/types.js';
 import type { ExchangeBotBook } from '../../../src/types.js';
@@ -54,6 +54,18 @@ function createController(view: TestView): ExchangeUpdateController {
     return new ExchangeUpdateController(view as unknown as ExchangeUpdateView);
 }
 
+function createExchangeBotBook(id: string, excCode: string, isBase: boolean): ExchangeBotBook {
+    return {
+        book: new Book({
+            id,
+            decimalSeparator: DecimalSeparator.COMMA,
+            fractionDigits: 2,
+        }),
+        excCode,
+        isBase,
+    };
+}
+
 describe('Exchange update controller', () => {
     it('runs edited rates once for each eligible Book and summarizes accepted movements', async () => {
         const exchangeRates: ExchangeRates = {
@@ -69,8 +81,8 @@ describe('Exchange update controller', () => {
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
-            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
-            { id: 'brl-book', code: 'BRL', isBase: false, fractionDigits: 2 },
+            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('brl-book', 'BRL', false),
         ];
         view.exchangeRates = exchangeRates;
         const controller = createController(view);
@@ -98,7 +110,7 @@ describe('Exchange update controller', () => {
 
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{"Cash EXC":"10.00"}',
+            summary: '{"Cash EXC":"10,00"}',
         });
         expect(view.executing).toBe(false);
     });
@@ -116,8 +128,8 @@ describe('Exchange update controller', () => {
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
-            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
-            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('eur-book', 'EUR', true),
         ];
         view.exchangeRates = {
             base: 'USD',
@@ -154,8 +166,8 @@ describe('Exchange update controller', () => {
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
-            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
-            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('eur-book', 'EUR', true),
         ];
         view.exchangeRates = {
             base: 'USD',
@@ -205,8 +217,8 @@ describe('Exchange update controller', () => {
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
-            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
-            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('eur-book', 'EUR', true),
         ];
         view.exchangeRates = {
             base: 'USD',
@@ -241,7 +253,7 @@ describe('Exchange update controller', () => {
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
-        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.books = [createExchangeBotBook('usd-book', 'USD', true)];
         view.exchangeRates = {
             base: 'USD',
             date: '2026-08-06',
@@ -265,7 +277,7 @@ describe('Exchange update controller', () => {
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
-        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.books = [createExchangeBotBook('usd-book', 'USD', true)];
         view.exchangeRates = {
             base: 'USD',
             date: '2026-08-06',
@@ -293,7 +305,7 @@ describe('Exchange update controller', () => {
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
-        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.books = [createExchangeBotBook('usd-book', 'USD', true)];
         view.exchangeRates = {
             base: 'USD',
             date: '2026-08-06',

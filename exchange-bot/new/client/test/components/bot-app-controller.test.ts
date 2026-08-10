@@ -178,12 +178,12 @@ describe('Bot app controller', () => {
 
         expect(view.books).toEqual([
             {
-                id: 'connected-book',
-                code: 'BRL',
+                book: connectedBook,
+                excCode: 'BRL',
                 isBase: false,
             },
-            { id: 'base-book', code: 'EUR', isBase: true },
-            { id: 'book-id', code: 'USD', isBase: false },
+            { book: baseBook, excCode: 'EUR', isBase: true },
+            { book: selectedBook, excCode: 'USD', isBase: false },
         ]);
         expect(view.basePermissionGranted).toBe(true);
         expect(view.permissionGranted).toBe(true);
@@ -218,7 +218,7 @@ describe('Bot app controller', () => {
         configuredExcCodes = new Set<string>();
         await controller.initialize();
 
-        expect(view.books.map(book => book.id)).toEqual(['connected-book', 'book-id']);
+        expect(view.books.map(book => book.book.getId())).toEqual(['connected-book', 'book-id']);
         expect(view.permissionGranted).toBe(true);
         expect(view.permissionError).toBe('');
     });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Book } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import type { ExchangeBotBook } from '../../../src/types.js';
@@ -71,11 +72,11 @@ describe('Exchange update view', () => {
     it('renders a spinner and retry progress beside the Book being retried', () => {
         const view = new ExchangeUpdateView();
         const book: ExchangeBotBook = {
-            id: 'usd-book',
-            code: 'USD',
+            book: new Book({ id: 'usd-book' }),
+            excCode: 'USD',
             isBase: true,
         };
-        view.results.set(book.id, {
+        view.results.set(book.book.getId(), {
             status: ExchangeUpdateStatus.RETRYING,
             retryCount: 1,
             retryLimit: 5,

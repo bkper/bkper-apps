@@ -118,10 +118,9 @@ export class BotAppController implements ReactiveController {
 
     private createExchangeBotBook(book: Book, hasBaseBook: boolean): ExchangeBotBook {
         return {
-            id: book.getId(),
-            code: Utils.getExcCode(book),
+            book,
+            excCode: Utils.getExcCode(book),
             isBase: Utils.isBaseBook(book) || !hasBaseBook,
-            fractionDigits: book.getFractionDigits(),
         };
     }
 

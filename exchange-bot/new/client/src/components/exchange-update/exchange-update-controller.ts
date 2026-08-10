@@ -1,4 +1,4 @@
-import { Book, Transaction } from 'bkper-js';
+import { Transaction } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import type { ExchangeRates } from '../../api/generated/types.js';
 import { botApiService } from './../../services/bot-api-service.js';
@@ -95,7 +95,7 @@ export class ExchangeUpdateController implements ReactiveController {
 
         this.view.executing = true;
         this.view.results = new Map(
-            baseBooks.map(book => [book.id, { status: ExchangeUpdateStatus.WAITING }])
+            baseBooks.map(b => [b.book.getId(), { status: ExchangeUpdateStatus.WAITING }])
         );
 
         try {
@@ -112,14 +112,15 @@ export class ExchangeUpdateController implements ReactiveController {
         exchangeRates: ExchangeRates
     ): Promise<void> {
         let retryCount = 0;
+        const bookId = book.book.getId();
 
         while (true) {
             try {
                 const transactionPayloads = await botApiService.performExchangeUpdate(
-                    book.id,
+                    bookId,
                     exchangeRates
                 );
-                this.setExchangeUpdateResult(book.id, {
+                this.setExchangeUpdateResult(bookId, {
                     status: ExchangeUpdateStatus.COMPLETE,
                     summary: this.summarizeAcceptedTransactions(book, transactionPayloads),
                 });
@@ -130,7 +131,7 @@ export class ExchangeUpdateController implements ReactiveController {
                     'Exchange Update could not be completed. Please try again.'
                 );
                 if (!this.shouldRetryExchangeUpdate(message, retryCount)) {
-                    this.setExchangeUpdateResult(book.id, {
+                    this.setExchangeUpdateResult(bookId, {
                         status: ExchangeUpdateStatus.ERROR,
                         error: message,
                     });
@@ -138,7 +139,7 @@ export class ExchangeUpdateController implements ReactiveController {
                 }
 
                 retryCount++;
-                this.setExchangeUpdateResult(book.id, {
+                this.setExchangeUpdateResult(bookId, {
                     status: ExchangeUpdateStatus.RETRYING,
                     retryCount,
                     retryLimit: this.maxRetryCount,
@@ -152,17 +153,17 @@ export class ExchangeUpdateController implements ReactiveController {
     }
 
     private summarizeAcceptedTransactions(
-        appBook: ExchangeBotBook,
+        book: ExchangeBotBook,
         transactionPayloads: bkper.Transaction[]
     ): string {
-        const book = new Book({ id: appBook.id, fractionDigits: appBook.fractionDigits });
-        const transactions = transactionPayloads.map(tx => new Transaction(book, tx));
+        const bookInstance = book.book;
+        const transactions = transactionPayloads.map(tx => new Transaction(bookInstance, tx));
         const summary = Utils.summarizeExchangeUpdateTransactions(transactions);
         return JSON.stringify(
             Object.fromEntries(
                 Array.from(summary, ([accountName, amount]) => [
                     accountName,
-                    book.round(amount).toFixed(book.getFractionDigits()),
+                    bookInstance.formatValue(amount),
                 ])
             )
         );

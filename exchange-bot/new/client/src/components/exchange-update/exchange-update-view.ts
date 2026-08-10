@@ -111,12 +111,12 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderExchangeUpdateResults(code: string): TemplateResult {
-        const books = this.books.filter(book => book.isBase && book.code === code);
+        const books = this.books.filter(b => b.isBase && b.excCode === code);
         return html`${books.map(book => this.renderExchangeUpdateResult(book))}`;
     }
 
     private renderExchangeUpdateResult(book: ExchangeBotBook): TemplateResult {
-        const result = this.results.get(book.id);
+        const result = this.results.get(book.book.getId());
         if (!result) {
             return html``;
         }

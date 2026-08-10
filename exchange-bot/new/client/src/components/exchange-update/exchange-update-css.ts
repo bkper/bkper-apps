@@ -52,7 +52,7 @@ export const exchangeUpdateCSS = css`
         align-items: center;
     }
 
-    .update-result.waiting wa-spinner {
+    .update-result:is(.waiting, .retrying) wa-spinner {
         font-size: 1.25rem;
         --track-width: 0.125em;
     }

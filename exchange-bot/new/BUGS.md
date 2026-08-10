@@ -173,38 +173,7 @@ After migration stabilization, define explicit client states for blocking valida
 - Message presentation is separate from action-availability logic.
 - Deterministic client tests cover presentation, action availability, and request boundaries for each classification without accessing live Books.
 
-## 8. Exchange Update retries rerun every eligible Book
-
-**Status:** Deferred until after migration stabilization.
-
-### Current legacy behavior
-
-The menu starts one Exchange Update request for every eligible Book. When any request fails, one shared retry handler calls the complete Exchange Update operation again. This resubmits every eligible Book rather than retrying only the Book whose request failed.
-
-The retry handler also uses one shared retry count and one shared error panel. Parallel failures therefore share retry state and can overwrite each other's messages while other Book updates remain in progress or have already succeeded.
-
-### Problem
-
-A failure in one Book can cause successful or in-flight Books to be submitted again. Because each submission can create exchange-adjustment movements, resubmitting unrelated Books introduces a duplicate-movement risk. Shared retry and error state also prevents the UI from clearly identifying independent failures across multiple Books.
-
-### Intended fix
-
-Track each eligible Book as an independent Exchange Update operation. Retry only the failed Book, keep successful and in-flight Books untouched, and show progress, retry attempts, results, and final errors separately for each Book.
-
-This intentionally changes both request orchestration and UI behavior, so it must not be combined with the parity migration.
-
-### Acceptance criteria
-
-- The initial run still starts one Exchange Update request for each eligible Book.
-- A failed request retries only its own Book id.
-- Successful and in-flight Book operations are never resubmitted by another Book's failure.
-- Parallel failures maintain independent retry counts and messages.
-- The UI identifies the Book associated with every waiting, retrying, successful, and failed state.
-- Retrying one Book cannot clear or overwrite another Book's result or error.
-- Deterministic client tests cover mixed success, one failure, and multiple parallel failures without accessing live Books.
-- Tests prove that each accepted update still produces only complete movements with one origin Account, one destination Account, and one amount.
-
-## 9. Post-mutation summary failures are reported as operation failures
+## 8. Post-mutation summary failures are reported as operation failures
 
 **Status:** Deferred until after migration stabilization.
 
@@ -231,7 +200,7 @@ Track mutation outcome separately from summary and presentation outcome. Once th
 - Per-Book mutation and summary outcomes remain independent.
 - Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
 
-## 10. Edited rates retain results from the previous Exchange Update
+## 9. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -255,7 +224,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 11. Connected-Book discovery and chart loading perform redundant sequential requests
+## 10. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Deferred connected-Book loading optimization until after migration stabilization. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -288,3 +257,29 @@ Keep rate loading on lean Book metadata. Do not change connected-Book mutation o
 - Connected-Book transaction batches retain their established mutation order.
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
+
+## 11. Exchange Update retries lack delay and structured error classification
+
+**Status:** Deferred retry-policy improvement.
+
+### Current migration behavior
+
+A failed Exchange Update retries only its own Book up to five times. Retries start immediately for every error except one whose message contains the established `not found in` text. The client API currently exposes plain error messages rather than the structured HTTP status and response metadata needed for a more selective policy.
+
+### Problem
+
+Immediate retries can repeat temporary rate-limit or infrastructure failures without giving the dependency time to recover. Message-only classification also cannot reliably distinguish retryable transport failures from permanent business failures or honor a server-provided `Retry-After` value.
+
+### Intended improvement
+
+Preserve independent per-Book retry state while introducing structured error classification. Retry only explicitly accepted transient failures and apply a bounded delay policy, preferring valid server-provided retry timing and otherwise using an explicitly chosen backoff schedule.
+
+### Acceptance criteria
+
+- Successful and in-flight Books remain untouched when another Book retries.
+- Retryable and non-retryable failures are classified from structured error data rather than message text where the API boundary provides it.
+- A valid `Retry-After` value is honored within an explicit maximum delay.
+- Transient failures without server timing use a documented bounded delay schedule.
+- Permanent failures stop immediately with the final per-Book error.
+- Per-Book retry progress remains visible during each delay and request.
+- Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.

@@ -15,7 +15,16 @@ class TestView implements ReactiveControllerHost {
     ratesError = '';
     books: BotAppBook[] = [];
     executing = false;
-    results = new Map<string, { status: string; summary?: string; error?: string }>();
+    results = new Map<
+        string,
+        {
+            status: string;
+            summary?: string;
+            error?: string;
+            retryCount?: number;
+            retryLimit?: number;
+        }
+    >();
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -94,9 +103,12 @@ describe('Exchange update controller', () => {
         expect(view.executing).toBe(false);
     });
 
-    it('keeps successful and failed per-Book results without retrying a mutation', async () => {
+    it('retries only the failed Book', async () => {
+        const requestedBookIds: string[] = [];
+        let eurAttempts = 0;
         botApiService.performExchangeUpdate = mock(async bookId => {
-            if (bookId === 'eur-book') {
+            requestedBookIds.push(bookId);
+            if (bookId === 'eur-book' && eurAttempts++ === 0) {
                 throw new Error('EUR update failed');
             }
             return [];
@@ -116,16 +128,187 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
-        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(2);
+        expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
             summary: '{}',
         });
         expect(view.results.get('eur-book')).toEqual({
-            status: 'ERROR',
-            error: 'EUR update failed',
+            status: 'COMPLETE',
+            summary: '{}',
         });
         expect(view.executing).toBe(false);
+    });
+
+    it('keeps independent retry counts for parallel failures', async () => {
+        const attempts = new Map<string, number>();
+        botApiService.performExchangeUpdate = mock(async bookId => {
+            const attempt = (attempts.get(bookId) ?? 0) + 1;
+            attempts.set(bookId, attempt);
+            const failures = bookId === 'usd-book' ? 1 : 2;
+            if (attempt <= failures) {
+                throw new Error(`${bookId} update failed`);
+            }
+            return [];
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [
+            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
+            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+        ];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: { EUR: 0.8 },
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(attempts).toEqual(
+            new Map([
+                ['usd-book', 2],
+                ['eur-book', 3],
+            ])
+        );
+        expect(view.results.get('usd-book')?.status).toBe('COMPLETE');
+        expect(view.results.get('eur-book')?.status).toBe('COMPLETE');
+    });
+
+    it('shows retry progress without resubmitting another in-flight Book', async () => {
+        const requestedBookIds: string[] = [];
+        let eurAttempts = 0;
+        let resolveUsdUpdate: (transactions: bkper.Transaction[]) => void = () => {};
+        const usdUpdateRequest = new Promise<bkper.Transaction[]>(resolve => {
+            resolveUsdUpdate = resolve;
+        });
+        let resolveRetryStarted: () => void = () => {};
+        const retryStarted = new Promise<void>(resolve => {
+            resolveRetryStarted = resolve;
+        });
+        let resolveRetry: (transactions: bkper.Transaction[]) => void = () => {};
+        const retryRequest = new Promise<bkper.Transaction[]>(resolve => {
+            resolveRetry = resolve;
+        });
+        botApiService.performExchangeUpdate = mock(async bookId => {
+            requestedBookIds.push(bookId);
+            if (bookId === 'eur-book' && eurAttempts++ === 0) {
+                throw new Error('EUR update failed');
+            }
+            if (bookId === 'eur-book') {
+                resolveRetryStarted();
+                return retryRequest;
+            }
+            return usdUpdateRequest;
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [
+            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
+            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+        ];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: { EUR: 0.8 },
+        };
+        const controller = createController(view);
+
+        const update = controller.runExchangeUpdate();
+        await retryStarted;
+
+        expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
+        expect(view.results.get('usd-book')).toEqual({ status: 'WAITING' });
+        expect(view.results.get('eur-book')).toEqual({
+            status: 'RETRYING',
+            retryCount: 1,
+            retryLimit: 5,
+        });
+
+        resolveUsdUpdate([]);
+        resolveRetry([]);
+        await update;
+        expect(view.results.get('eur-book')).toEqual({
+            status: 'COMPLETE',
+            summary: '{}',
+        });
+    });
+
+    it('stops after five retries and exposes the final error', async () => {
+        botApiService.performExchangeUpdate = mock(async () => {
+            throw new Error('Update failed');
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(6);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'ERROR',
+            error: 'Update failed',
+        });
+        expect(view.executing).toBe(false);
+    });
+
+    it('does not retry an error containing the legacy non-retryable text', async () => {
+        botApiService.performExchangeUpdate = mock(async () => {
+            throw new Error('Account not found in USD book');
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(1);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'ERROR',
+            error: 'Account not found in USD book',
+        });
+    });
+
+    it('starts each user-initiated run with a fresh retry count', async () => {
+        let attempts = 0;
+        botApiService.performExchangeUpdate = mock(async () => {
+            attempts++;
+            if (attempts % 2 === 1) {
+                throw new Error('Update failed');
+            }
+            return [];
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [{ id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 }];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(4);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'COMPLETE',
+            summary: '{}',
+        });
     });
 
     it('loads rates for the supplied date', async () => {

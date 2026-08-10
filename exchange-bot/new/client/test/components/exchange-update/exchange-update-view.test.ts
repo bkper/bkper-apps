@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import type { TemplateResult } from 'lit';
-import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
+import {
+    type BotAppBook,
+    ExchangeUpdateView,
+} from '../../../src/components/exchange-update/exchange-update-view.js';
+import { ExchangeUpdateStatus } from '../../../src/components/exchange-update/exchange-update-controller.js';
 
 type RateChangeHandler = (this: ExchangeUpdateView, code: string, event: Event) => void;
 
@@ -11,6 +15,10 @@ const handleRateChanged = Reflect.get(
 const renderActions = Reflect.get(ExchangeUpdateView.prototype, 'renderActions') as (
     this: ExchangeUpdateView
 ) => TemplateResult;
+const renderExchangeUpdateResult = Reflect.get(
+    ExchangeUpdateView.prototype,
+    'renderExchangeUpdateResult'
+) as (this: ExchangeUpdateView, book: BotAppBook) => TemplateResult;
 
 describe('Exchange update view', () => {
     it('hides Exchange Update actions when disabled', () => {
@@ -33,6 +41,25 @@ describe('Exchange update view', () => {
 
         view.executing = true;
         expect(renderActions.call(view).values[0]).toBe(true);
+    });
+
+    it('renders a spinner and retry progress beside the Book being retried', () => {
+        const view = new ExchangeUpdateView();
+        const book: BotAppBook = {
+            id: 'usd-book',
+            code: 'USD',
+            isBase: true,
+        };
+        view.results.set(book.id, {
+            status: ExchangeUpdateStatus.RETRYING,
+            retryCount: 1,
+            retryLimit: 5,
+        });
+
+        const result = renderExchangeUpdateResult.call(view, book);
+
+        expect(result.strings.join('')).toContain('<wa-spinner>');
+        expect(result.values).toEqual([1, 5]);
     });
 
     it('updates a zero exchange rate', () => {

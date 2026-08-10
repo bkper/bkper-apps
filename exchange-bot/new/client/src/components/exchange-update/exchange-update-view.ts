@@ -127,6 +127,14 @@ export class ExchangeUpdateView extends LitElement {
         if (result.status === ExchangeUpdateStatus.WAITING) {
             return html`<div class="update-result waiting"><wa-spinner></wa-spinner></div>`;
         }
+        if (result.status === ExchangeUpdateStatus.RETRYING) {
+            return html`
+                <div class="update-result retrying">
+                    <wa-spinner></wa-spinner>
+                    <span>Retrying ${result.retryCount}/${result.retryLimit}...</span>
+                </div>
+            `;
+        }
         if (result.status === ExchangeUpdateStatus.ERROR) {
             return html`<div class="update-result error" role="alert">${result.error}</div>`;
         }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { Book } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type { ExchangeRates } from '../../../src/api/generated/types.js';
+import type { BotAppBook } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
@@ -12,6 +13,9 @@ class TestView implements ReactiveControllerHost {
     exchangeRates?: ExchangeRates;
     ratesLoading = false;
     ratesError = '';
+    books: BotAppBook[] = [];
+    executing = false;
+    results = new Map<string, { status: string; summary?: string; error?: string }>();
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -30,9 +34,11 @@ class TestView implements ReactiveControllerHost {
 }
 
 const originalLoadRates = botApiService.loadExchangeRates;
+const originalPerformExchangeUpdate = botApiService.performExchangeUpdate;
 
 afterEach(() => {
     botApiService.loadExchangeRates = originalLoadRates;
+    botApiService.performExchangeUpdate = originalPerformExchangeUpdate;
 });
 
 function createController(view: TestView): ExchangeUpdateController {
@@ -40,6 +46,88 @@ function createController(view: TestView): ExchangeUpdateController {
 }
 
 describe('Exchange update controller', () => {
+    it('runs edited rates once for each eligible Book and summarizes accepted movements', async () => {
+        const exchangeRates: ExchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: { BRL: '5.4' },
+        };
+        let resolveUpdate: (transactions: bkper.Transaction[]) => void = () => {};
+        const updateRequest = new Promise<bkper.Transaction[]>(resolve => {
+            resolveUpdate = resolve;
+        });
+        botApiService.performExchangeUpdate = mock(async () => updateRequest);
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [
+            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
+            { id: 'brl-book', code: 'BRL', isBase: false, fractionDigits: 2 },
+        ];
+        view.exchangeRates = exchangeRates;
+        const controller = createController(view);
+
+        const update = controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(1);
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledWith('usd-book', exchangeRates);
+        expect(view.executing).toBe(true);
+        expect(view.results.get('usd-book')).toEqual({ status: 'WAITING' });
+
+        resolveUpdate([
+            {
+                amount: '12.345',
+                description: '#exchange_loss',
+                debitAccount: { name: 'Cash EXC' },
+            },
+            {
+                amount: '2.345',
+                description: '#exchange_gain',
+                creditAccount: { name: 'Cash EXC' },
+            },
+        ]);
+        await update;
+
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'COMPLETE',
+            summary: '{"Cash EXC":"10.00"}',
+        });
+        expect(view.executing).toBe(false);
+    });
+
+    it('keeps successful and failed per-Book results without retrying a mutation', async () => {
+        botApiService.performExchangeUpdate = mock(async bookId => {
+            if (bookId === 'eur-book') {
+                throw new Error('EUR update failed');
+            }
+            return [];
+        });
+        const view = new TestView();
+        view.book = new Book({ id: 'selected-book' });
+        view.books = [
+            { id: 'usd-book', code: 'USD', isBase: true, fractionDigits: 2 },
+            { id: 'eur-book', code: 'EUR', isBase: true, fractionDigits: 2 },
+        ];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: { EUR: 0.8 },
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(2);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'COMPLETE',
+            summary: '{}',
+        });
+        expect(view.results.get('eur-book')).toEqual({
+            status: 'ERROR',
+            error: 'EUR update failed',
+        });
+        expect(view.executing).toBe(false);
+    });
+
     it('loads rates for the supplied date', async () => {
         const book = new Book({
             id: 'book-id',
@@ -61,6 +149,28 @@ describe('Exchange update controller', () => {
         expect(view.date).toBe(exchangeRates.date);
         expect(botApiService.loadExchangeRates).toHaveBeenCalledWith('book-id', view.date);
         expect(view.exchangeRates).toBe(exchangeRates);
+    });
+
+    it('clears results after rates for a new date load successfully', async () => {
+        const exchangeRates: ExchangeRates = {
+            base: 'USD',
+            date: '2026-08-07',
+            rates: { BRL: 5.5 },
+        };
+        botApiService.loadExchangeRates = async () => exchangeRates;
+        const view = new TestView();
+        view.book = new Book({ id: 'book-id' });
+        view.date = exchangeRates.date;
+        view.results.set('book-id', {
+            status: 'COMPLETE',
+            summary: '{"Cash EXC":"10.00"}',
+        });
+        const controller = createController(view);
+
+        await controller.loadRates();
+
+        expect(view.exchangeRates).toBe(exchangeRates);
+        expect(view.results.size).toBe(0);
     });
 
     it('keeps the Book and date available when rates cannot be loaded', async () => {

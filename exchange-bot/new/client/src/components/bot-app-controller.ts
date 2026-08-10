@@ -117,7 +117,8 @@ export class BotAppController implements ReactiveController {
         return {
             id: book.getId(),
             code: Utils.getExcCode(book),
-            base: Utils.isBaseBook(book) || !hasBaseBook,
+            isBase: Utils.isBaseBook(book) || !hasBaseBook,
+            fractionDigits: book.getFractionDigits(),
         };
     }
 

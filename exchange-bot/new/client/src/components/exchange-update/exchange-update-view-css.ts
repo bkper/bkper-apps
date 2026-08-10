@@ -38,6 +38,30 @@ export const exchangeUpdateCSS = css`
         gap: var(--bkper-spacing-small);
     }
 
+    .rate {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--bkper-spacing-small);
+        align-items: end;
+    }
+
+    .update-result {
+        display: flex;
+        height: 38px;
+        gap: var(--bkper-spacing-x-small);
+        align-items: center;
+    }
+
+    .update-result.waiting wa-spinner {
+        font-size: 1.25rem;
+        --track-width: 0.125em;
+    }
+
+    .update-result.complete wa-icon {
+        font-size: 16px;
+        color: var(--bkper-color-success);
+    }
+
     .actions {
         display: flex;
         justify-content: flex-start;

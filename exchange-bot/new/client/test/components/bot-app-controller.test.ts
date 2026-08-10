@@ -155,10 +155,10 @@ describe('Bot app controller', () => {
             {
                 id: 'connected-book',
                 code: 'BRL',
-                base: false,
+                isBase: false,
             },
-            { id: 'base-book', code: 'EUR', base: true },
-            { id: 'book-id', code: 'USD', base: false },
+            { id: 'base-book', code: 'EUR', isBase: true },
+            { id: 'book-id', code: 'USD', isBase: false },
         ]);
         expect(view.basePermissionGranted).toBe(true);
         expect(view.permissionGranted).toBe(true);

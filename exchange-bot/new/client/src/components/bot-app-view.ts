@@ -58,6 +58,7 @@ export class BotAppView extends LitElement {
                     .book=${this.book}
                     .books=${this.books}
                     .date=${this.initialDate}
+                    .disabled=${!this.basePermissionGranted}
                 ></exchange-update>
                 ${this.renderPermissionError()}
             `;

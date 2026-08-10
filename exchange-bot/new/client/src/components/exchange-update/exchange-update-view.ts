@@ -3,14 +3,19 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { ExchangeRates } from '../../api/generated/types.js';
-import { ExchangeUpdateController } from './exchange-update-controller.js';
+import {
+    ExchangeUpdateController,
+    type ExchangeUpdateResult,
+    ExchangeUpdateStatus,
+} from './exchange-update-controller.js';
 import { exchangeUpdateCSS } from './exchange-update-view-css.js';
 import { sharedCSS } from '../shared-css.js';
 
 export interface BotAppBook {
     id: string;
     code: string | undefined;
-    base: boolean;
+    isBase: boolean;
+    fractionDigits?: number;
 }
 
 @customElement('exchange-update')
@@ -26,6 +31,9 @@ export class ExchangeUpdateView extends LitElement {
     @property({ attribute: false })
     date = '';
 
+    @property({ type: Boolean })
+    disabled = false;
+
     @state()
     exchangeRates?: ExchangeRates;
 
@@ -34,6 +42,12 @@ export class ExchangeUpdateView extends LitElement {
 
     @state()
     ratesError = '';
+
+    @state()
+    executing = false;
+
+    @state()
+    results = new Map<string, ExchangeUpdateResult>();
 
     static styles = [sharedCSS, exchangeUpdateCSS];
 
@@ -56,13 +70,7 @@ export class ExchangeUpdateView extends LitElement {
                 @change=${this.handleDateChanged}
                 @blur=${this.handleDateBlurred}
             ></wa-input>
-            ${this.renderRates()}
-            <div class="actions">
-                <!-- TODO: Wire the Run button to Exchange Update orchestration. -->
-                <wa-button variant="brand" appearance="accent" size="small" type="button">
-                    Run
-                </wa-button>
-            </div>
+            ${this.renderRates()} ${this.renderActions()}
         `;
     }
 
@@ -92,15 +100,67 @@ export class ExchangeUpdateView extends LitElement {
 
     private renderRate(code: string, rate: number | string, disabled = false): TemplateResult {
         return html`
-            <wa-input
-                class="rate-input"
-                label=${code}
-                .value=${String(rate)}
-                size="small"
-                ?disabled=${disabled}
-                @change=${(event: Event) => this.handleRateChanged(code, event)}
-            ></wa-input>
+            <div class="rate">
+                <wa-input
+                    class="rate-input"
+                    label=${code}
+                    .value=${String(rate)}
+                    size="small"
+                    ?disabled=${disabled}
+                    @change=${(event: Event) => this.handleRateChanged(code, event)}
+                ></wa-input>
+                ${this.renderExchangeUpdateResults(code)}
+            </div>
         `;
+    }
+
+    private renderExchangeUpdateResults(code: string): TemplateResult {
+        const books = this.books.filter(book => book.isBase && book.code === code);
+        return html`${books.map(book => this.renderExchangeUpdateResult(book))}`;
+    }
+
+    private renderExchangeUpdateResult(book: BotAppBook): TemplateResult {
+        const result = this.results.get(book.id);
+        if (!result) {
+            return html``;
+        }
+        if (result.status === ExchangeUpdateStatus.WAITING) {
+            return html`<div class="update-result waiting"><wa-spinner></wa-spinner></div>`;
+        }
+        if (result.status === ExchangeUpdateStatus.ERROR) {
+            return html`<div class="update-result error" role="alert">${result.error}</div>`;
+        }
+        return html`
+            <div class="update-result complete">
+                <wa-icon name="check_circle" label="Done"></wa-icon>
+                <span>Done! ${result.summary}</span>
+            </div>
+        `;
+    }
+
+    private renderActions(): TemplateResult {
+        if (this.disabled) {
+            return html``;
+        }
+        const runDisabled = !this.exchangeRates || this.ratesLoading || this.executing;
+        return html`
+            <div class="actions">
+                <wa-button
+                    variant="brand"
+                    appearance="accent"
+                    size="small"
+                    type="button"
+                    ?disabled=${runDisabled}
+                    @click=${this.handleRunClicked}
+                >
+                    Run
+                </wa-button>
+            </div>
+        `;
+    }
+
+    private handleRunClicked(): void {
+        this.controller.runExchangeUpdate();
     }
 
     private handleDateChanged(event: Event): void {

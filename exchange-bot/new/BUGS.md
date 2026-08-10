@@ -103,7 +103,7 @@ The client and server API implementations both preserve this behavior.
 
 ### Problem
 
-Duplicate Book instances cause repeated context validation and duplicate UI context entries. More importantly, the exchange-update service can process the same connected Book multiple times using the same preloaded balances report, potentially creating duplicate exchange-adjustment movements.
+Duplicate Book instances cause repeated context validation and duplicate UI context entries. Duplicate eligible entries can also submit concurrent Exchange Update requests for the same target Book. In addition, the exchange-update service can process the same connected Book multiple times using the same preloaded balances report. Each path can create duplicate exchange-adjustment movements.
 
 ### Intended fix
 
@@ -115,6 +115,7 @@ Deduplicate connected Books by `book.getId()` while preserving first-discovery o
 - A Book configured through both deprecated properties and Collection membership is returned once.
 - First-discovery order remains deterministic.
 - Context validation runs once per Book id.
+- The client submits each eligible target Book id once per Exchange Update run.
 - Exchange update processes each connected Book id once.
 - Deterministic client and server tests cover duplicate configuration sources without accessing live Books.
 
@@ -202,3 +203,54 @@ This intentionally changes both request orchestration and UI behavior, so it mus
 - Retrying one Book cannot clear or overwrite another Book's result or error.
 - Deterministic client tests cover mixed success, one failure, and multiple parallel failures without accessing live Books.
 - Tests prove that each accepted update still produces only complete movements with one origin Account, one destination Account, and one amount.
+
+## 9. Post-mutation summary failures are reported as operation failures
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+The GAS `updateGainLoss` operation creates transactions and then builds its summary within the same server call. If summary construction fails after transaction creation, the client receives a failure and enters its retry flow even though some or all mutations may already have succeeded.
+
+The migration target preserves one broad failure boundary around the Exchange Update POST and client-side summary construction. A summary or formatting error after a successful POST is therefore presented as an Exchange Update failure.
+
+### Problem
+
+Once a mutation has been accepted, reporting it as failed can encourage the user or retry flow to submit it again. Repeating an Exchange Update from the same pre-update context can create duplicate adjustment movements. Presentation failures must not obscure a known successful mutation outcome.
+
+### Intended fix
+
+Track mutation outcome separately from summary and presentation outcome. Once the API confirms a successful Exchange Update, retain a successful operation state even if its summary cannot be produced. Report summary failures as non-mutating warnings without offering mutation retry as the remedy.
+
+### Acceptance criteria
+
+- A failed POST remains an Exchange Update failure.
+- A successful POST remains successful even when summary construction or formatting fails.
+- Summary failures display a clear non-mutating warning.
+- Summary failures never automatically retry or recommend rerunning the accepted mutation.
+- Per-Book mutation and summary outcomes remain independent.
+- Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
+
+## 10. Edited rates retain results from the previous Exchange Update
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+Successfully loading rates for another date rebuilds the GAS rates panel and clears previous results. The migration target also clears results after the latest rate-loading request succeeds. However, manually editing a displayed exchange rate does not clear a previous Exchange Update result in either implementation.
+
+### Problem
+
+A completed result can remain visible beside a rate value that has changed since that result was produced. This can make an edited, unprocessed rate appear to have already completed successfully.
+
+### Intended fix
+
+Invalidate prior results whenever a user edits an exchange rate, without triggering a mutation or silently reverting the edited value.
+
+### Acceptance criteria
+
+- A successful rate reload clears results from the previous date.
+- Editing any rate clears or explicitly marks previous results as stale.
+- Rate edits remain local until the user starts Exchange Update.
+- Clearing stale presentation state performs no API mutation.
+- Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.

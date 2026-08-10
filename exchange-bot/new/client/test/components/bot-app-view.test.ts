@@ -30,11 +30,12 @@ describe('Bot app view', () => {
     it('passes the initialized Book and context Books to the exchange update child', () => {
         const view = new BotAppView();
         const book = new Book({ id: 'book-id' });
-        const books = [{ id: 'book-id', code: 'USD', base: true }];
+        const books = [{ id: 'book-id', code: 'USD', isBase: true }];
         const initialDate = '2026-08-06';
         view.book = book;
         view.books = books;
         view.initialDate = initialDate;
+        view.basePermissionGranted = true;
         view.appState = BotAppState.READY;
 
         const result = renderBody.call(view);
@@ -42,6 +43,7 @@ describe('Bot app view', () => {
         expect(result.values[0]).toBe(book);
         expect(result.values[1]).toBe(books);
         expect(result.values[2]).toBe(initialDate);
+        expect(result.values[3]).toBe(false);
     });
 
     it('renders menu initialization warnings', () => {

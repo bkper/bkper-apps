@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { Book, Permission, Transaction } from 'bkper-js';
 import { Utils } from '../src/utils.js';
+
+function summarizeValues(transactions: Transaction[]): Record<string, string> {
+    return Object.fromEntries(
+        Array.from(Utils.summarizeExchangeUpdateTransactions(transactions), ([name, amount]) => [
+            name,
+            amount.toString(),
+        ])
+    );
+}
+
+function wrapTransactions(payloads: bkper.Transaction[]): Transaction[] {
+    const book = new Book({ id: 'book-id' });
+    return payloads.map(payload => new Transaction(book, payload));
+}
 
 describe('Utils', () => {
     it('preserves exchange-code aliases and base-Book rules', () => {
@@ -34,6 +48,35 @@ describe('Utils', () => {
 
         expect(Utils.isBaseBook(book)).toBe(false);
         expect(Utils.hasBaseBookInCollection(book)).toBe(false);
+    });
+
+    it('aggregates signed Exchange Account adjustments from accepted movements', () => {
+        const transactions = wrapTransactions([
+            {
+                amount: '12.345',
+                description: 'Adjustment #exchange_loss for Cash',
+                debitAccount: { name: 'Cash EXC' },
+            },
+            {
+                amount: '2.345',
+                description: '#exchange_gain',
+                creditAccount: { name: 'Cash EXC' },
+            },
+            {
+                amount: '3',
+                description: 'Historical #exchange_gain_hist adjustment',
+                creditAccount: { name: 'Historical EXC' },
+            },
+        ]);
+
+        expect(summarizeValues(transactions)).toEqual({
+            'Cash EXC': '10',
+            'Historical EXC': '-3',
+        });
+    });
+
+    it('returns no adjustments when no Exchange Update movements were accepted', () => {
+        expect(summarizeValues(wrapTransactions([]))).toEqual({});
     });
 
     it('returns the calendar date in the Book timezone', () => {

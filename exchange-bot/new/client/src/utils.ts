@@ -1,4 +1,4 @@
-import { Permission, type Book } from 'bkper-js';
+import { Amount, Permission, type Book, type Transaction } from 'bkper-js';
 import { EXC_BASE_PROP, EXC_CODE_PROP } from './constants.js';
 
 /** General-purpose client utilities. */
@@ -51,6 +51,40 @@ export class Utils {
     static canEditBook(book: Book): boolean {
         const permission = book.getPermission();
         return permission === Permission.OWNER || permission === Permission.EDITOR ? true : false;
+    }
+
+    /**
+     * Aggregates accepted Exchange Update movements by Exchange Account.
+     *
+     * @param transactions - SDK wrappers for transactions accepted by the Exchange Update API.
+     * @returns Signed adjustment totals keyed by Exchange Account name.
+     */
+    static summarizeExchangeUpdateTransactions(transactions: Transaction[]): Map<string, Amount> {
+        const adjustments = new Map<string, Amount>();
+
+        for (const transaction of transactions) {
+            const description = transaction.getDescription();
+            const loss = description.includes('#exchange_loss');
+            const gain = description.includes('#exchange_gain');
+            if (!loss && !gain) {
+                continue;
+            }
+
+            const payload = transaction.json();
+            const accountName = loss ? payload.debitAccount?.name : payload.creditAccount?.name;
+            const amount = transaction.getAmount();
+            if (!accountName || !amount) {
+                continue;
+            }
+
+            const adjustment = loss ? amount : amount.times(-1);
+            adjustments.set(
+                accountName,
+                adjustments.get(accountName)?.plus(adjustment) ?? adjustment
+            );
+        }
+
+        return adjustments;
     }
 
     /**

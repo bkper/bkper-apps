@@ -4,7 +4,10 @@ import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
 
-const renderBody = Reflect.get(BotAppView.prototype, 'renderBody') as (
+const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
+    this: BotAppView
+) => TemplateResult;
+const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
 const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissionError') as (
@@ -22,9 +25,18 @@ describe('Bot app view', () => {
         });
         view.book = book;
 
-        const result = view.render();
+        const result = renderHeader.call(view);
 
         expect(result.values[0]).toBe(book);
+    });
+
+    it('does not render the app header in embedded mode', () => {
+        const view = new BotAppView();
+        view.embedded = true;
+
+        const result = renderHeader.call(view);
+
+        expect(result.strings.join('')).toBe('');
     });
 
     it('passes the initialized Book and context Books to the exchange update child', () => {
@@ -38,7 +50,7 @@ describe('Bot app view', () => {
         view.basePermissionGranted = true;
         view.appState = BotAppState.READY;
 
-        const result = renderBody.call(view);
+        const result = renderBodyContent.call(view);
 
         expect(result.values[0]).toBe(book);
         expect(result.values[1]).toBe(books);

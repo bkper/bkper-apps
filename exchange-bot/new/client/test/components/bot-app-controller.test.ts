@@ -13,6 +13,7 @@ class TestView implements ReactiveControllerHost {
     book?: Book;
     initialDate = '';
     error = '';
+    embedded = false;
     books: BotAppBook[] = [];
     basePermissionGranted = false;
     permissionGranted = false;
@@ -76,6 +77,22 @@ function createController(view: TestView): BotAppController {
 }
 
 describe('Bot app controller', () => {
+    it('enables embedded mode from the URL param', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://exchange-bot.bkper.app/?bookId=book-id&embedded=true',
+            },
+        });
+        authService.init = async () => {};
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.embedded).toBe(true);
+    });
+
     it('loads the selected Book after authentication succeeds', async () => {
         const book = new Book({
             id: 'book-id',

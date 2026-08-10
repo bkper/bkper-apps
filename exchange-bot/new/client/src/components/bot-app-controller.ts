@@ -27,6 +27,9 @@ export class BotAppController implements ReactiveController {
 
     async initialize(): Promise<void> {
         try {
+            this.view.embedded =
+                new URL(self.location.href).searchParams.get('embedded') === 'true';
+
             await authService.init();
             if (!authService.accessToken) {
                 return;

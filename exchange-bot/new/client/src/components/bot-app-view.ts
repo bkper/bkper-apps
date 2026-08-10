@@ -13,6 +13,9 @@ export class BotAppView extends LitElement {
     private readonly controller = new BotAppController(this);
 
     @state()
+    embedded = false;
+
+    @state()
     appState = BotAppState.LOADING;
 
     @state()
@@ -40,12 +43,19 @@ export class BotAppView extends LitElement {
 
     render(): TemplateResult {
         return html`
-            <app-header .book=${this.book}></app-header>
-            <div class="body">${this.renderBody()}</div>
+            ${this.renderHeader()}
+            <div class="body">${this.renderBodyContent()}</div>
         `;
     }
 
-    private renderBody(): TemplateResult {
+    private renderHeader(): TemplateResult {
+        if (this.embedded) {
+            return html``;
+        }
+        return html`<app-header .book=${this.book}></app-header>`;
+    }
+
+    private renderBodyContent(): TemplateResult {
         if (this.appState === BotAppState.LOADING) {
             return html`<div class="centered"><wa-spinner></wa-spinner></div>`;
         }

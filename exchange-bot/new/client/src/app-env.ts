@@ -13,6 +13,10 @@ class AppEnv {
         return new URL(self.location.href).searchParams.get(name);
     }
 
+    isEmbedded(): boolean {
+        return self !== self.top;
+    }
+
     isLocal(): boolean {
         return self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
     }

@@ -43,11 +43,16 @@ const originalGetBookConfiguredExcCodes = botService.getBookConfiguredExcCodes;
 const originalGetBooksWithPendingTasks = botService.getBooksWithPendingTasks;
 const originalGetBooksWithEventErrors = botService.getBooksWithEventErrors;
 const originalLocation = Object.getOwnPropertyDescriptor(self, 'location');
+const originalTop = Object.getOwnPropertyDescriptor(self, 'top');
 
 beforeEach(() => {
     Object.defineProperty(self, 'location', {
         configurable: true,
         value: { href: 'https://exchange-bot.bkper.app/?bookId=book-id' },
+    });
+    Object.defineProperty(self, 'top', {
+        configurable: true,
+        value: self,
     });
     botService.getConnectedBooks = async () => new Set<Book>();
     botService.getCollectionExcCodes = () => new Set<string>();
@@ -70,6 +75,11 @@ afterEach(() => {
     } else {
         Reflect.deleteProperty(self, 'location');
     }
+    if (originalTop) {
+        Object.defineProperty(self, 'top', originalTop);
+    } else {
+        Reflect.deleteProperty(self, 'top');
+    }
 });
 
 function createController(view: TestView): BotAppController {
@@ -77,12 +87,10 @@ function createController(view: TestView): BotAppController {
 }
 
 describe('Bot app controller', () => {
-    it('enables embedded mode from the URL param', async () => {
-        Object.defineProperty(self, 'location', {
+    it('enables embedded mode when running in an iframe', async () => {
+        Object.defineProperty(self, 'top', {
             configurable: true,
-            value: {
-                href: 'https://exchange-bot.bkper.app/?bookId=book-id&embedded=true',
-            },
+            value: {},
         });
         authService.init = async () => {};
         const view = new TestView();

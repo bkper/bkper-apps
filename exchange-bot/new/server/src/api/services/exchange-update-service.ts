@@ -8,7 +8,7 @@ import {
     Transaction,
 } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
-import type { ExchangeRates } from '../schemas.js';
+import type { ExchangeRates, ExchangeUpdateResult } from '../schemas.js';
 import {
     EXC_ACCOUNT_PROP,
     EXC_AGGREGATE,
@@ -26,7 +26,7 @@ export class ExchangeUpdateService {
         context: AppContext,
         bookId: string,
         exchangeRates: ExchangeRates
-    ): Promise<bkper.Transaction[]> {
+    ): Promise<ExchangeUpdateResult> {
         const book = await context.bkper.getBook(bookId, true);
         const botService = new BotService(context);
         const connectedBooks = await botService.getConnectedBooks(book);
@@ -38,7 +38,9 @@ export class ExchangeUpdateService {
         const histQuery = getHistQuery(book, date);
         const bookBalancesReport = await book.getBalancesReport(query);
         const bookHistBalancesReport = historical ? null : await book.getBalancesReport(histQuery);
-        const acceptedTransactions: bkper.Transaction[] = [];
+
+        const createdTransactions: bkper.Transaction[] = [];
+        const createdAccounts: bkper.Account[] = [];
 
         for (let connectedBook of connectedBooks) {
             const connectedCode = botService.getBaseCode(connectedBook);
@@ -113,6 +115,7 @@ export class ExchangeUpdateService {
                     }
                     excAccount.setType(await getExcAccountType(book));
                     await excAccount.create();
+                    createdAccounts.push(excAccount.json());
                 }
 
                 if (account.isCredit()) {
@@ -146,12 +149,12 @@ export class ExchangeUpdateService {
                 }
             }
 
-            const accepted = await book.batchCreateTransactions(transactions);
-            acceptedTransactions.push(...accepted.map(transaction => transaction.json()));
+            const created = await book.batchCreateTransactions(transactions);
+            createdTransactions.push(...created.map(tx => tx.json()));
         }
 
         book.audit();
-        return acceptedTransactions;
+        return { createdTransactions, createdAccounts };
     }
 }
 

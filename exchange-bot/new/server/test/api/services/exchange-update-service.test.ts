@@ -151,7 +151,7 @@ describe('legacy menu Exchange Update', () => {
             rates({ EUR: 0.8, JPY: 150 })
         );
 
-        expect(result).toEqual([]);
+        expect(result).toEqual({ createdTransactions: [], createdAccounts: [] });
         expect(getBookCalls).toEqual([
             ['usd-book', true],
             ['eur-book', true],
@@ -172,7 +172,7 @@ describe('legacy menu Exchange Update', () => {
             rates({ EUR: 0.8 })
         );
 
-        expect(result).toEqual([]);
+        expect(result).toEqual({ createdTransactions: [], createdAccounts: [] });
         expect(audits).toBe(1);
     });
 
@@ -276,15 +276,19 @@ describe('legacy menu Exchange Update', () => {
 
         expect(baseQueries).toEqual(['before:2026-08-06', 'before:2026-08-06']);
         expect(sequence).toEqual(['batch-1', 'batch-2', 'audit']);
-        expect(result.map(transaction => transaction.id)).toEqual(['accepted-1-1', 'accepted-2-1']);
-        expect(result[0]).toMatchObject({
+        expect(result.createdTransactions.map(transaction => transaction.id)).toEqual([
+            'accepted-1-1',
+            'accepted-2-1',
+        ]);
+        expect(result.createdAccounts).toEqual([]);
+        expect(result.createdTransactions[0]).toMatchObject({
             amount: '50',
             description: '#exchange_gain',
             creditAccount: { id: 'eur-exchange' },
             debitAccount: { id: 'eur-base' },
             properties: { exc_code: 'EUR', exc_rate: '2', exc_amount: '0' },
         });
-        expect(result[1]).toMatchObject({
+        expect(result.createdTransactions[1]).toMatchObject({
             amount: '50',
             description: '#exchange_loss',
             creditAccount: { id: 'brl-base' },
@@ -453,6 +457,9 @@ describe('legacy menu Exchange Update', () => {
             'after:2026-02-01 before:2026-08-06',
             'before:2026-08-06',
         ]);
+        if (!createdAccount) {
+            throw new Error('Expected the Exchange Account to be created');
+        }
         expect(createdAccount).toMatchObject({
             id: 'new-exchange',
             name: 'New Exchange',
@@ -465,7 +472,8 @@ describe('legacy menu Exchange Update', () => {
             creditAccount: { id: 'new-exchange' },
             debitAccount: { id: 'base-hist' },
         });
-        expect(result).toHaveLength(1);
+        expect(result.createdTransactions).toHaveLength(1);
+        expect(result.createdAccounts).toEqual([createdAccount]);
     });
 
     test('skips Hist accounts when the Book is historical', async () => {
@@ -524,7 +532,7 @@ describe('legacy menu Exchange Update', () => {
         expect(baseQueries).toEqual(['before:2026-08-06']);
         expect(connectedQueries).toEqual(['before:2026-08-06']);
         expect(batched).toEqual([]);
-        expect(result).toEqual([]);
+        expect(result).toEqual({ createdTransactions: [], createdAccounts: [] });
         expect(audited).toBe(true);
     });
 });

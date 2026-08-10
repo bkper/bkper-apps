@@ -1,4 +1,4 @@
-import { createRoute, z } from '@hono/zod-openapi';
+import { createRoute } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { Bkper } from 'bkper-js';
 import { AppContext } from '../shared/app-context.js';
@@ -9,9 +9,9 @@ import {
     apiErrorResponses,
     ApiErrorSchema,
     BookIdParamSchema,
-    BkperTransactionSchema,
     ExchangeRatesDateQuerySchema,
     ExchangeRatesSchema,
+    ExchangeUpdateResultSchema,
     jsonResponse,
 } from './schemas.js';
 
@@ -40,7 +40,7 @@ const exchangeUpdateRoute = createRoute({
         },
     },
     responses: {
-        200: jsonResponse('Accepted exchange transactions', z.array(BkperTransactionSchema)),
+        200: jsonResponse('Created Exchange Update resources', ExchangeUpdateResultSchema),
         ...apiErrorResponses,
     },
 });

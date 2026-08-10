@@ -116,13 +116,10 @@ export class ExchangeUpdateController implements ReactiveController {
 
         while (true) {
             try {
-                const transactionPayloads = await botApiService.performExchangeUpdate(
-                    bookId,
-                    exchangeRates
-                );
+                const result = await botApiService.performExchangeUpdate(bookId, exchangeRates);
                 this.setExchangeUpdateResult(bookId, {
                     status: ExchangeUpdateStatus.COMPLETE,
-                    summary: this.summarizeAcceptedTransactions(book, transactionPayloads),
+                    summary: this.summarizeAcceptedTransactions(book, result.createdTransactions),
                 });
                 return;
             } catch (error: unknown) {

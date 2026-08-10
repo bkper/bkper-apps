@@ -1,4 +1,4 @@
-import type { ApiError, ExchangeRates } from '../api/generated/types.js';
+import type { ApiError, ExchangeRates, ExchangeUpdateResult } from '../api/generated/types.js';
 import { HttpAPIRequest } from './http-api-request.js';
 import { HttpError } from './http-request.js';
 
@@ -20,10 +20,10 @@ class BotApiService {
     async performExchangeUpdate(
         bookId: string,
         exchangeRates: ExchangeRates
-    ): Promise<bkper.Transaction[]> {
+    ): Promise<ExchangeUpdateResult> {
         try {
             const url = `/api/v1/books/${encodeURIComponent(bookId)}/exchange-update`;
-            return await new BotApiRequest<bkper.Transaction[]>(url)
+            return await new BotApiRequest<ExchangeUpdateResult>(url)
                 .setMethod('POST')
                 .setPayload(exchangeRates)
                 .execute();

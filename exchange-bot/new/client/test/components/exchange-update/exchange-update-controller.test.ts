@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { Book, DecimalSeparator } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
-import type { ExchangeRates } from '../../../src/api/generated/types.js';
+import type {
+    ExchangeRates,
+    ExchangeUpdateResult as ExchangeUpdateApiResult,
+} from '../../../src/api/generated/types.js';
 import type { ExchangeBotBook } from '../../../src/types.js';
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
@@ -66,6 +69,12 @@ function createExchangeBotBook(id: string, excCode: string, isBase: boolean): Ex
     };
 }
 
+function createExchangeUpdateApiResult(
+    createdTransactions: bkper.Transaction[] = []
+): ExchangeUpdateApiResult {
+    return { createdTransactions, createdAccounts: [] };
+}
+
 describe('Exchange update controller', () => {
     it('runs edited rates once for each eligible Book and summarizes accepted movements', async () => {
         const exchangeRates: ExchangeRates = {
@@ -77,7 +86,9 @@ describe('Exchange update controller', () => {
         const updateRequest = new Promise<bkper.Transaction[]>(resolve => {
             resolveUpdate = resolve;
         });
-        botApiService.performExchangeUpdate = mock(async () => updateRequest);
+        botApiService.performExchangeUpdate = mock(async () =>
+            createExchangeUpdateApiResult(await updateRequest)
+        );
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
         view.books = [
@@ -123,7 +134,7 @@ describe('Exchange update controller', () => {
             if (bookId === 'eur-book' && eurAttempts++ === 0) {
                 throw new Error('EUR update failed');
             }
-            return [];
+            return createExchangeUpdateApiResult();
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
@@ -161,7 +172,7 @@ describe('Exchange update controller', () => {
             if (attempt <= failures) {
                 throw new Error(`${bookId} update failed`);
             }
-            return [];
+            return createExchangeUpdateApiResult();
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
@@ -210,9 +221,9 @@ describe('Exchange update controller', () => {
             }
             if (bookId === 'eur-book') {
                 resolveRetryStarted();
-                return retryRequest;
+                return createExchangeUpdateApiResult(await retryRequest);
             }
-            return usdUpdateRequest;
+            return createExchangeUpdateApiResult(await usdUpdateRequest);
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
@@ -301,7 +312,7 @@ describe('Exchange update controller', () => {
             if (attempts % 2 === 1) {
                 throw new Error('Update failed');
             }
-            return [];
+            return createExchangeUpdateApiResult();
         });
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });

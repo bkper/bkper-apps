@@ -63,9 +63,13 @@ describe('bot API service', () => {
                 debitAccount: { name: 'Cash EXC' },
             },
         ];
+        const exchangeUpdateResult = {
+            createdTransactions: acceptedTransactions,
+            createdAccounts: [],
+        };
         const fetchMock = Object.assign(
             mock(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-                Response.json(acceptedTransactions)
+                Response.json(exchangeUpdateResult)
             ),
             { preconnect: originalFetch.preconnect }
         );
@@ -76,10 +80,7 @@ describe('bot API service', () => {
             rates: { BRL: '5.25' },
         };
 
-        const result: bkper.Transaction[] = await botApiService.performExchangeUpdate(
-            'book/id',
-            exchangeRates
-        );
+        const result = await botApiService.performExchangeUpdate('book/id', exchangeRates);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url, init] = fetchMock.mock.calls[0] ?? [];
@@ -87,7 +88,7 @@ describe('bot API service', () => {
         expect(init?.method).toBe('POST');
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access-token');
         expect(await new Request('https://test.invalid', init).json()).toEqual(exchangeRates);
-        expect(result).toEqual(acceptedTransactions);
+        expect(result).toEqual(exchangeUpdateResult);
     });
 
     it('exposes an Exchange Update API error without retrying the mutation', async () => {

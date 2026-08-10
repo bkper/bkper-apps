@@ -32,6 +32,21 @@ export const BkperTransactionSchema = z.custom<bkper.Transaction>().openapi('Bkp
     'x-typescript-type': 'bkper.Transaction',
 });
 
+export const BkperAccountSchema = z.custom<bkper.Account>().openapi('BkperAccount', {
+    type: 'object',
+    additionalProperties: true,
+    'x-typescript-type': 'bkper.Account',
+});
+
+export const ExchangeUpdateResultSchema = z
+    .object({
+        createdTransactions: z.array(BkperTransactionSchema),
+        createdAccounts: z.array(BkperAccountSchema),
+    })
+    .openapi('ExchangeUpdateResult');
+
+export type ExchangeUpdateResult = z.infer<typeof ExchangeUpdateResultSchema>;
+
 export const ApiErrorSchema = z
     .object({
         error: z.object({

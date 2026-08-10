@@ -104,13 +104,13 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Accepted exchange transactions */
+                /** @description Created Exchange Update resources */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BkperTransaction"][];
+                        "application/json": components["schemas"]["ExchangeUpdateResult"];
                     };
                 };
                 /** @description Invalid request */
@@ -165,7 +165,12 @@ export interface components {
                 message: string;
             };
         };
+        ExchangeUpdateResult: {
+            createdTransactions: components["schemas"]["BkperTransaction"][];
+            createdAccounts: components["schemas"]["BkperAccount"][];
+        };
         BkperTransaction: bkper.Transaction;
+        BkperAccount: bkper.Account;
     };
     responses: never;
     parameters: never;
@@ -175,6 +180,8 @@ export interface components {
 }
 export type ExchangeRates = components['schemas']['ExchangeRates'];
 export type ApiError = components['schemas']['ApiError'];
+export type ExchangeUpdateResult = components['schemas']['ExchangeUpdateResult'];
 export type BkperTransaction = components['schemas']['BkperTransaction'];
+export type BkperAccount = components['schemas']['BkperAccount'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

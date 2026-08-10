@@ -26,7 +26,7 @@ describe('menu API OpenAPI contract', () => {
         expect(spec.paths['/health']).toBeUndefined();
     });
 
-    it('uses the shared rates schema and a Bkper Transaction array response', async () => {
+    it('uses the shared rates and Exchange Update result schemas', async () => {
         const response = await createApp().request('/openapi.json');
         const spec = (await response.json()) as OpenApiDocument;
         const schemas = spec.components?.schemas ?? {};
@@ -37,15 +37,33 @@ describe('menu API OpenAPI contract', () => {
             $ref: '#/components/schemas/ExchangeRates',
         });
         expect(postOperation.responses?.['200'].content?.['application/json'].schema).toEqual({
-            type: 'array',
-            items: { $ref: '#/components/schemas/BkperTransaction' },
+            $ref: '#/components/schemas/ExchangeUpdateResult',
         });
         expect(getOperation.responses?.['502']).toBeDefined();
         expect(postOperation.responses?.['502']).toBeUndefined();
+        expect(schemas.ExchangeUpdateResult).toEqual({
+            type: 'object',
+            properties: {
+                createdTransactions: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/BkperTransaction' },
+                },
+                createdAccounts: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/BkperAccount' },
+                },
+            },
+            required: ['createdTransactions', 'createdAccounts'],
+        });
         expect(schemas.BkperTransaction).toEqual({
             type: 'object',
             additionalProperties: true,
             'x-typescript-type': 'bkper.Transaction',
+        });
+        expect(schemas.BkperAccount).toEqual({
+            type: 'object',
+            additionalProperties: true,
+            'x-typescript-type': 'bkper.Account',
         });
     });
 });

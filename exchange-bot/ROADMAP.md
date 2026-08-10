@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–11 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–12 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target now has its full-stack skeleton, complete audited event behavior, and the typed menu API with rate loading and Exchange Update. The menu client is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target now has its full-stack skeleton, complete audited event behavior, the typed menu API with rate loading and Exchange Update, and the completed menu client. The full-stack parity, dependency, and runtime audit is next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
 
 ## Purpose of this document
 
@@ -175,6 +175,7 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 - One full-stack Worker serves static client assets, `/api/v1/*`, `/events`, and `/health`.
 - The client uses Vite, Lit, Web Awesome, `@bkper/web-design`, and `@bkper/web-auth`.
 - Client parity preserves the established functionality, workflow, states, and outcomes while adopting the platform design foundation; pixel-for-pixel Apps Script styling is not required.
+- The legacy Close button is omitted as an accepted UI-only deviation; users close the menu through the host or browser controls.
 - The browser calls only authenticated app API routes for operations previously performed through Apps Script.
 - The public API initially exposes exactly `GET /api/v1/books/{bookId}/exchange-rates` and `POST /api/v1/books/{bookId}/exchange-update`, documented at `/openapi.json`.
 - GET returns an `ExchangeRates` payload. POST accepts that payload directly, uses its single `date` field, updates one Book, internally triggers that Book's audit, and returns canonical `bkper.Transaction[]` API payloads.
@@ -281,8 +282,8 @@ Each behavior chunk follows this workflow:
 
 - The client reads the selected `bookId` from the menu URL.
 - Authentication initialization and login-required behavior use `@bkper/web-auth`.
-- The client loads the authenticated User, selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
-- Initial loading, permission, warning, waiting, rates, result, retry, error, and close states preserve the existing workflow.
+- The client establishes an authenticated session and loads the selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
+- Initial loading, permission, warning, waiting, rates, result, retry, and error states preserve the existing workflow.
 - Date changes reload rates through the typed API.
 - Rates remain editable before Exchange Update execution.
 - The client calls Exchange Update once per eligible Book and preserves per-Book progress, failure, and retry behavior.
@@ -457,14 +458,15 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 12 — Port the menu client
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Replace server-rendered Apps Script HTML and `google.script.run` with Lit rendering and the generated authenticated API client.
-- Load the authenticated User, selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date through client-side `bkper-js`.
-- Preserve the date, editable rates, waiting indicators, button actions, per-Book Exchange Update orchestration, progress, results, retry flow, errors, and close behavior.
-- Use Web Awesome components and Bkper design tokens.
-- Add retained controller, API, and component behavior tests.
-- Complete browser-based visual and interactive verification.
+- Replaced server-rendered Apps Script HTML and `google.script.run` with Lit rendering and the generated authenticated API client.
+- Established an authenticated session and loaded the selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date through client-side `bkper-js`.
+- Preserved the date, editable rates, waiting indicators, button actions, per-Book Exchange Update orchestration, progress, results, retry flow, and errors.
+- Used Web Awesome components and Bkper design tokens, including current component size values without deprecation warnings.
+- Added retained controller, API, service, utility, and component behavior tests.
+- Completed non-mutating browser verification of authentication, Book context, live rate loading, date reload, rate editing, busy controls, warnings, help, responsive layout, and light and dark themes.
+- Passed the complete deterministic local gate with client and server typechecks, 172 tests, production client and Worker builds, formatting, and generated-contract checks.
 
 **Gate:** The client behavior matrix passes and the new UI preserves the existing workflow and outcomes.
 
@@ -508,7 +510,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Status: Not started.**
 
-- Exercise menu initialization, permissions, warnings, rate loading, rate editing, progress, results, failures, retry, and close behavior.
+- Exercise menu initialization, permissions, warnings, rate loading, rate editing, progress, results, failures, and retry behavior.
 - Run isolated Exchange Update canaries with deterministic Books, balances, dates, and rates.
 - Verify generated Accounts, Groups, transactions, movement direction, amounts, properties, returned payloads, and per-Book audits.
 - Complete final preview visual verification.

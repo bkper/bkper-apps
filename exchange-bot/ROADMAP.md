@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–13 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–14 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target has passed its full-stack parity, dependency, build, generated-artifact, and local runtime audit. Preview deployment and routing readiness are next. No preview or production deployment has been performed, and no menu or webhook routing has changed.
+The Cloudflare target is deployed to preview, and both development surfaces route to it. Preview event validation is next. No production deployment or production menu or webhook routing change has been performed.
 
 ## Purpose of this document
 
@@ -484,23 +484,21 @@ No production patches have been recorded since the migration baseline. Add one c
 - Retained the approved safety deviation from the flawed GAS retry fan-out: a failed Book retries independently and never resubmits another Book whose mutations were already accepted.
 - Retained the approved per-Book audit boundary: every successful Exchange Update request, including a no-op, audits its own path Book rather than waiting for the complete multi-Book client run.
 - Reconfirmed the mandatory Platform adaptations already recorded by earlier chunks: request-scoped outbound authentication, Worker-native rate fetching and isolate cache, SDK 404 absence translation at optional boundaries, the typed API transport and effective date, canonical accepted transaction payloads, generated client types, direct browser authentication, and the omitted Close button.
-- Reconciled the empty production patch ledger and reviewed the complete metadata diff. Production menu and webhook routes remain on Apps Script and GCP. Team-wide developer access is the intended final metadata state, but the temporary single-operator restriction remains in effect through local and preview migration work to prevent local tunnels from receiving colleagues' development events.
+- Reconciled the empty production patch ledger and reviewed the complete metadata diff. Production menu and webhook routes remain on Apps Script and GCP. Team-wide developer access is the intended final metadata state, but the single-operator restriction remains in effect throughout the remaining migration work to prevent local or preview targets from receiving colleagues' development events.
 
 **Gate:** Passed. No unexplained difference remains across the active production behavior matrix; approved safety and runtime deviations are recorded above.
 
 ### Chunk 14 — Preview deployment and routing readiness
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Build and review the preview candidate from a clean frozen install.
-- Review the exact target metadata diff.
-- Temporarily set the sync candidate to the existing single migration operator before app sync so preview routing does not restore team-wide developer access while local tunnels may still run. Restore the generic team setting in the working tree after the sync; do not sync that restoration yet.
-- Configure the preview Open Exchange Rates secret through a separately approved operation.
-- Deploy the target to preview without changing production routing.
-- Point `menuUrlDev` and `webhookUrlDev` to the preview application through a separately approved app sync.
-- Confirm preview health, client assets, OpenAPI, authentication, event ingress, API access, and log availability.
+- Built the preview candidate from a clean frozen install and passed strict typechecks, 175 retained tests, client and Worker production builds, formatting, and generated-contract checks.
+- Reviewed the metadata diff and kept developer access restricted to the single migration operator.
+- Deployed the target to preview and configured the preview Open Exchange Rates secret without changing production routing.
+- Synced `menuUrlDev` and `webhookUrlDev` to the preview application while retaining the Apps Script production menu and GCP production webhook.
+- Confirmed authenticated preview client loading, client assets, OpenAPI, API authentication and access, event ingress, expected no-op handling, successful event handling, and preview log availability. Unauthenticated client and health requests correctly enter the platform login boundary.
 
-**Gate:** Preview is reachable through both development surfaces while production remains entirely on GCP and GAS.
+**Gate:** Passed. Preview is reachable through both development surfaces while production remains entirely on GCP and GAS.
 
 ### Chunk 15 — Preview event validation
 
@@ -573,9 +571,9 @@ No production patches have been recorded since the migration baseline. Add one c
 - Verify that source, tests, lockfile, generated contracts, configuration, client assets, and Worker behavior remain unchanged through the move.
 - Preserve legacy source in Git history.
 - Keep the unchanged GCP and Apps Script deployments available as independent routing rollback targets.
-- After consolidation and stabilization acceptance, separately review and sync restoration of the normal team-wide developer access. Do not combine that remote metadata write with the working-tree move.
+- After consolidation and stabilization acceptance, separately restore `developers: '*@bkper.com'` in the working tree, review the exact metadata diff, and sync the team-wide developer access as the final migration operation.
 
-**Gate:** Cloudflare is the only active implementation in the project root. Consolidation itself performs no app sync, deployment, routing change, legacy infrastructure mutation, or Book write; the separately approved developer-access restoration returns app administration to its normal team-wide state.
+**Gate:** Cloudflare is the only active implementation in the project root. The separately approved final developer-access sync returns app administration to its normal team-wide state; consolidation itself performs no deployment, routing change, legacy infrastructure mutation, or Book write.
 
 ## Rollback strategy
 

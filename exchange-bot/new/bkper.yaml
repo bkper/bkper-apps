@@ -10,7 +10,7 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/exchange-bot
 repoPrivate: false
 deprecated: false
-developers: '*@bkper.com'
+developers: 'victordrumondmaltadesouza'
 menuUrl: https://script.google.com/macros/s/AKfycbxz1Fl1A_KpvAtWLSXtGh1oRaFdWibPweoJfa3yYrFRAAC6gRM/exec?bookId=${book.id}
 menuUrlDev: https://exchange-bot-preview.bkper.app?bookId=${book.id}
 menuPopupWidth: 1000

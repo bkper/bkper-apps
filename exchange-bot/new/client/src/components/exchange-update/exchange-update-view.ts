@@ -66,6 +66,7 @@ export class ExchangeUpdateView extends LitElement {
                 type="date"
                 label="Date"
                 .value=${this.date}
+                ?disabled=${this.areControlsDisabled()}
                 size="small"
                 @change=${this.handleDateChanged}
                 @blur=${this.handleDateBlurred}
@@ -99,6 +100,7 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderRate(code: string, rate: number | string, disabled = false): TemplateResult {
+        const isDisabled = disabled || this.areControlsDisabled();
         return html`
             <div class="rate">
                 <wa-input
@@ -106,7 +108,7 @@ export class ExchangeUpdateView extends LitElement {
                     label=${code}
                     .value=${String(rate)}
                     size="small"
-                    ?disabled=${disabled}
+                    ?disabled=${isDisabled}
                     @change=${(event: Event) => this.handleRateChanged(code, event)}
                 ></wa-input>
                 ${this.renderExchangeUpdateResults(code)}
@@ -147,10 +149,7 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderActions(): TemplateResult {
-        if (this.disabled) {
-            return html``;
-        }
-        const runDisabled = !this.exchangeRates || this.ratesLoading || this.executing;
+        const runDisabled = !this.exchangeRates || this.areControlsDisabled();
         return html`
             <div class="actions">
                 <wa-button
@@ -167,21 +166,34 @@ export class ExchangeUpdateView extends LitElement {
         `;
     }
 
+    private areControlsDisabled(): boolean {
+        return this.disabled || this.ratesLoading || this.executing;
+    }
+
     private handleRunClicked(): void {
+        if (!this.exchangeRates || this.areControlsDisabled()) {
+            return;
+        }
         this.controller.runExchangeUpdate();
     }
 
     private handleDateChanged(event: Event): void {
+        if (this.areControlsDisabled()) {
+            return;
+        }
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
     }
 
     private handleDateBlurred(): void {
+        if (this.areControlsDisabled()) {
+            return;
+        }
         this.controller.loadRates();
     }
 
     private handleRateChanged(code: string, event: Event): void {
-        if (!this.exchangeRates) {
+        if (!this.exchangeRates || this.areControlsDisabled()) {
             return;
         }
         const input = event.currentTarget as WaInput;

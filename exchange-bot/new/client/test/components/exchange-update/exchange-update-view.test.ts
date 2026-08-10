@@ -6,8 +6,13 @@ import {
 } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { ExchangeUpdateStatus } from '../../../src/components/exchange-update/exchange-update-controller.js';
 
+type DateChangeHandler = (this: ExchangeUpdateView, event: Event) => void;
 type RateChangeHandler = (this: ExchangeUpdateView, code: string, event: Event) => void;
 
+const handleDateChanged = Reflect.get(
+    ExchangeUpdateView.prototype,
+    'handleDateChanged'
+) as DateChangeHandler;
 const handleRateChanged = Reflect.get(
     ExchangeUpdateView.prototype,
     'handleRateChanged'
@@ -19,15 +24,21 @@ const renderExchangeUpdateResult = Reflect.get(
     ExchangeUpdateView.prototype,
     'renderExchangeUpdateResult'
 ) as (this: ExchangeUpdateView, book: BotAppBook) => TemplateResult;
+const renderRate = Reflect.get(ExchangeUpdateView.prototype, 'renderRate') as (
+    this: ExchangeUpdateView,
+    code: string,
+    rate: number | string,
+    disabled?: boolean
+) => TemplateResult;
 
 describe('Exchange update view', () => {
-    it('hides Exchange Update actions when disabled', () => {
+    it('keeps Run visible and disabled when the view is disabled', () => {
         const view = new ExchangeUpdateView();
         view.disabled = true;
 
         const result = renderActions.call(view);
 
-        expect(result.values).toEqual([]);
+        expect(result.values[0]).toBe(true);
     });
 
     it('disables Run until rates are available and while an update is running', () => {
@@ -41,6 +52,22 @@ describe('Exchange update view', () => {
 
         view.executing = true;
         expect(renderActions.call(view).values[0]).toBe(true);
+    });
+
+    it('applies the shared disabled states to date and rate inputs', () => {
+        const view = new ExchangeUpdateView();
+
+        expect(view.render().values[1]).toBe(false);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
+
+        for (const state of ['disabled', 'ratesLoading', 'executing'] as const) {
+            view[state] = true;
+            expect(view.render().values[1]).toBe(true);
+            expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
+            view[state] = false;
+        }
+
+        expect(renderRate.call(view, 'USD', 1, true).values[2]).toBe(true);
     });
 
     it('renders a spinner and retry progress beside the Book being retried', () => {
@@ -62,7 +89,28 @@ describe('Exchange update view', () => {
         expect(result.values).toEqual([1, 5]);
     });
 
-    it('updates a zero exchange rate', () => {
+    it('ignores date and rate changes while controls are disabled', () => {
+        const view = new ExchangeUpdateView();
+        view.disabled = true;
+        view.date = '2026-08-05';
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-05',
+            rates: { ZERO: 0 },
+        };
+
+        handleDateChanged.call(view, {
+            currentTarget: { value: '2026-08-06' },
+        } as unknown as Event);
+        handleRateChanged.call(view, 'ZERO', {
+            currentTarget: { value: '1.25' },
+        } as unknown as Event);
+
+        expect(view.date).toBe('2026-08-05');
+        expect(view.exchangeRates.rates.ZERO).toBe(0);
+    });
+
+    it('updates a zero exchange rate while controls are enabled', () => {
         const view = new ExchangeUpdateView();
         view.exchangeRates = {
             base: 'USD',

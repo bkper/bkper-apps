@@ -3,6 +3,7 @@
  * Do not make direct changes to the file.
  */
 
+import "@bkper/bkper-api-types";
 export interface paths {
     "/api/v1/books/{bookId}/exchange-rates": {
         parameters: {
@@ -164,9 +165,7 @@ export interface components {
                 message: string;
             };
         };
-        BkperTransaction: {
-            [key: string]: unknown;
-        };
+        BkperTransaction: bkper.Transaction;
     };
     responses: never;
     parameters: never;

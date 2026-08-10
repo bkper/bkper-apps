@@ -45,6 +45,7 @@ describe('menu API OpenAPI contract', () => {
         expect(schemas.BkperTransaction).toEqual({
             type: 'object',
             additionalProperties: true,
+            'x-typescript-type': 'bkper.Transaction',
         });
     });
 });

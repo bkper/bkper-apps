@@ -94,9 +94,15 @@ export class BotAppView extends LitElement {
             return html``;
         }
         return html`
-            <div class="warnings">
-                ${this.warnings.map(w => html`<div class="warning" role="status">${w}</div>`)}
-            </div>
+            <section class="warnings">
+                <div class="warnings-title">
+                    <wa-icon name="warning" label="Warnings"></wa-icon>
+                    <span>Warnings</span>
+                </div>
+                <div class="warnings-list">
+                    ${this.warnings.map(w => html`<div class="warning" role="status">${w}</div>`)}
+                </div>
+            </section>
         `;
     }
 }

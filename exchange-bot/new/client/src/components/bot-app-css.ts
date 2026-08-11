@@ -32,9 +32,29 @@ export const botAppCSS = css`
     }
 
     .warnings {
+        margin-top: var(--bkper-spacing-large);
+    }
+
+    .warnings-title {
+        display: flex;
+        gap: var(--bkper-spacing-2x-small);
+        align-items: center;
+    }
+
+    .warnings-title wa-icon {
+        color: var(--bkper-color-warning);
+        font-size: 18px;
+    }
+
+    .warnings-title span {
+        font-size: 14px;
+        font-weight: var(--bkper-font-weight-bold);
+    }
+
+    .warnings-list {
         display: grid;
         gap: var(--bkper-spacing-small);
-        margin-top: var(--bkper-spacing-large);
+        margin-top: var(--bkper-spacing-small);
     }
 
     .warning {

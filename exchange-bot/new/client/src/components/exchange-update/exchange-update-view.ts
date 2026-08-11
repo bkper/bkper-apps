@@ -11,6 +11,7 @@ import {
 import { exchangeUpdateCSS } from './exchange-update-css.js';
 import { sharedCSS } from '../shared-css.js';
 import type { ExchangeBotBook } from '../../types.js';
+import './result/exchange-update-result-view.js';
 
 @customElement('exchange-update')
 export class ExchangeUpdateView extends LitElement {
@@ -134,12 +135,7 @@ export class ExchangeUpdateView extends LitElement {
         if (result.status === ExchangeUpdateStatus.ERROR) {
             return html`<div class="update-result error" role="alert">${result.error}</div>`;
         }
-        return html`
-            <div class="update-result complete">
-                <wa-icon name="check_circle" label="Done"></wa-icon>
-                <span>Done! ${result.summary}</span>
-            </div>
-        `;
+        return html` <exchange-update-result .summary=${result.summary}></exchange-update-result> `;
     }
 
     private renderActions(): TemplateResult {

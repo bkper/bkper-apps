@@ -88,6 +88,25 @@ describe('Exchange update view', () => {
         expect(result.values).toEqual([1, 5]);
     });
 
+    it('delegates a completed summary to the result component', () => {
+        const view = new ExchangeUpdateView();
+        const book: ExchangeBotBook = {
+            book: new Book({ id: 'usd-book' }),
+            excCode: 'USD',
+            isBase: true,
+        };
+        const summary = { 'Cash Exchange': '47,73' };
+        view.results.set(book.book.getId(), {
+            status: ExchangeUpdateStatus.COMPLETE,
+            summary,
+        });
+
+        const result = renderExchangeUpdateResult.call(view, book);
+
+        expect(result.strings.join('')).toContain('<exchange-update-result');
+        expect(result.values).toContain(summary);
+    });
+
     it('ignores date and rate changes while controls are disabled', () => {
         const view = new ExchangeUpdateView();
         view.disabled = true;

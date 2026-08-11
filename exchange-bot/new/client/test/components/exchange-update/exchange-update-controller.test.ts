@@ -6,7 +6,10 @@ import type {
     ExchangeUpdateResult as ExchangeUpdateApiResult,
 } from '../../../src/api/generated/types.js';
 import type { ExchangeBotBook } from '../../../src/types.js';
-import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
+import {
+    ExchangeUpdateController,
+    ExchangeUpdateSummary,
+} from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
 import { bookService } from '../../../src/services/book-service.js';
@@ -23,7 +26,7 @@ class TestView implements ReactiveControllerHost {
         string,
         {
             status: string;
-            summary?: string;
+            summary?: ExchangeUpdateSummary;
             error?: string;
             retryCount?: number;
             retryLimit?: number;
@@ -136,7 +139,7 @@ describe('Exchange update controller', () => {
 
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{"Cash EXC":"10,00"}',
+            summary: { 'Cash EXC': '10,00' },
         });
         expect(bookService.loadBook).not.toHaveBeenCalled();
         expect(view.executing).toBe(false);
@@ -183,7 +186,7 @@ describe('Exchange update controller', () => {
         expect(exchangeBotBook.book).toBe(refreshedBook);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{"New Exchange":"4,20"}',
+            summary: { 'New Exchange': '4,20' },
         });
     });
 
@@ -215,11 +218,11 @@ describe('Exchange update controller', () => {
         expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{}',
+            summary: {},
         });
         expect(view.results.get('eur-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{}',
+            summary: {},
         });
         expect(view.executing).toBe(false);
     });
@@ -315,7 +318,7 @@ describe('Exchange update controller', () => {
         await update;
         expect(view.results.get('eur-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{}',
+            summary: {},
         });
     });
 
@@ -391,7 +394,7 @@ describe('Exchange update controller', () => {
         expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(4);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
-            summary: '{}',
+            summary: {},
         });
     });
 
@@ -430,7 +433,7 @@ describe('Exchange update controller', () => {
         view.date = exchangeRates.date;
         view.results.set('book-id', {
             status: 'COMPLETE',
-            summary: '{"Cash EXC":"10.00"}',
+            summary: { 'Cash EXC': '10.00' },
         });
         const controller = createController(view);
 

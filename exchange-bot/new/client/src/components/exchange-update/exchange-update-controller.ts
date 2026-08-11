@@ -14,9 +14,11 @@ export enum ExchangeUpdateStatus {
     ERROR = 'ERROR',
 }
 
+export type ExchangeUpdateSummary = Record<string, string>;
+
 export interface ExchangeUpdateResult {
     status: ExchangeUpdateStatus;
-    summary?: string;
+    summary?: ExchangeUpdateSummary;
     error?: string;
     retryCount?: number;
     retryLimit?: number;
@@ -160,17 +162,15 @@ export class ExchangeUpdateController implements ReactiveController {
     private async summarizeExchangeUpdateResult(
         book: ExchangeBotBook,
         transactionPayloads: bkper.Transaction[]
-    ): Promise<string> {
+    ): Promise<ExchangeUpdateSummary> {
         const bookInstance = book.book;
         const transactions = transactionPayloads.map(tx => new Transaction(bookInstance, tx));
         const summary = await Utils.summarizeExchangeUpdate(transactions);
-        return JSON.stringify(
-            Object.fromEntries(
-                Array.from(summary, ([accountName, amount]) => [
-                    accountName,
-                    bookInstance.formatValue(amount),
-                ])
-            )
+        return Object.fromEntries(
+            Array.from(summary, ([accountName, amount]) => [
+                accountName,
+                bookInstance.formatValue(amount),
+            ])
         );
     }
 

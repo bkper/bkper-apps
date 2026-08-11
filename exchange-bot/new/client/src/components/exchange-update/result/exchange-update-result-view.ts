@@ -2,11 +2,12 @@ import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { exchangeUpdateResultCSS } from './exchange-update-result-css.js';
 import { sharedCSS } from '../../shared-css.js';
+import { ExchangeUpdateSummary } from '../exchange-update-controller.js';
 
 @customElement('exchange-update-result')
 export class ExchangeUpdateResultView extends LitElement {
     @property({ attribute: false })
-    summary: Record<string, string> = {};
+    summary?: ExchangeUpdateSummary = {};
 
     static styles = [sharedCSS, exchangeUpdateResultCSS];
 
@@ -24,7 +25,8 @@ export class ExchangeUpdateResultView extends LitElement {
     }
 
     private renderSummary(): TemplateResult {
-        const entries = Object.entries(this.summary);
+        const summary = this.summary ?? {};
+        const entries = Object.entries(summary);
         if (entries.length === 0) {
             return html`<p class="empty-result">No transactions were created.</p>`;
         }

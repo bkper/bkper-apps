@@ -57,11 +57,6 @@ export const exchangeUpdateCSS = css`
         --track-width: 0.125em;
     }
 
-    .update-result.complete wa-icon {
-        font-size: 18px;
-        color: var(--bkper-color-success);
-    }
-
     .actions {
         display: flex;
         justify-content: flex-start;

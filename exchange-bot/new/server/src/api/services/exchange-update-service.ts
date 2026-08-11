@@ -8,6 +8,7 @@ import {
     Transaction,
 } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
+import { requireEditPermission } from '../authorization.js';
 import type { ExchangeRates, ExchangeUpdateResult } from '../schemas.js';
 import {
     EXC_ACCOUNT_PROP,
@@ -28,6 +29,8 @@ export class ExchangeUpdateService {
         exchangeRates: ExchangeRates
     ): Promise<ExchangeUpdateResult> {
         const book = await context.bkper.getBook(bookId, true);
+        requireEditPermission(book);
+
         const botService = new BotService(context);
         const connectedBooks = await botService.getConnectedBooks(book);
         const baseCode = botService.getBaseCode(book);

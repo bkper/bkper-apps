@@ -7,6 +7,7 @@ import {
     BkperError,
     Book,
     Group,
+    Permission,
     Transaction,
 } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
@@ -53,6 +54,7 @@ function createBook(
         decimalSeparator: 'DOT',
         fractionDigits: 2,
         timeZone: 'UTC',
+        permission: Permission.EDITOR,
         properties: { exc_code: code, ...properties },
         ...extra,
     });
@@ -91,6 +93,25 @@ function rates(ratesByCode: Record<string, number | string>): ExchangeRates {
 }
 
 describe('legacy menu Exchange Update', () => {
+    test('rejects a non-editor before reading balances or mutating the Book', async () => {
+        const book = createBook('usd-book', 'USD', {}, { permission: Permission.VIEWER });
+        let balanceQueries = 0;
+        let audits = 0;
+        book.getBalancesReport = async () => {
+            balanceQueries += 1;
+            return createReport(book, new Map());
+        };
+        book.audit = () => {
+            audits += 1;
+        };
+
+        expect(
+            ExchangeUpdateService.update(createContext(book), 'usd-book', rates({}))
+        ).rejects.toMatchObject({ status: 403 });
+        expect(balanceQueries).toBe(0);
+        expect(audits).toBe(0);
+    });
+
     test('loads complete charts only for the target and connected Books with matching Accounts', async () => {
         const targetBook = createBook(
             'usd-book',

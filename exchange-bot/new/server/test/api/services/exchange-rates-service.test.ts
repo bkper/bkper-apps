@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { Bkper, Book } from 'bkper-js';
+import { Bkper, Book, Permission } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { ExchangeRatesService } from '../../../src/api/services/exchange-rates-service.js';
 
@@ -23,11 +23,27 @@ function replaceFetch(
 }
 
 describe('legacy menu exchange-rate loading', () => {
+    test('rejects a non-viewer before requesting exchange rates', async () => {
+        const bkper = new Bkper();
+        bkper.getBook = async () => new Book({ id: 'book', permission: Permission.RECORDER });
+        let providerRequests = 0;
+        replaceFetch(async () => {
+            providerRequests += 1;
+            return Response.json({ base: 'USD', date: '2026-08-05', rates: {} });
+        });
+
+        expect(
+            ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
+        ).rejects.toMatchObject({ status: 403 });
+        expect(providerRequests).toBe(0);
+    });
+
     test('loads the default endpoint and returns only connected currencies for the requested date', async () => {
         const bkper = new Bkper();
         bkper.getBook = async () =>
             new Book({
                 id: 'usd-book',
+                permission: Permission.VIEWER,
                 properties: { exc_code: 'USD' },
                 collection: {
                     books: [
@@ -66,6 +82,7 @@ describe('legacy menu exchange-rate loading', () => {
     test('preserves custom endpoint substitutions and legacy connected-Book sources', async () => {
         const selectedBook = new Book({
             id: 'selected-book',
+            permission: Permission.VIEWER,
             properties: {
                 exc_code: 'USD',
                 exc_eur_book: 'legacy-eur-book',
@@ -109,7 +126,12 @@ describe('legacy menu exchange-rate loading', () => {
 
     test('preserves a meaningful provider error', async () => {
         const bkper = new Bkper();
-        bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
+        bkper.getBook = async () =>
+            new Book({
+                id: 'book',
+                permission: Permission.VIEWER,
+                properties: { exc_code: 'USD' },
+            });
         replaceFetch(async () =>
             Response.json(
                 {
@@ -130,7 +152,12 @@ describe('legacy menu exchange-rate loading', () => {
 
     test('curates a bodyless provider error', async () => {
         const bkper = new Bkper();
-        bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
+        bkper.getBook = async () =>
+            new Book({
+                id: 'book',
+                permission: Permission.VIEWER,
+                properties: { exc_code: 'USD' },
+            });
         replaceFetch(async () => new Response(null, { status: 304, statusText: 'Not Modified' }));
 
         expect(
@@ -143,7 +170,12 @@ describe('legacy menu exchange-rate loading', () => {
 
     test('curates a provider response body failure', async () => {
         const bkper = new Bkper();
-        bkper.getBook = async () => new Book({ id: 'book', properties: { exc_code: 'USD' } });
+        bkper.getBook = async () =>
+            new Book({
+                id: 'book',
+                permission: Permission.VIEWER,
+                properties: { exc_code: 'USD' },
+            });
         const body = new ReadableStream({
             start(controller) {
                 controller.error(new Error('Body failed'));

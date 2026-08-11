@@ -4,7 +4,7 @@
 
 **Chunks 1–14 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target is deployed to preview, and both development surfaces route to it. Preview event validation is next. No production deployment or production menu or webhook routing change has been performed.
+The Cloudflare target is deployed to preview, and both development surfaces route to it. API and client Book-permission hardening is next, before preview event validation. No production deployment or production menu or webhook routing change has been performed.
 
 ## Purpose of this document
 
@@ -178,7 +178,9 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 - The legacy Close button is omitted as an accepted UI-only deviation; users close the menu through the host or browser controls.
 - The browser calls only authenticated app API routes for operations previously performed through Apps Script.
 - The public API initially exposes exactly `GET /api/v1/books/{bookId}/exchange-rates` and `POST /api/v1/books/{bookId}/exchange-update`, documented at `/openapi.json`.
-- GET returns an `ExchangeRates` payload. POST accepts that payload directly, uses its single `date` field, updates one Book, internally triggers that Book's audit, and returns canonical `bkper.Transaction[]` API payloads.
+- GET returns an `ExchangeRates` payload. POST accepts that payload directly, uses its single `date` field, updates one Book, internally triggers that Book's audit, and returns canonical Bkper Account and Transaction API payloads.
+- API authorization applies explicitly to the path Book identified by `{bookId}`. GET accepts the view-capable `VIEWER`, `POSTER`, `EDITOR`, and `OWNER` permissions. POST accepts only `EDITOR` and `OWNER`. Permission values use explicit allowlists rather than an assumed hierarchy.
+- Missing or inaccessible Books inferred from Collection configuration are not part of API authorization. Bkper Core remains authoritative for every connected-Book request the operation actually makes.
 - Generated OpenAPI client types are consumed by the shipped client.
 - Server API routes and event handlers create request-scoped `Bkper` instances without token, API-key, or agent providers.
 - Platform outbound authentication supplies the validated user context and `exchange-bot` app identity.
@@ -264,6 +266,15 @@ Each behavior chunk follows this workflow:
 
 ### Menu API behavior matrix
 
+#### Book authorization
+
+- GET authorizes only `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` on its path Book before any exchange-rate provider request.
+- POST authorizes only `EDITOR` or `OWNER` on its path Book before any balance query, Account or Transaction creation, batch operation, or audit.
+- `RECORDER`, `NONE`, and missing permissions fail closed with the shared typed API error envelope and HTTP `403`.
+- Bkper SDK `403` failures at the API boundary are normalized to the same generic typed permission response without exposing inaccessible Book names or ids.
+- Authentication remains the Platform dispatch boundary: missing or invalid bearer authentication is `401`, while an authenticated caller lacking the operation-specific Book permission is `403`.
+- Authorization does not infer failure from configured currencies or Books absent from the caller's visible Collection. Any connected-Book request actually made remains subject to Bkper Core authorization.
+
 #### Rate loading
 
 - The selected date and Book produce the same endpoint configuration and request source.
@@ -283,10 +294,14 @@ Each behavior chunk follows this workflow:
 - The client reads the selected `bookId` from the menu URL.
 - Authentication initialization and login-required behavior use `@bkper/web-auth`.
 - The client establishes an authenticated session and loads the selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
-- Initial loading, permission, warning, waiting, rates, result, retry, and error states preserve the existing workflow.
+- The main Exchange Update UI is initialized and rendered only when the selected path Book has a view-capable `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` permission. `RECORDER`, `NONE`, and missing permissions render a dedicated access-denied state and perform no menu API request.
+- A view-capable caller may load rates, change the date, and edit rate inputs. Run remains disabled unless every concrete eligible Book that the action would target with POST has `EDITOR` or `OWNER` permission.
+- Connected Books that are not concrete POST targets do not affect Run authorization. Configured currencies or Books absent from the visible Collection produce a distinct, neutral warning that never hides controls or disables Run.
+- Client action handling repeats the edit-permission guard before issuing POST. A server `403` is shown immediately and is never retried; other established per-Book progress, failure, and retry behavior remains unchanged.
+- Initial loading, permission, warning, waiting, rates, result, retry, and error states preserve the existing workflow except for the explicit permission hardening above.
 - Date changes reload rates through the typed API.
 - Rates remain editable before Exchange Update execution.
-- The client calls Exchange Update once per eligible Book and preserves per-Book progress, failure, and retry behavior.
+- When Run is enabled, the client calls Exchange Update once per eligible target Book and preserves established per-Book progress and results; it never silently skips an unauthorized target.
 - UI tests protect behavior and public contracts rather than static wording or CSS details.
 - Browser verification confirms the completed client visually and interactively before preview acceptance.
 
@@ -500,7 +515,45 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Passed. Preview is reachable through both development surfaces while production remains entirely on GCP and GAS.
 
-### Chunk 15 — Preview event validation
+### Chunk 15 — Enforce API and client Book permissions
+
+**Status: Not started.**
+
+This chunk is an explicitly accepted pre-production security hardening prerequisite, not migration parity. The reusable API can be called directly by scripts, services, and agents, so client-only permission checks are insufficient.
+
+#### Server authorization
+
+- Add one small shared permission helper and enforce authorization inside the API services immediately after loading the path Book.
+- Allow GET only for the explicit view-capable permissions `VIEWER`, `POSTER`, `EDITOR`, and `OWNER`.
+- Allow POST only for `EDITOR` and `OWNER` because Exchange Update reads balances, may create Accounts, creates complete draft Transaction movements, and triggers a Book audit.
+- Reject `RECORDER`, `NONE`, and missing permissions before GET performs a provider request and before POST performs a balance query, connected-Book processing, Account or Transaction creation, batch operation, or audit.
+- Return HTTP `403` through the existing `ApiErrorSchema` envelope with a generic permission message that does not expose inaccessible Book names or ids.
+- Add `403` to the shared typed API responses and regenerate the OpenAPI client contract rather than defining a duplicate error schema.
+- Normalize only Bkper SDK `403` failures at the API boundary to the same typed generic `403`; leave unrelated SDK errors unchanged.
+- Apply these explicit checks only to the two `/api/v1/*` operations. Event ingress remains unchanged.
+- Authorize only the path Book named by `{bookId}`. Do not infer authorization failure from configured currencies or from connected Books absent from the caller's visible Collection. Bkper Core remains authoritative for connected-Book requests the operation actually performs.
+
+#### Client authorization and warnings
+
+- Add explicit client predicates for view-capable and edit-capable permissions, using allowlists rather than an assumed permission hierarchy.
+- Require a view-capable permission on the selected Book before initializing or rendering the Exchange Update UI. For `RECORDER`, `NONE`, or missing permission, keep the available app shell, render a dedicated access-denied message, and make no menu API request.
+- Let view-capable callers see the instructions, inputs, rates, and buttons and use GET behavior. Disable Run unless every concrete eligible Book that the Run action would target with POST has `EDITOR` or `OWNER` permission.
+- Do not let an invisible or missing configured Book, or a connected Book that is not a concrete POST target, affect Run authorization.
+- Repeat the edit-permission guard in the action handler so invoking the controller outside the button path cannot issue an unauthorized POST.
+- Preserve API status in a small typed client error. Treat `403` as non-retryable and show the generic permission message immediately.
+- Separate the possibly missing connected-Book condition from permission errors. Use neutral warning wording, keep it non-blocking, and do not let it hide controls or disable Run.
+- Leave pending-task and bot-error notice behavior unchanged.
+
+#### Verification and rollout
+
+- Keep tests lean: one explicit permission table, one denied-operation no-side-effect assertion per endpoint, one SDK `403` mapping assertion, and the existing OpenAPI contract test extended for `403`.
+- Retain only focused client safeguards for access gating, viewer-visible GET controls with Run disabled, concrete POST-target edit permission, non-blocking missing-Book warnings, action-handler enforcement, and non-retried `403` responses.
+- Regenerate checked-in OpenAPI client types, run the complete deterministic local gate, and visually verify the final access-denied, viewer, editor, and warning states once after implementation.
+- Preview redeployment and authenticated allowed/denied caller validation require separate explicit approval after local review. Local implementation performs no deployment, routing change, secret write, or Book mutation.
+
+**Gate:** The local gate and visual verification pass; after separately approved preview redeployment, deterministic and authenticated preview checks confirm GET and POST allowlists, generic typed `403` responses, no denied-operation side effects, non-retried permission failures, and non-blocking configuration warnings.
+
+### Chunk 16 — Preview event validation
 
 **Status: Not started.**
 
@@ -510,7 +563,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Deterministic assertions and human review find no duplicate, missing, reversed, partial, or imbalanced posted movement.
 
-### Chunk 16 — Preview menu and Exchange Update validation
+### Chunk 17 — Preview menu and Exchange Update validation
 
 **Status: Not started.**
 
@@ -521,7 +574,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** The full menu workflow and resulting Bkper resources match accepted legacy behavior.
 
-### Chunk 17 — Final drift audit and production deployment
+### Chunk 18 — Final drift audit and production deployment
 
 **Status: Not started.**
 
@@ -534,7 +587,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Deployment changes runtime availability only; production menu and event routing remain unchanged.
 
-### Chunk 18 — Production webhook cutover and event stabilization
+### Chunk 19 — Production webhook cutover and event stabilization
 
 **Status: Not started.**
 
@@ -548,7 +601,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Event stabilization is explicitly accepted before menu cutover begins.
 
-### Chunk 19 — Production menu cutover and full-stack stabilization
+### Chunk 20 — Production menu cutover and full-stack stabilization
 
 **Status: Not started.**
 
@@ -561,7 +614,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 **Gate:** Full-stack stabilization is explicitly accepted before repository consolidation.
 
-### Chunk 20 — Repository consolidation and deferred legacy retirement
+### Chunk 21 — Repository consolidation and deferred legacy retirement
 
 **Status: Not started.**
 

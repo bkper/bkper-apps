@@ -52,6 +52,15 @@ export interface paths {
                         "application/json": components["schemas"]["ApiError"];
                     };
                 };
+                /** @description Authorization failed */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
                 /** @description Unexpected API error */
                 500: {
                     headers: {
@@ -124,6 +133,15 @@ export interface paths {
                 };
                 /** @description Authentication failed */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+                /** @description Authorization failed */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };

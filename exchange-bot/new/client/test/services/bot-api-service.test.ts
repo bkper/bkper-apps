@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authService } from '../../src/services/auth-service.js';
-import { botApiService } from '../../src/services/bot-api-service.js';
+import { BotApiError, botApiService } from '../../src/services/bot-api-service.js';
 
 const originalFetch = globalThis.fetch;
 const originalRefresh = authService.refresh;
@@ -53,6 +53,26 @@ describe('bot API service', () => {
         expect(botApiService.loadExchangeRates('book-id', '2026-08-06')).rejects.toThrow(
             /^400: Rates unavailable$/
         );
+    });
+
+    it('preserves a typed permission error status', async () => {
+        globalThis.fetch = Object.assign(
+            mock(async () =>
+                Response.json(
+                    { error: { message: 'Insufficient Book permission' } },
+                    { status: 403 }
+                )
+            ),
+            { preconnect: originalFetch.preconnect }
+        );
+
+        expect(
+            botApiService.performExchangeUpdate('book-id', {
+                base: 'USD',
+                date: '2026-08-06',
+                rates: {},
+            })
+        ).rejects.toEqual(new BotApiError('Insufficient Book permission', 403));
     });
 
     it('runs Exchange Update for one Book with the edited rates', async () => {

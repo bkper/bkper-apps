@@ -4,6 +4,15 @@ import { HttpError } from './http-request.js';
 
 class BotApiRequest<ResponseType> extends HttpAPIRequest<ResponseType> {}
 
+export class BotApiError extends Error {
+    constructor(
+        message: string,
+        readonly status: number
+    ) {
+        super(message);
+    }
+}
+
 class BotApiService {
     async loadExchangeRates(bookId: string, date: string): Promise<ExchangeRates> {
         try {
@@ -11,7 +20,7 @@ class BotApiService {
             return await new BotApiRequest<ExchangeRates>(url).addParam('date', date).execute();
         } catch (error: unknown) {
             if (error instanceof HttpError && isApiError(error.data)) {
-                throw new Error(error.data.error.message);
+                throw new BotApiError(error.data.error.message, error.status);
             }
             throw error;
         }
@@ -29,7 +38,7 @@ class BotApiService {
                 .execute();
         } catch (error: unknown) {
             if (error instanceof HttpError && isApiError(error.data)) {
-                throw new Error(error.data.error.message);
+                throw new BotApiError(error.data.error.message, error.status);
             }
             throw error;
         }

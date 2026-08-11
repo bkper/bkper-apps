@@ -27,7 +27,7 @@ export const exchangeUpdateResultCSS = css`
         padding: var(--bkper-spacing-medium);
         padding-left: 20px;
         padding-right: var(--bkper-spacing-x-small);
-        width: min(24rem, calc(100vw - 5rem));
+        width: min(20rem, calc(100vw - 5rem));
     }
 
     .content {

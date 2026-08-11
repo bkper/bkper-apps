@@ -24,7 +24,7 @@ export const exchangeUpdateCSS = css`
 
     .date-input,
     .rate-input {
-        width: min(100%, 20rem);
+        width: min(100%, 16rem);
     }
 
     .rates,

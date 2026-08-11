@@ -39,6 +39,8 @@ describe('menu API OpenAPI contract', () => {
         expect(postOperation.responses?.['200'].content?.['application/json'].schema).toEqual({
             $ref: '#/components/schemas/ExchangeUpdateResult',
         });
+        expect(getOperation.responses?.['403']).toBeDefined();
+        expect(postOperation.responses?.['403']).toBeDefined();
         expect(getOperation.responses?.['502']).toBeDefined();
         expect(postOperation.responses?.['502']).toBeUndefined();
         expect(schemas.ExchangeUpdateResult).toEqual({

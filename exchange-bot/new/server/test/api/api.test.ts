@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
+import { Bkper, BkperError } from 'bkper-js';
 import { createApp } from '../../src/index.js';
 import { ExchangeRatesSchema } from '../../src/api/schemas.js';
 
@@ -6,6 +7,8 @@ const env = {
     OPEN_EXCHANGE_RATES_APP_ID: 'test-only',
     ASSETS: { fetch: async () => new Response('asset') },
 };
+
+const originalGetBook = Bkper.prototype.getBook;
 
 const validRates = {
     base: 'USD',
@@ -16,6 +19,10 @@ const validRates = {
 async function request(path: string, init?: RequestInit): Promise<Response> {
     return createApp().request(path, init, env);
 }
+
+afterEach(() => {
+    Bkper.prototype.getBook = originalGetBook;
+});
 
 describe('typed menu API', () => {
     it('validates the rates request date and routable book id', async () => {
@@ -56,6 +63,19 @@ describe('typed menu API', () => {
         });
 
         expect(response.status).toBe(400);
+    });
+
+    it('preserves Bkper permission failures in the typed API response', async () => {
+        Bkper.prototype.getBook = async () => {
+            throw new BkperError(403, 'Upstream permission details', 'forbidden');
+        };
+
+        const response = await request('/api/v1/books/book-1/exchange-rates?date=2026-08-05');
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({
+            error: { message: 'Upstream permission details' },
+        });
     });
 
     it('returns the standard JSON error for unknown API routes', async () => {

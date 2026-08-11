@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { HTTPException } from 'hono/http-exception';
+import { BkperError } from 'bkper-js';
 import type { Env } from '../../env.js';
 import { apiError } from './api/errors.js';
 import { registerApiRoutes } from './api/routes.js';
@@ -26,6 +27,9 @@ export function createApp(): OpenAPIHono<AppEnv> {
         if (c.req.path.startsWith('/api/')) {
             if (error instanceof HTTPException) {
                 return c.json(apiError(error.message), error.status);
+            }
+            if (error instanceof BkperError && error.code === 403) {
+                return c.json(apiError(error.message), 403);
             }
             console.error(error);
             return c.json(apiError('An unexpected error occurred'), 500);

@@ -67,6 +67,7 @@ export function jsonResponse<T extends ZodType>(description: string, schema: T) 
 export const apiErrorResponses = {
     400: jsonResponse('Invalid request', ApiErrorSchema),
     401: jsonResponse('Authentication failed', ApiErrorSchema),
+    403: jsonResponse('Authorization failed', ApiErrorSchema),
     500: jsonResponse('Unexpected API error', ApiErrorSchema),
 };
 

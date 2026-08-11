@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–14 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–15 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target is deployed to preview, and both development surfaces route to it. API and client Book-permission hardening is next, before preview event validation. No production deployment or production menu or webhook routing change has been performed.
+The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening is complete. Preview event validation is next. No production deployment or production menu or webhook routing change has been performed.
 
 ## Purpose of this document
 
@@ -517,7 +517,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 15 — Enforce API and client Book permissions
 
-**Status: Local implementation and verification complete; preview redeployment and validation pending.**
+**Status: Complete.**
 
 This chunk is an explicitly accepted pre-production security hardening prerequisite, not migration parity. The reusable API can be called directly by scripts, services, and agents, so client-only permission checks are insufficient.
 
@@ -549,11 +549,14 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Retain only focused client safeguards for access gating, viewer-visible GET controls with Run disabled, concrete POST-target edit permission, non-blocking missing-Book warnings, action-handler enforcement, and non-retried `403` responses.
 - Regenerate checked-in OpenAPI client types, run the complete deterministic local gate, and visually verify the final access-denied, viewer, editor, and warning states once after implementation.
 - Completed local implementation with explicit server and client permission allowlists, pre-side-effect service guards, detailed direct authorization messages, preserved upstream Bkper SDK `403` messages, per-target client Run authorization, non-retried permission failures, and independent non-blocking context warnings.
-- Passed the complete local gate with strict client and server typechecks, 194 retained tests, production client and Worker builds, formatting, and generated-contract verification.
+- Passed the complete local gate with strict client and server typechecks, 195 retained tests, production client and Worker builds, formatting, and generated-contract verification.
 - Visually verified the access-denied, viewer, editor, and combined-warning states with deterministic mocked rates. The viewer retained enabled GET-capable inputs with Run disabled; the editor retained Run; and all simultaneous context warnings remained visible without disabling Run. An accessibility scan reported no violations and one manual contrast review for the Run button.
-- Preview redeployment and authenticated allowed/denied caller validation require separate explicit approval after local review. Local implementation performed no deployment, routing change, secret write, or Book mutation.
+- Redeployed the accepted permission-hardening candidate to preview through a separately approved operation without changing production routing.
+- Confirmed representative authenticated preview behavior: `OWNER` and `VIEWER` GET requests returned `200`, a `VIEWER` POST returned the detailed typed `403` permission response, and an unauthenticated GET returned `401` at the Platform boundary.
+- Repeated the denied POST between deterministic Book, Account, and Event snapshots. The request returned `403`, and all normalized snapshots remained unchanged, confirming no denied-operation resource mutation or audit.
+- Confirmed the deployed responses in preview request logs. The complete permission allowlists, preserved upstream Bkper SDK `403` behavior, non-retried client permission failures, and simultaneous non-blocking warning states remain covered by the retained deterministic and visual safeguards recorded above.
 
-**Gate:** The local gate and visual verification pass; after separately approved preview redeployment, deterministic and authenticated preview checks confirm GET and POST allowlists, detailed direct authorization responses, preserved upstream Bkper SDK `403` messages, no denied-operation side effects, non-retried permission failures, and non-blocking configuration warnings.
+**Gate:** Passed. The complete deterministic permission matrix and representative authenticated preview checks confirm the deployed authorization boundary without changing production routing or creating a denied-operation side effect.
 
 ### Chunk 16 — Preview event validation
 

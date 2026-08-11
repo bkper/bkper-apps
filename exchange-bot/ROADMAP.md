@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–16 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–17 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening and preview event validation are complete. Preview menu and Exchange Update validation is next. No production deployment or production menu or webhook routing change has been performed.
+The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening, preview event validation, and preview menu and Exchange Update validation are complete. The final drift audit and production deployment are next. No production deployment or production menu or webhook routing change has been performed.
 
 ## Purpose of this document
 
@@ -574,14 +574,17 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 17 — Preview menu and Exchange Update validation
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Exercise menu initialization, permissions, warnings, rate loading, rate editing, progress, results, failures, and retry behavior.
-- Run isolated Exchange Update canaries with deterministic Books, balances, dates, and rates.
-- Verify generated Accounts, Groups, transactions, movement direction, amounts, properties, returned payloads, and conditional client-triggered target-Book audits.
-- Complete final preview visual verification.
+- Exercised the authenticated preview menu with an owner on a dedicated private two-Book USD/EUR canary Collection. Initialization, selected-Book context, the existing bot-error warning, historical rate loading, date changes, editable rates, Run availability, progress, results, and the retained permission boundaries matched the accepted workflow.
+- Exercised controlled client-side rate and Exchange Update failures without allowing the intercepted requests to reach a Book. Rate failure remained non-mutating; Exchange Update displayed independent retry progress, stopped at the retained retry limit, and exposed the final error without creating a resource.
+- Ran deterministic gain and loss canaries with fixed Books, balances, date, and edited rate. Canonical re-reads confirmed the expected Exchange Account creation and type, complete posted movements in both directions, exact amounts, descriptions, exchange properties, returned payload order, and Exchange Bot attribution.
+- Redeployed the accepted client-triggered audit boundary to preview after the complete local gate passed with strict client and server typechecks, 196 retained tests, production client and Worker builds, formatting, and generated-contract verification.
+- Ran an isolated post-deployment adjustment canary. The API returned exactly one accepted complete movement, the client issued exactly one accepted target-Book audit request, and the rendered result matched the accepted signed summary. A repeated no-op returned no Accounts or transactions, issued no audit request, and created no duplicate adjustment.
+- Verified every accounting result through canonical resource re-reads and deterministic per-Account movement aggregation. Each canary Book remained zero-sum before and after Exchange Update, with no duplicate, reversed, partial, or imbalanced posted movement.
+- Human review accepted the final preview menu workflow and visual result in the regular authenticated Bkper browser context. Production menu and webhook routing remained on Apps Script and GCP throughout validation.
 
-**Gate:** The full menu workflow and resulting Bkper resources match accepted legacy behavior.
+**Gate:** Passed. The full menu workflow and resulting Bkper resources match accepted legacy behavior, including the recorded conditional client-triggered audit boundary.
 
 ### Chunk 18 — Final drift audit and production deployment
 

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–15 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–16 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening is complete. Preview event validation is next. No production deployment or production menu or webhook routing change has been performed.
+The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening and preview event validation are complete. Preview menu and Exchange Update validation is next. No production deployment or production menu or webhook routing change has been performed.
 
 ## Purpose of this document
 
@@ -560,13 +560,16 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 16 — Preview event validation
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Exercise representative transaction, Account, Group, and Book event paths in isolated synthetic Books.
-- Validate converted movement direction, amount, state, remote-id relationship, properties, and responses.
-- Validate the established unresolved and no-op paths.
+- Created a dedicated private two-Book USD/EUR canary Collection, installed Exchange Bot on the synthetic canary Books, and confirmed development events reached the preview Worker while production routing remained on GCP.
+- Exercised Group and Account creation, update, rename, and deletion plus selected Book-setting synchronization. Connected resources retained their identity, type, hierarchy, properties, and expected responses without creating transaction movements.
+- Exercised a complete posted movement through update, check, checked-mirror deletion, and restoration. The mirror retained one origin Account, one destination Account, one amount, its remote-id relationship, visible and exchange trace properties, state transitions, direction, and identity without duplication.
+- Exercised the converted-zero no-op path and a deliberately unsupported synthetic currency path. The zero conversion created no target transaction; the unsupported rate produced the established error and no partial, draft, or balance-affecting target movement.
+- Verified every accounting result through canonical resource re-reads and deterministic per-Account balance assertions. Each Book remained zero-sum, and human review accepted the resulting canary resources and event responses.
+- Passed the complete local gate with strict client and server typechecks, 195 retained tests, production client and Worker builds, formatting, and generated-contract verification.
 
-**Gate:** Deterministic assertions and human review find no duplicate, missing, reversed, partial, or imbalanced posted movement.
+**Gate:** Passed. Deterministic assertions and accepted review found no duplicate, missing, reversed, partial, or imbalanced posted movement.
 
 ### Chunk 17 — Preview menu and Exchange Update validation
 

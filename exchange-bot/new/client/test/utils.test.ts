@@ -56,6 +56,15 @@ describe('Utils', () => {
         }
     });
 
+    it('formats view permission errors from the shared allowlist', () => {
+        expect(Utils.getViewPermissionError(new Book({ permission: Permission.RECORDER }))).toBe(
+            'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.'
+        );
+        expect(Utils.getViewPermissionError(new Book({}))).toBe(
+            'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: unavailable.'
+        );
+    });
+
     it('returns false when no base Book is configured', () => {
         const book = new Book({ id: 'selected-book', properties: {} });
 

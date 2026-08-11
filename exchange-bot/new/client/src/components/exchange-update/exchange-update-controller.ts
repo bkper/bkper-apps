@@ -4,25 +4,13 @@ import type { ExchangeRates } from '../../api/generated/types.js';
 import { botApiService } from './../../services/bot-api-service.js';
 import { bookService } from './../../services/book-service.js';
 import { Utils } from './../../utils.js';
-import type { ExchangeBotBook } from '../../types.js';
+import {
+    ExchangeUpdateStatus,
+    type ExchangeBotBook,
+    type ExchangeUpdateResult,
+    type ExchangeUpdateSummary,
+} from '../../types.js';
 import type { ExchangeUpdateView } from './exchange-update-view.js';
-
-export enum ExchangeUpdateStatus {
-    WAITING = 'WAITING',
-    RETRYING = 'RETRYING',
-    COMPLETE = 'COMPLETE',
-    ERROR = 'ERROR',
-}
-
-export type ExchangeUpdateSummary = Record<string, string>;
-
-export interface ExchangeUpdateResult {
-    status: ExchangeUpdateStatus;
-    summary?: ExchangeUpdateSummary;
-    error?: string;
-    retryCount?: number;
-    retryLimit?: number;
-}
 
 export class ExchangeUpdateController implements ReactiveController {
     private readonly view: ExchangeUpdateView;

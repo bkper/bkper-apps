@@ -5,11 +5,8 @@ import type {
     ExchangeRates,
     ExchangeUpdateResult as ExchangeUpdateApiResult,
 } from '../../../src/api/generated/types.js';
-import type { ExchangeBotBook } from '../../../src/types.js';
-import {
-    ExchangeUpdateController,
-    ExchangeUpdateSummary,
-} from '../../../src/components/exchange-update/exchange-update-controller.js';
+import type { ExchangeBotBook, ExchangeUpdateSummary } from '../../../src/types.js';
+import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
 import { bookService } from '../../../src/services/book-service.js';

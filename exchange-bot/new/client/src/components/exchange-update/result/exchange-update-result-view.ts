@@ -2,7 +2,7 @@ import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { exchangeUpdateResultCSS } from './exchange-update-result-css.js';
 import { sharedCSS } from '../../shared-css.js';
-import { ExchangeUpdateSummary } from '../exchange-update-controller.js';
+import type { ExchangeUpdateSummary } from '../../../types.js';
 
 @customElement('exchange-update-result')
 export class ExchangeUpdateResultView extends LitElement {

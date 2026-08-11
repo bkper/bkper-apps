@@ -2,8 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Book } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
-import type { ExchangeBotBook } from '../../../src/types.js';
-import { ExchangeUpdateStatus } from '../../../src/components/exchange-update/exchange-update-controller.js';
+import { ExchangeUpdateStatus, type ExchangeBotBook } from '../../../src/types.js';
 
 type DateChangeHandler = (this: ExchangeUpdateView, event: Event) => void;
 type RateChangeHandler = (this: ExchangeUpdateView, code: string, event: Event) => void;

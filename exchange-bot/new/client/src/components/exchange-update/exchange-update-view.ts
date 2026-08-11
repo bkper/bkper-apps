@@ -3,14 +3,14 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { ExchangeRates } from '../../api/generated/types.js';
-import {
-    ExchangeUpdateController,
-    type ExchangeUpdateResult,
-    ExchangeUpdateStatus,
-} from './exchange-update-controller.js';
+import { ExchangeUpdateController } from './exchange-update-controller.js';
 import { exchangeUpdateCSS } from './exchange-update-css.js';
 import { sharedCSS } from '../shared-css.js';
-import type { ExchangeBotBook } from '../../types.js';
+import {
+    ExchangeUpdateStatus,
+    type ExchangeBotBook,
+    type ExchangeUpdateResult,
+} from '../../types.js';
 import './result/exchange-update-result-view.js';
 
 @customElement('exchange-update')

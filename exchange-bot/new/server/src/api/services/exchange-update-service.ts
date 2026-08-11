@@ -156,7 +156,6 @@ export class ExchangeUpdateService {
             createdTransactions.push(...created.map(tx => tx.json()));
         }
 
-        book.audit();
         return { createdTransactions, createdAccounts };
     }
 }

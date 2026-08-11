@@ -121,14 +121,14 @@ describe('Exchange update controller', () => {
         bookService.loadBook = mock(async () => {
             throw new Error('The existing Account chart should be reused');
         });
+        const targetBook = createExchangeBotBook('usd-book', 'USD', true, [
+            { id: 'cash-exchange', name: 'Cash EXC' },
+        ]);
+        const audit = mock(() => undefined);
+        targetBook.book.audit = audit;
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
-        view.books = [
-            createExchangeBotBook('usd-book', 'USD', true, [
-                { id: 'cash-exchange', name: 'Cash EXC' },
-            ]),
-            createExchangeBotBook('brl-book', 'BRL', false),
-        ];
+        view.books = [targetBook, createExchangeBotBook('brl-book', 'BRL', false)];
         view.exchangeRates = exchangeRates;
         const controller = createController(view);
 
@@ -158,7 +158,31 @@ describe('Exchange update controller', () => {
             summary: { 'Cash EXC': '10,00' },
         });
         expect(bookService.loadBook).not.toHaveBeenCalled();
+        expect(audit).toHaveBeenCalledTimes(1);
         expect(view.executing).toBe(false);
+    });
+
+    it('does not audit a successful no-op response', async () => {
+        botApiService.performExchangeUpdate = mock(async () => createExchangeUpdateApiResult());
+        const targetBook = createExchangeBotBook('usd-book', 'USD', true);
+        const audit = mock(() => undefined);
+        targetBook.book.audit = audit;
+        const view = new TestView();
+        view.books = [targetBook];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(audit).not.toHaveBeenCalled();
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'COMPLETE',
+            summary: {},
+        });
     });
 
     it('reloads a stale Account chart before summarizing a newly created Account', async () => {

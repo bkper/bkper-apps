@@ -287,3 +287,31 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Permanent failures stop immediately with the final per-Book error.
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
+
+## 12. Client-triggered post-update Book audits may be unnecessary
+
+**Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
+
+### Current migration behavior
+
+Exchange Update POST updates one path Book and returns its accepted Account and Transaction resources. Auditing is not part of that reusable API contract.
+
+After each successful target response, the menu client inspects `createdTransactions`. When at least one transaction was accepted, it triggers one fire-and-forget `Book.audit()` on that target Book. Failed POST attempts, no-op responses, and Account-only responses do not trigger an audit. The audit does not participate in mutation retry or result handling.
+
+This keeps the compatibility side effect in the user-facing workflow, where the legacy GAS menu initiated auditing after successful updates, while avoiding an invasive side effect for direct API callers.
+
+### Problem
+
+Bkper already updates balances from accepted complete movements, and an additional Book audit may be redundant. Auditing after every mutating Exchange Update adds work and may obscure whether the workflow depends on repair behavior that should not be necessary. The migration must preserve accepted behavior long enough to validate the cutover, but preservation alone does not justify retaining this call permanently.
+
+### Intended review
+
+After migration stabilization, determine from production evidence whether Exchange Update requires an explicit audit at all. If not, remove the client call without adding an API-side replacement.
+
+### Acceptance criteria
+
+- The review establishes whether any correctness or recovery behavior depends on the explicit audit.
+- Until that review, only successful responses containing accepted transactions trigger one target-Book audit.
+- No-op, failed, and Account-only responses do not trigger an audit.
+- Audit triggering never retries or changes the outcome of an accepted Exchange Update mutation.
+- Removing the compatibility call must not change movement direction, amount, transaction state, returned resources, or the zero-sum invariant.

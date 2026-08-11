@@ -96,20 +96,15 @@ describe('legacy menu Exchange Update', () => {
     test('rejects a non-editor before reading balances or mutating the Book', async () => {
         const book = createBook('usd-book', 'USD', {}, { permission: Permission.VIEWER });
         let balanceQueries = 0;
-        let audits = 0;
         book.getBalancesReport = async () => {
             balanceQueries += 1;
             return createReport(book, new Map());
-        };
-        book.audit = () => {
-            audits += 1;
         };
 
         expect(
             ExchangeUpdateService.update(createContext(book), 'usd-book', rates({}))
         ).rejects.toMatchObject({ status: 403 });
         expect(balanceQueries).toBe(0);
-        expect(audits).toBe(0);
     });
 
     test('loads complete charts only for the target and connected Books with matching Accounts', async () => {
@@ -138,7 +133,6 @@ describe('legacy menu Exchange Update', () => {
         targetBook.getGroups = async () => [];
         targetBook.getBalancesReport = async () => createReport(targetBook, new Map());
         targetBook.batchCreateTransactions = async transactions => transactions;
-        targetBook.audit = () => {};
 
         const eurBook = createBook('eur-book', 'EUR');
         eurBook.getBalancesReport = async () => createReport(eurBook, new Map());
@@ -179,7 +173,7 @@ describe('legacy menu Exchange Update', () => {
         ]);
     });
 
-    test('audits a successful no-op update', async () => {
+    test('does not audit a successful no-op update', async () => {
         const book = createBook('usd-book', 'USD');
         book.getBalancesReport = async () => createReport(book, new Map());
         let audits = 0;
@@ -194,7 +188,7 @@ describe('legacy menu Exchange Update', () => {
         );
 
         expect(result).toEqual({ createdTransactions: [], createdAccounts: [] });
-        expect(audits).toBe(1);
+        expect(audits).toBe(0);
     });
 
     test('returns accepted gain and loss movements in connected-Book order', async () => {
@@ -285,9 +279,6 @@ describe('legacy menu Exchange Update', () => {
                     })
             );
         };
-        book.audit = () => {
-            sequence.push('audit');
-        };
 
         const result = await ExchangeUpdateService.update(
             createContext(book),
@@ -296,7 +287,7 @@ describe('legacy menu Exchange Update', () => {
         );
 
         expect(baseQueries).toEqual(['before:2026-08-06', 'before:2026-08-06']);
-        expect(sequence).toEqual(['batch-1', 'batch-2', 'audit']);
+        expect(sequence).toEqual(['batch-1', 'batch-2']);
         expect(result.createdTransactions.map(transaction => transaction.id)).toEqual([
             'accepted-1-1',
             'accepted-2-1',
@@ -368,7 +359,6 @@ describe('legacy menu Exchange Update', () => {
             batched = transactions;
             return transactions;
         };
-        book.audit = () => undefined;
 
         await ExchangeUpdateService.update(createContext(book), 'usd-book', rates({ EUR: '0.5' }));
 
@@ -465,7 +455,6 @@ describe('legacy menu Exchange Update', () => {
             accepted = transactions;
             return transactions;
         };
-        book.audit = () => undefined;
 
         const result = await ExchangeUpdateService.update(
             createContext(book),
@@ -539,10 +528,6 @@ describe('legacy menu Exchange Update', () => {
             batched = transactions;
             return transactions;
         };
-        let audited = false;
-        book.audit = () => {
-            audited = true;
-        };
 
         const result = await ExchangeUpdateService.update(
             createContext(book),
@@ -554,6 +539,5 @@ describe('legacy menu Exchange Update', () => {
         expect(connectedQueries).toEqual(['before:2026-08-06']);
         expect(batched).toEqual([]);
         expect(result).toEqual({ createdTransactions: [], createdAccounts: [] });
-        expect(audited).toBe(true);
     });
 });

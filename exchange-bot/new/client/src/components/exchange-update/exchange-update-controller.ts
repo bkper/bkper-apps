@@ -111,6 +111,10 @@ export class ExchangeUpdateController implements ReactiveController {
         while (true) {
             try {
                 const result = await botApiService.performExchangeUpdate(bookId, exchangeRates);
+                if (result.createdTransactions.length > 0) {
+                    // Preserve the legacy menu audit after accepted movements.
+                    book.book.audit();
+                }
                 if (result.createdAccounts.length > 0) {
                     // Reload the complete chart so transaction Account ids resolve newly created Accounts.
                     book.book = await bookService.loadBook(bookId);

@@ -38,12 +38,22 @@ describe('Utils', () => {
         expect(Utils.hasBaseBookInCollection(book)).toBe(true);
     });
 
-    it('preserves edit-permission rules', () => {
-        const editorBook = new Book({ id: 'editor-book', permission: Permission.EDITOR });
-        const viewerBook = new Book({ id: 'viewer-book', permission: Permission.VIEWER });
+    it('uses explicit view and edit permission allowlists', () => {
+        const cases = [
+            { permission: Permission.OWNER, canView: true, canEdit: true },
+            { permission: Permission.EDITOR, canView: true, canEdit: true },
+            { permission: Permission.POSTER, canView: true, canEdit: false },
+            { permission: Permission.VIEWER, canView: true, canEdit: false },
+            { permission: Permission.RECORDER, canView: false, canEdit: false },
+            { permission: Permission.NONE, canView: false, canEdit: false },
+            { permission: undefined, canView: false, canEdit: false },
+        ] as const;
 
-        expect(Utils.canEditBook(editorBook)).toBe(true);
-        expect(Utils.canEditBook(viewerBook)).toBe(false);
+        for (const permissionCase of cases) {
+            const book = new Book({ id: 'book-id', permission: permissionCase.permission });
+            expect(Utils.canViewBook(book)).toBe(permissionCase.canView);
+            expect(Utils.canEditBook(book)).toBe(permissionCase.canEdit);
+        }
     });
 
     it('returns false when no base Book is configured', () => {

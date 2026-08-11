@@ -43,14 +43,30 @@ export class Utils {
     }
 
     /**
+     * Tells whether the user can view a Book.
+     *
+     * @param book - The Book whose current-user permission should be checked.
+     * @returns `true` for VIEWER, POSTER, EDITOR or OWNER permission; otherwise, `false`.
+     */
+    static canViewBook(book: Book): boolean {
+        const permission = book.getPermission();
+        return (
+            permission === Permission.VIEWER ||
+            permission === Permission.POSTER ||
+            permission === Permission.EDITOR ||
+            permission === Permission.OWNER
+        );
+    }
+
+    /**
      * Tells whether the user can edit a Book.
      *
      * @param book - The Book whose current-user permission should be checked.
-     * @returns `true` for owner or editor permission; otherwise, `false`.
+     * @returns `true` for EDITOR or OWNER permission; otherwise, `false`.
      */
     static canEditBook(book: Book): boolean {
         const permission = book.getPermission();
-        return permission === Permission.OWNER || permission === Permission.EDITOR ? true : false;
+        return permission === Permission.EDITOR || permission === Permission.OWNER;
     }
 
     /**

@@ -310,9 +310,12 @@ describe('Bot app controller', () => {
             authService.accessToken = 'access-token';
         };
         bookService.loadBook = async () => book;
-        const getConfiguredCodes = mock(async () => new Set<string>());
-        const getBooksWithErrors = mock(async () => new Set<Book>());
+        const getConfiguredCodes = mock(async () => new Set(['BRL']));
+        const getBooksWithErrors = mock(
+            async () => new Set([new Book({ properties: { exc_code: 'EUR' } })])
+        );
         botService.getBookConfiguredExcCodes = getConfiguredCodes;
+        botService.getBooksWithPendingTasks = async () => new Set([book]);
         botService.getBooksWithEventErrors = getBooksWithErrors;
         const view = new TestView();
         const controller = createController(view);
@@ -324,8 +327,13 @@ describe('Bot app controller', () => {
         expect(view.permissionError).toBe(
             'User needs EDITOR or OWNER permission in the following books: USD Book book'
         );
-        expect(getConfiguredCodes).not.toHaveBeenCalled();
-        expect(getBooksWithErrors).not.toHaveBeenCalled();
+        expect(getConfiguredCodes).toHaveBeenCalledTimes(1);
+        expect(getBooksWithErrors).toHaveBeenCalledTimes(1);
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+            'Books with pending tasks: USD',
+            'Books with errors: EUR',
+        ]);
     });
 
     it('requires edit permission only on concrete Exchange Update targets', async () => {

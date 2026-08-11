@@ -91,7 +91,6 @@ export class BotAppController implements ReactiveController {
         if (booksMissingEditPermission.length > 0) {
             this.view.hasEditorPermission = false;
             this.view.permissionError = this.buildEditPermissionError(booksMissingEditPermission);
-            return;
         } else {
             this.view.hasEditorPermission = true;
         }

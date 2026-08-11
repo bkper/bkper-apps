@@ -18,7 +18,7 @@ class TestView implements ReactiveControllerHost {
     hasViewerPermission = false;
     hasEditorPermission = false;
     permissionError = '';
-    contextWarning = '';
+    warnings: string[] = [];
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -238,14 +238,14 @@ describe('Bot app controller', () => {
         const controller = createController(view);
 
         await controller.initialize();
-        expect(view.contextWarning).not.toBe('');
+        expect(view.warnings.length).toBeGreaterThan(0);
 
         configuredExcCodes = new Set<string>();
         await controller.initialize();
 
         expect(view.books.map(book => book.book.getId())).toEqual(['connected-book', 'book-id']);
         expect(view.permissionError).toBe('');
-        expect(view.contextWarning).toBe('');
+        expect(view.warnings).toEqual([]);
     });
 
     it('checks event errors only in Collection Books', async () => {
@@ -393,7 +393,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError).toContain('pending bot tasks');
+        expect(view.warnings[0]).toContain('pending tasks');
     });
 
     it('deduplicates pending-task exchange codes', async () => {
@@ -427,10 +427,10 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError.match(/BRL/g)).toHaveLength(1);
+        expect(view.warnings.join(' ').match(/BRL/g)).toHaveLength(1);
     });
 
-    it('shows a non-blocking missing connected-Book warning before operational notices', async () => {
+    it('shows all non-blocking context warnings in order', async () => {
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -454,10 +454,14 @@ describe('Bot app controller', () => {
 
         expect(view.hasEditorPermission).toBe(true);
         expect(view.permissionError).toBe('');
-        expect(view.contextWarning).toContain('BRL');
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+            'Books with pending tasks: USD',
+            'Books with errors: EUR',
+        ]);
     });
 
-    it('shows pending tasks before bot errors', async () => {
+    it('shows pending-task and bot-error warnings together', async () => {
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -477,7 +481,8 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError).toBe('There are pending bot tasks in USD book');
+        expect(view.permissionError).toBe('');
+        expect(view.warnings).toEqual(['Books with pending tasks: USD', 'Books with errors: BRL']);
     });
 
     it('shows bot errors after permission and pending-task checks pass', async () => {
@@ -502,7 +507,8 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError).toBe('There are bot errors in BRL, EUR books');
+        expect(view.permissionError).toBe('');
+        expect(view.warnings).toEqual(['Books with errors: BRL, EUR']);
     });
 
     it('shows an error without loading a Book when bookId is missing', async () => {

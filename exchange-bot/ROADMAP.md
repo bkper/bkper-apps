@@ -296,7 +296,7 @@ Each behavior chunk follows this workflow:
 - The client establishes an authenticated session and loads the selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
 - The main Exchange Update UI is initialized and rendered only when the selected path Book has a view-capable `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` permission. `RECORDER`, `NONE`, and missing permissions render a dedicated access-denied state and perform no menu API request.
 - A view-capable caller may load rates, change the date, and edit rate inputs. Run remains disabled unless every concrete eligible Book that the action would target with POST has `EDITOR` or `OWNER` permission.
-- Connected Books that are not concrete POST targets do not affect Run authorization. Configured currencies or Books absent from the visible Collection produce a distinct, neutral warning that never hides controls or disables Run.
+- Connected Books that are not concrete POST targets do not affect Run authorization. Configured currencies or Books absent from the visible Collection, pending bot tasks, and bot errors produce independent neutral warnings that are all shown together and never hide controls or disable Run.
 - Client action handling repeats the edit-permission guard before issuing POST. A server `403` is shown immediately and is never retried; other established per-Book progress, failure, and retry behavior remains unchanged.
 - Initial loading, permission, warning, waiting, rates, result, retry, and error states preserve the existing workflow except for the explicit permission hardening above.
 - Date changes reload rates through the typed API.
@@ -541,17 +541,16 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Do not let an invisible or missing configured Book, or a connected Book that is not a concrete POST target, affect Run authorization.
 - Repeat the edit-permission guard in the action handler so invoking the controller outside the button path cannot issue an unauthorized POST.
 - Preserve API status in a small typed client error. Treat `403` as non-retryable and show its permission message immediately.
-- Separate the possibly missing connected-Book condition from permission errors. Use neutral warning wording, keep it non-blocking, and do not let it hide controls or disable Run.
-- Leave pending-task and bot-error notice behavior unchanged.
+- Separate missing connected-Book conditions, pending bot tasks, and bot errors from permission errors. Present each condition as an independent non-blocking warning, show all simultaneous warnings in deterministic order, and do not let them hide controls or disable Run.
 
 #### Verification and rollout
 
 - Keep tests lean: one explicit permission table with focused message assertions, one denied-operation no-side-effect assertion per endpoint, one SDK `403` preservation assertion, and the existing OpenAPI contract test extended for `403`.
 - Retain only focused client safeguards for access gating, viewer-visible GET controls with Run disabled, concrete POST-target edit permission, non-blocking missing-Book warnings, action-handler enforcement, and non-retried `403` responses.
 - Regenerate checked-in OpenAPI client types, run the complete deterministic local gate, and visually verify the final access-denied, viewer, editor, and warning states once after implementation.
-- Completed local implementation with explicit server and client permission allowlists, pre-side-effect service guards, detailed direct authorization messages, preserved upstream Bkper SDK `403` messages, per-target client Run authorization, non-retried permission failures, and a distinct non-blocking configuration warning.
+- Completed local implementation with explicit server and client permission allowlists, pre-side-effect service guards, detailed direct authorization messages, preserved upstream Bkper SDK `403` messages, per-target client Run authorization, non-retried permission failures, and independent non-blocking context warnings.
 - Passed the complete local gate with strict client and server typechecks, 194 retained tests, production client and Worker builds, formatting, and generated-contract verification.
-- Visually verified the access-denied, viewer, editor, and warning states with deterministic mocked rates. The viewer retained enabled GET-capable inputs with Run disabled; the editor retained Run; and the warning did not disable Run. An accessibility scan reported no violations and one manual contrast review for the Run button.
+- Visually verified the access-denied, viewer, editor, and combined-warning states with deterministic mocked rates. The viewer retained enabled GET-capable inputs with Run disabled; the editor retained Run; and all simultaneous context warnings remained visible without disabling Run. An accessibility scan reported no violations and one manual contrast review for the Run button.
 - Preview redeployment and authenticated allowed/denied caller validation require separate explicit approval after local review. Local implementation performed no deployment, routing change, secret write, or Book mutation.
 
 **Gate:** The local gate and visual verification pass; after separately approved preview redeployment, deterministic and authenticated preview checks confirm GET and POST allowlists, detailed direct authorization responses, preserved upstream Bkper SDK `403` messages, no denied-operation side effects, non-retried permission failures, and non-blocking configuration warnings.

@@ -51,7 +51,7 @@ export class BotAppController implements ReactiveController {
                 this.view.books = [];
                 this.view.hasEditorPermission = false;
                 this.view.permissionError = Utils.getViewPermissionError(book);
-                this.view.contextWarning = '';
+                this.view.warnings = [];
                 this.view.appState = BotAppState.READY;
                 return;
             }
@@ -68,7 +68,7 @@ export class BotAppController implements ReactiveController {
         this.view.books = [];
         this.view.hasEditorPermission = false;
         this.view.permissionError = '';
-        this.view.contextWarning = '';
+        this.view.warnings = [];
 
         const hasBaseBook = Utils.hasBaseBookInCollection(book);
         const connectedBooks = await botService.getConnectedBooks(book);
@@ -102,19 +102,24 @@ export class BotAppController implements ReactiveController {
         // Map books with errors
         const botErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
 
+        const warnings: string[] = [];
+
         if (missingExcCodes.size > 0) {
-            this.view.contextWarning = this.buildContextWarning(missingExcCodes);
-        } else if (pendingTasksExcCodes.size > 0) {
-            this.view.permissionError = this.buildContextError(
-                'There are pending bot tasks in',
-                pendingTasksExcCodes
-            );
-        } else if (botErrorsExcCodes.size > 0) {
-            this.view.permissionError = this.buildContextError(
-                'There are bot errors in',
-                botErrorsExcCodes
+            warnings.push(
+                this.buildWarning(
+                    'Configured currencies do not have a visible connected Book:',
+                    missingExcCodes
+                )
             );
         }
+        if (pendingTasksExcCodes.size > 0) {
+            warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
+        }
+        if (botErrorsExcCodes.size > 0) {
+            warnings.push(this.buildWarning('Books with errors:', botErrorsExcCodes));
+        }
+
+        this.view.warnings = warnings;
     }
 
     private getInitialDate(book: Book): string {
@@ -176,14 +181,7 @@ export class BotAppController implements ReactiveController {
         return `${prefix} ${identifiers.join(', ')} ${suffix}`;
     }
 
-    private buildContextError(prefixText: string, excCodes: Set<string>): string {
-        const codesArray = Array.from(excCodes);
-        const suffixText = codesArray.length > 1 ? 'books' : 'book';
-        return `${prefixText} ${codesArray.join(', ')} ${suffixText}`;
-    }
-
-    private buildContextWarning(excCodes: Set<string>): string {
-        const prefix = 'Some configured currencies do not have a visible connected Book:';
+    private buildWarning(prefix: string, excCodes: Set<string>): string {
         const codesArray = Array.from(excCodes);
         return `${prefix} ${codesArray.join(', ')}`;
     }

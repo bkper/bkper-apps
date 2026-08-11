@@ -144,7 +144,7 @@ Check the selected Book's edit permission before loading connected-Book context 
 
 ## 7. Client conflates blocking errors with non-blocking warnings
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Partially resolved; remaining operation-stage classifications are deferred until after migration stabilization.
 
 ### Current legacy behavior
 
@@ -157,6 +157,10 @@ The GAS client uses the same error-oriented state and presentation for condition
 ### Problem
 
 State names and presentation imply that all reported conditions are errors and therefore blocking, while some only display a message and allow Exchange Update to proceed. Users cannot reliably distinguish an advisory warning from a condition that prevents or terminates an operation. The shared model also makes it easy for the migrated client to accidentally disable a valid action or allow an action that should be blocked.
+
+### Migration target follow-up
+
+The target now treats missing connected Books, pending bot tasks, and bot errors as independent non-blocking context warnings. All simultaneous warnings are displayed in deterministic order, while blocking Book authorization remains in the permission-error state. Operation-stage failures still require the broader classification described below.
 
 ### Intended fix
 

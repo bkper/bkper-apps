@@ -40,7 +40,7 @@ export class BotAppView extends LitElement {
     permissionError = '';
 
     @state()
-    contextWarning = '';
+    warnings: string[] = [];
 
     static styles = [sharedCSS, botAppCSS];
 
@@ -76,7 +76,7 @@ export class BotAppView extends LitElement {
                     .date=${this.initialDate}
                     .hasPermission=${this.hasEditorPermission}
                 ></exchange-update>
-                ${this.renderPermissionError()} ${this.renderContextWarning()}
+                ${this.renderPermissionError()} ${this.renderWarnings()}
             `;
         }
         return html``;
@@ -89,11 +89,15 @@ export class BotAppView extends LitElement {
         return html`<div class="error permission-error" role="alert">${this.permissionError}</div>`;
     }
 
-    private renderContextWarning(): TemplateResult {
-        if (!this.contextWarning) {
+    private renderWarnings(): TemplateResult {
+        if (this.warnings.length === 0) {
             return html``;
         }
-        return html`<div class="context-warning" role="status">${this.contextWarning}</div>`;
+        return html`
+            <div class="warnings">
+                ${this.warnings.map(w => html`<div class="warning" role="status">${w}</div>`)}
+            </div>
+        `;
     }
 }
 

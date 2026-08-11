@@ -13,7 +13,7 @@ const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent')
 const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissionError') as (
     this: BotAppView
 ) => TemplateResult;
-const renderContextWarning = Reflect.get(BotAppView.prototype, 'renderContextWarning') as (
+const renderWarnings = Reflect.get(BotAppView.prototype, 'renderWarnings') as (
     this: BotAppView
 ) => TemplateResult;
 
@@ -77,23 +77,32 @@ describe('Bot app view', () => {
         );
     });
 
-    it('renders menu initialization warnings', () => {
+    it('renders blocking permission errors', () => {
         const view = new BotAppView();
-        view.permissionError = 'There are pending bot tasks in USD book';
+        view.permissionError = 'Required Book permission: EDITOR or OWNER. Current: VIEWER.';
 
         const result = renderPermissionError.call(view);
 
-        expect(result.values).toContain('There are pending bot tasks in USD book');
+        expect(result.values).toContain(
+            'Required Book permission: EDITOR or OWNER. Current: VIEWER.'
+        );
     });
 
-    it('renders a missing connected-Book warning separately', () => {
+    it('renders every context warning separately', () => {
         const view = new BotAppView();
-        view.contextWarning =
-            'Some configured currencies do not have a visible connected Book: BRL';
+        view.warnings = [
+            'Some configured currencies do not have a visible connected Book: BRL',
+            'There are pending bot tasks in USD book',
+            'There are bot errors in EUR book',
+        ];
 
-        const result = renderContextWarning.call(view);
+        const result = renderWarnings.call(view);
+        const warnings = result.values[0] as TemplateResult[];
 
-        expect(result.values).toContain(view.contextWarning);
-        expect(result.strings.join('')).toContain('role="status"');
+        expect(warnings).toHaveLength(3);
+        expect(warnings.map(warning => warning.values[0])).toEqual(view.warnings);
+        for (const warning of warnings) {
+            expect(warning.strings.join('')).toContain('role="status"');
+        }
     });
 });

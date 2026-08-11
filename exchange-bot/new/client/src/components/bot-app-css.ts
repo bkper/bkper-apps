@@ -31,9 +31,15 @@ export const botAppCSS = css`
         margin-top: var(--bkper-spacing-large);
     }
 
-    .context-warning {
+    .warnings {
+        display: grid;
+        gap: var(--bkper-spacing-small);
         margin-top: var(--bkper-spacing-large);
-        color: var(--bkper-color-warning);
+    }
+
+    .warning {
+        padding-left: var(--bkper-spacing-small);
+        border-left: 0.25rem solid var(--bkper-color-warning);
     }
 
     wa-spinner {

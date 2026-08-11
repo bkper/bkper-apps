@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { Book, DecimalSeparator } from 'bkper-js';
+import { Book, DecimalSeparator, Permission } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type {
     ExchangeRates,
@@ -8,7 +8,7 @@ import type {
 import type { ExchangeBotBook, ExchangeUpdateSummary } from '../../../src/types.js';
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
-import { botApiService } from '../../../src/services/bot-api-service.js';
+import { BotApiError, botApiService } from '../../../src/services/bot-api-service.js';
 import { bookService } from '../../../src/services/book-service.js';
 
 class TestView implements ReactiveControllerHost {
@@ -64,7 +64,8 @@ function createExchangeBotBook(
     id: string,
     excCode: string,
     isBase: boolean,
-    accounts: bkper.Account[] = []
+    accounts: bkper.Account[] = [],
+    permission = Permission.EDITOR
 ): ExchangeBotBook {
     return {
         book: new Book({
@@ -72,6 +73,7 @@ function createExchangeBotBook(
             accounts,
             decimalSeparator: DecimalSeparator.COMMA,
             fractionDigits: 2,
+            permission,
         }),
         excCode,
         isBase,
@@ -86,6 +88,23 @@ function createExchangeUpdateApiResult(
 }
 
 describe('Exchange update controller', () => {
+    it('does not start when a concrete target lacks edit permission', async () => {
+        botApiService.performExchangeUpdate = mock(async () => createExchangeUpdateApiResult());
+        const view = new TestView();
+        view.books = [
+            createExchangeBotBook('usd-book', 'USD', true),
+            createExchangeBotBook('eur-book', 'EUR', true, [], Permission.VIEWER),
+            createExchangeBotBook('brl-book', 'BRL', false, [], Permission.RECORDER),
+        ];
+        view.exchangeRates = { base: 'USD', date: '2026-08-06', rates: {} };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).not.toHaveBeenCalled();
+        expect(view.executing).toBe(false);
+    });
+
     it('runs edited rates once for each eligible Book and summarizes accepted movements', async () => {
         const exchangeRates: ExchangeRates = {
             base: 'USD',
@@ -341,6 +360,28 @@ describe('Exchange update controller', () => {
             error: 'Update failed',
         });
         expect(view.executing).toBe(false);
+    });
+
+    it('does not retry a permission failure', async () => {
+        botApiService.performExchangeUpdate = mock(async () => {
+            throw new BotApiError('Insufficient Book permission', 403);
+        });
+        const view = new TestView();
+        view.books = [createExchangeBotBook('usd-book', 'USD', true)];
+        view.exchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: {},
+        };
+        const controller = createController(view);
+
+        await controller.runExchangeUpdate();
+
+        expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(1);
+        expect(view.results.get('usd-book')).toEqual({
+            status: 'ERROR',
+            error: 'Insufficient Book permission',
+        });
     });
 
     it('does not retry an error containing the legacy non-retryable text', async () => {

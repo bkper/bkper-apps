@@ -1,7 +1,7 @@
 import { Transaction } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import type { ExchangeRates } from '../../api/generated/types.js';
-import { botApiService } from './../../services/bot-api-service.js';
+import { BotApiError, botApiService } from './../../services/bot-api-service.js';
 import { bookService } from './../../services/book-service.js';
 import { Utils } from './../../utils.js';
 import {
@@ -83,6 +83,9 @@ export class ExchangeUpdateController implements ReactiveController {
         }
 
         const baseBooks = this.view.books.filter(book => book.isBase);
+        if (baseBooks.some(book => !Utils.canEditBook(book.book))) {
+            return;
+        }
 
         this.view.executing = true;
         this.view.results = new Map(
@@ -125,7 +128,7 @@ export class ExchangeUpdateController implements ReactiveController {
                     error,
                     'Exchange Update could not be completed. Please try again.'
                 );
-                if (!this.shouldRetryExchangeUpdate(message, retryCount)) {
+                if (!this.shouldRetryExchangeUpdate(error, message, retryCount)) {
                     this.setExchangeUpdateResult(bookId, {
                         status: ExchangeUpdateStatus.ERROR,
                         error: message,
@@ -143,8 +146,16 @@ export class ExchangeUpdateController implements ReactiveController {
         }
     }
 
-    private shouldRetryExchangeUpdate(message: string, retryCount: number): boolean {
-        return !message.includes('not found in') && retryCount < this.maxRetryCount;
+    private shouldRetryExchangeUpdate(
+        error: unknown,
+        message: string,
+        retryCount: number
+    ): boolean {
+        return (
+            !(error instanceof BotApiError && error.status === 403) &&
+            !message.includes('not found in') &&
+            retryCount < this.maxRetryCount
+        );
     }
 
     private async summarizeExchangeUpdateResult(

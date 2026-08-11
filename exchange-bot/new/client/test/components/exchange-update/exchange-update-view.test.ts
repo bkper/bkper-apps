@@ -30,18 +30,19 @@ const renderRate = Reflect.get(ExchangeUpdateView.prototype, 'renderRate') as (
 ) => TemplateResult;
 
 describe('Exchange update view', () => {
-    it('keeps Run visible and disabled when the view is disabled', () => {
+    it('disables only Run when the caller lacks edit permission', () => {
         const view = new ExchangeUpdateView();
-        view.disabled = true;
+        view.hasPermission = false;
+        view.exchangeRates = { base: 'USD', date: '2026-08-05', rates: { BRL: 5.25 } };
 
-        const result = renderActions.call(view);
-
-        expect(result.values[0]).toBe(true);
+        expect(renderActions.call(view).values[0]).toBe(true);
+        expect(view.render().values[1]).toBe(false);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
     });
 
     it('disables Run until rates are available and while an update is running', () => {
         const view = new ExchangeUpdateView();
-        view.disabled = false;
+        view.hasPermission = true;
 
         expect(renderActions.call(view).values[0]).toBe(true);
 
@@ -58,7 +59,7 @@ describe('Exchange update view', () => {
         expect(view.render().values[1]).toBe(false);
         expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
 
-        for (const state of ['disabled', 'ratesLoading', 'executing'] as const) {
+        for (const state of ['ratesLoading', 'executing'] as const) {
             view[state] = true;
             expect(view.render().values[1]).toBe(true);
             expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
@@ -108,7 +109,7 @@ describe('Exchange update view', () => {
 
     it('ignores date and rate changes while controls are disabled', () => {
         const view = new ExchangeUpdateView();
-        view.disabled = true;
+        view.executing = true;
         view.date = '2026-08-05';
         view.exchangeRates = {
             base: 'USD',

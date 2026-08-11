@@ -270,8 +270,8 @@ Each behavior chunk follows this workflow:
 
 - GET authorizes only `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` on its path Book before any exchange-rate provider request.
 - POST authorizes only `EDITOR` or `OWNER` on its path Book before any balance query, Account or Transaction creation, batch operation, or audit.
-- `RECORDER`, `NONE`, and missing permissions fail closed with the shared typed API error envelope and HTTP `403`.
-- Bkper SDK `403` failures at the API boundary are normalized to the same generic typed permission response without exposing inaccessible Book names or ids.
+- `RECORDER`, `NONE`, and missing permissions fail closed with the shared typed API error envelope and HTTP `403`; direct authorization failures identify the allowed permissions and the caller's current path-Book permission without including a Book name or id.
+- Bkper SDK `403` failures retain their upstream message in the typed API error envelope and preserve HTTP `403`, keeping them distinct from direct path-Book authorization failures.
 - Authentication remains the Platform dispatch boundary: missing or invalid bearer authentication is `401`, while an authenticated caller lacking the operation-specific Book permission is `403`.
 - Authorization does not infer failure from configured currencies or Books absent from the caller's visible Collection. Any connected-Book request actually made remains subject to Bkper Core authorization.
 
@@ -517,7 +517,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 ### Chunk 15 — Enforce API and client Book permissions
 
-**Status: Not started.**
+**Status: Local implementation and verification complete; preview redeployment and validation pending.**
 
 This chunk is an explicitly accepted pre-production security hardening prerequisite, not migration parity. The reusable API can be called directly by scripts, services, and agents, so client-only permission checks are insufficient.
 
@@ -527,9 +527,9 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Allow GET only for the explicit view-capable permissions `VIEWER`, `POSTER`, `EDITOR`, and `OWNER`.
 - Allow POST only for `EDITOR` and `OWNER` because Exchange Update reads balances, may create Accounts, creates complete draft Transaction movements, and triggers a Book audit.
 - Reject `RECORDER`, `NONE`, and missing permissions before GET performs a provider request and before POST performs a balance query, connected-Book processing, Account or Transaction creation, batch operation, or audit.
-- Return HTTP `403` through the existing `ApiErrorSchema` envelope with a generic permission message that does not expose inaccessible Book names or ids.
+- Return HTTP `403` through the existing `ApiErrorSchema` envelope. Direct authorization messages list the accepted permissions and the caller's current path-Book permission without including a Book name or id.
 - Add `403` to the shared typed API responses and regenerate the OpenAPI client contract rather than defining a duplicate error schema.
-- Normalize only Bkper SDK `403` failures at the API boundary to the same typed generic `403`; leave unrelated SDK errors unchanged.
+- Preserve HTTP `403` and the upstream message for Bkper SDK `403` failures at the API boundary so the client does not retry them and they remain distinct from direct authorization failures; leave unrelated SDK errors unchanged.
 - Apply these explicit checks only to the two `/api/v1/*` operations. Event ingress remains unchanged.
 - Authorize only the path Book named by `{bookId}`. Do not infer authorization failure from configured currencies or from connected Books absent from the caller's visible Collection. Bkper Core remains authoritative for connected-Book requests the operation actually performs.
 
@@ -540,18 +540,21 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Let view-capable callers see the instructions, inputs, rates, and buttons and use GET behavior. Disable Run unless every concrete eligible Book that the Run action would target with POST has `EDITOR` or `OWNER` permission.
 - Do not let an invisible or missing configured Book, or a connected Book that is not a concrete POST target, affect Run authorization.
 - Repeat the edit-permission guard in the action handler so invoking the controller outside the button path cannot issue an unauthorized POST.
-- Preserve API status in a small typed client error. Treat `403` as non-retryable and show the generic permission message immediately.
+- Preserve API status in a small typed client error. Treat `403` as non-retryable and show its permission message immediately.
 - Separate the possibly missing connected-Book condition from permission errors. Use neutral warning wording, keep it non-blocking, and do not let it hide controls or disable Run.
 - Leave pending-task and bot-error notice behavior unchanged.
 
 #### Verification and rollout
 
-- Keep tests lean: one explicit permission table, one denied-operation no-side-effect assertion per endpoint, one SDK `403` mapping assertion, and the existing OpenAPI contract test extended for `403`.
+- Keep tests lean: one explicit permission table with focused message assertions, one denied-operation no-side-effect assertion per endpoint, one SDK `403` preservation assertion, and the existing OpenAPI contract test extended for `403`.
 - Retain only focused client safeguards for access gating, viewer-visible GET controls with Run disabled, concrete POST-target edit permission, non-blocking missing-Book warnings, action-handler enforcement, and non-retried `403` responses.
 - Regenerate checked-in OpenAPI client types, run the complete deterministic local gate, and visually verify the final access-denied, viewer, editor, and warning states once after implementation.
-- Preview redeployment and authenticated allowed/denied caller validation require separate explicit approval after local review. Local implementation performs no deployment, routing change, secret write, or Book mutation.
+- Completed local implementation with explicit server and client permission allowlists, pre-side-effect service guards, detailed direct authorization messages, preserved upstream Bkper SDK `403` messages, per-target client Run authorization, non-retried permission failures, and a distinct non-blocking configuration warning.
+- Passed the complete local gate with strict client and server typechecks, 194 retained tests, production client and Worker builds, formatting, and generated-contract verification.
+- Visually verified the access-denied, viewer, editor, and warning states with deterministic mocked rates. The viewer retained enabled GET-capable inputs with Run disabled; the editor retained Run; and the warning did not disable Run. An accessibility scan reported no violations and one manual contrast review for the Run button.
+- Preview redeployment and authenticated allowed/denied caller validation require separate explicit approval after local review. Local implementation performed no deployment, routing change, secret write, or Book mutation.
 
-**Gate:** The local gate and visual verification pass; after separately approved preview redeployment, deterministic and authenticated preview checks confirm GET and POST allowlists, generic typed `403` responses, no denied-operation side effects, non-retried permission failures, and non-blocking configuration warnings.
+**Gate:** The local gate and visual verification pass; after separately approved preview redeployment, deterministic and authenticated preview checks confirm GET and POST allowlists, detailed direct authorization responses, preserved upstream Bkper SDK `403` messages, no denied-operation side effects, non-retried permission failures, and non-blocking configuration warnings.
 
 ### Chunk 16 — Preview event validation
 

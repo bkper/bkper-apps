@@ -27,7 +27,7 @@ export class ExchangeUpdateView extends LitElement {
     date = '';
 
     @property({ type: Boolean })
-    disabled = false;
+    hasPermission = false;
 
     @state()
     exchangeRates?: ExchangeRates;
@@ -61,7 +61,7 @@ export class ExchangeUpdateView extends LitElement {
                 type="date"
                 label="Date"
                 .value=${this.date}
-                ?disabled=${this.areControlsDisabled()}
+                ?disabled=${this.areInputsDisabled()}
                 size="s"
                 @change=${this.handleDateChanged}
                 @blur=${this.handleDateBlurred}
@@ -95,7 +95,7 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderRate(code: string, rate: number | string, disabled = false): TemplateResult {
-        const isDisabled = disabled || this.areControlsDisabled();
+        const isDisabled = disabled || this.areInputsDisabled();
         return html`
             <div class="rate">
                 <wa-input
@@ -139,7 +139,6 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderActions(): TemplateResult {
-        const runDisabled = !this.exchangeRates || this.areControlsDisabled();
         return html`
             <div class="actions">
                 <wa-button
@@ -147,7 +146,7 @@ export class ExchangeUpdateView extends LitElement {
                     appearance="accent"
                     size="s"
                     type="button"
-                    ?disabled=${runDisabled}
+                    ?disabled=${this.isActionDisabled()}
                     @click=${this.handleRunClicked}
                 >
                     Run
@@ -156,19 +155,23 @@ export class ExchangeUpdateView extends LitElement {
         `;
     }
 
-    private areControlsDisabled(): boolean {
-        return this.disabled || this.ratesLoading || this.executing;
+    private areInputsDisabled(): boolean {
+        return this.ratesLoading || this.executing;
+    }
+
+    private isActionDisabled(): boolean {
+        return !this.hasPermission || !this.exchangeRates || this.areInputsDisabled();
     }
 
     private handleRunClicked(): void {
-        if (!this.exchangeRates || this.areControlsDisabled()) {
+        if (this.isActionDisabled()) {
             return;
         }
         this.controller.runExchangeUpdate();
     }
 
     private handleDateChanged(event: Event): void {
-        if (this.areControlsDisabled()) {
+        if (this.areInputsDisabled()) {
             return;
         }
         const input = event.currentTarget as WaInput;
@@ -176,14 +179,14 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private handleDateBlurred(): void {
-        if (this.areControlsDisabled()) {
+        if (this.areInputsDisabled()) {
             return;
         }
         this.controller.loadRates();
     }
 
     private handleRateChanged(code: string, event: Event): void {
-        if (!this.exchangeRates || this.areControlsDisabled()) {
+        if (!this.exchangeRates || this.areInputsDisabled()) {
             return;
         }
         const input = event.currentTarget as WaInput;

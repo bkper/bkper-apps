@@ -13,6 +13,9 @@ const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent')
 const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissionError') as (
     this: BotAppView
 ) => TemplateResult;
+const renderContextWarning = Reflect.get(BotAppView.prototype, 'renderContextWarning') as (
+    this: BotAppView
+) => TemplateResult;
 
 describe('Bot app view', () => {
     it('passes the selected Book to the app header', () => {
@@ -47,7 +50,8 @@ describe('Bot app view', () => {
         view.book = book;
         view.books = books;
         view.initialDate = initialDate;
-        view.basePermissionGranted = true;
+        view.hasViewerPermission = true;
+        view.hasEditorPermission = true;
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
@@ -55,7 +59,22 @@ describe('Bot app view', () => {
         expect(result.values[0]).toBe(book);
         expect(result.values[1]).toBe(books);
         expect(result.values[2]).toBe(initialDate);
-        expect(result.values[3]).toBe(false);
+        expect(result.values[3]).toBe(true);
+    });
+
+    it('hides Exchange Update when the selected Book is not viewable', () => {
+        const view = new BotAppView();
+        view.book = new Book({ id: 'book-id', permission: Permission.RECORDER });
+        view.permissionError =
+            'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.';
+        view.appState = BotAppState.READY;
+
+        const result = renderBodyContent.call(view);
+
+        expect(result.strings.join('')).not.toContain('<exchange-update');
+        expect(result.values).toContain(
+            'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.'
+        );
     });
 
     it('renders menu initialization warnings', () => {
@@ -65,5 +84,16 @@ describe('Bot app view', () => {
         const result = renderPermissionError.call(view);
 
         expect(result.values).toContain('There are pending bot tasks in USD book');
+    });
+
+    it('renders a missing connected-Book warning separately', () => {
+        const view = new BotAppView();
+        view.contextWarning =
+            'Some configured currencies do not have a visible connected Book: BRL';
+
+        const result = renderContextWarning.call(view);
+
+        expect(result.values).toContain(view.contextWarning);
+        expect(result.strings.join('')).toContain('role="status"');
     });
 });

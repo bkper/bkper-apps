@@ -31,13 +31,16 @@ export class BotAppView extends LitElement {
     books: ExchangeBotBook[] = [];
 
     @state()
-    basePermissionGranted = false;
+    hasViewerPermission = false;
 
     @state()
-    permissionGranted = false;
+    hasEditorPermission = false;
 
     @state()
     permissionError = '';
+
+    @state()
+    contextWarning = '';
 
     static styles = [sharedCSS, botAppCSS];
 
@@ -62,15 +65,18 @@ export class BotAppView extends LitElement {
         if (this.appState === BotAppState.ERROR) {
             return html`<div class="error" role="alert">${this.error}</div>`;
         }
+        if (this.book && !this.hasViewerPermission) {
+            return this.renderPermissionError();
+        }
         if (this.book) {
             return html`
                 <exchange-update
                     .book=${this.book}
                     .books=${this.books}
                     .date=${this.initialDate}
-                    .disabled=${!this.basePermissionGranted}
+                    .hasPermission=${this.hasEditorPermission}
                 ></exchange-update>
-                ${this.renderPermissionError()}
+                ${this.renderPermissionError()} ${this.renderContextWarning()}
             `;
         }
         return html``;
@@ -81,6 +87,13 @@ export class BotAppView extends LitElement {
             return html``;
         }
         return html`<div class="error permission-error" role="alert">${this.permissionError}</div>`;
+    }
+
+    private renderContextWarning(): TemplateResult {
+        if (!this.contextWarning) {
+            return html``;
+        }
+        return html`<div class="context-warning" role="status">${this.contextWarning}</div>`;
     }
 }
 

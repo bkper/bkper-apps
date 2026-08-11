@@ -151,7 +151,7 @@ Check the selected Book's edit permission before loading connected-Book context 
 The GAS client uses the same error-oriented state and presentation for conditions with different effects on Exchange Update:
 
 - Missing EDITOR or OWNER permission on the selected Book is blocking. The view returns early and omits the Exchange Update action.
-- Missing permission on configured connected Books, pending bot tasks, and bot event errors set `permissionGranted` to false and populate `permissionError`, but the action remains available because its visibility depends only on `basePermissionGranted`.
+- Missing permission on configured connected Books, pending bot tasks, and bot event errors populate their warning or error message, but the action remains available because its availability depends only on `hasEditorPermission`.
 - Rate-loading, per-Book update, audit, retry, and window-closing failures also share the same error panel even though they occur at different workflow stages and do not all have the same operational effect.
 
 ### Problem

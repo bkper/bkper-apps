@@ -45,6 +45,17 @@ export class BotAppController implements ReactiveController {
             this.view.book = book;
             this.view.initialDate = this.getInitialDate(book);
 
+            const canView = Utils.canViewBook(book);
+            this.view.hasViewerPermission = canView;
+            if (!canView) {
+                this.view.books = [];
+                this.view.hasEditorPermission = false;
+                this.view.permissionError = Utils.getViewPermissionError(book);
+                this.view.contextWarning = '';
+                this.view.appState = BotAppState.READY;
+                return;
+            }
+
             await this.loadContext(book);
             this.view.appState = BotAppState.READY;
         } catch (error: unknown) {
@@ -55,9 +66,9 @@ export class BotAppController implements ReactiveController {
 
     private async loadContext(book: Book): Promise<void> {
         this.view.books = [];
-        this.view.basePermissionGranted = false;
-        this.view.permissionGranted = false;
+        this.view.hasEditorPermission = false;
         this.view.permissionError = '';
+        this.view.contextWarning = '';
 
         const hasBaseBook = Utils.hasBaseBookInCollection(book);
         const connectedBooks = await botService.getConnectedBooks(book);
@@ -69,17 +80,20 @@ export class BotAppController implements ReactiveController {
             this.view.books.push(appBook);
         }
 
-        // Map books with pending tasks
-        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
+        // Map books with pending tasks (only books visible to the User)
+        const viewableBooks = new Set(Array.from(books).filter(Utils.canViewBook));
+        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(viewableBooks);
 
-        // Check base editor permission
-        const canEdit = Utils.canEditBook(book);
-        if (!canEdit) {
-            this.view.basePermissionGranted = false;
-            this.view.permissionError = `User needs EDITOR or OWNER permission in ${book.getName()} book`;
+        // Check editor permission (only on Books that the Exchange Update will target)
+        const booksMissingEditPermission = this.view.books.filter(
+            b => b.isBase && !Utils.canEditBook(b.book)
+        );
+        if (booksMissingEditPermission.length > 0) {
+            this.view.hasEditorPermission = false;
+            this.view.permissionError = this.buildEditPermissionError(booksMissingEditPermission);
             return;
         } else {
-            this.view.basePermissionGranted = true;
+            this.view.hasEditorPermission = true;
         }
 
         // Map possibly hidden books
@@ -89,25 +103,17 @@ export class BotAppController implements ReactiveController {
         const botErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
 
         if (missingExcCodes.size > 0) {
-            this.view.permissionGranted = false;
-            this.view.permissionError = this.buildContextError(
-                'User needs permission in',
-                missingExcCodes
-            );
+            this.view.contextWarning = this.buildContextWarning(missingExcCodes);
         } else if (pendingTasksExcCodes.size > 0) {
-            this.view.permissionGranted = false;
             this.view.permissionError = this.buildContextError(
                 'There are pending bot tasks in',
                 pendingTasksExcCodes
             );
         } else if (botErrorsExcCodes.size > 0) {
-            this.view.permissionGranted = false;
             this.view.permissionError = this.buildContextError(
                 'There are bot errors in',
                 botErrorsExcCodes
             );
-        } else {
-            this.view.permissionGranted = true;
         }
     }
 
@@ -136,7 +142,9 @@ export class BotAppController implements ReactiveController {
     private async mapEventErrorsExcCodes(book: Book): Promise<Set<string>> {
         const excCodes = new Set<string>();
         const collection = book.getCollection();
-        const collectionBooks = (collection?.getBooks() ?? []).filter(b => Utils.getExcCode(b));
+        const collectionBooks = (collection?.getBooks() ?? []).filter(
+            b => Utils.getExcCode(b) && Utils.canViewBook(b)
+        );
         const booksWithEventErrors = await botService.getBooksWithEventErrors(
             new Set(collectionBooks)
         );
@@ -161,10 +169,23 @@ export class BotAppController implements ReactiveController {
         return missingExcCodes;
     }
 
+    private buildEditPermissionError(books: ExchangeBotBook[]): string {
+        const identifiers = books.map(b => b.book.getName() ?? b.excCode ?? b.book.getId());
+        const prefix = 'User needs EDITOR or OWNER permission in the following books:';
+        const suffix = identifiers.length > 1 ? 'books' : 'book';
+        return `${prefix} ${identifiers.join(', ')} ${suffix}`;
+    }
+
     private buildContextError(prefixText: string, excCodes: Set<string>): string {
         const codesArray = Array.from(excCodes);
         const suffixText = codesArray.length > 1 ? 'books' : 'book';
         return `${prefixText} ${codesArray.join(', ')} ${suffixText}`;
+    }
+
+    private buildContextWarning(excCodes: Set<string>): string {
+        const prefix = 'Some configured currencies do not have a visible connected Book:';
+        const codesArray = Array.from(excCodes);
+        return `${prefix} ${codesArray.join(', ')}`;
     }
 
     private formatError(error: unknown, message: string): string {

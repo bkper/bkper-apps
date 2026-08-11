@@ -15,9 +15,10 @@ class TestView implements ReactiveControllerHost {
     error = '';
     embedded = false;
     books: ExchangeBotBook[] = [];
-    basePermissionGranted = false;
-    permissionGranted = false;
+    hasViewerPermission = false;
+    hasEditorPermission = false;
     permissionError = '';
+    contextWarning = '';
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -125,6 +126,29 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
+    it('does not initialize Exchange Update without view permission', async () => {
+        const book = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'UTC',
+            permission: Permission.RECORDER,
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        botService.getConnectedBooks = mock(async () => new Set<Book>());
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.hasViewerPermission).toBe(false);
+        expect(view.permissionError).toContain('VIEWER');
+        expect(botService.getConnectedBooks).not.toHaveBeenCalled();
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
     it('keeps default-date failures in the outer initialization error boundary', async () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
@@ -164,6 +188,7 @@ describe('Bot app controller', () => {
         const baseBook = new Book({
             id: 'base-book',
             name: 'EUR Book',
+            permission: Permission.EDITOR,
             properties: { exc_base: 'false', exc_code: 'EUR' },
         });
         authService.init = async () => {
@@ -185,8 +210,7 @@ describe('Bot app controller', () => {
             { book: baseBook, excCode: 'EUR', isBase: true },
             { book: selectedBook, excCode: 'USD', isBase: false },
         ]);
-        expect(view.basePermissionGranted).toBe(true);
-        expect(view.permissionGranted).toBe(true);
+        expect(view.hasEditorPermission).toBe(true);
         expect(view.permissionError).toBe('');
     });
 
@@ -200,6 +224,7 @@ describe('Bot app controller', () => {
         });
         const connectedBook = new Book({
             id: 'connected-book',
+            permission: Permission.EDITOR,
             properties: { exc_code: 'BRL' },
         });
         let configuredExcCodes = new Set(['BRL']);
@@ -213,14 +238,14 @@ describe('Bot app controller', () => {
         const controller = createController(view);
 
         await controller.initialize();
-        expect(view.permissionError).not.toBe('');
+        expect(view.contextWarning).not.toBe('');
 
         configuredExcCodes = new Set<string>();
         await controller.initialize();
 
         expect(view.books.map(book => book.book.getId())).toEqual(['connected-book', 'book-id']);
-        expect(view.permissionGranted).toBe(true);
         expect(view.permissionError).toBe('');
+        expect(view.contextWarning).toBe('');
     });
 
     it('checks event errors only in Collection Books', async () => {
@@ -232,14 +257,27 @@ describe('Bot app controller', () => {
             properties: { exc_code: 'USD' },
             collection: {
                 books: [
-                    { id: 'book-id', properties: { exc_code: 'USD' } },
-                    { id: 'collection-book', properties: { exc_code: 'BRL' } },
-                    { id: 'unconfigured-collection-book', properties: {} },
+                    {
+                        id: 'book-id',
+                        permission: Permission.EDITOR,
+                        properties: { exc_code: 'USD' },
+                    },
+                    {
+                        id: 'collection-book',
+                        permission: Permission.VIEWER,
+                        properties: { exc_code: 'BRL' },
+                    },
+                    {
+                        id: 'unconfigured-collection-book',
+                        permission: Permission.VIEWER,
+                        properties: {},
+                    },
                 ],
             },
         });
         const legacyConnectedBook = new Book({
             id: 'legacy-connected-book',
+            permission: Permission.EDITOR,
             properties: { exc_code: 'EUR' },
         });
         authService.init = async () => {
@@ -260,7 +298,7 @@ describe('Bot app controller', () => {
         expect(checkedBookIds).toEqual(['book-id', 'collection-book']);
     });
 
-    it('preserves the selected Book edit-permission early return', async () => {
+    it('keeps the UI available to a viewer but prevents Exchange Update', async () => {
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -281,11 +319,55 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.basePermissionGranted).toBe(false);
-        expect(view.permissionGranted).toBe(false);
-        expect(view.permissionError).toBe('User needs EDITOR or OWNER permission in USD Book book');
+        expect(view.hasViewerPermission).toBe(true);
+        expect(view.hasEditorPermission).toBe(false);
+        expect(view.permissionError).toBe(
+            'User needs EDITOR or OWNER permission in the following books: USD Book book'
+        );
         expect(getConfiguredCodes).not.toHaveBeenCalled();
         expect(getBooksWithErrors).not.toHaveBeenCalled();
+    });
+
+    it('requires edit permission only on concrete Exchange Update targets', async () => {
+        const selectedBook = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            properties: { exc_code: 'USD' },
+            collection: {
+                books: [{ id: 'base-book', properties: { exc_base: 'true' } }],
+            },
+        });
+        const nonTargetBook = new Book({
+            id: 'connected-book',
+            permission: Permission.RECORDER,
+            properties: { exc_code: 'BRL' },
+        });
+        const targetBook = new Book({
+            id: 'base-book',
+            name: 'EUR Book',
+            permission: Permission.VIEWER,
+            properties: { exc_base: 'true', exc_code: 'EUR' },
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => selectedBook;
+        botService.getConnectedBooks = async () => new Set([nonTargetBook, targetBook]);
+        let pendingTaskBookIds: string[] = [];
+        botService.getBooksWithPendingTasks = async books => {
+            pendingTaskBookIds = Array.from(books, book => book.getId());
+            return new Set<Book>();
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(pendingTaskBookIds).toEqual(['base-book', 'book-id']);
+        expect(view.hasEditorPermission).toBe(false);
+        expect(view.permissionError).toContain('EDITOR or OWNER');
     });
 
     it('preserves pending-task validation for unconfigured legacy connections', async () => {
@@ -296,7 +378,10 @@ describe('Bot app controller', () => {
             permission: Permission.EDITOR,
             properties: { exc_code: 'USD' },
         });
-        const legacyConnectedBook = new Book({ id: 'legacy-connected-book' });
+        const legacyConnectedBook = new Book({
+            id: 'legacy-connected-book',
+            permission: Permission.EDITOR,
+        });
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
@@ -308,7 +393,6 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionGranted).toBe(false);
         expect(view.permissionError).toContain('pending bot tasks');
     });
 
@@ -322,10 +406,12 @@ describe('Bot app controller', () => {
         });
         const firstConnectedBook = new Book({
             id: 'first-connected-book',
+            permission: Permission.EDITOR,
             properties: { exc_code: 'BRL' },
         });
         const secondConnectedBook = new Book({
             id: 'second-connected-book',
+            permission: Permission.EDITOR,
             properties: { exc_code: 'BRL' },
         });
         authService.init = async () => {
@@ -344,7 +430,7 @@ describe('Bot app controller', () => {
         expect(view.permissionError.match(/BRL/g)).toHaveLength(1);
     });
 
-    it('shows missing connected-Book permission before pending tasks and bot errors', async () => {
+    it('shows a non-blocking missing connected-Book warning before operational notices', async () => {
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -366,9 +452,9 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.basePermissionGranted).toBe(true);
-        expect(view.permissionGranted).toBe(false);
-        expect(view.permissionError).toBe('User needs permission in BRL book');
+        expect(view.hasEditorPermission).toBe(true);
+        expect(view.permissionError).toBe('');
+        expect(view.contextWarning).toContain('BRL');
     });
 
     it('shows pending tasks before bot errors', async () => {
@@ -391,7 +477,6 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionGranted).toBe(false);
         expect(view.permissionError).toBe('There are pending bot tasks in USD book');
     });
 
@@ -417,7 +502,6 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionGranted).toBe(false);
         expect(view.permissionError).toBe('There are bot errors in BRL, EUR books');
     });
 

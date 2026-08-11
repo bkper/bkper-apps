@@ -23,12 +23,17 @@ export const botAppCSS = css`
         place-items: center;
     }
 
+    .error {
+        color: var(--bkper-color-danger);
+    }
+
     .permission-error {
         margin-top: var(--bkper-spacing-large);
     }
 
-    .error {
-        color: var(--bkper-color-danger);
+    .context-warning {
+        margin-top: var(--bkper-spacing-large);
+        color: var(--bkper-color-warning);
     }
 
     wa-spinner {

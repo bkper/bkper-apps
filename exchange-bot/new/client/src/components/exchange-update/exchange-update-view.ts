@@ -29,6 +29,9 @@ export class ExchangeUpdateView extends LitElement {
     @property({ type: Boolean })
     hasPermission = false;
 
+    @property({ attribute: false })
+    permissionError = '';
+
     @state()
     exchangeRates?: ExchangeRates;
 
@@ -141,6 +144,7 @@ export class ExchangeUpdateView extends LitElement {
     private renderActions(): TemplateResult {
         return html`
             <div class="actions">
+                ${this.renderPermissionError()}
                 <wa-button
                     variant="brand"
                     appearance="accent"
@@ -153,6 +157,13 @@ export class ExchangeUpdateView extends LitElement {
                 </wa-button>
             </div>
         `;
+    }
+
+    private renderPermissionError(): TemplateResult {
+        if (!this.permissionError) {
+            return html``;
+        }
+        return html`<div class="error" role="alert">${this.permissionError}</div>`;
     }
 
     private areInputsDisabled(): boolean {

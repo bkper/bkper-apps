@@ -59,7 +59,9 @@ export const exchangeUpdateCSS = css`
 
     .actions {
         display: flex;
-        justify-content: flex-start;
+        flex-direction: column;
+        gap: var(--bkper-spacing-x-small);
+        align-items: flex-start;
         margin-top: var(--bkper-spacing-large);
     }
 

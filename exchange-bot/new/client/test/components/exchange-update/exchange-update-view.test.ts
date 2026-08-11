@@ -35,7 +35,7 @@ describe('Exchange update view', () => {
         view.hasPermission = false;
         view.exchangeRates = { base: 'USD', date: '2026-08-05', rates: { BRL: 5.25 } };
 
-        expect(renderActions.call(view).values[0]).toBe(true);
+        expect(renderActions.call(view).values[1]).toBe(true);
         expect(view.render().values[1]).toBe(false);
         expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
     });
@@ -44,13 +44,24 @@ describe('Exchange update view', () => {
         const view = new ExchangeUpdateView();
         view.hasPermission = true;
 
-        expect(renderActions.call(view).values[0]).toBe(true);
+        expect(renderActions.call(view).values[1]).toBe(true);
 
         view.exchangeRates = { base: 'USD', date: '2026-08-05', rates: {} };
-        expect(renderActions.call(view).values[0]).toBe(false);
+        expect(renderActions.call(view).values[1]).toBe(false);
 
         view.executing = true;
-        expect(renderActions.call(view).values[0]).toBe(true);
+        expect(renderActions.call(view).values[1]).toBe(true);
+    });
+
+    it('renders the permission error immediately above Run', () => {
+        const view = new ExchangeUpdateView();
+        view.permissionError = 'Editor permission is required.';
+
+        const result = renderActions.call(view);
+        const permissionError = result.values[0] as TemplateResult;
+
+        expect(permissionError.values).toContain('Editor permission is required.');
+        expect(result.strings[1]).toContain('<wa-button');
     });
 
     it('applies the shared disabled states to date and rate inputs', () => {

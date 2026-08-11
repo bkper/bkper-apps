@@ -51,7 +51,8 @@ describe('Bot app view', () => {
         view.books = books;
         view.initialDate = initialDate;
         view.hasViewerPermission = true;
-        view.hasEditorPermission = true;
+        view.hasEditorPermission = false;
+        view.permissionError = 'Editor permission is required.';
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
@@ -59,7 +60,8 @@ describe('Bot app view', () => {
         expect(result.values[0]).toBe(book);
         expect(result.values[1]).toBe(books);
         expect(result.values[2]).toBe(initialDate);
-        expect(result.values[3]).toBe(true);
+        expect(result.values[3]).toBe(false);
+        expect(result.values[4]).toBe('Editor permission is required.');
     });
 
     it('hides Exchange Update when the selected Book is not viewable', () => {

@@ -75,8 +75,9 @@ export class BotAppView extends LitElement {
                     .books=${this.books}
                     .date=${this.initialDate}
                     .hasPermission=${this.hasEditorPermission}
+                    .permissionError=${this.permissionError}
                 ></exchange-update>
-                ${this.renderPermissionError()} ${this.renderWarnings()}
+                ${this.renderWarnings()}
             `;
         }
         return html``;
@@ -86,7 +87,7 @@ export class BotAppView extends LitElement {
         if (!this.permissionError) {
             return html``;
         }
-        return html`<div class="error permission-error" role="alert">${this.permissionError}</div>`;
+        return html`<div class="error" role="alert">${this.permissionError}</div>`;
     }
 
     private renderWarnings(): TemplateResult {

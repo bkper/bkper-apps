@@ -27,10 +27,6 @@ export const botAppCSS = css`
         color: var(--bkper-color-danger);
     }
 
-    .permission-error {
-        margin-top: var(--bkper-spacing-large);
-    }
-
     .warnings {
         margin-top: var(--bkper-spacing-large);
     }

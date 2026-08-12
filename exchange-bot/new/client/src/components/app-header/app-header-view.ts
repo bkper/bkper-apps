@@ -40,7 +40,9 @@ export class AppHeaderView extends LitElement {
         return html`
             <div class="book">
                 <h2 class="book-name">${bookName}</h2>
-                <wa-tooltip for="open-book" placement="right">Open</wa-tooltip>
+                <wa-tooltip class="hide-on-phone" for="open-book" placement="right">
+                    Open book
+                </wa-tooltip>
                 <a
                     id="open-book"
                     class="book-link focusable"

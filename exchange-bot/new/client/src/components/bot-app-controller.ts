@@ -60,7 +60,7 @@ export class BotAppController implements ReactiveController {
 
         let book: Book;
         try {
-            book = await bookService.loadBook(bookId);
+            book = await bookService.loadBook(bookId, true);
         } catch (error: unknown) {
             if (isBookAccessRequiredError(error)) {
                 this.view.permissionError = Errors.BOOK_ACCESS_REQUIRED;

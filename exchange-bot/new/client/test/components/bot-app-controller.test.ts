@@ -122,7 +122,7 @@ describe('Bot app controller', () => {
 
         expect(view.appState).toBe(BotAppState.LOADING);
         await initialization;
-        expect(bookService.loadBook).toHaveBeenCalledWith('book-id');
+        expect(bookService.loadBook).toHaveBeenCalledWith('book-id', true);
         expect(view.bookId).toBe('book-id');
         expect(view.book).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);

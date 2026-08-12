@@ -37,6 +37,14 @@ export const appHeaderCSS = css`
         font-size: var(--bkper-font-size-medium);
     }
 
+    .book {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--bkper-spacing-x-small);
+    }
+
     .book-name {
         min-width: 0;
         margin: 0;
@@ -45,6 +53,12 @@ export const appHeaderCSS = css`
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: var(--bkper-font-size-small);
+    }
+
+    .book-link {
+        display: inline-flex;
+        flex: none;
+        font-size: 16px;
     }
 
     @media (max-width: 767px) {

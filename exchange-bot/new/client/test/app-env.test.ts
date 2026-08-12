@@ -18,6 +18,10 @@ afterEach(() => {
 });
 
 describe('App environment', () => {
+    it('builds the main Book transactions URL', () => {
+        expect(appEnv.getBookUrl('book-id')).toBe('https://bkper.app/books/book-id/transactions');
+    });
+
     it('reads a search parameter from the current URL', () => {
         Object.defineProperty(self, 'location', {
             configurable: true,

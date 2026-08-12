@@ -32,6 +32,10 @@ class AppEnv {
         return !this.isOnline();
     }
 
+    getBookUrl(id: string): string {
+        return `https://bkper.app/books/${encodeURIComponent(id)}/transactions`;
+    }
+
     getAppWebsiteUrl(): string {
         return APP_WEBSITE_URL;
     }

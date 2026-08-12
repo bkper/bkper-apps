@@ -15,7 +15,7 @@ menuUrl: https://script.google.com/macros/s/AKfycbxz1Fl1A_KpvAtWLSXtGh1oRaFdWibP
 menuUrlDev: https://exchange-bot-preview.bkper.app?bookId=${book.id}
 menuPopupWidth: 1000
 menuPopupHeight: 500
-webhookUrl: https://us-central1-bkper-cc-bot.cloudfunctions.net/prodGen2
+webhookUrl: https://exchange-bot.bkper.app/events
 webhookUrlDev: https://exchange-bot-preview.bkper.app/events
 apiVersion: v5
 events:

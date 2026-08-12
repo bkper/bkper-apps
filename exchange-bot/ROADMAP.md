@@ -603,17 +603,19 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 19 — Production webhook cutover and event stabilization
 
-**Status: Not started.**
+**Status: Stabilizing. The retry cutover is active and the 24-hour observation period is in progress.**
 
-- Change only the production webhook route from GCP to Cloudflare.
-- Keep the production menu on Apps Script and developer routing on preview.
-- Monitor Cloudflare event requests, handler responses, authentication, errors, and customer-impact reports.
-- Keep the GCP function active and unchanged for immediate routing rollback.
-- Validate representative event behavior using accepted deterministic, preview, and production evidence.
+- The first production webhook cutover was rolled back immediately after natural traffic exposed repeated exchange-rate provider failures following the established retries. Production returned to the unchanged GCP handler, development routing was restored to preview, and no event replay or deliberate Book write was performed.
+- Investigation isolated the failure to the public same-zone return path used by the Platform outbound broker for a custom rates provider. The rates Worker itself returned successfully. The outbound broker now routes exact HTTPS `exchange.bkper.app/rates/*` requests through the Exchange Rates service binding, preserving the request and response while avoiding that public return path.
+- The outbound fix passed its deterministic tests, typecheck, and development and production dry-run builds before separately approved development and production deployments. Remote production and preview rates requests then returned successful, valid rates payloads without renewed provider errors.
+- Before retrying the cutover, the complete Exchange Bot deterministic gate passed with 197 tests plus strict typechecks, production client and Worker builds, formatting, and generated-contract checks. Production and preview deployments remained active, production menu routing remained on Apps Script, development menu and webhook routing remained on preview, and GCP remained active and unchanged.
+- The retry changed only the production webhook route to Cloudflare. During the one-hour active-monitoring window, natural production traffic produced more than four thousand successful event requests, including rate-dependent processing, with no error-level request, non-success response, renewed rates-provider failure, sustained authentication failure, or zero-sum and movement-integrity indicator.
+- The initial monitoring script briefly failed because it requested an unsupported log page size; direct read-only verification immediately confirmed healthy production traffic, and corrected monitoring completed the original one-hour window without a telemetry gap. This was a monitoring-tool issue, not an application or rollback trigger.
+- Keep the production menu on Apps Script, both development routes on preview, and the unchanged GCP function available for immediate routing rollback throughout the 24-hour observation period.
 
-**Rollback triggers:** suspected zero-sum or data-loss issues, reversed or partial movements, duplicate processing, sustained authentication failures, material error growth, or missing production event behavior.
+**Rollback triggers:** suspected zero-sum or data-loss issues, reversed or partial movements, duplicate processing, sustained authentication failures, material error growth, missing production event behavior, or renewed rates-provider failures.
 
-**Gate:** Event stabilization is explicitly accepted before menu cutover begins.
+**Gate:** The active-monitoring window has passed. Chunk 19 remains incomplete, and Chunk 20 remains blocked, until the 24-hour observation period finishes and event stabilization is explicitly accepted.
 
 ### Chunk 20 — Production menu cutover and full-stack stabilization
 

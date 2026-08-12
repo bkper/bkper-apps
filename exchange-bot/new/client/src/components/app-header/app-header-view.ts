@@ -32,7 +32,7 @@ export class AppHeaderView extends LitElement {
 
     private renderBookName(): TemplateResult {
         if (!this.book) {
-            return html``;
+            return html`<div class="book"></div>`;
         }
         const bookId = this.book.getId();
         const bookName = this.book.getName() ?? bookId;

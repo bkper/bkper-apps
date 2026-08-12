@@ -63,6 +63,78 @@ describe('bot service', () => {
         ]);
     });
 
+    it('loads legacy connected Books in parallel while preserving discovery order', async () => {
+        const resolvers = new Map<string, (book: Book) => void>();
+        Bkper.prototype.getBook = mock(
+            (id: string) =>
+                new Promise<Book>(resolve => {
+                    resolvers.set(id, resolve);
+                })
+        );
+        const book = createBook('selected-book', {
+            exc_usd_book: 'legacy-book-id',
+            exc_books: 'legacy-list-one legacy-list-two',
+        });
+
+        const booksPromise = botService.getConnectedBooks(book);
+
+        expect(Array.from(resolvers.keys())).toEqual([
+            'legacy-book-id',
+            'legacy-list-one',
+            'legacy-list-two',
+        ]);
+
+        for (const id of ['legacy-list-two', 'legacy-book-id', 'legacy-list-one']) {
+            const resolve = resolvers.get(id);
+            if (!resolve) {
+                throw new Error(`Missing resolver for ${id}`);
+            }
+            resolve(createBook(id, { exc_code: 'LEGACY' }));
+        }
+
+        const books = await booksPromise;
+        expect(Array.from(books, connectedBook => connectedBook.getId())).toEqual([
+            'legacy-book-id',
+            'legacy-list-one',
+            'legacy-list-two',
+        ]);
+    });
+
+    it('reuses Collection Books for legacy ids and returns each Book id once', async () => {
+        const loadedIds: string[] = [];
+        Bkper.prototype.getBook = mock(async id => {
+            loadedIds.push(id);
+            return createBook(id, { exc_code: 'LEGACY' });
+        });
+        const book = createBook(
+            'selected-book',
+            {
+                exc_brl_book: 'collection-brl',
+                exc_books: 'legacy-only-book collection-brl legacy-only-book collection-eur',
+            },
+            {
+                collection: {
+                    books: [
+                        { id: 'selected-book', properties: { exc_code: 'USD' } },
+                        { id: 'collection-eur', properties: { exc_code: 'EUR' } },
+                        { id: 'collection-brl', properties: { exc_code: 'BRL' } },
+                        { id: 'collection-jpy', properties: { exc_code: 'JPY' } },
+                    ],
+                },
+            }
+        );
+
+        const books = await botService.getConnectedBooks(book);
+
+        expect(loadedIds).toEqual(['legacy-only-book']);
+        expect(Array.from(books, connectedBook => connectedBook.getId())).toEqual([
+            'collection-brl',
+            'legacy-only-book',
+            'collection-eur',
+            'collection-jpy',
+        ]);
+    });
+
     it('preserves visible and configured exchange-code rules', async () => {
         const book = createBook(
             'selected-book',

@@ -9,15 +9,14 @@ class BotService {
             return new Set<Book>();
         }
 
-        const books = new Set<Book>();
+        const legacyBookIds = new Set<string>();
 
         // deprecated
         for (const key in book.getVisibleProperties()) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
                 const bookId = book.getVisibleProperties()[key];
                 if (bookId) {
-                    const book = await bookService.loadBook(bookId);
-                    books.add(book);
+                    legacyBookIds.add(bookId);
                 }
             }
         }
@@ -28,22 +27,36 @@ class BotService {
             const bookIds = excBooks.split(/[ ,]+/);
             for (const bookId of bookIds) {
                 if (bookId != null && bookId.trim().length > 10) {
-                    const book = await bookService.loadBook(bookId);
-                    books.add(book);
+                    legacyBookIds.add(bookId);
                 }
             }
         }
 
-        const collection = book.getCollection();
-        const collectionBooks = collection?.getBooks();
-        if (collectionBooks) {
-            for (const collectionBook of collectionBooks) {
-                if (
-                    collectionBook.getId() != book.getId() &&
-                    Utils.getExcCode(collectionBook) != null
-                ) {
-                    books.add(collectionBook);
-                }
+        const collectionBooks = book.getCollection()?.getBooks() ?? [];
+        const collectionBooksById = new Map<string, Book>();
+
+        for (const collectionBook of collectionBooks) {
+            if (
+                collectionBook.getId() != book.getId() &&
+                Utils.getExcCode(collectionBook) != null &&
+                !collectionBooksById.has(collectionBook.getId())
+            ) {
+                collectionBooksById.set(collectionBook.getId(), collectionBook);
+            }
+        }
+
+        const legacyBooks = await Promise.all(
+            Array.from(
+                legacyBookIds,
+                bookId => collectionBooksById.get(bookId) ?? bookService.loadBook(bookId)
+            )
+        );
+
+        const books = new Set(legacyBooks);
+
+        for (const [bookId, collectionBook] of collectionBooksById) {
+            if (!legacyBookIds.has(bookId)) {
+                books.add(collectionBook);
             }
         }
 

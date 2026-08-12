@@ -28,57 +28,67 @@ export class BotAppController implements ReactiveController {
     }
 
     async initialize(): Promise<void> {
+        this.view.embedded = appEnv.isEmbedded();
+
+        await authService.init();
+        if (!authService.accessToken) {
+            return;
+        }
+
+        const book = await this.initializeBook();
+        if (!book) {
+            return;
+        }
+
+        await this.loadContext(book);
+        this.view.appState = BotAppState.READY;
+    }
+
+    private async initializeBook(): Promise<Book | undefined> {
+        this.view.book = undefined;
+        this.view.error = '';
+        this.view.permissionError = '';
+
+        const bookId = appEnv.getSearchParam('bookId');
+        this.view.bookId = bookId ?? '';
+
+        if (!bookId) {
+            this.view.error = Errors.BOOK_NOT_FOUND;
+            this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
+
+        let book: Book;
         try {
-            this.view.embedded = appEnv.isEmbedded();
-
-            await authService.init();
-            if (!authService.accessToken) {
-                return;
-            }
-
-            this.view.book = undefined;
-            this.view.error = '';
-            this.view.permissionError = '';
-
-            const bookId = appEnv.getSearchParam('bookId');
-            this.view.bookId = bookId ?? '';
-
-            if (!bookId) {
-                this.view.error = Errors.BOOK_NOT_FOUND;
-                this.view.appState = BotAppState.ERROR;
-                return;
-            }
-
-            const book = await bookService.loadBook(bookId);
-
-            this.view.book = book;
-            this.view.initialDate = this.getInitialDate(book);
-
-            const canView = Utils.canViewBook(book);
-            this.view.hasViewerPermission = canView;
-            if (!canView) {
-                this.view.books = [];
-                this.view.hasEditorPermission = false;
-                this.view.permissionError = Utils.getViewPermissionError(book);
-                this.view.warnings = [];
-                this.view.appState = BotAppState.READY;
-                return;
-            }
-
-            await this.loadContext(book);
-            this.view.appState = BotAppState.READY;
+            book = await bookService.loadBook(bookId);
         } catch (error: unknown) {
             if (isBookAccessRequiredError(error)) {
-                this.view.error = '';
                 this.view.permissionError = Errors.BOOK_ACCESS_REQUIRED;
             } else {
-                this.view.permissionError = '';
                 this.view.error = isNotFoundError(error)
                     ? Errors.BOOK_NOT_FOUND
                     : Errors.BOOK_LOAD_FAILED;
             }
             this.view.appState = BotAppState.ERROR;
+            return undefined;
         }
+
+        this.view.book = book;
+        this.view.initialDate = this.getInitialDate(book);
+
+        const canView = Utils.canViewBook(book);
+        this.view.hasViewerPermission = canView;
+
+        if (!canView) {
+            this.view.books = [];
+            this.view.hasEditorPermission = false;
+            this.view.permissionError = Utils.getViewPermissionError(book);
+            this.view.warnings = [];
+            this.view.appState = BotAppState.READY;
+            return undefined;
+        }
+
+        return book;
     }
 
     private async loadContext(book: Book): Promise<void> {

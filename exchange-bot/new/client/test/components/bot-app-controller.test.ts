@@ -152,7 +152,7 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
-    it('keeps default-date failures in the outer initialization error boundary', async () => {
+    it('does not classify default-date failures as selected Book failures', async () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
@@ -165,11 +165,35 @@ describe('Bot app controller', () => {
         const view = new TestView();
         const controller = createController(view);
 
-        await controller.initialize();
+        await expect(controller.initialize()).rejects.toThrow();
 
+        expect(view.book?.getId()).toBe('book-id');
         expect(view.initialDate).toBe('');
-        expect(view.error).not.toBe('');
-        expect(view.appState).toBe(BotAppState.ERROR);
+        expect(view.error).toBe('');
+    });
+
+    it('does not classify context failures as selected Book failures', async () => {
+        const book = new Book({
+            id: 'book-id',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+        });
+        const contextError = { status: 404, message: 'Connected Book not found' };
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        botService.getConnectedBooks = async () => {
+            throw contextError;
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        await expect(controller.initialize()).rejects.toBe(contextError);
+
+        expect(view.book).toBe(book);
+        expect(view.error).toBe('');
+        expect(view.permissionError).toBe('');
     });
 
     it('loads connected Books and preserves base-Book eligibility', async () => {

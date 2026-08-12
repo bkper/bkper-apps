@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–17 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
+**Chunks 1–18 complete. The existing GCP event handler and Google Apps Script web app remain production-authoritative.**
 
-The Cloudflare target is deployed to preview, both development surfaces route to it, and API and client Book-permission hardening, preview event validation, and preview menu and Exchange Update validation are complete. The final drift audit and production deployment are next. No production deployment or production menu or webhook routing change has been performed.
+The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, and production deployment are complete. Production menu and webhook routing remain unchanged. The production webhook cutover and event stabilization are next.
 
 ## Purpose of this document
 
@@ -589,16 +589,17 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 18 — Final drift audit and production deployment
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Repeat GCP and Apps Script source drift audits.
-- Reconcile all production patches.
-- Build the accepted production artifact from a clean frozen install.
-- Configure the production Open Exchange Rates secret through a separately approved operation.
-- Deploy the accepted full-stack Worker to production while both production routes remain on GCP and GAS.
-- Confirm production deployment status, assets, OpenAPI, API protection, and log availability. A standalone health route is not required and must not block deployment acceptance.
+- Repeated the GCP and Apps Script source drift audits and confirmed no legacy behavior source change from the accepted migration baseline.
+- Reconciled the empty production patch ledger.
+- Built the accepted production artifact from a clean frozen install and passed strict client and server typechecks, 197 retained tests, production client and Worker builds, formatting, and generated-contract verification.
+- Configured the production Open Exchange Rates secret through a separately approved operation.
+- Deployed the accepted full-stack Worker to production while both production routes remained on GCP and GAS.
+- Removed the standalone scaffold health route from the application contract and deployment gate, then rebuilt and deployed the same current committed source to production and preview so both environments remain aligned.
+- Confirmed production and preview deployment status, production and preview secrets, production assets and OpenAPI, authenticated API protection and not-found behavior, and production log availability.
 
-**Gate:** Deployment changes runtime availability only; production menu and event routing remain unchanged.
+**Gate:** Passed. Deployment changed runtime availability only; production menu and event routing remain unchanged.
 
 ### Chunk 19 — Production webhook cutover and event stabilization
 

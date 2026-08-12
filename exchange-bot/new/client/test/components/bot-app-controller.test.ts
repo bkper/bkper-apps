@@ -4,6 +4,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
 import type { BotAppView } from '../../src/components/bot-app-view.js';
 import type { ExchangeBotBook } from '../../src/types.js';
+import { Errors } from '../../src/errors.js';
 import { authService } from '../../src/services/auth-service.js';
 import { bookService } from '../../src/services/book-service.js';
 import { botService } from '../../src/services/bot-service.js';
@@ -11,6 +12,7 @@ import { botService } from '../../src/services/bot-service.js';
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
     book?: Book;
+    bookId = '';
     initialDate = '';
     error = '';
     embedded = false;
@@ -121,6 +123,7 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.LOADING);
         await initialization;
         expect(bookService.loadBook).toHaveBeenCalledWith('book-id');
+        expect(view.bookId).toBe('book-id');
         expect(view.book).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.appState).toBe(BotAppState.READY);
@@ -534,11 +537,49 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(bookService.loadBook).not.toHaveBeenCalled();
-        expect(view.error).not.toBe('');
+        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
-    it('shows an error when the selected Book cannot be loaded', async () => {
+    it('offers the Book access flow when the user is not a collaborator', async () => {
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => {
+            throw {
+                status: 401,
+                message:
+                    'The user [user@example.com] is not a collaborator on the book [USD Book - book-id]',
+            };
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.bookId).toBe('book-id');
+        expect(view.permissionError).toBe("You don't have access to this Book.");
+        expect(view.error).toBe('');
+        expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('shows the Book link error when the selected Book is not found', async () => {
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => {
+            throw { status: 404, message: 'Book not found' };
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
+        expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('shows a retryable message when the selected Book cannot be loaded', async () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
@@ -550,7 +591,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.error).not.toBe('');
+        expect(view.error).toBe('The selected Book could not be loaded. Please try again.');
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 

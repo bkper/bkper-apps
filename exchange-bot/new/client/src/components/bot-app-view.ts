@@ -2,6 +2,7 @@ import type { Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
+import './app-error/app-error-view.js';
 import type { ExchangeBotBook } from '../types.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
@@ -20,6 +21,9 @@ export class BotAppView extends LitElement {
 
     @state()
     error = '';
+
+    @state()
+    bookId = '';
 
     @state()
     book?: Book;
@@ -63,10 +67,10 @@ export class BotAppView extends LitElement {
             return html`<div class="centered"><wa-spinner></wa-spinner></div>`;
         }
         if (this.appState === BotAppState.ERROR) {
-            return html`<div class="error" role="alert">${this.error}</div>`;
+            return this.renderAppError();
         }
         if (this.book && !this.hasViewerPermission) {
-            return this.renderPermissionError();
+            return this.renderAppError();
         }
         if (this.book) {
             return html`
@@ -83,11 +87,15 @@ export class BotAppView extends LitElement {
         return html``;
     }
 
-    private renderPermissionError(): TemplateResult {
-        if (!this.permissionError) {
-            return html``;
-        }
-        return html`<div class="error" role="alert">${this.permissionError}</div>`;
+    private renderAppError(): TemplateResult {
+        return html`
+            <app-error
+                .bookId=${this.bookId}
+                .book=${this.book}
+                .error=${this.error}
+                .permissionError=${this.permissionError}
+            ></app-error>
+        `;
     }
 
     private renderWarnings(): TemplateResult {

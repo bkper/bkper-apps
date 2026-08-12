@@ -23,10 +23,6 @@ export const botAppCSS = css`
         place-items: center;
     }
 
-    .error {
-        color: var(--bkper-color-danger);
-    }
-
     .warnings {
         margin-top: var(--bkper-spacing-large);
     }

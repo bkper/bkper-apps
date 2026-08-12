@@ -10,9 +10,6 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
-const renderPermissionError = Reflect.get(BotAppView.prototype, 'renderPermissionError') as (
-    this: BotAppView
-) => TemplateResult;
 const renderWarnings = Reflect.get(BotAppView.prototype, 'renderWarnings') as (
     this: BotAppView
 ) => TemplateResult;
@@ -64,30 +61,33 @@ describe('Bot app view', () => {
         expect(result.values[4]).toBe('Editor permission is required.');
     });
 
+    it('routes Book loading failures to the issue view', () => {
+        const view = new BotAppView();
+        view.bookId = 'book-id';
+        view.error = 'The selected Book could not be loaded. Please try again.';
+        view.appState = BotAppState.ERROR;
+
+        const result = renderBodyContent.call(view);
+
+        expect(result.strings.join('')).toContain('<app-error');
+        expect(result.values).toContain('book-id');
+        expect(result.values).toContain(view.error);
+    });
+
     it('hides Exchange Update when the selected Book is not viewable', () => {
         const view = new BotAppView();
         view.book = new Book({ id: 'book-id', permission: Permission.RECORDER });
+        view.bookId = 'book-id';
         view.permissionError =
             'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.';
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
 
+        expect(result.strings.join('')).toContain('<app-error');
         expect(result.strings.join('')).not.toContain('<exchange-update');
-        expect(result.values).toContain(
-            'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.'
-        );
-    });
-
-    it('renders blocking permission errors', () => {
-        const view = new BotAppView();
-        view.permissionError = 'Required Book permission: EDITOR or OWNER. Current: VIEWER.';
-
-        const result = renderPermissionError.call(view);
-
-        expect(result.values).toContain(
-            'Required Book permission: EDITOR or OWNER. Current: VIEWER.'
-        );
+        expect(result.values).toContain(view.book);
+        expect(result.values).toContain(view.permissionError);
     });
 
     it('renders every context warning separately', () => {

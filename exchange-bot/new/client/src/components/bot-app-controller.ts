@@ -1,6 +1,7 @@
 import type { Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
+import { Errors, isBookAccessRequiredError, isNotFoundError } from './../errors.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
@@ -35,9 +36,17 @@ export class BotAppController implements ReactiveController {
                 return;
             }
 
+            this.view.book = undefined;
+            this.view.error = '';
+            this.view.permissionError = '';
+
             const bookId = appEnv.getSearchParam('bookId');
+            this.view.bookId = bookId ?? '';
+
             if (!bookId) {
-                throw new Error('Error: Missing bookId URL param');
+                this.view.error = Errors.BOOK_NOT_FOUND;
+                this.view.appState = BotAppState.ERROR;
+                return;
             }
 
             const book = await bookService.loadBook(bookId);
@@ -59,7 +68,15 @@ export class BotAppController implements ReactiveController {
             await this.loadContext(book);
             this.view.appState = BotAppState.READY;
         } catch (error: unknown) {
-            this.view.error = this.formatError(error, 'The selected Book could not be loaded');
+            if (isBookAccessRequiredError(error)) {
+                this.view.error = '';
+                this.view.permissionError = Errors.BOOK_ACCESS_REQUIRED;
+            } else {
+                this.view.permissionError = '';
+                this.view.error = isNotFoundError(error)
+                    ? Errors.BOOK_NOT_FOUND
+                    : Errors.BOOK_LOAD_FAILED;
+            }
             this.view.appState = BotAppState.ERROR;
         }
     }
@@ -183,9 +200,5 @@ export class BotAppController implements ReactiveController {
     private buildWarning(prefix: string, excCodes: Set<string>): string {
         const codesArray = Array.from(excCodes);
         return `${prefix} ${codesArray.join(', ')}`;
-    }
-
-    private formatError(error: unknown, message: string): string {
-        return error instanceof Error ? error.message : message;
     }
 }

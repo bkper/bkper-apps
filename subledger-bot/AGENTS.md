@@ -6,7 +6,7 @@ The unchanged GCP deployment remains available only as a routing rollback target
 
 ## Scope
 
-- Keep the app server-only: `/health` and `/events` only.
+- Keep the app server-only: `/events` only. Do not add a standalone health endpoint.
 - Do not add a client, public `/api/*`, OpenAPI, static assets, KV, or secrets.
 - Preserve accepted legacy business behavior unless a separately approved change explicitly replaces it.
 - Protect Bkper's zero-sum invariant. A consolidated transaction must remain one complete movement with one amount, and unresolved movements must remain drafts.

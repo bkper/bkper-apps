@@ -109,7 +109,7 @@ The previous GCP source remains recoverable from Git history. The deployed GCP f
 
 ## Cloudflare runtime decisions
 
-- Event-only Hono Worker with `/health` and `/events`.
+- Event-only Hono Worker with `/events`; no standalone health endpoint or unrelated public route.
 - No client, public `/api/*`, OpenAPI contract, static assets, KV, secrets, or menu integration.
 - Request-scoped `new Bkper()` without token, API-key, or agent providers.
 - Platform outbound authentication supplies the event user's OAuth context and app agent identity.
@@ -226,7 +226,7 @@ Each chunk below was independently reviewable. This sequence is the recommended 
 **Status: Complete.**
 
 - Added server-only workspace configuration, strict TypeScript, formatting, lockfile, and deployment metadata.
-- Added `/health` and a typed `/events` stub.
+- Added a typed `/events` stub. The initial scaffold health route was later removed because it was not an application contract or migration gate.
 - Assigned an explicit local Worker port.
 - Preserved the production GCP webhook.
 
@@ -315,7 +315,7 @@ Each chunk below was independently reviewable. This sequence is the recommended 
 - Detected an SDK missing-resource semantic mismatch before production.
 - Resolved it through the migration-compatible SDK pin without changing handler architecture.
 
-**Gate:** Preview health, authenticated event handling, expected resource creation, and zero-movement evidence passed.
+**Gate:** Authenticated preview event handling, expected resource creation, and zero-movement evidence passed.
 
 ### Chunk 11 — Deterministic preview validation
 
@@ -336,7 +336,7 @@ Each chunk below was independently reviewable. This sequence is the recommended 
 - Repeated the production-source drift audit.
 - Built the production artifact from a clean frozen install.
 - Deployed the accepted artifact to production Cloudflare while events still routed to GCP.
-- Confirmed production health and log availability.
+- Confirmed production deployment and log availability.
 
 **Gate:** Deployment changed runtime availability only; production event routing and rollback remained unchanged.
 

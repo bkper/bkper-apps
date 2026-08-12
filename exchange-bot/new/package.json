@@ -29,7 +29,7 @@
         "deploy:preview": "bun run build && bkper app sync && bkper app deploy --preview"
     },
     "devDependencies": {
-        "bkper": "4.22.2",
+        "bkper": "4.24.3",
         "concurrently": "9.2.4",
         "miniflare": "4.20260730.0",
         "openapi-typescript": "7.13.0",

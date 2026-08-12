@@ -11,11 +11,21 @@ afterEach(() => {
 });
 
 describe('book service', () => {
-    it('loads the selected Book through bkper-js', async () => {
+    it('loads a lean Book through bkper-js', async () => {
         const book = new Book({ id: 'book-id', name: 'USD Book' });
         Bkper.prototype.getBook = mock(async () => book);
 
         const loadedBook = await bookService.loadBook('book-id');
+
+        expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', false);
+        expect(loadedBook).toBe(book);
+    });
+
+    it('loads a Book with its complete Account chart when explicitly requested', async () => {
+        const book = new Book({ id: 'book-id', name: 'USD Book' });
+        Bkper.prototype.getBook = mock(async () => book);
+
+        const loadedBook = await bookService.loadBook('book-id', true);
 
         expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', true);
         expect(loadedBook).toBe(book);

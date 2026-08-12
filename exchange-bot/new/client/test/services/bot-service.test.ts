@@ -51,10 +51,9 @@ describe('bot service', () => {
         const books = await botService.getConnectedBooks(book);
 
         expect(loadedBooks).toEqual([
-            { id: 'legacy-book-id', includeAccounts: true },
-            { id: 'legacy-list-one', includeAccounts: true },
-            { id: 'legacy-list-two', includeAccounts: true },
-            { id: 'collection-brl', includeAccounts: true },
+            { id: 'legacy-book-id', includeAccounts: false },
+            { id: 'legacy-list-one', includeAccounts: false },
+            { id: 'legacy-list-two', includeAccounts: false },
         ]);
         expect(Array.from(books, connectedBook => connectedBook.getId())).toEqual([
             'legacy-book-id',

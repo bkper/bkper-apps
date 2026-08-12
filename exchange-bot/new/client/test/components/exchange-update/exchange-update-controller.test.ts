@@ -118,12 +118,14 @@ describe('Exchange update controller', () => {
         botApiService.performExchangeUpdate = mock(async () =>
             createExchangeUpdateApiResult(await updateRequest)
         );
-        bookService.loadBook = mock(async () => {
-            throw new Error('The existing Account chart should be reused');
+        const refreshedBook = new Book({
+            id: 'usd-book',
+            accounts: [{ id: 'cash-exchange', name: 'Cash EXC' }],
+            decimalSeparator: DecimalSeparator.COMMA,
+            fractionDigits: 2,
         });
-        const targetBook = createExchangeBotBook('usd-book', 'USD', true, [
-            { id: 'cash-exchange', name: 'Cash EXC' },
-        ]);
+        bookService.loadBook = mock(async () => refreshedBook);
+        const targetBook = createExchangeBotBook('usd-book', 'USD', true);
         const audit = mock(() => undefined);
         targetBook.book.audit = audit;
         const view = new TestView();
@@ -157,13 +159,19 @@ describe('Exchange update controller', () => {
             status: 'COMPLETE',
             summary: { 'Cash EXC': '10,00' },
         });
-        expect(bookService.loadBook).not.toHaveBeenCalled();
+        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book', true);
+        expect(targetBook.book).toBe(refreshedBook);
         expect(audit).toHaveBeenCalledTimes(1);
         expect(view.executing).toBe(false);
     });
 
-    it('does not audit a successful no-op response', async () => {
-        botApiService.performExchangeUpdate = mock(async () => createExchangeUpdateApiResult());
+    it('does not hydrate or audit a successful response without transactions', async () => {
+        botApiService.performExchangeUpdate = mock(async () =>
+            createExchangeUpdateApiResult([], [{ id: 'new-exchange', name: 'New Exchange' }])
+        );
+        bookService.loadBook = mock(async () => {
+            throw new Error('An Account-only response should not hydrate the Book chart');
+        });
         const targetBook = createExchangeBotBook('usd-book', 'USD', true);
         const audit = mock(() => undefined);
         targetBook.book.audit = audit;
@@ -178,6 +186,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
+        expect(bookService.loadBook).not.toHaveBeenCalled();
         expect(audit).not.toHaveBeenCalled();
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
@@ -222,7 +231,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
-        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book');
+        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book', true);
         expect(exchangeBotBook.book).toBe(refreshedBook);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',

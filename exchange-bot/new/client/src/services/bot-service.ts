@@ -42,8 +42,7 @@ class BotService {
                     collectionBook.getId() != book.getId() &&
                     Utils.getExcCode(collectionBook) != null
                 ) {
-                    const book = await bookService.loadBook(collectionBook.getId());
-                    books.add(book);
+                    books.add(collectionBook);
                 }
             }
         }

@@ -2,13 +2,14 @@ import { Bkper, type Book } from 'bkper-js';
 
 class BookService {
     /**
-     * Loads a Book with its complete Account chart.
+     * Loads a Book, optionally with its complete Account chart.
      *
      * @param bookId - The unique identifier of the Book to load.
-     * @returns A promise that resolves to the Book with its Accounts loaded.
+     * @param loadAccounts - Whether to include the Book's Accounts and Groups.
+     * @returns A promise that resolves to the requested Book.
      */
-    async loadBook(bookId: string): Promise<Book> {
-        return new Bkper().getBook(bookId, true);
+    async loadBook(bookId: string, loadAccounts = false): Promise<Book> {
+        return new Bkper().getBook(bookId, loadAccounts);
     }
 }
 

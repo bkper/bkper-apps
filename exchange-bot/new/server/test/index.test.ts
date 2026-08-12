@@ -22,11 +22,10 @@ const env = {
 };
 
 describe('Cloudflare skeleton', () => {
-    it('serves health', async () => {
+    it('does not expose a standalone health endpoint', async () => {
         const response = await createApp().request('/health', {}, env);
 
-        expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ status: 'ok' });
+        expect(await response.text()).toBe('asset');
     });
 
     it('keeps subscribed events as no-ops', async () => {

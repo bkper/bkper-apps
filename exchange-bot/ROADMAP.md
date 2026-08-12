@@ -25,8 +25,9 @@ into one Bkper Platform application whose Cloudflare Worker serves:
 
 - the bundled browser client;
 - authenticated `/api/v1/*` routes used by that client;
-- Bkper event ingress at `/events`; and
-- a lightweight `/health` route.
+- Bkper event ingress at `/events`.
+
+The standalone scaffold health route is not part of the application contract and is removed once the real production surfaces are available.
 
 The migration must not intentionally change existing event behavior, menu behavior, exchange calculations, resource mutations, user workflow, or responses. The legacy GCP and Apps Script implementations remain authoritative until their respective production cutovers.
 
@@ -132,7 +133,7 @@ exchange-bot/
 │   └── package.json
 ├── new/
 │   ├── client/   # Vite + Lit browser client
-│   ├── server/   # Hono Worker: /api/v1/*, /events, /health, assets
+│   ├── server/   # Hono Worker: /api/v1/*, /events, OpenAPI, assets
 │   ├── bkper.yaml
 │   ├── package.json
 │   └── tsconfig.json
@@ -172,7 +173,7 @@ The previous GCP and Apps Script source remains recoverable from Git history. Th
 
 ## Cloudflare target decisions
 
-- One full-stack Worker serves static client assets, `/api/v1/*`, `/events`, and `/health`.
+- One full-stack Worker serves static client assets, `/api/v1/*`, `/events`, and `/openapi.json`; it exposes no standalone health endpoint.
 - The client uses Vite, Lit, Web Awesome, `@bkper/web-design`, and `@bkper/web-auth`.
 - Client parity preserves the established functionality, workflow, states, and outcomes while adopting the platform design foundation; pixel-for-pixel Apps Script styling is not required.
 - The legacy Close button is omitted as an accepted UI-only deviation; users close the menu through the host or browser controls.
@@ -361,7 +362,7 @@ No production patches have been recorded since the migration baseline. Add one c
 
 - Created the minimal target with root, client, and server package boundaries and no template demo behavior.
 - Added strict TypeScript, formatting, generated environment and OpenAPI types, and a committed lockfile.
-- Added `/health`, non-mutating typed `/events` and `/api/v1/*` stubs, `/openapi.json`, JSON API not-found behavior, and static asset fallback in one Hono Worker.
+- Added non-mutating typed `/events` and `/api/v1/*` stubs, `/openapi.json`, JSON API not-found behavior, and static asset fallback in one Hono Worker. The initial scaffold health route was later removed because it was not an application contract or migration gate.
 - Added the Vite, Lit, Web Awesome, Bkper design, and web-auth client foundation.
 - Assigned Vite `5177` and Worker `8793` and updated workspace port forwarding.
 - Added target app metadata while keeping production menu and webhook URLs on Apps Script and GCP.
@@ -491,7 +492,7 @@ No production patches have been recorded since the migration baseline. Add one c
 **Status: Complete.**
 
 - Passed the complete target gate from a frozen install: strict client and server typechecks, 175 retained tests, client and Worker production builds, formatting, OpenAPI generation, and generated-contract drift checks.
-- Rebuilt the client and Worker twice with identical artifacts. The client bundle contains the expected static entry point and assets, and the Worker bundle contains the expected health, OpenAPI, event, and two menu API routes without Node built-in imports.
+- Rebuilt the client and Worker twice with identical artifacts. The client bundle contains the expected static entry point and assets, and the Worker bundle contains the expected OpenAPI, event, and two menu API routes without Node built-in imports.
 - Reverified the unchanged legacy event source with its eight retained tests and production build. Reverified the unchanged Apps Script source with its declared TypeScript compiler and its intended GAS and Bkper type boundaries. Both legacy source trees remain unchanged from the migration baseline.
 - Compared event orchestration, exchange-rate behavior, transaction lifecycles, resource synchronization, menu initialization, rate loading, Exchange Update, and client orchestration with their authoritative legacy implementations. Movement direction, amount, state, mutation order, responses, and the zero-sum safeguards remain covered by retained deterministic tests.
 - Confirmed exact direct dependency pins and lockfile resolution. Revalidated `bkper-js` 2.42.0 optional-lookup semantics and complete-chart Group caching, including zero network requests for embedded Account-to-Group and empty-Group resolution.
@@ -595,7 +596,7 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Build the accepted production artifact from a clean frozen install.
 - Configure the production Open Exchange Rates secret through a separately approved operation.
 - Deploy the accepted full-stack Worker to production while both production routes remain on GCP and GAS.
-- Confirm production health, assets, OpenAPI, API protection, and log availability.
+- Confirm production deployment status, assets, OpenAPI, API protection, and log availability. A standalone health route is not required and must not block deployment acceptance.
 
 **Gate:** Deployment changes runtime availability only; production menu and event routing remain unchanged.
 

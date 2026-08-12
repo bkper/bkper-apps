@@ -41,8 +41,6 @@ export function createApp(): OpenAPIHono<AppEnv> {
         return c.text('Internal Server Error', 500);
     });
 
-    app.get('/health', c => c.json({ status: 'ok' }));
-
     registerEventRoutes(app);
     registerApiRoutes(app);
 

@@ -1,4 +1,5 @@
-import type { ApiError, ExchangeRates, ExchangeUpdateResult } from '../api/generated/types.js';
+import type { ExchangeRates, ExchangeUpdateResult } from '../api/generated/types.js';
+import { isApiError } from '../errors.js';
 import { HttpAPIRequest } from './http-api-request.js';
 import { HttpError } from './http-request.js';
 
@@ -43,19 +44,6 @@ class BotApiService {
             throw error;
         }
     }
-}
-
-function isApiError(payload: unknown): payload is ApiError {
-    if (typeof payload !== 'object' || payload === null || !('error' in payload)) {
-        return false;
-    }
-    const error = payload.error;
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'message' in error &&
-        typeof error.message === 'string'
-    );
 }
 
 export const botApiService = new BotApiService();

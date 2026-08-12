@@ -2,11 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import app from '../src/index';
 
 describe('Tax Bot Worker', () => {
-    test('returns the health status', async () => {
+    test('does not expose a standalone health endpoint', async () => {
         const response = await app.request('/health');
 
-        expect(response.status).toBe(200);
-        await expect(response.json()).resolves.toEqual({ status: 'ok' });
+        expect(response.status).toBe(404);
     });
 
     test('returns the legacy no-op response without consuming auth headers', async () => {

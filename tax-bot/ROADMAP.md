@@ -127,7 +127,7 @@ The previous GCP source remains recoverable from Git history. The deployed GCP f
 
 ## Cloudflare runtime decisions
 
-- Event-only Hono Worker with `/health` and `/events`.
+- Event-only Hono Worker with `/events`; no standalone health endpoint or unrelated public route.
 - No client, public `/api/*`, OpenAPI contract, static assets, KV, secrets, or menu integration.
 - Request-scoped `new Bkper()` without token, API-key, or agent providers.
 - Platform outbound authentication supplies the event user's OAuth context and app agent identity.
@@ -297,7 +297,7 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 **Status: Complete.**
 
 - Added server-only workspace configuration, strict TypeScript, formatting, lockfile, and deployment metadata.
-- Added `/health` and a typed `/events` stub.
+- Added a typed `/events` stub. The initial scaffold health route was later removed because it was not an application contract or migration gate.
 - Assigned local Worker port `8794` and added it to workspace port forwarding while retaining the GCP development port.
 - Preserved the production and developer GCP webhooks.
 
@@ -392,7 +392,7 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 - Deploy preview without changing production routing.
 - Use a synthetic Book for one isolated, low-value tax calculation canary.
 - Start with one complete included-tax movement and verify its source and generated movement deterministically.
-- Confirm preview health, authenticated event handling, expected remote id, and exact movement evidence.
+- Confirm authenticated preview event handling, expected remote id, and exact movement evidence.
 
 **Gate:** Preview handles one complete tax movement without a duplicate, reversal, partial posting, unintended source mutation, or unexplained balance effect.
 
@@ -418,7 +418,7 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 - Repeat the production-source drift audit.
 - Build the production artifact from a clean frozen install.
 - Deploy the accepted artifact to production Cloudflare while events still route to GCP.
-- Confirm production health and log availability.
+- Confirm production deployment and log availability. A standalone health route is not required and must not block deployment acceptance.
 
 **Gate:** Deployment changes runtime availability only; production event routing and rollback remain unchanged.
 

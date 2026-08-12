@@ -4,7 +4,7 @@ This is the event-only Cloudflare Worker migration target. The active GCP implem
 
 ## Scope
 
-- Keep the app server-only: `/health` and `/events` only.
+- Keep the app server-only: `/events` only. Do not add a standalone health endpoint.
 - Do not add a client, public `/api/*`, OpenAPI, static assets, KV, or secrets.
 - Preserve legacy tax behavior during parity work; do not combine migration with fixes or redesigns.
 - Protect Bkper's zero-sum invariant. Every posted tax Transaction must remain one complete movement with one amount, one origin Account, and one destination Account. Unresolved movements must remain drafts.

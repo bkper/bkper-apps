@@ -7,7 +7,6 @@ type AppEnv = { Bindings: Env };
 export function createApp(): Hono<AppEnv> {
     const app = new Hono<AppEnv>();
 
-    app.get('/health', c => c.json({ status: 'ok' }));
     registerEventRoutes(app);
 
     return app;

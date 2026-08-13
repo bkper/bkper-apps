@@ -103,14 +103,11 @@ class BotService {
     }
 
     async getBooksWithPendingTasks(books: Set<Book>): Promise<Set<Book>> {
-        const booksWithPendingTasks = new Set<Book>();
-        for (const book of books) {
+        const pendingBooks = await runRequestsInBatches(books, 5, async book => {
             const hasPendingTasks = await this.hasPendingTasks(book);
-            if (hasPendingTasks) {
-                booksWithPendingTasks.add(book);
-            }
-        }
-        return booksWithPendingTasks;
+            return hasPendingTasks ? book : null;
+        });
+        return new Set(pendingBooks.filter(book => book !== null));
     }
 
     private async hasPendingTasks(book: Book): Promise<boolean> {

@@ -233,6 +233,63 @@ describe('bot service', () => {
         );
     });
 
+    it('limits concurrent pending-task requests to five and preserves Book order', async () => {
+        const books = Array.from({ length: 6 }, (_, index) =>
+            createBook(`book-${index + 1}`, { exc_code: `C${index + 1}` })
+        );
+        const pendingBookIds = new Set(['book-2', 'book-4', 'book-6']);
+        const resolvers = new Map<string, (backlog: Backlog) => void>();
+        let markLastRequestStarted = (): void => {};
+        const lastRequestStarted = new Promise<void>(resolve => {
+            markLastRequestStarted = resolve;
+        });
+
+        for (const book of books) {
+            book.getBacklog = mock(
+                () =>
+                    new Promise<Backlog>(resolve => {
+                        resolvers.set(book.getId(), resolve);
+                        if (book.getId() === 'book-6') {
+                            markLastRequestStarted();
+                        }
+                    })
+            );
+        }
+
+        const pendingBooksPromise = botService.getBooksWithPendingTasks(new Set(books));
+
+        expect(Array.from(resolvers.keys())).toEqual([
+            'book-1',
+            'book-2',
+            'book-3',
+            'book-4',
+            'book-5',
+        ]);
+
+        for (const book of books.slice(0, 5).reverse()) {
+            const resolve = resolvers.get(book.getId());
+            if (!resolve) {
+                throw new Error(`Missing resolver for ${book.getId()}`);
+            }
+            resolve(new Backlog({ count: pendingBookIds.has(book.getId()) ? 1 : 0 }));
+        }
+
+        await lastRequestStarted;
+        expect(Array.from(resolvers.keys())).toEqual(books.map(book => book.getId()));
+
+        const lastResolve = resolvers.get('book-6');
+        if (!lastResolve) {
+            throw new Error('Missing resolver for book-6');
+        }
+        lastResolve(new Backlog({ count: 1 }));
+
+        expect(Array.from(await pendingBooksPromise, book => book.getId())).toEqual([
+            'book-2',
+            'book-4',
+            'book-6',
+        ]);
+    });
+
     it('returns Books with event errors without requiring an exchange code', async () => {
         const book = createBook(
             'selected-book',

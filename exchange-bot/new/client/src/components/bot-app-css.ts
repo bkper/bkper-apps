@@ -31,7 +31,7 @@ export const botAppCSS = css`
     .validations-title,
     .warnings-title {
         display: flex;
-        gap: var(--bkper-spacing-2x-small);
+        gap: var(--bkper-spacing-x-small);
         align-items: center;
     }
 

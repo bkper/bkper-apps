@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–19 complete. Cloudflare is production-authoritative for events, while the Google Apps Script web app remains production-authoritative for the menu.**
+**Chunks 1–19 complete. Chunk 20 is in progress. Cloudflare is production-authoritative for both events and the menu.**
 
-The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, production deployment, production webhook cutover, and event stabilization are complete. The production menu cutover and full-stack stabilization are next.
+The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, production deployment, production webhook cutover, event stabilization, and production menu cutover are complete. The one-hour active menu-monitoring window passed without a rollback trigger, and the 24-hour full-stack observation period is in progress. Full-stack stabilization acceptance remains pending.
 
 ## Purpose of this document
 
@@ -632,12 +632,14 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 20 — Production menu cutover and full-stack stabilization
 
-**Status: Not started.**
+**Status: In progress.**
 
-- Change only the production menu route from Apps Script to the Cloudflare client.
-- Keep the GCP and Apps Script deployments active and unchanged.
-- Monitor client loading, authentication, API requests, rate loading, Exchange Update operations, conditional client-triggered audits, Worker logs, and customer-impact reports.
-- Validate representative menu behavior using accepted deterministic, preview, and production evidence.
+- Restored the development webhook route to preview before cutover, leaving both development surfaces aligned with the preview deployment.
+- Changed only the production menu route from Apps Script to the Cloudflare client. Production event routing remained on Cloudflare, and the deployed Worker code was unchanged.
+- Kept the GCP and Apps Script deployments active and unchanged as independent routing rollback targets.
+- Confirmed the production menu loads through the expected authentication boundary and that an authenticated user can open the client and load exchange rates.
+- Completed the one-hour active-monitoring window. Production rate requests succeeded, a representative Exchange Update reached two target Books with successful API responses, and Worker monitoring found no warning, error, non-success response, or rollback trigger. HTTP success is not treated as accounting proof; deterministic safeguards and the accepted preview canaries remain the auditable movement and zero-sum evidence.
+- Started the agreed 24-hour read-only observation period. No deliberate Book write was initiated for monitoring. Full-stack stabilization acceptance remains pending until this observation completes and its evidence is reviewed.
 
 **Rollback triggers:** suspected zero-sum or data-loss issues, incorrect movement direction or amount, incomplete Exchange Update operations, sustained authentication or API failures, material error growth, or missing production menu behavior.
 

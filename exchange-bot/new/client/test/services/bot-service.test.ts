@@ -100,6 +100,57 @@ describe('bot service', () => {
         ]);
     });
 
+    it('limits concurrent legacy-only Book requests to five', async () => {
+        const legacyBookIds = [
+            'legacy-book-one',
+            'legacy-book-two',
+            'legacy-book-three',
+            'legacy-book-four',
+            'legacy-book-five',
+            'legacy-book-six',
+        ];
+        const resolvers = new Map<string, (book: Book) => void>();
+        let markLastRequestStarted = (): void => {};
+        const lastRequestStarted = new Promise<void>(resolve => {
+            markLastRequestStarted = resolve;
+        });
+        Bkper.prototype.getBook = mock(
+            (id: string) =>
+                new Promise<Book>(resolve => {
+                    resolvers.set(id, resolve);
+                    if (id === legacyBookIds[5]) {
+                        markLastRequestStarted();
+                    }
+                })
+        );
+        const book = createBook('selected-book', {
+            exc_books: legacyBookIds.join(' '),
+        });
+
+        const booksPromise = botService.getConnectedBooks(book);
+
+        expect(Array.from(resolvers.keys())).toEqual(legacyBookIds.slice(0, 5));
+
+        for (const id of legacyBookIds.slice(0, 5)) {
+            const resolve = resolvers.get(id);
+            if (!resolve) {
+                throw new Error(`Missing resolver for ${id}`);
+            }
+            resolve(createBook(id, { exc_code: 'LEGACY' }));
+        }
+        await lastRequestStarted;
+        expect(Array.from(resolvers.keys())).toEqual(legacyBookIds);
+
+        const lastResolve = resolvers.get(legacyBookIds[5]);
+        if (!lastResolve) {
+            throw new Error(`Missing resolver for ${legacyBookIds[5]}`);
+        }
+        lastResolve(createBook(legacyBookIds[5], { exc_code: 'LEGACY' }));
+
+        const books = await booksPromise;
+        expect(Array.from(books, connectedBook => connectedBook.getId())).toEqual(legacyBookIds);
+    });
+
     it('reuses Collection Books for legacy ids and returns each Book id once', async () => {
         const loadedIds: string[] = [];
         Bkper.prototype.getBook = mock(async id => {

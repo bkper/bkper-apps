@@ -2,6 +2,7 @@ import type { Book } from 'bkper-js';
 import { EXC_CODE_PROP } from '../constants.js';
 import { Utils } from '../utils.js';
 import { bookService } from './book-service.js';
+import { runRequestsInBatches } from './request-batch.js';
 
 class BotService {
     async getConnectedBooks(book: Book): Promise<Set<Book>> {
@@ -24,22 +25,30 @@ class BotService {
             }
         }
 
-        const legacyBooks = await Promise.all(
-            Array.from(
-                legacyBookIds,
-                bookId => collectionBooksById.get(bookId) ?? bookService.loadBook(bookId)
-            )
+        const connectedBooksById = new Map(collectionBooksById);
+
+        const loadedBooks = await runRequestsInBatches(
+            Array.from(legacyBookIds).filter(id => !collectionBooksById.has(id)),
+            5,
+            async id => await bookService.loadBook(id)
         );
 
-        const books = new Set(legacyBooks);
-
-        for (const [bookId, collectionBook] of collectionBooksById) {
-            if (!legacyBookIds.has(bookId)) {
-                books.add(collectionBook);
-            }
+        for (const loadedBook of loadedBooks) {
+            connectedBooksById.set(loadedBook.getId(), loadedBook);
         }
 
-        return books;
+        const connectedBooks = new Set<Book>();
+        for (const bookId of legacyBookIds) {
+            const connectedBook = connectedBooksById.get(bookId);
+            if (connectedBook) {
+                connectedBooks.add(connectedBook);
+            }
+        }
+        for (const collectionBook of collectionBooksById.values()) {
+            connectedBooks.add(collectionBook);
+        }
+
+        return connectedBooks;
     }
 
     private getLegacyConnectedBookIds(book: Book): Set<string> {

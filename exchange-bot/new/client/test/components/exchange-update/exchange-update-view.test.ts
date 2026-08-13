@@ -1,16 +1,20 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { Book } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { ExchangeUpdateStatus, type ExchangeBotBook } from '../../../src/types.js';
 
-type DateChangeHandler = (this: ExchangeUpdateView, event: Event) => void;
+type DateHandler = (this: ExchangeUpdateView, event: Event) => void;
 type RateChangeHandler = (this: ExchangeUpdateView, code: string, event: Event) => void;
 
-const handleDateChanged = Reflect.get(
+const handleDateInputted = Reflect.get(
     ExchangeUpdateView.prototype,
-    'handleDateChanged'
-) as DateChangeHandler;
+    'handleDateInputted'
+) as DateHandler;
+const handleDateBlurred = Reflect.get(
+    ExchangeUpdateView.prototype,
+    'handleDateBlurred'
+) as DateHandler;
 const handleRateChanged = Reflect.get(
     ExchangeUpdateView.prototype,
     'handleRateChanged'
@@ -33,21 +37,28 @@ describe('Exchange update view', () => {
     it('disables only Run when the caller lacks edit permission', () => {
         const view = new ExchangeUpdateView();
         view.hasPermission = false;
-        view.exchangeRates = { base: 'USD', date: '2026-08-05', rates: { BRL: 5.25 } };
+        view.date = '2026-08-05';
+        view.exchangeRates = { base: 'USD', date: view.date, rates: { BRL: 5.25 } };
 
         expect(renderActions.call(view).values[1]).toBe(true);
         expect(view.render().values[1]).toBe(false);
         expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
     });
 
-    it('disables Run until rates are available and while an update is running', () => {
+    it('disables Run until rates for the entered date are available', () => {
         const view = new ExchangeUpdateView();
         view.hasPermission = true;
 
         expect(renderActions.call(view).values[1]).toBe(true);
 
+        view.date = '2026-08-06';
         view.exchangeRates = { base: 'USD', date: '2026-08-05', rates: {} };
+        expect(renderActions.call(view).values[1]).toBe(true);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
+
+        view.exchangeRates = { base: 'USD', date: view.date, rates: {} };
         expect(renderActions.call(view).values[1]).toBe(false);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
 
         view.executing = true;
         expect(renderActions.call(view).values[1]).toBe(true);
@@ -64,19 +75,16 @@ describe('Exchange update view', () => {
         expect(result.strings[1]).toContain('<wa-button');
     });
 
-    it('applies the shared disabled states to date and rate inputs', () => {
+    it('keeps the date editable while rates load', () => {
         const view = new ExchangeUpdateView();
+        view.ratesLoading = true;
 
         expect(view.render().values[1]).toBe(false);
-        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(false);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
 
-        for (const state of ['ratesLoading', 'executing'] as const) {
-            view[state] = true;
-            expect(view.render().values[1]).toBe(true);
-            expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
-            view[state] = false;
-        }
-
+        view.executing = true;
+        expect(view.render().values[1]).toBe(true);
+        expect(renderRate.call(view, 'BRL', 5.25).values[2]).toBe(true);
         expect(renderRate.call(view, 'USD', 1, true).values[2]).toBe(true);
     });
 
@@ -118,6 +126,62 @@ describe('Exchange update view', () => {
         expect(result.values).toContain(summary);
     });
 
+    it('debounces date input and loads immediately when focus leaves the input', () => {
+        const view = new ExchangeUpdateView();
+        const controller = Reflect.get(view, 'controller') as {
+            scheduleRatesLoad: () => void;
+            loadRatesImmediately: () => Promise<void>;
+        };
+        const scheduleRatesLoad = mock(() => undefined);
+        const loadRatesImmediately = mock(async () => undefined);
+        controller.scheduleRatesLoad = scheduleRatesLoad;
+        controller.loadRatesImmediately = loadRatesImmediately;
+        const event = {
+            currentTarget: { value: '2026-08-06' },
+        } as unknown as Event;
+
+        handleDateInputted.call(view, event);
+        handleDateBlurred.call(view, event);
+
+        expect(view.date).toBe('2026-08-06');
+        expect(scheduleRatesLoad).toHaveBeenCalledTimes(1);
+        expect(loadRatesImmediately).toHaveBeenCalledTimes(1);
+        expect(view.render().strings.join('')).not.toContain('@change=');
+    });
+
+    it('continues accepting date input while rates load', () => {
+        const view = new ExchangeUpdateView();
+        view.ratesLoading = true;
+        const controller = Reflect.get(view, 'controller') as {
+            scheduleRatesLoad: () => void;
+        };
+        const scheduleRatesLoad = mock(() => undefined);
+        controller.scheduleRatesLoad = scheduleRatesLoad;
+
+        handleDateInputted.call(view, {
+            currentTarget: { value: '2026-08-07' },
+        } as unknown as Event);
+
+        expect(view.date).toBe('2026-08-07');
+        expect(scheduleRatesLoad).toHaveBeenCalledTimes(1);
+    });
+
+    it('schedules an empty date so the controller can clear the rates', () => {
+        const view = new ExchangeUpdateView();
+        const controller = Reflect.get(view, 'controller') as {
+            scheduleRatesLoad: () => void;
+        };
+        const scheduleRatesLoad = mock(() => undefined);
+        controller.scheduleRatesLoad = scheduleRatesLoad;
+
+        handleDateInputted.call(view, {
+            currentTarget: { value: '' },
+        } as unknown as Event);
+
+        expect(view.date).toBe('');
+        expect(scheduleRatesLoad).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores date and rate changes while controls are disabled', () => {
         const view = new ExchangeUpdateView();
         view.executing = true;
@@ -128,7 +192,7 @@ describe('Exchange update view', () => {
             rates: { ZERO: 0 },
         };
 
-        handleDateChanged.call(view, {
+        handleDateInputted.call(view, {
             currentTarget: { value: '2026-08-06' },
         } as unknown as Event);
         handleRateChanged.call(view, 'ZERO', {
@@ -141,9 +205,10 @@ describe('Exchange update view', () => {
 
     it('updates a zero exchange rate while controls are enabled', () => {
         const view = new ExchangeUpdateView();
+        view.date = '2026-08-05';
         view.exchangeRates = {
             base: 'USD',
-            date: '2026-08-05',
+            date: view.date,
             rates: { ZERO: 0 },
         };
 

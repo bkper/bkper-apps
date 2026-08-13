@@ -64,9 +64,9 @@ export class ExchangeUpdateView extends LitElement {
                 type="date"
                 label="Date"
                 .value=${this.date}
-                ?disabled=${this.areInputsDisabled()}
+                ?disabled=${this.isDateInputDisabled()}
                 size="s"
-                @change=${this.handleDateChanged}
+                @input=${this.handleDateInputted}
                 @blur=${this.handleDateBlurred}
             ></wa-input>
             ${this.renderRates()} ${this.renderActions()}
@@ -98,7 +98,7 @@ export class ExchangeUpdateView extends LitElement {
     }
 
     private renderRate(code: string, rate: number | string, disabled = false): TemplateResult {
-        const isDisabled = disabled || this.areInputsDisabled();
+        const isDisabled = disabled || this.isRateInputDisabled();
         return html`
             <div class="rate">
                 <wa-input
@@ -166,12 +166,16 @@ export class ExchangeUpdateView extends LitElement {
         return html`<div class="error" role="alert">${this.permissionError}</div>`;
     }
 
-    private areInputsDisabled(): boolean {
-        return this.ratesLoading || this.executing;
+    private isDateInputDisabled(): boolean {
+        return this.executing;
+    }
+
+    private isRateInputDisabled(): boolean {
+        return this.ratesLoading || this.executing || this.exchangeRates?.date !== this.date;
     }
 
     private isActionDisabled(): boolean {
-        return !this.hasPermission || !this.exchangeRates || this.areInputsDisabled();
+        return !this.hasPermission || !this.exchangeRates || this.isRateInputDisabled();
     }
 
     private handleRunClicked(): void {
@@ -181,23 +185,30 @@ export class ExchangeUpdateView extends LitElement {
         this.controller.runExchangeUpdate();
     }
 
-    private handleDateChanged(event: Event): void {
-        if (this.areInputsDisabled()) {
+    private handleDateInputted(event: Event): void {
+        if (this.isDateInputDisabled()) {
             return;
         }
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
+        this.controller.scheduleRatesLoad();
     }
 
-    private handleDateBlurred(): void {
-        if (this.areInputsDisabled()) {
+    private handleDateBlurred(event: Event): void {
+        this.loadRatesImmediately(event);
+    }
+
+    private loadRatesImmediately(event: Event): void {
+        if (this.isDateInputDisabled()) {
             return;
         }
-        this.controller.loadRates();
+        const input = event.currentTarget as WaInput;
+        this.date = input.value ?? '';
+        this.controller.loadRatesImmediately();
     }
 
     private handleRateChanged(code: string, event: Event): void {
-        if (!this.exchangeRates || this.areInputsDisabled()) {
+        if (!this.exchangeRates || this.isRateInputDisabled()) {
             return;
         }
         const input = event.currentTarget as WaInput;

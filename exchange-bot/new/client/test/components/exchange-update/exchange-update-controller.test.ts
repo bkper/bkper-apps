@@ -49,11 +49,15 @@ class TestView implements ReactiveControllerHost {
 const originalLoadRates = botApiService.loadExchangeRates;
 const originalPerformExchangeUpdate = botApiService.performExchangeUpdate;
 const originalLoadBook = bookService.loadBook;
+const originalSetTimeout = globalThis.setTimeout;
+const originalClearTimeout = globalThis.clearTimeout;
 
 afterEach(() => {
     botApiService.loadExchangeRates = originalLoadRates;
     botApiService.performExchangeUpdate = originalPerformExchangeUpdate;
     bookService.loadBook = originalLoadBook;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
 });
 
 function createController(view: TestView): ExchangeUpdateController {
@@ -614,6 +618,89 @@ describe('Exchange update controller', () => {
         await secondRequest;
         expect(view.exchangeRates).toBe(latestRates);
         expect(view.ratesLoading).toBe(false);
+    });
+
+    it('invalidates an in-flight response as soon as another date is entered', async () => {
+        globalThis.setTimeout = (() =>
+            1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout;
+        let resolveOldRates: (rates: ExchangeRates) => void = () => {};
+        const oldRequest = new Promise<ExchangeRates>(resolve => {
+            resolveOldRates = resolve;
+        });
+        botApiService.loadExchangeRates = mock(() => oldRequest);
+        const view = new TestView();
+        view.book = new Book({ id: 'book-id' });
+        view.date = '2026-08-05';
+        const controller = createController(view);
+
+        const firstRequest = controller.loadRates();
+        view.date = '2026-08-06';
+        controller.scheduleRatesLoad();
+        resolveOldRates({ base: 'USD', date: '2026-08-05', rates: { BRL: 5.3 } });
+        await firstRequest;
+
+        expect(view.exchangeRates).toBeUndefined();
+        expect(view.ratesLoading).toBe(false);
+    });
+
+    it('debounces rate loading for 1500 milliseconds and uses the latest date', async () => {
+        const callbacks: TimerHandler[] = [];
+        const delays: number[] = [];
+        const clearTimeout = mock((_timeoutId: ReturnType<typeof setTimeout>) => undefined);
+        globalThis.setTimeout = ((handler: TimerHandler, timeout?: number) => {
+            callbacks.push(handler);
+            delays.push(timeout ?? 0);
+            return callbacks.length as unknown as ReturnType<typeof setTimeout>;
+        }) as unknown as typeof setTimeout;
+        globalThis.clearTimeout = clearTimeout as unknown as typeof globalThis.clearTimeout;
+        botApiService.loadExchangeRates = mock(async (_bookId, date) => ({
+            base: 'USD',
+            date,
+            rates: {},
+        }));
+        const view = new TestView();
+        view.book = new Book({ id: 'book-id' });
+        view.date = '2026-08-05';
+        const controller = createController(view);
+
+        controller.scheduleRatesLoad();
+        view.date = '2026-08-06';
+        controller.scheduleRatesLoad();
+        const latestCallback = callbacks[1];
+        if (typeof latestCallback === 'function') {
+            latestCallback();
+        }
+        await Promise.resolve();
+
+        expect(delays).toEqual([1500, 1500]);
+        expect(clearTimeout).toHaveBeenCalledTimes(1);
+        expect(botApiService.loadExchangeRates).toHaveBeenCalledTimes(1);
+        expect(botApiService.loadExchangeRates).toHaveBeenCalledWith('book-id', '2026-08-06');
+    });
+
+    it('loads pending rates immediately and does not reload matching rates', async () => {
+        const clearTimeout = mock((_timeoutId: ReturnType<typeof setTimeout>) => undefined);
+        globalThis.setTimeout = (() =>
+            1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout;
+        globalThis.clearTimeout = clearTimeout as unknown as typeof globalThis.clearTimeout;
+        const exchangeRates: ExchangeRates = {
+            base: 'USD',
+            date: '2026-08-06',
+            rates: { BRL: 5.4 },
+        };
+        botApiService.loadExchangeRates = mock(async () => exchangeRates);
+        const view = new TestView();
+        view.book = new Book({ id: 'book-id' });
+        view.date = exchangeRates.date;
+        const controller = createController(view);
+
+        controller.scheduleRatesLoad();
+        await controller.loadRatesImmediately();
+        await controller.loadRatesImmediately();
+
+        expect(clearTimeout).toHaveBeenCalledTimes(1);
+        expect(botApiService.loadExchangeRates).toHaveBeenCalledTimes(1);
+        expect(view.exchangeRates).toBe(exchangeRates);
     });
 
     it('clears rates and ignores an in-flight response when the date is empty', async () => {

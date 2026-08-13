@@ -17,7 +17,9 @@ export class ExchangeUpdateController implements ReactiveController {
 
     private readonly maxRetryCount = 5;
 
+    private readonly ratesLoadDelayMs = 1500;
     private ratesRequestId = 0;
+    private ratesLoadTimeout?: ReturnType<typeof setTimeout>;
 
     constructor(view: ExchangeUpdateView) {
         this.view = view;
@@ -28,12 +30,42 @@ export class ExchangeUpdateController implements ReactiveController {
         this.initialize();
     }
 
+    hostDisconnected(): void {
+        this.cancelScheduledRatesLoad();
+    }
+
     async initialize(): Promise<void> {
         const book = this.view.book;
         if (!book) {
             return;
         }
         await this.loadRates();
+    }
+
+    async loadRatesImmediately(): Promise<void> {
+        this.cancelScheduledRatesLoad();
+        const date = this.view.date;
+        if (date && this.view.exchangeRates?.date === date) {
+            return;
+        }
+        await this.loadRates();
+    }
+
+    scheduleRatesLoad(): void {
+        this.cancelScheduledRatesLoad();
+        this.ratesLoadTimeout = setTimeout(() => {
+            this.ratesLoadTimeout = undefined;
+            this.loadRates();
+        }, this.ratesLoadDelayMs);
+    }
+
+    cancelScheduledRatesLoad(): void {
+        this.ratesRequestId++;
+        this.view.ratesLoading = false;
+        if (this.ratesLoadTimeout !== undefined) {
+            clearTimeout(this.ratesLoadTimeout);
+            this.ratesLoadTimeout = undefined;
+        }
     }
 
     async loadRates(): Promise<void> {

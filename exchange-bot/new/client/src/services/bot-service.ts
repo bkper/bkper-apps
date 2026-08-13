@@ -9,28 +9,7 @@ class BotService {
             return new Set<Book>();
         }
 
-        const legacyBookIds = new Set<string>();
-
-        // deprecated
-        for (const key in book.getVisibleProperties()) {
-            if (key.startsWith('exc') && key.endsWith('_book')) {
-                const bookId = book.getVisibleProperties()[key];
-                if (bookId) {
-                    legacyBookIds.add(bookId);
-                }
-            }
-        }
-
-        // deprecated
-        const excBooks = book.getProperty('exc_books');
-        if (excBooks != null && excBooks.trim() != '') {
-            const bookIds = excBooks.split(/[ ,]+/);
-            for (const bookId of bookIds) {
-                if (bookId != null && bookId.trim().length > 10) {
-                    legacyBookIds.add(bookId);
-                }
-            }
-        }
+        const legacyBookIds = this.getLegacyConnectedBookIds(book);
 
         const collectionBooks = book.getCollection()?.getBooks() ?? [];
         const collectionBooksById = new Map<string, Book>();
@@ -61,6 +40,30 @@ class BotService {
         }
 
         return books;
+    }
+
+    private getLegacyConnectedBookIds(book: Book): Set<string> {
+        const legacyBookIds = new Set<string>();
+        // deprecated
+        for (const key in book.getVisibleProperties()) {
+            if (key.startsWith('exc') && key.endsWith('_book')) {
+                const bookId = book.getVisibleProperties()[key];
+                if (bookId) {
+                    legacyBookIds.add(bookId);
+                }
+            }
+        }
+        // deprecated
+        const excBooks = book.getProperty('exc_books');
+        if (excBooks != null && excBooks.trim() != '') {
+            const bookIds = excBooks.split(/[ ,]+/);
+            for (const bookId of bookIds) {
+                if (bookId != null && bookId.trim().length > 10) {
+                    legacyBookIds.add(bookId);
+                }
+            }
+        }
+        return legacyBookIds;
     }
 
     getCollectionExcCodes(book: Book): Set<string> {

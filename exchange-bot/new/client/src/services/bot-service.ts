@@ -117,14 +117,11 @@ class BotService {
     }
 
     async getBooksWithEventErrors(books: Set<Book>): Promise<Set<Book>> {
-        const booksWithEventErrors = new Set<Book>();
-        for (const book of books) {
+        const errorBooks = await runRequestsInBatches(books, 5, async book => {
             const hasEventErrors = await this.hasEventErrors(book);
-            if (hasEventErrors) {
-                booksWithEventErrors.add(book);
-            }
-        }
-        return booksWithEventErrors;
+            return hasEventErrors ? book : null;
+        });
+        return new Set(errorBooks.filter(book => book !== null));
     }
 
     private async hasEventErrors(book: Book): Promise<boolean> {

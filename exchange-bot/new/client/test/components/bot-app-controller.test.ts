@@ -21,6 +21,7 @@ class TestView implements ReactiveControllerHost {
     hasEditorPermission = false;
     permissionError = '';
     warnings: string[] = [];
+    validating = false;
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -463,6 +464,56 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.warnings.join(' ').match(/BRL/g)).toHaveLength(1);
+    });
+
+    it('makes Exchange Update ready while connected Books are being validated', async () => {
+        const book = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            properties: { exc_code: 'USD' },
+        });
+        let resolvePendingTasks = (_books: Set<Book>): void => {};
+        let markPendingTasksStarted = (): void => {};
+        const pendingTasksStarted = new Promise<void>(resolve => {
+            markPendingTasksStarted = resolve;
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        botService.getBookConfiguredExcCodes = async () => new Set(['BRL']);
+        botService.getBooksWithPendingTasks = async () => {
+            markPendingTasksStarted();
+            return new Promise<Set<Book>>(resolve => {
+                resolvePendingTasks = resolve;
+            });
+        };
+        const getBooksWithErrors = mock(
+            async () => new Set([new Book({ properties: { exc_code: 'EUR' } })])
+        );
+        botService.getBooksWithEventErrors = getBooksWithErrors;
+        const view = new TestView();
+        const controller = createController(view);
+
+        const initialization = controller.initialize();
+        await pendingTasksStarted;
+
+        expect(view.appState).toBe(BotAppState.READY);
+        expect(view.validating).toBe(true);
+        expect(view.warnings).toEqual([]);
+        expect(getBooksWithErrors).not.toHaveBeenCalled();
+
+        resolvePendingTasks(new Set([book]));
+        await initialization;
+
+        expect(view.validating).toBe(false);
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+            'Books with pending tasks: USD',
+            'Books with errors: EUR',
+        ]);
     });
 
     it('shows all non-blocking context warnings in order', async () => {

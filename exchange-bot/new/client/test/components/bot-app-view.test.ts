@@ -90,6 +90,17 @@ describe('Bot app view', () => {
         expect(result.values).toContain(view.permissionError);
     });
 
+    it('shows connected Book validation progress', () => {
+        const view = new BotAppView();
+        view.validating = true;
+
+        const result = renderWarnings.call(view);
+
+        expect(result.strings.join('')).toContain('<wa-spinner>');
+        expect(result.strings.join('')).toContain('Validating connected Books...');
+        expect(result.strings.join('')).toContain('role="status"');
+    });
+
     it('renders every context warning separately', () => {
         const view = new BotAppView();
         view.warnings = [

@@ -40,14 +40,17 @@ export class BotAppController implements ReactiveController {
             return;
         }
 
-        await this.loadContext(book);
+        const books = await this.loadBooks(book);
         this.view.appState = BotAppState.READY;
+
+        await this.validateBooks(book, books);
     }
 
     private async initializeBook(): Promise<Book | undefined> {
         this.view.book = undefined;
         this.view.error = '';
         this.view.permissionError = '';
+        this.view.validating = false;
 
         const bookId = appEnv.getSearchParam('bookId');
         this.view.bookId = bookId ?? '';
@@ -91,7 +94,7 @@ export class BotAppController implements ReactiveController {
         return book;
     }
 
-    private async loadContext(book: Book): Promise<void> {
+    private async loadBooks(book: Book): Promise<Set<Book>> {
         this.view.books = [];
         this.view.hasEditorPermission = false;
         this.view.permissionError = '';
@@ -107,11 +110,7 @@ export class BotAppController implements ReactiveController {
             this.view.books.push(appBook);
         }
 
-        // Map books with pending tasks (only books visible to the User)
-        const viewableBooks = new Set(Array.from(books).filter(Utils.canViewBook));
-        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(viewableBooks);
-
-        // Check editor permission (only on Books that the Exchange Update will target)
+        // Check editor permission (only on Books that the Exchange Update targets)
         const booksMissingEditPermission = this.view.books.filter(
             b => b.isBase && !Utils.canEditBook(b.book)
         );
@@ -122,10 +121,16 @@ export class BotAppController implements ReactiveController {
             this.view.hasEditorPermission = true;
         }
 
-        // Map possibly hidden books
-        const missingExcCodes = await this.mapMissingExcCodes(book);
+        // Pending-task validation applies only to Books visible to the User.
+        const visibleBooks = Array.from(books).filter(Utils.canViewBook);
+        return new Set(visibleBooks);
+    }
 
-        // Map books with errors
+    private async validateBooks(book: Book, books: Set<Book>): Promise<void> {
+        this.view.validating = true;
+
+        const missingExcCodes = await this.mapMissingExcCodes(book);
+        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
         const botErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
 
         const warnings: string[] = [];
@@ -146,6 +151,7 @@ export class BotAppController implements ReactiveController {
         }
 
         this.view.warnings = warnings;
+        this.view.validating = false;
     }
 
     private getInitialDate(book: Book): string {

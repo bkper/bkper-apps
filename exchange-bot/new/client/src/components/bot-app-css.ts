@@ -23,10 +23,12 @@ export const botAppCSS = css`
         place-items: center;
     }
 
+    .validations,
     .warnings {
         margin-top: var(--bkper-spacing-large);
     }
 
+    .validations-title,
     .warnings-title {
         display: flex;
         gap: var(--bkper-spacing-2x-small);
@@ -57,5 +59,10 @@ export const botAppCSS = css`
     wa-spinner {
         font-size: 2rem;
         --track-width: 0.125em;
+    }
+
+    .validations wa-spinner,
+    .warnings wa-spinner {
+        font-size: 1.5rem;
     }
 `;

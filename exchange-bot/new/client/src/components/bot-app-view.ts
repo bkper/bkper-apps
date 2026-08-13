@@ -44,6 +44,9 @@ export class BotAppView extends LitElement {
     permissionError = '';
 
     @state()
+    validating = false;
+
+    @state()
     warnings: string[] = [];
 
     static styles = [sharedCSS, botAppCSS];
@@ -99,11 +102,21 @@ export class BotAppView extends LitElement {
     }
 
     private renderWarnings(): TemplateResult {
+        if (this.validating) {
+            return html`
+                <div class="validations" role="status">
+                    <div class="validations-title">
+                        <wa-spinner></wa-spinner>
+                        <span>Validating connected Books...</span>
+                    </div>
+                </div>
+            `;
+        }
         if (this.warnings.length === 0) {
             return html``;
         }
         return html`
-            <section class="warnings">
+            <div class="warnings">
                 <div class="warnings-title">
                     <wa-icon name="warning" label="Warnings"></wa-icon>
                     <span>Warnings</span>
@@ -111,7 +124,7 @@ export class BotAppView extends LitElement {
                 <div class="warnings-list">
                     ${this.warnings.map(w => html`<div class="warning" role="status">${w}</div>`)}
                 </div>
-            </section>
+            </div>
         `;
     }
 }

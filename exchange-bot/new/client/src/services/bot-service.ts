@@ -10,8 +10,7 @@ class BotService {
             return new Set<Book>();
         }
 
-        const legacyBookIds = this.getLegacyConnectedBookIds(book);
-
+        // Connected books in the Collection
         const collectionBooks = book.getCollection()?.getBooks() ?? [];
         const collectionBooksById = new Map<string, Book>();
 
@@ -25,25 +24,27 @@ class BotService {
             }
         }
 
-        const connectedBooksById = new Map(collectionBooksById);
-
-        const loadedBooks = await runRequestsInBatches(
+        // Connected books by deprecated methods
+        const legacyBookIds = this.getLegacyConnectedBookIds(book);
+        const legacyLoadedBooks = await runRequestsInBatches(
             Array.from(legacyBookIds).filter(id => !collectionBooksById.has(id)),
             5,
             async id => await bookService.loadBook(id)
         );
-
-        for (const loadedBook of loadedBooks) {
-            connectedBooksById.set(loadedBook.getId(), loadedBook);
-        }
+        const loadedBooksById = new Map(legacyLoadedBooks.map(b => [b.getId(), b]));
 
         const connectedBooks = new Set<Book>();
-        for (const bookId of legacyBookIds) {
-            const connectedBook = connectedBooksById.get(bookId);
-            if (connectedBook) {
-                connectedBooks.add(connectedBook);
+
+        // Add legacy first to preserve behavior
+        for (const legacyBookId of legacyBookIds) {
+            const legacyBook =
+                collectionBooksById.get(legacyBookId) ?? loadedBooksById.get(legacyBookId);
+            if (legacyBook) {
+                connectedBooks.add(legacyBook);
             }
         }
+
+        // Add Collection books after
         for (const collectionBook of collectionBooksById.values()) {
             connectedBooks.add(collectionBook);
         }

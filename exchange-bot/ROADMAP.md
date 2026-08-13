@@ -294,12 +294,13 @@ Each behavior chunk follows this workflow:
 
 - The client reads the selected `bookId` from the menu URL.
 - Authentication initialization and login-required behavior use `@bkper/web-auth`.
-- The client establishes an authenticated session and loads the selected Book, Collection, connected Books, permissions, pending tasks, bot responses, base-Book eligibility, and default date directly through client-side `bkper-js`.
+- The client establishes an authenticated session and loads the selected Book with its complete Account chart, reuses embedded Collection Books, resolves legacy-only connected Books as lean metadata, and determines permissions, base-Book eligibility, and the default date directly through client-side `bkper-js`.
 - The main Exchange Update UI is initialized and rendered only when the selected path Book has a view-capable `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` permission. `RECORDER`, `NONE`, and missing permissions render a dedicated access-denied state and perform no menu API request.
 - A view-capable caller may load rates, change the date, and edit rate inputs. Run remains disabled unless every concrete eligible Book that the action would target with POST has `EDITOR` or `OWNER` permission.
 - Connected Books that are not concrete POST targets do not affect Run authorization. Configured currencies or Books absent from the visible Collection, pending bot tasks, and bot errors produce independent neutral warnings that are all shown together and never hide controls or disable Run.
+- Pending-task and event-error validations run after the UI is ready, in sequential categories and ordered request batches of five. Validation progress and completed warnings remain visible; a failed validation stops progress, preserves completed warnings, and can be retried from a clean validation state without reloading Books.
 - Client action handling repeats the edit-permission guard before issuing POST. A server `403` is shown immediately and is never retried; other established per-Book progress, failure, and retry behavior remains unchanged.
-- Initial loading, permission, warning, waiting, rates, result, retry, and error states preserve the existing workflow except for the explicit permission hardening above.
+- Initial loading, permission, validation, warning, waiting, rates, result, retry, and error states preserve the existing workflow except for the explicit permission hardening and startup behavior recorded above.
 - Date changes reload rates through the typed API.
 - Rates remain editable before Exchange Update execution.
 - When Run is enabled, the client calls Exchange Update once per eligible target Book and preserves established per-Book progress and results; it never silently skips an unauthorized target.
@@ -341,6 +342,16 @@ No production patches have been recorded since the migration baseline. Add one c
 | Surface | Behavior changed | Target parity test | Port status |
 | --- | --- | --- | --- |
 | — | — | — | — |
+
+## Completed client startup optimization
+
+- Kept the selected Book as one blocking complete-chart request so configured-currency Group reads remain cached instead of producing a follow-up request.
+- Reused eligible embedded Collection Books and deduplicated connected Books by Book id while preserving legacy-first order.
+- Loaded only unique legacy-only connected Books through ordered request batches of five.
+- Ran pending-task and event-error checks through the same ordered batches, with the two validation categories remaining sequential so at most five validation requests are in flight.
+- Moved advisory validation behind `READY`, allowing Exchange Update rendering and rate loading to start first. The client shows validation progress and incremental warnings without disabling Run.
+- Added a separate validation failure state and manual retry. Completed warnings remain visible after failure; retry clears validation output and reruns validations using the already loaded Books.
+- Preserved permissions, warning order, Book order, Exchange Update mutations, audit behavior, and the zero-sum invariant. Deterministic tests use local SDK objects and mocks only.
 
 ## Migration chunks
 

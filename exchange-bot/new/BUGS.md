@@ -29,15 +29,7 @@ Check event errors across the selected Book and every connected Book, including 
 - Missing-permission and pending-task warnings retain their existing precedence over event-error warnings.
 - Deterministic client tests cover each validation scope without accessing live Books.
 
-## 2. Pending-task validation skipped Books without an exchange code
-
-**Status:** Fixed during migration review.
-
-The migration target initially checked a Book's exchange code before checking its backlog. This skipped pending-task validation for an unconfigured selected Book or a Book connected through deprecated properties without an exchange code.
-
-The target now preserves the legacy check across the selected Book and every connected Book regardless of exchange-code configuration.
-
-## 3. Validation warnings cannot identify Books without an exchange code
+## 2. Validation warnings cannot identify Books without an exchange code
 
 **Status:** Deferred until after migration stabilization.
 
@@ -62,7 +54,7 @@ Keep validation scopes independent from exchange-code configuration. When an exc
 - Existing warning precedence remains unchanged.
 - Deterministic client tests cover each fallback without accessing live Books.
 
-## 4. Editable exchange rates accept non-numeric text
+## 3. Editable exchange rates accept non-numeric text
 
 **Status:** Deferred until after migration stabilization.
 
@@ -87,27 +79,23 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 5. Connected Books are not deduplicated by Book id
+## 4. Connected Books are not deduplicated by Book id
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Fixed in the client; server API deduplication remains deferred until after migration stabilization.
 
-### Current legacy behavior
+### Current migration behavior
 
-Connected Books are accumulated in a `Set<Book>`. JavaScript Sets compare objects by identity, so separate `Book` instances with the same id are not deduplicated. The same Book can therefore appear more than once when configured through multiple sources, including:
+The client deduplicates connected Books by `book.getId()`, reuses eligible embedded Collection Books, and preserves legacy-first discovery order. Duplicate deprecated ids are loaded once, and each connected Book id is returned once.
 
-- one or more deprecated `exc_*_book` properties;
-- the deprecated `exc_books` property; and
-- Collection membership with an exchange code.
+The server API still accumulates connected Books in a `Set<Book>`. Because JavaScript Sets compare objects by identity, separate server-side `Book` instances with the same id can remain duplicated when configured through deprecated properties and Collection membership.
 
-The client and server API implementations both preserve this behavior.
+### Remaining problem
 
-### Problem
-
-Duplicate Book instances cause repeated context validation and duplicate UI context entries. Duplicate eligible entries can also submit concurrent Exchange Update requests for the same target Book. In addition, the exchange-update service can process the same connected Book multiple times using the same preloaded balances report. Each path can create duplicate exchange-adjustment movements.
+The client-side duplicate validation, UI entry, and duplicate target-request risks are fixed. The server exchange-update service can still process the same connected Book more than once using the same preloaded balances report, which can create duplicate exchange-adjustment movements.
 
 ### Intended fix
 
-Deduplicate connected Books by `book.getId()` while preserving first-discovery order across legacy properties and Collection membership. Apply the same rule consistently to the client and server API implementations.
+Retain the client rule and apply the same Book-id deduplication to the server API while preserving first-discovery order.
 
 ### Acceptance criteria
 
@@ -119,30 +107,7 @@ Deduplicate connected Books by `book.getId()` while preserving first-discovery o
 - Exchange update processes each connected Book id once.
 - Deterministic client and server tests cover duplicate configuration sources without accessing live Books.
 
-## 6. Selected-Book edit permission is checked after pending tasks
-
-**Status:** Deferred optimization until after migration stabilization.
-
-### Current legacy behavior
-
-The menu loads connected Books and checks their backlogs before checking whether the user can edit the selected Book. The migration target preserves this request order for parity. If the user lacks EDITOR or OWNER permission, the pending-task results are discarded by the subsequent early return.
-
-### Problem
-
-Users who cannot edit the selected Book wait for unnecessary backlog requests across the connected context. A backlog request failure can also surface a general loading error before the menu reaches the more relevant selected-Book permission message.
-
-### Intended optimization
-
-Check the selected Book's edit permission before loading connected-Book context or running pending-task and event-error validations. If permission is insufficient, return immediately with the existing permission message. Treat the changed request and error ordering as an intentional post-migration behavior improvement rather than migration parity.
-
-### Acceptance criteria
-
-- EDITOR and OWNER users continue through the complete context validation flow.
-- Other permission levels receive the existing selected-Book permission message without connected-Book, backlog, configured-code, or event-error requests.
-- Missing-permission, pending-task, and event-error warning precedence remains unchanged for users who can edit the selected Book.
-- Deterministic client tests verify the early return and request boundaries without accessing live Books.
-
-## 7. Client conflates blocking errors with non-blocking warnings
+## 5. Client conflates blocking errors with non-blocking warnings
 
 **Status:** Partially resolved; remaining operation-stage classifications are deferred until after migration stabilization.
 
@@ -160,7 +125,7 @@ State names and presentation imply that all reported conditions are errors and t
 
 ### Migration target follow-up
 
-The target now treats missing connected Books, pending bot tasks, and bot errors as independent non-blocking context warnings. All simultaneous warnings are displayed in deterministic order, while blocking Book authorization remains in the permission-error state. Operation-stage failures still require the broader classification described below.
+The target now treats missing connected Books, pending bot tasks, and bot errors as independent non-blocking context warnings. All simultaneous warnings are displayed in deterministic order, while blocking Book authorization remains in the permission-error state. Background validation failures have a separate retryable state that preserves completed warnings and does not disable Exchange Update. Operation-stage failures still require the broader classification described below.
 
 ### Intended fix
 
@@ -177,7 +142,7 @@ After migration stabilization, define explicit client states for blocking valida
 - Message presentation is separate from action-availability logic.
 - Deterministic client tests cover presentation, action availability, and request boundaries for each classification without accessing live Books.
 
-## 8. Post-mutation summary failures are reported as operation failures
+## 6. Post-mutation summary failures are reported as operation failures
 
 **Status:** Deferred until after migration stabilization.
 
@@ -204,7 +169,7 @@ Track mutation outcome separately from summary and presentation outcome. Once th
 - Per-Book mutation and summary outcomes remain independent.
 - Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
 
-## 9. Edited rates retain results from the previous Exchange Update
+## 7. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -228,41 +193,42 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 10. Connected-Book discovery and chart loading perform redundant sequential requests
+## 8. Connected-Book discovery and chart loading perform redundant sequential requests
 
-**Status:** Deferred connected-Book loading optimization until after migration stabilization. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
+**Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
-### Current migration behavior
+### Current client behavior
 
-The menu API discovers connected Books through deprecated properties and Collection membership. Deprecated-property connections are loaded sequentially as lean Books inside `BotService.getConnectedBooks`, while Collection Books use their embedded payloads.
+The selected Book loads once with its complete Account chart because startup always reads its configured currency Groups. Eligible Collection Books reuse their embedded payloads. Deprecated connection ids are deduplicated, Collection matches reuse the embedded Book, and only unique legacy-only Books generate lean requests. Those requests run in ordered batches of five, and connected Books remain deduplicated by id in legacy-first order.
+
+After connected-Book discovery and permission checks, the client enters `READY`; Exchange Update renders and rate loading can begin. Missing-currency, pending-task, and event-error validations then run as sequential categories. Per-Book backlog and event requests use ordered batches of five. Progress and completed warnings remain visible, and a validation failure can be retried from a clean validation state without reloading Books.
+
+A failure during blocking connected-Book discovery still occurs before `READY` and remains outside the validation retry boundary.
+
+### Remaining server behavior
 
 Exchange Update loads the target Book with its complete chart once. For each connected Book, it first checks the target chart for matching Accounts. Only when matches exist does it load that connected Book with its complete chart before calculating and creating movements.
 
-Server `bkper-js` 2.42.0 resolves embedded Account Group ids and cached Groups with no Accounts through the complete Book chart. This fixes the 2.19.0 cache amplification that issued per-Account or empty-Group requests. It does not fix this deferred connected-Book loading issue: a matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request. The service also still avoids loading a connected chart when no target Accounts match.
+Server `bkper-js` 2.42.0 resolves embedded Account Group ids and cached Groups with no Accounts through the complete Book chart. This fixes the 2.19.0 cache amplification that issued per-Account or empty-Group requests. A matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request. The service continues to avoid loading a connected chart when no target Accounts match.
 
-### Problem
+### Remaining optimization
 
-Sequential discovery and repeated lean/full loads add avoidable latency and API traffic. Because the client starts one Exchange Update request per eligible target Book, the redundant reads scale across both target and connected Books.
+Evolve the server menu API `BotService.getConnectedBooks` boundary to support caller-selected Book completeness, including an opt-in complete-chart mode. Resolve independent Book loads through bounded concurrency while preserving deterministic result and mutation order. Allow Exchange Update to hydrate only connected Books whose currency codes have matching target Accounts, avoiding both redundant lean/full requests and unnecessary chart loads.
 
-### Intended optimization
-
-Evolve the menu API `BotService.getConnectedBooks` boundary to support caller-selected Book completeness, including an opt-in complete-chart mode. Resolve independent Book loads in parallel with explicit bounded concurrency while preserving deterministic result order. Allow Exchange Update to hydrate only connected Books whose currency codes have matching target Accounts, avoiding both redundant lean/full requests and unnecessary chart loads.
-
-Keep rate loading on lean Book metadata. Do not change connected-Book mutation order, transaction construction, batch order, audit behavior, or movement direction and amount.
+Keep rate loading on lean Book metadata. Do not change transaction construction, batch order, audit behavior, or movement direction and amount.
 
 ### Acceptance criteria
 
-- Callers explicitly choose whether connected Books require lean metadata or complete Accounts and Groups.
+- Server callers explicitly choose whether connected Books require lean metadata or complete Accounts and Groups.
 - Exchange-rate loading does not fetch complete charts.
 - Exchange Update does not fetch a connected chart when no target Accounts match its currency code.
 - A matching deprecated-property Book is not loaded once lean and again with its complete chart.
-- Independent read-only Book loads can run in parallel under an explicit concurrency bound.
-- Parallel loading preserves deterministic connected-Book result order.
+- Independent read-only Book loads use explicit bounded concurrency and deterministic result order.
 - Connected-Book transaction batches retain their established mutation order.
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 11. Exchange Update retries lack delay and structured error classification
+## 9. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -288,7 +254,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 12. Client-triggered post-update Book audits may be unnecessary
+## 10. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

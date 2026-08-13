@@ -10,6 +10,9 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
+const renderValidations = Reflect.get(BotAppView.prototype, 'renderValidations') as (
+    this: BotAppView
+) => TemplateResult;
 const renderWarnings = Reflect.get(BotAppView.prototype, 'renderWarnings') as (
     this: BotAppView
 ) => TemplateResult;
@@ -90,15 +93,19 @@ describe('Bot app view', () => {
         expect(result.values).toContain(view.permissionError);
     });
 
-    it('shows connected Book validation progress', () => {
+    it('shows validation progress together with available warnings', () => {
         const view = new BotAppView();
         view.validating = true;
+        view.warnings = ['Books with pending tasks: USD'];
 
-        const result = renderWarnings.call(view);
+        const validations = renderValidations.call(view);
+        const warningSection = renderWarnings.call(view);
+        const warnings = warningSection.values[0] as TemplateResult[];
 
-        expect(result.strings.join('')).toContain('<wa-spinner>');
-        expect(result.strings.join('')).toContain('Validating connected Books...');
-        expect(result.strings.join('')).toContain('role="status"');
+        expect(validations.strings.join('')).toContain('<wa-spinner>');
+        expect(validations.strings.join('')).toContain('Validating connected Books...');
+        expect(validations.strings.join('')).toContain('role="status"');
+        expect(warnings.map(warning => warning.values[0])).toEqual(view.warnings);
     });
 
     it('renders every context warning separately', () => {

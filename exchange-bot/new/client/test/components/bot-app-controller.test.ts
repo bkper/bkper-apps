@@ -475,9 +475,14 @@ describe('Bot app controller', () => {
             properties: { exc_code: 'USD' },
         });
         let resolvePendingTasks = (_books: Set<Book>): void => {};
+        let resolveEventErrors = (_books: Set<Book>): void => {};
         let markPendingTasksStarted = (): void => {};
+        let markEventErrorsStarted = (): void => {};
         const pendingTasksStarted = new Promise<void>(resolve => {
             markPendingTasksStarted = resolve;
+        });
+        const eventErrorsStarted = new Promise<void>(resolve => {
+            markEventErrorsStarted = resolve;
         });
         authService.init = async () => {
             authService.accessToken = 'access-token';
@@ -490,9 +495,12 @@ describe('Bot app controller', () => {
                 resolvePendingTasks = resolve;
             });
         };
-        const getBooksWithErrors = mock(
-            async () => new Set([new Book({ properties: { exc_code: 'EUR' } })])
-        );
+        const getBooksWithErrors = mock(async () => {
+            markEventErrorsStarted();
+            return new Promise<Set<Book>>(resolve => {
+                resolveEventErrors = resolve;
+            });
+        });
         botService.getBooksWithEventErrors = getBooksWithErrors;
         const view = new TestView();
         const controller = createController(view);
@@ -502,10 +510,21 @@ describe('Bot app controller', () => {
 
         expect(view.appState).toBe(BotAppState.READY);
         expect(view.validating).toBe(true);
-        expect(view.warnings).toEqual([]);
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+        ]);
         expect(getBooksWithErrors).not.toHaveBeenCalled();
 
         resolvePendingTasks(new Set([book]));
+        await eventErrorsStarted;
+
+        expect(view.validating).toBe(true);
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+            'Books with pending tasks: USD',
+        ]);
+
+        resolveEventErrors(new Set([new Book({ properties: { exc_code: 'EUR' } })]));
         await initialization;
 
         expect(view.validating).toBe(false);

@@ -129,12 +129,9 @@ export class BotAppController implements ReactiveController {
     private async validateBooks(book: Book, books: Set<Book>): Promise<void> {
         this.view.validating = true;
 
-        const missingExcCodes = await this.mapMissingExcCodes(book);
-        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
-        const botErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
-
         const warnings: string[] = [];
 
+        const missingExcCodes = await this.mapMissingExcCodes(book);
         if (missingExcCodes.size > 0) {
             warnings.push(
                 this.buildWarning(
@@ -142,15 +139,21 @@ export class BotAppController implements ReactiveController {
                     missingExcCodes
                 )
             );
-        }
-        if (pendingTasksExcCodes.size > 0) {
-            warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
-        }
-        if (botErrorsExcCodes.size > 0) {
-            warnings.push(this.buildWarning('Books with errors:', botErrorsExcCodes));
+            this.view.warnings = [...warnings];
         }
 
-        this.view.warnings = warnings;
+        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
+        if (pendingTasksExcCodes.size > 0) {
+            warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
+            this.view.warnings = [...warnings];
+        }
+
+        const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
+        if (eventErrorsExcCodes.size > 0) {
+            warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
+            this.view.warnings = [...warnings];
+        }
+
         this.view.validating = false;
     }
 

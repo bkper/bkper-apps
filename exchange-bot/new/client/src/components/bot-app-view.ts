@@ -84,7 +84,7 @@ export class BotAppView extends LitElement {
                     .hasPermission=${this.hasEditorPermission}
                     .permissionError=${this.permissionError}
                 ></exchange-update>
-                ${this.renderWarnings()}
+                ${this.renderValidations()} ${this.renderWarnings()}
             `;
         }
         return html``;
@@ -101,17 +101,21 @@ export class BotAppView extends LitElement {
         `;
     }
 
-    private renderWarnings(): TemplateResult {
-        if (this.validating) {
-            return html`
-                <div class="validations" role="status">
-                    <div class="validations-title">
-                        <wa-spinner></wa-spinner>
-                        <span>Validating connected Books...</span>
-                    </div>
-                </div>
-            `;
+    private renderValidations(): TemplateResult {
+        if (!this.validating) {
+            return html``;
         }
+        return html`
+            <div class="validations" role="status">
+                <div class="validations-title">
+                    <wa-spinner></wa-spinner>
+                    <span>Validating connected Books...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    private renderWarnings(): TemplateResult {
         if (this.warnings.length === 0) {
             return html``;
         }

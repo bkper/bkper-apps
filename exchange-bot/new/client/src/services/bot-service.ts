@@ -28,7 +28,6 @@ class BotService {
         const legacyBookIds = this.getLegacyConnectedBookIds(book);
         const legacyLoadedBooks = await runRequestsInBatches(
             Array.from(legacyBookIds).filter(id => !collectionBooksById.has(id)),
-            5,
             async id => await bookService.loadBook(id)
         );
         const loadedBooksById = new Map(legacyLoadedBooks.map(b => [b.getId(), b]));
@@ -103,7 +102,7 @@ class BotService {
     }
 
     async getBooksWithPendingTasks(books: Set<Book>): Promise<Set<Book>> {
-        const pendingBooks = await runRequestsInBatches(books, 5, async book => {
+        const pendingBooks = await runRequestsInBatches(books, async book => {
             const hasPendingTasks = await this.hasPendingTasks(book);
             return hasPendingTasks ? book : null;
         });
@@ -117,7 +116,7 @@ class BotService {
     }
 
     async getBooksWithEventErrors(books: Set<Book>): Promise<Set<Book>> {
-        const errorBooks = await runRequestsInBatches(books, 5, async book => {
+        const errorBooks = await runRequestsInBatches(books, async book => {
             const hasEventErrors = await this.hasEventErrors(book);
             return hasEventErrors ? book : null;
         });

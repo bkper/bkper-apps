@@ -20,13 +20,13 @@ export class BotAppView extends LitElement {
     appState = BotAppState.LOADING;
 
     @state()
-    error = '';
-
-    @state()
     bookId = '';
 
     @state()
     book?: Book;
+
+    @state()
+    bookError = '';
 
     @state()
     initialDate = '';
@@ -45,6 +45,9 @@ export class BotAppView extends LitElement {
 
     @state()
     validating = false;
+
+    @state()
+    validationError = '';
 
     @state()
     warnings: string[] = [];
@@ -95,24 +98,39 @@ export class BotAppView extends LitElement {
             <app-error
                 .bookId=${this.bookId}
                 .book=${this.book}
-                .error=${this.error}
+                .error=${this.bookError}
                 .permissionError=${this.permissionError}
             ></app-error>
         `;
     }
 
     private renderValidations(): TemplateResult {
-        if (!this.validating) {
-            return html``;
-        }
-        return html`
-            <div class="validations" role="status">
-                <div class="validations-title">
-                    <wa-spinner></wa-spinner>
-                    <span>Validating connected Books...</span>
+        if (this.validationError) {
+            return html`
+                <div class="validation-error" role="alert">
+                    <span>
+                        ${this.validationError}
+                        <button
+                            class="validation-retry focusable"
+                            @click=${this.handleValidationRetry}
+                        >
+                            Retry
+                        </button>
+                    </span>
                 </div>
-            </div>
-        `;
+            `;
+        }
+        if (this.validating) {
+            return html`
+                <div class="validations" role="status">
+                    <div class="validations-title">
+                        <wa-spinner></wa-spinner>
+                        <span>Validating connected Books...</span>
+                    </div>
+                </div>
+            `;
+        }
+        return html``;
     }
 
     private renderWarnings(): TemplateResult {
@@ -130,6 +148,10 @@ export class BotAppView extends LitElement {
                 </div>
             </div>
         `;
+    }
+
+    private handleValidationRetry(): void {
+        this.controller.retryValidations();
     }
 }
 

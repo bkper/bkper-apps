@@ -46,17 +46,30 @@ export class BotAppController implements ReactiveController {
         await this.validateBooks(book, books);
     }
 
+    async retryValidations(): Promise<void> {
+        const book = this.view.book;
+        if (!book || this.view.validating) {
+            return;
+        }
+        const visibleBooks = this.view.books
+            .map(exchangeBook => exchangeBook.book)
+            .filter(Utils.canViewBook);
+        await this.validateBooks(book, new Set(visibleBooks));
+    }
+
     private async initializeBook(): Promise<Book | undefined> {
         this.view.book = undefined;
-        this.view.error = '';
+        this.view.bookError = '';
         this.view.permissionError = '';
+
         this.view.validating = false;
+        this.view.validationError = '';
 
         const bookId = appEnv.getSearchParam('bookId');
         this.view.bookId = bookId ?? '';
 
         if (!bookId) {
-            this.view.error = Errors.BOOK_NOT_FOUND;
+            this.view.bookError = Errors.BOOK_NOT_FOUND;
             this.view.appState = BotAppState.ERROR;
             return undefined;
         }
@@ -68,7 +81,7 @@ export class BotAppController implements ReactiveController {
             if (isBookAccessRequiredError(error)) {
                 this.view.permissionError = Errors.BOOK_ACCESS_REQUIRED;
             } else {
-                this.view.error = isNotFoundError(error)
+                this.view.bookError = isNotFoundError(error)
                     ? Errors.BOOK_NOT_FOUND
                     : Errors.BOOK_LOAD_FAILED;
             }
@@ -128,33 +141,39 @@ export class BotAppController implements ReactiveController {
 
     private async validateBooks(book: Book, books: Set<Book>): Promise<void> {
         this.view.validating = true;
+        this.view.validationError = '';
+        this.view.warnings = [];
 
         const warnings: string[] = [];
 
-        const missingExcCodes = await this.mapMissingExcCodes(book);
-        if (missingExcCodes.size > 0) {
-            warnings.push(
-                this.buildWarning(
-                    'Configured currencies do not have a visible connected Book:',
-                    missingExcCodes
-                )
-            );
-            this.view.warnings = [...warnings];
-        }
+        try {
+            const missingExcCodes = await this.mapMissingExcCodes(book);
+            if (missingExcCodes.size > 0) {
+                warnings.push(
+                    this.buildWarning(
+                        'Configured currencies do not have a visible connected Book:',
+                        missingExcCodes
+                    )
+                );
+                this.view.warnings = [...warnings];
+            }
 
-        const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
-        if (pendingTasksExcCodes.size > 0) {
-            warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
-            this.view.warnings = [...warnings];
-        }
+            const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
+            if (pendingTasksExcCodes.size > 0) {
+                warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
+                this.view.warnings = [...warnings];
+            }
 
-        const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
-        if (eventErrorsExcCodes.size > 0) {
-            warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
-            this.view.warnings = [...warnings];
+            const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
+            if (eventErrorsExcCodes.size > 0) {
+                warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
+                this.view.warnings = [...warnings];
+            }
+        } catch {
+            this.view.validationError = 'An error occurred while validating connected Books.';
+        } finally {
+            this.view.validating = false;
         }
-
-        this.view.validating = false;
     }
 
     private getInitialDate(book: Book): string {

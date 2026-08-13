@@ -14,7 +14,7 @@ class TestView implements ReactiveControllerHost {
     book?: Book;
     bookId = '';
     initialDate = '';
-    error = '';
+    bookError = '';
     embedded = false;
     books: ExchangeBotBook[] = [];
     hasViewerPermission = false;
@@ -22,6 +22,7 @@ class TestView implements ReactiveControllerHost {
     permissionError = '';
     warnings: string[] = [];
     validating = false;
+    validationError = '';
     readonly controllers: ReactiveController[] = [];
     readonly updateComplete = Promise.resolve(true);
 
@@ -170,7 +171,7 @@ describe('Bot app controller', () => {
 
         expect(view.book?.getId()).toBe('book-id');
         expect(view.initialDate).toBe('');
-        expect(view.error).toBe('');
+        expect(view.bookError).toBe('');
     });
 
     it('does not classify context failures as selected Book failures', async () => {
@@ -193,7 +194,7 @@ describe('Bot app controller', () => {
         await expect(controller.initialize()).rejects.toBe(contextError);
 
         expect(view.book).toBe(book);
-        expect(view.error).toBe('');
+        expect(view.bookError).toBe('');
         expect(view.permissionError).toBe('');
     });
 
@@ -535,6 +536,69 @@ describe('Bot app controller', () => {
         ]);
     });
 
+    it('preserves partial warnings after a validation error and retries from a clean state', async () => {
+        const book = new Book({
+            id: 'book-id',
+            name: 'USD Book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            properties: { exc_code: 'USD' },
+        });
+        let configuredExcCodes = new Set(['BRL']);
+        let eventErrorAttempts = 0;
+        let markRetryPendingTasksStarted = (): void => {};
+        let resolveRetryPendingTasks = (_books: Set<Book>): void => {};
+        const retryPendingTasksStarted = new Promise<void>(resolve => {
+            markRetryPendingTasksStarted = resolve;
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        botService.getBookConfiguredExcCodes = async () => configuredExcCodes;
+        botService.getBooksWithPendingTasks = async () => new Set([book]);
+        botService.getBooksWithEventErrors = async () => {
+            eventErrorAttempts++;
+            if (eventErrorAttempts === 1) {
+                throw new Error('Events unavailable');
+            }
+            return new Set<Book>();
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(view.validating).toBe(false);
+        expect(view.validationError).toBe('An error occurred while validating connected Books.');
+        expect(view.warnings).toEqual([
+            'Configured currencies do not have a visible connected Book: BRL',
+            'Books with pending tasks: USD',
+        ]);
+
+        configuredExcCodes = new Set<string>();
+        botService.getBooksWithPendingTasks = async () => {
+            markRetryPendingTasksStarted();
+            return new Promise<Set<Book>>(resolve => {
+                resolveRetryPendingTasks = resolve;
+            });
+        };
+
+        const retry = controller.retryValidations();
+        await retryPendingTasksStarted;
+
+        expect(view.validating).toBe(true);
+        expect(view.validationError).toBe('');
+        expect(view.warnings).toEqual([]);
+
+        resolveRetryPendingTasks(new Set<Book>());
+        await retry;
+
+        expect(view.validating).toBe(false);
+        expect(view.validationError).toBe('');
+        expect(view.warnings).toEqual([]);
+    });
+
     it('shows all non-blocking context warnings in order', async () => {
         const book = new Book({
             id: 'book-id',
@@ -631,7 +695,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(bookService.loadBook).not.toHaveBeenCalled();
-        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
+        expect(view.bookError).toBe(Errors.BOOK_NOT_FOUND);
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -653,7 +717,7 @@ describe('Bot app controller', () => {
 
         expect(view.bookId).toBe('book-id');
         expect(view.permissionError).toBe("You don't have access to this Book.");
-        expect(view.error).toBe('');
+        expect(view.bookError).toBe('');
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -669,7 +733,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
+        expect(view.bookError).toBe(Errors.BOOK_NOT_FOUND);
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -685,7 +749,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.error).toBe('The selected Book could not be loaded. Please try again.');
+        expect(view.bookError).toBe('The selected Book could not be loaded. Please try again.');
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 

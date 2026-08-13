@@ -67,14 +67,14 @@ describe('Bot app view', () => {
     it('routes Book loading failures to the issue view', () => {
         const view = new BotAppView();
         view.bookId = 'book-id';
-        view.error = 'The selected Book could not be loaded. Please try again.';
+        view.bookError = 'The selected Book could not be loaded. Please try again.';
         view.appState = BotAppState.ERROR;
 
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<app-error');
         expect(result.values).toContain('book-id');
-        expect(result.values).toContain(view.error);
+        expect(result.values).toContain(view.bookError);
     });
 
     it('hides Exchange Update when the selected Book is not viewable', () => {
@@ -106,6 +106,19 @@ describe('Bot app view', () => {
         expect(validations.strings.join('')).toContain('Validating connected Books...');
         expect(validations.strings.join('')).toContain('role="status"');
         expect(warnings.map(warning => warning.values[0])).toEqual(view.warnings);
+    });
+
+    it('shows a validation error with a Retry action', () => {
+        const view = new BotAppView();
+        view.validationError = 'An error occurred while validating connected Books.';
+
+        const result = renderValidations.call(view);
+
+        expect(result.strings.join('')).toContain('role="alert"');
+        expect(result.strings.join('')).toContain('<button');
+        expect(result.strings.join('')).toContain('class="validation-retry focusable"');
+        expect(result.strings.join('')).toContain('Retry');
+        expect(result.values).toContain(view.validationError);
     });
 
     it('renders every context warning separately', () => {

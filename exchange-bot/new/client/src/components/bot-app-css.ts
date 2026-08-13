@@ -24,8 +24,25 @@ export const botAppCSS = css`
     }
 
     .validations,
+    .validation-error,
     .warnings {
         margin-top: var(--bkper-spacing-large);
+    }
+
+    .validation-error {
+        display: flex;
+        gap: var(--bkper-spacing-2x-small);
+        align-items: center;
+    }
+
+    .validation-retry {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--bkper-color-link);
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
     }
 
     .validations-title,

@@ -64,14 +64,17 @@ describe('Exchange update view', () => {
         expect(renderActions.call(view).values[1]).toBe(true);
     });
 
-    it('renders the error immediately above Run', () => {
+    it('renders the structured error immediately above Run', () => {
         const view = new ExchangeUpdateView();
-        view.error = 'Editor permission is required.';
+        view.error = {
+            type: 'error',
+            message: { before: 'Editor permission is required.' },
+        };
 
         const result = renderActions.call(view);
         const error = result.values[0] as TemplateResult;
 
-        expect(error.values).toContain('Editor permission is required.');
+        expect(error.values).toContain(view.error);
         expect(result.strings[1]).toContain('<wa-button');
     });
 

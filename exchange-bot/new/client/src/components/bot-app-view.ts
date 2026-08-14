@@ -82,7 +82,7 @@ export class BotAppView extends LitElement {
                     .books=${this.books}
                     .date=${this.initialDate}
                     .hasPermission=${this.hasEditorPermission}
-                    .error=${this.error?.message.before ?? ''}
+                    .error=${this.error}
                 ></exchange-update>
                 ${this.renderValidations()} ${this.renderWarnings()}
             `;

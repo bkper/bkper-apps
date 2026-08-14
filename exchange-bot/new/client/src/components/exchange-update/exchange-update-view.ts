@@ -8,9 +8,11 @@ import { exchangeUpdateCSS } from './exchange-update-css.js';
 import { sharedCSS } from '../shared-css.js';
 import {
     ExchangeUpdateStatus,
+    type AppError,
     type ExchangeBotBook,
     type ExchangeUpdateResult,
 } from '../../types.js';
+import '../app-error/app-error-view.js';
 import './result/exchange-update-result-view.js';
 
 @customElement('exchange-update')
@@ -30,7 +32,7 @@ export class ExchangeUpdateView extends LitElement {
     hasPermission = false;
 
     @property({ attribute: false })
-    error = '';
+    error?: AppError;
 
     @state()
     exchangeRates?: ExchangeRates;
@@ -163,7 +165,7 @@ export class ExchangeUpdateView extends LitElement {
         if (!this.error) {
             return html``;
         }
-        return html`<div class="error" role="alert">${this.error}</div>`;
+        return html`<app-error .error=${this.error}></app-error>`;
     }
 
     private isDateInputDisabled(): boolean {

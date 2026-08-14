@@ -14,7 +14,10 @@ describe('Bot app errors', () => {
     });
 
     it('builds the Book access action from the supplied Book id', () => {
-        expect(BotAppErrors.bookAccessRequired('book-id').message.action).toEqual({
+        const error = BotAppErrors.bookAccessRequired('book-id');
+
+        expect(error.type).toBe('info');
+        expect(error.message.action).toEqual({
             label: 'Request access',
             url: 'https://bkper.app/books/book-id/transactions',
         });
@@ -37,6 +40,7 @@ describe('Bot app errors', () => {
             isBase: true,
         };
 
+        expect(BotAppErrors.insufficientEditPermission([namedBook]).type).toBe('error');
         expect(BotAppErrors.insufficientEditPermission([namedBook]).message.before).toBe(
             'User needs EDITOR or OWNER permission in the following books: USD Book book'
         );

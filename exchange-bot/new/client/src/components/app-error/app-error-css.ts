@@ -8,8 +8,18 @@ export const appErrorCSS = css`
 
     .container p {
         margin: 0;
+    }
+
+    .container h2 + p {
         margin-top: var(--bkper-spacing-x-small);
+    }
+
+    .container.info p {
         color: var(--bkper-color-grey-high);
+    }
+
+    .container.error p {
+        color: var(--bkper-color-danger);
     }
 
     .container a {

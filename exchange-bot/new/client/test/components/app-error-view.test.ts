@@ -35,6 +35,7 @@ describe('App error view', () => {
     it('renders guidance around a link action', () => {
         const view = new AppErrorView();
         view.error = {
+            type: 'info',
             title: "You don't have access to this Book.",
             message: {
                 before: 'To continue,',
@@ -53,6 +54,7 @@ describe('App error view', () => {
         expect(strings).toContain('target="_blank"');
         expect(strings).toContain('rel="noopener noreferrer"');
         expect(strings).toContain('<h2>');
+        expect(values).toContain('info');
         expect(values).toContain(view.error.title);
         expect(values).toContain(view.error.message.before);
         expect(values).toContain(view.error.message.action?.label);
@@ -63,6 +65,7 @@ describe('App error view', () => {
     it('renders an error without an action', () => {
         const view = new AppErrorView();
         view.error = {
+            type: 'error',
             message: {
                 before: 'The selected Book could not be loaded. Please try again.',
             },
@@ -73,6 +76,7 @@ describe('App error view', () => {
         const strings = collectStrings(result);
         const values = collectValues(result);
         expect(strings).toContain('role="alert"');
+        expect(values).toContain('error');
         expect(values).toContain(view.error.message.before);
         expect(strings).not.toContain('<h2>');
         expect(strings).not.toContain('<a');

@@ -15,9 +15,9 @@ export class AppErrorView extends LitElement {
         if (!this.error) {
             return html``;
         }
-        const { title, message } = this.error;
+        const { type, title, message } = this.error;
         return html`
-            <div class="container" role="alert">
+            <div class="container ${type}" role="alert">
                 ${this.renderTitle(title)}
                 <p>${this.renderMessage(message)}</p>
             </div>

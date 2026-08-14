@@ -6,6 +6,7 @@ import { VIEW_PERMISSIONS } from '../utils.js';
 export const BotAppErrors = {
     bookNotSpecified(): AppError {
         return {
+            type: 'info',
             title: 'Book not specified.',
             message: {
                 before: 'Verify the bookId param in the URL and try again.',
@@ -15,6 +16,7 @@ export const BotAppErrors = {
 
     bookNotFound(): AppError {
         return {
+            type: 'info',
             title: 'Book not found.',
             message: {
                 before: 'Verify the bookId param in the URL and try again.',
@@ -24,6 +26,7 @@ export const BotAppErrors = {
 
     bookAccessRequired(bookId: string): AppError {
         return {
+            type: 'info',
             title: "You don't have access to this Book.",
             message: {
                 action: {
@@ -37,6 +40,7 @@ export const BotAppErrors = {
 
     bookLoadFailed(): AppError {
         return {
+            type: 'info',
             title: 'The selected Book could not be loaded.',
             message: {
                 before: 'Please try again.',
@@ -46,6 +50,7 @@ export const BotAppErrors = {
 
     insufficientViewPermission(book: Book): AppError {
         return {
+            type: 'info',
             title: 'Insufficient Book permission.',
             message: {
                 before: formatPermissionError(book.getPermission(), VIEW_PERMISSIONS),
@@ -58,6 +63,7 @@ export const BotAppErrors = {
         const prefix = 'User needs EDITOR or OWNER permission in the following books:';
         const suffix = identifiers.length > 1 ? 'books' : 'book';
         return {
+            type: 'error',
             message: {
                 before: `${prefix} ${identifiers.join(', ')} ${suffix}`,
             },

@@ -53,7 +53,7 @@ describe('Bot app view', () => {
         view.initialDate = initialDate;
         view.hasViewerPermission = true;
         view.hasEditorPermission = false;
-        view.error = { message: { before: 'Editor permission is required.' } };
+        view.error = { type: 'error', message: { before: 'Editor permission is required.' } };
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
@@ -62,13 +62,14 @@ describe('Bot app view', () => {
         expect(result.values[1]).toBe(books);
         expect(result.values[2]).toBe(initialDate);
         expect(result.values[3]).toBe(false);
-        expect(result.values[4]).toBe('Editor permission is required.');
+        expect(result.values[4]).toBe(view.error);
     });
 
     it('routes Book loading failures to the issue view', () => {
         const view = new BotAppView();
         view.bookId = 'book-id';
         view.error = {
+            type: 'info',
             title: 'The selected Book could not be loaded.',
             message: { before: 'Please try again.' },
         };
@@ -85,6 +86,7 @@ describe('Bot app view', () => {
         const view = new BotAppView();
         view.bookId = 'book-id';
         view.error = {
+            type: 'info',
             title: "You don't have access to this Book.",
             message: {
                 action: {
@@ -107,6 +109,7 @@ describe('Bot app view', () => {
         view.book = new Book({ id: 'book-id', permission: Permission.RECORDER });
         view.bookId = 'book-id';
         view.error = {
+            type: 'info',
             title: 'Insufficient Book permission.',
             message: {
                 before: 'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.',

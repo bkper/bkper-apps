@@ -149,6 +149,7 @@ describe('Bot app controller', () => {
 
         expect(view.hasViewerPermission).toBe(false);
         expect(view.error).toEqual({
+            type: 'info',
             title: 'Insufficient Book permission.',
             message: {
                 before: 'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.',
@@ -357,6 +358,7 @@ describe('Bot app controller', () => {
         expect(view.hasViewerPermission).toBe(true);
         expect(view.hasEditorPermission).toBe(false);
         expect(view.error).toEqual({
+            type: 'error',
             message: {
                 before: 'User needs EDITOR or OWNER permission in the following books: USD Book book',
             },
@@ -722,6 +724,7 @@ describe('Bot app controller', () => {
 
         expect(view.bookId).toBe('book-id');
         expect(view.error).toEqual({
+            type: 'info',
             title: "You don't have access to this Book.",
             message: {
                 action: {

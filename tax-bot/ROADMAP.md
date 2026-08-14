@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–2 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and a minimal server-only Cloudflare skeleton now exists under `new/`. Business behavior has not been ported, and no deployment, routing, or Book mutation has begun.
+**Chunks 1–3 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, dispatch, and response envelopes through explicit no-op handler stubs. Business behavior has not been ported, and no deployment, routing, or Book mutation has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -305,14 +305,14 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 3 — Port event ingress and dispatch
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Add typed event results and request-scoped app context.
-- Reproduce the legacy event switch and response envelope.
-- Add explicit handler stubs before business implementations.
-- Confirm platform code ignores legacy authentication headers.
+- Added typed event results and request-scoped app context.
+- Reproduced the legacy event switch and response envelope.
+- Added explicit handler stubs before business implementations.
+- Confirmed platform code ignores legacy authentication headers.
 
-**Gate:** Every subscribed event and unknown-event behavior is characterized deterministically.
+**Gate:** Every subscribed event and unknown-event behavior is characterized deterministically, and the full local check passes without app sync, deployment, routing changes, or Book writes.
 
 ### Chunk 4 — Port common guards and tax source discovery
 

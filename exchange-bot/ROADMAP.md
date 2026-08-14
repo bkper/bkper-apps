@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–19 complete. Chunk 20 is in progress. Cloudflare is production-authoritative for both events and the menu.**
+**Chunks 1–20 complete. Chunk 21 is not started. Cloudflare is production-authoritative for both events and the menu.**
 
-The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, production deployment, production webhook cutover, event stabilization, and production menu cutover are complete. The one-hour active menu-monitoring window passed without a rollback trigger, and the 24-hour full-stack observation period is in progress. Full-stack stabilization acceptance remains pending.
+The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, production deployment, production webhook cutover, event stabilization, production menu cutover, and full-stack stabilization are complete. The one-hour active menu-monitoring window passed without a rollback trigger. Full-stack stabilization was explicitly accepted after more than 20 hours of the intended 24-hour observation period; the team intentionally did not restart or finish the period after a subsequent production redeployment.
 
 ## Purpose of this document
 
@@ -632,18 +632,23 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 20 — Production menu cutover and full-stack stabilization
 
-**Status: In progress.**
+**Status: Complete.**
 
 - Restored the development webhook route to preview before cutover, leaving both development surfaces aligned with the preview deployment.
 - Changed only the production menu route from Apps Script to the Cloudflare client. Production event routing remained on Cloudflare, and the deployed Worker code was unchanged.
 - Kept the GCP and Apps Script deployments active and unchanged as independent routing rollback targets.
 - Confirmed the production menu loads through the expected authentication boundary and that an authenticated user can open the client and load exchange rates.
 - Completed the one-hour active-monitoring window. Production rate requests succeeded, a representative Exchange Update reached two target Books with successful API responses, and Worker monitoring found no warning, error, non-success response, or rollback trigger. HTTP success is not treated as accounting proof; deterministic safeguards and the accepted preview canaries remain the auditable movement and zero-sum evidence.
-- Started the agreed 24-hour read-only observation period. No deliberate Book write was initiated for monitoring. Full-stack stabilization acceptance remains pending until this observation completes and its evidence is reviewed.
+- Started the agreed 24-hour read-only observation period without initiating a deliberate Book write for monitoring.
+- Post-cutover client error handling, Book and App loading, installation verification, and metadata changes were committed during the observation period. Preview and production were subsequently redeployed. The team explicitly chose not to restart the stabilization clock after this deployment.
+- At the final read-only review, the current production deployment had served nine rate requests and seven Exchange Update requests, all with HTTP `200`, without a web/API warning, error, or non-success response. Across the longer observation, one rate request returned a transient HTTP `502` and was followed by a successful request for the same Book. This was not sustained.
+- Event ingress remained active and HTTP-successful. One upstream idle timeout occurred before the later deployment. After that deployment, five events reported the same configured currency code missing from the provider response while preserving the established HTTP `200` event envelope. Routine rate fetches continued to be logged at warning level. These were accepted as established input or external-resource conditions rather than migration regressions.
+- No log indicated a zero-sum, partial-movement, reversed-movement, duplicate-processing, sustained authentication, or sustained API failure. Logs and HTTP status are not accounting proof; the retained deterministic safeguards and accepted preview canaries remain the auditable movement and zero-sum evidence.
+- Full-stack stabilization was explicitly accepted after more than 20 hours. The team intentionally shortened the intended 24-hour observation and accepted the intervening deployment and recorded operational exceptions without an additional observation period.
 
 **Rollback triggers:** suspected zero-sum or data-loss issues, incorrect movement direction or amount, incomplete Exchange Update operations, sustained authentication or API failures, material error growth, or missing production menu behavior.
 
-**Gate:** Full-stack stabilization is explicitly accepted before repository consolidation.
+**Gate:** Passed by explicit acceptance with the shortened observation period and intervening deployment documented above.
 
 ### Chunk 21 — Repository consolidation and deferred legacy retirement
 
@@ -655,9 +660,9 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 - Verify that source, tests, lockfile, generated contracts, configuration, client assets, and Worker behavior remain unchanged through the move.
 - Preserve legacy source in Git history.
 - Keep the unchanged GCP and Apps Script deployments available as independent routing rollback targets.
-- After consolidation and stabilization acceptance, separately restore `developers: '*@bkper.com'` in the working tree, review the exact metadata diff, and sync the team-wide developer access as the final migration operation.
+- Confirm that the already-restored `developers: '*@bkper.com'` metadata remains synchronized after consolidation.
 
-**Gate:** Cloudflare is the only active implementation in the project root. The separately approved final developer-access sync returns app administration to its normal team-wide state; consolidation itself performs no deployment, routing change, legacy infrastructure mutation, or Book write.
+**Gate:** Cloudflare is the only active implementation in the project root, and app administration retains its normal team-wide developer access. Consolidation itself performs no deployment, routing change, legacy infrastructure mutation, or Book write.
 
 ## Rollback strategy
 

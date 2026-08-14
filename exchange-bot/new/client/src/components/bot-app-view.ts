@@ -4,6 +4,7 @@ import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
 import { appEnv } from '../app-env.js';
+import { Errors } from '../errors.js';
 import type { AppError, ExchangeBotBook } from '../types.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
@@ -27,7 +28,7 @@ export class BotAppView extends LitElement {
     book?: Book;
 
     @state()
-    bookError = '';
+    error = '';
 
     @state()
     initialDate = '';
@@ -40,9 +41,6 @@ export class BotAppView extends LitElement {
 
     @state()
     hasEditorPermission = false;
-
-    @state()
-    permissionError = '';
 
     @state()
     validating = false;
@@ -86,7 +84,7 @@ export class BotAppView extends LitElement {
                     .books=${this.books}
                     .date=${this.initialDate}
                     .hasPermission=${this.hasEditorPermission}
-                    .permissionError=${this.permissionError}
+                    .error=${this.error}
                 ></exchange-update>
                 ${this.renderValidations()} ${this.renderWarnings()}
             `;
@@ -95,16 +93,15 @@ export class BotAppView extends LitElement {
     }
 
     private renderAppError(): TemplateResult {
-        let error: AppError | undefined;
+        let appError: AppError | undefined;
 
-        const message = this.permissionError || this.bookError;
-        if (message) {
-            error = { message: { before: message } };
+        if (this.error) {
+            appError = { message: { before: this.error } };
         }
 
-        if (this.bookId && !this.book && this.permissionError) {
-            error = {
-                title: this.permissionError,
+        if (this.bookId && !this.book && this.error === Errors.BOOK_ACCESS_REQUIRED) {
+            appError = {
+                title: this.error,
                 message: {
                     action: {
                         label: 'Request access',
@@ -115,7 +112,7 @@ export class BotAppView extends LitElement {
             };
         }
 
-        return html`<app-error .error=${error}></app-error>`;
+        return html`<app-error .error=${appError}></app-error>`;
     }
 
     private renderValidations(): TemplateResult {

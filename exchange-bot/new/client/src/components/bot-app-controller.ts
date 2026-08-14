@@ -59,8 +59,7 @@ export class BotAppController implements ReactiveController {
 
     private async initializeBook(): Promise<Book | undefined> {
         this.view.book = undefined;
-        this.view.bookError = '';
-        this.view.permissionError = '';
+        this.view.error = '';
 
         this.view.validating = false;
         this.view.validationError = '';
@@ -69,7 +68,7 @@ export class BotAppController implements ReactiveController {
         this.view.bookId = bookId ?? '';
 
         if (!bookId) {
-            this.view.bookError = Errors.BOOK_NOT_FOUND;
+            this.view.error = Errors.BOOK_NOT_FOUND;
             this.view.appState = BotAppState.ERROR;
             return undefined;
         }
@@ -79,9 +78,9 @@ export class BotAppController implements ReactiveController {
             book = await bookService.loadBook(bookId, true);
         } catch (error: unknown) {
             if (isBookAccessRequiredError(error)) {
-                this.view.permissionError = Errors.BOOK_ACCESS_REQUIRED;
+                this.view.error = Errors.BOOK_ACCESS_REQUIRED;
             } else {
-                this.view.bookError = isNotFoundError(error)
+                this.view.error = isNotFoundError(error)
                     ? Errors.BOOK_NOT_FOUND
                     : Errors.BOOK_LOAD_FAILED;
             }
@@ -98,7 +97,7 @@ export class BotAppController implements ReactiveController {
         if (!canView) {
             this.view.books = [];
             this.view.hasEditorPermission = false;
-            this.view.permissionError = Utils.getViewPermissionError(book);
+            this.view.error = Utils.getViewPermissionError(book);
             this.view.warnings = [];
             this.view.appState = BotAppState.READY;
             return undefined;
@@ -110,7 +109,7 @@ export class BotAppController implements ReactiveController {
     private async loadBooks(book: Book): Promise<Set<Book>> {
         this.view.books = [];
         this.view.hasEditorPermission = false;
-        this.view.permissionError = '';
+        this.view.error = '';
         this.view.warnings = [];
 
         const hasBaseBook = Utils.hasBaseBookInCollection(book);
@@ -129,7 +128,7 @@ export class BotAppController implements ReactiveController {
         );
         if (booksMissingEditPermission.length > 0) {
             this.view.hasEditorPermission = false;
-            this.view.permissionError = this.buildEditPermissionError(booksMissingEditPermission);
+            this.view.error = this.buildEditPermissionError(booksMissingEditPermission);
         } else {
             this.view.hasEditorPermission = true;
         }

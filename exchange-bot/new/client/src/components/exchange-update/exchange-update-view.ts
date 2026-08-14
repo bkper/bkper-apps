@@ -30,7 +30,7 @@ export class ExchangeUpdateView extends LitElement {
     hasPermission = false;
 
     @property({ attribute: false })
-    permissionError = '';
+    error = '';
 
     @state()
     exchangeRates?: ExchangeRates;
@@ -144,7 +144,7 @@ export class ExchangeUpdateView extends LitElement {
     private renderActions(): TemplateResult {
         return html`
             <div class="actions">
-                ${this.renderPermissionError()}
+                ${this.renderError()}
                 <wa-button
                     variant="brand"
                     appearance="accent"
@@ -159,11 +159,11 @@ export class ExchangeUpdateView extends LitElement {
         `;
     }
 
-    private renderPermissionError(): TemplateResult {
-        if (!this.permissionError) {
+    private renderError(): TemplateResult {
+        if (!this.error) {
             return html``;
         }
-        return html`<div class="error" role="alert">${this.permissionError}</div>`;
+        return html`<div class="error" role="alert">${this.error}</div>`;
     }
 
     private isDateInputDisabled(): boolean {

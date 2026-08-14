@@ -53,7 +53,7 @@ describe('Bot app view', () => {
         view.initialDate = initialDate;
         view.hasViewerPermission = true;
         view.hasEditorPermission = false;
-        view.permissionError = 'Editor permission is required.';
+        view.error = 'Editor permission is required.';
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
@@ -68,27 +68,27 @@ describe('Bot app view', () => {
     it('routes Book loading failures to the issue view', () => {
         const view = new BotAppView();
         view.bookId = 'book-id';
-        view.bookError = 'The selected Book could not be loaded. Please try again.';
+        view.error = 'The selected Book could not be loaded. Please try again.';
         view.appState = BotAppState.ERROR;
 
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<app-error');
         const error = result.values[0] as AppError;
-        expect(error).toEqual({ message: { before: view.bookError } });
+        expect(error).toEqual({ message: { before: view.error } });
     });
 
     it('provides the Book access action when the user is not a collaborator', () => {
         const view = new BotAppView();
         view.bookId = 'book-id';
-        view.permissionError = "You don't have access to this Book.";
+        view.error = "You don't have access to this Book.";
         view.appState = BotAppState.ERROR;
 
         const result = renderBodyContent.call(view);
 
         const error = result.values[0] as AppError;
         expect(error).toEqual({
-            title: view.permissionError,
+            title: view.error,
             message: {
                 action: {
                     label: 'Request access',
@@ -103,7 +103,7 @@ describe('Bot app view', () => {
         const view = new BotAppView();
         view.book = new Book({ id: 'book-id', permission: Permission.RECORDER });
         view.bookId = 'book-id';
-        view.permissionError =
+        view.error =
             'Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: RECORDER.';
         view.appState = BotAppState.READY;
 
@@ -112,7 +112,7 @@ describe('Bot app view', () => {
         expect(result.strings.join('')).toContain('<app-error');
         expect(result.strings.join('')).not.toContain('<exchange-update');
         const error = result.values[0] as AppError;
-        expect(error).toEqual({ message: { before: view.permissionError } });
+        expect(error).toEqual({ message: { before: view.error } });
     });
 
     it('shows validation progress together with available warnings', () => {

@@ -14,12 +14,11 @@ class TestView implements ReactiveControllerHost {
     book?: Book;
     bookId = '';
     initialDate = '';
-    bookError = '';
+    error = '';
     embedded = false;
     books: ExchangeBotBook[] = [];
     hasViewerPermission = false;
     hasEditorPermission = false;
-    permissionError = '';
     warnings: string[] = [];
     validating = false;
     validationError = '';
@@ -149,7 +148,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.hasViewerPermission).toBe(false);
-        expect(view.permissionError).toContain('VIEWER');
+        expect(view.error).toContain('VIEWER');
         expect(botService.getConnectedBooks).not.toHaveBeenCalled();
         expect(view.appState).toBe(BotAppState.READY);
     });
@@ -171,7 +170,7 @@ describe('Bot app controller', () => {
 
         expect(view.book?.getId()).toBe('book-id');
         expect(view.initialDate).toBe('');
-        expect(view.bookError).toBe('');
+        expect(view.error).toBe('');
     });
 
     it('does not classify context failures as selected Book failures', async () => {
@@ -194,8 +193,7 @@ describe('Bot app controller', () => {
         await expect(controller.initialize()).rejects.toBe(contextError);
 
         expect(view.book).toBe(book);
-        expect(view.bookError).toBe('');
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
     });
 
     it('loads connected Books and preserves base-Book eligibility', async () => {
@@ -240,7 +238,7 @@ describe('Bot app controller', () => {
             { book: selectedBook, excCode: 'USD', isBase: false },
         ]);
         expect(view.hasEditorPermission).toBe(true);
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
     });
 
     it('rebuilds context without retaining Books or warnings from a previous initialization', async () => {
@@ -273,7 +271,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.books.map(book => book.book.getId())).toEqual(['connected-book', 'book-id']);
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
         expect(view.warnings).toEqual([]);
     });
 
@@ -353,7 +351,7 @@ describe('Bot app controller', () => {
 
         expect(view.hasViewerPermission).toBe(true);
         expect(view.hasEditorPermission).toBe(false);
-        expect(view.permissionError).toBe(
+        expect(view.error).toBe(
             'User needs EDITOR or OWNER permission in the following books: USD Book book'
         );
         expect(getConfiguredCodes).toHaveBeenCalledTimes(1);
@@ -404,7 +402,7 @@ describe('Bot app controller', () => {
 
         expect(pendingTaskBookIds).toEqual(['base-book', 'book-id']);
         expect(view.hasEditorPermission).toBe(false);
-        expect(view.permissionError).toContain('EDITOR or OWNER');
+        expect(view.error).toContain('EDITOR or OWNER');
     });
 
     it('preserves pending-task validation for unconfigured legacy connections', async () => {
@@ -622,7 +620,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.hasEditorPermission).toBe(true);
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
         expect(view.warnings).toEqual([
             'Configured currencies do not have a visible connected Book: BRL',
             'Books with pending tasks: USD',
@@ -650,7 +648,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
         expect(view.warnings).toEqual(['Books with pending tasks: USD', 'Books with errors: BRL']);
     });
 
@@ -676,7 +674,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.permissionError).toBe('');
+        expect(view.error).toBe('');
         expect(view.warnings).toEqual(['Books with errors: BRL, EUR']);
     });
 
@@ -695,7 +693,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(bookService.loadBook).not.toHaveBeenCalled();
-        expect(view.bookError).toBe(Errors.BOOK_NOT_FOUND);
+        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -716,8 +714,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.bookId).toBe('book-id');
-        expect(view.permissionError).toBe("You don't have access to this Book.");
-        expect(view.bookError).toBe('');
+        expect(view.error).toBe("You don't have access to this Book.");
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -733,7 +730,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.bookError).toBe(Errors.BOOK_NOT_FOUND);
+        expect(view.error).toBe(Errors.BOOK_NOT_FOUND);
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -749,7 +746,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
 
-        expect(view.bookError).toBe('The selected Book could not be loaded. Please try again.');
+        expect(view.error).toBe('The selected Book could not be loaded. Please try again.');
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 

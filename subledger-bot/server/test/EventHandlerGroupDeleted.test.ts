@@ -97,7 +97,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD GROUP Revenue NOT Found"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD GROUP Revenue NOT Found"
         );
         expect(requests).toHaveLength(0);
     });
@@ -117,7 +117,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD GROUP Revenue DELETED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD GROUP Revenue DELETED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('DELETE');
@@ -145,7 +145,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: PARENT ACCOUNT Services NOT Found"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: PARENT ACCOUNT Services NOT Found"
         );
         expect(requests).toHaveLength(0);
     });
@@ -179,7 +179,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: PARENT ACCOUNT Mapped Parent DELETED"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: PARENT ACCOUNT Mapped Parent DELETED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('DELETE');
@@ -214,7 +214,7 @@ describe('EventHandlerGroupDeleted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: PARENT ACCOUNT Mapped Parent ARCHIVED"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: PARENT ACCOUNT Mapped Parent ARCHIVED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PUT');

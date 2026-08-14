@@ -126,7 +126,7 @@ describe('EventHandlerAccountCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD ACCOUNT Service Revenue CREATED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD ACCOUNT Service Revenue CREATED"
         );
         expect(setup.requestedBookIds).toEqual(['child-book']);
         expect(requests).toHaveLength(1);
@@ -172,7 +172,7 @@ describe('EventHandlerAccountCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD ACCOUNT New Name UPDATED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD ACCOUNT New Name UPDATED"
         );
         expect(accountLookups).toEqual(['New Name', 'Old Name']);
         expect(requests).toHaveLength(1);

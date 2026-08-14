@@ -89,7 +89,7 @@ describe('EventHandlerAccountDeleted legacy behavior', () => {
         const result = await setup.handler.processParentBookEvent(setup.parentBook, buildEvent());
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD ACCOUNT Child Account NOT Found"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD ACCOUNT Child Account NOT Found"
         );
         expect(requests).toHaveLength(0);
     });
@@ -108,7 +108,7 @@ describe('EventHandlerAccountDeleted legacy behavior', () => {
         const result = await setup.handler.processParentBookEvent(setup.parentBook, buildEvent());
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD ACCOUNT Child Account DELETED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD ACCOUNT Child Account DELETED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('DELETE');
@@ -133,7 +133,7 @@ describe('EventHandlerAccountDeleted legacy behavior', () => {
         const result = await setup.handler.processParentBookEvent(setup.parentBook, buildEvent());
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD ACCOUNT Child Account ARCHIVED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD ACCOUNT Child Account ARCHIVED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PUT');

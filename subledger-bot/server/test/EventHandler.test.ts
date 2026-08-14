@@ -138,12 +138,12 @@ describe('legacy shared event behavior', () => {
         expect(result).toBe(false);
     });
 
-    test('builds the legacy parent Book anchor', () => {
+    test('builds the PWA parent Book anchor', () => {
         const handler = new RecordingEventHandler(new AppContext(new Bkper()));
         const book = createBook('book-123', 'Parent Book');
 
         expect(handler.getBookAnchor(book)).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=book-123'>Parent Book</a>"
+            "<a href='https://bkper.app/books/book-123/transactions'>Parent Book</a>"
         );
     });
 

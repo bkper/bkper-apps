@@ -98,7 +98,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD GROUP Revenue CREATED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD GROUP Revenue CREATED"
         );
         expect(requestedBookIds).toEqual(['child-book']);
         expect(requests).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=child-book'>Child Book</a>: CHILD GROUP New Revenue UPDATED"
+            "<a href='https://bkper.app/books/child-book/transactions'>Child Book</a>: CHILD GROUP New Revenue UPDATED"
         );
         expect(groupLookups).toEqual(['New Revenue', 'Old Revenue']);
         expect(requests).toHaveLength(1);
@@ -188,7 +188,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: PARENT ACCOUNT Travel CREATED"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: PARENT ACCOUNT Travel CREATED"
         );
         expect(accountLookups).toEqual(['Travel']);
         expect(groupLookups).toEqual(['child-group']);
@@ -235,7 +235,7 @@ describe('EventHandlerGroupCreatedOrUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: PARENT ACCOUNT New Services UPDATED"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: PARENT ACCOUNT New Services UPDATED"
         );
         expect(accountLookups).toEqual(['New Services', 'Old Services']);
         expect(requests).toHaveLength(1);

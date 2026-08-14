@@ -168,7 +168,7 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: 2026-07-30 125.5 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: 2026-07-30 125.5 Child From Child To Invoice #1042"
         );
         expect(fixture.queries).toEqual(['remoteId:child-transaction']);
         expect(requests).toHaveLength(1);
@@ -226,7 +226,7 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         );
 
         expect(overrideResult).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: 2026-07-30 250 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: 2026-07-30 250 Child From Child To Invoice #1042"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PATCH');
@@ -268,7 +268,7 @@ describe('EventHandlerTransactionPosted legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: POSTED: 2026-07-30 125.50 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: POSTED: 2026-07-30 125.50 Child From Child To Invoice #1042"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PATCH');

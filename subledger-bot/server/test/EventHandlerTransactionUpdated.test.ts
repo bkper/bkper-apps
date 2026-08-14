@@ -186,7 +186,7 @@ describe('EventHandlerTransactionUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: EDITED: 2026-07-30 250.00 Child From Child To Updated invoice"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: EDITED: 2026-07-30 250.00 Child From Child To Updated invoice"
         );
         expect(requests.map(request => request.url)).toEqual([
             'https://api.bkper.app/v5/books/parent-book/transactions/uncheck?',
@@ -255,7 +255,7 @@ describe('EventHandlerTransactionUpdated legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: EDITED: 2026-07-29 100.00 Child From Child To Original invoice"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: EDITED: 2026-07-29 100.00 Child From Child To Original invoice"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].url).toBe(

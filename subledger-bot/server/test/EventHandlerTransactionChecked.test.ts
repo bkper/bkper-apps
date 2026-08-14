@@ -152,7 +152,7 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: 2026-07-30 125.5 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: 2026-07-30 125.5 Child From Child To Invoice #1042"
         );
         expect(setup.queries).toEqual(['remoteId:child-transaction']);
         expect(requests.map(request => request.url)).toEqual([
@@ -209,7 +209,7 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: CHECKED: 2026-07-30 125.50 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: CHECKED: 2026-07-30 125.50 Child From Child To Invoice #1042"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].url).toBe(
@@ -240,7 +240,7 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: CHECKED: 2026-07-29 100.00  Child To Original invoice"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: CHECKED: 2026-07-29 100.00  Child To Original invoice"
         );
         expect(requests).toHaveLength(0);
     });
@@ -268,7 +268,7 @@ describe('EventHandlerTransactionChecked legacy behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: CHECKED: 2026-07-30 125.50 Child From Child To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: CHECKED: 2026-07-30 125.50 Child From Child To Invoice #1042"
         );
         expect(requests).toHaveLength(0);
     });

@@ -152,7 +152,7 @@ describe('EventHandlerTransactionDeleted legacy behavior', () => {
         const result = await createHandler().processChildEvent(childBook, parentBook, buildEvent());
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=parent-book'>Parent Book</a>: DELETED: 2026-07-30 125.50 Parent From Parent To Invoice #1042"
+            "<a href='https://bkper.app/books/parent-book/transactions'>Parent Book</a>: DELETED: 2026-07-30 125.50 Parent From Parent To Invoice #1042"
         );
         expect(requests.map(request => request.url)).toEqual([
             'https://api.bkper.app/v5/books/parent-book/transactions/uncheck?',

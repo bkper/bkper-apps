@@ -48,7 +48,7 @@ export abstract class EventHandler {
     }
 
     protected buildBookAnchor(book: Book): string {
-        return `<a href='https://app.bkper.com/b/#transactions:bookId=${book.getId()}'>${book.getName()}</a>`;
+        return `<a href='https://bkper.app/books/${encodeURIComponent(book.getId())}/transactions'>${book.getName()}</a>`;
     }
 
     protected async getLinkedParentGroup(

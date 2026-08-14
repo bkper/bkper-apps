@@ -1,4 +1,4 @@
-import { Bkper, type Book } from 'bkper-js';
+import { Bkper, type App, type Book } from 'bkper-js';
 
 class BookService {
     /**
@@ -10,6 +10,18 @@ class BookService {
      */
     async loadBook(bookId: string, loadAccounts = false): Promise<Book> {
         return new Bkper().getBook(bookId, loadAccounts);
+    }
+
+    /**
+     * Loads an installed App from a Book.
+     *
+     * @param book - The Book whose installed Apps will be searched.
+     * @param appId - The universal identifier of the App to load.
+     * @returns A promise that resolves to the installed App, or null if not found.
+     */
+    async loadInstalledApp(book: Book, appId: string): Promise<App | null> {
+        const apps = await book.getApps();
+        return apps.find(app => app.getId() === appId) ?? null;
     }
 }
 

@@ -48,6 +48,21 @@ export const BotAppErrors = {
         };
     },
 
+    appInstallationNotVerified(bookId: string): AppError {
+        return {
+            type: 'info',
+            title: 'Exchange Bot installation could not be verified.',
+            message: {
+                before: 'Please try again or',
+                action: {
+                    label: 'install',
+                    url: appEnv.getAppUrl(bookId),
+                },
+                after: 'the Exchange Bot in the Book.',
+            },
+        };
+    },
+
     insufficientViewPermission(book: Book): AppError {
         return {
             type: 'info',

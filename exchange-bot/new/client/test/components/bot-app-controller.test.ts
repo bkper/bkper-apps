@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { App, Book, Permission } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
 import type { BotAppView } from '../../src/components/bot-app-view.js';
@@ -41,6 +41,7 @@ class TestView implements ReactiveControllerHost {
 
 const originalInit = authService.init;
 const originalLoadBook = bookService.loadBook;
+const originalLoadApp = bookService.loadInstalledApp;
 const originalGetConnectedBooks = botService.getConnectedBooks;
 const originalGetVisibleCollectionExcCodes = botService.getCollectionExcCodes;
 const originalGetBookConfiguredExcCodes = botService.getBookConfiguredExcCodes;
@@ -58,6 +59,7 @@ beforeEach(() => {
         configurable: true,
         value: self,
     });
+    bookService.loadInstalledApp = async () => new App({ id: 'exchange-bot' });
     botService.getConnectedBooks = async () => new Set<Book>();
     botService.getCollectionExcCodes = () => new Set<string>();
     botService.getBookConfiguredExcCodes = async () => new Set<string>();
@@ -69,6 +71,7 @@ afterEach(() => {
     authService.init = originalInit;
     authService.accessToken = undefined;
     bookService.loadBook = originalLoadBook;
+    bookService.loadInstalledApp = originalLoadApp;
     botService.getConnectedBooks = originalGetConnectedBooks;
     botService.getCollectionExcCodes = originalGetVisibleCollectionExcCodes;
     botService.getBookConfiguredExcCodes = originalGetBookConfiguredExcCodes;
@@ -128,6 +131,53 @@ describe('Bot app controller', () => {
         expect(view.book).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('blocks Exchange Update when Exchange Bot is not installed', async () => {
+        const book = new Book({
+            id: 'book-id',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        bookService.loadInstalledApp = mock(async () => null);
+        botService.getConnectedBooks = mock(async () => new Set<Book>());
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(bookService.loadInstalledApp).toHaveBeenCalledWith(book, 'exchange-bot');
+        expect(botService.getConnectedBooks).not.toHaveBeenCalled();
+        expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('book-id'));
+        expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('shows the same blocking error when installation verification fails', async () => {
+        const book = new Book({
+            id: 'book-id',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bookService.loadBook = async () => book;
+        bookService.loadInstalledApp = async () => {
+            throw new Error('Apps unavailable');
+        };
+        botService.getConnectedBooks = mock(async () => new Set<Book>());
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(botService.getConnectedBooks).not.toHaveBeenCalled();
+        expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('book-id'));
+        expect(view.appState).toBe(BotAppState.ERROR);
     });
 
     it('does not initialize Exchange Update without view permission', async () => {

@@ -22,6 +22,12 @@ describe('App environment', () => {
         expect(appEnv.getBookUrl('book-id')).toBe('https://bkper.app/books/book-id/transactions');
     });
 
+    it('builds the Exchange Bot installation URL', () => {
+        expect(appEnv.getAppUrl('book/id')).toBe(
+            'https://bkper.app/automations/book%2Fid/apps/exchange-bot'
+        );
+    });
+
     it('reads a search parameter from the current URL', () => {
         Object.defineProperty(self, 'location', {
             configurable: true,

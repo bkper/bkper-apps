@@ -1,4 +1,4 @@
-import { APP_REPOSITORY_URL, APP_WEBSITE_URL } from './constants';
+import { APP_ID, APP_REPOSITORY_URL, APP_WEBSITE_URL } from './constants';
 
 class AppEnv {
     getBkperApiKey(): string {
@@ -34,6 +34,10 @@ class AppEnv {
 
     getBookUrl(id: string): string {
         return `https://bkper.app/books/${encodeURIComponent(id)}/transactions`;
+    }
+
+    getAppUrl(bookId: string): string {
+        return `https://bkper.app/automations/${encodeURIComponent(bookId)}/apps/${APP_ID}`;
     }
 
     getAppWebsiteUrl(): string {

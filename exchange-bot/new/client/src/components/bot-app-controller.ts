@@ -1,6 +1,7 @@
 import type { Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
+import { APP_ID } from './../constants.js';
 import { isBookAccessRequiredError, isNotFoundError } from './../errors.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
@@ -38,6 +39,11 @@ export class BotAppController implements ReactiveController {
 
         const book = await this.initializeBook();
         if (!book) {
+            return;
+        }
+
+        const installedApp = await this.initializeInstalledApp(book);
+        if (!installedApp) {
             return;
         }
 
@@ -105,6 +111,20 @@ export class BotAppController implements ReactiveController {
         }
 
         return book;
+    }
+
+    private async initializeInstalledApp(book: Book): Promise<boolean> {
+        try {
+            const installedApp = await bookService.loadInstalledApp(book, APP_ID);
+            if (installedApp) {
+                return true;
+            }
+        } catch {
+            // Missing installations and verification failures share the same recovery path.
+        }
+        this.view.error = BotAppErrors.appInstallationNotVerified(book.getId());
+        this.view.appState = BotAppState.ERROR;
+        return false;
     }
 
     private async loadBooks(book: Book): Promise<Set<Book>> {

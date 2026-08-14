@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { Bkper, Book } from 'bkper-js';
+import { App, Bkper, Book } from 'bkper-js';
 import { bookService } from '../../src/services/book-service.js';
 
 const originalGetBook = Bkper.prototype.getBook;
@@ -29,6 +29,26 @@ describe('book service', () => {
 
         expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', true);
         expect(loadedBook).toBe(book);
+    });
+
+    it('loads an installed App by its universal id', async () => {
+        const book = new Book({ id: 'book-id' });
+        const app = new App({ id: 'exchange-bot' });
+        book.getApps = mock(async () => [app]);
+
+        const loadedApp = await bookService.loadInstalledApp(book, 'exchange-bot');
+
+        expect(book.getApps).toHaveBeenCalledTimes(1);
+        expect(loadedApp).toBe(app);
+    });
+
+    it('returns null when the App is not installed', async () => {
+        const book = new Book({ id: 'book-id' });
+        book.getApps = mock(async () => []);
+
+        const loadedApp = await bookService.loadInstalledApp(book, 'exchange-bot');
+
+        expect(loadedApp).toBeNull();
     });
 
     it('uses API configuration initialized after singleton creation', async () => {

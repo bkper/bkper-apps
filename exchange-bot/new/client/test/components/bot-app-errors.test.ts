@@ -23,6 +23,15 @@ describe('Bot app errors', () => {
         });
     });
 
+    it('builds the Exchange Bot installation action for the selected Book', () => {
+        const error = BotAppErrors.appInstallationNotVerified('book/id');
+
+        expect(error.message.action).toEqual({
+            label: 'install',
+            url: 'https://bkper.app/automations/book%2Fid/apps/exchange-bot',
+        });
+    });
+
     it('identifies one or multiple Books missing edit permission', () => {
         const namedBook = {
             book: new Book({ id: 'named-id', name: 'USD Book' }),

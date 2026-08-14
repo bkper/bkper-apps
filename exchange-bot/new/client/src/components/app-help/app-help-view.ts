@@ -1,13 +1,16 @@
 import type WaDropdownItem from '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import type { WaSelectEvent } from '@awesome.me/webawesome/dist/events/events.js';
+import type { App } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import { appHelpCSS } from './app-help-css.js';
-import { appEnv } from '../../app-env.js';
 import { sharedCSS } from '../shared-css.js';
 
 @customElement('app-help')
 export class AppHelpView extends LitElement {
+    @property({ attribute: false })
+    app!: App;
+
     static styles = [sharedCSS, appHelpCSS];
 
     render(): TemplateResult {
@@ -40,9 +43,9 @@ export class AppHelpView extends LitElement {
         const item = event.detail.item as WaDropdownItem;
         let url: string | undefined;
         if (item.value === 'website') {
-            url = appEnv.getAppWebsiteUrl();
+            url = this.app.getWebsiteUrl();
         } else if (item.value === 'repository') {
-            url = appEnv.getAppRepositoryUrl();
+            url = this.app.getRepositoryUrl();
         }
         if (url) {
             globalThis.open(url, '_blank')?.focus();

@@ -1,8 +1,7 @@
-import type { Book } from 'bkper-js';
+import type { App, Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { appEnv } from '../../app-env.js';
-import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../constants.js';
 import '../app-help/app-help-view.js';
 import { AppHeaderController } from './app-header-controller.js';
 import { appHeaderCSS } from './app-header-css.js';
@@ -13,19 +12,24 @@ export class AppHeaderView extends LitElement {
     private readonly controller = new AppHeaderController(this);
 
     @property({ attribute: false })
+    app!: App;
+
+    @property({ attribute: false })
     book?: Book;
 
     static styles = [sharedCSS, appHeaderCSS];
 
     render(): TemplateResult {
+        const appName = this.app.getName() ?? '';
+        const appLogo = this.getAppLogoUrl();
         return html`
             <header class="container">
                 <div class="app">
-                    <img class="app-logo" src=${this.getAppLogoUrl()} alt="Exchange Bot" />
-                    <h1 class="app-title hide-on-phone">Exchange Bot</h1>
+                    <img class="app-logo" src=${appLogo} alt=${appName} />
+                    <h1 class="app-title hide-on-phone">${appName}</h1>
                 </div>
                 ${this.renderBookName()}
-                <app-help></app-help>
+                <app-help .app=${this.app}></app-help>
             </header>
         `;
     }
@@ -57,7 +61,9 @@ export class AppHeaderView extends LitElement {
     }
 
     private getAppLogoUrl(): string {
-        return this.controller.isDark ? APP_LOGO_URL_DARK : APP_LOGO_URL_LIGHT;
+        const logoLight = this.app.getLogoUrl() ?? '';
+        const logoDark = this.app.getLogoUrlDark() ?? '';
+        return this.controller.isDark ? logoDark : logoLight;
     }
 }
 

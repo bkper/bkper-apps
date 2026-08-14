@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { APP_LOGO_URL_DARK, APP_LOGO_URL_LIGHT } from '../../../src/constants.js';
+import { App } from 'bkper-js';
 import { AppHeaderView } from '../../../src/components/app-header/app-header-view.js';
 
 type GetAppLogoUrl = (this: AppHeaderView) => string;
@@ -23,17 +23,30 @@ function setThemeCookie(theme: 'dark' | 'light'): void {
 }
 
 describe('App header view', () => {
-    it('uses the light logo when the selected Bkper theme is light', () => {
-        setThemeCookie('light');
+    it('renders the App name and passes the App to help', () => {
+        const app = new App({ id: 'exchange-bot', name: 'Global Exchange Bot' });
         const view = new AppHeaderView();
+        view.app = app;
 
-        expect(getAppLogoUrl.call(view)).toBe(APP_LOGO_URL_LIGHT);
+        const result = view.render();
+
+        expect(result.values).toContain('Global Exchange Bot');
+        expect(result.values).toContain(app);
     });
 
-    it('uses the dark logo when the selected Bkper theme is dark', () => {
+    it('uses the light App logo when the selected Bkper theme is light', () => {
+        setThemeCookie('light');
+        const view = new AppHeaderView();
+        view.app = new App({ logoUrl: 'https://example.com/global-light.svg' });
+
+        expect(getAppLogoUrl.call(view)).toBe('https://example.com/global-light.svg');
+    });
+
+    it('uses the dark App logo when the selected Bkper theme is dark', () => {
         setThemeCookie('dark');
         const view = new AppHeaderView();
+        view.app = new App({ logoUrlDark: 'https://example.com/global-dark.svg' });
 
-        expect(getAppLogoUrl.call(view)).toBe(APP_LOGO_URL_DARK);
+        expect(getAppLogoUrl.call(view)).toBe('https://example.com/global-dark.svg');
     });
 });

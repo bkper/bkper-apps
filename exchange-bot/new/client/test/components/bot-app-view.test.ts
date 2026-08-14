@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { App, Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
@@ -19,19 +19,30 @@ const renderWarnings = Reflect.get(BotAppView.prototype, 'renderWarnings') as (
 ) => TemplateResult;
 
 describe('Bot app view', () => {
-    it('passes the selected Book to the app header', () => {
+    it('passes the App and selected Book to the app header', () => {
         const view = new BotAppView();
+        const app = new App({ id: 'exchange-bot', name: 'Global Exchange Bot' });
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
             timeZone: 'America/New_York',
             permission: Permission.EDITOR,
         });
+        view.app = app;
         view.book = book;
 
         const result = renderHeader.call(view);
 
-        expect(result.values[0]).toBe(book);
+        expect(result.values[0]).toBe(app);
+        expect(result.values[1]).toBe(book);
+    });
+
+    it('does not render the app header before App metadata is loaded', () => {
+        const view = new BotAppView();
+
+        const result = renderHeader.call(view);
+
+        expect(result.strings.join('')).toBe('');
     });
 
     it('does not render the app header in embedded mode', () => {

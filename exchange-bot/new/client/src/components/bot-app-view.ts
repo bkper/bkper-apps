@@ -62,10 +62,10 @@ export class BotAppView extends LitElement {
     }
 
     private renderHeader(): TemplateResult {
-        if (this.embedded) {
+        if (this.embedded || !this.app) {
             return html``;
         }
-        return html`<app-header .book=${this.book}></app-header>`;
+        return html`<app-header .app=${this.app} .book=${this.book}></app-header>`;
     }
 
     private renderBodyContent(): TemplateResult {

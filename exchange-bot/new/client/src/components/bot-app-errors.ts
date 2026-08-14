@@ -3,7 +3,13 @@ import { appEnv } from '../app-env.js';
 import type { AppError, ExchangeBotBook } from '../types.js';
 import { VIEW_PERMISSIONS } from '../utils.js';
 
+/** Factories for structured errors displayed by the Exchange Bot application shell. */
 export const BotAppErrors = {
+    /**
+     * Creates an error for a request without a Book identifier.
+     *
+     * @returns The structured missing-Book-identifier error.
+     */
     bookNotSpecified(): AppError {
         return {
             type: 'info',
@@ -14,6 +20,11 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error for a Book identifier that could not be resolved.
+     *
+     * @returns The structured Book-not-found error.
+     */
     bookNotFound(): AppError {
         return {
             type: 'info',
@@ -24,6 +35,12 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error directing the User to request access to a Book.
+     *
+     * @param bookId - The identifier of the inaccessible Book.
+     * @returns The structured Book-access error.
+     */
     bookAccessRequired(bookId: string): AppError {
         return {
             type: 'info',
@@ -38,6 +55,11 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error for a Book that could not be loaded.
+     *
+     * @returns The structured Book-loading error.
+     */
     bookLoadFailed(): AppError {
         return {
             type: 'info',
@@ -48,6 +70,12 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error directing the User to install Exchange Bot in a Book.
+     *
+     * @param bookId - The identifier of the Book whose installation could not be verified.
+     * @returns The structured App-installation error.
+     */
     appInstallationNotVerified(bookId: string): AppError {
         return {
             type: 'info',
@@ -63,6 +91,12 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error describing insufficient view permission on a Book.
+     *
+     * @param book - The Book whose current permission is insufficient.
+     * @returns The structured view-permission error.
+     */
     insufficientViewPermission(book: Book): AppError {
         return {
             type: 'info',
@@ -73,6 +107,12 @@ export const BotAppErrors = {
         };
     },
 
+    /**
+     * Creates an error identifying Exchange Update targets without edit permission.
+     *
+     * @param books - The target Books that the User cannot edit.
+     * @returns The structured edit-permission error.
+     */
     insufficientEditPermission(books: ExchangeBotBook[]): AppError {
         const identifiers = books.map(b => b.book.getName() ?? b.excCode ?? b.book.getId());
         const prefix = 'User needs EDITOR or OWNER permission in the following books:';

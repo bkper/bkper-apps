@@ -11,6 +11,7 @@ import { botService } from '../../src/services/bot-service.js';
 
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
+    app?: App;
     book?: Book;
     bookId = '';
     initialDate = '';
@@ -40,6 +41,7 @@ class TestView implements ReactiveControllerHost {
 }
 
 const originalInit = authService.init;
+const originalLoadGlobalApp = bkperService.loadApp;
 const originalLoadBook = bkperService.loadBook;
 const originalLoadApp = bkperService.loadInstalledApp;
 const originalGetConnectedBooks = botService.getConnectedBooks;
@@ -59,6 +61,7 @@ beforeEach(() => {
         configurable: true,
         value: self,
     });
+    bkperService.loadApp = async () => new App({ id: 'exchange-bot' });
     bkperService.loadInstalledApp = async () => new App({ id: 'exchange-bot' });
     botService.getConnectedBooks = async () => new Set<Book>();
     botService.getCollectionExcCodes = () => new Set<string>();
@@ -70,6 +73,7 @@ beforeEach(() => {
 afterEach(() => {
     authService.init = originalInit;
     authService.accessToken = undefined;
+    bkperService.loadApp = originalLoadGlobalApp;
     bkperService.loadBook = originalLoadBook;
     bkperService.loadInstalledApp = originalLoadApp;
     botService.getConnectedBooks = originalGetConnectedBooks;
@@ -94,6 +98,59 @@ function createController(view: TestView): BotAppController {
 }
 
 describe('Bot app controller', () => {
+    it('loads App metadata even when authentication does not establish a session', async () => {
+        const app = new App({ id: 'exchange-bot', name: 'Global Exchange Bot' });
+        bkperService.loadApp = mock(async () => app);
+        authService.init = async () => {};
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(bkperService.loadApp).toHaveBeenCalledTimes(1);
+        expect(view.app).toBe(app);
+    });
+
+    it('loads App metadata in parallel with the Book context', async () => {
+        const app = new App({ id: 'exchange-bot', name: 'Global Exchange Bot' });
+        let resolveApp: ((app: App) => void) | undefined;
+        bkperService.loadApp = () =>
+            new Promise<App>(resolve => {
+                resolveApp = resolve;
+            });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bkperService.loadBook = async () =>
+            new Book({
+                id: 'book-id',
+                timeZone: 'UTC',
+                permission: Permission.EDITOR,
+            });
+        let markBookContextLoaded: (() => void) | undefined;
+        const bookContextLoaded = new Promise<void>(resolve => {
+            markBookContextLoaded = resolve;
+        });
+        botService.getConnectedBooks = async () => {
+            markBookContextLoaded?.();
+            return new Set<Book>();
+        };
+        const view = new TestView();
+        const controller = createController(view);
+
+        const initialization = controller.initialize();
+        await bookContextLoaded;
+
+        expect(view.app).toBeUndefined();
+        if (!resolveApp) {
+            throw new Error('App loading did not start');
+        }
+        resolveApp(app);
+        await initialization;
+        expect(view.app).toBe(app);
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
     it('enables embedded mode when running in an iframe', async () => {
         Object.defineProperty(self, 'top', {
             configurable: true,

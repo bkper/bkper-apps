@@ -1,4 +1,5 @@
 export const APP_ID = 'exchange-bot';
+export const APP_NAME = 'Exchange Bot';
 
 export const APP_LOGO_URL_LIGHT =
     'https://storage.googleapis.com/bkper-public/logos/agents/exchange-agent-light.svg';

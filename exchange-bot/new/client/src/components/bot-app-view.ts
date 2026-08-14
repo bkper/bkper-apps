@@ -1,4 +1,4 @@
-import type { Book } from 'bkper-js';
+import type { App, Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
@@ -15,6 +15,9 @@ export class BotAppView extends LitElement {
 
     @state()
     embedded = false;
+
+    @state()
+    app?: App;
 
     @state()
     appState = BotAppState.LOADING;

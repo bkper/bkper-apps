@@ -31,26 +31,7 @@ export class BotAppController implements ReactiveController {
 
     async initialize(): Promise<void> {
         this.view.embedded = appEnv.isEmbedded();
-
-        await authService.init();
-        if (!authService.accessToken) {
-            return;
-        }
-
-        const book = await this.initializeBook();
-        if (!book) {
-            return;
-        }
-
-        const installedApp = await this.initializeInstalledApp(book);
-        if (!installedApp) {
-            return;
-        }
-
-        const books = await this.loadBooks(book);
-        this.view.appState = BotAppState.READY;
-
-        await this.validateBooks(book, books);
+        await Promise.all([this.initApp(), this.initBookContext()]);
     }
 
     async retryValidations(): Promise<void> {
@@ -64,7 +45,33 @@ export class BotAppController implements ReactiveController {
         await this.validateBooks(book, new Set(visibleBooks));
     }
 
-    private async initializeBook(): Promise<Book | undefined> {
+    private async initApp(): Promise<void> {
+        this.view.app = await bkperService.loadApp();
+    }
+
+    private async initBookContext(): Promise<void> {
+        await authService.init();
+        if (!authService.accessToken) {
+            return;
+        }
+
+        const book = await this.initBook();
+        if (!book) {
+            return;
+        }
+
+        const installedApp = await this.initInstalledApp(book);
+        if (!installedApp) {
+            return;
+        }
+
+        const books = await this.loadBooks(book);
+        this.view.appState = BotAppState.READY;
+
+        await this.validateBooks(book, books);
+    }
+
+    private async initBook(): Promise<Book | undefined> {
         this.view.book = undefined;
         this.view.error = undefined;
 
@@ -113,7 +120,7 @@ export class BotAppController implements ReactiveController {
         return book;
     }
 
-    private async initializeInstalledApp(book: Book): Promise<boolean> {
+    private async initInstalledApp(book: Book): Promise<boolean> {
         try {
             const installedApp = await bkperService.loadInstalledApp(book, APP_ID);
             if (installedApp) {

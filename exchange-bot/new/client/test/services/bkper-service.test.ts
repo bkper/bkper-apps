@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { App, Bkper, Book } from 'bkper-js';
-import { bookService } from '../../src/services/book-service.js';
+import { bkperService } from '../../src/services/bkper-service.js';
 
 const originalGetBook = Bkper.prototype.getBook;
 const originalConfig = new Bkper().getConfig();
@@ -10,12 +10,12 @@ afterEach(() => {
     Bkper.setConfig(originalConfig);
 });
 
-describe('book service', () => {
+describe('Bkper service', () => {
     it('loads a lean Book through bkper-js', async () => {
         const book = new Book({ id: 'book-id', name: 'USD Book' });
         Bkper.prototype.getBook = mock(async () => book);
 
-        const loadedBook = await bookService.loadBook('book-id');
+        const loadedBook = await bkperService.loadBook('book-id');
 
         expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', false);
         expect(loadedBook).toBe(book);
@@ -25,7 +25,7 @@ describe('book service', () => {
         const book = new Book({ id: 'book-id', name: 'USD Book' });
         Bkper.prototype.getBook = mock(async () => book);
 
-        const loadedBook = await bookService.loadBook('book-id', true);
+        const loadedBook = await bkperService.loadBook('book-id', true);
 
         expect(Bkper.prototype.getBook).toHaveBeenCalledWith('book-id', true);
         expect(loadedBook).toBe(book);
@@ -36,7 +36,7 @@ describe('book service', () => {
         const app = new App({ id: 'exchange-bot' });
         book.getApps = mock(async () => [app]);
 
-        const loadedApp = await bookService.loadInstalledApp(book, 'exchange-bot');
+        const loadedApp = await bkperService.loadInstalledApp(book, 'exchange-bot');
 
         expect(book.getApps).toHaveBeenCalledTimes(1);
         expect(loadedApp).toBe(app);
@@ -46,7 +46,7 @@ describe('book service', () => {
         const book = new Book({ id: 'book-id' });
         book.getApps = mock(async () => []);
 
-        const loadedApp = await bookService.loadInstalledApp(book, 'exchange-bot');
+        const loadedApp = await bkperService.loadInstalledApp(book, 'exchange-bot');
 
         expect(loadedApp).toBeNull();
     });
@@ -60,7 +60,7 @@ describe('book service', () => {
             return book;
         });
 
-        await bookService.loadBook('book-id');
+        await bkperService.loadBook('book-id');
 
         expect(configuredToken).toBe('access-token');
     });

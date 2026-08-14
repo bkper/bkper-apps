@@ -1,7 +1,7 @@
 import type { Book } from 'bkper-js';
 import { EXC_CODE_PROP } from '../constants.js';
 import { Utils } from '../utils.js';
-import { bookService } from './book-service.js';
+import { bkperService } from './bkper-service.js';
 import { runRequestsInBatches } from './request-batch.js';
 
 class BotService {
@@ -28,7 +28,7 @@ class BotService {
         const legacyBookIds = this.getLegacyConnectedBookIds(book);
         const legacyLoadedBooks = await runRequestsInBatches(
             Array.from(legacyBookIds).filter(id => !collectionBooksById.has(id)),
-            async id => await bookService.loadBook(id)
+            async id => await bkperService.loadBook(id)
         );
         const loadedBooksById = new Map(legacyLoadedBooks.map(b => [b.getId(), b]));
 

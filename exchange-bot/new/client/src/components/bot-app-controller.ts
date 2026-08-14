@@ -5,7 +5,7 @@ import { APP_ID } from './../constants.js';
 import { isBookAccessRequiredError, isNotFoundError } from './../errors.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
-import { bookService } from './../services/book-service.js';
+import { bkperService } from './../services/bkper-service.js';
 import { botService } from './../services/bot-service.js';
 import type { BotAppView } from './bot-app-view.js';
 import type { ExchangeBotBook } from '../types.js';
@@ -82,7 +82,7 @@ export class BotAppController implements ReactiveController {
 
         let book: Book;
         try {
-            book = await bookService.loadBook(bookId, true);
+            book = await bkperService.loadBook(bookId, true);
         } catch (error: unknown) {
             if (isBookAccessRequiredError(error)) {
                 this.view.error = BotAppErrors.bookAccessRequired(bookId);
@@ -115,7 +115,7 @@ export class BotAppController implements ReactiveController {
 
     private async initializeInstalledApp(book: Book): Promise<boolean> {
         try {
-            const installedApp = await bookService.loadInstalledApp(book, APP_ID);
+            const installedApp = await bkperService.loadInstalledApp(book, APP_ID);
             if (installedApp) {
                 return true;
             }

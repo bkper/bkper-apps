@@ -6,7 +6,7 @@ import type { BotAppView } from '../../src/components/bot-app-view.js';
 import type { AppError, ExchangeBotBook } from '../../src/types.js';
 import { BotAppErrors } from '../../src/components/bot-app-errors.js';
 import { authService } from '../../src/services/auth-service.js';
-import { bookService } from '../../src/services/book-service.js';
+import { bkperService } from '../../src/services/bkper-service.js';
 import { botService } from '../../src/services/bot-service.js';
 
 class TestView implements ReactiveControllerHost {
@@ -40,8 +40,8 @@ class TestView implements ReactiveControllerHost {
 }
 
 const originalInit = authService.init;
-const originalLoadBook = bookService.loadBook;
-const originalLoadApp = bookService.loadInstalledApp;
+const originalLoadBook = bkperService.loadBook;
+const originalLoadApp = bkperService.loadInstalledApp;
 const originalGetConnectedBooks = botService.getConnectedBooks;
 const originalGetVisibleCollectionExcCodes = botService.getCollectionExcCodes;
 const originalGetBookConfiguredExcCodes = botService.getBookConfiguredExcCodes;
@@ -59,7 +59,7 @@ beforeEach(() => {
         configurable: true,
         value: self,
     });
-    bookService.loadInstalledApp = async () => new App({ id: 'exchange-bot' });
+    bkperService.loadInstalledApp = async () => new App({ id: 'exchange-bot' });
     botService.getConnectedBooks = async () => new Set<Book>();
     botService.getCollectionExcCodes = () => new Set<string>();
     botService.getBookConfiguredExcCodes = async () => new Set<string>();
@@ -70,8 +70,8 @@ beforeEach(() => {
 afterEach(() => {
     authService.init = originalInit;
     authService.accessToken = undefined;
-    bookService.loadBook = originalLoadBook;
-    bookService.loadInstalledApp = originalLoadApp;
+    bkperService.loadBook = originalLoadBook;
+    bkperService.loadInstalledApp = originalLoadApp;
     botService.getConnectedBooks = originalGetConnectedBooks;
     botService.getCollectionExcCodes = originalGetVisibleCollectionExcCodes;
     botService.getBookConfiguredExcCodes = originalGetBookConfiguredExcCodes;
@@ -118,7 +118,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = mock(async () => book);
+        bkperService.loadBook = mock(async () => book);
         const view = new TestView();
         const controller = createController(view);
 
@@ -126,7 +126,7 @@ describe('Bot app controller', () => {
 
         expect(view.appState).toBe(BotAppState.LOADING);
         await initialization;
-        expect(bookService.loadBook).toHaveBeenCalledWith('book-id', true);
+        expect(bkperService.loadBook).toHaveBeenCalledWith('book-id', true);
         expect(view.bookId).toBe('book-id');
         expect(view.book).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -142,15 +142,15 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
-        bookService.loadInstalledApp = mock(async () => null);
+        bkperService.loadBook = async () => book;
+        bkperService.loadInstalledApp = mock(async () => null);
         botService.getConnectedBooks = mock(async () => new Set<Book>());
         const view = new TestView();
         const controller = createController(view);
 
         await controller.initialize();
 
-        expect(bookService.loadInstalledApp).toHaveBeenCalledWith(book, 'exchange-bot');
+        expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(book, 'exchange-bot');
         expect(botService.getConnectedBooks).not.toHaveBeenCalled();
         expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('book-id'));
         expect(view.appState).toBe(BotAppState.ERROR);
@@ -165,8 +165,8 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
-        bookService.loadInstalledApp = async () => {
+        bkperService.loadBook = async () => book;
+        bkperService.loadInstalledApp = async () => {
             throw new Error('Apps unavailable');
         };
         botService.getConnectedBooks = mock(async () => new Set<Book>());
@@ -190,7 +190,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getConnectedBooks = mock(async () => new Set<Book>());
         const view = new TestView();
         const controller = createController(view);
@@ -213,7 +213,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () =>
+        bkperService.loadBook = async () =>
             new Book({
                 id: 'book-id',
                 timeZone: 'Invalid/Timezone',
@@ -239,7 +239,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getConnectedBooks = async () => {
             throw contextError;
         };
@@ -277,7 +277,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => selectedBook;
+        bkperService.loadBook = async () => selectedBook;
         botService.getConnectedBooks = async () => new Set([connectedBook, baseBook]);
         const view = new TestView();
         const controller = createController(view);
@@ -314,7 +314,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => selectedBook;
+        bkperService.loadBook = async () => selectedBook;
         botService.getConnectedBooks = async () => new Set([connectedBook]);
         botService.getBookConfiguredExcCodes = async () => configuredExcCodes;
         const view = new TestView();
@@ -366,7 +366,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => selectedBook;
+        bkperService.loadBook = async () => selectedBook;
         botService.getConnectedBooks = async () => new Set([legacyConnectedBook]);
         let checkedBookIds: string[] = [];
         botService.getBooksWithEventErrors = async books => {
@@ -392,7 +392,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         const getConfiguredCodes = mock(async () => new Set(['BRL']));
         const getBooksWithErrors = mock(
             async () => new Set([new Book({ properties: { exc_code: 'EUR' } })])
@@ -447,7 +447,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => selectedBook;
+        bkperService.loadBook = async () => selectedBook;
         botService.getConnectedBooks = async () => new Set([nonTargetBook, targetBook]);
         let pendingTaskBookIds: string[] = [];
         botService.getBooksWithPendingTasks = async books => {
@@ -479,7 +479,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getConnectedBooks = async () => new Set([legacyConnectedBook]);
         botService.getBooksWithPendingTasks = async () => new Set([legacyConnectedBook]);
         const view = new TestView();
@@ -511,7 +511,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getConnectedBooks = async () =>
             new Set([firstConnectedBook, secondConnectedBook]);
         botService.getBooksWithPendingTasks = async () =>
@@ -545,7 +545,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getBookConfiguredExcCodes = async () => new Set(['BRL']);
         botService.getBooksWithPendingTasks = async () => {
             markPendingTasksStarted();
@@ -611,7 +611,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getBookConfiguredExcCodes = async () => configuredExcCodes;
         botService.getBooksWithPendingTasks = async () => new Set([book]);
         botService.getBooksWithEventErrors = async () => {
@@ -667,7 +667,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getCollectionExcCodes = () => new Set(['USD']);
         botService.getBookConfiguredExcCodes = async () => new Set(['BRL']);
         botService.getBooksWithPendingTasks = async () => new Set([book]);
@@ -698,7 +698,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getBooksWithPendingTasks = async () => new Set([book]);
         botService.getBooksWithEventErrors = async () =>
             new Set([new Book({ properties: { exc_code: 'BRL' } })]);
@@ -722,7 +722,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => book;
+        bkperService.loadBook = async () => book;
         botService.getBooksWithEventErrors = async () =>
             new Set([
                 new Book({ properties: { exc_code: 'BRL' } }),
@@ -745,13 +745,13 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = mock(async () => new Book());
+        bkperService.loadBook = mock(async () => new Book());
         const view = new TestView();
         const controller = createController(view);
 
         await controller.initialize();
 
-        expect(bookService.loadBook).not.toHaveBeenCalled();
+        expect(bkperService.loadBook).not.toHaveBeenCalled();
         expect(view.error).toEqual(BotAppErrors.bookNotSpecified());
         expect(view.appState).toBe(BotAppState.ERROR);
     });
@@ -760,7 +760,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => {
+        bkperService.loadBook = async () => {
             throw {
                 status: 401,
                 message:
@@ -791,7 +791,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => {
+        bkperService.loadBook = async () => {
             throw { status: 404, message: 'Book not found' };
         };
         const view = new TestView();
@@ -807,7 +807,7 @@ describe('Bot app controller', () => {
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
-        bookService.loadBook = async () => {
+        bkperService.loadBook = async () => {
             throw new Error('Book unavailable');
         };
         const view = new TestView();

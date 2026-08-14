@@ -9,7 +9,7 @@ import type { ExchangeBotBook, ExchangeUpdateSummary } from '../../../src/types.
 import { ExchangeUpdateController } from '../../../src/components/exchange-update/exchange-update-controller.js';
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { BotApiError, botApiService } from '../../../src/services/bot-api-service.js';
-import { bookService } from '../../../src/services/book-service.js';
+import { bkperService } from '../../../src/services/bkper-service.js';
 
 class TestView implements ReactiveControllerHost {
     book?: Book;
@@ -48,14 +48,14 @@ class TestView implements ReactiveControllerHost {
 
 const originalLoadRates = botApiService.loadExchangeRates;
 const originalPerformExchangeUpdate = botApiService.performExchangeUpdate;
-const originalLoadBook = bookService.loadBook;
+const originalLoadBook = bkperService.loadBook;
 const originalSetTimeout = globalThis.setTimeout;
 const originalClearTimeout = globalThis.clearTimeout;
 
 afterEach(() => {
     botApiService.loadExchangeRates = originalLoadRates;
     botApiService.performExchangeUpdate = originalPerformExchangeUpdate;
-    bookService.loadBook = originalLoadBook;
+    bkperService.loadBook = originalLoadBook;
     globalThis.setTimeout = originalSetTimeout;
     globalThis.clearTimeout = originalClearTimeout;
 });
@@ -128,7 +128,7 @@ describe('Exchange update controller', () => {
             decimalSeparator: DecimalSeparator.COMMA,
             fractionDigits: 2,
         });
-        bookService.loadBook = mock(async () => refreshedBook);
+        bkperService.loadBook = mock(async () => refreshedBook);
         const targetBook = createExchangeBotBook('usd-book', 'USD', true);
         const audit = mock(() => undefined);
         targetBook.book.audit = audit;
@@ -163,7 +163,7 @@ describe('Exchange update controller', () => {
             status: 'COMPLETE',
             summary: { 'Cash EXC': '10,00' },
         });
-        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book', true);
+        expect(bkperService.loadBook).toHaveBeenCalledWith('usd-book', true);
         expect(targetBook.book).toBe(refreshedBook);
         expect(audit).toHaveBeenCalledTimes(1);
         expect(view.executing).toBe(false);
@@ -173,7 +173,7 @@ describe('Exchange update controller', () => {
         botApiService.performExchangeUpdate = mock(async () =>
             createExchangeUpdateApiResult([], [{ id: 'new-exchange', name: 'New Exchange' }])
         );
-        bookService.loadBook = mock(async () => {
+        bkperService.loadBook = mock(async () => {
             throw new Error('An Account-only response should not hydrate the Book chart');
         });
         const targetBook = createExchangeBotBook('usd-book', 'USD', true);
@@ -190,7 +190,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
-        expect(bookService.loadBook).not.toHaveBeenCalled();
+        expect(bkperService.loadBook).not.toHaveBeenCalled();
         expect(audit).not.toHaveBeenCalled();
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
@@ -221,7 +221,7 @@ describe('Exchange update controller', () => {
             decimalSeparator: DecimalSeparator.COMMA,
             fractionDigits: 2,
         });
-        bookService.loadBook = mock(async () => refreshedBook);
+        bkperService.loadBook = mock(async () => refreshedBook);
         const exchangeBotBook = createExchangeBotBook('usd-book', 'USD', true);
         const view = new TestView();
         view.book = new Book({ id: 'selected-book' });
@@ -235,7 +235,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
-        expect(bookService.loadBook).toHaveBeenCalledWith('usd-book', true);
+        expect(bkperService.loadBook).toHaveBeenCalledWith('usd-book', true);
         expect(exchangeBotBook.book).toBe(refreshedBook);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',

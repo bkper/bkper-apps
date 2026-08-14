@@ -1,6 +1,6 @@
 import { Bkper, type App, type Book } from 'bkper-js';
 
-class BookService {
+class BkperService {
     /**
      * Loads a Book, optionally with its complete Account chart.
      *
@@ -25,4 +25,4 @@ class BookService {
     }
 }
 
-export const bookService = new BookService();
+export const bkperService = new BkperService();

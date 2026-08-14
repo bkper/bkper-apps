@@ -2,7 +2,7 @@ import { Transaction } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import type { ExchangeRates } from '../../api/generated/types.js';
 import { BotApiError, botApiService } from './../../services/bot-api-service.js';
-import { bookService } from './../../services/book-service.js';
+import { bkperService } from './../../services/bkper-service.js';
 import { Utils } from './../../utils.js';
 import {
     ExchangeUpdateStatus,
@@ -147,7 +147,7 @@ export class ExchangeUpdateController implements ReactiveController {
                     // Preserve the legacy menu audit after accepted movements.
                     book.book.audit();
                     // Resolve accounts for created transactions only after a mutating update.
-                    book.book = await bookService.loadBook(bookId, true);
+                    book.book = await bkperService.loadBook(bookId, true);
                 }
                 this.setExchangeUpdateResult(bookId, {
                     status: ExchangeUpdateStatus.COMPLETE,

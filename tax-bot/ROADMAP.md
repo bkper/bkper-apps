@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–3 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, dispatch, and response envelopes through explicit no-op handler stubs. Business behavior has not been ported, and no deployment, routing, or Book mutation has begun.
+**Chunks 1–4 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, and response envelopes. Tax calculation and Book mutation behavior has not been ported, and no deployment or routing change has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -316,15 +316,15 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 4 — Port common guards and tax source discovery
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Port Transaction operation extraction, Book construction, and posted-state handling.
-- Port Tax Bot and Exchange Bot skip checks on their established paths.
-- Port origin/destination Account traversal and embedded Group traversal.
-- Port current and legacy tax-property lookup behavior.
-- Port remote-id construction helpers.
+- Ported Transaction operation extraction, Book construction, and posted-state handling.
+- Ported Tax Bot and Exchange Bot skip checks on their established paths.
+- Ported origin/destination Account traversal and embedded Group traversal.
+- Ported current and legacy tax-property lookup behavior.
+- Ported remote-id construction helpers.
 
-**Zero-sum gate:** Discovery and calculation selection perform no Transaction or balance mutation.
+**Zero-sum gate:** Discovery and calculation selection perform no Transaction or balance mutation, and the full local check passes without credentials, network access, live Books, or Book writes.
 
 ### Chunk 5 — Port calculation and Transaction construction
 

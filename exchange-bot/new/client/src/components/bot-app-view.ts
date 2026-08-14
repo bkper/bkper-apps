@@ -3,7 +3,8 @@ import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
-import type { ExchangeBotBook } from '../types.js';
+import { appEnv } from '../app-env.js';
+import type { AppError, ExchangeBotBook } from '../types.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
@@ -94,14 +95,27 @@ export class BotAppView extends LitElement {
     }
 
     private renderAppError(): TemplateResult {
-        return html`
-            <app-error
-                .bookId=${this.bookId}
-                .book=${this.book}
-                .error=${this.bookError}
-                .permissionError=${this.permissionError}
-            ></app-error>
-        `;
+        let error: AppError | undefined;
+
+        const message = this.permissionError || this.bookError;
+        if (message) {
+            error = { message: { before: message } };
+        }
+
+        if (this.bookId && !this.book && this.permissionError) {
+            error = {
+                title: this.permissionError,
+                message: {
+                    action: {
+                        label: 'Request access',
+                        url: appEnv.getBookUrl(this.bookId),
+                    },
+                    after: 'in Bkper to continue.',
+                },
+            };
+        }
+
+        return html`<app-error .error=${error}></app-error>`;
     }
 
     private renderValidations(): TemplateResult {

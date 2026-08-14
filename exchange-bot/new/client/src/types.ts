@@ -1,5 +1,20 @@
 import type { Book } from 'bkper-js';
 
+/** An application error shown to the user. */
+export interface AppError {
+    /** An optional error heading. */
+    title?: string;
+    /** The error message, optionally containing an inline link action. */
+    message: {
+        before?: string;
+        action?: {
+            label: string;
+            url: string;
+        };
+        after?: string;
+    };
+}
+
 /** A Bkper Book with the context needed by the Exchange Bot client. */
 export interface ExchangeBotBook {
     /** The Bkper Book instance. */

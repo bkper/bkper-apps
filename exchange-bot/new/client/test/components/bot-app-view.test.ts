@@ -3,6 +3,7 @@ import { Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
+import type { AppError } from '../../src/types.js';
 
 const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
     this: BotAppView
@@ -73,8 +74,29 @@ describe('Bot app view', () => {
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<app-error');
-        expect(result.values).toContain('book-id');
-        expect(result.values).toContain(view.bookError);
+        const error = result.values[0] as AppError;
+        expect(error).toEqual({ message: { before: view.bookError } });
+    });
+
+    it('provides the Book access action when the user is not a collaborator', () => {
+        const view = new BotAppView();
+        view.bookId = 'book-id';
+        view.permissionError = "You don't have access to this Book.";
+        view.appState = BotAppState.ERROR;
+
+        const result = renderBodyContent.call(view);
+
+        const error = result.values[0] as AppError;
+        expect(error).toEqual({
+            title: view.permissionError,
+            message: {
+                action: {
+                    label: 'Request access',
+                    url: 'https://bkper.app/books/book-id/transactions',
+                },
+                after: 'in Bkper to continue.',
+            },
+        });
     });
 
     it('hides Exchange Update when the selected Book is not viewable', () => {
@@ -89,8 +111,8 @@ describe('Bot app view', () => {
 
         expect(result.strings.join('')).toContain('<app-error');
         expect(result.strings.join('')).not.toContain('<exchange-update');
-        expect(result.values).toContain(view.book);
-        expect(result.values).toContain(view.permissionError);
+        const error = result.values[0] as AppError;
+        expect(error).toEqual({ message: { before: view.permissionError } });
     });
 
     it('shows validation progress together with available warnings', () => {

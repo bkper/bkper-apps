@@ -1,11 +1,5 @@
 import type { ApiError } from './api/generated/types.js';
 
-export const Errors = {
-    BOOK_NOT_FOUND: 'The Book could not be found. Check the bookId param in the URL and try again.',
-    BOOK_ACCESS_REQUIRED: "You don't have access to this Book.",
-    BOOK_LOAD_FAILED: 'The selected Book could not be loaded. Please try again.',
-} as const;
-
 export function isApiError(payload: unknown): payload is ApiError {
     if (typeof payload !== 'object' || payload === null || !('error' in payload)) {
         return false;

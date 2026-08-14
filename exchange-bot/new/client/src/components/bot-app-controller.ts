@@ -1,13 +1,14 @@
 import type { Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
-import { Errors, isBookAccessRequiredError, isNotFoundError } from './../errors.js';
+import { isBookAccessRequiredError, isNotFoundError } from './../errors.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bookService } from './../services/book-service.js';
 import { botService } from './../services/bot-service.js';
 import type { BotAppView } from './bot-app-view.js';
 import type { ExchangeBotBook } from '../types.js';
+import { BotAppErrors } from './bot-app-errors.js';
 
 export enum BotAppState {
     LOADING = 'LOADING',
@@ -59,7 +60,7 @@ export class BotAppController implements ReactiveController {
 
     private async initializeBook(): Promise<Book | undefined> {
         this.view.book = undefined;
-        this.view.error = '';
+        this.view.error = undefined;
 
         this.view.validating = false;
         this.view.validationError = '';
@@ -68,7 +69,7 @@ export class BotAppController implements ReactiveController {
         this.view.bookId = bookId ?? '';
 
         if (!bookId) {
-            this.view.error = Errors.BOOK_NOT_FOUND;
+            this.view.error = BotAppErrors.bookNotSpecified();
             this.view.appState = BotAppState.ERROR;
             return undefined;
         }
@@ -78,11 +79,11 @@ export class BotAppController implements ReactiveController {
             book = await bookService.loadBook(bookId, true);
         } catch (error: unknown) {
             if (isBookAccessRequiredError(error)) {
-                this.view.error = Errors.BOOK_ACCESS_REQUIRED;
+                this.view.error = BotAppErrors.bookAccessRequired(bookId);
             } else {
                 this.view.error = isNotFoundError(error)
-                    ? Errors.BOOK_NOT_FOUND
-                    : Errors.BOOK_LOAD_FAILED;
+                    ? BotAppErrors.bookNotFound()
+                    : BotAppErrors.bookLoadFailed();
             }
             this.view.appState = BotAppState.ERROR;
             return undefined;
@@ -97,7 +98,7 @@ export class BotAppController implements ReactiveController {
         if (!canView) {
             this.view.books = [];
             this.view.hasEditorPermission = false;
-            this.view.error = Utils.getViewPermissionError(book);
+            this.view.error = BotAppErrors.insufficientViewPermission(book);
             this.view.warnings = [];
             this.view.appState = BotAppState.READY;
             return undefined;
@@ -109,7 +110,7 @@ export class BotAppController implements ReactiveController {
     private async loadBooks(book: Book): Promise<Set<Book>> {
         this.view.books = [];
         this.view.hasEditorPermission = false;
-        this.view.error = '';
+        this.view.error = undefined;
         this.view.warnings = [];
 
         const hasBaseBook = Utils.hasBaseBookInCollection(book);
@@ -128,7 +129,7 @@ export class BotAppController implements ReactiveController {
         );
         if (booksMissingEditPermission.length > 0) {
             this.view.hasEditorPermission = false;
-            this.view.error = this.buildEditPermissionError(booksMissingEditPermission);
+            this.view.error = BotAppErrors.insufficientEditPermission(booksMissingEditPermission);
         } else {
             this.view.hasEditorPermission = true;
         }
@@ -225,13 +226,6 @@ export class BotAppController implements ReactiveController {
             }
         }
         return missingExcCodes;
-    }
-
-    private buildEditPermissionError(books: ExchangeBotBook[]): string {
-        const identifiers = books.map(b => b.book.getName() ?? b.excCode ?? b.book.getId());
-        const prefix = 'User needs EDITOR or OWNER permission in the following books:';
-        const suffix = identifiers.length > 1 ? 'books' : 'book';
-        return `${prefix} ${identifiers.join(', ')} ${suffix}`;
     }
 
     private buildWarning(prefix: string, excCodes: Set<string>): string {

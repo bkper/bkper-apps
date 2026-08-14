@@ -3,8 +3,6 @@ import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
-import { appEnv } from '../app-env.js';
-import { Errors } from '../errors.js';
 import type { AppError, ExchangeBotBook } from '../types.js';
 import './exchange-update/exchange-update-view.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
@@ -28,7 +26,7 @@ export class BotAppView extends LitElement {
     book?: Book;
 
     @state()
-    error = '';
+    error?: AppError;
 
     @state()
     initialDate = '';
@@ -84,7 +82,7 @@ export class BotAppView extends LitElement {
                     .books=${this.books}
                     .date=${this.initialDate}
                     .hasPermission=${this.hasEditorPermission}
-                    .error=${this.error}
+                    .error=${this.error?.message.before ?? ''}
                 ></exchange-update>
                 ${this.renderValidations()} ${this.renderWarnings()}
             `;
@@ -93,26 +91,7 @@ export class BotAppView extends LitElement {
     }
 
     private renderAppError(): TemplateResult {
-        let appError: AppError | undefined;
-
-        if (this.error) {
-            appError = { message: { before: this.error } };
-        }
-
-        if (this.bookId && !this.book && this.error === Errors.BOOK_ACCESS_REQUIRED) {
-            appError = {
-                title: this.error,
-                message: {
-                    action: {
-                        label: 'Request access',
-                        url: appEnv.getBookUrl(this.bookId),
-                    },
-                    after: 'in Bkper to continue.',
-                },
-            };
-        }
-
-        return html`<app-error .error=${appError}></app-error>`;
+        return html`<app-error .error=${this.error}></app-error>`;
     }
 
     private renderValidations(): TemplateResult {

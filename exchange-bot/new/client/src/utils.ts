@@ -1,14 +1,16 @@
 import { Amount, Permission, type Book, type Transaction } from 'bkper-js';
 import { EXC_BASE_PROP, EXC_CODE_PROP } from './constants.js';
 
-const VIEW_PERMISSIONS: readonly Permission[] = [
+/** Book permissions that allow the current user to view Book data. */
+export const VIEW_PERMISSIONS: readonly Permission[] = [
     Permission.VIEWER,
     Permission.POSTER,
     Permission.EDITOR,
     Permission.OWNER,
 ];
 
-const EDIT_PERMISSIONS: readonly Permission[] = [Permission.EDITOR, Permission.OWNER];
+/** Book permissions that allow the current user to edit Book data. */
+export const EDIT_PERMISSIONS: readonly Permission[] = [Permission.EDITOR, Permission.OWNER];
 
 /** General-purpose client utilities. */
 export class Utils {
@@ -59,16 +61,6 @@ export class Utils {
      */
     static canViewBook(book: Book): boolean {
         return VIEW_PERMISSIONS.includes(book.getPermission());
-    }
-
-    /**
-     * Builds the view authorization error for a Book.
-     *
-     * @param book - The Book whose current-user permission should be described.
-     * @returns A message containing the accepted and current permissions.
-     */
-    static getViewPermissionError(book: Book): string {
-        return formatPermissionError(book.getPermission(), VIEW_PERMISSIONS);
     }
 
     /**
@@ -142,23 +134,4 @@ export class Utils {
         }
         return `${year}-${month}-${day}`;
     }
-}
-
-function formatPermissionError(
-    currentPermission: Permission | undefined,
-    allowedPermissions: readonly Permission[]
-): string {
-    const required = formatPermissionList(allowedPermissions);
-    const current = currentPermission ?? 'unavailable';
-    return `Required Book permission: ${required}. Current: ${current}.`;
-}
-
-function formatPermissionList(permissions: readonly Permission[]): string {
-    if (permissions.length === 1) {
-        return permissions[0];
-    }
-    if (permissions.length === 2) {
-        return `${permissions[0]} or ${permissions[1]}`;
-    }
-    return `${permissions.slice(0, -1).join(', ')}, or ${permissions.at(-1)}`;
 }

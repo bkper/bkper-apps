@@ -82,7 +82,7 @@ describe('legacy Account create and update behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: ACCOUNT Revenue CREATED"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: ACCOUNT Revenue CREATED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('POST');
@@ -130,7 +130,7 @@ describe('legacy Account create and update behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: ACCOUNT New Revenue UPDATED"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: ACCOUNT New Revenue UPDATED"
         );
         expect(lookups).toEqual(['New Revenue', 'Old Revenue']);
         expect(requests).toHaveLength(1);

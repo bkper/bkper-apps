@@ -192,7 +192,7 @@ describe('legacy checked transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: CHECKED: 2026-01-02 50.00 Payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: CHECKED: 2026-01-02 50.00 Payment"
         );
         expect(transactionRequests().map(request => new URL(request.url).pathname)).toEqual([
             '/v5/books/connected-book/transactions/check',
@@ -213,7 +213,7 @@ describe('legacy checked transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: UPDATED AND CHECKED: 2026-01-02 50.00 Payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: UPDATED AND CHECKED: 2026-01-02 50.00 Payment"
         );
         expect(transactionRequests().map(request => new URL(request.url).pathname)).toEqual([
             '/v5/books/connected-book/transactions/uncheck',
@@ -240,7 +240,7 @@ describe('legacy checked transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: POSTED AND CHECKED: 2026-01-02 50.00 Payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: POSTED AND CHECKED: 2026-01-02 50.00 Payment"
         );
         expect(transactionRequests().map(request => new URL(request.url).pathname)).toEqual([
             '/v5/books/connected-book/transactions/post',
@@ -262,7 +262,7 @@ describe('legacy checked transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: ALREADY CHECKED: 2026-01-02 50.00 Payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: ALREADY CHECKED: 2026-01-02 50.00 Payment"
         );
         expect(transactionRequests()).toHaveLength(0);
     });

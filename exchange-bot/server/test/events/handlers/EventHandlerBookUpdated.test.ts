@@ -92,7 +92,7 @@ describe('legacy Book setting synchronization behavior', () => {
         });
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>:  page size: 50 period: YEAR lock date: 2026-01-31 closing date: 2025-12-31 period start month: APRIL exc_rates_url: https://rates.test/base exc_rates_cache: daily exc_on_check: true exc_aggregate: true"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>:  page size: 50 period: YEAR lock date: 2026-01-31 closing date: 2025-12-31 period start month: APRIL exc_rates_url: https://rates.test/base exc_rates_cache: daily exc_on_check: true exc_aggregate: true"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PUT');

@@ -77,7 +77,7 @@ describe('legacy Account deletion behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: ACCOUNT Revenue NOT Found"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: ACCOUNT Revenue NOT Found"
         );
         expect(requests).toHaveLength(0);
     });
@@ -102,7 +102,7 @@ describe('legacy Account deletion behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: ACCOUNT Revenue DELETED"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: ACCOUNT Revenue DELETED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('PUT');

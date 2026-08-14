@@ -130,7 +130,7 @@ describe('legacy restored transaction behavior', () => {
 
         expect(fixture.queries).toEqual(['remoteId:base-transaction is:trashed']);
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: RESTORED: 2025-12-31 40.00 Original payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: RESTORED: 2025-12-31 40.00 Original payment"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].url).toContain('/v5/books/connected-book/transactions/restore');

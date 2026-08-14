@@ -194,7 +194,7 @@ describe('legacy posted transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: 2026-01-02 50 Payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: 2026-01-02 50 Payment"
         );
         expect(fixture.queries).toEqual(['remoteId:base-transaction']);
         expect(requests).toHaveLength(1);

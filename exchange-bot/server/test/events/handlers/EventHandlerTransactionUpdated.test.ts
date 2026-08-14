@@ -209,7 +209,7 @@ describe('legacy updated transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: EDITED: 2026-01-02 50.00  From To Updated payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: EDITED: 2026-01-02 50.00  From To Updated payment"
         );
         expect(fixture.queries).toEqual(['remoteId:base-transaction']);
         expect(transactionPaths()).toEqual([
@@ -262,7 +262,7 @@ describe('legacy updated transaction behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: 2026-01-02 50 Updated payment"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: 2026-01-02 50 Updated payment"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].url).toContain('/transactions/post?');

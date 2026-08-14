@@ -121,7 +121,7 @@ describe('legacy shared event orchestration', () => {
         expect(handler.calls).toEqual(['eur-book', 'empty-response']);
         expect(result).toEqual(['eur-book']);
         expect(handler.getBookAnchor(new Book(createBookPayload('eur-book')))).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=eur-book'>eur-book</a>"
+            "<a href='https://bkper.app/books/eur-book/transactions'>eur-book</a>"
         );
     });
 

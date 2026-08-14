@@ -89,7 +89,7 @@ describe('legacy Group create and update behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: GROUP Revenue CREATED"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: GROUP Revenue CREATED"
         );
         expect(requests).toHaveLength(1);
         expect(requests[0].method).toBe('POST');
@@ -144,7 +144,7 @@ describe('legacy Group create and update behavior', () => {
         );
 
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=connected-book'>Connected Book</a>: GROUP New Revenue UPDATED"
+            "<a href='https://bkper.app/books/connected-book/transactions'>Connected Book</a>: GROUP New Revenue UPDATED"
         );
         expect(lookups).toEqual(['New Revenue', 'Old Revenue', 'Income']);
         expect(requests).toHaveLength(1);

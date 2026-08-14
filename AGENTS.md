@@ -7,7 +7,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | App | Type | Location |
 | --- | --- | --- |
 | Bkper CSV App | Platform app (Vite + Cloudflare Workers) | `bkper-csv-app/` |
-| Exchange Bot | GCP Cloud Functions + Apps Script | `exchange-bot/` |
+| Exchange Bot | Platform app (Vite + Cloudflare Workers) | `exchange-bot/` |
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
 | Inventory Bot (legacy) | Apps Script + GCP Cloud Functions | `inventory-bot/legacy/` |
 | Inventory Bot (new) | Platform app (Vite + Cloudflare Workers) | `inventory-bot/new/` |
@@ -27,7 +27,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | inventory-bot/new | `5175` | `8787` | Assigned for the new Inventory Bot platform app |
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
-| exchange-bot/new | `5177` | `8793` | Isolated Cloudflare migration target; `8791` and `8792` are used elsewhere in the workspace |
+| exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
 | tax-bot/new | — | `8794` | Event-only migration Worker configured in `package.json` |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
@@ -39,17 +39,15 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | App | functions-framework port | Notes |
 | --- | --- | --- |
 | portfolio-bot/gcf | `3002` | Configured in `portfolio-bot/gcf/package.json` |
-| exchange-bot/legacy/events | `3003` | Configured in `exchange-bot/legacy/events/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
 | tax-bot/legacy | `3041` | Configured in `tax-bot/legacy/package.json` |
 
-**Next available:** `3004`.
+**Next available:** `3003`.
 
 ### Apps Script components
 
 Apps Script components do not run local dev servers and do not need port assignments:
 
-- `exchange-bot/legacy/menu/`
 - `inventory-bot/legacy/menu/`
 - `portfolio-bot/gas/`
 

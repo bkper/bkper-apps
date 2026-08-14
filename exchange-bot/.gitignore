@@ -1,6 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.wrangler/
+.mf/
+.dev.vars
+.env
 .DS_Store
-node_modules
 yarn-error.log
 .history
-.env
 yarn.lock
+!bun.lock

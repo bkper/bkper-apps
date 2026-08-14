@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–20 complete. Chunk 21 is not started. Cloudflare is production-authoritative for both events and the menu.**
+**Chunks 1–21 complete. The Cloudflare migration is complete, and Cloudflare is production-authoritative for both events and the menu.**
 
-The Cloudflare target is deployed to preview and production, both development surfaces route to preview, and API and client Book-permission hardening, preview event validation, preview menu and Exchange Update validation, the final drift audit, production deployment, production webhook cutover, event stabilization, production menu cutover, and full-stack stabilization are complete. The one-hour active menu-monitoring window passed without a rollback trigger. Full-stack stabilization was explicitly accepted after more than 20 hours of the intended 24-hour observation period; the team intentionally did not restart or finish the period after a subsequent production redeployment.
+The full-stack Cloudflare application now occupies the `exchange-bot/` project root. Preview validation, production deployment, independent event and menu cutovers, stabilization, and repository consolidation are complete. The inactive GCP and Apps Script working-tree source and obsolete local tooling have been removed, while their unchanged deployed runtimes remain available as independent routing rollback targets. Full-stack stabilization was explicitly accepted after more than 20 hours of the intended 24-hour observation period; the team intentionally did not restart or finish the period after a subsequent production redeployment.
 
 ## Purpose of this document
 
@@ -652,17 +652,19 @@ This chunk is an explicitly accepted pre-production security hardening prerequis
 
 ### Chunk 21 — Repository consolidation and deferred legacy retirement
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Move the Cloudflare project from `new/` to the `exchange-bot/` root.
-- Remove the inactive `legacy/` working-tree copy and obsolete local GCP and Apps Script tooling.
-- Update workspace instructions and port forwarding.
-- Verify that source, tests, lockfile, generated contracts, configuration, client assets, and Worker behavior remain unchanged through the move.
-- Preserve legacy source in Git history.
-- Keep the unchanged GCP and Apps Script deployments available as independent routing rollback targets.
-- Confirm that the already-restored `developers: '*@bkper.com'` metadata remains synchronized after consolidation.
+- Moved the Cloudflare project from `new/` to the `exchange-bot/` root, including the active client, server, configuration, lockfile, generated contracts, tests, project instructions, and bug ledger.
+- Removed the inactive `legacy/` working-tree copy, obsolete local GCP and Apps Script tooling, and the unreferenced legacy menu screenshot. Legacy source remains recoverable from Git history.
+- Kept the local ignored `.dev.vars` configuration while rebuilding dependencies and deployment artifacts from a clean root install. Added the generated `.dev.vars.example` alongside the other generated environment contract.
+- Updated workspace instructions to classify Exchange Bot as a Platform app, removed the retired local GCP port `3003`, retained Vite `5177` and Worker `8793`, and aligned workspace port forwarding.
+- Before consolidation, passed the complete Cloudflare gate with 239 tests, strict client and server typechecks, production client and Worker builds, formatting, and generated-contract checks. Also passed the legacy event handler's eight tests and production build and the legacy menu typecheck with its declared TypeScript 4.9.5 compiler and scoped Apps Script and Bkper type boundaries.
+- Compared all 130 retained target files with their pre-move Git contents, excluding only the intentionally rewritten project instructions and merged ignore rules, and found no mismatch.
+- After consolidation, passed the same complete Cloudflare gate from the project root with 239 tests, strict typechecks, production builds, formatting, and generated-contract checks.
+- Kept the unchanged deployed GCP and Apps Script runtimes available as independent routing rollback targets. Team-wide `developers: '*@bkper.com'` access was already restored before consolidation.
+- Performed no deployment, app sync, routing change, Book write, event replay, legacy infrastructure mutation, or remote deletion during consolidation.
 
-**Gate:** Cloudflare is the only active implementation in the project root, and app administration retains its normal team-wide developer access. Consolidation itself performs no deployment, routing change, legacy infrastructure mutation, or Book write.
+**Gate:** Passed. Cloudflare is the only active implementation in the project root, app administration retains its normal team-wide developer access, and consolidation changed no application behavior or remote state.
 
 ## Rollback strategy
 

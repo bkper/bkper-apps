@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–5 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, and response envelopes. Posted and restored creation and all Book mutation behavior have not been ported, and no deployment or routing change has begun.
+**Chunks 1–6 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, and response envelopes. Deletion and update Book mutation behavior have not been ported, and no deployment or routing change has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -340,15 +340,15 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 6 — Port posted and restored creation
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Port posted-event behavior and same-agent loop prevention.
-- Port creation for both source Accounts and all eligible Groups.
-- Port batch creation, returned Transaction handling, and response strings.
-- Route restore through the established posted behavior.
-- Characterize replay and remote-id idempotency.
+- Ported posted-event behavior while retaining same-agent loop prevention.
+- Ported creation for both source Accounts and all eligible Groups.
+- Ported batch creation, returned Transaction handling, and response strings.
+- Preserved restore routing through the established posted behavior.
+- Characterized replay and remote-id idempotency at the deterministic SDK boundary.
 
-**Gate:** No duplicate, missing, reversed, partial, or unexpectedly posted tax movement remains unexplained.
+**Gate:** Deterministic tests confirm one ordered batch request per eligible event, stable remote ids across posted replay and restore, established empty and returned-result handling, and no direct post request after creation. Simulated unresolved Account resolution remains a draft. The full local check passes with the network boundary intercepted and without credentials, live Books, or Book writes; live API idempotency remains part of preview validation.
 
 ### Chunk 7 — Port deletion
 

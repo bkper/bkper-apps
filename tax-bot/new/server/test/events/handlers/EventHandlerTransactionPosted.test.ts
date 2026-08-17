@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { Amount, Bkper, Book, type Transaction } from 'bkper-js';
 import { AppContext } from '../../../src/AppContext';
 import { TAX_EXCLUDED_RATE_PROP } from '../../../src/constants';
@@ -111,9 +111,13 @@ function createTransaction(overrides: Partial<bkper.Transaction> = {}): bkper.Tr
     };
 }
 
-function createEvent(transaction: bkper.Transaction, eventAgentId = 'tester'): bkper.Event {
+function createEvent(
+    transaction: bkper.Transaction,
+    eventAgentId = 'tester',
+    eventType: bkper.Event['type'] = 'TRANSACTION_POSTED'
+): bkper.Event {
     return {
-        type: 'TRANSACTION_POSTED',
+        type: eventType,
         book: createBook().json(),
         user: { username: 'tester' },
         agent: { id: eventAgentId },
@@ -125,8 +129,101 @@ function createHandler(): TaxSourceHandler {
     return new TaxSourceHandler(new AppContext(new Bkper()));
 }
 
+function createNetworkHandler(): TaxSourceHandler {
+    return new TaxSourceHandler(
+        new AppContext(
+            new Bkper({
+                apiBaseUrl: 'https://api.test',
+                oauthTokenProvider: async () => 'test-token',
+            })
+        )
+    );
+}
+
 function createNetRecordingHandler(): NetRecordingHandler {
     return new NetRecordingHandler(new AppContext(new Bkper()));
+}
+
+type BatchItem = Record<string, unknown>;
+
+interface BatchRequest {
+    items: BatchItem[];
+}
+
+interface BatchFetchCall {
+    url: string;
+    method: string | undefined;
+    request: BatchRequest;
+    responseItems: BatchItem[];
+}
+
+type BatchResponder = (request: BatchRequest, callIndex: number) => BatchItem[];
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+    globalThis.fetch = originalFetch;
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseBatchRequest(body: BodyInit | null | undefined): BatchRequest {
+    if (typeof body !== 'string') {
+        throw new Error('Expected a JSON request body');
+    }
+
+    const parsed: unknown = JSON.parse(body);
+    if (!isRecord(parsed) || !Array.isArray(parsed.items)) {
+        throw new Error('Expected a batch request');
+    }
+
+    const items: BatchItem[] = [];
+    for (const item of parsed.items) {
+        if (!isRecord(item)) {
+            throw new Error('Expected Transaction payloads');
+        }
+        items.push(item);
+    }
+    return { items };
+}
+
+function getRequestUrl(input: string | URL | Request): string {
+    if (typeof input === 'string') {
+        return input;
+    }
+    if (input instanceof URL) {
+        return input.toString();
+    }
+    return input.url;
+}
+
+function interceptBatchCreation(responder: BatchResponder): BatchFetchCall[] {
+    const calls: BatchFetchCall[] = [];
+    const fetchMock = async (
+        input: string | URL | Request,
+        init?: RequestInit
+    ): Promise<Response> => {
+        const request = parseBatchRequest(init?.body);
+        const responseItems = responder(request, calls.length);
+        calls.push({
+            url: getRequestUrl(input),
+            method: init?.method,
+            request,
+            responseItems,
+        });
+        return new Response(JSON.stringify({ items: responseItems }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+    Object.defineProperty(globalThis, 'fetch', {
+        configurable: true,
+        writable: true,
+        value: fetchMock,
+    });
+    return calls;
 }
 
 describe('legacy tax source discovery', () => {
@@ -688,5 +785,137 @@ describe('legacy tax Transaction construction', () => {
         expect(payload.creditAccount).toBeUndefined();
         expect(payload.debitAccount).toBeUndefined();
         expect(payload.posted).toBeUndefined();
+    });
+});
+
+describe('legacy posted and restored creation', () => {
+    test('batch creates all Account and Group tax entries in construction order', async () => {
+        const origin = createAccount(
+            'origin',
+            {
+                tax_excluded_rate: '10',
+                tax_description: 'Origin Tax >> Tax Payable',
+            },
+            [
+                {
+                    id: 'origin-group',
+                    properties: {
+                        tax_excluded_rate: '5',
+                        tax_description: 'Group Tax >> Tax Payable',
+                    },
+                },
+            ]
+        );
+        const destination = createAccount('destination', {
+            tax_excluded_rate: '2',
+            tax_description: 'Destination Tax >> Tax Payable',
+        });
+        const transaction = createTransaction({
+            id: 'source-1',
+            creditAccount: origin,
+            debitAccount: destination,
+        });
+        const calls = interceptBatchCreation(request =>
+            request.items.map((item, index) => ({
+                ...item,
+                id: `tax-${index + 1}`,
+                dateFormatted: `date-${index + 1}`,
+                posted: true,
+                creditAccount: { id: `tax-origin-${index + 1}` },
+                debitAccount: { id: `tax-destination-${index + 1}` },
+            }))
+        );
+
+        const result = await createNetworkHandler().handleEvent(createEvent(transaction));
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].url).toBe('https://api.test/v5/books/book-1/transactions/batch?');
+        expect(calls[0].method).toBe('POST');
+        expect(calls[0].request.items.map(item => item.remoteIds)).toEqual([
+            ['tax_excluded_rate_source-1_origin'],
+            ['tax_excluded_rate_source-1_origin-group'],
+            ['tax_excluded_rate_source-1_destination'],
+        ]);
+        expect(calls[0].request.items.map(item => item.amount)).toEqual(['10', '5', '2']);
+        expect(result).toEqual([
+            'POSTED: date-1 10.00 Origin Tax >> Tax Payable',
+            'POSTED: date-2 5.00 Group Tax >> Tax Payable',
+            'POSTED: date-3 2.00 Destination Tax >> Tax Payable',
+        ]);
+    });
+
+    test('returns false when batch creation returns no Transactions', async () => {
+        const origin = createAccount('origin', {
+            tax_excluded_rate: '10',
+            tax_description: 'Origin Tax >> Tax Payable',
+        });
+        const calls = interceptBatchCreation(() => []);
+
+        const result = await createNetworkHandler().handleEvent(
+            createEvent(createTransaction({ creditAccount: origin }))
+        );
+
+        expect(calls).toHaveLength(1);
+        expect(result).toBe(false);
+    });
+
+    test('preserves remote ids across posted replay and restored creation', async () => {
+        const origin = createAccount('origin', {
+            tax_excluded_rate: '10',
+            tax_description: 'Origin Tax >> Tax Payable',
+        });
+        const transaction = createTransaction({
+            id: 'source-1',
+            creditAccount: origin,
+        });
+        const calls = interceptBatchCreation(request =>
+            request.items.map(item => ({
+                ...item,
+                id: 'existing-tax-1',
+                dateFormatted: 'date-1',
+                posted: true,
+                creditAccount: { id: 'tax-origin' },
+                debitAccount: { id: 'tax-destination' },
+            }))
+        );
+
+        const postedResult = await createNetworkHandler().handleEvent(createEvent(transaction));
+        const restoredResult = await createNetworkHandler().handleEvent(
+            createEvent(transaction, 'tester', 'TRANSACTION_RESTORED')
+        );
+
+        expect(calls).toHaveLength(2);
+        expect(calls[0].request.items.map(item => item.remoteIds)).toEqual([
+            ['tax_excluded_rate_source-1_origin'],
+        ]);
+        expect(calls[1].request.items.map(item => item.remoteIds)).toEqual(
+            calls[0].request.items.map(item => item.remoteIds)
+        );
+        expect(restoredResult).toEqual(postedResult);
+    });
+
+    test('submits unresolved descriptions only through batch creation and preserves the draft', async () => {
+        const origin = createAccount('origin', {
+            tax_excluded_rate: '10',
+            tax_description: 'Tax Payable >> Missing Account',
+        });
+        const calls = interceptBatchCreation(request =>
+            request.items.map(item => ({
+                ...item,
+                id: 'draft-tax-1',
+                dateFormatted: 'date-1',
+                posted: false,
+            }))
+        );
+
+        const result = await createNetworkHandler().handleEvent(
+            createEvent(createTransaction({ creditAccount: origin }))
+        );
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].request.items[0].creditAccount).toBeUndefined();
+        expect(calls[0].request.items[0].debitAccount).toBeUndefined();
+        expect(calls[0].responseItems[0].posted).toBe(false);
+        expect(result).toEqual(['POSTED: date-1 10.00 Tax Payable >> Missing Account']);
     });
 });

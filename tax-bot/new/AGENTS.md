@@ -1,6 +1,6 @@
 # Tax Bot Cloudflare Migration
 
-This is the event-only Cloudflare Worker migration target. Event ingress, common guards, tax source discovery, calculation, and Transaction construction have been ported; Book mutation behavior has not. The active GCP implementation remains in `../legacy/` until the separately approved production webhook cutover.
+This is the event-only Cloudflare Worker migration target. Event ingress, common guards, tax source discovery, calculation, Transaction construction, and posted/restored batch creation have been ported; deletion and update mutation behavior has not. The active GCP implementation remains in `../legacy/` until the separately approved production webhook cutover.
 
 ## Scope
 

@@ -99,7 +99,19 @@ export default class EventHandlerTransactionPosted extends EventHandler {
             this.getTaxTransactions(book, destinationAccount, originAccount, transaction, netAmount)
         );
 
-        return false;
+        if (transactions.length > 0) {
+            transactions = await book.batchCreateTransactions(transactions);
+            if (transactions.length > 0) {
+                return transactions.map(
+                    transaction =>
+                        `POSTED: ${transaction.getDateFormatted()} ${book.formatValue(transaction.getAmount())} ${transaction.getDescription()}`
+                );
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
 
     protected async getFullTaxRate_(

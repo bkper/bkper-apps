@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { Bkper } from 'bkper-js';
-import { AppContext } from '../src/AppContext';
-import EventHandlerTransactionDeleted from '../src/events/handlers/EventHandlerTransactionDeleted';
-import EventHandlerTransactionPosted from '../src/events/handlers/EventHandlerTransactionPosted';
-import EventHandlerTransactionUpdated from '../src/events/handlers/EventHandlerTransactionUpdated';
-import app from '../src/index';
+import { AppContext } from '../../src/AppContext';
+import EventHandlerTransactionDeleted from '../../src/events/handlers/EventHandlerTransactionDeleted';
+import EventHandlerTransactionPosted from '../../src/events/handlers/EventHandlerTransactionPosted';
+import EventHandlerTransactionUpdated from '../../src/events/handlers/EventHandlerTransactionUpdated';
+import app from '../../src/index';
 
 type SubscribedEventType =
     'TRANSACTION_POSTED' | 'TRANSACTION_DELETED' | 'TRANSACTION_RESTORED' | 'TRANSACTION_UPDATED';

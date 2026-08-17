@@ -9,65 +9,110 @@ export class MergeDuplicatesApp extends LitElement {
     static styles = css`
         :host {
             display: block;
+            height: 100vh;
             min-height: 100%;
             box-sizing: border-box;
-            padding: var(--bkper-spacing-medium);
             background: var(--bkper-color-background);
             color: var(--bkper-color-text);
             font-family: var(--bkper-font-family);
         }
 
         .app,
-        .stack,
-        .pair,
-        .transaction,
-        .results {
+        .app-content,
+        .messages,
+        .app-header,
+        .brand-copy,
+        .review,
+        .review-body,
+        .pair-list,
+        .pair-copy,
+        .pair-transactions,
+        .results,
+        .result-copy,
+        .dialog-copy,
+        .stack {
             display: grid;
         }
 
         .app {
-            gap: var(--bkper-spacing-large);
+            height: 100%;
+            min-height: 100%;
+            grid-template-rows: auto minmax(0, 1fr);
+            overflow: hidden;
         }
 
-        .stack,
-        .results {
-            gap: var(--bkper-spacing-medium);
+        .app-content {
+            min-height: 0;
+            grid-template-rows: auto minmax(0, 1fr);
+            overflow: hidden;
         }
 
-        .pair,
-        .transaction {
+        .messages {
             gap: var(--bkper-spacing-small);
+            padding: var(--bkper-spacing-medium);
+        }
+
+        .screen {
+            grid-row: 2;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .review {
+            height: 100%;
+            min-height: 0;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            overflow: hidden;
+        }
+
+        .review-body,
+        .pair-list,
+        .pair-transactions {
+            align-content: start;
+        }
+
+        .review-body {
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .app-header {
+            gap: var(--bkper-spacing-medium);
+            padding: var(--bkper-spacing-medium);
+            border-bottom: var(--bkper-border);
         }
 
         .brand,
-        .title-row,
-        .stats,
-        .card-heading,
-        .transaction-meta,
-        .actions,
-        .result-row {
+        .scope,
+        .review-master,
+        .review-footer,
+        .transaction-primary,
+        .transaction-detail,
+        .result-row,
+        .actions {
             display: flex;
             align-items: center;
         }
 
         .brand,
-        .title-row,
-        .card-heading,
-        .transaction-meta,
-        .actions,
-        .result-row {
+        .scope,
+        .review-master,
+        .transaction-primary,
+        .transaction-detail,
+        .result-row,
+        .actions {
             gap: var(--bkper-spacing-small);
-        }
-
-        .title-row,
-        .card-heading,
-        .result-row {
-            justify-content: space-between;
         }
 
         .brand img {
             width: var(--bkper-spacing-2x-large);
             height: var(--bkper-spacing-2x-large);
+        }
+
+        .brand-copy,
+        .pair-copy,
+        .result-copy {
+            gap: var(--bkper-spacing-3x-small);
         }
 
         h1,
@@ -88,88 +133,239 @@ export class MergeDuplicatesApp extends LitElement {
 
         .subtitle,
         .muted,
-        .transaction-meta,
-        .properties,
+        .scan-summary,
+        .pair-explanation,
         .progress-message {
             color: var(--bkper-color-neutral);
             font-size: var(--bkper-font-size-small);
             line-height: var(--bkper-line-height-normal);
         }
 
-        .query-label,
+        .scope {
+            min-width: 0;
+        }
+
+        .scope-label,
         .section-label {
+            flex: 0 0 auto;
             color: var(--bkper-color-neutral);
             font-size: var(--bkper-font-size-x-small);
             font-weight: var(--bkper-font-weight-bold);
             text-transform: uppercase;
         }
 
-        .query {
-            padding: var(--bkper-spacing-small);
-            overflow-wrap: anywhere;
-            border: var(--bkper-border);
-            border-radius: var(--bkper-border-radius);
-            background: var(--bkper-color-grey-low);
+        .scope-query {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--bkper-color-neutral);
             font-family: var(--bkper-font-family-code);
+            font-size: var(--bkper-font-size-small);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .center,
+        .loading-status {
+            display: grid;
+            min-height: var(--bkper-spacing-4x-large);
+            place-items: center;
+        }
+
+        .loading-status {
+            grid-auto-flow: column;
+            justify-content: center;
+            gap: var(--bkper-spacing-small);
+            color: var(--bkper-color-neutral);
             font-size: var(--bkper-font-size-small);
         }
 
-        .stats {
-            flex-wrap: wrap;
-            gap: var(--bkper-spacing-x-small);
+        .review-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
+            border-bottom: var(--bkper-border);
+            background: var(--bkper-color-background);
         }
 
-        wa-card {
-            --spacing: var(--bkper-spacing-medium);
-        }
-
-        wa-details {
-            --spacing: var(--bkper-spacing-medium);
-        }
-
-        .card-heading > div,
-        .description,
-        .result-copy {
-            min-width: 0;
-        }
-
-        .transaction {
-            padding: var(--bkper-spacing-small);
-            border: var(--bkper-border);
-            border-radius: var(--bkper-border-radius);
-        }
-
-        .transaction-meta {
-            flex-wrap: wrap;
+        .review-master {
             justify-content: space-between;
         }
 
-        .amount {
-            color: var(--bkper-color-text);
-            font-family: var(--bkper-font-family-code);
+        .master-checkbox {
+            min-width: 0;
             font-weight: var(--bkper-font-weight-bold);
         }
 
-        .movement {
-            overflow-wrap: anywhere;
+        .selection-count {
+            flex: 0 0 auto;
+            color: var(--bkper-color-primary);
             font-size: var(--bkper-font-size-small);
             font-weight: var(--bkper-font-weight-bold);
         }
 
-        .description,
-        .properties,
-        .progress-message {
+        .scan-summary {
+            margin-top: var(--bkper-spacing-3x-small);
+            padding-left: var(--bkper-spacing-large);
+        }
+
+        .pair {
+            border-bottom: var(--bkper-border);
+            background: var(--bkper-color-background);
+            transition: background-color var(--wa-transition-fast);
+        }
+
+        .pair.selected {
+            background: var(--bkper-color-blue-low);
+        }
+
+        .pair-heading {
+            padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
+        }
+
+        .pair-selector {
+            width: 100%;
+        }
+
+        .pair-selector::part(checkbox) {
+            align-items: flex-start;
+        }
+
+        .pair-strength {
+            font-size: var(--bkper-font-size-small);
+            font-weight: var(--bkper-font-weight-bold);
+        }
+
+        .pair-explanation {
             overflow-wrap: anywhere;
         }
 
-        .merge-mark {
-            justify-self: center;
-            color: var(--bkper-color-primary);
+        .pair-transactions {
+            border-top: var(--bkper-border);
         }
 
-        .card-action,
+        .transaction-row {
+            display: grid;
+            gap: var(--bkper-spacing-x-small);
+            padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
+        }
+
+        .transaction-row + .transaction-row {
+            border-top: var(--bkper-border);
+        }
+
+        .transaction-primary {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+
+        .transaction-status {
+            color: var(--bkper-color-neutral);
+            font-size: var(--bkper-font-size-small);
+        }
+
+        .transaction-status.draft {
+            color: var(--bkper-color-danger);
+        }
+
+        .date,
+        .amount {
+            font-size: var(--bkper-font-size-small);
+            font-weight: var(--bkper-font-weight-bold);
+        }
+
+        .amount {
+            font-family: var(--bkper-font-family-code);
+            text-align: right;
+        }
+
+        .transaction-detail {
+            min-width: 0;
+            flex-wrap: wrap;
+            padding-left: var(--bkper-spacing-large);
+        }
+
+        .account-pill {
+            max-width: 100%;
+            padding-inline: var(--bkper-spacing-small);
+            overflow: hidden;
+            border-radius: var(--bkper-spacing-small);
+            font-size: var(--bkper-font-size-small);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .account-pill.asset {
+            background: var(--bkper-color-blue-medium);
+        }
+
+        .account-pill.liability {
+            background: var(--bkper-color-yellow-medium);
+        }
+
+        .account-pill.incoming {
+            background: var(--bkper-color-green-medium);
+        }
+
+        .account-pill.outgoing {
+            background: var(--bkper-color-red-medium);
+        }
+
+        .unassigned,
+        .movement-arrow {
+            color: var(--bkper-color-neutral);
+            font-size: var(--bkper-font-size-small);
+        }
+
+        .description {
+            min-width: 0;
+            flex: 1 1 20ch;
+            overflow-wrap: anywhere;
+            font-size: var(--bkper-font-size-small);
+        }
+
+        .pagination,
+        .empty-review {
+            padding: var(--bkper-spacing-medium);
+        }
+
+        .pagination wa-button,
         .primary-action {
             width: 100%;
+        }
+
+        .review-footer {
+            z-index: 1;
+            justify-content: space-between;
+            gap: var(--bkper-spacing-medium);
+            padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
+            border-top: var(--bkper-border);
+            background: var(--bkper-color-background);
+            box-shadow: var(--wa-shadow-s);
+        }
+
+        .footer-count {
+            display: grid;
+            font-size: var(--bkper-font-size-small);
+        }
+
+        .footer-count span {
+            color: var(--bkper-color-neutral);
+        }
+
+        .stack,
+        .results,
+        .dialog-copy {
+            gap: var(--bkper-spacing-medium);
+        }
+
+        .stack {
+            padding: var(--bkper-spacing-medium);
+        }
+
+        .result-row {
+            justify-content: space-between;
+            gap: var(--bkper-spacing-small);
         }
 
         .actions {
@@ -179,22 +375,6 @@ export class MergeDuplicatesApp extends LitElement {
 
         .actions wa-button {
             flex: 1 1 auto;
-        }
-
-        .center {
-            display: grid;
-            min-height: var(--bkper-spacing-4x-large);
-            place-items: center;
-        }
-
-        .dialog-copy {
-            display: grid;
-            gap: var(--bkper-spacing-medium);
-        }
-
-        .result-copy {
-            display: grid;
-            gap: var(--bkper-spacing-3x-small);
         }
 
         .status-merged {
@@ -218,17 +398,51 @@ export class MergeDuplicatesApp extends LitElement {
         return html`
             <main class="app">
                 ${this.renderHeader()}
-                ${
-                    state.authenticating && state.pages === 0
-                        ? html`<div class="center" role="status"><wa-spinner></wa-spinner></div>`
-                        : html``
-                }
-                ${state.error ? this.renderCallout(state.error, 'danger', 'circle-exclamation') : html``}
-                ${state.notice ? this.renderCallout(state.notice, 'neutral', 'circle-info') : html``}
-                ${state.analyzing ? this.renderAnalyzing() : html``}
-                ${state.applying ? this.renderLiveProgress() : html``}
-                ${state.pages > 0 && !review.processed && !state.applying ? this.renderReview() : html``}
-                ${review.processed && !state.applying ? this.renderResults() : html``}
+                <div class="app-content">
+                    ${
+                        state.error || state.notice
+                            ? html`
+                                  <div class="messages">
+                                      ${
+                                          state.error
+                                              ? this.renderCallout(
+                                                    state.error,
+                                                    'danger',
+                                                    'circle-exclamation'
+                                                )
+                                              : html``
+                                      }
+                                      ${
+                                          state.notice
+                                              ? this.renderCallout(
+                                                    state.notice,
+                                                    'neutral',
+                                                    'circle-info'
+                                                )
+                                              : html``
+                                      }
+                                  </div>
+                              `
+                            : html``
+                    }
+                    <div class="screen">
+                        ${
+                            state.authenticating && state.pages === 0
+                                ? html`<div class="center" role="status">
+                                      <wa-spinner></wa-spinner>
+                                  </div>`
+                                : html``
+                        }
+                        ${state.analyzing && state.pages === 0 ? this.renderAnalyzing() : html``}
+                        ${state.applying ? this.renderLiveProgress() : html``}
+                        ${
+                            state.pages > 0 && !review.processed && !state.applying
+                                ? this.renderReview()
+                                : html``
+                        }
+                        ${review.processed && !state.applying ? this.renderResults() : html``}
+                    </div>
+                </div>
             </main>
             ${this.renderConfirmation()}
         `;
@@ -236,8 +450,10 @@ export class MergeDuplicatesApp extends LitElement {
 
     private renderHeader(): TemplateResult {
         const query = this.controller.state.context.query;
+        if (this.embedded && !query) return html``;
+
         return html`
-            <header class="stack">
+            <header class="app-header">
                 ${
                     this.embedded
                         ? html``
@@ -253,193 +469,219 @@ export class MergeDuplicatesApp extends LitElement {
                                           alt="Merge Duplicates logo"
                                       />
                                   </picture>
-                                  <div>
+                                  <div class="brand-copy">
                                       <h1>Merge Duplicates</h1>
                                       <p class="subtitle">
-                                          Review AI-assisted matches before anything changes.
+                                          Review likely matches before anything changes.
                                       </p>
                                   </div>
                               </div>
                           `
                 }
-                <div class="stack">
-                    <span class="query-label">Captured transaction query</span>
-                    <div class="query" role="textbox" aria-readonly="true">
-                        ${query || '(all transactions)'}
-                    </div>
-                </div>
+                ${
+                    query
+                        ? html`
+                              <div class="scope">
+                                  <span class="scope-label">Scope</span>
+                                  <span class="scope-query" title=${query}>${query}</span>
+                              </div>
+                          `
+                        : html``
+                }
             </header>
         `;
     }
 
     private renderAnalyzing(): TemplateResult {
         return html`
-            <wa-callout variant="brand" appearance="filled-outlined" size="small">
-                <wa-spinner slot="icon"></wa-spinner>
-                Looking for duplicates…
-            </wa-callout>
+            <div class="loading-status" role="status">
+                <wa-spinner></wa-spinner>
+                <span>Looking for duplicates…</span>
+            </div>
         `;
     }
 
     private renderReview(): TemplateResult {
         const state = this.controller.state;
         const review = this.controller.review;
-        const total = review.accepted.length + review.rejected.length;
+        const total = review.suggestions.length;
+        const selected = review.accepted.length;
+        const allSelected = total > 0 && selected === total;
+        const partiallySelected = selected > 0 && selected < total;
+        const skippedSummary = state.skipped.total > 0 ? ` · ${state.skipped.total} skipped` : '';
+
         return html`
-            <section class="stack" aria-labelledby="review-title">
-                <div class="title-row">
-                    <div>
-                        <p class="section-label">Review</p>
-                        <h2 id="review-title">
-                            ${total} duplicate suggestion${total === 1 ? '' : 's'}
-                        </h2>
+            <section class="review" aria-labelledby="review-title">
+                <header class="review-toolbar">
+                    <div class="review-master">
+                        <wa-checkbox
+                            class="master-checkbox"
+                            size="s"
+                            .checked=${allSelected}
+                            .indeterminate=${partiallySelected}
+                            ?disabled=${total === 0}
+                            @change=${this.handleAllSelection}
+                        >
+                            <span id="review-title">
+                                ${total} suggested pair${total === 1 ? '' : 's'}
+                            </span>
+                        </wa-checkbox>
+                        <span class="selection-count">${selected} selected</span>
                     </div>
-                    <wa-badge variant="brand" appearance="filled" pill>
-                        ${review.accepted.length} accepted
-                    </wa-badge>
-                </div>
+                    <p class="scan-summary">
+                        ${state.scanned} transaction${state.scanned === 1 ? '' : 's'}
+                        reviewed${skippedSummary}
+                    </p>
+                </header>
 
-                <div class="stats" aria-label="Scan totals">
-                    <wa-badge variant="neutral" appearance="outlined"
-                        >${state.scanned} scanned</wa-badge
-                    >
-                    <wa-badge variant="neutral" appearance="outlined">
-                        ${state.candidateCount} candidates
-                    </wa-badge>
-                    <wa-badge variant="warning" appearance="outlined">
-                        ${state.skipped.total} skipped
-                    </wa-badge>
-                </div>
-                ${
-                    state.skipped.total > 0
-                        ? html`<p class="muted">
-                              Skipped: ${state.skipped.checked} checked, ${state.skipped.trashed}
-                              trashed, ${state.skipped.locked} locked.
-                          </p>`
-                        : html``
-                }
-                ${
-                    review.accepted.length > 0
-                        ? html`<div class="stack">
-                              ${review.accepted.map(suggestion => this.renderSuggestion(suggestion, false))}
-                          </div>`
-                        : this.renderCallout(
-                              'No accepted suggestions on the pages analyzed so far.',
-                              'neutral',
-                              'circle-info'
-                          )
-                }
-                ${
-                    review.rejected.length > 0
-                        ? html`
-                              <wa-details appearance="outlined">
-                                  <span slot="summary">Rejected (${review.rejected.length})</span>
-                                  <div class="stack">
-                                      ${review.rejected.map(suggestion =>
-                                          this.renderSuggestion(suggestion, true)
-                                      )}
-                                  </div>
-                              </wa-details>
-                          `
-                        : html``
-                }
-
-                <div class="actions">
-                    ${
-                        review.cursor
-                            ? html`
-                                  <wa-button
-                                      appearance="outlined"
-                                      ?loading=${state.analyzing}
-                                      ?disabled=${state.applying}
-                                      @click=${() => this.controller.analyzeNext()}
-                                  >
-                                      Analyze next 200
-                                  </wa-button>
-                              `
-                            : html``
-                    }
+                <div class="review-body">
                     ${
                         total > 0
                             ? html`
-                                  <wa-button
-                                      variant="brand"
-                                      appearance="filled"
-                                      ?disabled=${state.analyzing || state.applying}
-                                      @click=${() => this.controller.showConfirmation()}
-                                  >
-                                      Apply review
-                                  </wa-button>
+                                  <div class="pair-list">
+                                      ${review.suggestions.map(suggestion =>
+                                          this.renderSuggestion(
+                                              suggestion,
+                                              review.selectedIds.has(suggestion.id)
+                                          )
+                                      )}
+                                  </div>
+                              `
+                            : html`
+                                  <div class="empty-review">
+                                      ${this.renderCallout(
+                                          'No likely duplicate pairs found in this batch.',
+                                          'neutral',
+                                          'circle-check'
+                                      )}
+                                  </div>
+                              `
+                    }
+                    ${
+                        review.cursor
+                            ? html`
+                                  <div class="pagination">
+                                      <wa-button
+                                          appearance="outlined"
+                                          ?loading=${state.analyzing}
+                                          ?disabled=${state.applying}
+                                          @click=${() => this.controller.analyzeNext()}
+                                      >
+                                          Look for more
+                                      </wa-button>
+                                  </div>
                               `
                             : html``
                     }
                 </div>
+                ${
+                    total > 0
+                        ? html`
+                              <footer class="review-footer">
+                                  <div class="footer-count">
+                                      <strong>${selected} selected</strong>
+                                      <span>of ${total} pairs</span>
+                                  </div>
+                                  <wa-button
+                                      variant="brand"
+                                      appearance="filled"
+                                      ?disabled=${selected === 0 || state.analyzing || state.applying}
+                                      @click=${() => this.controller.showConfirmation()}
+                                  >
+                                      Merge selected
+                                  </wa-button>
+                              </footer>
+                          `
+                        : html``
+                }
             </section>
         `;
     }
 
-    private renderSuggestion(suggestion: Suggestion, rejected: boolean): TemplateResult {
+    private renderSuggestion(suggestion: Suggestion, selected: boolean): TemplateResult {
         return html`
-            <wa-card appearance=${rejected ? 'plain' : 'outlined'}>
-                <div slot="header" class="card-heading">
-                    <div>
-                        <h3>${suggestion.strength}</h3>
-                        <p class="muted">${suggestion.explanation}</p>
-                    </div>
-                    <wa-badge
-                        variant=${suggestion.strength === 'Strong' ? 'success' : 'warning'}
-                        appearance="filled-outlined"
-                        pill
+            <article class="pair ${selected ? 'selected' : ''}">
+                <div class="pair-heading">
+                    <wa-checkbox
+                        class="pair-selector"
+                        size="s"
+                        .checked=${selected}
+                        @change=${(event: Event) => this.handlePairSelection(event, suggestion.id)}
                     >
-                        ${suggestion.strength}
-                    </wa-badge>
+                        <span class="pair-copy">
+                            <span class="pair-strength">${suggestion.strength} match</span>
+                            <span class="pair-explanation">${suggestion.explanation}</span>
+                        </span>
+                    </wa-checkbox>
                 </div>
-                <div class="pair">
+                <div class="pair-transactions">
                     ${this.renderTransaction(suggestion.first)}
-                    <wa-icon class="merge-mark" name="code-merge" label="Compared with"></wa-icon>
                     ${this.renderTransaction(suggestion.second)}
                 </div>
-                <wa-button
-                    slot="footer"
-                    class="card-action"
-                    variant=${rejected ? 'neutral' : 'danger'}
-                    appearance="outlined"
-                    @click=${() =>
-                        rejected
-                            ? this.controller.undo(suggestion.id)
-                            : this.controller.reject(suggestion.id)}
-                >
-                    <wa-icon slot="start" name=${rejected ? 'rotate-left' : 'xmark'}></wa-icon>
-                    ${rejected ? 'Undo' : 'Not a duplicate'}
-                </wa-button>
-            </wa-card>
+            </article>
         `;
     }
 
     private renderTransaction(transaction: TransactionFingerprint): TemplateResult {
-        const properties = Object.entries(transaction.properties);
+        const formattedDate = this.getShortDate(transaction);
         return html`
-            <article class="transaction">
-                <div class="transaction-meta">
-                    <time datetime=${transaction.date}>${transaction.date}</time>
-                    <span class="amount">${transaction.amount}</span>
+            <div class="transaction-row">
+                <div class="transaction-primary">
+                    <wa-icon
+                        class="transaction-status ${transaction.draft ? 'draft' : ''}"
+                        name=${transaction.draft ? 'angles-right' : 'check'}
+                        label=${transaction.draft ? 'Draft' : 'Posted'}
+                    ></wa-icon>
+                    <time
+                        datetime=${transaction.date}
+                        title=${transaction.dateFormatted || transaction.date}
+                    >
+                        <span class="date">${formattedDate}</span>
+                    </time>
+                    <span class="amount">${transaction.amountFormatted || transaction.amount}</span>
                 </div>
-                <div class="movement">
-                    ${transaction.fromAccount?.name || 'Unassigned'}
-                    <wa-icon name="arrow-right"></wa-icon>
-                    ${transaction.toAccount?.name || 'Unassigned'}
+                <div class="transaction-detail">
+                    ${this.renderAccount(transaction.fromAccount)}
+                    <wa-icon class="movement-arrow" name="angles-right" label="to"></wa-icon>
+                    ${this.renderAccount(transaction.toAccount)}
+                    <span class="description"
+                        >${transaction.description || '(no description)'}</span
+                    >
                 </div>
-                <p class="description">${transaction.description || '(no description)'}</p>
-                ${
-                    properties.length > 0
-                        ? html`<p class="properties">
-                              ${properties.map(([key, value]) => `${key}: ${value}`).join(' · ')}
-                          </p>`
-                        : html``
-                }
-            </article>
+            </div>
         `;
     }
+
+    private renderAccount(account: TransactionFingerprint['fromAccount']): TemplateResult {
+        if (!account) return html`<span class="unassigned">Unassigned</span>`;
+        const typeClass = account.type?.toLowerCase() ?? '';
+        return html`<span class="account-pill ${typeClass}" title=${account.name}
+            >${account.name}</span
+        >`;
+    }
+
+    private getShortDate(transaction: TransactionFingerprint): string {
+        const formatted = transaction.dateFormatted || transaction.date;
+        const currentYear = new Date().getFullYear().toString();
+        if (!transaction.date.startsWith(currentYear)) return formatted;
+        if (formatted.startsWith(`${currentYear}/`) || formatted.startsWith(`${currentYear}-`)) {
+            return formatted.slice(5);
+        }
+        if (formatted.endsWith(`/${currentYear}`) || formatted.endsWith(`-${currentYear}`)) {
+            return formatted.slice(0, -5);
+        }
+        return formatted;
+    }
+
+    private handlePairSelection(event: Event, id: string): void {
+        const checkbox = event.currentTarget as HTMLElement & { checked: boolean };
+        this.controller.setSuggestionSelected(id, checkbox.checked);
+    }
+
+    private handleAllSelection = (event: Event): void => {
+        const checkbox = event.currentTarget as HTMLElement & { checked: boolean };
+        this.controller.setAllSuggestionsSelected(checkbox.checked);
+    };
 
     private renderLiveProgress(): TemplateResult {
         const review = this.controller.review;
@@ -492,8 +734,11 @@ export class MergeDuplicatesApp extends LitElement {
             <section class="stack" aria-labelledby="results-title">
                 <div>
                     <p class="section-label">Complete</p>
-                    <h2 id="results-title">${merged} merged, ${failed} failed</h2>
-                    <p class="muted">Pagination was invalidated after processing.</p>
+                    <h2 id="results-title">
+                        ${merged} pair${merged === 1 ? '' : 's'}
+                        merged${failed ? `, ${failed} failed` : ''}
+                    </h2>
+                    <p class="muted">Your duplicate review is complete.</p>
                 </div>
                 ${
                     this.controller.state.applying && review.progress.length > 0
@@ -537,7 +782,7 @@ export class MergeDuplicatesApp extends LitElement {
                         item => html`
                             <div class="result-row">
                                 <div class="result-copy">
-                                    <strong>Rejected-pair learning</strong>
+                                    <strong>Skipped-pair feedback</strong>
                                     <span class="progress-message"
                                         >${item.message || item.status}</span
                                     >
@@ -570,20 +815,27 @@ export class MergeDuplicatesApp extends LitElement {
         const review = this.controller.review;
         return html`
             <wa-dialog
-                label="Confirm duplicate review"
+                label="Merge selected pairs?"
                 ?open=${state.confirmOpen}
                 @wa-after-hide=${() => this.controller.hideConfirmation()}
             >
                 <div class="dialog-copy">
                     <p>
-                        <strong>${review.accepted.length} accepted</strong> and
-                        <strong>${review.rejected.length} rejected</strong>.
+                        <strong
+                            >${review.accepted.length}
+                            pair${review.accepted.length === 1 ? '' : 's'}</strong
+                        >
+                        will be
+                        merged.${
+                            review.rejected.length > 0
+                                ? ` ${review.rejected.length} will be skipped.`
+                                : ''
+                        }
                     </p>
                     <wa-callout variant="warning" appearance="filled-outlined">
                         <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                        Merging creates canonical transactions and trashes the originals. Each
-                        accepted pair will be processed separately, and failures will not stop later
-                        pairs.
+                        Each selected pair will be combined into one transaction. The two originals
+                        will be moved to Trash.
                     </wa-callout>
                 </div>
                 <wa-button slot="footer" appearance="plain" data-dialog="close">Cancel</wa-button>
@@ -593,7 +845,7 @@ export class MergeDuplicatesApp extends LitElement {
                     appearance="filled"
                     @click=${() => this.controller.confirmApply()}
                 >
-                    Apply ${review.accepted.length} merge${review.accepted.length === 1 ? '' : 's'}
+                    Merge ${review.accepted.length} pair${review.accepted.length === 1 ? '' : 's'}
                 </wa-button>
             </wa-dialog>
         `;

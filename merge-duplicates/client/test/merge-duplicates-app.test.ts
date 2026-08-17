@@ -21,11 +21,12 @@ describe('merge duplicates app', () => {
     it('hides its redundant branding when embedded in the Bkper sidebar', () => {
         const app = new MergeDuplicatesApp() as MergeDuplicatesApp & { embedded: boolean };
         app.embedded = true;
+        app.controller.state.context.query = "account:'Client A'";
 
         const text = templateText(renderHeader.call(app));
 
         expect(text).not.toContain('Merge Duplicates logo');
-        expect(text).toContain('Captured transaction query');
+        expect(text).toContain("account:'Client A'");
     });
 
     it('keeps its branding when opened standalone', () => {

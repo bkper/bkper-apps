@@ -33,23 +33,30 @@ export interface LearningProgress {
 }
 
 export class ReviewSession {
-    accepted: Suggestion[] = [];
-    rejected: Suggestion[] = [];
+    suggestions: Suggestion[] = [];
+    selectedIds = new Set<string>();
     fingerprints: TransactionFingerprint[] = [];
     cursor?: string;
     progress: PairProgress[] = [];
     learningResults: LearningProgress[] = [];
     processed = false;
 
+    get accepted(): Suggestion[] {
+        return this.suggestions.filter(suggestion => this.selectedIds.has(suggestion.id));
+    }
+
+    get rejected(): Suggestion[] {
+        return this.suggestions.filter(suggestion => !this.selectedIds.has(suggestion.id));
+    }
+
     appendPage(response: ScanResponse): void {
-        const used = new Set(
-            [...this.accepted, ...this.rejected].flatMap(item => [item.first.id, item.second.id])
-        );
+        const used = new Set(this.suggestions.flatMap(item => [item.first.id, item.second.id]));
         for (const suggestion of response.suggestions) {
             if (used.has(suggestion.first.id) || used.has(suggestion.second.id)) continue;
             used.add(suggestion.first.id);
             used.add(suggestion.second.id);
-            this.accepted.push(suggestion);
+            this.suggestions.push(suggestion);
+            this.selectedIds.add(suggestion.id);
         }
         const fingerprints = new Map(this.fingerprints.map(item => [item.id, item]));
         for (const fingerprint of response.fingerprints)
@@ -58,18 +65,19 @@ export class ReviewSession {
         this.cursor = response.cursor;
     }
 
-    reject(id: string): void {
-        const index = this.accepted.findIndex(item => item.id === id);
-        if (index < 0) return;
-        const [suggestion] = this.accepted.splice(index, 1);
-        this.rejected.push(suggestion);
+    setSelected(id: string, selected: boolean): void {
+        if (!this.suggestions.some(suggestion => suggestion.id === id)) return;
+        if (selected) {
+            this.selectedIds.add(id);
+        } else {
+            this.selectedIds.delete(id);
+        }
     }
 
-    undo(id: string): void {
-        const index = this.rejected.findIndex(item => item.id === id);
-        if (index < 0) return;
-        const [suggestion] = this.rejected.splice(index, 1);
-        this.accepted.push(suggestion);
+    setAllSelected(selected: boolean): void {
+        this.selectedIds = selected
+            ? new Set(this.suggestions.map(suggestion => suggestion.id))
+            : new Set();
     }
 
     async apply(api: ReviewApi, context: MenuContext, notify: () => void): Promise<void> {
@@ -134,8 +142,8 @@ export class ReviewSession {
     }
 
     reset(): void {
-        this.accepted = [];
-        this.rejected = [];
+        this.suggestions = [];
+        this.selectedIds = new Set();
         this.fingerprints = [];
         this.cursor = undefined;
         this.progress = [];

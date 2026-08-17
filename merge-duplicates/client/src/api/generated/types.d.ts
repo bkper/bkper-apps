@@ -259,7 +259,9 @@ export interface components {
             id: string;
             /** Format: date */
             date: string;
+            dateFormatted?: string;
             amount: string;
+            amountFormatted?: string;
             description: string;
             fromAccount: components["schemas"]["AccountSnapshot"];
             toAccount: components["schemas"]["AccountSnapshot"];
@@ -271,6 +273,8 @@ export interface components {
         AccountSnapshot: {
             id: string;
             name: string;
+            /** @enum {string} */
+            type?: "ASSET" | "LIABILITY" | "INCOMING" | "OUTGOING";
         } | null;
         SkippedCounts: {
             total: number;

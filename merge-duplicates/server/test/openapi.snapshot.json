@@ -313,9 +313,17 @@
             "type": "string",
             "format": "date"
           },
+          "dateFormatted": {
+            "type": "string",
+            "maxLength": 100
+          },
           "amount": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 100
+          },
+          "amountFormatted": {
+            "type": "string",
             "maxLength": 100
           },
           "description": {
@@ -362,6 +370,15 @@
           "name": {
             "type": "string",
             "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ASSET",
+              "LIABILITY",
+              "INCOMING",
+              "OUTGOING"
+            ]
           }
         },
         "required": [

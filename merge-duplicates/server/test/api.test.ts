@@ -37,6 +37,53 @@ describe('authenticated workflow routes', () => {
         expect(aiCalled).toBe(false);
     });
 
+    it('returns Book-formatted values and Account types for familiar transaction rows', async () => {
+        const transaction = {
+            id: 'transaction',
+            date: '2026-08-03',
+            dateFormatted: '03/08/2026',
+            amount: '763.01',
+            description: 'PREAUTHORIZED CREDIT',
+            posted: false,
+            creditAccount: { id: 'bank', name: '' },
+            properties: {},
+        };
+        const book = {
+            getPermission: () => Permission.OWNER,
+            getLockDate: () => undefined,
+            getClosingDate: () => undefined,
+            getAccounts: async () => [
+                { getId: () => 'bank', getName: () => 'Safra', getType: () => 'ASSET' },
+            ],
+            formatValue: () => '763,01',
+            listTransactions: async () => ({
+                getItems: () => [{ json: () => transaction }],
+                getCursor: () => undefined,
+            }),
+        } as unknown as Book;
+        const app = createApp(contextWithBook(book));
+
+        const response = await app.request('/api/v1/scan', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ bookId: 'book', query: '', fingerprints: [] }),
+        });
+        const body = (await response.json()) as {
+            fingerprints: Array<{
+                dateFormatted?: string;
+                amountFormatted?: string;
+                fromAccount: { name: string; type?: string } | null;
+            }>;
+        };
+
+        expect(response.status).toBe(200);
+        expect(body.fingerprints[0]).toMatchObject({
+            dateFormatted: '03/08/2026',
+            amountFormatted: '763,01',
+            fromAccount: { name: 'Safra', type: 'ASSET' },
+        });
+    });
+
     it('uses the canonical one-pair Book merge operation', async () => {
         const calls: string[][] = [];
         const book = {

@@ -15,14 +15,20 @@ export const ErrorResponseSchema = z
     .openapi('ErrorResponse');
 
 const AccountSnapshotSchema = z
-    .object({ id: z.string().trim().min(1).max(256), name: z.string().max(500) })
+    .object({
+        id: z.string().trim().min(1).max(256),
+        name: z.string().max(500),
+        type: z.enum(['ASSET', 'LIABILITY', 'INCOMING', 'OUTGOING']).optional(),
+    })
     .openapi('AccountSnapshot');
 
 export const TransactionFingerprintSchema = z
     .object({
         id: z.string().trim().min(1).max(256),
         date: z.iso.date(),
+        dateFormatted: z.string().max(100).optional(),
         amount: z.string().trim().min(1).max(100),
+        amountFormatted: z.string().max(100).optional(),
         description: z.string().max(2000),
         fromAccount: AccountSnapshotSchema.nullable(),
         toAccount: AccountSnapshotSchema.nullable(),

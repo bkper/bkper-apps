@@ -90,17 +90,18 @@ export class AppController implements ReactiveController {
         }
     }
 
-    reject(id: string): void {
-        this.review.reject(id);
+    setSuggestionSelected(id: string, selected: boolean): void {
+        this.review.setSelected(id, selected);
         this.host.requestUpdate();
     }
 
-    undo(id: string): void {
-        this.review.undo(id);
+    setAllSuggestionsSelected(selected: boolean): void {
+        this.review.setAllSelected(selected);
         this.host.requestUpdate();
     }
 
     showConfirmation(): void {
+        if (this.review.accepted.length === 0) return;
         this.setState({ confirmOpen: true });
     }
 

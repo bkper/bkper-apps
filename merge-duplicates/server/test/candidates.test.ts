@@ -39,6 +39,22 @@ describe('deterministic candidate filtering', () => {
         expect(result.skipped).toEqual({ total: 3, trashed: 1, checked: 1, locked: 1 });
     });
 
+    it('preserves display metadata needed to match the main transaction list', () => {
+        const result = filterEligibleTransactions([
+            tx('typed', {
+                dateFormatted: '10/06/2026',
+                creditAccount: { id: 'bank', name: 'Bank', type: 'ASSET' },
+                debitAccount: { id: 'expense', name: 'Expense', type: 'OUTGOING' },
+            }),
+        ]);
+
+        expect(result.transactions[0]).toMatchObject({
+            dateFormatted: '10/06/2026',
+            fromAccount: { id: 'bank', name: 'Bank', type: 'ASSET' },
+            toAccount: { id: 'expense', name: 'Expense', type: 'OUTGOING' },
+        });
+    });
+
     it('requires equal amounts, dates within seven calendar days, and a shared same-side account', () => {
         const current = [
             tx('current', {

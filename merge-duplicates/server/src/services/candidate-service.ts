@@ -1,14 +1,19 @@
 import { Amount } from 'bkper-js';
 
+export type AccountSnapshotType = NonNullable<bkper.Account['type']>;
+
 export interface AccountSnapshot {
     id: string;
     name: string;
+    type?: AccountSnapshotType;
 }
 
 export interface TransactionFingerprint {
     id: string;
     date: string;
+    dateFormatted?: string;
     amount: string;
+    amountFormatted?: string;
     description: string;
     fromAccount: AccountSnapshot | null;
     toAccount: AccountSnapshot | null;
@@ -147,6 +152,9 @@ function toFingerprint(transaction: bkper.Transaction): TransactionFingerprint |
     return {
         id,
         date,
+        ...(transaction.dateFormatted
+            ? { dateFormatted: cleanText(transaction.dateFormatted) }
+            : {}),
         amount,
         description: cleanText(transaction.description ?? ''),
         fromAccount: toAccountSnapshot(transaction.creditAccount),
@@ -232,7 +240,11 @@ function isLocked(transactionDate: string | undefined, lockDate: string | undefi
 function toAccountSnapshot(account: bkper.Account | undefined): AccountSnapshot | null {
     const id = cleanRequired(account?.id);
     if (!id) return null;
-    return { id, name: cleanText(account?.name ?? '') };
+    return {
+        id,
+        name: cleanText(account?.name ?? ''),
+        ...(account?.type ? { type: account.type } : {}),
+    };
 }
 
 function visibleProperties(properties: Record<string, string> | undefined): Record<string, string> {

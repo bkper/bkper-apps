@@ -39,13 +39,25 @@ describe('browser-memory review session', () => {
     it('appends pages while preserving decisions and global non-overlap', () => {
         const session = new ReviewSession();
         session.appendPage(page([suggestion('one', 'a', 'b')], 'next'));
-        session.reject('one');
+        session.setSelected('one', false);
         session.appendPage(page([suggestion('overlap', 'b', 'c'), suggestion('two', 'd', 'e')]));
 
+        expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
         expect(session.accepted.map(item => item.id)).toEqual(['two']);
         expect(session.rejected.map(item => item.id)).toEqual(['one']);
-        session.undo('one');
-        expect(session.accepted.map(item => item.id)).toEqual(['two', 'one']);
+
+        session.setSelected('one', true);
+        session.setSelected('one', false);
+        session.setSelected('one', true);
+        expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
+        expect(session.accepted.map(item => item.id)).toEqual(['one', 'two']);
+
+        session.setAllSelected(false);
+        expect(session.accepted).toEqual([]);
+        expect(session.rejected.map(item => item.id)).toEqual(['one', 'two']);
+
+        session.setAllSelected(true);
+        expect(session.accepted.map(item => item.id)).toEqual(['one', 'two']);
     });
 
     it('merges accepted pairs sequentially, continues after failures, and learns rejections independently', async () => {
@@ -72,7 +84,7 @@ describe('browser-memory review session', () => {
                 'next'
             )
         );
-        session.reject('three');
+        session.setSelected('three', false);
 
         await session.apply(
             api,

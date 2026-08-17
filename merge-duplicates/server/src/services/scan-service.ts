@@ -1,9 +1,11 @@
-import { Permission } from 'bkper-js';
+import { AccountType, Amount, Permission } from 'bkper-js';
 import type { AppContext } from '../app-context';
 import {
     filterEligibleTransactions,
     generateCandidatePairs,
     retainNonOverlappingSuggestions,
+    type AccountSnapshot,
+    type AccountSnapshotType,
     type SkippedCounts,
     type TransactionFingerprint,
 } from './candidate-service';
@@ -53,12 +55,30 @@ export async function scanTransactions(
         transactions.map(transaction => transaction.json()),
         effectiveLockDate
     );
-    const candidates = generateCandidatePairs(request.fingerprints, filtered.transactions);
+    const accountSnapshots = new Map<string, AccountSnapshot>();
+    for (const account of await book.getAccounts()) {
+        const accountId = account.getId();
+        if (!accountId) continue;
+        accountSnapshots.set(accountId, {
+            id: accountId,
+            name: account.getName() ?? '',
+            type: toAccountSnapshotType(account.getType()),
+        });
+    }
+    const transactionsWithDisplayMetadata = filtered.transactions.map(transaction => ({
+        ...transaction,
+        amountFormatted: book.formatValue(new Amount(transaction.amount)),
+        fromAccount: withAccountMetadata(transaction.fromAccount, accountSnapshots),
+        toAccount: withAccountMetadata(transaction.toAccount, accountSnapshots),
+    }));
+    const candidates = generateCandidatePairs(
+        request.fingerprints,
+        transactionsWithDisplayMetadata
+    );
 
     let suggestions: ScanSuggestion[] = [];
     if (candidates.length > 0) {
         await book.getGroups();
-        await book.getAccounts();
         const learningExamples = await collectApplicableLearningExamples(
             book,
             candidates.flatMap(pair => [pair.first, pair.second])
@@ -79,12 +99,39 @@ export async function scanTransactions(
     return {
         permission: toScanPermission(book.getPermission()),
         suggestions,
-        fingerprints: filtered.transactions,
+        fingerprints: transactionsWithDisplayMetadata,
         ...(cursor ? { cursor } : {}),
         scanned: transactions.length,
         candidateCount: candidates.length,
         skipped: filtered.skipped,
         promptVersion: PROMPT_VERSION,
+    };
+}
+
+function toAccountSnapshotType(type: AccountType): AccountSnapshotType {
+    switch (type) {
+        case AccountType.ASSET:
+            return 'ASSET';
+        case AccountType.LIABILITY:
+            return 'LIABILITY';
+        case AccountType.INCOMING:
+            return 'INCOMING';
+        case AccountType.OUTGOING:
+            return 'OUTGOING';
+    }
+}
+
+function withAccountMetadata(
+    account: AccountSnapshot | null,
+    accountSnapshots: ReadonlyMap<string, AccountSnapshot>
+): AccountSnapshot | null {
+    if (!account) return null;
+    const snapshot = accountSnapshots.get(account.id);
+    if (!snapshot) return account;
+    return {
+        ...account,
+        name: account.name || snapshot.name,
+        type: account.type ?? snapshot.type,
     };
 }
 

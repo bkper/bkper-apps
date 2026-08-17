@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–7 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, and response envelopes. Update orchestration has not been ported, and no deployment or routing change has begun.
+**Chunks 1–8 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. Full parity and drift audit work has not begun, and no deployment or routing change has started.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -363,14 +363,14 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 8 — Port update orchestration
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Port the exact relevant-change filter.
-- Preserve delete-before-recreate order.
-- Preserve previous Account handling and result concatenation.
-- Characterize failure behavior between deletion and recreation without redesigning it.
+- Ported the exact relevant-change filter.
+- Preserved delete-before-recreate order.
+- Preserved previous Account handling and result concatenation.
+- Characterized failure behavior between deletion and recreation without redesigning it.
 
-**Gate:** Relevant updates recalculate deterministically; irrelevant updates perform no tax or balance mutation.
+**Gate:** Deterministic tests confirm all established relevant fields trigger deletion then recreation, irrelevant and falsey changes preserve the explanatory no-op result without invoking either child handler, and absent previous attributes retain recalculation behavior. The same event and request context flow through both handlers, only array results are concatenated in deletion-before-posting order, and failures remain observable at their established point. The full local check passes with child handler boundaries intercepted and without credentials, network access, live Books, or Book writes.
 
 ### Chunk 9 — Full parity and drift audit
 

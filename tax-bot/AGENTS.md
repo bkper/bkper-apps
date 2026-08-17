@@ -5,7 +5,7 @@ Follow [`ROADMAP.md`](./ROADMAP.md) for the approved GCP-to-Cloudflare migration
 ## Layout
 
 - `legacy/` — accepted Google Cloud Functions source baseline and active production implementation.
-- `new/` — isolated Cloudflare Worker migration target with event ingress, guards, tax source discovery, calculation, Transaction construction, posted/restored batch creation, and linked tax Transaction deletion ported; update orchestration remains to be ported.
+- `new/` — isolated Cloudflare Worker migration target with subscribed event behavior ported through update orchestration; full parity and drift audit work remains.
 
 The end-user README and license remain at the migration root. The published app configuration remains with the active implementation under `legacy/`. Do not treat the migration root as a deployable app.
 

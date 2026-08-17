@@ -115,12 +115,10 @@ export class AppController implements ReactiveController {
         this.setState({ confirmOpen: false, applying: true, error: null, notice: null });
         await this.review.apply(this.api, context, () => this.host.requestUpdate());
         const failedMerges = this.review.progress.filter(item => item.status === 'failed').length;
-        const failedLearning = this.review.learningResults.filter(
-            item => item.status === 'failed'
-        ).length;
-        const skippedLearning = this.review.learningResults.filter(
-            item => item.status === 'skipped'
-        ).length;
+        const failedLearning = this.review.learningResults
+            .filter(item => item.status === 'failed')
+            .reduce((count, item) => count + item.suggestions.length, 0);
+        const skippedLearning = this.review.learningResults.some(item => item.status === 'skipped');
         const notices = [
             failedMerges ? `${failedMerges} merge${failedMerges === 1 ? '' : 's'} failed.` : '',
             failedLearning
@@ -132,7 +130,7 @@ export class AppController implements ReactiveController {
         ].filter(Boolean);
         this.setState({
             applying: false,
-            notice: notices.join(' ') || 'Review processing finished.',
+            notice: notices.join(' ') || null,
         });
     }
 

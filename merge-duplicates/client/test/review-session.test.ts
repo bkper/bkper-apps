@@ -72,7 +72,10 @@ describe('browser-memory review session', () => {
                 return { mergedTransactionId: `merged-${request.firstTransactionId}` };
             },
             learn: async request => {
-                events.push(`learn:${request.pair.first.id}`);
+                const ids = [request.pair, ...(request.additionalPairs ?? [])].map(
+                    pair => pair.first.id
+                );
+                events.push(`learn:${ids.join(',')}`);
                 throw new Error('learning failed');
             },
         };
@@ -83,6 +86,7 @@ describe('browser-memory review session', () => {
                     suggestion('one', 'a', 'b'),
                     suggestion('two', 'c', 'd'),
                     suggestion('three', 'e', 'f'),
+                    suggestion('four', 'g', 'h'),
                 ],
                 'next'
             )
@@ -96,9 +100,11 @@ describe('browser-memory review session', () => {
             () => undefined
         );
 
-        expect(events).toEqual(['merge:a', 'merge:c', 'learn:e']);
+        expect(events).toEqual(['merge:a', 'merge:c', 'learn:e,g']);
         expect(session.progress.map(item => item.status)).toEqual(['failed', 'merged']);
+        expect(session.learningResults).toHaveLength(1);
         expect(session.learningResults[0].status).toBe('failed');
+        expect(session.learningResults[0].suggestions).toHaveLength(2);
         expect(session.processed).toBe(true);
         expect(session.cursor).toBeUndefined();
         expect(session.fingerprints).toEqual([]);

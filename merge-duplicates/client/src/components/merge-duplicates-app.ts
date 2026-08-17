@@ -3,6 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import type { Suggestion, TransactionFingerprint } from '../api/app-api';
 import { AppController } from '../app/app-controller';
 import { appEnvironment } from '../app/app-environment';
+import type { LearningProgress } from '../app/review-session';
 
 @customElement('merge-duplicates-app')
 export class MergeDuplicatesApp extends LitElement {
@@ -809,10 +810,8 @@ export class MergeDuplicatesApp extends LitElement {
                         item => html`
                             <div class="result-row">
                                 <div class="result-copy">
-                                    <strong>Skipped-pair feedback</strong>
-                                    <span class="progress-message"
-                                        >${item.message || item.status}</span
-                                    >
+                                    <strong>Rejected-pair learning</strong>
+                                    ${this.renderLearningMessage(item)}
                                 </div>
                                 <wa-badge
                                     variant=${item.status === 'failed' ? 'danger' : 'neutral'}
@@ -834,6 +833,35 @@ export class MergeDuplicatesApp extends LitElement {
                     Scan again
                 </wa-button>
             </section>
+        `;
+    }
+
+    private renderLearningMessage(item: LearningProgress): TemplateResult {
+        const pairCount = item.status === 'saved' ? item.savedCount : item.suggestions.length;
+        const pairs = `rejected pair${pairCount === 1 ? '' : 's'}`;
+        if (item.status === 'saved') {
+            const resourceType = item.resourceType
+                ? `${item.resourceType[0].toUpperCase()}${item.resourceType.slice(1)}`
+                : 'resource';
+            const resource = item.resourceName
+                ? `${resourceType} “${item.resourceName}”`
+                : resourceType;
+            return html`
+                <span class="progress-message">
+                    ${pairCount} ${pairs} saved to property
+                    <code>${item.propertyKey || 'merge_duplicate_examples'}</code> on ${resource}.
+                </span>
+            `;
+        }
+        if (item.status === 'skipped') {
+            return html`<span class="progress-message"
+                >${item.message || `${pairCount} ${pairs} were not saved.`}</span
+            >`;
+        }
+        return html`
+            <span class="progress-message">
+                ${pairCount} ${pairs} could not be saved.${item.message ? ` ${item.message}` : ''}
+            </span>
         `;
     }
 

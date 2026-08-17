@@ -52,7 +52,7 @@ const learnRoute = createRoute({
     method: 'post',
     path: '/api/v1/learn',
     tags: ['Duplicate review'],
-    summary: 'Save one rejected pair as a plain-text learning example',
+    summary: 'Save rejected pairs as plain-text learning examples',
     request: {
         body: { required: true, content: { 'application/json': { schema: LearnRequestSchema } } },
     },

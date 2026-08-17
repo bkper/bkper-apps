@@ -27,8 +27,12 @@ export interface PairProgress {
 }
 
 export interface LearningProgress {
-    suggestion: Suggestion;
+    suggestions: Suggestion[];
     status: 'saved' | 'skipped' | 'failed';
+    savedCount: number;
+    resourceType: LearnResponse['resourceType'];
+    resourceName?: string | null;
+    propertyKey?: string;
     message?: string;
 }
 
@@ -111,23 +115,35 @@ export class ReviewSession {
             notify();
         }
 
-        for (const suggestion of rejected) {
+        const retainedRejected = rejected.slice(-40);
+        if (retainedRejected.length > 0) {
             try {
+                const [first, ...additional] = retainedRejected;
                 const result = await api.learn({
                     bookId: context.bookId,
                     accountId: context.accountId,
                     groupId: context.groupId,
-                    pair: { first: suggestion.first, second: suggestion.second },
+                    pair: { first: first.first, second: first.second },
+                    additionalPairs: additional.map(suggestion => ({
+                        first: suggestion.first,
+                        second: suggestion.second,
+                    })),
                 });
                 this.learningResults.push({
-                    suggestion,
+                    suggestions: retainedRejected,
                     status: result.skipped ? 'skipped' : 'saved',
+                    savedCount: result.savedCount ?? (result.saved ? retainedRejected.length : 0),
+                    resourceType: result.resourceType,
+                    resourceName: result.resourceName,
+                    propertyKey: result.propertyKey,
                     message: result.notice,
                 });
             } catch (error) {
                 this.learningResults.push({
-                    suggestion,
+                    suggestions: retainedRejected,
                     status: 'failed',
+                    savedCount: 0,
+                    resourceType: null,
                     message: toErrorMessage(error),
                 });
             }

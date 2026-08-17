@@ -145,7 +145,7 @@
         "tags": [
           "Duplicate review"
         ],
-        "summary": "Save one rejected pair as a plain-text learning example",
+        "summary": "Save rejected pairs as plain-text learning examples",
         "requestBody": {
           "required": true,
           "content": {
@@ -531,6 +531,17 @@
               null
             ]
           },
+          "resourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "propertyKey": {
+            "type": "string"
+          },
+          "savedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "notice": {
             "type": "string"
           }
@@ -575,6 +586,25 @@
               "first",
               "second"
             ]
+          },
+          "additionalPairs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "first": {
+                  "$ref": "#/components/schemas/TransactionFingerprint"
+                },
+                "second": {
+                  "$ref": "#/components/schemas/TransactionFingerprint"
+                }
+              },
+              "required": [
+                "first",
+                "second"
+              ]
+            },
+            "maxItems": 39
           }
         },
         "required": [

@@ -93,15 +93,18 @@ export const MergeResponseSchema = z
     .object({ mergedTransactionId: z.string().min(1) })
     .openapi('MergeResponse');
 
+const RejectedPairSchema = z.object({
+    first: TransactionFingerprintSchema,
+    second: TransactionFingerprintSchema,
+});
+
 export const LearnRequestSchema = z
     .object({
         bookId: z.string().trim().min(1).max(256),
         accountId: z.string().trim().min(1).max(256).nullish(),
         groupId: z.string().trim().min(1).max(256).nullish(),
-        pair: z.object({
-            first: TransactionFingerprintSchema,
-            second: TransactionFingerprintSchema,
-        }),
+        pair: RejectedPairSchema,
+        additionalPairs: z.array(RejectedPairSchema).max(39).optional(),
     })
     .openapi('LearnRequest');
 
@@ -110,6 +113,9 @@ export const LearnResponseSchema = z
         saved: z.boolean(),
         skipped: z.boolean(),
         resourceType: z.enum(['account', 'group', 'book']).nullable(),
+        resourceName: z.string().nullable().optional(),
+        propertyKey: z.string().optional(),
+        savedCount: z.number().int().nonnegative().optional(),
         notice: z.string().optional(),
     })
     .openapi('LearnResponse');

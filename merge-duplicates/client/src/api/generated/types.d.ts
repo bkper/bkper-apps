@@ -165,7 +165,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Save one rejected pair as a plain-text learning example */
+        /** Save rejected pairs as plain-text learning examples */
         post: {
             parameters: {
                 query?: never;
@@ -309,6 +309,9 @@ export interface components {
             skipped: boolean;
             /** @enum {string|null} */
             resourceType: "account" | "group" | "book" | null;
+            resourceName?: string | null;
+            propertyKey?: string;
+            savedCount?: number;
             notice?: string;
         };
         LearnRequest: {
@@ -319,6 +322,10 @@ export interface components {
                 first: components["schemas"]["TransactionFingerprint"];
                 second: components["schemas"]["TransactionFingerprint"];
             };
+            additionalPairs?: {
+                first: components["schemas"]["TransactionFingerprint"];
+                second: components["schemas"]["TransactionFingerprint"];
+            }[];
         };
     };
     responses: never;

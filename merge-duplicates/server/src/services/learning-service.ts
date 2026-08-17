@@ -17,12 +17,16 @@ export interface LearningRequest {
     accountId?: string | null;
     groupId?: string | null;
     pair: RejectedPairSnapshot;
+    additionalPairs?: RejectedPairSnapshot[];
 }
 
 export interface LearningResult {
     saved: boolean;
     skipped: boolean;
     resourceType: 'account' | 'group' | 'book' | null;
+    resourceName: string | null;
+    propertyKey: string;
+    savedCount: number;
     notice?: string;
 }
 
@@ -46,17 +50,30 @@ export async function saveRejectedPair(
             saved: false,
             skipped: true,
             resourceType: null,
+            resourceName: null,
+            propertyKey: LEARNING_PROPERTY,
+            savedCount: 0,
             notice: 'Post collaborators can merge, but learning examples require Owner or Editor permission.',
         };
     }
 
     const target = await selectLearningTarget(book, request.accountId, request.groupId);
-    const example = formatRejectedPairExample(request.pair);
-    const updated = appendLearningExample(target.resource.getProperty(LEARNING_PROPERTY), example);
+    const pairs = [request.pair, ...(request.additionalPairs ?? [])];
+    let updated = target.resource.getProperty(LEARNING_PROPERTY);
+    for (const pair of pairs) {
+        updated = appendLearningExample(updated, formatRejectedPairExample(pair));
+    }
     target.resource.setVisibleProperty(LEARNING_PROPERTY, updated);
     await target.resource.update();
 
-    return { saved: true, skipped: false, resourceType: target.type };
+    return {
+        saved: true,
+        skipped: false,
+        resourceType: target.type,
+        resourceName: target.resource.getName() ?? null,
+        propertyKey: LEARNING_PROPERTY,
+        savedCount: pairs.length,
+    };
 }
 
 export async function collectApplicableLearningExamples(

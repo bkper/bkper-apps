@@ -169,7 +169,7 @@ Owner and Editor collaborators may merge and learn. Post collaborators may merge
 | --- | --- |
 | Scan and analyze one page | `POST /api/v1/scan` |
 | Canonically merge one pair | `POST /api/v1/merge` |
-| Save one rejected example | `POST /api/v1/learn` |
+| Save rejected examples | `POST /api/v1/learn` |
 | OpenAPI contract | `GET /openapi.json` |
 
 There are no event subscriptions, KV bindings, app secrets, custom prompt overrides, or durable scan state.

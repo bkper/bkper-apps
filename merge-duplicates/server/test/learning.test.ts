@@ -55,15 +55,20 @@ describe('plain-text rejected-pair learning', () => {
         expect(lines.filter(line => line === 'example 40')).toHaveLength(2);
     });
 
-    it('stores on Account before Group or Book and skips property writes for posters', async () => {
+    it('stores a rejected-pair batch on Account in one update and skips property writes for posters', async () => {
         let accountValue = '';
+        let updates = 0;
         const account = {
+            getName: () => 'Client A',
             getProperty: () => accountValue,
             setVisibleProperty: (_key: string, value: string) => {
                 accountValue = value;
                 return account;
             },
-            update: async () => account,
+            update: async () => {
+                updates += 1;
+                return account;
+            },
         } as unknown as Account;
         const ownerBook = {
             getPermission: () => Permission.OWNER,
@@ -79,9 +84,17 @@ describe('plain-text rejected-pair learning', () => {
             accountId: 'account',
             groupId: 'group',
             pair: { first, second },
+            additionalPairs: [{ first: second, second: { ...first, description: 'Lunch' } }],
         });
 
-        expect(saved.resourceType).toBe('account');
+        expect(saved).toMatchObject({
+            resourceType: 'account',
+            resourceName: 'Client A',
+            propertyKey: 'merge_duplicate_examples',
+            savedCount: 2,
+        });
+        expect(updates).toBe(1);
+        expect(accountValue.split('\n')).toHaveLength(2);
         expect(accountValue).toContain('Coffee shop');
 
         const posterBook = { getPermission: () => Permission.POSTER } as unknown as Book;

@@ -13,7 +13,7 @@ deprecated: false
 developers: '*@bkper.com'
 users: '*@bkper.com'
 menuUrl: https://merge-duplicates.bkper.app?bookId=${book.id}&query=${transactions.query}&accountId=${account.id}&groupId=${group.id}
-menuUrlDev: https://merge-duplicates-preview.bkper.app?bookId=${book.id}&query=${transactions.query}&accountId=${account.id}&groupId=${group.id}
+menuUrlDev: http://localhost:5178?bookId=${book.id}&query=${transactions.query}&accountId=${account.id}&groupId=${group.id}
 menuText: Merge Duplicates
 menuOpenMode: SIDEBAR
 propertiesSchema:

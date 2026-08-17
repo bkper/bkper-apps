@@ -5,7 +5,7 @@ Follow [`ROADMAP.md`](./ROADMAP.md) for the approved GCP-to-Cloudflare migration
 ## Layout
 
 - `legacy/` — accepted Google Cloud Functions source baseline, active production implementation, and production webhook configuration.
-- `new/` — isolated Cloudflare Worker migration target with deterministic parity, preview deployment, developer routing, and the first canary complete; broader deterministic preview validation remains.
+- `new/` — isolated Cloudflare Worker migration target with deterministic parity, preview deployment, developer routing, and deterministic preview validation complete; final drift audit and production deployment remain.
 
 The end-user README, license, roadmap, and deferred bug ledger remain at the migration root. The production GCP configuration remains under `legacy/`; the preview deployment and developer routing configuration live under `new/`. Do not treat the migration root as a deployable app.
 

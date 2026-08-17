@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–10 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview, developer events route to it, and the first complete included-tax canary passed with exact movement and zero-sum evidence.
+**Chunks 1–11 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview, developer events route to it, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence.
 
-The existing Google Cloud Function remains the active production implementation and production webhook target. Deterministic preview validation, production deployment and routing, stabilization, repository consolidation, and GCP retirement remain separate decisions.
+The existing Google Cloud Function remains the active production implementation and production webhook target. Final drift audit, production deployment and routing, stabilization, repository consolidation, and GCP retirement remain separate decisions.
 
 ## Purpose of this document
 
@@ -410,18 +410,19 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 11 — Deterministic preview validation
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Exercise included and excluded tax on both movement sides.
-- Exercise Account, Group, and multiple-Group configuration.
-- Exercise fixed overrides, rounding, legacy properties, and expression variants.
-- Exercise update no-op and recalculation paths, deletion, checked linked entries, restoration, and replay.
-- Exercise Tax Bot and Exchange Bot loop-prevention paths.
-- Verify unresolved Account parsing remains a draft with no balance effect.
-- Include a bounded high-fan-out fixture to expose Worker latency or sequential deletion limits hidden by the previous GCP timeout.
-- Use deterministic pre/post Transaction and balance assertions with explicit expected values derived from the fixture.
+- Exercised included and excluded tax on both movement sides with exact positive amounts, directions, classifications, and net movement assertions.
+- Exercised Account, Group, and multiple-Group configuration, including two independently linked Group taxes on one source movement.
+- Exercised fixed included and excluded overrides, custom rounding, all established legacy property forms, and origin- and destination-sensitive expression variants.
+- Verified an unresolved tax Account produced one linked draft with no tax balance effect.
+- Exercised update no-op and amount-recalculation paths, unchecked and checked linked-entry deletion, restoration, and replay idempotency. Checked deletion produced the required check, uncheck, then trash lifecycle order.
+- Verified Tax Bot and Exchange Bot loop-prevention paths produced no recursive tax Transaction.
+- Exercised a bounded 20-Group fixture. Creation produced exactly 20 complete linked tax movements, and sequential deletion removed all 20 without a timeout or partial result.
+- Re-read canonical Transactions and Events after every scenario and applied deterministic per-Account movement aggregation. The final audit found 33 active posted Transactions and one intentional unresolved draft across the Chunk 11 range, 17 unique active tax remote ids, complete lifecycle evidence, and an exact aggregate zero sum.
+- Found no preview error Event or error-level preview log during the validation window. The full local gate still passes with 77 deterministic tests, strict production and test typechecks, a clean Worker build, and formatting; the legacy build also remains successful.
 
-**Gate:** Automated assertions and human review find no duplicate, missing, reversed, partial, imbalanced, incorrectly rounded, or incorrectly classified tax movement.
+**Gate:** Passed. Automated assertions and human review found no duplicate, missing, reversed, partial, imbalanced, incorrectly rounded, or incorrectly classified tax movement.
 
 ### Chunk 12 — Final drift audit and production deployment
 

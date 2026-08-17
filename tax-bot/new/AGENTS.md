@@ -1,6 +1,6 @@
 # Tax Bot Cloudflare Migration
 
-This is the event-only Cloudflare Worker migration target. Subscribed event behavior has been ported, the full deterministic parity and drift audit is complete, and preview deployment, developer routing, and deterministic preview validation have passed. Final drift audit and production deployment remain. The active GCP implementation remains in `../legacy/` until the separately approved production webhook cutover.
+This is the active event-only Cloudflare Worker production implementation. Subscribed event behavior has deterministic parity coverage, production and preview deployments are active, and production and developer events route to their corresponding Cloudflare environments. The unchanged GCP implementation remains in `../legacy/` as the immediate routing rollback target during stabilization.
 
 ## Scope
 

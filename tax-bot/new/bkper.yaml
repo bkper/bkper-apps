@@ -11,7 +11,7 @@ repoUrl: https://github.com/bkper/bkper-apps/tree/main/tax-bot
 repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
-webhookUrl: https://us-central1-bkper-tax-trigger.cloudfunctions.net/prodGen2
+webhookUrl: https://sales-tax-bot.bkper.app/events
 webhookUrlDev: https://sales-tax-bot-preview.bkper.app/events
 apiVersion: v5
 events:

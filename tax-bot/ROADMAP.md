@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–11 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview, developer events route to it, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence.
+**Chunks 1–13 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The final deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview and production Cloudflare, developer and production events route to their corresponding Cloudflare environments, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence.
 
-The existing Google Cloud Function remains the active production implementation and production webhook target. Final drift audit, production deployment and routing, stabilization, repository consolidation, and GCP retirement remain separate decisions.
+Cloudflare is now the active production implementation and production webhook target. The unchanged Google Cloud Function remains active as the immediate routing rollback target. Stabilization, repository consolidation, and GCP retirement remain separate decisions.
 
 ## Purpose of this document
 
@@ -16,7 +16,7 @@ This is a public, community-facing roadmap. It records technical decisions and r
 
 Migrate the published `sales-tax-bot` app from Google Cloud Functions to the Bkper Platform on Cloudflare Workers without intentionally changing its business behavior.
 
-The Cloudflare implementation will run in parallel with the GCP implementation until deterministic parity and live canaries pass. The GCP implementation remains authoritative until production event routing is explicitly cut over.
+The Cloudflare implementation ran in parallel with the GCP implementation until deterministic parity and live canaries passed. The GCP implementation remained authoritative until production event routing was explicitly cut over in Chunk 13.
 
 ## Non-negotiable invariants
 
@@ -426,25 +426,30 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 12 — Final drift audit and production deployment
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Repeat the production-source drift audit.
-- Build the production artifact from a clean frozen install.
-- Deploy the accepted artifact to production Cloudflare while events still route to GCP.
-- Confirm production deployment and log availability. A standalone health route is not required and must not block deployment acceptance.
+- Repeated the production-source drift audit. The tracked legacy source and configuration remain unchanged since the accepted baseline, and no target production source changed after the completed parity audit.
+- Performed a clean frozen install and passed the full target gate with 77 deterministic tests, strict production and test typechecks, a clean Worker build, and formatting.
+- Reconfirmed that the production artifact registers only `POST /events`, uses no legacy inbound authentication provider, and declares no secrets or platform services.
+- Rebuilt the legacy target successfully while retaining its documented dependency-range and missing-lockfile verification limitation.
+- Deployed the accepted artifact to production Cloudflare without syncing app metadata. The persisted production webhook continues to route events to GCP, developer events continue to route to preview, and the retained GCP deployment remains unchanged.
+- Confirmed production deployment status and log-query availability. No production Worker request was generated as part of this deployment-only chunk, so no production request log was expected or found.
 
-**Gate:** Deployment changes runtime availability only; production event routing and rollback remain unchanged.
+**Gate:** Passed. Deployment changed runtime availability only; production event routing and rollback remain unchanged.
 
 ### Chunk 13 — Production webhook cutover
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Change only the production webhook route.
-- Keep developer routing on preview.
-- Monitor Cloudflare requests, handler responses, authentication, errors, latency, and customer-impact reports during the active window.
-- Keep GCP active and unchanged for immediate routing rollback.
+- Changed only the persisted production webhook route from GCP to production Cloudflare. Developer routing remains on preview, and the GCP deployment remains active and unchanged for immediate routing rollback.
+- Verified the persisted production and developer routes and the unchanged production deployment after the sync.
+- Monitored a 60-minute production window with 61 event requests: 30 posted and 31 updated. Every request completed with HTTP 200; no non-200 response, error-level request, or error envelope occurred.
+- Observed three requests with generated-tax result arrays plus established no-op and Exchange Bot loop-prevention paths. Provider-free SDK warnings matched established preview behavior and were not accompanied by an authentication failure.
+- Received no customer-impact report during the active window. No restored or deleted event occurred naturally, numeric latency was not exposed by the log interface, and no customer Book or balance was inspected; those limitations remain explicit for stabilization.
 
 **Rollback triggers:** suspected zero-sum or data-loss issues, incorrect tax amounts, reversed or incomplete movements, duplicate or missing tax entries, failed update replacement, sustained authentication failures, material latency or error growth, or missing production behavior.
+
+**Gate:** Passed. The active window produced no technical or reported rollback trigger, and GCP remains available for immediate routing rollback.
 
 ### Chunk 14 — Stabilization
 

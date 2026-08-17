@@ -29,10 +29,11 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
 | tax-bot/new | — | `8794` | Event-only migration Worker configured in `package.json` |
+| merge-duplicates | `5178` | `8795` | Sidebar app for human-reviewed duplicate transaction merges |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
 
-**Next available:** Vite client `5178`, bkper server `8795`.
+**Next available:** Vite client `5179`, bkper server `8796`.
 
 ### GCP Cloud Functions bots
 

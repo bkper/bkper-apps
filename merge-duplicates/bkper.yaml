@@ -1,0 +1,32 @@
+id: merge-duplicates
+name: Merge Duplicates
+description: Find and review likely duplicate transactions, then merge only the pairs you confirm.
+logoUrl: https://merge-duplicates.bkper.app/images/logo-light.svg
+logoUrlDark: https://merge-duplicates.bkper.app/images/logo-dark.svg
+website: https://merge-duplicates.bkper.app
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-apps/tree/main/merge-duplicates
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+users: '*@bkper.com'
+menuUrl: https://merge-duplicates.bkper.app?bookId=${book.id}&query=${transactions.query}&accountId=${account.id}&groupId=${group.id}
+menuUrlDev: https://merge-duplicates-preview.bkper.app?bookId=${book.id}&query=${transactions.query}&accountId=${account.id}&groupId=${group.id}
+menuText: Merge Duplicates
+menuOpenMode: SIDEBAR
+propertiesSchema:
+    book:
+        keys:
+            - merge_duplicate_examples
+    group:
+        keys:
+            - merge_duplicate_examples
+    account:
+        keys:
+            - merge_duplicate_examples
+deployment:
+    server: server/src/index.ts
+    client: client
+    compatibility_date: '2026-01-28'

@@ -1,0 +1,576 @@
+{
+  "paths": {
+    "/api/v1/scan": {
+      "post": {
+        "tags": [
+          "Duplicate review"
+        ],
+        "summary": "Scan one page of 200 transactions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI-ranked, deterministically non-overlapping suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/merge": {
+      "post": {
+        "tags": [
+          "Duplicate review"
+        ],
+        "summary": "Merge one confirmed pair with the canonical Bkper merge operation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical merged transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/learn": {
+      "post": {
+        "tags": [
+          "Duplicate review"
+        ],
+        "summary": "Save one rejected pair as a plain-text learning example",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearnRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Learning result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearnResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "ScanResponse": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "EDITOR",
+              "POSTER"
+            ]
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            }
+          },
+          "fingerprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionFingerprint"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "scanned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidateCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "$ref": "#/components/schemas/SkippedCounts"
+          },
+          "promptVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission",
+          "suggestions",
+          "fingerprints",
+          "scanned",
+          "candidateCount",
+          "skipped",
+          "promptVersion"
+        ]
+      },
+      "Suggestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "strength": {
+            "type": "string",
+            "enum": [
+              "Strong",
+              "Possible"
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "first": {
+            "$ref": "#/components/schemas/TransactionFingerprint"
+          },
+          "second": {
+            "$ref": "#/components/schemas/TransactionFingerprint"
+          }
+        },
+        "required": [
+          "id",
+          "strength",
+          "explanation",
+          "first",
+          "second"
+        ]
+      },
+      "TransactionFingerprint": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "fromAccount": {
+            "$ref": "#/components/schemas/AccountSnapshot"
+          },
+          "toAccount": {
+            "$ref": "#/components/schemas/AccountSnapshot"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          },
+          "draft": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "amount",
+          "description",
+          "fromAccount",
+          "toAccount",
+          "properties",
+          "draft"
+        ]
+      },
+      "AccountSnapshot": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "SkippedCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checked": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "trashed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "locked": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "total",
+          "checked",
+          "trashed",
+          "locked"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "ScanRequest": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "cursor": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 4000
+          },
+          "fingerprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionFingerprint"
+            },
+            "maxItems": 20000
+          }
+        },
+        "required": [
+          "bookId",
+          "query",
+          "fingerprints"
+        ]
+      },
+      "MergeResponse": {
+        "type": "object",
+        "properties": {
+          "mergedTransactionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "mergedTransactionId"
+        ]
+      },
+      "MergeRequest": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "firstTransactionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "secondTransactionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "bookId",
+          "firstTransactionId",
+          "secondTransactionId"
+        ]
+      },
+      "LearnResponse": {
+        "type": "object",
+        "properties": {
+          "saved": {
+            "type": "boolean"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "resourceType": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "account",
+              "group",
+              "book",
+              null
+            ]
+          },
+          "notice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "saved",
+          "skipped",
+          "resourceType"
+        ]
+      },
+      "LearnRequest": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "accountId": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "groupId": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "pair": {
+            "type": "object",
+            "properties": {
+              "first": {
+                "$ref": "#/components/schemas/TransactionFingerprint"
+              },
+              "second": {
+                "$ref": "#/components/schemas/TransactionFingerprint"
+              }
+            },
+            "required": [
+              "first",
+              "second"
+            ]
+          }
+        },
+        "required": [
+          "bookId",
+          "pair"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

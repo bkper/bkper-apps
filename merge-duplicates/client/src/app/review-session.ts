@@ -56,7 +56,6 @@ export class ReviewSession {
             used.add(suggestion.first.id);
             used.add(suggestion.second.id);
             this.suggestions.push(suggestion);
-            this.selectedIds.add(suggestion.id);
         }
         const fingerprints = new Map(this.fingerprints.map(item => [item.id, item]));
         for (const fingerprint of response.fingerprints)

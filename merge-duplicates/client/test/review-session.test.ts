@@ -39,18 +39,21 @@ describe('browser-memory review session', () => {
     it('appends pages while preserving decisions and global non-overlap', () => {
         const session = new ReviewSession();
         session.appendPage(page([suggestion('one', 'a', 'b')], 'next'));
-        session.setSelected('one', false);
-        session.appendPage(page([suggestion('overlap', 'b', 'c'), suggestion('two', 'd', 'e')]));
 
-        expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
-        expect(session.accepted.map(item => item.id)).toEqual(['two']);
+        expect(session.accepted).toEqual([]);
         expect(session.rejected.map(item => item.id)).toEqual(['one']);
 
         session.setSelected('one', true);
+        session.appendPage(page([suggestion('overlap', 'b', 'c'), suggestion('two', 'd', 'e')]));
+
+        expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
+        expect(session.accepted.map(item => item.id)).toEqual(['one']);
+        expect(session.rejected.map(item => item.id)).toEqual(['two']);
+
         session.setSelected('one', false);
         session.setSelected('one', true);
         expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
-        expect(session.accepted.map(item => item.id)).toEqual(['one', 'two']);
+        expect(session.accepted.map(item => item.id)).toEqual(['one']);
 
         session.setAllSelected(false);
         expect(session.accepted).toEqual([]);
@@ -84,7 +87,8 @@ describe('browser-memory review session', () => {
                 'next'
             )
         );
-        session.setSelected('three', false);
+        session.setSelected('one', true);
+        session.setSelected('two', true);
 
         await session.apply(
             api,

@@ -212,11 +212,26 @@ export class MergeDuplicatesApp extends LitElement {
         .pair {
             border-bottom: var(--bkper-border);
             background: var(--bkper-color-background);
+            cursor: pointer;
             transition: background-color var(--wa-transition-fast);
         }
 
         .pair.selected {
             background: var(--bkper-color-blue-low);
+        }
+
+        @media (hover: hover) {
+            .pair:hover {
+                background: var(--bkper-color-grey-low);
+            }
+
+            .pair.selected:hover {
+                background: var(--bkper-color-blue-low);
+            }
+        }
+
+        .pair + .pair {
+            border-top: var(--bkper-spacing-small) solid var(--bkper-color-background);
         }
 
         .pair-heading {
@@ -600,7 +615,10 @@ export class MergeDuplicatesApp extends LitElement {
 
     private renderSuggestion(suggestion: Suggestion, selected: boolean): TemplateResult {
         return html`
-            <article class="pair ${selected ? 'selected' : ''}">
+            <article
+                class="pair ${selected ? 'selected' : ''}"
+                @click=${(event: MouseEvent) => this.handlePairClick(event, suggestion.id)}
+            >
                 <div class="pair-heading">
                     <wa-checkbox
                         class="pair-selector"
@@ -671,6 +689,15 @@ export class MergeDuplicatesApp extends LitElement {
             return formatted.slice(0, -5);
         }
         return formatted;
+    }
+
+    private handlePairClick(event: MouseEvent, id: string): void {
+        const clickedCheckbox = event
+            .composedPath()
+            .some(target => target instanceof Element && target.localName === 'wa-checkbox');
+        if (clickedCheckbox) return;
+        const selected = this.controller.review.selectedIds.has(id);
+        this.controller.setSuggestionSelected(id, !selected);
     }
 
     private handlePairSelection(event: Event, id: string): void {

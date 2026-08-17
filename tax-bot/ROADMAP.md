@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–4 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, and response envelopes. Tax calculation and Book mutation behavior has not been ported, and no deployment or routing change has begun.
+**Chunks 1–5 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, and response envelopes. Posted and restored creation and all Book mutation behavior have not been ported, and no deployment or routing change has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -328,15 +328,15 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 5 — Port calculation and Transaction construction
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Port aggregate included and excluded rate and fixed-amount behavior.
-- Port net-amount calculation, positive amount normalization, limit handling, and rounding.
-- Port tax-description expression expansion and direction-sensitive substitutions.
-- Port date, remote id, visible-property copying, and exchange-property transformations.
-- Preserve construction and serialization order.
+- Ported aggregate included and excluded rate and fixed-amount behavior.
+- Ported net-amount calculation, positive amount normalization, limit handling, and rounding.
+- Ported tax-description expression expansion and direction-sensitive substitutions.
+- Ported date, remote id, visible-property copying, and exchange-property transformations.
+- Preserved construction and serialization order.
 
-**Zero-sum gate:** Each constructed tax entry has one amount; only entries with two resolved Accounts may affect balances, and unresolved entries remain drafts.
+**Zero-sum gate:** Deterministic tests confirm entries that retain an amount use a positive amount and never assign a partial movement. The retained legacy rounded-zero path clears the amount and therefore remains a non-posted draft. Account resolution remains delegated to Bkper, so unresolved descriptions also remain drafts. The full local check passes without credentials, network access, live Books, or Book writes.
 
 ### Chunk 6 — Port posted and restored creation
 

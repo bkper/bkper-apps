@@ -276,7 +276,7 @@ export class MergeDuplicatesApp extends LitElement {
         return html`
             <wa-callout variant="brand" appearance="filled-outlined" size="small">
                 <wa-spinner slot="icon"></wa-spinner>
-                <strong>Analyzing 200 transactions</strong><br />
+                <strong>Looking for duplicate transactions</strong><br />
                 Filtering deterministic candidates before one Bkper AI request.
             </wa-callout>
         `;

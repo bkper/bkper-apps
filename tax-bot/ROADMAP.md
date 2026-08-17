@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–9 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference, and no deployment or routing change has started.
+**Chunks 1–10 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview, developer events route to it, and the first complete included-tax canary passed with exact movement and zero-sum evidence.
 
-The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Preview readiness, deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
+The existing Google Cloud Function remains the active production implementation and production webhook target. Deterministic preview validation, production deployment and routing, stabilization, repository consolidation, and GCP retirement remain separate decisions.
 
 ## Purpose of this document
 
@@ -396,15 +396,17 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 10 — Preview readiness and first canary
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Build and review the preview candidate before enabling developer routing.
-- Deploy preview without changing production routing.
-- Use a synthetic Book for one isolated, low-value tax calculation canary.
-- Start with one complete included-tax movement and verify its source and generated movement deterministically.
-- Confirm authenticated preview event handling, expected remote id, and exact movement evidence.
+- Passed the full local candidate gate with 77 deterministic tests, strict production and test typechecks, a clean Worker build, and formatting.
+- Deployed the reviewed server-only candidate to preview and routed developer events to it while retaining the production GCP webhook unchanged.
+- Created one private synthetic Book with isolated Asset, Incoming, and Liability Accounts, configured one 10% included-tax rule, and installed Tax Bot for preview event delivery.
+- Posted one low-value complete source movement. Canonical re-reads found exactly the unchanged source and one generated complete tax movement with the expected positive amount, direction, state, Tax Bot attribution, and remote id.
+- Deterministic per-Account movement aggregation produced an exact zero sum. No duplicate, reversal, partial posting, source mutation, or unexplained balance effect was found.
+- Confirmed authenticated preview handling with a successful event response. The generated Tax Bot event produced no recursive bot response.
+- Recorded two inherited non-accounting behaviors found during the canary—the optional formatted date missing from an informational result and numeric text consumed by Bkper description parsing—in [`BUGS.md`](./BUGS.md) for post-stabilization review.
 
-**Gate:** Preview handles one complete tax movement without a duplicate, reversal, partial posting, unintended source mutation, or unexplained balance effect.
+**Gate:** Passed. Preview handled one complete tax movement without a duplicate, reversal, partial posting, unintended source mutation, or unexplained balance effect.
 
 ### Chunk 11 — Deterministic preview validation
 

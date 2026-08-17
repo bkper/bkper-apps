@@ -4,9 +4,9 @@
     "scripts": {
         "clean": "rm -rf node_modules dist",
         "predev": "bun install",
-        "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8787\"",
+        "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8796\"",
         "dev:client": "vite dev",
-        "dev:server": "bkper app dev --sp 8787",
+        "dev:server": "bkper app dev --sp 8796",
         "prebuild": "bun install",
         "build": "vite build && bkper app build",
         "test": "bun test",

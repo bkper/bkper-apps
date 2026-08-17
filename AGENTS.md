@@ -24,7 +24,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | App | Vite client | bkper server | Notes |
 | --- | --- | --- | --- |
 | files-preview-app | `5174` | `8788` | Configured in `vite.config.ts` and `package.json` |
-| inventory-bot/new | `5175` | `8787` | Assigned for the new Inventory Bot platform app |
+| inventory-bot/new | `5175` | `8796` | Assigned for the new Inventory Bot platform app |
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
@@ -33,7 +33,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
 
-**Next available:** Vite client `5179`, bkper server `8796`.
+**Next available:** Vite client `5179`, bkper server `8797`.
 
 ### GCP Cloud Functions bots
 

@@ -1,7 +1,7 @@
 import type { CandidateEvaluation, CandidatePair } from './candidate-service';
 
 export const PROMPT_VERSION = 'merge-duplicates-v1';
-const AI_URL = 'https://ai.bkper.app/responses';
+const AI_URL = 'https://ai.bkper.app/v1/responses';
 const MODEL = 'gemini-3.6-flash';
 const TEMPERATURE = 0.1;
 
@@ -59,7 +59,7 @@ export async function analyzeCandidatePairs(
         })
     );
 
-    const payload = (await response.json()) as unknown;
+    const payload = await readAiPayload(response);
     if (!response.ok) {
         throw new Error(readAiError(payload) ?? `Bkper AI returned ${response.status}.`);
     }
@@ -173,6 +173,18 @@ function getOutputText(payload: unknown): string {
     }
     if (texts.length === 0) throw new Error('Bkper AI returned no output text.');
     return texts.join('');
+}
+
+async function readAiPayload(response: Response): Promise<unknown> {
+    const body = await response.text();
+    if (body.trim().length === 0) {
+        throw new Error(`Bkper AI returned an empty response (${response.status}).`);
+    }
+    try {
+        return JSON.parse(body) as unknown;
+    } catch {
+        throw new Error(`Bkper AI returned malformed JSON (${response.status}).`);
+    }
 }
 
 function readAiError(payload: unknown): string | undefined {

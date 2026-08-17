@@ -70,7 +70,7 @@ bun run dev
 Local ports are assigned by `/workspace/bkper-apps/AGENTS.md`:
 
 - Vite client: `5175`
-- Bkper app Worker: `8787`
+- Bkper app Worker: `8796`
 
 ## Verification
 

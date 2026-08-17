@@ -57,7 +57,7 @@ describe('Bkper AI structured analysis', () => {
         });
 
         expect(result.evaluations).toHaveLength(1);
-        expect(captured?.url).toBe('https://ai.bkper.app/responses');
+        expect(captured?.url).toBe('https://ai.bkper.app/v1/responses');
         expect(captured?.headers.get('authorization')).toBeNull();
         const body = (await captured?.clone().json()) as Record<string, unknown>;
         expect(body.model).toBe('gemini-3.6-flash');
@@ -70,5 +70,11 @@ describe('Bkper AI structured analysis', () => {
         expect(serialized).not.toContain('secret-a');
         expect(serialized).not.toContain('secret-account');
         expect(serialized).not.toContain('draft');
+    });
+
+    it('reports an empty AI response without exposing a JSON parser error', async () => {
+        await expect(
+            analyzeCandidatePairs([pair], [], async () => new Response(null, { status: 404 }))
+        ).rejects.toThrow('Bkper AI returned an empty response (404).');
     });
 });

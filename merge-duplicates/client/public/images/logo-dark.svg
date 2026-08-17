@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title id="title">Merge two paths into one</title>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="#A8C7FA"/>
-  <path d="M17 18 31 32M17 46 31 32h16M39 24l8 8-8 8" fill="none" stroke="#10233F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 17h8c9 0 9 15 19 15h14" fill="none" stroke="#ABAEB9" stroke-width="5" stroke-linecap="round"/>
+  <path d="M10 47h8c9 0 9-15 19-15h14" fill="none" stroke="#6EB3FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="m43 24 8 8-8 8" fill="none" stroke="#6EB3FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

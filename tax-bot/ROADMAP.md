@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–6 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, and response envelopes. Deletion and update Book mutation behavior have not been ported, and no deployment or routing change has begun.
+**Chunks 1–7 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, and response envelopes. Update orchestration has not been ported, and no deployment or routing change has begun.
 
 The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
@@ -352,14 +352,14 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 7 — Port deletion
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Port current Account and Group remote-id discovery.
-- Port previous origin and destination Account lookup.
-- Port linked Transaction query and first-match behavior.
-- Preserve checked-state handling, uncheck-before-trash order, sequential API order, and response strings.
+- Ported current Account and Group remote-id discovery.
+- Ported previous origin and destination Account lookup.
+- Ported linked Transaction query and first-match behavior.
+- Preserved checked-state handling, uncheck-before-trash order, sequential API order, and response strings.
 
-**Gate:** Deletion affects only linked tax Transactions and never mutates the source movement.
+**Gate:** Deterministic tests confirm only first-match linked tax Transactions are trashed, checked entries are unchecked first, unchecked entries are trashed directly, missing matches remain no-ops, and the source movement is unchanged. Current and previous Account and Group discovery retains established ordering and missing previous Account behavior. The full local check passes with SDK mutation boundaries intercepted and without credentials, network access, live Books, or Book writes.
 
 ### Chunk 8 — Port update orchestration
 

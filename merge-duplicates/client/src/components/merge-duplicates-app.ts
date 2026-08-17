@@ -1,7 +1,8 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import type { Suggestion, TransactionFingerprint } from '../api/app-api';
 import { AppController } from '../app/app-controller';
+import { appEnvironment } from '../app/app-environment';
 
 @customElement('merge-duplicates-app')
 export class MergeDuplicatesApp extends LitElement {
@@ -207,6 +208,9 @@ export class MergeDuplicatesApp extends LitElement {
 
     readonly controller = new AppController(this);
 
+    @state()
+    embedded = appEnvironment.isEmbedded();
+
     render(): TemplateResult {
         const state = this.controller.state;
         const review = this.controller.review;
@@ -234,19 +238,30 @@ export class MergeDuplicatesApp extends LitElement {
         const query = this.controller.state.context.query;
         return html`
             <header class="stack">
-                <div class="brand">
-                    <picture>
-                        <source
-                            media="(prefers-color-scheme: dark)"
-                            srcset="/images/logo-dark.svg"
-                        />
-                        <img src="/images/logo-light.svg" alt="Merge Duplicates logo" />
-                    </picture>
-                    <div>
-                        <h1>Merge Duplicates</h1>
-                        <p class="subtitle">Review AI-assisted matches before anything changes.</p>
-                    </div>
-                </div>
+                ${
+                    this.embedded
+                        ? html``
+                        : html`
+                              <div class="brand">
+                                  <picture>
+                                      <source
+                                          media="(prefers-color-scheme: dark)"
+                                          srcset="/images/logo-dark.svg"
+                                      />
+                                      <img
+                                          src="/images/logo-light.svg"
+                                          alt="Merge Duplicates logo"
+                                      />
+                                  </picture>
+                                  <div>
+                                      <h1>Merge Duplicates</h1>
+                                      <p class="subtitle">
+                                          Review AI-assisted matches before anything changes.
+                                      </p>
+                                  </div>
+                              </div>
+                          `
+                }
                 <div class="stack">
                     <span class="query-label">Captured transaction query</span>
                     <div class="query" role="textbox" aria-readonly="true">

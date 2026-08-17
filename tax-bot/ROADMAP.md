@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–8 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target now preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. Full parity and drift audit work has not begun, and no deployment or routing change has started.
+**Chunks 1–9 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The full deterministic parity and drift audit found no unexplained business-behavior difference, and no deployment or routing change has started.
 
-The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
+The existing Google Cloud Function remains the active production implementation. The initial migration target is an isolated Bkper Platform application on Cloudflare Workers. Preview readiness, deployment, developer routing, production routing, stabilization, repository consolidation, and GCP retirement are separate decisions.
 
 ## Purpose of this document
 
@@ -273,7 +273,7 @@ Repeat the drift audit before preview routing and immediately before production 
 
 | Legacy change | Production status | Cloudflare test | Cloudflare port | Notes |
 | --- | --- | --- | --- | --- |
-| _Populate during migration_ |  |  |  |  |
+| _No legacy change after the accepted migration baseline_ | N/A | N/A | N/A | Tracked legacy source and configuration remain unchanged. |
 
 ## Migration chunks
 
@@ -374,13 +374,23 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 9 — Full parity and drift audit
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Run the complete deterministic behavior matrix.
-- Compare every target handler with its legacy counterpart.
-- Review dependency versions, configuration, generated artifacts, and bundle contents.
-- Confirm no production patch is missing.
-- Explain every runtime-boundary deviation.
+- Ran 77 deterministic tests across seven files with SDK and network boundaries intercepted. The matrix covers ingress, guards, source traversal, current and legacy properties, included and excluded calculations, fixed overrides, rounding, expression expansion, Transaction construction, batch creation, replay identifiers, deletion, restore, update orchestration, source immutability, and response envelopes.
+- Added focused `bkper-js` `2.19.0` compatibility coverage for Amount arithmetic and comparison, Book parsing and rounding, the platform API endpoint, nullable missing-Account lookup, and observable non-404 API failures. Added explicit mixed included/excluded net-amount and positive `tax_round` coverage.
+- Compared every target route and handler with its legacy counterpart. Branch order, constructor timing, Account and Group traversal, property precedence, formulas, movement construction, remote ids, SDK-call order, mutation boundaries, logging order, and result normalization remain aligned.
+- Confirmed the tracked legacy source and configuration are unchanged from the accepted baseline and that no production patch was recorded after that baseline.
+- Confirmed the target uses exact dependency versions and a frozen lockfile. The `bkper-js` `2.18.0` to `2.19.0` package comparison found no declaration or domain-model changes; the implementation difference is isolated to the HTTP boundary for platform proxy selection and generic error logging.
+- Confirmed the target `bkper.yaml` preserves legacy identity, production GCP webhook, event subscriptions, and property schema while adding only Worker deployment metadata. The generated `Env` remains empty.
+- Inspected a clean Worker build. The application registers only `POST /events`; the bundle contains the expected Hono, `bkper-js` `2.19.0`, Big.js, Luxon, and UUID runtime code, with no client, static assets, KV, secrets, or app-defined authentication provider.
+- Rebuilt the legacy target successfully. Because the accepted legacy project intentionally has no lockfile and declares a dependency range, this remains buildability evidence rather than deterministic production-dependency evidence.
+
+**Retained runtime-boundary deviations:**
+
+- Hono replaces Express, Functions Framework, request-local HTTP context, environment API-key loading, and inbound authentication-header providers. The Worker creates one provider-free `Bkper` per request so platform outbound authentication can supply identity. The removed `AppContext` key/value methods had no legacy business caller.
+- Strict TypeScript adds type-only non-null assertions, `unknown` error narrowing, and test-visible protected methods. These do not alter emitted business branches. The error narrowing preserves established Error stack arrays and direct non-Error values while avoiding a secondary catch-block failure for exotic null or non-string-stack throws; no subscribed legacy path intentionally throws those values.
+- `bkper-js` `2.19.0` selects `https://api.bkper.app` when no API key is configured and logs the original generic SDK error value rather than only its message. Tax models, serialization, nullable 404 handling, arithmetic, and SDK method behavior are unchanged from `2.18.0`.
+- YAML formatting and generated Worker packaging differ mechanically from GCP packaging; the application metadata and tax behavior do not.
 
 **Gate:** No unexplained difference remains in rate selection, formula, amount, rounding, movement resolution, traversal order, remote ids, state transitions, API-call order, resource mutation, or response behavior.
 

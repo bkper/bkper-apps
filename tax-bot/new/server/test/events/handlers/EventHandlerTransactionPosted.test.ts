@@ -430,6 +430,38 @@ describe('legacy tax calculation', () => {
         expect(handler.netAmounts).toEqual(['100', '100']);
     });
 
+    test('uses the net amount after included tax to calculate excluded tax', async () => {
+        const origin = createAccount('origin', {
+            tax_included_rate: '20',
+            tax_excluded_rate: '10',
+            tax_description: 'Tax Source >> Tax Destination',
+        });
+        const transaction = createTransaction({
+            id: 'source-1',
+            amount: '120',
+            creditAccount: origin,
+        });
+        const calls = interceptBatchCreation(request =>
+            request.items.map((item, index) => ({
+                ...item,
+                id: `tax-${index + 1}`,
+                dateFormatted: `date-${index + 1}`,
+                posted: true,
+                creditAccount: { id: `tax-origin-${index + 1}` },
+                debitAccount: { id: `tax-destination-${index + 1}` },
+            }))
+        );
+
+        await createNetworkHandler().handleEvent(createEvent(transaction));
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].request.items.map(item => item.remoteIds)).toEqual([
+            ['tax_included_rate_source-1_origin'],
+            ['tax_excluded_rate_source-1_origin'],
+        ]);
+        expect(calls[0].request.items.map(item => item.amount)).toEqual(['20', '10']);
+    });
+
     test('uses the aggregate fixed included amount instead of the included-rate formula', async () => {
         const handler = createNetRecordingHandler();
         const origin = createAccount('origin', { tax_included_rate: '20' });
@@ -475,6 +507,7 @@ describe('legacy tax description and rounding', () => {
         round?: string;
         expected: string;
     }[] = [
+        { name: 'accepts a positive number of decimal places', round: '3', expected: '1.235' },
         { name: 'accepts zero decimal places', round: '0', expected: '1' },
         { name: 'falls back for excessive decimal places', round: '9', expected: '1.23' },
         { name: 'falls back for an invalid value', round: 'invalid', expected: '1.23' },
@@ -815,6 +848,7 @@ describe('legacy posted and restored creation', () => {
             creditAccount: origin,
             debitAccount: destination,
         });
+        const sourceBefore = structuredClone(transaction);
         const calls = interceptBatchCreation(request =>
             request.items.map((item, index) => ({
                 ...item,
@@ -842,6 +876,7 @@ describe('legacy posted and restored creation', () => {
             'POSTED: date-2 5.00 Group Tax >> Tax Payable',
             'POSTED: date-3 2.00 Destination Tax >> Tax Payable',
         ]);
+        expect(transaction).toEqual(sourceBefore);
     });
 
     test('returns false when batch creation returns no Transactions', async () => {

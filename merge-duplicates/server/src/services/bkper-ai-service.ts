@@ -1,6 +1,6 @@
 import { isPlausiblePair, type TransactionFingerprint } from './candidate-service';
 
-export const PROMPT_VERSION = 'merge-duplicates-v2';
+export const PROMPT_VERSION = 'merge-duplicates-v3';
 const AI_URL = 'https://ai.bkper.app/v1/responses';
 
 interface ModelAttempt {
@@ -139,7 +139,7 @@ function buildAiRequest(
                         {
                             type: 'input_text',
                             text: JSON.stringify({
-                                learningExamples,
+                                humanRejectedPairs: learningExamples,
                                 candidateTransactions: toAiSnapshots(transactions),
                             }),
                         },
@@ -214,9 +214,9 @@ Find likely duplicate pairs in the indexed transaction list.
 Return only pairs that represent the same real-world movement and never use a transaction more than once.
 Pairs must have equal amounts, dates within seven calendar days, and a shared Account reference on the same movement side.
 An incomplete draft may instead qualify from amount, date, and description.
-Use descriptions, Account names, custom properties, date proximity, and supplied rejected examples.
-Rejected examples are negative guidance, not duplicates. Never request a write.
-Return Strong only when the evidence is compelling; otherwise use Possible. Keep explanations under 140 characters.`;
+Use descriptions, Account names, custom properties, and date proximity.
+IMPORTANT: Every pair in humanRejectedPairs is a human-confirmed false positive and MUST be skipped. Never return those pairs or equivalent matches.
+Never request a write. Return Strong only when the evidence is compelling; otherwise use Possible. Keep explanations under 140 characters.`;
 }
 
 function toAiSnapshots(

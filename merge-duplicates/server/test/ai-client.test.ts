@@ -82,9 +82,11 @@ describe('Bkper AI structured analysis', () => {
         const payload = JSON.parse(input[0]?.content[0]?.text ?? '{}') as Record<string, unknown>;
         expect(payload.candidateTransactions).toHaveLength(2);
         expect(payload).not.toHaveProperty('candidatePairs');
+        expect(payload).not.toHaveProperty('learningExamples');
+        expect(payload.humanRejectedPairs).toEqual(['known example']);
         const serialized = JSON.stringify(body);
         const serializedPayload = JSON.stringify(payload);
-        expect(serialized).toContain('merge-duplicates-v2');
+        expect(serialized).toContain('merge-duplicates-v3');
         expect(serializedPayload).toContain('known example');
         expect(serializedPayload).not.toContain('secret-a');
         expect(serializedPayload).not.toContain('secret-account');

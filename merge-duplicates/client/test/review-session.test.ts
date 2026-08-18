@@ -31,7 +31,7 @@ function page(suggestions: Suggestion[], cursor?: string): ScanResponse {
         scanned: 200,
         candidateCount: suggestions.length,
         skipped: { total: 0, checked: 0, trashed: 0, locked: 0 },
-        promptVersion: 'merge-duplicates-v2',
+        promptVersion: 'merge-duplicates-v3',
     };
 }
 

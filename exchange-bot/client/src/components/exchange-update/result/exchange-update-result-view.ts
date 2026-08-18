@@ -1,5 +1,6 @@
+import type WaPopover from '@awesome.me/webawesome/dist/components/popover/popover.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, query } from 'lit/decorators.js';
 import { exchangeUpdateResultCSS } from './exchange-update-result-css.js';
 import { sharedCSS } from '../../shared-css.js';
 import type { ExchangeUpdateSummary } from '../../../types.js';
@@ -9,6 +10,9 @@ export class ExchangeUpdateResultView extends LitElement {
     @property({ attribute: false })
     summary?: ExchangeUpdateSummary = {};
 
+    @query('.popover')
+    private resultPopover?: WaPopover;
+
     static styles = [sharedCSS, exchangeUpdateResultCSS];
 
     render(): TemplateResult {
@@ -16,12 +20,29 @@ export class ExchangeUpdateResultView extends LitElement {
             <div class="container">
                 <wa-icon name="check_circle" label="Done"></wa-icon>
                 <span>Done!</span>
-                <button id="result-trigger" class="trigger" type="button">View result</button>
+                <button
+                    id="result-trigger"
+                    class="trigger focusable"
+                    type="button"
+                    @mouseenter=${this.openResult}
+                    @click=${this.handleTriggerClicked}
+                >
+                    Result
+                </button>
                 <wa-popover class="popover" for="result-trigger" placement="bottom-start">
                     <div class="content">${this.renderSummary()}</div>
                 </wa-popover>
             </div>
         `;
+    }
+
+    private openResult(): void {
+        this.resultPopover?.show();
+    }
+
+    private handleTriggerClicked(e: Event): void {
+        e.stopImmediatePropagation();
+        this.openResult();
     }
 
     private renderSummary(): TemplateResult {

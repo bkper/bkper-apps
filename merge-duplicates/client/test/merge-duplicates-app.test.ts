@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import type { TemplateResult } from 'lit';
-import type { Suggestion } from '../src/api/app-api';
+import type { Suggestion, TransactionFingerprint } from '../src/api/app-api';
 import { MergeDuplicatesApp } from '../src/components/merge-duplicates-app';
 
 const renderHeader = Reflect.get(MergeDuplicatesApp.prototype, 'renderHeader') as (
     this: MergeDuplicatesApp
+) => TemplateResult;
+const renderAccount = Reflect.get(MergeDuplicatesApp.prototype, 'renderAccount') as (
+    this: MergeDuplicatesApp,
+    account: TransactionFingerprint['fromAccount']
 ) => TemplateResult;
 
 function templateText(result: TemplateResult): string {
@@ -66,6 +70,14 @@ describe('merge duplicates app', () => {
         app.controller.review.suggestions = [suggestion()];
         app.controller.showConfirmation();
         expect(app.controller.state.confirmOpen).toBe(true);
+    });
+
+    it('renders a missing account as a compact accessible placeholder', () => {
+        const text = templateText(renderAccount.call(new MergeDuplicatesApp(), undefined));
+
+        expect(text).toContain('role="img"');
+        expect(text).toContain('aria-label="Unassigned account"');
+        expect(text).toMatch(/>—<\/span\s*>/);
     });
 
     it('uses the app width to show each transaction on one row when space allows', () => {

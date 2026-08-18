@@ -710,7 +710,11 @@ export class MergeDuplicatesApp extends LitElement {
     }
 
     private renderAccount(account: TransactionFingerprint['fromAccount']): TemplateResult {
-        if (!account) return html`<span class="unassigned">Unassigned</span>`;
+        if (!account) {
+            return html`<span class="unassigned" role="img" aria-label="Unassigned account"
+                >—</span
+            >`;
+        }
         const typeClass = account.type?.toLowerCase() ?? '';
         return html`<span class="account-pill ${typeClass}" title=${account.name}
             >${account.name}</span

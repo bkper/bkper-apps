@@ -341,24 +341,42 @@ The bot responds to the following Bkper events:
 
 ## API access
 
-Authenticated clients can load exchange rates and run Exchange Updates through the app API.
-
 ```text
-Production: https://exchange-bot.bkper.app
-OpenAPI:    https://exchange-bot.bkper.app/openapi.json
+Base URL: https://exchange-bot.bkper.app
+OpenAPI:  https://exchange-bot.bkper.app/openapi.json
 ```
 
-Use a Bkper OAuth bearer token:
+All requests require a Bkper OAuth bearer token:
 
 ```bash
 TOKEN="$(bkper auth token)"
+```
 
+### Load exchange rates
+
+`GET /api/v1/books/{bookId}/exchange-rates?date=YYYY-MM-DD`
+
+Loads rates for the requested date, filtered to currencies connected to the book. Requires view permission. The response contains `base`, `date`, and `rates` and can be used as the Exchange Update request body.
+
+```bash
 curl \
   -H "Authorization: Bearer ${TOKEN}" \
   "https://exchange-bot.bkper.app/api/v1/books/<book-id>/exchange-rates?date=2026-03-15"
 ```
 
-`POST /api/v1/books/{bookId}/exchange-update` can create exchange accounts and transactions and requires **EDITOR** or **OWNER** permission.
+### Run an Exchange Update
+
+`POST /api/v1/books/{bookId}/exchange-update`
+
+Runs an Exchange Update in the book using the supplied rates. Requires **EDITOR** or **OWNER** permission and can create exchange accounts and gain/loss transactions. The response contains `createdAccounts` and `createdTransactions`.
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"base":"USD","date":"2026-03-15","rates":{"EUR":0.92}}' \
+  "https://exchange-bot.bkper.app/api/v1/books/<book-id>/exchange-update"
+```
 
 ## Learn more
 

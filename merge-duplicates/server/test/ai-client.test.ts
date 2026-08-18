@@ -58,7 +58,7 @@ function aiError(status: number, code: string, message = 'Safe upstream message.
 describe('Bkper AI structured analysis', () => {
     const transactions = [pair.first, pair.second];
 
-    it('sends each candidate transaction once without identifiers or authorization headers', async () => {
+    it('sends each candidate transaction once and requests a global non-overlapping match', async () => {
         let captured: Request | undefined;
         const result = await analyzeCandidateTransactions(
             transactions,
@@ -77,20 +77,49 @@ describe('Bkper AI structured analysis', () => {
         expect(body.reasoning).toEqual({ effort: 'medium' });
         expect(body.temperature).toBe(0.1);
         expect(body.store).toBe(false);
-        expect(body.text).toMatchObject({ format: { type: 'json_schema', strict: true } });
+        expect(body.text).toMatchObject({
+            format: {
+                type: 'json_schema',
+                name: 'merge_duplicate_global_matching',
+                strict: true,
+            },
+        });
         const input = body.input as Array<{ content: Array<{ text: string }> }>;
         const payload = JSON.parse(input[0]?.content[0]?.text ?? '{}') as Record<string, unknown>;
         expect(payload.candidateTransactions).toHaveLength(2);
+        const candidateTransactions = payload.candidateTransactions as Array<
+            Record<string, unknown>
+        >;
+        expect(candidateTransactions.map(transaction => transaction.draft)).toEqual([false, false]);
         expect(payload).not.toHaveProperty('candidatePairs');
         expect(payload).not.toHaveProperty('learningExamples');
         expect(payload.humanRejectedPairs).toEqual(['known example']);
         const serialized = JSON.stringify(body);
         const serializedPayload = JSON.stringify(payload);
-        expect(serialized).toContain('merge-duplicates-v3');
+        expect(serialized).toContain('merge-duplicates-v6');
+        expect(serialized).toContain('Review the entire indexed transaction list');
+        expect(serialized).toContain('Do not select an earlier weaker match');
         expect(serializedPayload).toContain('known example');
         expect(serializedPayload).not.toContain('secret-a');
         expect(serializedPayload).not.toContain('secret-account');
-        expect(serializedPayload).not.toContain('draft');
+    });
+
+    it('accepts a selected draft pair despite conflicting discovered Accounts', async () => {
+        const discoveredDraft: TransactionFingerprint = {
+            ...pair.second,
+            id: 'secret-draft',
+            fromAccount: { id: 'wrong-account', name: 'Discovered Card' },
+            toAccount: { id: 'wrong-category', name: 'Discovered Meals' },
+            draft: true,
+        };
+
+        const result = await analyzeCandidateTransactions(
+            [pair.first, discoveredDraft],
+            [],
+            async () => completedResponse()
+        );
+
+        expect(result.pairs).toHaveLength(1);
     });
 
     it('falls back to Luna with compatible controls after Gemini rejects the request', async () => {

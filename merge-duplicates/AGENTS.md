@@ -149,15 +149,15 @@ Build output:
 
 Merge Duplicates is a Bkper sidebar app for human-reviewed duplicate detection. It never creates a movement itself and never reconstructs merge behavior. Confirmed pairs go through `Book.mergeTransactions`, preserving Core's canonical zero-sum merge operation.
 
-The AI proposes non-overlapping pairs from cumulative eligible transaction snapshots. Every proposed pair is independently checked against deterministic amount, date, and movement-side constraints before it can be shown. Model output cannot initiate writes. Browser memory owns pagination cursors, fingerprints, and accepted/rejected decisions; there is no persisted scan resource.
+The AI proposes globally selected, non-overlapping pairs from cumulative eligible transaction snapshots. Every proposed pair is independently checked against deterministic amount, date, draft-recovery, and movement-side constraints before it can be shown. Model output cannot initiate writes. Browser memory owns pagination cursors, fingerprints, and accepted/rejected decisions; there is no persisted scan resource.
 
 ## Workflow
 
 1. Capture the Book transaction query and selected Account/Group context from the menu URL.
 2. Scan 200 transactions, excluding checked, trashed, and locked rows before AI allowance is consumed.
-3. Identify cumulative eligible transactions that participate in at least one deterministic possibility: equal amounts, dates within seven calendar days, and a shared Account on the same movement side when Accounts are available. Incomplete drafts may qualify from amount, date, and description.
-4. Submit each cumulative candidate transaction once in canonical Book order to one strict `gemini-flash` request using prompt `merge-duplicates-v3`, medium reasoning, and low temperature. Ask for only likely non-overlapping pairs. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
-5. Reject the entire model output as invalid unless every proposed pair is non-overlapping and passes the deterministic constraints, then rank Strong before Possible. Each cumulative analysis replaces prior suggestions while preserving decisions for unchanged pair IDs.
+3. Identify cumulative eligible transactions that participate in at least one deterministic possibility: equal amounts, dates within seven calendar days, and either a shared Account on the same movement side or at least one draft with non-empty descriptions on both transactions. This draft recovery rule keeps incorrect Account discovery from suppressing candidates.
+4. Submit each cumulative candidate transaction once in canonical Book order to one strict `gemini-flash` request using prompt `merge-duplicates-v6`, medium reasoning, and low temperature. Ask the AI to compare all alternatives globally and return only its strongest non-overlapping likely pairs. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
+5. Reject the entire model output as invalid unless every proposed pair is non-overlapping and passes deterministic amount, date, Account, and draft-recovery constraints, then rank Strong before Possible. Each cumulative analysis replaces prior suggestions while preserving decisions for unchanged pair IDs.
 6. Require final human confirmation, then merge accepted pairs sequentially while continuing after failures.
 7. Save each rejected pair independently as one line in visible property `merge_duplicate_examples`; retain the latest 40 lines on Account, Group, or Book context.
 

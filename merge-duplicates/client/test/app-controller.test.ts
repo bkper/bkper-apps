@@ -88,7 +88,7 @@ function scanResponse(id: string): ScanResponse {
         scanned: 2,
         candidateCount: 2,
         skipped: { total: 0, checked: 0, trashed: 0, locked: 0 },
-        promptVersion: 'merge-duplicates-v3',
+        promptVersion: 'merge-duplicates-v6',
     };
 }
 

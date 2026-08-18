@@ -88,13 +88,17 @@ describe('deterministic candidate filtering', () => {
         ]);
     });
 
-    it('allows incomplete drafts to qualify from amount, date, and description', () => {
-        const complete = tx('complete');
-        const draft = tx('draft', {
+    it('allows drafts with discovered Account conflicts to qualify from amount, date, and description', () => {
+        const posted = tx('posted', {
+            creditAccount: { id: 'bank', name: 'Bank' },
+            debitAccount: { id: 'expense', name: 'Expense' },
+            description: 'Intercom charge',
+        });
+        const discoveredDraft = tx('discovered-draft', {
             posted: false,
-            creditAccount: undefined,
-            debitAccount: undefined,
-            description: 'Card purchase pending',
+            creditAccount: { id: 'wrong-bank', name: 'Wrong Bank' },
+            debitAccount: { id: 'wrong-expense', name: 'Wrong Expense' },
+            description: 'Intercom, Inc.',
         });
         const blankDraft = tx('blank-draft', {
             posted: false,
@@ -103,12 +107,12 @@ describe('deterministic candidate filtering', () => {
             description: '',
         });
 
-        const result = collectCandidateTransactions([], [complete, draft, blankDraft]);
+        const result = collectCandidateTransactions([], [posted, discoveredDraft, blankDraft]);
 
         expect(result.pairCount).toBe(1);
         expect(result.transactions.map(transaction => transaction.id)).toEqual([
-            'complete',
-            'draft',
+            'posted',
+            'discovered-draft',
         ]);
     });
 

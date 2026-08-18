@@ -139,10 +139,8 @@ export function isPlausiblePair(
     const sameTo = sharedAccount(first.toAccount, second.toAccount);
     if (sameFrom || sameTo) return true;
 
-    const firstIncomplete = first.draft && (!first.fromAccount || !first.toAccount);
-    const secondIncomplete = second.draft && (!second.fromAccount || !second.toAccount);
     return (
-        (firstIncomplete || secondIncomplete) &&
+        (first.draft || second.draft) &&
         first.description.trim().length > 0 &&
         second.description.trim().length > 0
     );

@@ -1,6 +1,6 @@
 import { isPlausiblePair, type TransactionFingerprint } from './candidate-service';
 
-export const PROMPT_VERSION = 'merge-duplicates-v3';
+export const PROMPT_VERSION = 'merge-duplicates-v6';
 const AI_URL = 'https://ai.bkper.app/v1/responses';
 
 interface ModelAttempt {
@@ -150,7 +150,7 @@ function buildAiRequest(
             text: {
                 format: {
                     type: 'json_schema',
-                    name: 'merge_duplicate_analysis',
+                    name: 'merge_duplicate_global_matching',
                     schema: responseSchema(transactions.length),
                     strict: true,
                 },
@@ -210,10 +210,15 @@ function formatFailures(failures: readonly AiAttemptFailure[]): string {
 
 function defaultPrompt(): string {
     return `${PROMPT_VERSION}
-Find likely duplicate pairs in the indexed transaction list.
-Return only pairs that represent the same real-world movement and never use a transaction more than once.
-Pairs must have equal amounts, dates within seven calendar days, and a shared Account reference on the same movement side.
-An incomplete draft may instead qualify from amount, date, and description.
+Review the entire indexed transaction list before selecting likely duplicate pairs.
+For each transaction, compare all eligible alternatives and choose only its strongest counterpart.
+Resolve conflicts globally: Strong before Possible. Return only globally selected, non-overlapping pairs that represent the same real-world movement.
+Do not select an earlier weaker match when a later transaction has stronger description, property, Account, or date evidence.
+Equal amounts and dates within seven calendar days are mandatory.
+A pair must share an Account reference on the same movement side, unless at least one transaction is a draft and both descriptions are non-empty.
+Draft Accounts are evidence, not an automatic rejection. Conflicting Accounts on both movement sides remain negative evidence.
+Equal amount, date, and the same generic description are not enough to overcome conflicting Accounts; require corroborating distinctive description details or a matching business property.
+An exact shared business reference with equal amount and date is compelling evidence and normally Strong, even when draft Accounts or descriptions differ.
 Use descriptions, Account names, custom properties, and date proximity.
 IMPORTANT: Every pair in humanRejectedPairs is a human-confirmed false positive and MUST be skipped. Never return those pairs or equivalent matches.
 Never request a write. Return Strong only when the evidence is compelling; otherwise use Possible. Keep explanations under 140 characters.`;
@@ -241,6 +246,7 @@ function toAiSnapshots(
         fromAccount: accountSnapshot(transaction.fromAccount),
         toAccount: accountSnapshot(transaction.toAccount),
         properties: transaction.properties,
+        draft: transaction.draft,
     }));
 }
 

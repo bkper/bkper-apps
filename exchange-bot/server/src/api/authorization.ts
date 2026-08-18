@@ -1,5 +1,6 @@
 import { Permission, type Book } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
+import { APP_ID } from '../shared/constants.js';
 
 const VIEW_PERMISSIONS: readonly Permission[] = [
     Permission.VIEWER,
@@ -16,6 +17,15 @@ export function requireViewPermission(book: Book): void {
 
 export function requireEditPermission(book: Book): void {
     requirePermission(book, EDIT_PERMISSIONS);
+}
+
+export async function requireAppInstallation(book: Book): Promise<void> {
+    const apps = await book.getApps();
+    if (!apps.some(app => app.getId() === APP_ID)) {
+        throw new HTTPException(403, {
+            message: 'Exchange Bot is not installed in this Book.',
+        });
+    }
 }
 
 function requirePermission(book: Book, allowedPermissions: readonly Permission[]): void {

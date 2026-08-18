@@ -1,7 +1,7 @@
 import type { Book } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
-import { requireViewPermission } from '../authorization.js';
+import { requireAppInstallation, requireViewPermission } from '../authorization.js';
 import { getResponseErrorMessage } from '../errors.js';
 import type { ExchangeRates } from '../schemas.js';
 import { BotService } from './bot-service.js';
@@ -10,6 +10,7 @@ export class ExchangeRatesService {
     static async load(context: AppContext, bookId: string, date: string): Promise<ExchangeRates> {
         const book = await context.bkper.getBook(bookId);
         requireViewPermission(book);
+        await requireAppInstallation(book);
 
         const botService = new BotService(context);
         const exchangeRates = await this.fetchExchangeRates(botService, book, date);

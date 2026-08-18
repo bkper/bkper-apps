@@ -1,12 +1,18 @@
-import { afterEach, describe, expect, test } from 'bun:test';
-import { Bkper, Book, Permission } from 'bkper-js';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { App, Bkper, Book, Permission } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { ExchangeRatesService } from '../../../src/api/services/exchange-rates-service.js';
 
 const originalFetch = globalThis.fetch;
+const originalGetApps = Book.prototype.getApps;
+
+beforeEach(() => {
+    Book.prototype.getApps = async () => [new App({ id: 'exchange-bot' })];
+});
 
 afterEach(() => {
     globalThis.fetch = originalFetch;
+    Book.prototype.getApps = originalGetApps;
 });
 
 function createContext(bkper: Bkper): AppContext {
@@ -35,6 +41,26 @@ describe('legacy menu exchange-rate loading', () => {
         expect(
             ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
         ).rejects.toMatchObject({ status: 403 });
+        expect(providerRequests).toBe(0);
+    });
+
+    test('rejects a Book without Exchange Bot before requesting exchange rates', async () => {
+        const bkper = new Bkper();
+        const book = new Book({ id: 'book', permission: Permission.VIEWER });
+        book.getApps = async () => [];
+        bkper.getBook = async () => book;
+        let providerRequests = 0;
+        replaceFetch(async () => {
+            providerRequests += 1;
+            return Response.json({ base: 'USD', date: '2026-08-05', rates: {} });
+        });
+
+        expect(
+            ExchangeRatesService.load(createContext(bkper), 'book', '2026-08-05')
+        ).rejects.toMatchObject({
+            status: 403,
+            message: 'Exchange Bot is not installed in this Book.',
+        });
         expect(providerRequests).toBe(0);
     });
 

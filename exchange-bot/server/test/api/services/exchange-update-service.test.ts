@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
     Account,
     AccountType,
+    App,
     BalancesReport,
     Bkper,
     BkperError,
@@ -15,9 +16,15 @@ import type { ExchangeRates } from '../../../src/api/schemas.js';
 import { ExchangeUpdateService } from '../../../src/api/services/exchange-update-service.js';
 
 const originalFetch = globalThis.fetch;
+const originalGetApps = Book.prototype.getApps;
+
+beforeEach(() => {
+    Book.prototype.getApps = async () => [new App({ id: 'exchange-bot' })];
+});
 
 afterEach(() => {
     globalThis.fetch = originalFetch;
+    Book.prototype.getApps = originalGetApps;
 });
 
 function createContext(book: Book): AppContext {
@@ -104,6 +111,24 @@ describe('legacy menu Exchange Update', () => {
         expect(
             ExchangeUpdateService.update(createContext(book), 'usd-book', rates({}))
         ).rejects.toMatchObject({ status: 403 });
+        expect(balanceQueries).toBe(0);
+    });
+
+    test('rejects a Book without Exchange Bot before reading balances or mutating the Book', async () => {
+        const book = createBook('usd-book', 'USD');
+        book.getApps = async () => [];
+        let balanceQueries = 0;
+        book.getBalancesReport = async () => {
+            balanceQueries += 1;
+            return createReport(book, new Map());
+        };
+
+        expect(
+            ExchangeUpdateService.update(createContext(book), 'usd-book', rates({}))
+        ).rejects.toMatchObject({
+            status: 403,
+            message: 'Exchange Bot is not installed in this Book.',
+        });
         expect(balanceQueries).toBe(0);
     });
 

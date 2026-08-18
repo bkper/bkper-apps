@@ -208,14 +208,16 @@ The previous GCP and GAS source remains recoverable from Git history. Their unch
 - Calculate, Reset, Full Reset, and Forward Date mutations run through authenticated server API routes.
 - The initial API remains limited to the operations and context required by Portfolio Bot.
 - API authorization and installation checks are explicit and do not rely only on hidden client controls.
+- Every mutating operation resolves and preflights the Portfolio, Financial, and Base Books it may change before its first write.
 - Full Reset and lower-forward-date requirements are enforced at the server boundary.
-- Bkper Core remains authoritative for connected-Book authorization.
+- Bkper Core remains authoritative for every request after the application preflight.
 - Server routes and event handlers create request-scoped `Bkper` instances without OAuth, API-key, or agent-id providers.
 - Worker code never reads or forwards `Authorization`, `bkper-oauth-token`, or `bkper-agent-id`.
 - Event-side and menu-side business behavior remain separate during migration.
 - Independent read-only loading and validation requests use explicit bounded batching while preserving deterministic result and mutation order.
 - No KV or secret is introduced unless implementation evidence establishes a requirement.
 - Strict TypeScript, Bun, exact dependency pins, a committed lockfile, deterministic tests, production builds, formatting, and generated-contract checks form the local gate.
+- Before development events route to preview, developer access is temporarily narrowed to the migration operator so only controlled activity reaches the target.
 - Local ports use Vite `5179` and Worker `8797`.
 
 ## Open implementation-time decisions
@@ -304,7 +306,8 @@ Each behavior chunk follows this workflow:
 - Book, Account, and Group context resolve to the accepted Portfolio Book and instrument Accounts.
 - Uncalculated Account discovery, sorting, no-context behavior, and default date retain accepted outcomes.
 - Edit permissions, Full Reset eligibility, pending tasks, locks, closing dates, and installation produce explicit target states.
-- Unauthorized API operations fail before mutation.
+- Each mutating API operation identifies every Portfolio, Financial, and Base Book it may change and preflights the required permission on all of them.
+- Unauthorized API operations fail before any Account, Transaction, or Book mutation begins.
 
 #### Calculate
 
@@ -483,19 +486,56 @@ The baseline has not yet been established.
 
 **Gate:** Deterministic fixtures produce the accepted Account scope and operation availability.
 
-### Chunk 11 — Port Calculate, Reset, and Forward Date operations
+### Chunk 11 — Enforce API and client Book permissions
 
 **Status: Not started.**
 
-- Port FIFO, complete and partial lots, short sales, splits, logs, and model branches.
-- Port rates, realized results, exchange results, MTM, interest MTM, support Accounts, and ordered batch phases.
-- Port Reset and Full Reset cleanup and restoration.
-- Port Forward Date, lower-date repair, liquidation bridges, forwarded results, Account state, and closing date.
-- Retain zero-sum and locked-resource safeguards throughout.
+- Enforce app installation and explicit operation-specific permission allowlists inside API services before mutation.
+- Resolve the Portfolio Book and every Financial and Base Book an operation may mutate, then preflight all required permissions before its first write.
+- Keep Bkper Core authoritative for every request after the application preflight.
+- Enforce Full Reset and lower-forward-date owner and unlocked-Collection requirements at the server boundary.
+- Preserve upstream authentication, permission, validation, network, and server failures through structured API errors.
+- Gate client initialization and mutation controls without relying on hidden buttons as authorization.
+- Keep warnings distinct from blocking permission errors and prevent automatic retries for authorization failures or known accepted mutations.
+- Verify denied operations produce no Account, Transaction, Book, or balance mutation in any participating Book.
 
-**Zero-sum gate:** Every generated result is a complete movement with the accepted amount and direction; lifecycle operations leave no unintended active movement.
+**Gate:** The deterministic permission matrix and cross-Book no-side-effect assertions pass before accounting mutations are implemented.
 
-### Chunk 12 — Port and modernize the menu client
+### Chunk 12 — Port Calculate
+
+**Status: Not started.**
+
+- Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
+- Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.
+- Port support Account lookup, creation, type inference, and Group inference.
+- Preserve canonical Portfolio split ids before dependent Financial and Base Book movements are created.
+- Preserve the ordered Portfolio, Financial, and Base Book batch phases and per-Account outcomes.
+
+**Zero-sum gate:** Every Calculate result is a complete movement with the accepted amount and direction, and a failed preflight or locked-resource path performs no mutation.
+
+### Chunk 13 — Port Reset and Full Reset
+
+**Status: Not started.**
+
+- Port linked realized, historical, FX, MTM, interest-MTM, split, and forwarded-result cleanup.
+- Port checked-state handling, parent restoration, original-state and property restoration, Account dates, and rebuild behavior.
+- Port Full Reset forward-state removal and historical-state restoration.
+- Preserve mutation phases across Portfolio, Financial, and Base Books.
+
+**Gate:** Reset and Full Reset leave no unintended active movement, retain accepted forward-state differences, and perform no mutation when preflight or lock requirements fail.
+
+### Chunk 14 — Port Forward Date and lower-date repair
+
+**Status: Not started.**
+
+- Port Forward Date validation, balances, forward logs, liquidation bridges, forwarded results, and Account state.
+- Port optional Portfolio Book closing-date updates after all required movements and checks complete.
+- Port lower-forward-date reset, previous-state repair, cleanup, and re-forward behavior.
+- Preserve owner, unlocked-Collection, uncalculated-result, rebuild, and date-order requirements.
+
+**Zero-sum gate:** Forward Date and lower-date repair preserve complete movements, accepted relationships, and lifecycle state in every participating Book.
+
+### Chunk 15 — Port and modernize the menu client
 
 **Status: Not started.**
 
@@ -508,21 +548,7 @@ The baseline has not yet been established.
 
 **Gate:** The client behavior matrix passes and the target UI is accepted for production use.
 
-### Chunk 13 — Enforce API and client Book permissions
-
-**Status: Not started.**
-
-- Enforce app installation and explicit operation-specific permission allowlists inside API services before mutation.
-- Authorize the Portfolio Book named by the operation and leave connected-Book authorization to Bkper Core for requests actually made.
-- Enforce Full Reset and lower-forward-date owner and unlocked-Collection requirements at the server boundary.
-- Preserve upstream authentication, permission, validation, network, and server failures through structured API errors.
-- Gate client initialization and mutation controls without relying on hidden buttons as authorization.
-- Keep warnings distinct from blocking permission errors and prevent automatic retries for authorization failures or known accepted mutations.
-- Verify denied operations produce no Account, Transaction, Book, or balance mutation.
-
-**Gate:** The deterministic permission matrix and no-side-effect assertions pass before preview deployment.
-
-### Chunk 14 — Full-stack behavior, dependency, and runtime audit
+### Chunk 16 — Full-stack behavior, dependency, and runtime audit
 
 **Status: Not started.**
 
@@ -533,18 +559,19 @@ The baseline has not yet been established.
 
 **Gate:** Event parity is explained, menu outcome coverage is complete, and target differences are documented.
 
-### Chunk 15 — Preview deployment and routing readiness
+### Chunk 17 — Preview deployment and routing readiness
 
 **Status: Not started.**
 
 - Build the preview candidate from a clean frozen install.
 - Deploy to preview without changing production routing.
+- Temporarily restrict developer access to the migration operator before routing development events to preview.
 - Route development menu and events independently to preview.
 - Confirm authentication, assets, OpenAPI, API protection, event ingress, and logs.
 
-**Gate:** Both preview surfaces work while production remains on GCP and GAS.
+**Gate:** Both preview surfaces work while production remains on GCP and GAS, and only controlled developer activity can reach preview event handling.
 
-### Chunk 16 — Preview event validation
+### Chunk 18 — Preview event validation
 
 **Status: Not started.**
 
@@ -554,7 +581,7 @@ The baseline has not yet been established.
 
 **Gate:** No duplicate, missing, reversed, partial, or imbalanced posted movement is found.
 
-### Chunk 17 — Preview menu and operation validation
+### Chunk 19 — Preview menu and operation validation
 
 **Status: Not started.**
 
@@ -566,7 +593,7 @@ The baseline has not yet been established.
 
 **Gate:** The target workflows and accounting outcomes are accepted with documented API and UI differences.
 
-### Chunk 18 — Final drift audit and production deployment
+### Chunk 20 — Final drift audit and production deployment
 
 **Status: Not started.**
 
@@ -578,7 +605,7 @@ The baseline has not yet been established.
 
 **Gate:** Deployment changes runtime availability only.
 
-### Chunk 19 — Production webhook cutover and event stabilization
+### Chunk 21 — Production webhook cutover and event stabilization
 
 **Status: Not started.**
 
@@ -589,7 +616,7 @@ The baseline has not yet been established.
 
 **Rollback triggers:** suspected zero-sum or data-loss issues, reversed or partial movements, duplicate processing, missing linked cleanup, sustained authentication failures, material error or runtime growth, or missing production behavior.
 
-### Chunk 20 — Production menu cutover and full-stack stabilization
+### Chunk 22 — Production menu cutover and full-stack stabilization
 
 **Status: Not started.**
 
@@ -601,13 +628,14 @@ The baseline has not yet been established.
 
 **Rollback triggers:** suspected zero-sum or data-loss issues, incorrect quantities or monetary movements, failed lifecycle restoration, incomplete forward operations, sustained authentication or API failures, unacceptable runtime, material errors, or unusable customer workflow.
 
-### Chunk 21 — Repository consolidation and deferred legacy retirement
+### Chunk 23 — Repository consolidation and deferred legacy retirement
 
 **Status: Not started.**
 
 - Move the accepted Cloudflare project from `new/` to the Portfolio Bot root.
 - Remove inactive legacy working-tree source and obsolete local GCP and GAS tooling.
 - Update workspace instructions and ports.
+- Restore normal team-wide developer access after controlled migration routing is complete.
 - Verify source, tests, lockfile, configuration, generated contracts, assets, and Worker bundle through the move.
 - Preserve legacy source in Git history and deployed runtimes as routing rollback targets.
 

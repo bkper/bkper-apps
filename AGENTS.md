@@ -13,7 +13,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Inventory Bot (new) | Platform app (Vite + Cloudflare Workers) | `inventory-bot/new/` |
 | Portfolio Bot | Apps Script + GCP Cloud Functions | `portfolio-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
-| Tax Bot | GCP Cloud Functions (production; Cloudflare migration) | `tax-bot/` |
+| Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 
 ## Port Allocation
 
@@ -28,7 +28,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
-| tax-bot/new | — | `8794` | Event-only migration Worker configured in `package.json` |
+| tax-bot | — | `8794` | Event-only production Worker configured in `package.json` |
 | merge-duplicates | `5178` | `8795` | Sidebar app for human-reviewed duplicate transaction merges |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
@@ -41,7 +41,6 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | --- | --- | --- |
 | portfolio-bot/gcf | `3002` | Configured in `portfolio-bot/gcf/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
-| tax-bot/legacy | `3041` | Configured in `tax-bot/legacy/package.json` |
 
 **Next available:** `3003`.
 

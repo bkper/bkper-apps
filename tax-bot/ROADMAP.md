@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–14 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The final deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview and production Cloudflare, developer and production events route to their corresponding Cloudflare environments, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence. The owner accepted production stabilization after approximately 22 hours of observed production traffic without waiting for a full 24-hour interval.
+**The Cloudflare application migration and repository consolidation are complete. GCP retirement is intentionally deferred.**
 
-Cloudflare is now the active production implementation and production webhook target. The unchanged Google Cloud Function remains active as the immediate routing rollback target. Repository consolidation and GCP retirement remain separate decisions.
+The production Cloudflare Worker now occupies the `tax-bot/` project root, and production and developer events route to their corresponding Cloudflare environments. Deterministic parity, preview validation, production cutover, and accepted stabilization completed without a rollback trigger. The accepted GCP source was removed from the active working tree and remains recoverable from Git history; the unchanged Google Cloud Function remains active as the immediate routing rollback target.
 
 ## Purpose of this document
 
@@ -89,7 +89,7 @@ These rules apply to every behavior-porting chunk:
 
 ### Migration layout
 
-During parity work, both implementations remain in the repository:
+During parity work, both implementations remained in the repository:
 
 ```text
 tax-bot/
@@ -97,13 +97,13 @@ tax-bot/
 └── new/     # isolated Cloudflare implementation
 ```
 
-This makes source comparison, production patch synchronization, independent verification, and rollback planning explicit.
+This made source comparison, production patch synchronization, independent verification, and rollback planning explicit.
 
-The active app metadata under `legacy/` must preserve the production GCP webhook until the production routing chunk. Developer routing may move to preview only after the corresponding review and approval.
+The active app metadata under `legacy/` preserved the production GCP webhook until the production routing chunk. Developer routing moved to preview only after the corresponding review and approval.
 
-### Intended post-stabilization layout
+### Consolidated layout
 
-After accepted production stabilization, the Cloudflare project moves to the app root and the inactive GCP working-tree copy is removed:
+After accepted production stabilization, the Cloudflare project moved to the app root and the inactive GCP working-tree copy was removed:
 
 ```text
 tax-bot/
@@ -135,7 +135,7 @@ The previous GCP source remains recoverable from Git history. The deployed GCP f
 - Strict TypeScript with no `as any` or inline dynamic imports.
 - Bun package management with a committed lockfile.
 - No Cloudflare bindings beyond the generated empty `Env` interface.
-- Local Worker port `8794` while the GCP development port remains available during parallel work.
+- Local Worker port `8794`; the obsolete local GCP port was removed during repository consolidation.
 
 ## Dependency compatibility decision
 
@@ -468,16 +468,16 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 15 — Repository consolidation and deferred GCP retirement
 
-**Status: Planned.**
+**Status: Repository consolidation complete; infrastructure retirement deferred.**
 
-- Move the Cloudflare project from `new/` to the `tax-bot/` root.
-- Remove the inactive `legacy/` working-tree copy and obsolete local GCP tooling.
-- Replace the GCP local port with Worker port `8794` in workspace instructions and port forwarding.
-- Verify source, tests, lockfile, configuration, and built Worker behavior remain unchanged through the move.
-- Preserve the previous GCP source in Git history.
-- Keep the unchanged GCP deployment available as a routing-only rollback target.
+- Moved the Cloudflare project from `new/` to the `tax-bot/` root.
+- Removed the inactive `legacy/` working-tree copy and obsolete local GCP tooling.
+- Removed the legacy local GCP port and documented Worker port `8794` at the consolidated path.
+- Ran the full deterministic gate before and after the move and confirmed the built Worker bundle remained byte-for-byte identical.
+- Preserved the previous GCP source in Git history.
+- Kept the unchanged GCP deployment available as a routing-only rollback target.
 
-**Gate:** Cloudflare is the only active implementation in the project root. Consolidation performs no app sync, deployment, routing change, GCP mutation, or Book write.
+**Outcome:** Cloudflare is the only active implementation in the project root. No app sync, deployment, routing change, GCP mutation, or Book write occurred during repository consolidation.
 
 ## Rollback strategy
 
@@ -497,20 +497,16 @@ The active repository will no longer contain a GCP deployment project after cons
 
 ## Completion definition
 
-### Application migration
-
-Complete only when:
+### Application migration — complete
 
 - Cloudflare handles production events.
 - Subscribed behavior has deterministic parity coverage.
 - Tax formulas, movement direction, amount, rounding, idempotency, lifecycle, and zero-sum checks pass.
-- Preview, cutover, and stabilization gates pass.
+- Preview, cutover, and stabilization gates passed.
 - The Cloudflare app occupies the project root.
 - GCP remains available for routing rollback.
 
-### Infrastructure retirement
-
-Not part of application migration completion.
+### Infrastructure retirement — deferred
 
 Deleting the retained GCP deployment, source artifacts, IAM bindings, or related infrastructure requires a future plan and explicit approval. Time elapsed alone is not a retirement criterion.
 

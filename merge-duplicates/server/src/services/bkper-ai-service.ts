@@ -1,6 +1,6 @@
-import type { CandidateEvaluation, CandidatePair } from './candidate-service';
+import { isPlausiblePair, type TransactionFingerprint } from './candidate-service';
 
-export const PROMPT_VERSION = 'merge-duplicates-v1';
+export const PROMPT_VERSION = 'merge-duplicates-v2';
 const AI_URL = 'https://ai.bkper.app/v1/responses';
 
 interface ModelAttempt {
@@ -16,8 +16,15 @@ const MODEL_ATTEMPTS: readonly ModelAttempt[] = [
     { model: 'deepseek-flash', reasoningEffort: 'high', timeoutMs: 180_000 },
 ];
 
+export interface AiSuggestedPair {
+    firstIndex: number;
+    secondIndex: number;
+    strength: 'Strong' | 'Possible';
+    explanation: string;
+}
+
 export interface AiAnalysis {
-    evaluations: CandidateEvaluation[];
+    pairs: AiSuggestedPair[];
 }
 
 export interface AiAttemptFailure {
@@ -40,12 +47,12 @@ export class BkperAiError extends Error {
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export async function analyzeCandidatePairs(
-    pairs: readonly CandidatePair[],
+export async function analyzeCandidateTransactions(
+    transactions: readonly TransactionFingerprint[],
     learningExamples: readonly string[],
     fetcher: Fetcher = fetch
 ): Promise<AiAnalysis> {
-    if (pairs.length === 0) return { evaluations: [] };
+    if (transactions.length < 2) return { pairs: [] };
 
     const failures: AiAttemptFailure[] = [];
     for (const attempt of MODEL_ATTEMPTS) {
@@ -53,7 +60,7 @@ export async function analyzeCandidatePairs(
         try {
             response = await fetchWithTimeout(
                 fetcher,
-                buildAiRequest(attempt, pairs, learningExamples),
+                buildAiRequest(attempt, transactions, learningExamples),
                 attempt.timeoutMs
             );
         } catch (error) {
@@ -106,7 +113,7 @@ export async function analyzeCandidatePairs(
         }
 
         try {
-            return parseAnalysis(payload, pairs.length);
+            return parseAnalysis(payload, transactions);
         } catch {
             failures.push({ model: attempt.model, status: 200, code: 'invalid_output' });
         }
@@ -117,7 +124,7 @@ export async function analyzeCandidatePairs(
 
 function buildAiRequest(
     attempt: ModelAttempt,
-    pairs: readonly CandidatePair[],
+    transactions: readonly TransactionFingerprint[],
     learningExamples: readonly string[]
 ): Request {
     return new Request(AI_URL, {
@@ -133,11 +140,7 @@ function buildAiRequest(
                             type: 'input_text',
                             text: JSON.stringify({
                                 learningExamples,
-                                candidatePairs: pairs.map((pair, pairIndex) => ({
-                                    pairIndex,
-                                    first: toAiSnapshot(pair.first),
-                                    second: toAiSnapshot(pair.second),
-                                })),
+                                candidateTransactions: toAiSnapshots(transactions),
                             }),
                         },
                     ],
@@ -148,7 +151,7 @@ function buildAiRequest(
                 format: {
                     type: 'json_schema',
                     name: 'merge_duplicate_analysis',
-                    schema: responseSchema(pairs.length),
+                    schema: responseSchema(transactions.length),
                     strict: true,
                 },
             },
@@ -207,55 +210,71 @@ function formatFailures(failures: readonly AiAttemptFailure[]): string {
 
 function defaultPrompt(): string {
     return `${PROMPT_VERSION}
-You review transaction pairs that already passed deterministic amount, date, and movement-side checks.
-For every candidate pair, decide whether both rows represent the same real-world movement.
-Use descriptions, account names, custom properties, date proximity, and supplied rejected examples.
-Rejected examples are negative guidance, not duplicates. Never request a write and never omit a pair.
+Find likely duplicate pairs in the indexed transaction list.
+Return only pairs that represent the same real-world movement and never use a transaction more than once.
+Pairs must have equal amounts, dates within seven calendar days, and a shared Account reference on the same movement side.
+An incomplete draft may instead qualify from amount, date, and description.
+Use descriptions, Account names, custom properties, date proximity, and supplied rejected examples.
+Rejected examples are negative guidance, not duplicates. Never request a write.
 Return Strong only when the evidence is compelling; otherwise use Possible. Keep explanations under 140 characters.`;
 }
 
-function toAiSnapshot(transaction: CandidatePair['first']): Record<string, unknown> {
-    return {
+function toAiSnapshots(
+    transactions: readonly TransactionFingerprint[]
+): Array<Record<string, unknown>> {
+    const accountReferences = new Map<string, number>();
+    const accountSnapshot = (account: TransactionFingerprint['fromAccount']) => {
+        if (!account) return null;
+        let reference = accountReferences.get(account.id);
+        if (reference === undefined) {
+            reference = accountReferences.size;
+            accountReferences.set(account.id, reference);
+        }
+        return { reference, name: account.name };
+    };
+
+    return transactions.map((transaction, index) => ({
+        index,
         date: transaction.date,
         amount: transaction.amount,
         description: transaction.description,
-        fromAccount: transaction.fromAccount?.name ?? null,
-        toAccount: transaction.toAccount?.name ?? null,
+        fromAccount: accountSnapshot(transaction.fromAccount),
+        toAccount: accountSnapshot(transaction.toAccount),
         properties: transaction.properties,
-    };
+    }));
 }
 
-function responseSchema(pairCount: number): Record<string, unknown> {
+function responseSchema(transactionCount: number): Record<string, unknown> {
+    const maximumIndex = Math.max(0, transactionCount - 1);
     return {
         type: 'object',
         properties: {
-            evaluations: {
+            pairs: {
                 type: 'array',
-                minItems: pairCount,
-                maxItems: pairCount,
+                minItems: 0,
+                maxItems: Math.floor(transactionCount / 2),
                 items: {
                     type: 'object',
                     properties: {
-                        pairIndex: {
-                            type: 'integer',
-                            minimum: 0,
-                            maximum: Math.max(0, pairCount - 1),
-                        },
-                        duplicate: { type: 'boolean' },
+                        firstIndex: { type: 'integer', minimum: 0, maximum: maximumIndex },
+                        secondIndex: { type: 'integer', minimum: 0, maximum: maximumIndex },
                         strength: { type: 'string', enum: ['Strong', 'Possible'] },
                         explanation: { type: 'string', maxLength: 180 },
                     },
-                    required: ['pairIndex', 'duplicate', 'strength', 'explanation'],
+                    required: ['firstIndex', 'secondIndex', 'strength', 'explanation'],
                     additionalProperties: false,
                 },
             },
         },
-        required: ['evaluations'],
+        required: ['pairs'],
         additionalProperties: false,
     };
 }
 
-function parseAnalysis(payload: unknown, pairCount: number): AiAnalysis {
+function parseAnalysis(
+    payload: unknown,
+    transactions: readonly TransactionFingerprint[]
+): AiAnalysis {
     const outputText = getOutputText(payload);
     let value: unknown;
     try {
@@ -263,38 +282,56 @@ function parseAnalysis(payload: unknown, pairCount: number): AiAnalysis {
     } catch {
         throw new Error('Bkper AI returned malformed structured output.');
     }
-    if (!isRecord(value) || !Array.isArray(value.evaluations)) {
+    if (!isRecord(value) || !Array.isArray(value.pairs)) {
         throw new Error('Bkper AI output did not match the required schema.');
     }
+    if (value.pairs.length > Math.floor(transactions.length / 2)) {
+        throw new Error('Bkper AI returned too many pairs.');
+    }
 
-    const seen = new Set<number>();
-    const evaluations: CandidateEvaluation[] = [];
-    for (const item of value.evaluations) {
+    const usedIndexes = new Set<number>();
+    const pairs: AiSuggestedPair[] = [];
+    for (const item of value.pairs) {
         if (
             !isRecord(item) ||
-            !Number.isInteger(item.pairIndex) ||
-            typeof item.pairIndex !== 'number' ||
-            item.pairIndex < 0 ||
-            item.pairIndex >= pairCount ||
-            seen.has(item.pairIndex) ||
-            typeof item.duplicate !== 'boolean' ||
+            typeof item.firstIndex !== 'number' ||
+            !Number.isInteger(item.firstIndex) ||
+            typeof item.secondIndex !== 'number' ||
+            !Number.isInteger(item.secondIndex) ||
+            item.firstIndex < 0 ||
+            item.firstIndex >= transactions.length ||
+            item.secondIndex < 0 ||
+            item.secondIndex >= transactions.length ||
+            item.firstIndex === item.secondIndex ||
+            usedIndexes.has(item.firstIndex) ||
+            usedIndexes.has(item.secondIndex) ||
             (item.strength !== 'Strong' && item.strength !== 'Possible') ||
-            typeof item.explanation !== 'string'
+            typeof item.explanation !== 'string' ||
+            item.explanation.length > 180
         ) {
             throw new Error('Bkper AI output did not match the required schema.');
         }
-        seen.add(item.pairIndex);
-        evaluations.push({
-            pairIndex: item.pairIndex,
-            duplicate: item.duplicate,
+        const first = transactions[item.firstIndex];
+        const second = transactions[item.secondIndex];
+        if (!isPlausiblePair(first, second)) {
+            throw new Error('Bkper AI returned a pair outside deterministic constraints.');
+        }
+        usedIndexes.add(item.firstIndex);
+        usedIndexes.add(item.secondIndex);
+        pairs.push({
+            firstIndex: item.firstIndex,
+            secondIndex: item.secondIndex,
             strength: item.strength,
             explanation: item.explanation,
         });
     }
-    if (evaluations.length !== pairCount) {
-        throw new Error('Bkper AI did not evaluate every candidate pair.');
-    }
-    return { evaluations };
+    pairs.sort((left, right) => {
+        const strength = left.strength === right.strength ? 0 : left.strength === 'Strong' ? -1 : 1;
+        return (
+            strength || left.firstIndex - right.firstIndex || left.secondIndex - right.secondIndex
+        );
+    });
+    return { pairs };
 }
 
 function getOutputText(payload: unknown): string {

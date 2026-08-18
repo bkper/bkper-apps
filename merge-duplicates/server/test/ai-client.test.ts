@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { analyzeCandidatePairs, BkperAiError } from '../src/services/bkper-ai-service';
-import type { CandidatePair } from '../src/services/candidate-service';
+import { analyzeCandidateTransactions, BkperAiError } from '../src/services/bkper-ai-service';
+import type { TransactionFingerprint } from '../src/services/candidate-service';
 
-const pair: CandidatePair = {
-    key: 'secret-a|secret-b',
+const pair: { first: TransactionFingerprint; second: TransactionFingerprint } = {
     first: {
         id: 'secret-a',
         date: '2026-06-10',
@@ -26,25 +25,27 @@ const pair: CandidatePair = {
     },
 };
 
-function completedResponse(pairCount = 1): Response {
+function completedResponse(
+    pairs: Array<{
+        firstIndex: number;
+        secondIndex: number;
+        strength: 'Strong' | 'Possible';
+        explanation: string;
+    }> = [
+        {
+            firstIndex: 0,
+            secondIndex: 1,
+            strength: 'Strong',
+            explanation: 'Same merchant and movement.',
+        },
+    ]
+): Response {
     return Response.json({
         status: 'completed',
         output: [
             {
                 type: 'message',
-                content: [
-                    {
-                        type: 'output_text',
-                        text: JSON.stringify({
-                            evaluations: Array.from({ length: pairCount }, (_, pairIndex) => ({
-                                pairIndex,
-                                duplicate: true,
-                                strength: 'Strong',
-                                explanation: 'Same merchant and movement.',
-                            })),
-                        }),
-                    },
-                ],
+                content: [{ type: 'output_text', text: JSON.stringify({ pairs }) }],
             },
         ],
     });
@@ -55,14 +56,20 @@ function aiError(status: number, code: string, message = 'Safe upstream message.
 }
 
 describe('Bkper AI structured analysis', () => {
-    it('sends one strict low-temperature request without identifiers or authorization headers', async () => {
-        let captured: Request | undefined;
-        const result = await analyzeCandidatePairs([pair], ['known example'], async input => {
-            captured = input instanceof Request ? input : new Request(input);
-            return completedResponse();
-        });
+    const transactions = [pair.first, pair.second];
 
-        expect(result.evaluations).toHaveLength(1);
+    it('sends each candidate transaction once without identifiers or authorization headers', async () => {
+        let captured: Request | undefined;
+        const result = await analyzeCandidateTransactions(
+            transactions,
+            ['known example'],
+            async input => {
+                captured = input instanceof Request ? input : new Request(input);
+                return completedResponse();
+            }
+        );
+
+        expect(result.pairs).toHaveLength(1);
         expect(captured?.url).toBe('https://ai.bkper.app/v1/responses');
         expect(captured?.headers.get('authorization')).toBeNull();
         const body = (await captured?.clone().json()) as Record<string, unknown>;
@@ -70,31 +77,86 @@ describe('Bkper AI structured analysis', () => {
         expect(body.temperature).toBe(0.1);
         expect(body.store).toBe(false);
         expect(body.text).toMatchObject({ format: { type: 'json_schema', strict: true } });
+        const input = body.input as Array<{ content: Array<{ text: string }> }>;
+        const payload = JSON.parse(input[0]?.content[0]?.text ?? '{}') as Record<string, unknown>;
+        expect(payload.candidateTransactions).toHaveLength(2);
+        expect(payload).not.toHaveProperty('candidatePairs');
         const serialized = JSON.stringify(body);
-        expect(serialized).toContain('merge-duplicates-v1');
-        expect(serialized).toContain('known example');
-        expect(serialized).not.toContain('secret-a');
-        expect(serialized).not.toContain('secret-account');
-        expect(serialized).not.toContain('draft');
+        const serializedPayload = JSON.stringify(payload);
+        expect(serialized).toContain('merge-duplicates-v2');
+        expect(serializedPayload).toContain('known example');
+        expect(serializedPayload).not.toContain('secret-a');
+        expect(serializedPayload).not.toContain('secret-account');
+        expect(serializedPayload).not.toContain('draft');
     });
 
     it('falls back to Luna with compatible controls after Gemini rejects the request', async () => {
         const requests: Array<Record<string, unknown>> = [];
-        const result = await analyzeCandidatePairs([pair], [], async input => {
+        const result = await analyzeCandidateTransactions(transactions, [], async input => {
             const request = input instanceof Request ? input : new Request(input);
             requests.push((await request.json()) as Record<string, unknown>);
             return requests.length === 1 ? aiError(400, 'provider_rejected') : completedResponse();
         });
 
-        expect(result.evaluations).toHaveLength(1);
+        expect(result.pairs).toHaveLength(1);
         expect(requests.map(request => request.model)).toEqual(['gemini-flash', 'gpt-luna']);
         expect(requests[1]?.reasoning).toEqual({ effort: 'high' });
         expect(requests[1]).not.toHaveProperty('temperature');
     });
 
+    it('falls back when output overlaps transactions', async () => {
+        const requests: Array<Record<string, unknown>> = [];
+        const third = { ...pair.second, id: 'secret-c', description: 'Third coffee' };
+        const result = await analyzeCandidateTransactions(
+            [...transactions, third],
+            [],
+            async input => {
+                const request = input instanceof Request ? input : new Request(input);
+                requests.push((await request.json()) as Record<string, unknown>);
+                if (requests.length === 1) {
+                    return completedResponse([
+                        {
+                            firstIndex: 0,
+                            secondIndex: 1,
+                            strength: 'Strong',
+                            explanation: 'First match.',
+                        },
+                        {
+                            firstIndex: 0,
+                            secondIndex: 2,
+                            strength: 'Possible',
+                            explanation: 'Overlapping match.',
+                        },
+                    ]);
+                }
+                return completedResponse([]);
+            }
+        );
+
+        expect(result.pairs).toEqual([]);
+        expect(requests.map(request => request.model)).toEqual(['gemini-flash', 'gpt-luna']);
+    });
+
+    it('falls back when a proposed pair violates deterministic constraints', async () => {
+        const requests: Array<Record<string, unknown>> = [];
+        const unrelated = { ...pair.second, id: 'secret-c', amount: '99.00' };
+        const result = await analyzeCandidateTransactions(
+            [pair.first, unrelated],
+            [],
+            async input => {
+                const request = input instanceof Request ? input : new Request(input);
+                requests.push((await request.json()) as Record<string, unknown>);
+                return requests.length === 1 ? completedResponse() : completedResponse([]);
+            }
+        );
+
+        expect(result.pairs).toEqual([]);
+        expect(requests.map(request => request.model)).toEqual(['gemini-flash', 'gpt-luna']);
+    });
+
     it('falls back to DeepSeek when Luna returns invalid structured output', async () => {
         const requests: Array<Record<string, unknown>> = [];
-        const result = await analyzeCandidatePairs([pair], [], async input => {
+        const result = await analyzeCandidateTransactions(transactions, [], async input => {
             const request = input instanceof Request ? input : new Request(input);
             requests.push((await request.json()) as Record<string, unknown>);
             if (requests.length === 1) return aiError(503, 'provider_rejected');
@@ -112,7 +174,7 @@ describe('Bkper AI structured analysis', () => {
             return completedResponse();
         });
 
-        expect(result.evaluations).toHaveLength(1);
+        expect(result.pairs).toHaveLength(1);
         expect(requests.map(request => request.model)).toEqual([
             'gemini-flash',
             'gpt-luna',
@@ -125,7 +187,7 @@ describe('Bkper AI structured analysis', () => {
     it('does not retry an exhausted shared AI allowance', async () => {
         let calls = 0;
         try {
-            await analyzeCandidatePairs([pair], [], async () => {
+            await analyzeCandidateTransactions(transactions, [], async () => {
                 calls += 1;
                 return aiError(429, 'usage_limit_exceeded', 'AI allowance exhausted.');
             });
@@ -143,7 +205,7 @@ describe('Bkper AI structured analysis', () => {
 
     it('reports safe diagnostics after every provider fails', async () => {
         let calls = 0;
-        const failure = analyzeCandidatePairs([pair], [], async () => {
+        const failure = analyzeCandidateTransactions(transactions, [], async () => {
             calls += 1;
             if (calls === 1) return aiError(400, 'provider_rejected');
             if (calls === 2) return aiError(429, 'provider_rate_limited');

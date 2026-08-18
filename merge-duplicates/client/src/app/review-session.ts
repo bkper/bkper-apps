@@ -54,14 +54,18 @@ export class ReviewSession {
     }
 
     appendPage(response: ScanResponse): void {
-        const used = new Set(this.suggestions.flatMap(item => [item.first.id, item.second.id]));
-        for (const suggestion of response.suggestions) {
-            if (used.has(suggestion.first.id) || used.has(suggestion.second.id)) continue;
-            used.add(suggestion.first.id);
-            used.add(suggestion.second.id);
-            this.suggestions.push(suggestion);
-            this.selectedIds.add(suggestion.id);
-        }
+        const previousIds = new Set(this.suggestions.map(suggestion => suggestion.id));
+        const previousSelections = this.selectedIds;
+        this.suggestions = [...response.suggestions];
+        this.selectedIds = new Set(
+            this.suggestions
+                .filter(
+                    suggestion =>
+                        !previousIds.has(suggestion.id) || previousSelections.has(suggestion.id)
+                )
+                .map(suggestion => suggestion.id)
+        );
+
         const fingerprints = new Map(this.fingerprints.map(item => [item.id, item]));
         for (const fingerprint of response.fingerprints)
             fingerprints.set(fingerprint.id, fingerprint);

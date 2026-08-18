@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
+    collectCandidateTransactions,
     filterEligibleTransactions,
-    generateCandidatePairs,
-    retainNonOverlappingSuggestions,
     type TransactionFingerprint,
 } from '../src/services/candidate-service';
 
@@ -79,9 +78,13 @@ describe('deterministic candidate filtering', () => {
             tx('different-amount', { amount: '10.01' }),
         ];
 
-        expect(generateCandidatePairs(previous, current).map(pair => pair.key)).toEqual([
-            'current|same-from',
-            'current|same-to',
+        const result = collectCandidateTransactions(previous, current);
+
+        expect(result.pairCount).toBe(2);
+        expect(result.transactions.map(transaction => transaction.id)).toEqual([
+            'same-from',
+            'same-to',
+            'current',
         ]);
     });
 
@@ -100,29 +103,42 @@ describe('deterministic candidate filtering', () => {
             description: '',
         });
 
-        expect(
-            generateCandidatePairs([], [complete, draft, blankDraft]).map(pair => pair.key)
-        ).toEqual(['complete|draft']);
+        const result = collectCandidateTransactions([], [complete, draft, blankDraft]);
+
+        expect(result.pairCount).toBe(1);
+        expect(result.transactions.map(transaction => transaction.id)).toEqual([
+            'complete',
+            'draft',
+        ]);
     });
 
     it('only emits cross-page pairs involving the current page', () => {
         const previous = [tx('old-a'), tx('old-b')];
         const current = [tx('new')];
 
-        expect(generateCandidatePairs(previous, current).map(pair => pair.key)).toEqual([
-            'new|old-a',
-            'new|old-b',
+        const result = collectCandidateTransactions(previous, current);
+
+        expect(result.pairCount).toBe(2);
+        expect(result.transactions.map(transaction => transaction.id)).toEqual([
+            'old-a',
+            'old-b',
+            'new',
         ]);
     });
 
-    it('ranks strong suggestions first and deterministically removes overlaps', () => {
-        const pairs = generateCandidatePairs([], [tx('a'), tx('b'), tx('c')]);
-        const retained = retainNonOverlappingSuggestions(pairs, [
-            { pairIndex: 0, duplicate: true, strength: 'Possible', explanation: 'Possible match' },
-            { pairIndex: 1, duplicate: true, strength: 'Strong', explanation: 'Best match' },
-            { pairIndex: 2, duplicate: true, strength: 'Strong', explanation: 'Also strong' },
-        ]);
+    it('collects each participating transaction once in listing order without materializing pairs', () => {
+        const unrelated = tx('unrelated', { amount: '99' });
+        const first = tx('first');
+        const second = tx('second');
+        const third = tx('third');
 
-        expect(retained.map(item => item.key)).toEqual(['a|c']);
+        const result = collectCandidateTransactions([], [unrelated, first, second, third]);
+
+        expect(result.pairCount).toBe(3);
+        expect(result.transactions.map(transaction => transaction.id)).toEqual([
+            'first',
+            'second',
+            'third',
+        ]);
     });
 });

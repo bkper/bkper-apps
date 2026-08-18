@@ -1,15 +1,14 @@
 import { AccountType, Amount, Permission } from 'bkper-js';
 import type { AppContext } from '../app-context';
 import {
+    collectCandidateTransactions,
     filterEligibleTransactions,
-    generateCandidatePairs,
-    retainNonOverlappingSuggestions,
     type AccountSnapshot,
     type AccountSnapshotType,
     type SkippedCounts,
     type TransactionFingerprint,
 } from './candidate-service';
-import { analyzeCandidatePairs, PROMPT_VERSION } from './bkper-ai-service';
+import { analyzeCandidateTransactions, PROMPT_VERSION } from './bkper-ai-service';
 import { collectApplicableLearningExamples } from './learning-service';
 import { requireScanPermission } from './permission-service';
 
@@ -71,28 +70,42 @@ export async function scanTransactions(
         fromAccount: withAccountMetadata(transaction.fromAccount, accountSnapshots),
         toAccount: withAccountMetadata(transaction.toAccount, accountSnapshots),
     }));
-    const candidates = generateCandidatePairs(
+    const cumulativeTransactions = mergeFingerprints(
         request.fingerprints,
         transactionsWithDisplayMetadata
     );
+    const cumulativeCandidates = collectCandidateTransactions([], cumulativeTransactions);
+    const pageCandidateCount = collectCandidateTransactions(
+        request.fingerprints,
+        transactionsWithDisplayMetadata
+    ).pairCount;
 
     let suggestions: ScanSuggestion[] = [];
-    if (candidates.length > 0) {
+    if (cumulativeCandidates.pairCount > 0) {
+        const candidateTransactions = cumulativeCandidates.transactions;
         await book.getGroups();
         const learningExamples = await collectApplicableLearningExamples(
             book,
-            candidates.flatMap(pair => [pair.first, pair.second])
+            candidateTransactions
         );
-        const analysis = await analyzeCandidatePairs(candidates, learningExamples, context.aiFetch);
-        suggestions = retainNonOverlappingSuggestions(candidates, analysis.evaluations).map(
-            suggestion => ({
-                id: suggestion.id,
-                strength: suggestion.strength,
-                explanation: suggestion.explanation,
-                first: suggestion.first,
-                second: suggestion.second,
-            })
+        const analysis = await analyzeCandidateTransactions(
+            candidateTransactions,
+            learningExamples,
+            context.aiFetch
         );
+        suggestions = analysis.pairs.map(pair => {
+            const [first, second] = canonicalPair(
+                candidateTransactions[pair.firstIndex],
+                candidateTransactions[pair.secondIndex]
+            );
+            return {
+                id: `${first.id}|${second.id}`,
+                strength: pair.strength,
+                explanation: pair.explanation,
+                first,
+                second,
+            };
+        });
     }
 
     const cursor = page.getCursor();
@@ -102,10 +115,28 @@ export async function scanTransactions(
         fingerprints: transactionsWithDisplayMetadata,
         ...(cursor ? { cursor } : {}),
         scanned: transactions.length,
-        candidateCount: candidates.length,
+        candidateCount: pageCandidateCount,
         skipped: filtered.skipped,
         promptVersion: PROMPT_VERSION,
     };
+}
+
+function mergeFingerprints(
+    previous: readonly TransactionFingerprint[],
+    current: readonly TransactionFingerprint[]
+): TransactionFingerprint[] {
+    const merged = new Map<string, TransactionFingerprint>();
+    for (const transaction of [...previous, ...current]) {
+        merged.set(transaction.id, transaction);
+    }
+    return [...merged.values()];
+}
+
+function canonicalPair(
+    first: TransactionFingerprint,
+    second: TransactionFingerprint
+): [TransactionFingerprint, TransactionFingerprint] {
+    return first.id.localeCompare(second.id) <= 0 ? [first, second] : [second, first];
 }
 
 function toAccountSnapshotType(type: AccountType): AccountSnapshotType {

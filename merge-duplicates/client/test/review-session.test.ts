@@ -31,27 +31,28 @@ function page(suggestions: Suggestion[], cursor?: string): ScanResponse {
         scanned: 200,
         candidateCount: suggestions.length,
         skipped: { total: 0, checked: 0, trashed: 0, locked: 0 },
-        promptVersion: 'merge-duplicates-v1',
+        promptVersion: 'merge-duplicates-v2',
     };
 }
 
 describe('browser-memory review session', () => {
-    it('appends pages while preserving decisions and global non-overlap', () => {
+    it('replaces cumulative suggestions while preserving decisions for unchanged pairs', () => {
         const session = new ReviewSession();
-        session.appendPage(page([suggestion('one', 'a', 'b')], 'next'));
+        session.appendPage(
+            page([suggestion('one', 'a', 'b'), suggestion('removed', 'c', 'd')], 'next')
+        );
 
-        expect(session.accepted.map(item => item.id)).toEqual(['one']);
+        expect(session.accepted.map(item => item.id)).toEqual(['one', 'removed']);
         expect(session.rejected).toEqual([]);
 
         session.setSelected('one', false);
-        session.appendPage(page([suggestion('overlap', 'b', 'c'), suggestion('two', 'd', 'e')]));
+        session.appendPage(page([suggestion('one', 'a', 'b'), suggestion('two', 'e', 'f')]));
 
         expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
         expect(session.accepted.map(item => item.id)).toEqual(['two']);
         expect(session.rejected.map(item => item.id)).toEqual(['one']);
 
         session.setSelected('one', true);
-        expect(session.suggestions.map(item => item.id)).toEqual(['one', 'two']);
         expect(session.accepted.map(item => item.id)).toEqual(['one', 'two']);
 
         session.setAllSelected(false);

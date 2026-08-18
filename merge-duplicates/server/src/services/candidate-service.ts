@@ -21,30 +21,11 @@ export interface TransactionFingerprint {
     draft: boolean;
 }
 
-export interface CandidatePair {
-    key: string;
-    first: TransactionFingerprint;
-    second: TransactionFingerprint;
-}
-
 export interface SkippedCounts {
     total: number;
     trashed: number;
     checked: number;
     locked: number;
-}
-
-export interface CandidateEvaluation {
-    pairIndex: number;
-    duplicate: boolean;
-    strength: 'Strong' | 'Possible';
-    explanation: string;
-}
-
-export interface DuplicateSuggestion extends CandidatePair {
-    id: string;
-    strength: 'Strong' | 'Possible';
-    explanation: string;
 }
 
 export function filterEligibleTransactions(
@@ -77,10 +58,10 @@ export function filterEligibleTransactions(
     return { transactions: eligible, skipped };
 }
 
-export function generateCandidatePairs(
+export function collectCandidateTransactions(
     previous: readonly (TransactionFingerprint | bkper.Transaction)[],
     current: readonly (TransactionFingerprint | bkper.Transaction)[]
-): CandidatePair[] {
+): { transactions: TransactionFingerprint[]; pairCount: number } {
     const toFingerprints = (
         items: readonly (TransactionFingerprint | bkper.Transaction)[]
     ): TransactionFingerprint[] =>
@@ -94,8 +75,9 @@ export function generateCandidatePairs(
     for (const transaction of [...previousFingerprints, ...currentFingerprints]) {
         byId.set(transaction.id, transaction);
     }
-    const transactions = [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
-    const pairs: CandidatePair[] = [];
+    const transactions = [...byId.values()];
+    const candidateIds = new Set<string>();
+    let pairCount = 0;
 
     for (let firstIndex = 0; firstIndex < transactions.length; firstIndex += 1) {
         for (
@@ -107,40 +89,16 @@ export function generateCandidatePairs(
             const second = transactions[secondIndex];
             if (!currentIds.has(first.id) && !currentIds.has(second.id)) continue;
             if (!isPlausiblePair(first, second)) continue;
-            pairs.push({ key: `${first.id}|${second.id}`, first, second });
+            candidateIds.add(first.id);
+            candidateIds.add(second.id);
+            pairCount += 1;
         }
     }
 
-    return pairs;
-}
-
-export function retainNonOverlappingSuggestions(
-    pairs: readonly CandidatePair[],
-    evaluations: readonly CandidateEvaluation[]
-): DuplicateSuggestion[] {
-    const ranked = evaluations
-        .filter(evaluation => evaluation.duplicate && pairs[evaluation.pairIndex] !== undefined)
-        .sort((left, right) => {
-            const strengthDifference = strengthRank(left.strength) - strengthRank(right.strength);
-            return strengthDifference || left.pairIndex - right.pairIndex;
-        });
-    const used = new Set<string>();
-    const retained: DuplicateSuggestion[] = [];
-
-    for (const evaluation of ranked) {
-        const pair = pairs[evaluation.pairIndex];
-        if (used.has(pair.first.id) || used.has(pair.second.id)) continue;
-        used.add(pair.first.id);
-        used.add(pair.second.id);
-        retained.push({
-            ...pair,
-            id: pair.key,
-            strength: evaluation.strength,
-            explanation: cleanExplanation(evaluation.explanation),
-        });
-    }
-
-    return retained;
+    return {
+        transactions: transactions.filter(transaction => candidateIds.has(transaction.id)),
+        pairCount,
+    };
 }
 
 function toFingerprint(transaction: bkper.Transaction): TransactionFingerprint | undefined {
@@ -170,7 +128,10 @@ function isFingerprint(
     return 'fromAccount' in value && 'toAccount' in value && 'draft' in value;
 }
 
-function isPlausiblePair(first: TransactionFingerprint, second: TransactionFingerprint): boolean {
+export function isPlausiblePair(
+    first: TransactionFingerprint,
+    second: TransactionFingerprint
+): boolean {
     if (!equalAmounts(first.amount, second.amount)) return false;
     if (calendarDayDistance(first.date, second.date) > 7) return false;
 
@@ -263,13 +224,4 @@ function cleanRequired(value: string | undefined): string | undefined {
 
 function cleanText(value: string): string {
     return value.replace(/\s+/gu, ' ').trim();
-}
-
-function cleanExplanation(value: string): string {
-    const cleaned = cleanText(value);
-    return cleaned.length <= 180 ? cleaned : `${cleaned.slice(0, 179)}…`;
-}
-
-function strengthRank(strength: 'Strong' | 'Possible'): number {
-    return strength === 'Strong' ? 0 : 1;
 }

@@ -78,7 +78,7 @@ The chart of accounts is replicated across all books in the collection, using th
 <summary><strong>What stays in sync</strong></summary>
 
 - checked, updated, deleted, and restored transactions stay synchronized across books
-- account and group creates, updates, and deletions are propagated across books
+- account and group creates and updates are propagated across books; deleted accounts are archived when they have posted transactions and removed otherwise, while deleted groups are always removed
 - selected book settings and shared Exchange Bot properties are copied across connected books
 - missing accounts are automatically created when mirroring a transaction if they do not yet exist in the target book
 
@@ -135,13 +135,13 @@ exc_code: USD
 
 Over time, exchange rate fluctuations change the value of balances held in foreign currencies. The Exchange Bot calculates these unrealized gains and losses on demand.
 
-Open any book in the collection and select **More > Exchange Bot**. Choose a date and click **Gain/Loss**. The bot adjusts each account's balance using the selected rates and records the difference in automatically created exchange accounts (suffixed with **EXC**).
+Open any book in the collection and select **More > Exchange Bot**. In the **Exchange Update** view, choose a date, review or adjust the displayed exchange rates, and click **Run**. The bot adjusts eligible account balances using the selected rates and records the differences in automatically created exchange accounts (suffixed with **EXC**).
 
-In the Gain/Loss view, the bot loads exchange rates for the selected date and displays them as editable fields, so you can adjust them before running the update. If one or more books in the collection are marked with `exc_base`, clicking Gain/Loss updates all base books. If no base books are configured, the update applies across all connected exchange books.
+An account participates in the Exchange Update when it belongs to a group whose name matches the connected currency code or whose `exc_code` property matches that currency. If one or more books in the collection are marked with `exc_base`, clicking **Run** updates all base books. If no base books are configured, the update applies across all connected exchange books.
 
 By default, the bot creates a separate exchange account per account (suffixed with **EXC**). When a book has `exc_aggregate: true`, it uses a single `Exchange_XXX` account per foreign currency instead.
 
-The action is available only when the user has the required permissions and there are no pending bot tasks or bot errors in the connected books.
+Running an Exchange Update requires **EDITOR** or **OWNER** permission in every target book. Pending book tasks and event/bot errors in connected books are displayed as warnings, but they do not disable **Run**. We strongly recommend waiting for all pending tasks to finish and resolving any errors before proceeding. Exchange Updates use current book balances, so unfinished processing or failed events may leave those balances incomplete and result in inaccurate exchange adjustments.
 
 **Example:** Your EUR book holds a Citi Bank balance of 920. The original rate was 0.92 but the current rate is 0.94 - a gain of 20.
 
@@ -170,7 +170,7 @@ Set these on each book in the collection.
 |---|---|---|
 | `exc_code` | Yes | The book's currency code (e.g. `USD`, `EUR`, `JPY`). Also accepts the legacy key `exchange_code` |
 | `exc_rates_url` | No | Custom exchange rates endpoint URL. Default: [Open Exchange Rates](https://openexchangerates.org/). Also accepts the legacy key `exchange_rates_url` |
-| `exc_rates_cache` | No | Cache duration in seconds for exchange rate responses. Default: `3600` when using Open Exchange Rates, minimum `300` |
+| `exc_rates_cache` | No | Compatibility property synchronized across connected books. It does not currently configure rate caching; event-triggered rate lookups use a fixed 30-minute cache |
 | `exc_on_check` | No | Set to `true` to delay normal mirroring of an unchecked transaction until it is checked. Later transaction events, such as updates, may still synchronize related changes. Default: `false` |
 | `exc_base` | No | Marks this book as a base book. When at least one base book exists in the collection, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code` |
 | `exc_historical` | No | Set to `true` to consider balances since the beginning of the book. Default: uses balances after the [closing date](https://bkper.com/docs/guides/using-bkper/books) |
@@ -320,7 +320,7 @@ The bot responds to the following Bkper events:
 | `TRANSACTION_RESTORED` | Restores the mirrored transaction on connected books |
 | `ACCOUNT_CREATED` | Creates the account on all connected books with the same name, type, groups, and properties |
 | `ACCOUNT_UPDATED` | Updates the account on all connected books |
-| `ACCOUNT_DELETED` | Deletes the account on all connected books |
+| `ACCOUNT_DELETED` | Archives the account on connected books when it has posted transactions; otherwise removes it |
 | `GROUP_CREATED` | Creates the group on all connected books |
 | `GROUP_UPDATED` | Updates the group on all connected books |
 | `GROUP_DELETED` | Deletes the group on all connected books |

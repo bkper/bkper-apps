@@ -74,6 +74,7 @@ describe('Bkper AI structured analysis', () => {
         expect(captured?.headers.get('authorization')).toBeNull();
         const body = (await captured?.clone().json()) as Record<string, unknown>;
         expect(body.model).toBe('gemini-flash');
+        expect(body.reasoning).toEqual({ effort: 'medium' });
         expect(body.temperature).toBe(0.1);
         expect(body.store).toBe(false);
         expect(body.text).toMatchObject({ format: { type: 'json_schema', strict: true } });

@@ -5,13 +5,13 @@ const AI_URL = 'https://ai.bkper.app/v1/responses';
 
 interface ModelAttempt {
     model: 'gemini-flash' | 'gpt-luna' | 'deepseek-flash';
-    reasoningEffort: 'low' | 'high';
+    reasoningEffort: 'medium' | 'high';
     timeoutMs: number;
     temperature?: number;
 }
 
 const MODEL_ATTEMPTS: readonly ModelAttempt[] = [
-    { model: 'gemini-flash', reasoningEffort: 'low', temperature: 0.1, timeoutMs: 30_000 },
+    { model: 'gemini-flash', reasoningEffort: 'medium', temperature: 0.1, timeoutMs: 30_000 },
     { model: 'gpt-luna', reasoningEffort: 'high', timeoutMs: 90_000 },
     { model: 'deepseek-flash', reasoningEffort: 'high', timeoutMs: 180_000 },
 ];

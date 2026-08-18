@@ -1,0 +1,671 @@
+# Portfolio Bot: GCP and Apps Script to Cloudflare Migration Roadmap
+
+## Status
+
+**Not started.**
+
+The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
+
+## Purpose of this document
+
+Portfolio Bot will follow the full-stack migration process proven by Exchange Bot: migrate events and the menu into one Bkper Platform application, validate the Cloudflare target in parallel, cut over the webhook and menu independently, stabilize both surfaces, and retain the legacy deployments as separate routing rollback targets.
+
+Portfolio Bot is larger, especially on the GAS side, but that does not change the migration process or its main decisions.
+
+This is a public, community-facing roadmap. It records technical decisions and reproducible outcomes without retaining raw operational logs, Book or resource identifiers, internal infrastructure identifiers, personal names, secret values, or routine approval chronology.
+
+## Objective
+
+Migrate the published `stock-bot` app from:
+
+- a Google Cloud Function that handles Bkper events; and
+- a Google Apps Script web app that provides the Portfolio Bot menu and its server operations;
+
+into one Bkper Platform application whose Cloudflare Worker serves:
+
+- the bundled browser client;
+- authenticated `/api/v1/*` routes used by that client;
+- Bkper event ingress at `/events`;
+- the generated OpenAPI contract at `/openapi.json`.
+
+The standalone scaffold health route is not part of the application contract.
+
+The event handler targets maximum practical code and behavior parity. The GAS menu does not: moving from server-rendered GAS, synchronous `bkper-gs`, and `google.script.run` to Lit, Hono, and asynchronous `bkper-js` necessarily changes the architecture, API boundary, and UI implementation.
+
+The menu migration preserves accepted accounting outcomes and essential workflows while delivering a production-quality target client. It does not claim source-code or pixel-level UI parity.
+
+## Non-negotiable invariants
+
+1. **Protect Bkper's zero-sum invariant above all else.** Every posted Transaction created or changed by Portfolio Bot must remain one complete movement with one amount from an origin Account to a destination Account.
+2. **Protect each Book independently.** Quantity movements in the Portfolio Book and monetary movements in Financial and Base Books must each balance within their own Book.
+3. **Incomplete movements remain non-balance-affecting.** Missing Accounts, cleared zero amounts, and unresolved movements retain their established draft or no-op behavior.
+4. **Preserve movement meaning.** Purchases, sales, fees, interest, realized results, exchange results, MTM entries, forwarded results, and liquidation bridges retain their accepted direction and resource meaning.
+5. **Preserve relationships and idempotency.** Remote ids, parent ids, split relationships, and linked lifecycle behavior must not create duplicate active movements.
+6. **The legacy implementations remain authoritative until their respective cutovers.** Production patches during migration must be characterized and ported.
+7. **Do not mix migration with silent business-logic fixes.** Record inherited issues for separate work unless a target-runtime or security requirement forces an explicit deviation.
+8. **Tests never write to live Books.** Deterministic tests intercept SDK, network, API, browser, clock, and UUID boundaries.
+9. **Deployment and routing remain separate.** A deployed Worker does not imply that production events or the menu should route to it.
+10. **Webhook and menu cutovers remain independent.** Each has its own validation, stabilization, and rollback decision.
+11. **Remote mutations require explicit approval.** App sync, deploy, installation, event replay, routing changes, canaries, and Book writes are reviewed separately immediately before execution.
+12. **Do not claim full parity.** Completion means accepted domain behavior coverage, documented target differences, and successful rollout evidence.
+
+## Authoritative legacy surfaces
+
+### GCP event handler
+
+The current `gcf/` project is authoritative for the thirteen subscribed event types.
+
+It handles:
+
+- purchase and sale order splitting;
+- fees, interest, and instrument movements;
+- checked quantity mirroring into the Portfolio Book;
+- transaction update, uncheck, deletion, and restoration;
+- linked realized, MTM, historical, and FX cleanup;
+- rebuild flags;
+- Account and Group synchronization;
+- selected Book updates;
+- event responses and loop prevention.
+
+### Google Apps Script web app
+
+The current `gas/` project is authoritative for the accepted Portfolio Bot menu behavior and accounting operations.
+
+It handles:
+
+- Book, Account, and Group context;
+- eligible and uncalculated Account selection;
+- permissions and pending-task validation;
+- FIFO realized-result calculation;
+- complete and partial lots;
+- short sales;
+- historical, fair, and combined models;
+- realized, exchange, MTM, and interest-MTM movements;
+- Reset and Full Reset;
+- Forward Date and lower-date repair;
+- Portfolio Book closing-date updates;
+- per-Account progress and results.
+
+The accepted source and deployed artifacts, not README interpretations, define the migration baseline.
+
+## Domain behavior preserved
+
+Portfolio Bot coordinates one Portfolio Book, one or more Financial Books, and an optional configured Base Book in the same Collection.
+
+- Posted purchase and sale orders retain their recognition rules, amount calculations, dates, descriptions, properties, Account creation, remote ids, and movement direction.
+- Fees and interest retain their separate movements.
+- Checked instrument trades retain their quantity mirror in the Portfolio Book.
+- Portfolio purchases remain movements from `Buy` to the instrument Account; sales remain movements from the instrument Account to `Sell`.
+- Mirrored quantities, prices, historical prices, trade rates, order, original values, dates, descriptions, currency properties, and remote ids retain accepted semantics.
+- Transaction update, uncheck, deletion, and restoration retain their accepted linked behavior and state transitions.
+- Account, Group, and Book synchronization retain their accepted direction, eligibility, lookup, rename, archive, property, and removal behavior.
+- Group hierarchy remains outside the synchronization contract.
+- Calculate retains FIFO order, complete and partial lot handling, short sales, split Transactions, logs, checked state, and model-specific behavior.
+- Realized, historical, exchange, MTM, historical MTM, interest-MTM, and forwarded-result movements retain accepted amounts, direction, Accounts, properties, descriptions, and remote ids.
+- Support Account lookup, creation, type inference, and Group inference retain accepted behavior.
+- Calculate retains its accepted mutation phases across Portfolio, Financial, and Base Books.
+- Reset retains linked cleanup, parent restoration, property cleanup, checked-state handling, Account dates, and rebuild behavior.
+- Full Reset additionally retains forward-state removal and historical-state restoration.
+- Forward Date retains its validations, forward logs, liquidation bridge, forwarded result, Account properties, and optional Portfolio Book closing date.
+- Lowering a forward date retains its owner, unlocked-Collection, reset, repair, and re-forward requirements.
+- Exchange Bot events retain their accepted skip behavior.
+
+## Migration fidelity rules
+
+### Event-side rules
+
+- Preserve source class, function, method, and parameter names where practical.
+- Preserve class decomposition, branch order, lookup order, mutation order, return normalization, logging, concurrency, and side effects.
+- Do not refactor, modernize, optimize, or clean up event business behavior during the parity port.
+- Limit mechanical changes to runtime boundaries, module syntax, strict TypeScript, request-scoped Platform authentication, SDK compatibility, and build packaging.
+- Compare the GCP and target implementations side by side before completing each event chunk.
+- Characterize runtime-sensitive unawaited legacy operations and ensure required Cloudflare work completes before the request ends.
+- Record every retained deviation.
+- Stop and escalate any adaptation that can change movement direction, amount, state, linked cleanup, or the zero-sum invariant.
+
+### Menu, API, and client rules
+
+- Preserve accounting outcomes, operation ordering, selected resources, and essential workflows—not GAS source structure.
+- Treat `/api/v1/*` as a new reusable extraction, not a legacy transport contract.
+- Keep API routes thin and move accounting behavior into server services.
+- Use explicit schemas, authorization, errors, and generated client types.
+- Replace synchronous `bkper-gs` with asynchronous `bkper-js` deliberately, preserving mutation order where accounting behavior depends on it.
+- Do not preserve GAS UI structure or styling for its own sake.
+- Use the Bkper design foundation and deliver a responsive, accessible, theme-aware, production-quality client.
+- Allow client UX improvements when they do not silently change selected Accounts, dates, options, mutation requests, or accounting outcomes.
+- Document material API, runtime, workflow, and UI differences instead of labeling them as parity.
+
+## Architecture
+
+### Current layout
+
+```text
+portfolio-bot/
+├── gcf/         # GCP event handler
+├── gas/         # Apps Script menu and server operations
+├── images/
+├── bkper.yaml
+├── package.json
+├── README.md
+└── LICENSE
+```
+
+### Temporary migration layout
+
+```text
+portfolio-bot/
+├── legacy/
+│   ├── gcf/     # production-authoritative event implementation
+│   ├── gas/     # production-authoritative menu implementation
+│   ├── bkper.yaml
+│   └── package.json
+├── new/
+│   ├── client/  # Vite + Lit browser client
+│   ├── server/  # Hono Worker: /api/v1/*, /events, OpenAPI, assets
+│   ├── bkper.yaml
+│   ├── package.json
+│   └── tsconfig.json
+├── ROADMAP.md
+├── README.md
+└── LICENSE
+```
+
+The target metadata keeps production `menuUrl` and `webhookUrl` on Apps Script and GCP while development URLs can move independently to Cloudflare preview.
+
+### Intended final layout
+
+```text
+portfolio-bot/
+├── AGENTS.md
+├── ROADMAP.md
+├── README.md
+├── LICENSE
+├── bkper.yaml
+├── bun.lock
+├── env.d.ts
+├── package.json
+├── tsconfig.json
+├── client/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── src/
+│   └── test/
+└── server/
+    ├── package.json
+    ├── tsconfig.json
+    ├── src/
+    └── test/
+```
+
+The previous GCP and GAS source remains recoverable from Git history. Their unchanged deployments remain independent routing rollback targets until separately retired.
+
+## Cloudflare target decisions
+
+- One full-stack Worker serves static client assets, authenticated `/api/v1/*`, `/events`, and `/openapi.json`.
+- The Worker exposes no standalone health endpoint.
+- The client uses Lit, Vite, Web Awesome, `@bkper/web-design`, and `@bkper/web-auth`.
+- The client may use browser-side `bkper-js` for authenticated Book context and read-only UI behavior.
+- Calculate, Reset, Full Reset, and Forward Date mutations run through authenticated server API routes.
+- The initial API remains limited to the operations and context required by Portfolio Bot.
+- API authorization and installation checks are explicit and do not rely only on hidden client controls.
+- Full Reset and lower-forward-date requirements are enforced at the server boundary.
+- Bkper Core remains authoritative for connected-Book authorization.
+- Server routes and event handlers create request-scoped `Bkper` instances without OAuth, API-key, or agent-id providers.
+- Worker code never reads or forwards `Authorization`, `bkper-oauth-token`, or `bkper-agent-id`.
+- Event-side and menu-side business behavior remain separate during migration.
+- Independent read-only loading and validation requests use explicit bounded batching while preserving deterministic result and mutation order.
+- No KV or secret is introduced unless implementation evidence establishes a requirement.
+- Strict TypeScript, Bun, exact dependency pins, a committed lockfile, deterministic tests, production builds, formatting, and generated-contract checks form the local gate.
+- Local ports use Vite `5179` and Worker `8797`.
+
+## Open implementation-time decisions
+
+### SDK and tooling versions
+
+The repository declares GCF `bkper-js` `^2.18.0` without a committed lockfile. The GAS project uses a pinned Apps Script library deployment and version-ranged local type packages.
+
+The migration baseline must establish the exact deployed GCF dependency and GAS artifacts before selecting the target SDK pin.
+
+The compatibility audit covers:
+
+- nullable lookups versus propagated 404 errors;
+- complete-chart Account and Group caching;
+- Amount parsing, absolute-value, zero-clearing, arithmetic, comparison, and rounding;
+- Book date, timezone, fraction-digit, lock, and closing behavior;
+- transaction pagination, ordering, and first-match semantics;
+- batch create, update, trash, and check serialization and result order;
+- checked, locked, posted, draft, and trashed transitions;
+- visible and hidden properties;
+- remote ids;
+- balance reports;
+- retries, errors, and Platform authentication.
+
+Exact Bkper CLI, TypeScript, Miniflare, browser, and supporting versions are pinned in the committed lockfile after their compatibility checks.
+
+### API contract
+
+The exact route names, payloads, operation grouping, preflight placement, and response schemas are defined in the typed API chunk.
+
+The contract remains small: context and validation required by the client plus Calculate, Reset, Full Reset, and Forward Date. It must preserve safe operation ordering without carrying `google.script.run` implementation details into the public API.
+
+### Client behavior
+
+The target client preserves the operational purpose of the GAS menu but may improve navigation, validation, progress, results, permissions, errors, responsiveness, accessibility, themes, and embedded behavior.
+
+The accepted client is verified as a target application, not compared pixel-for-pixel with GAS.
+
+## Deterministic verification strategy
+
+### Test boundary
+
+Tests execute target production handlers, API routes, services, SDK models, client controllers, and components while intercepting SDK, network, API, browser, clock, delay, and UUID boundaries.
+
+They require no credentials, deployment, external request, or live Book access.
+
+Each behavior chunk follows this workflow:
+
+1. Add the smallest target production stub required by the behavior.
+2. Add the smallest failing test describing the accepted legacy outcome or target contract.
+3. Implement only enough target behavior to pass.
+4. Run focused tests.
+5. Run the complete deterministic gate.
+6. Compare event code with GCP or menu accounting outcomes with GAS as applicable.
+7. Record accepted differences and keep the tests as target safeguards.
+
+### Event behavior matrix
+
+#### Ingress and common resolution
+
+- Every subscribed event and the unknown-event path retain accepted routing and responses.
+- Each request receives isolated SDK context and Platform authentication.
+- Portfolio, Financial, and Base Book discovery retain accepted ordering and fallbacks.
+- Currency, Group, Account, calculation-model, and realized-date rules retain accepted behavior.
+
+#### Order splitting and quantity movements
+
+- Purchase and sale recognition retain established property and Account requirements.
+- Fees, interest, and instrument movements retain amount, direction, date, description, properties, Accounts, and remote ids.
+- Checked instrument movements create one eligible Portfolio quantity mirror in the established direction.
+- Missing, zero, unsupported, duplicate, and Exchange Bot paths retain accepted behavior.
+- Every posted movement is complete; unresolved behavior remains non-balance-affecting.
+
+#### Lifecycle and synchronization
+
+- Update, uncheck, delete, and restore retain checked-state, rebuild, linked lookup, cleanup, and response behavior.
+- Account create, update, rename, archive, Group membership, and delete retain accepted direction and eligibility.
+- Group create, update, rename, hidden state, properties, and delete retain accepted behavior without hierarchy synchronization.
+- Book updates retain accepted mode and Portfolio Book behavior.
+- Resource synchronization creates no transaction movement.
+
+### Menu behavior matrix
+
+#### Context and permissions
+
+- Book, Account, and Group context resolve to the accepted Portfolio Book and instrument Accounts.
+- Uncalculated Account discovery, sorting, no-context behavior, and default date retain accepted outcomes.
+- Edit permissions, Full Reset eligibility, pending tasks, locks, closing dates, and installation produce explicit target states.
+- Unauthorized API operations fail before mutation.
+
+#### Calculate
+
+- FIFO sorting, complete and partial lots, short sales, splits, logs, parent ids, checked state, and model branches retain accepted outcomes.
+- Explicit and inherited rates retain accepted precedence.
+- Realized, historical, FX, MTM, historical MTM, and interest-MTM movements retain amount, direction, Accounts, properties, descriptions, and remote ids.
+- Support Account lookup, creation, type, and Group inference retain accepted behavior.
+- Portfolio splits receive canonical ids before dependent Financial and Base Book movements are created.
+- Batch phases and result order remain deterministic.
+- Locked or unresolved paths do not create an unintended posted movement.
+
+#### Reset, Full Reset, and Forward Date
+
+- Reset retains linked cleanup, checked-state handling, split cleanup, original-state restoration, Account dates, and rebuild behavior.
+- Full Reset additionally removes accepted forward state and restores historical state.
+- Forward Date retains validation, balances, logs, liquidation bridge, forwarded result, Account properties, and optional closing date.
+- Lower-forward-date repair retains owner and unlocked-Collection requirements.
+- Every accepted result remains a complete movement in its Book.
+
+### Client behavior matrix
+
+- Authentication and login-required behavior use `@bkper/web-auth`.
+- URL context produces the accepted Book, Account, and Group scope.
+- Calculate, Reset, Full Reset, and Forward Date expose the accepted inputs and availability.
+- Busy state prevents duplicate submission.
+- Per-Account progress, results, warnings, and errors remain explicit.
+- A known accepted mutation is not presented as safe to retry because later summary rendering failed.
+- The client works in embedded and standalone contexts, responsive layouts, light and dark themes, and supported browsers.
+- Tests protect behavior and contracts rather than static wording or pixel snapshots.
+- Browser verification confirms the target client visually and interactively.
+
+### Local gate
+
+The target root check covers:
+
+- strict client, server, and test typechecks;
+- retained client and server unit tests;
+- OpenAPI generation and generated client types;
+- client and Worker production builds;
+- formatting;
+- generated-file drift.
+
+It performs no remote mutation.
+
+## Production patch synchronization
+
+While GCP and GAS remain production-authoritative, every production patch must be:
+
+1. identified by affected behavior;
+2. recorded in the migration patch ledger;
+3. characterized in a deterministic target test;
+4. ported when its behavior area is implemented;
+5. included in the next source drift audit.
+
+Drift audits occur before preview routing, production deployment, each production cutover, and repository consolidation.
+
+### Migration patch ledger
+
+The baseline has not yet been established.
+
+| Surface | Behavior changed | Target test | Port status |
+| --- | --- | --- | --- |
+| — | — | — | — |
+
+## Migration chunks
+
+### Chunk 1 — Capture baseline and establish parallel layout
+
+**Status: Not started.**
+
+- Confirm persisted production metadata, routes, subscriptions, and property schema.
+- Confirm the deployed GCP runtime, exact dependency, source artifact, and build settings.
+- Confirm the deployed GAS output, static assets, library version, and checked-in source relationship.
+- Record current build and test evidence without overstating it.
+- Move unchanged legacy projects under `legacy/` and establish isolated `new/` target source.
+
+**Gate:** Both legacy surfaces remain production-authoritative and independently recoverable.
+
+### Chunk 2 — Create the full-stack Cloudflare skeleton
+
+**Status: Not started.**
+
+- Create minimal root, client, and server package boundaries without template demo behavior.
+- Add strict TypeScript, formatting, generated types, exact dependencies, and a committed lockfile.
+- Add non-mutating `/events` and `/api/v1/*` stubs, `/openapi.json`, API not-found behavior, and static assets.
+- Add the client design and authentication foundation.
+- Assign Vite `5179` and Worker `8797` and update workspace port forwarding.
+- Keep production menu and webhook routes on GAS and GCP.
+
+**Gate:** The complete local check passes without remote mutation.
+
+### Chunk 3 — Port event ingress and dispatch
+
+**Status: Not started.**
+
+- Add request-scoped context and event result types.
+- Reproduce the event switch, handler construction, response envelope, logging, and errors.
+- Add explicit no-op handler stubs before business implementations.
+- Move authentication to the Platform boundary.
+
+**Gate:** Every subscribed event and unknown-event behavior is characterized deterministically.
+
+### Chunk 4 — Port event orchestration and common boundaries
+
+**Status: Not started.**
+
+- Port Portfolio, Financial, and Base Book resolution.
+- Port currency, Account, Group, model, realized-date, and common response helpers.
+- Audit SDK missing-resource and chart-loading semantics.
+
+**Gate:** Common event selection and resolution have no unexplained legacy-to-target difference.
+
+### Chunk 5 — Port posted and checked transaction behavior
+
+**Status: Not started.**
+
+- Port purchase and sale recognition.
+- Port fees, interest, and instrument movements.
+- Port checked quantity mirroring, automatic resources, pricing properties, remote ids, and rebuild behavior.
+- Preserve established no-op, zero, unsupported, duplicate, and Exchange Bot paths.
+
+**Zero-sum gate:** Every posted Financial or Portfolio movement is complete and has the accepted direction.
+
+### Chunk 6 — Port transaction update, uncheck, delete, and restore
+
+**Status: Not started.**
+
+- Port order replacement and mirrored updates.
+- Port checked-state and rebuild behavior.
+- Port linked Financial, Portfolio, realized, historical, MTM, interest-MTM, and FX cleanup.
+- Port trashed lookup and restoration.
+- Ensure required async cascades complete before the Worker response.
+
+**Gate:** Amount, direction, state, lookup order, linked cleanup, and responses have no unexplained difference.
+
+### Chunk 7 — Port Account, Group, and Book synchronization
+
+**Status: Not started.**
+
+- Port Account create, update, rename, archive, Group membership, and delete behavior.
+- Port Group create, update, rename, properties, hidden state, and delete behavior.
+- Preserve the absence of Group hierarchy synchronization.
+- Port selected Book property behavior.
+
+**Gate:** Resource synchronization has deterministic event parity and creates no additional movement.
+
+### Chunk 8 — Complete event parity and drift audit
+
+**Status: Not started.**
+
+- Run the complete event matrix.
+- Compare every target handler and service with GCP.
+- Review dependencies, metadata, generated artifacts, bundle contents, and the patch ledger.
+
+**Gate:** No unexplained event-side difference remains in movement direction, amount, state, lookup order, mutation order, side effects, or responses.
+
+### Chunk 9 — Define the typed menu API contract
+
+**Status: Not started.**
+
+- Define the minimal context, validation, Calculate, Reset, Full Reset, and Forward Date API.
+- Define schemas, structured outcomes, errors, permissions, and installation requirements.
+- Add thin routes backed by non-mutating service stubs.
+- Generate retained OpenAPI client types.
+
+**Gate:** API tests protect the target contract without implementing accounting mutations.
+
+### Chunk 10 — Port view initialization and validation
+
+**Status: Not started.**
+
+- Port Book, Account, and Group context into target client/server responsibilities.
+- Port Portfolio Book discovery and instrument Account selection.
+- Port uncalculated Account discovery, permissions, pending tasks, locks, closing conditions, and date defaults.
+- Adapt preflight placement without changing which operations may begin.
+
+**Gate:** Deterministic fixtures produce the accepted Account scope and operation availability.
+
+### Chunk 11 — Port Calculate, Reset, and Forward Date operations
+
+**Status: Not started.**
+
+- Port FIFO, complete and partial lots, short sales, splits, logs, and model branches.
+- Port rates, realized results, exchange results, MTM, interest MTM, support Accounts, and ordered batch phases.
+- Port Reset and Full Reset cleanup and restoration.
+- Port Forward Date, lower-date repair, liquidation bridges, forwarded results, Account state, and closing date.
+- Retain zero-sum and locked-resource safeguards throughout.
+
+**Zero-sum gate:** Every generated result is a complete movement with the accepted amount and direction; lifecycle operations leave no unintended active movement.
+
+### Chunk 12 — Port and modernize the menu client
+
+**Status: Not started.**
+
+- Replace GAS templates and `google.script.run` with Lit and the authenticated generated API client.
+- Implement Calculate, Reset, Full Reset, and Forward Date workflows.
+- Preserve selected resources, inputs, operation intent, progress, and accounting results.
+- Deliver explicit validation, permission, warning, error, and completed-mutation states.
+- Adopt a responsive, accessible, theme-aware, production-quality Bkper UI.
+- Complete browser verification.
+
+**Gate:** The client behavior matrix passes and the target UI is accepted for production use.
+
+### Chunk 13 — Enforce API and client Book permissions
+
+**Status: Not started.**
+
+- Enforce app installation and explicit operation-specific permission allowlists inside API services before mutation.
+- Authorize the Portfolio Book named by the operation and leave connected-Book authorization to Bkper Core for requests actually made.
+- Enforce Full Reset and lower-forward-date owner and unlocked-Collection requirements at the server boundary.
+- Preserve upstream authentication, permission, validation, network, and server failures through structured API errors.
+- Gate client initialization and mutation controls without relying on hidden buttons as authorization.
+- Keep warnings distinct from blocking permission errors and prevent automatic retries for authorization failures or known accepted mutations.
+- Verify denied operations produce no Account, Transaction, Book, or balance mutation.
+
+**Gate:** The deterministic permission matrix and no-side-effect assertions pass before preview deployment.
+
+### Chunk 14 — Full-stack behavior, dependency, and runtime audit
+
+**Status: Not started.**
+
+- Run the complete event, API, operation, and client matrices from a frozen install.
+- Compare event code with GCP and menu accounting outcomes with GAS.
+- Review every SDK, async, API, security, performance, workflow, and UI difference.
+- Rebuild artifacts reproducibly and reconcile the patch ledger.
+
+**Gate:** Event parity is explained, menu outcome coverage is complete, and target differences are documented.
+
+### Chunk 15 — Preview deployment and routing readiness
+
+**Status: Not started.**
+
+- Build the preview candidate from a clean frozen install.
+- Deploy to preview without changing production routing.
+- Route development menu and events independently to preview.
+- Confirm authentication, assets, OpenAPI, API protection, event ingress, and logs.
+
+**Gate:** Both preview surfaces work while production remains on GCP and GAS.
+
+### Chunk 16 — Preview event validation
+
+**Status: Not started.**
+
+- Exercise order splitting, fees, interest, quantity mirroring, lifecycle handlers, and resource synchronization on isolated synthetic Books.
+- Exercise missing, zero, duplicate, unsupported, and loop-prevention paths.
+- Verify canonical resources, relationships, state, direction, amount, and exact per-Book zero sum.
+
+**Gate:** No duplicate, missing, reversed, partial, or imbalanced posted movement is found.
+
+### Chunk 17 — Preview menu and operation validation
+
+**Status: Not started.**
+
+- Exercise context, permissions, validation, and final client interactions.
+- Exercise long, partial, and short FIFO scenarios across all calculation models.
+- Exercise realized, FX, MTM, Reset, Full Reset, regular Forward Date, and lower-date repair.
+- Exercise locked, closed, missing-rate, and denied-permission paths.
+- Verify canonical lifecycle state, relationships, direction, amounts, and exact per-Book zero sum.
+
+**Gate:** The target workflows and accounting outcomes are accepted with documented API and UI differences.
+
+### Chunk 18 — Final drift audit and production deployment
+
+**Status: Not started.**
+
+- Repeat GCP and GAS source and deployed-artifact drift audits.
+- Reconcile the patch ledger.
+- Build from a clean frozen install and pass the complete gate.
+- Deploy the accepted Worker to production while both production routes remain on GCP and GAS.
+- Confirm deployment, assets, API protection, OpenAPI, and logs.
+
+**Gate:** Deployment changes runtime availability only.
+
+### Chunk 19 — Production webhook cutover and event stabilization
+
+**Status: Not started.**
+
+- Change only the production webhook route to Cloudflare.
+- Keep the production menu on GAS and GCP available for event rollback.
+- Monitor requests, responses, authentication, dependencies, runtime, and customer-impact reports.
+- Use deterministic and preview evidence for accounting correctness; HTTP success alone is not movement proof.
+
+**Rollback triggers:** suspected zero-sum or data-loss issues, reversed or partial movements, duplicate processing, missing linked cleanup, sustained authentication failures, material error or runtime growth, or missing production behavior.
+
+### Chunk 20 — Production menu cutover and full-stack stabilization
+
+**Status: Not started.**
+
+- Change only the production menu route to Cloudflare.
+- Keep Cloudflare authoritative for events and GAS available for menu rollback.
+- Confirm authenticated context and operation availability.
+- Monitor API results, client failures, runtime, authentication, and customer-impact reports.
+- Do not initiate customer Book writes solely for monitoring.
+
+**Rollback triggers:** suspected zero-sum or data-loss issues, incorrect quantities or monetary movements, failed lifecycle restoration, incomplete forward operations, sustained authentication or API failures, unacceptable runtime, material errors, or unusable customer workflow.
+
+### Chunk 21 — Repository consolidation and deferred legacy retirement
+
+**Status: Not started.**
+
+- Move the accepted Cloudflare project from `new/` to the Portfolio Bot root.
+- Remove inactive legacy working-tree source and obsolete local GCP and GAS tooling.
+- Update workspace instructions and ports.
+- Verify source, tests, lockfile, configuration, generated contracts, assets, and Worker bundle through the move.
+- Preserve legacy source in Git history and deployed runtimes as routing rollback targets.
+
+**Gate:** Cloudflare is the only active implementation in the project root and consolidation changes no remote state or application behavior.
+
+## Rollback strategy
+
+### Event rollback
+
+The retained GCP function can receive production events again through a configuration-only webhook change.
+
+1. Stop and identify the trigger.
+2. Restore the retained GCP webhook in app metadata.
+3. Review the exact configuration diff and remote sync command.
+4. Obtain explicit approval before syncing.
+5. Confirm persisted routing and inspect event handling.
+6. Keep Cloudflare deployed for incident analysis.
+7. Reconcile affected linked movements if an event lifecycle may have stopped partway.
+
+### Menu rollback
+
+The retained GAS deployment can serve the production menu again through a configuration-only menu URL change.
+
+1. Stop and identify the trigger.
+2. Restore the retained GAS menu URL in app metadata.
+3. Review the exact configuration diff and remote sync command.
+4. Obtain explicit approval before syncing.
+5. Confirm persisted routing and menu access.
+6. Keep Cloudflare deployed for incident analysis.
+7. Reconcile any operation whose accepted mutation outcome was unclear before retrying it.
+
+After repository consolidation, rebuilding either legacy deployment requires recovering its source from Git history and a separate reviewed incident plan.
+
+## Completion definition
+
+### Event migration complete
+
+- Cloudflare handles production Portfolio Bot events.
+- Subscribed behavior has deterministic event-parity coverage.
+- Movement direction, amount, state, relationships, lifecycle, and zero-sum checks pass.
+- Preview, cutover, and event stabilization gates pass.
+
+### Full-stack migration complete
+
+- Cloudflare serves the production Portfolio Bot client and authenticated API.
+- Calculate, Reset, Full Reset, and Forward Date retain deterministic accounting safeguards.
+- Accepted API, runtime, workflow, and UI differences are documented instead of mislabeled as full parity.
+- Client visual and interactive verification passes.
+- Preview, menu cutover, and full-stack stabilization gates pass.
+- The Cloudflare application occupies the Portfolio Bot root.
+- GCP and GAS remain available as independent routing rollback targets.
+
+### Legacy infrastructure retirement deferred
+
+Deleting the retained GCP function, GAS project or deployment, source artifacts, IAM bindings, properties, credentials, or related infrastructure requires a future plan and explicit approval. Time elapsed alone is not a retirement criterion.
+
+## Optional post-migration work
+
+Any intentional domain change, FIFO correction, lifecycle resilience redesign, atomicity improvement, response hardening, API evolution, further client redesign, shared-service extraction, dependency modernization, or legacy infrastructure retirement remains separate from migration completion.
+
+Inherited issues discovered during migration are recorded separately and addressed after stabilization with their own tests, preview evidence, rollout, and approval.

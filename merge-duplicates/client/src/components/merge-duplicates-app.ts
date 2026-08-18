@@ -13,6 +13,7 @@ export class MergeDuplicatesApp extends LitElement {
             height: 100vh;
             min-height: 100%;
             box-sizing: border-box;
+            container-type: inline-size;
             background: var(--bkper-color-background);
             color: var(--bkper-color-text);
             font-family: var(--bkper-font-family);
@@ -26,7 +27,6 @@ export class MergeDuplicatesApp extends LitElement {
         .review,
         .review-body,
         .pair-list,
-        .pair-copy,
         .pair-transactions,
         .results,
         .result-copy,
@@ -87,7 +87,6 @@ export class MergeDuplicatesApp extends LitElement {
         .scope,
         .review-master,
         .review-footer,
-        .transaction-primary,
         .transaction-detail,
         .result-row,
         .actions {
@@ -98,7 +97,6 @@ export class MergeDuplicatesApp extends LitElement {
         .brand,
         .scope,
         .review-master,
-        .transaction-primary,
         .transaction-detail,
         .result-row,
         .actions {
@@ -111,7 +109,6 @@ export class MergeDuplicatesApp extends LitElement {
         }
 
         .brand-copy,
-        .pair-copy,
         .result-copy {
             gap: var(--bkper-spacing-3x-small);
         }
@@ -239,13 +236,32 @@ export class MergeDuplicatesApp extends LitElement {
             align-items: flex-start;
         }
 
+        .pair-copy {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: var(--bkper-spacing-3x-small) var(--bkper-spacing-small);
+        }
+
         .pair-strength {
             font-size: var(--bkper-font-size-small);
             font-weight: var(--bkper-font-weight-bold);
         }
 
         .pair-explanation {
+            min-width: 0;
             overflow-wrap: anywhere;
+        }
+
+        .pair-separator {
+            display: none;
+            margin-inline-end: var(--bkper-spacing-small);
+        }
+
+        @container (min-width: 72ch) {
+            .pair-separator {
+                display: inline;
+            }
         }
 
         .pair-transactions {
@@ -254,7 +270,12 @@ export class MergeDuplicatesApp extends LitElement {
 
         .transaction-row {
             display: grid;
-            gap: var(--bkper-spacing-x-small);
+            grid-template-areas:
+                'status date amount'
+                '. detail detail';
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: var(--bkper-spacing-x-small) var(--bkper-spacing-small);
             padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
         }
 
@@ -262,18 +283,19 @@ export class MergeDuplicatesApp extends LitElement {
             border-top: var(--bkper-border);
         }
 
-        .transaction-primary {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr) auto;
-        }
-
         .transaction-status {
+            grid-area: status;
             color: var(--bkper-color-neutral);
             font-size: var(--bkper-font-size-small);
         }
 
         .transaction-status.draft {
             color: var(--bkper-color-danger);
+        }
+
+        .transaction-date {
+            grid-area: date;
+            min-width: 0;
         }
 
         .date,
@@ -283,14 +305,33 @@ export class MergeDuplicatesApp extends LitElement {
         }
 
         .amount {
+            grid-area: amount;
             font-family: var(--bkper-font-family-code);
             text-align: right;
         }
 
         .transaction-detail {
+            grid-area: detail;
             min-width: 0;
             flex-wrap: wrap;
-            padding-left: var(--bkper-spacing-large);
+        }
+
+        @container (min-width: 56ch) {
+            .transaction-row {
+                grid-template-areas: 'status date detail amount';
+                grid-template-columns: auto auto minmax(0, 1fr) auto;
+            }
+
+            .transaction-detail {
+                flex-wrap: nowrap;
+                overflow: hidden;
+            }
+
+            .description {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
         }
 
         .account-pill {
@@ -624,7 +665,10 @@ export class MergeDuplicatesApp extends LitElement {
                     >
                         <span class="pair-copy">
                             <span class="pair-strength">${suggestion.strength} match</span>
-                            <span class="pair-explanation">${suggestion.explanation}</span>
+                            <span class="pair-explanation"
+                                ><span class="pair-separator" aria-hidden="true">—</span
+                                >${suggestion.explanation}</span
+                            >
                         </span>
                     </wa-checkbox>
                 </div>
@@ -640,20 +684,18 @@ export class MergeDuplicatesApp extends LitElement {
         const formattedDate = this.getShortDate(transaction);
         return html`
             <div class="transaction-row">
-                <div class="transaction-primary">
-                    <wa-icon
-                        class="transaction-status ${transaction.draft ? 'draft' : ''}"
-                        name=${transaction.draft ? 'angles-right' : 'check'}
-                        label=${transaction.draft ? 'Draft' : 'Posted'}
-                    ></wa-icon>
-                    <time
-                        datetime=${transaction.date}
-                        title=${transaction.dateFormatted || transaction.date}
-                    >
-                        <span class="date">${formattedDate}</span>
-                    </time>
-                    <span class="amount">${transaction.amountFormatted || transaction.amount}</span>
-                </div>
+                <wa-icon
+                    class="transaction-status ${transaction.draft ? 'draft' : ''}"
+                    name=${transaction.draft ? 'angles-right' : 'check'}
+                    label=${transaction.draft ? 'Draft' : 'Posted'}
+                ></wa-icon>
+                <time
+                    class="transaction-date"
+                    datetime=${transaction.date}
+                    title=${transaction.dateFormatted || transaction.date}
+                >
+                    <span class="date">${formattedDate}</span>
+                </time>
                 <div class="transaction-detail">
                     ${this.renderAccount(transaction.fromAccount)}
                     <wa-icon class="movement-arrow" name="angles-right" label="to"></wa-icon>
@@ -662,6 +704,7 @@ export class MergeDuplicatesApp extends LitElement {
                         >${transaction.description || '(no description)'}</span
                     >
                 </div>
+                <span class="amount">${transaction.amountFormatted || transaction.amount}</span>
             </div>
         `;
     }

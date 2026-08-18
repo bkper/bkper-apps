@@ -67,4 +67,26 @@ describe('merge duplicates app', () => {
         app.controller.showConfirmation();
         expect(app.controller.state.confirmOpen).toBe(true);
     });
+
+    it('uses the app width to show each transaction on one row when space allows', () => {
+        const styles = MergeDuplicatesApp.styles.cssText;
+
+        expect(styles).toContain('container-type: inline-size');
+        expect(styles).toMatch(
+            /@container[^}]+\.transaction-row\s*{[^}]+grid-template-areas:\s*'status date detail amount'/s
+        );
+    });
+
+    it('keeps the match strength and explanation inline when space allows', () => {
+        const styles = MergeDuplicatesApp.styles.cssText;
+
+        expect(styles).toMatch(/\.pair-copy\s*{[^}]+display:\s*flex;[^}]+flex-wrap:\s*wrap;/s);
+    });
+
+    it('only shows the explanation separator in wide layouts', () => {
+        const styles = MergeDuplicatesApp.styles.cssText;
+
+        expect(styles).toMatch(/\.pair-separator\s*{[^}]+display:\s*none;[^}]+margin-inline-end:/s);
+        expect(styles).toMatch(/@container[^}]+\.pair-separator\s*{[^}]+display:\s*inline;/s);
+    });
 });

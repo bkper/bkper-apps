@@ -217,17 +217,9 @@ export class MergeDuplicatesApp extends LitElement {
             transition: background-color var(--wa-transition-fast);
         }
 
-        .pair.selected {
-            background: var(--bkper-color-blue-low);
-        }
-
         @media (hover: hover) {
             .pair:hover {
                 background: var(--bkper-color-grey-low);
-            }
-
-            .pair.selected:hover {
-                background: var(--bkper-color-blue-low);
             }
         }
 
@@ -542,11 +534,11 @@ export class MergeDuplicatesApp extends LitElement {
                                 ${total} suggested pair${total === 1 ? '' : 's'}
                             </span>
                         </wa-checkbox>
-                        <span class="selection-count">${selected} selected</span>
+                        <span class="selection-count">${selected} to merge</span>
                     </div>
                     <p class="scan-summary">
-                        ${state.scanned} transaction${state.scanned === 1 ? '' : 's'}
-                        reviewed${skippedSummary}
+                        Unselect pairs that are not duplicates. ${state.scanned}
+                        transaction${state.scanned === 1 ? '' : 's'} reviewed${skippedSummary}
                     </p>
                 </header>
 
@@ -595,16 +587,19 @@ export class MergeDuplicatesApp extends LitElement {
                         ? html`
                               <footer class="review-footer">
                                   <div class="footer-count">
-                                      <strong>${selected} selected</strong>
-                                      <span>of ${total} pairs</span>
+                                      <strong>${selected} to merge</strong>
+                                      <span>
+                                          ${review.rejected.length} not
+                                          duplicate${review.rejected.length === 1 ? '' : 's'}
+                                      </span>
                                   </div>
                                   <wa-button
                                       variant="brand"
                                       appearance="filled"
-                                      ?disabled=${selected === 0 || state.analyzing || state.applying}
+                                      ?disabled=${state.analyzing || state.applying}
                                       @click=${() => this.controller.showConfirmation()}
                                   >
-                                      Merge selected
+                                      Apply
                                   </wa-button>
                               </footer>
                           `
@@ -617,7 +612,7 @@ export class MergeDuplicatesApp extends LitElement {
     private renderSuggestion(suggestion: Suggestion, selected: boolean): TemplateResult {
         return html`
             <article
-                class="pair ${selected ? 'selected' : ''}"
+                class="pair"
                 @click=${(event: MouseEvent) => this.handlePairClick(event, suggestion.id)}
             >
                 <div class="pair-heading">
@@ -870,28 +865,53 @@ export class MergeDuplicatesApp extends LitElement {
         const review = this.controller.review;
         return html`
             <wa-dialog
-                label="Merge selected pairs?"
+                label="Apply review?"
                 ?open=${state.confirmOpen}
                 @wa-after-hide=${() => this.controller.hideConfirmation()}
             >
                 <div class="dialog-copy">
-                    <p>
-                        <strong
-                            >${review.accepted.length}
-                            pair${review.accepted.length === 1 ? '' : 's'}</strong
-                        >
-                        will be
-                        merged.${
-                            review.rejected.length > 0
-                                ? ` ${review.rejected.length} will be skipped.`
-                                : ''
-                        }
-                    </p>
-                    <wa-callout variant="warning" appearance="filled-outlined">
-                        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                        Each selected pair will be combined into one transaction. The two originals
-                        will be moved to Trash.
-                    </wa-callout>
+                    ${
+                        review.accepted.length > 0
+                            ? html`
+                                  <p>
+                                      <strong
+                                          >${review.accepted.length}
+                                          pair${review.accepted.length === 1 ? '' : 's'}</strong
+                                      >
+                                      will be merged.
+                                  </p>
+                              `
+                            : html``
+                    }
+                    ${
+                        review.rejected.length > 0
+                            ? html`
+                                  <p>
+                                      <strong
+                                          >${review.rejected.length}
+                                          pair${review.rejected.length === 1 ? '' : 's'}</strong
+                                      >
+                                      will become
+                                      ${
+                                          review.rejected.length === 1
+                                              ? 'a not-duplicate learning example'
+                                              : 'not-duplicate learning examples'
+                                      }.
+                                  </p>
+                              `
+                            : html``
+                    }
+                    ${
+                        review.accepted.length > 0
+                            ? html`
+                                  <wa-callout variant="warning" appearance="filled-outlined">
+                                      <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+                                      Each selected pair will be combined into one transaction. The
+                                      two originals will be moved to Trash.
+                                  </wa-callout>
+                              `
+                            : html``
+                    }
                 </div>
                 <wa-button slot="footer" appearance="plain" data-dialog="close">Cancel</wa-button>
                 <wa-button
@@ -900,7 +920,7 @@ export class MergeDuplicatesApp extends LitElement {
                     appearance="filled"
                     @click=${() => this.controller.confirmApply()}
                 >
-                    Merge ${review.accepted.length} pair${review.accepted.length === 1 ? '' : 's'}
+                    Apply
                 </wa-button>
             </wa-dialog>
         `;

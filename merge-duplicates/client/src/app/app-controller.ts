@@ -101,7 +101,7 @@ export class AppController implements ReactiveController {
     }
 
     showConfirmation(): void {
-        if (this.review.accepted.length === 0) return;
+        if (this.review.suggestions.length === 0) return;
         this.setState({ confirmOpen: true });
     }
 

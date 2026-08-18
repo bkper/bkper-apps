@@ -3,6 +3,7 @@ import { BkperError } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import { buildApiError } from './api/errors';
 import { registerApiRoutes } from './api/routes';
+import { BkperAiError } from './services/bkper-ai-service';
 import {
     appContextMiddleware,
     createAppContext,
@@ -27,6 +28,16 @@ export function createApp(createContext: AppContextFactory = createAppContext) {
         }
         if (error instanceof HTTPException) {
             return c.json(buildApiError('REQUEST_FAILED', error.message), error.status);
+        }
+        if (error instanceof BkperAiError) {
+            const body = buildApiError(error.code, error.message);
+            if (error.status === 400) return c.json(body, 400);
+            if (error.status === 401) return c.json(body, 401);
+            if (error.status === 402) return c.json(body, 402);
+            if (error.status === 403) return c.json(body, 403);
+            if (error.status === 429) return c.json(body, 429);
+            if (error.status === 502) return c.json(body, 502);
+            return c.json(body, 500);
         }
         if (error instanceof BkperError) {
             if (error.code === 400) return c.json(buildApiError('BKPER_ERROR', error.message), 400);

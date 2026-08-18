@@ -156,7 +156,7 @@ The AI only evaluates deterministic candidate pairs. Model output cannot initiat
 1. Capture the Book transaction query and selected Account/Group context from the menu URL.
 2. Scan 200 transactions, excluding checked, trashed, and locked rows before AI allowance is consumed.
 3. Require equal amounts, dates within seven calendar days, and a shared Account on the same movement side when Accounts are available. Incomplete drafts may qualify from amount, date, and description.
-4. Submit every candidate pair for that page in one strict `gemini-3.6-flash` request using prompt `merge-duplicates-v1` and low temperature.
+4. Submit every candidate pair for that page in one strict `gemini-flash` request using prompt `merge-duplicates-v1` and low temperature. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
 5. Rank Strong before Possible and deterministically retain non-overlapping pairs.
 6. Require final human confirmation, then merge accepted pairs sequentially while continuing after failures.
 7. Save each rejected pair independently as one line in visible property `merge_duplicate_examples`; retain the latest 40 lines on Account, Group, or Book context.

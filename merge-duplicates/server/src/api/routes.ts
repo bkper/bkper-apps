@@ -7,6 +7,7 @@ import { scanTransactions } from '../services/scan-service';
 import { buildApiError } from './errors';
 import { openApiDocumentConfig } from './openapi';
 import {
+    aiErrorResponses,
     apiErrorResponses,
     LearnRequestSchema,
     LearnResponseSchema,
@@ -31,6 +32,7 @@ const scanRoute = createRoute({
             ScanResponseSchema
         ),
         ...apiErrorResponses,
+        ...aiErrorResponses,
     },
 });
 

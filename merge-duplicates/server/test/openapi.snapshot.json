@@ -47,6 +47,16 @@
               }
             }
           },
+          "402": {
+            "description": "Subscription payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "403": {
             "description": "Permission denied",
             "content": {
@@ -57,8 +67,28 @@
               }
             }
           },
+          "429": {
+            "description": "AI allowance exhausted or provider throttled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "AI providers unavailable",
             "content": {
               "application/json": {
                 "schema": {

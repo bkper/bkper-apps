@@ -126,3 +126,9 @@ export const apiErrorResponses = {
     403: jsonResponse('Permission denied', ErrorResponseSchema),
     500: jsonResponse('Unexpected API error', ErrorResponseSchema),
 };
+
+export const aiErrorResponses = {
+    402: jsonResponse('Subscription payment required', ErrorResponseSchema),
+    429: jsonResponse('AI allowance exhausted or provider throttled', ErrorResponseSchema),
+    502: jsonResponse('AI providers unavailable', ErrorResponseSchema),
+};

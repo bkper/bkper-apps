@@ -87,7 +87,6 @@ export class MergeDuplicatesApp extends LitElement {
         .scope,
         .review-master,
         .review-footer,
-        .transaction-detail,
         .result-row,
         .actions {
             display: flex;
@@ -97,7 +96,6 @@ export class MergeDuplicatesApp extends LitElement {
         .brand,
         .scope,
         .review-master,
-        .transaction-detail,
         .result-row,
         .actions {
             gap: var(--bkper-spacing-small);
@@ -270,12 +268,9 @@ export class MergeDuplicatesApp extends LitElement {
 
         .transaction-row {
             display: grid;
-            grid-template-areas:
-                'status date amount'
-                '. detail detail';
-            grid-template-columns: auto minmax(0, 1fr) auto;
-            align-items: center;
-            gap: var(--bkper-spacing-x-small) var(--bkper-spacing-small);
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+            column-gap: var(--bkper-spacing-small);
             padding: var(--bkper-spacing-small) var(--bkper-spacing-medium);
         }
 
@@ -284,7 +279,6 @@ export class MergeDuplicatesApp extends LitElement {
         }
 
         .transaction-status {
-            grid-area: status;
             color: var(--bkper-color-neutral);
             font-size: var(--bkper-font-size-small);
         }
@@ -293,8 +287,34 @@ export class MergeDuplicatesApp extends LitElement {
             color: var(--bkper-color-danger);
         }
 
+        .transaction-content {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--bkper-spacing-x-small) var(--bkper-spacing-small);
+        }
+
+        .transaction-summary,
+        .account-flow {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .transaction-summary {
+            flex: 0 0 auto;
+            gap: var(--bkper-spacing-small);
+        }
+
+        .account-flow {
+            flex: 0 1 auto;
+            min-width: 0;
+            max-width: 100%;
+            gap: var(--bkper-spacing-small);
+        }
+
         .transaction-date {
-            grid-area: date;
             min-width: 0;
         }
 
@@ -305,33 +325,7 @@ export class MergeDuplicatesApp extends LitElement {
         }
 
         .amount {
-            grid-area: amount;
             font-family: var(--bkper-font-family-code);
-            text-align: right;
-        }
-
-        .transaction-detail {
-            grid-area: detail;
-            min-width: 0;
-            flex-wrap: wrap;
-        }
-
-        @container (min-width: 56ch) {
-            .transaction-row {
-                grid-template-areas: 'status date detail amount';
-                grid-template-columns: auto auto minmax(0, 1fr) auto;
-            }
-
-            .transaction-detail {
-                flex-wrap: nowrap;
-                overflow: hidden;
-            }
-
-            .description {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
         }
 
         .account-pill {
@@ -689,22 +683,28 @@ export class MergeDuplicatesApp extends LitElement {
                     name=${transaction.draft ? 'angles-right' : 'check'}
                     label=${transaction.draft ? 'Draft' : 'Posted'}
                 ></wa-icon>
-                <time
-                    class="transaction-date"
-                    datetime=${transaction.date}
-                    title=${transaction.dateFormatted || transaction.date}
-                >
-                    <span class="date">${formattedDate}</span>
-                </time>
-                <div class="transaction-detail">
-                    ${this.renderAccount(transaction.fromAccount)}
-                    <wa-icon class="movement-arrow" name="angles-right" label="to"></wa-icon>
-                    ${this.renderAccount(transaction.toAccount)}
+                <div class="transaction-content">
+                    <div class="transaction-summary">
+                        <time
+                            class="transaction-date"
+                            datetime=${transaction.date}
+                            title=${transaction.dateFormatted || transaction.date}
+                        >
+                            <span class="date">${formattedDate}</span>
+                        </time>
+                        <span class="amount"
+                            >${transaction.amountFormatted || transaction.amount}</span
+                        >
+                    </div>
+                    <div class="account-flow">
+                        ${this.renderAccount(transaction.fromAccount)}
+                        <wa-icon class="movement-arrow" name="angles-right" label="to"></wa-icon>
+                        ${this.renderAccount(transaction.toAccount)}
+                    </div>
                     <span class="description"
                         >${transaction.description || '(no description)'}</span
                     >
                 </div>
-                <span class="amount">${transaction.amountFormatted || transaction.amount}</span>
             </div>
         `;
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { TemplateResult } from 'lit';
+import { render, type TemplateResult } from 'lit';
 import type { Suggestion, TransactionFingerprint } from '../src/api/app-api';
 import { MergeDuplicatesApp } from '../src/components/merge-duplicates-app';
 
@@ -9,6 +9,10 @@ const renderHeader = Reflect.get(MergeDuplicatesApp.prototype, 'renderHeader') a
 const renderAccount = Reflect.get(MergeDuplicatesApp.prototype, 'renderAccount') as (
     this: MergeDuplicatesApp,
     account: TransactionFingerprint['fromAccount']
+) => TemplateResult;
+const renderTransaction = Reflect.get(MergeDuplicatesApp.prototype, 'renderTransaction') as (
+    this: MergeDuplicatesApp,
+    transaction: TransactionFingerprint
 ) => TemplateResult;
 
 function templateText(result: TemplateResult): string {
@@ -80,12 +84,35 @@ describe('merge duplicates app', () => {
         expect(text).toMatch(/>—<\/span\s*>/);
     });
 
-    it('uses the app width to show each transaction on one row when space allows', () => {
+    it('groups transaction identity details in the PWA reading order', () => {
+        const transaction = suggestion().first;
+        const container = document.createElement('div');
+
+        render(renderTransaction.call(new MergeDuplicatesApp(), transaction), container);
+
+        const content = container.querySelector('.transaction-content');
+        const summary = content?.querySelector('.transaction-summary');
+        const accountFlow = content?.querySelector('.account-flow');
+        expect(Array.from(summary?.children ?? []).map(element => element.className)).toEqual([
+            'transaction-date',
+            'amount',
+        ]);
+        expect(accountFlow?.querySelectorAll('.account-pill')).toHaveLength(2);
+        expect(accountFlow?.querySelector('.movement-arrow')).not.toBeNull();
+        expect(Array.from(content?.children ?? []).map(element => element.className)).toEqual([
+            'transaction-summary',
+            'account-flow',
+            'description',
+        ]);
+    });
+
+    it('wraps transaction blocks without splitting the date from amount or the account flow', () => {
         const styles = MergeDuplicatesApp.styles.cssText;
 
         expect(styles).toContain('container-type: inline-size');
+        expect(styles).toMatch(/\.transaction-content\s*{[^}]+flex-wrap:\s*wrap;/s);
         expect(styles).toMatch(
-            /@container[^}]+\.transaction-row\s*{[^}]+grid-template-areas:\s*'status date detail amount'/s
+            /\.transaction-summary,\s*\.account-flow\s*{[^}]+white-space:\s*nowrap;/s
         );
     });
 

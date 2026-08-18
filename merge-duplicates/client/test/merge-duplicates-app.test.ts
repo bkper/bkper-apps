@@ -76,6 +76,24 @@ describe('merge duplicates app', () => {
         expect(app.controller.state.confirmOpen).toBe(true);
     });
 
+    it('offers the pending host scope without replacing the current review', () => {
+        const app = new MergeDuplicatesApp();
+        const container = document.createElement('div');
+        let updates = 0;
+        app.controller.state.pages = 1;
+        app.controller.state.contextUpdateAvailable = true;
+        app.controller.review.suggestions = [suggestion()];
+        app.controller.updateResults = async () => {
+            updates += 1;
+        };
+
+        render(app.render(), container);
+        container.querySelector('.context-update-action')?.dispatchEvent(new Event('click'));
+
+        expect(container.querySelector('.pair')).not.toBeNull();
+        expect(updates).toBe(1);
+    });
+
     it('renders a missing account as a compact accessible placeholder', () => {
         const text = templateText(renderAccount.call(new MergeDuplicatesApp(), undefined));
 

@@ -45,9 +45,10 @@ export function createAppApi(options: AppApiOptions) {
     const client = createClient<paths>({ baseUrl: options.baseUrl, fetch: options.fetch });
 
     return {
-        async scan(request: ScanRequest): Promise<ScanResponse> {
+        async scan(request: ScanRequest, signal?: AbortSignal): Promise<ScanResponse> {
             const { data, error, response } = await client.POST('/api/v1/scan', {
                 body: request,
+                signal,
             });
             return unwrap(data, error, response);
         },

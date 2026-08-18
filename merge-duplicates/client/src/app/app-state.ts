@@ -7,6 +7,7 @@ export interface AppState {
     analyzing: boolean;
     applying: boolean;
     confirmOpen: boolean;
+    contextUpdateAvailable: boolean;
     error: string | null;
     notice: string | null;
     scanned: number;
@@ -22,6 +23,7 @@ export function createInitialAppState(): AppState {
         analyzing: false,
         applying: false,
         confirmOpen: false,
+        contextUpdateAvailable: false,
         error: null,
         notice: null,
         scanned: 0,

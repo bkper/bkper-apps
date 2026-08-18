@@ -161,6 +161,8 @@ The AI proposes non-overlapping pairs from cumulative eligible transaction snaps
 6. Require final human confirmation, then merge accepted pairs sequentially while continuing after failures.
 7. Save each rejected pair independently as one line in visible property `merge_duplicate_examples`; retain the latest 40 lines on Account, Group, or Book context.
 
+While embedded, treat the validated iframe App URL as the canonical active scope. Automatically accept Bkper `bkper:app-url-changed` messages and rescan unless the user changed a selection, confirmation is open, or merges are being applied. Preserve protected reviews against the latest pending URL until the user explicitly updates results; never interrupt applying work or hide its completion results.
+
 Owner and Editor collaborators may merge and learn. Post collaborators may merge but receive a learning-skip notice. Viewers are rejected before transaction listing or AI inference.
 
 ## Public routes

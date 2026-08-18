@@ -31,6 +31,7 @@ export class MergeDuplicatesApp extends LitElement {
         .results,
         .result-copy,
         .dialog-copy,
+        .context-update,
         .stack {
             display: grid;
         }
@@ -51,6 +52,14 @@ export class MergeDuplicatesApp extends LitElement {
         .messages {
             gap: var(--bkper-spacing-small);
             padding: var(--bkper-spacing-medium);
+        }
+
+        .context-update {
+            gap: var(--bkper-spacing-small);
+        }
+
+        .context-update-action {
+            width: 100%;
         }
 
         .screen {
@@ -443,7 +452,7 @@ export class MergeDuplicatesApp extends LitElement {
                 ${this.renderHeader()}
                 <div class="app-content">
                     ${
-                        state.error || state.notice
+                        state.error || state.notice || state.contextUpdateAvailable
                             ? html`
                                   <div class="messages">
                                       ${
@@ -453,6 +462,11 @@ export class MergeDuplicatesApp extends LitElement {
                                                     'danger',
                                                     'circle-exclamation'
                                                 )
+                                              : html``
+                                      }
+                                      ${
+                                          state.contextUpdateAvailable
+                                              ? this.renderContextUpdate()
                                               : html``
                                       }
                                       ${
@@ -872,7 +886,11 @@ export class MergeDuplicatesApp extends LitElement {
                     @click=${() => this.controller.scanAgain()}
                 >
                     <wa-icon slot="start" name="rotate"></wa-icon>
-                    Scan again
+                    ${
+                        this.controller.state.contextUpdateAvailable
+                            ? 'Scan current view'
+                            : 'Scan again'
+                    }
                 </wa-button>
             </section>
         `;
@@ -970,6 +988,27 @@ export class MergeDuplicatesApp extends LitElement {
                     Apply
                 </wa-button>
             </wa-dialog>
+        `;
+    }
+
+    private renderContextUpdate(): TemplateResult {
+        return html`
+            <wa-callout variant="warning" appearance="filled-outlined" size="small">
+                <wa-icon slot="icon" name="rotate"></wa-icon>
+                <div class="context-update">
+                    <span>The Book view changed. These results still use the previous scope.</span>
+                    <wa-button
+                        class="context-update-action"
+                        variant="brand"
+                        appearance="filled"
+                        size="small"
+                        ?disabled=${this.controller.state.applying}
+                        @click=${() => this.controller.updateResults()}
+                    >
+                        Update results
+                    </wa-button>
+                </div>
+            </wa-callout>
         `;
     }
 

@@ -4,6 +4,14 @@ The Exchange Bot automatically mirrors transactions across books in different cu
 
 Each currency lives in its own book within the same [collection](https://bkper.com/docs/core-concepts#collections), with `exc_code` set on each book. When you post a transaction in one book, the bot records the equivalent transaction in every other currency book — unless your collection uses base books (see `exc_base` below). When base books exist, transactions are always mirrored to base books, while other books only receive transactions whose accounts match that book's currency via group name or group `exc_code`.
 
+## How to use
+
+1. Create one book per currency and place them in the same collection.
+2. Install the Exchange Bot on every participating book.
+3. Set `exc_code` on each book, such as `USD` or `EUR`.
+4. Post a transaction. The bot records converted copies in the connected books.
+5. To update unrealized FX gains and losses, open **More > Exchange Bot**, review the rates, and click **Run**.
+
 ## How it works
 
 The Exchange Bot listens for transaction events across all books in a collection. When a transaction is posted, it fetches the exchange rate for that date and records a converted copy in every other currency book.
@@ -81,6 +89,7 @@ The chart of accounts is replicated across all books in the collection, using th
 - account and group creates and updates are propagated across books; deleted accounts are archived when they have posted transactions and removed otherwise, while deleted groups are always removed
 - selected book settings and shared Exchange Bot properties are copied across connected books
 - missing accounts are automatically created when mirroring a transaction if they do not yet exist in the target book
+- if either account cannot be resolved or created, the mirrored transaction is saved as a draft and does not affect balances
 
 </details>
 
@@ -329,6 +338,27 @@ The bot responds to the following Bkper events:
 > The bot skips its own transactions to prevent loops (except for deletions, which are always propagated).
 
 </details>
+
+## API access
+
+Authenticated clients can load exchange rates and run Exchange Updates through the app API.
+
+```text
+Production: https://exchange-bot.bkper.app
+OpenAPI:    https://exchange-bot.bkper.app/openapi.json
+```
+
+Use a Bkper OAuth bearer token:
+
+```bash
+TOKEN="$(bkper auth token)"
+
+curl \
+  -H "Authorization: Bearer ${TOKEN}" \
+  "https://exchange-bot.bkper.app/api/v1/books/<book-id>/exchange-rates?date=2026-03-15"
+```
+
+`POST /api/v1/books/{bookId}/exchange-update` can create exchange accounts and transactions and requires **EDITOR** or **OWNER** permission.
 
 ## Learn more
 

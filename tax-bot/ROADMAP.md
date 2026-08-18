@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–13 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The final deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview and production Cloudflare, developer and production events route to their corresponding Cloudflare environments, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence.
+**Chunks 1–14 complete.** The accepted GCP source baseline remains unchanged under `legacy/`, and the server-only Cloudflare target preserves legacy event ingress, common Transaction guards, tax source discovery, tax calculation, Transaction construction, posted and restored batch creation, linked tax Transaction deletion, update orchestration, and response envelopes. The final deterministic parity and drift audit found no unexplained business-behavior difference. The reviewed target is deployed to preview and production Cloudflare, developer and production events route to their corresponding Cloudflare environments, and deterministic live validation passed across calculation, configuration, lifecycle, idempotency, loop-prevention, draft, and bounded high-fan-out scenarios with exact movement and zero-sum evidence. The owner accepted production stabilization after approximately 22 hours of observed production traffic without waiting for a full 24-hour interval.
 
-Cloudflare is now the active production implementation and production webhook target. The unchanged Google Cloud Function remains active as the immediate routing rollback target. Stabilization, repository consolidation, and GCP retirement remain separate decisions.
+Cloudflare is now the active production implementation and production webhook target. The unchanged Google Cloud Function remains active as the immediate routing rollback target. Repository consolidation and GCP retirement remain separate decisions.
 
 ## Purpose of this document
 
@@ -453,16 +453,18 @@ Each chunk must be independently reviewable. All statuses remain planned until t
 
 ### Chunk 14 — Stabilization
 
-**Status: Planned.**
+**Status: Complete.**
 
-- Continue read-only production log and event monitoring.
-- Verify representative posted, restored, updated, and deleted traffic when available.
-- Run explicitly approved synthetic production-routing checks for complete and unresolved tax movements.
-- Confirm exact amount, direction, remote id, state, and expected deterministic balance effect.
-- Use accepted deterministic and preview evidence for event paths that do not naturally occur during the observation window.
-- Record production-coverage limitations instead of claiming unavailable customer Book or balance inspection.
+- The owner accepted stabilization after approximately 22 hours of observed production traffic rather than waiting for a full 24-hour interval.
+- Queried production deployment status and paginated `/events` logs read-only across a fixed 24-hour window that began before the production deployment. The window contained 14,168 requests: 8,972 posted, 647 updated, 4,548 deleted, and one restored event. Every request completed with HTTP 200 and an `ok` outcome; no error-level request or error response envelope was found.
+- Observed two high-volume hours with 5,185 and 6,202 event requests without a non-200 response. One transient upstream 502 was retried successfully within a request that completed with HTTP 200.
+- Production responses reported 281 tax creations across 260 requests and 85 linked-tax deletions across 76 requests. Sixty-eight update requests reported delete-then-recreate results, providing production lifecycle evidence without a log-visible failed replacement.
+- The single restored event was a no-op and therefore did not independently demonstrate restored tax recreation in production. No synthetic production write was run; accepted deterministic and preview restore evidence remains the basis for that path.
+- No customer Book, Transaction, movement, or balance was inspected. Production logs alone do not prove exact tax amounts, movement completeness, idempotency, or zero sum, so the accepted deterministic and preview evidence remains the accounting-safety basis.
+- Recorded inherited production observability issues in [`BUGS.md`](./BUGS.md): all 281 observed creation-result entries lacked a formatted date, generated Transaction properties were emitted to runtime logs, and provider-free SDK calls produced high-volume warning noise without an authentication failure.
+- A fresh production tail after the fixed query window continued to show successful HTTP 200 event handling and no error response.
 
-**Gate:** The owner accepts the observation period and combined evidence without a rollback trigger.
+**Gate:** Passed by explicit owner acceptance. The combined deterministic, preview, cutover, and shortened production-observation evidence produced no log-visible rollback trigger, with the unavailable production accounting evidence and ineffective restored-event sample retained as explicit limitations.
 
 ### Chunk 15 — Repository consolidation and deferred GCP retirement
 

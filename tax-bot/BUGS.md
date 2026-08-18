@@ -4,7 +4,7 @@ This document tracks known Tax Bot bugs that are intentionally preserved during 
 
 ## 1. Posted-result messages can contain an undefined date
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Open; confirmed in production stabilization logs.
 
 ### Current legacy behavior
 
@@ -34,7 +34,7 @@ Produce a stable Book-formatted date when `dateFormatted` is absent, using an al
 
 ## 2. Numeric source-description text can be removed from generated descriptions
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Open; preserved during migration and not revalidated in production stabilization.
 
 ### Current legacy behavior
 
@@ -71,3 +71,56 @@ Preserve substituted description text without allowing its numeric tokens to be 
 - The source Transaction remains unchanged.
 - Amount, direction, state, remote id, property handling, idempotency, and the zero-sum invariant remain unchanged.
 - Deterministic tests cover numeric descriptions, non-numeric descriptions, and unresolved Accounts without network access or live Books.
+
+## 3. Generated tax Transaction properties are emitted to runtime logs
+
+**Status:** Open; inherited production behavior confirmed during stabilization.
+
+### Current legacy behavior
+
+Tax Bot logs the complete generated Transaction property map immediately before batch creation. The Cloudflare migration preserved this statement for parity with GCP. Because eligible visible source properties are copied to generated tax Transactions, the log payload can include customer-defined business metadata.
+
+Production stabilization observed one property-map log for each of the 281 reported tax-creation results. The review retained only aggregate evidence and did not copy customer values into this public ledger.
+
+### Problem
+
+Runtime logs can retain customer-defined metadata that is not required to operate or diagnose Tax Bot. This increases privacy exposure and makes production logs harder to share safely during incident review.
+
+### Intended fix
+
+Remove property-value logging. If operational evidence is still needed, emit only bounded, non-sensitive structural information that cannot reveal property keys or values. Do not alter property copying, Transaction construction, batch ordering, or any movement behavior.
+
+### Acceptance criteria
+
+- Runtime logs contain no customer-defined Transaction property keys or values.
+- Generated Transactions retain the same eligible visible properties.
+- Amount, direction, state, description, remote id, ordering, idempotency, and the zero-sum invariant remain unchanged.
+- The source Transaction remains unchanged.
+- Deterministic tests verify the privacy boundary without credentials, network access, or live Books.
+
+## 4. Provider-free SDK calls produce high-volume warning noise
+
+**Status:** Open; Cloudflare production behavior confirmed during stabilization.
+
+### Current behavior
+
+The platform Worker correctly creates request-scoped `Bkper` instances without token providers so platform outbound authentication can supply user and app identity. The pinned SDK emits `Token provider NOT configured!` while making authenticated platform-proxied API calls.
+
+In the fixed stabilization window, 4,382 of 14,168 successful requests were classified at warning level because they emitted 8,691 instances of this message. All requests completed with HTTP 200, and no authentication error or error response envelope accompanied the warning.
+
+### Problem
+
+Expected authentication-boundary noise causes successful requests to appear warning-level and can obscure actionable warnings during production monitoring.
+
+### Intended fix
+
+Remove the expected warning at the SDK or platform boundary without configuring a legacy inbound token provider and without suppressing genuine authentication, permission, network, retry, or server failures. Treat any SDK upgrade as the separate compatibility work required by the migration roadmap.
+
+### Acceptance criteria
+
+- Successful platform-authenticated API calls do not emit the expected missing-provider warning.
+- Worker code remains provider-free and does not read or forward inbound authentication headers.
+- Authentication and authorization failures remain observable.
+- Non-authentication warnings, retries, and errors remain observable.
+- Tax calculations, generated movements, lifecycle behavior, idempotency, and response envelopes remain unchanged.
+- Deterministic tests exercise the logging boundary without credentials, network access, or live Books.

@@ -39,7 +39,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 
 | App | functions-framework port | Notes |
 | --- | --- | --- |
-| portfolio-bot/gcf | `3002` | Configured in `portfolio-bot/gcf/package.json` |
+| portfolio-bot/legacy/gcf | `3002` | Configured in `portfolio-bot/legacy/gcf/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
 
 **Next available:** `3003`.
@@ -49,7 +49,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 Apps Script components do not run local dev servers and do not need port assignments:
 
 - `inventory-bot/legacy/menu/`
-- `portfolio-bot/gas/`
+- `portfolio-bot/legacy/gas/`
 
 ## Adding a new app
 

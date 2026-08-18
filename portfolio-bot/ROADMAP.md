@@ -2,7 +2,9 @@
 
 ## Status
 
-**Not started.**
+**Chunk 1 complete — Chunk 2 not started.**
+
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and empty client and server boundaries are reserved under `new/`. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -137,7 +139,7 @@ Portfolio Bot coordinates one Portfolio Book, one or more Financial Books, and a
 
 ## Architecture
 
-### Current layout
+### Original layout
 
 ```text
 portfolio-bot/
@@ -364,19 +366,29 @@ While GCP and GAS remain production-authoritative, every production patch must b
 
 Drift audits occur before preview routing, production deployment, each production cutover, and repository consolidation.
 
-### Migration patch ledger
+### Chunk 1 baseline evidence
 
-The baseline has not yet been established.
+- Persisted app identity, production and development menu routes, production webhook route, all thirteen event subscriptions, API version, and property schema match the checked-in configuration.
+- The active GCF deployment uses the declared Gen 2 Node.js 22 runtime, entry point, memory, CPU, timeout, and maximum-instance settings. Its immutable build used Node.js 22.22.0, Yarn, TypeScript 4.9.5, and `bkper-js` 2.18.0.
+- The deployed GCF package and lockfile were recovered from the immutable runtime image. A frozen reproduction compiled successfully, and 48 of 50 generated JavaScript and source-map artifacts matched production byte-for-byte.
+- The two differing GCF artifacts are `index.js` and its source map. Production routes `GROUP_DELETED` through `EventHandlerGroupCreatedOrUpdated`; current project code routes it through `EventHandlerGroupDeleted`. No other deployed event artifact differs from a frozen build of the current project source.
+- The current `EventHandlerGroupDeleted` behavior is the explicitly accepted migration baseline: remove the matching Portfolio Book group, or perform no mutation when it is absent. The target test must characterize this behavior rather than reproduce the older production routing mistake.
+- The production GAS menu uses immutable application version 1.16.0. Its manifest, HTML asset, and all fourteen generated JavaScript bodies match the checked-in source. The deployed output used TypeScript 4.9.5 and Bkper Apps Script library version 201.
+- Neither legacy project defines a test script. GAS defines no local build script. The GCF frozen reproduction is build evidence, not behavioral test coverage.
+- After the move, the legacy GCF build completed successfully and the GAS project still resolves all sixteen expected source files. Because the GCF has no committed lockfile, a fresh local build resolved `bkper-js` 2.43.1 rather than the deployed 2.18.0; the immutable deployed lockfile remains the migration baseline.
+- Runtime secret values, deployment identifiers, source-object identifiers, image identifiers, project numbers, and raw command output are intentionally excluded from this roadmap.
+
+### Migration patch ledger
 
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Pending event-dispatch test | Accepted; not yet ported |
 
 ## Migration chunks
 
 ### Chunk 1 — Capture baseline and establish parallel layout
 
-**Status: Not started.**
+**Status: Complete.**
 
 - Confirm persisted production metadata, routes, subscriptions, and property schema.
 - Confirm the deployed GCP runtime, exact dependency, source artifact, and build settings.

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–4 complete — Chunk 5 not started.**
+**Chunks 1–4 complete — Chunk 5 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, and common resolution boundaries are established under `new/`. Individual event handlers remain explicit no-op behavior stubs until their behavior chunks. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, and common resolution boundaries are established under `new/`. Posted purchase and sale order processing is ported; checked quantity mirroring and the remaining individual event handlers retain explicit no-op behavior until their behavior slices. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -441,7 +441,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 5 — Port posted and checked transaction behavior
 
-**Status: Not started.**
+**Status: In progress — posted order processing complete; checked transaction behavior not started.**
 
 - Port purchase and sale recognition.
 - Port fees, interest, and instrument movements.

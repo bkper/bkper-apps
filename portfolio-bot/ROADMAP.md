@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–2 complete — Chunk 3 not started.**
+**Chunks 1–3 complete — Chunk 4 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton is established under `new/`. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton and deterministic event dispatcher are established under `new/`. Event handlers remain explicit no-op stubs until their behavior chunks. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -382,7 +382,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
-| GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Pending event-dispatch test | Accepted; not yet ported |
+| GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch test | Dispatch ported; Group deletion behavior remains pending Chunk 7 |
 
 ## Migration chunks
 
@@ -414,12 +414,14 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 3 — Port event ingress and dispatch
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Add request-scoped context and event result types.
-- Reproduce the event switch, handler construction, response envelope, logging, and errors.
-- Add explicit no-op handler stubs before business implementations.
-- Move authentication to the Platform boundary.
+- Added typed event results and explicit no-op handler classes for all event behavior surfaces.
+- Reproduced the thirteen-event switch, handler construction, response envelope, error logging, stack-array errors, and unknown-event no-op behavior.
+- Preserved request isolation with a new `AppContext` and `Bkper` instance for every delivery.
+- Moved authentication to the Platform boundary: target code creates `Bkper` without OAuth, API-key, or agent-id providers and does not consume inbound authentication headers.
+- Characterized the accepted `GROUP_DELETED` dispatch to `EventHandlerGroupDeleted` rather than the older deployed routing mistake.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 34 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Gate:** Every subscribed event and unknown-event behavior is characterized deterministically.
 

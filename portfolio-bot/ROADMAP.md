@@ -172,7 +172,7 @@ portfolio-bot/
 └── LICENSE
 ```
 
-The target metadata keeps production `menuUrl` and `webhookUrl` on Apps Script and GCP while development URLs can move independently to Cloudflare preview.
+The target metadata keeps production `menuUrl` and `webhookUrl` on Apps Script and GCP while development URLs can move independently to Cloudflare preview. The target `new/bkper.yaml` must preserve the unpublished app's production access policy with `users: '*@brain.uy'`, and that policy must remain in the root `bkper.yaml` after consolidation.
 
 ### Intended final layout
 

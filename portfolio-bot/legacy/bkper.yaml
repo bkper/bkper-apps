@@ -11,6 +11,7 @@ repoUrl: https://github.com/bkper/bkper-apps/tree/main/portfolio-bot
 repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
+users: '*@brain.uy'
 scriptId: 14dxucr5SCH4th01ndHLdN4HA0civDnVqk4HR9lAfsWaPCr4mOnOZFa_c
 menuUrl: https://script.google.com/macros/s/AKfycbwtsLZgfLUKpXPSQzDjjGMgJEkvwXN5CklmeCHtpEPpXDK66g/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuUrlDev: https://script.google.com/a/bkper.com/macros/s/AKfycbywpzjsUP7qAeDoAt-Jgs-Jc_pRRmxQnPnx1wgWKg/dev?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}

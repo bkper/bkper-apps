@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 1 complete — Chunk 2 not started.**
+**Chunks 1–2 complete — Chunk 3 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and empty client and server boundaries are reserved under `new/`. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton is established under `new/`. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -400,14 +400,15 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 2 — Create the full-stack Cloudflare skeleton
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Create minimal root, client, and server package boundaries without template demo behavior.
-- Add strict TypeScript, formatting, generated types, exact dependencies, and a committed lockfile.
-- Add non-mutating `/events` and `/api/v1/*` stubs, `/openapi.json`, API not-found behavior, and static assets.
-- Add the client design and authentication foundation.
-- Assign Vite `5179` and Worker `8797` and update workspace port forwarding.
-- Keep production menu and webhook routes on GAS and GCP.
+- Created minimal root, client, and server package boundaries without template demo behavior.
+- Added strict TypeScript, formatting, generated environment and OpenAPI client types, exact dependency pins, and a lockfile.
+- Added non-mutating `/events` handling for all thirteen subscriptions, standard JSON API-not-found behavior under `/api/v1/*`, `/openapi.json`, and static asset fallback.
+- Added the Lit, Vite, Web Awesome, Bkper design, and web-auth client foundation with deterministic Book, installation, permission, and shell coverage.
+- Assigned Vite `5179` and Worker `8797`, updated workspace port forwarding and allocation documentation, and reserved `5180` and `8798` as the next available ports.
+- Kept the production menu on GAS and the production webhook on GCP, preserved the unpublished app's `users: '*@brain.uy'` access policy, and pointed development URLs to Cloudflare preview.
+- Verified a frozen install and the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 16 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Gate:** The complete local check passes without remote mutation.
 

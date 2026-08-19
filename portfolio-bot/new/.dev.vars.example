@@ -1,0 +1,3 @@
+# .dev.vars.example
+# The Portfolio Bot does not currently require secrets for local development.
+# Keep this file as a placeholder for the Bkper app dev workflow.

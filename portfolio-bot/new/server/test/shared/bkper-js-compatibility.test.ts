@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe('bkper-js server compatibility', () => {
-    test('converts an optional SDK 404 lookup to undefined', async () => {
+    test('converts optional Account and Group 404 lookups to undefined', async () => {
         const book = new Book({ id: 'book-1' });
         let requests = 0;
         globalThis.fetch = (async () => {
@@ -18,7 +18,7 @@ describe('bkper-js server compatibility', () => {
                 {
                     error: {
                         code: 404,
-                        message: 'Account not found',
+                        message: 'Resource not found',
                         errors: [{ reason: 'notFound' }],
                     },
                 },
@@ -26,10 +26,12 @@ describe('bkper-js server compatibility', () => {
             );
         }) as unknown as typeof fetch;
 
-        const result = await optionalLookup(() => book.getAccount('Missing Account'));
+        const account = await optionalLookup(() => book.getAccount('Missing Account'));
+        const group = await optionalLookup(() => book.getGroup('Missing Group'));
 
-        expect(result).toBeUndefined();
-        expect(requests).toBe(1);
+        expect(account).toBeUndefined();
+        expect(group).toBeUndefined();
+        expect(requests).toBe(2);
     });
 
     test('propagates non-404 lookup errors', async () => {

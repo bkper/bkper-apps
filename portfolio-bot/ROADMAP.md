@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–3 complete — Chunk 4 not started.**
+**Chunks 1–4 complete — Chunk 5 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton and deterministic event dispatcher are established under `new/`. Event handlers remain explicit no-op stubs until their behavior chunks. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, and common resolution boundaries are established under `new/`. Individual event handlers remain explicit no-op behavior stubs until their behavior chunks. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -427,11 +427,15 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 4 — Port event orchestration and common boundaries
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port Portfolio, Financial, and Base Book resolution.
-- Port currency, Account, Group, model, realized-date, and common response helpers.
-- Audit SDK missing-resource and chart-loading semantics.
+- Ported shared event orchestration: required event Book loading, interception order, Portfolio Book selection, one-handler response accumulation, no-op normalization, timing, the established missing-Portfolio response, exchange matching, and Book anchors.
+- Ported Portfolio, Base, and Financial Book resolution with the established property, fraction-digit, Collection-order, USD-fallback, currency-alias, and required Financial Book reload behavior.
+- Ported exchange-code Account and Group selection, common purchase and sale Account-type predicates, instrument Account selection, realized-date precedence, and historical, fair, and combined calculation-model rules.
+- Audited the deployed `bkper-js` 2.18.0 and target 2.42.0 missing-resource behavior. The deployed SDK returned absence for 404 lookups while the target throws `BkperError`; the retained `optionalLookup` helper converts only optional Account and Group 404s to `undefined`, while required Book lookups and all other errors continue to propagate.
+- Confirmed target complete-chart caching resolves embedded Account-to-Group, Group-to-Account, and empty-Group relationships without additional network requests.
+- Kept every individual event behavior stub non-mutating and left rebuild writes and transaction behavior to their planned chunks.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 46 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Gate:** Common event selection and resolution have no unexplained legacy-to-target difference.
 

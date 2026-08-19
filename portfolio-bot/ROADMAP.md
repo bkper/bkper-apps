@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–5 complete — Chunk 6 not started.**
+**Chunks 1–6 complete — Chunk 7 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, and checked quantity mirroring are established under `new/`. Transaction lifecycle and resource synchronization handlers retain explicit no-op behavior until their behavior chunks. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, and transaction lifecycle behavior are established under `new/`. Resource synchronization handlers retain explicit no-op behavior until their behavior chunk. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -384,6 +384,12 @@ Drift audits occur before preview routing, production deployment, each productio
 | --- | --- | --- | --- |
 | GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch test | Dispatch ported; Group deletion behavior remains pending Chunk 7 |
 
+### Deferred inherited behavior ledger
+
+| Surface | Inherited behavior | Migration treatment | Deferred status |
+| --- | --- | --- | --- |
+| GCF transaction lifecycle | Event cleanup does not query or delete linked `interestmtm_` movements even though the GAS Reset implementation recognizes them | Preserve the exact legacy event cleanup set and assert that `interestmtm_` remains absent | Any intentional correction remains separate post-migration work |
+
 ## Migration chunks
 
 ### Chunk 1 — Capture baseline and establish parallel layout
@@ -432,7 +438,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - Ported shared event orchestration: required event Book loading, interception order, Portfolio Book selection, one-handler response accumulation, no-op normalization, timing, the established missing-Portfolio response, exchange matching, and Book anchors.
 - Ported Portfolio, Base, and Financial Book resolution with the established property, fraction-digit, Collection-order, USD-fallback, currency-alias, and required Financial Book reload behavior.
 - Ported exchange-code Account and Group selection, common purchase and sale Account-type predicates, instrument Account selection, realized-date precedence, and historical, fair, and combined calculation-model rules.
-- Audited the deployed `bkper-js` 2.18.0 and target 2.42.0 missing-resource behavior. The deployed SDK returned absence for 404 lookups while the target throws `BkperError`; the retained `optionalLookup` helper converts only optional Account and Group 404s to `undefined`, while required Book lookups and all other errors continue to propagate.
+- Audited the deployed `bkper-js` 2.18.0 and target 2.42.0 missing-resource behavior. The deployed SDK returned absence for 404 lookups while the target throws `BkperError`; the retained `optionalLookup` helper converts only explicitly optional resource 404s to `undefined`; this chunk applies it to Account and Group boundaries, while required Book lookups and all other errors continue to propagate.
 - Confirmed target complete-chart caching resolves embedded Account-to-Group, Group-to-Account, and empty-Group relationships without additional network requests.
 - Kept every individual event behavior stub non-mutating and left rebuild writes and transaction behavior to their planned chunks.
 - Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 46 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
@@ -455,13 +461,17 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 6 — Port transaction update, uncheck, delete, and restore
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port order replacement and mirrored updates.
-- Port checked-state and rebuild behavior.
-- Port linked Financial, Portfolio, realized, historical, MTM, interest-MTM, and FX cleanup.
-- Port trashed lookup and restoration.
-- Ensure required async cascades complete before the Worker response.
+- Ported order replacement, mirrored updates, description-only behavior, update retry, checked-state handling, and rebuild flags.
+- Ported Financial and Portfolio deletion paths, gain/loss rebuild handling, and the exact legacy realized, MTM, FX, historical, historical-MTM, and historical-FX cleanup set.
+- Adapted optional Transaction 404 lookups to target SDK behavior so temporary `crrp_id_*` remote ids remain skippable while required and non-404 failures still propagate.
+- Adapted linked cleanup for the optional Base Book: absent Base and USD fallback Books skip only inapplicable FX lookups, while configured Base Books retain the established lookup and mutation launch order.
+- Preserved the inherited absence of `interestmtm_` event cleanup without silently changing business logic and recorded it for separate post-migration work.
+- Ported trashed lookup and restoration with the established queries and responses.
+- Awaited previously unawaited mirror unchecks and linked cleanup cascades so required Cloudflare work completes before the response while retaining the established lookup and mutation launch order.
+- Waited for every concurrently launched linked cleanup to settle before propagating a failure, preventing the Worker response from abandoning sibling deletion work.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 69 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Gate:** Amount, direction, state, lookup order, linked cleanup, and responses have no unexplained difference.
 

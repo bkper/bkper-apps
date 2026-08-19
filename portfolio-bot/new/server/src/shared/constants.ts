@@ -27,6 +27,15 @@ export const ORDER_PROP = 'order';
 
 export const STOCK_SELL_ACCOUNT_NAME = 'Sell';
 export const STOCK_BUY_ACCOUNT_NAME = 'Buy';
+
+export const FX_PREFIX = 'fx_';
+
+export const STOCK_BOT_AGENT_ID = 'stock-bot';
+export const STOCK_GAIN_HASHTAG = '#stock_gain';
+export const STOCK_LOSS_HASHTAG = '#stock_loss';
+export const EXCHANGE_GAIN_HASHTAG = '#exchange_gain';
+export const EXCHANGE_LOSS_HASHTAG = '#exchange_loss';
+
 export const EXC_BASE_PROP = 'exc_base';
 export const EXC_CODE_PROP = 'exc_code';
 export const LEGACY_REALIZED_DATE_PROP = 'stock_realized_date';

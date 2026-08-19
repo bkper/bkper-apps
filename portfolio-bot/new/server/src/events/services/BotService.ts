@@ -4,6 +4,7 @@ import {
     EXC_BASE_PROP,
     EXC_CODE_PROP,
     LEGACY_REALIZED_DATE_PROP,
+    NEEDS_REBUILD_PROP,
     REALIZED_DATE_PROP,
     STOCK_BOOK_PROP,
     STOCK_EXC_CODE_PROP,
@@ -110,6 +111,19 @@ export class BotService {
             return stockTransaction.getDebitAccount();
         }
         return null;
+    }
+
+    async flagStockAccountForRebuildIfNeeded(stockTransaction: Transaction): Promise<void> {
+        const stockAccount = await this.getStockAccount(stockTransaction);
+        if (stockAccount) {
+            const lastTransactionDate = this.getRealizedDateValue(stockAccount);
+            if (
+                lastTransactionDate != null &&
+                stockTransaction.getDateValue()! <= +lastTransactionDate
+            ) {
+                await stockAccount.setProperty(NEEDS_REBUILD_PROP, 'TRUE').update();
+            }
+        }
     }
 
     getRealizedDateValue(account: Account): number | null {

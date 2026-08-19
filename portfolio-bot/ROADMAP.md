@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–4 complete — Chunk 5 in progress.**
+**Chunks 1–5 complete — Chunk 6 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, and common resolution boundaries are established under `new/`. Posted purchase and sale order processing is ported; checked quantity mirroring and the remaining individual event handlers retain explicit no-op behavior until their behavior slices. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, and checked quantity mirroring are established under `new/`. Transaction lifecycle and resource synchronization handlers retain explicit no-op behavior until their behavior chunks. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -441,12 +441,15 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 5 — Port posted and checked transaction behavior
 
-**Status: In progress — posted order processing complete; checked transaction behavior not started.**
+**Status: Complete.**
 
-- Port purchase and sale recognition.
-- Port fees, interest, and instrument movements.
-- Port checked quantity mirroring, automatic resources, pricing properties, remote ids, and rebuild behavior.
-- Preserve established no-op, zero, unsupported, duplicate, and Exchange Bot paths.
+- Ported purchase and sale recognition with the established fee, interest, and instrument movements, calculation-model properties, response order, concurrency, automatic Accounts, and remote ids.
+- Ported checked quantity mirroring with Portfolio Account and Group creation, `Buy` and `Sell` support Accounts, pricing and original-value properties, exchange matching, and duplicate lookup.
+- Preserved established unposted, missing, zero, unsupported, duplicate, Exchange Bot, Portfolio Bot loop-prevention, and rebuild paths.
+- Adapted optional Account and Group 404 lookups to target SDK behavior while continuing to propagate required and non-404 failures.
+- Awaited rebuild Account updates that were unawaited in the legacy runtime so required Cloudflare work completes before the response.
+- Made existing-mirror replay resume a missing rebuild flag before returning `FOUND`, allowing an awaited update failure to recover without creating a duplicate movement.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 58 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Zero-sum gate:** Every posted Financial or Portfolio movement is complete and has the accepted direction.
 

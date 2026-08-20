@@ -35,7 +35,30 @@ describe('deterministic candidate filtering', () => {
         );
 
         expect(result.transactions.map(item => item.id)).toEqual(['ok']);
-        expect(result.skipped).toEqual({ total: 3, trashed: 1, checked: 1, locked: 1 });
+        expect(result.skipped).toEqual({
+            total: 3,
+            trashed: 1,
+            checked: 1,
+            locked: 1,
+            invalid: 0,
+        });
+    });
+
+    it('counts valid-ID rows with malformed dates or amounts as invalid', () => {
+        const result = filterEligibleTransactions([
+            tx('bad-date', { date: '2026-02-30' }),
+            tx('bad-amount', { amount: 'NaN-value' }),
+            tx('valid'),
+        ]);
+
+        expect(result.transactions.map(item => item.id)).toEqual(['valid']);
+        expect(result.skipped).toEqual({
+            total: 2,
+            trashed: 0,
+            checked: 0,
+            locked: 0,
+            invalid: 2,
+        });
     });
 
     it('preserves display metadata needed to match the main transaction list', () => {

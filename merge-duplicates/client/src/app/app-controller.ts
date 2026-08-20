@@ -1,19 +1,25 @@
+import { Amount, Permission, type Book } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
-import { createAppApi, type AppApi } from '../api/app-api';
+import { createAppApi, type AppApi, type Transaction } from '../api/app-api';
 import {
     createAuthSession,
     type AuthProvider,
     type AuthSession,
     type AuthSessionCallbacks,
 } from '../auth/auth-session';
+import { createBookService, type BookService } from '../services/book-service';
 import { createInitialAppState, type AppState } from './app-state';
 import { createAppUrlSync, type AppUrlSync } from './app-url-sync';
 import { getMenuContext, type CapturedMenuContext } from './menu-context';
-import { ReviewSession, type MenuContext } from './review-session';
+import { ReviewSession, type MenuContext, type ReviewPermission } from './review-session';
+
+const PAGE_SIZE = 200;
+const MAX_ANALYZE_TRANSACTIONS = 1_000;
 
 export interface AppControllerOptions {
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
     createApi?: (auth: AuthProvider) => AppApi;
+    createBookService?: (auth: AuthProvider) => BookService;
     getSearch?: () => string;
     createUrlSync?: () => AppUrlSync;
     logger?: Pick<Console, 'debug' | 'error'>;
@@ -25,13 +31,16 @@ export class AppController implements ReactiveController {
 
     private readonly auth: AuthSession;
     private readonly api: AppApi;
+    private readonly bookService: BookService;
     private readonly getSearch: () => string;
     private readonly urlSync: AppUrlSync;
     private readonly logger: Pick<Console, 'debug' | 'error'>;
     private pendingUrl?: URL;
     private reviewEdited = false;
     private contextVersion = 0;
-    private activeScan?: AbortController;
+    private activeAnalysis?: AbortController;
+    private activeBook?: Book;
+    private activeBookId?: string;
 
     constructor(
         private readonly host: ReactiveControllerHost,
@@ -50,6 +59,7 @@ export class AppController implements ReactiveController {
             options.createApi ??
             (auth => createAppApi({ fetch: request => auth.authenticatedFetch(request) }))
         )(this.auth);
+        this.bookService = (options.createBookService ?? createBookService)(this.auth);
     }
 
     hostConnected(): void {
@@ -59,7 +69,7 @@ export class AppController implements ReactiveController {
 
     hostDisconnected(): void {
         this.urlSync.stop();
-        this.activeScan?.abort();
+        this.activeAnalysis?.abort();
     }
 
     async initialize(): Promise<void> {
@@ -75,55 +85,74 @@ export class AppController implements ReactiveController {
     }
 
     async analyzeNext(): Promise<void> {
-        const context = this.requireContext();
-        if (!context || this.state.analyzing) return;
+        const context = this.requireCapturedContext();
+        if (
+            !context ||
+            this.state.analyzing ||
+            this.review.transactions.length >= MAX_ANALYZE_TRANSACTIONS
+        )
+            return;
         const contextVersion = this.contextVersion;
         const abortController = new AbortController();
-        this.activeScan = abortController;
-        this.logger.debug('[merge-duplicates:sync]', 'scan started', {
+        this.activeAnalysis = abortController;
+        this.logger.debug('[merge-duplicates:sync]', 'analysis started', {
             contextVersion,
             query: context.query,
         });
         this.setState({ analyzing: true, error: null, notice: null });
+
         try {
-            const response = await this.api.scan(
-                {
-                    bookId: context.bookId,
-                    query: context.query,
-                    cursor: this.review.cursor,
-                    fingerprints: this.review.fingerprints,
-                },
+            const book = await this.getActiveBook(context.bookId);
+            if (contextVersion !== this.contextVersion) return;
+            const permission = toReviewPermission(book.getPermission());
+            this.setState({ permission });
+
+            const page = await book.listTransactions(context.query, PAGE_SIZE, this.review.cursor);
+            if (contextVersion !== this.contextVersion) return;
+            const pageTransactions = page.getItems().map(transaction => transaction.json());
+            const cumulativeTransactions = mergeTransactions(
+                this.review.transactions,
+                pageTransactions
+            ).slice(0, MAX_ANALYZE_TRANSACTIONS);
+            const response = await this.api.analyze(
+                { bookId: context.bookId, transactions: cumulativeTransactions },
                 abortController.signal
             );
             if (contextVersion !== this.contextVersion) return;
-            this.review.appendPage(response);
-            this.logger.debug('[merge-duplicates:sync]', 'scan completed', {
-                scanned: response.scanned,
-                candidates: response.candidateCount,
+
+            const pageCursor = page.getCursor();
+            const cursor =
+                cumulativeTransactions.length < MAX_ANALYZE_TRANSACTIONS ? pageCursor : undefined;
+            this.review.replaceAnalysis(response, cumulativeTransactions, cursor);
+            this.logger.debug('[merge-duplicates:sync]', 'analysis completed', {
+                scanned: pageTransactions.length,
                 suggestions: response.suggestions.length,
             });
             this.setState({
-                scanned: this.state.scanned + response.scanned,
-                candidateCount: this.state.candidateCount + response.candidateCount,
+                scanned: this.state.scanned + pageTransactions.length,
                 pages: this.state.pages + 1,
-                skipped: {
-                    total: this.state.skipped.total + response.skipped.total,
-                    checked: this.state.skipped.checked + response.skipped.checked,
-                    trashed: this.state.skipped.trashed + response.skipped.trashed,
-                    locked: this.state.skipped.locked + response.skipped.locked,
-                },
+                skipped: response.skipped,
             });
         } catch (error) {
             if (abortController.signal.aborted) {
-                this.logger.debug('[merge-duplicates:sync]', 'scan cancelled', contextVersion);
+                this.logger.debug('[merge-duplicates:sync]', 'analysis cancelled', contextVersion);
             } else if (contextVersion === this.contextVersion) {
                 this.fail(error);
             }
         } finally {
             if (contextVersion === this.contextVersion) {
-                if (this.activeScan === abortController) this.activeScan = undefined;
+                if (this.activeAnalysis === abortController) this.activeAnalysis = undefined;
                 this.setState({ authenticating: false, analyzing: false });
             }
+        }
+    }
+
+    formatAmount(value: string | undefined): string {
+        if (!value) return '';
+        try {
+            return this.activeBook?.formatValue(new Amount(value)) ?? value;
+        } catch {
+            return value;
         }
     }
 
@@ -151,7 +180,7 @@ export class AppController implements ReactiveController {
     }
 
     async confirmApply(): Promise<void> {
-        const context = this.requireContext();
+        const context = this.requireReviewContext();
         if (!context || this.state.applying) return;
         this.setState({ confirmOpen: false, applying: true, error: null, notice: null });
         await this.review.apply(this.api, context, () => this.host.requestUpdate());
@@ -169,10 +198,7 @@ export class AppController implements ReactiveController {
                 ? 'Learning was skipped because Post collaborators cannot edit properties.'
                 : '',
         ].filter(Boolean);
-        this.setState({
-            applying: false,
-            notice: notices.join(' ') || null,
-        });
+        this.setState({ applying: false, notice: notices.join(' ') || null });
     }
 
     async scanAgain(): Promise<void> {
@@ -187,8 +213,7 @@ export class AppController implements ReactiveController {
 
     async updateResults(): Promise<void> {
         if (!this.pendingUrl || this.state.applying) return;
-        const url = this.pendingUrl;
-        await this.acceptContextUrl(url);
+        await this.acceptContextUrl(this.pendingUrl);
     }
 
     private async begin(): Promise<void> {
@@ -223,9 +248,14 @@ export class AppController implements ReactiveController {
     private async acceptContextUrl(url: URL): Promise<void> {
         const context = getMenuContext(url.search);
         const shouldScan = !this.state.authenticating;
+        const bookChanged = context.bookId !== this.state.context.bookId;
         this.contextVersion += 1;
-        this.activeScan?.abort();
-        this.activeScan = undefined;
+        this.activeAnalysis?.abort();
+        this.activeAnalysis = undefined;
+        if (bookChanged) {
+            this.activeBook = undefined;
+            this.activeBookId = undefined;
+        }
         this.urlSync.replace(url);
         this.pendingUrl = undefined;
         this.reviewEdited = false;
@@ -238,6 +268,14 @@ export class AppController implements ReactiveController {
         if (shouldScan) await this.analyzeNext();
     }
 
+    private async getActiveBook(bookId: string): Promise<Book> {
+        if (!this.activeBook || this.activeBookId !== bookId) {
+            this.activeBook = await this.bookService.getBook(bookId);
+            this.activeBookId = bookId;
+        }
+        return this.activeBook;
+    }
+
     private resetReview(context: CapturedMenuContext): void {
         this.review.reset();
         this.setState({
@@ -246,17 +284,24 @@ export class AppController implements ReactiveController {
             confirmOpen: false,
             contextUpdateAvailable: false,
             scanned: 0,
-            candidateCount: 0,
+            permission: null,
             pages: 0,
-            skipped: { total: 0, checked: 0, trashed: 0, locked: 0 },
+            skipped: { total: 0, checked: 0, trashed: 0, locked: 0, invalid: 0 },
             notice: null,
             error: null,
         });
     }
 
-    private requireContext(): MenuContext | undefined {
-        const { bookId, query, accountId, groupId } = this.state.context;
-        return bookId ? { bookId, query, accountId, groupId } : undefined;
+    private requireCapturedContext(): (CapturedMenuContext & { bookId: string }) | undefined {
+        return this.state.context.bookId
+            ? { ...this.state.context, bookId: this.state.context.bookId }
+            : undefined;
+    }
+
+    private requireReviewContext(): MenuContext | undefined {
+        const context = this.requireCapturedContext();
+        const permission = this.state.permission;
+        return context && permission ? { ...context, permission } : undefined;
     }
 
     private fail(error: unknown): void {
@@ -268,6 +313,28 @@ export class AppController implements ReactiveController {
         this.state = { ...this.state, ...patch };
         this.host.requestUpdate();
     }
+}
+
+function mergeTransactions(
+    previous: readonly Transaction[],
+    current: readonly Transaction[]
+): Transaction[] {
+    const merged = new Map<string, Transaction>();
+    for (const transaction of [...previous, ...current]) {
+        const id = transaction.id;
+        if (typeof id === 'string' && id.length > 0) merged.set(id, transaction);
+        else merged.set(`missing-${merged.size}`, transaction);
+    }
+    return [...merged.values()];
+}
+
+function toReviewPermission(permission: Permission): ReviewPermission {
+    if (permission === Permission.OWNER) return 'OWNER';
+    if (permission === Permission.EDITOR) return 'EDITOR';
+    if (permission === Permission.POSTER) return 'POSTER';
+    throw new Error(
+        `Merge Duplicates requires Owner, Editor, or Post permission. Current: ${permission}.`
+    );
 }
 
 function toErrorMessage(error: unknown): string {

@@ -14,28 +14,130 @@ export const ErrorResponseSchema = z
     })
     .openapi('ErrorResponse');
 
-const AccountSnapshotSchema = z
-    .object({
-        id: z.string().trim().min(1).max(256),
-        name: z.string().max(500),
-        type: z.enum(['ASSET', 'LIABILITY', 'INCOMING', 'OUTGOING']).optional(),
-    })
-    .openapi('AccountSnapshot');
+const PropertiesSchema = z.record(z.string(), z.string());
+const AccountTypeSchema = z.enum(['ASSET', 'LIABILITY', 'INCOMING', 'OUTGOING']);
+const PermissionSchema = z.enum(['OWNER', 'EDITOR', 'POSTER', 'RECORDER', 'VIEWER', 'NONE']);
 
-export const TransactionFingerprintSchema = z
+const GroupPayloadSchema = z
     .object({
-        id: z.string().trim().min(1).max(256),
-        date: z.iso.date(),
-        dateFormatted: z.string().max(100).optional(),
-        amount: z.string().trim().min(1).max(100),
-        amountFormatted: z.string().max(100).optional(),
-        description: z.string().max(2000),
-        fromAccount: AccountSnapshotSchema.nullable(),
-        toAccount: AccountSnapshotSchema.nullable(),
-        properties: z.record(z.string().max(100), z.string().max(4000)),
-        draft: z.boolean(),
+        id: z.string().optional(),
+        name: z.string().optional(),
+        normalizedName: z.string().optional(),
+        type: AccountTypeSchema.optional(),
+        credit: z.boolean().optional(),
+        permanent: z.boolean().optional(),
+        mixed: z.boolean().optional(),
+        hidden: z.boolean().optional(),
+        locked: z.boolean().optional(),
+        hasAccounts: z.boolean().optional(),
+        hasGroups: z.boolean().optional(),
+        properties: PropertiesSchema.optional(),
+        agentId: z.string().optional(),
+        createdAt: z.string().optional(),
+        updatedAt: z.string().optional(),
     })
-    .openapi('TransactionFingerprint');
+    .passthrough()
+    .openapi('Group');
+
+const AccountPayloadSchema = z
+    .object({
+        id: z.string().optional(),
+        name: z.string().optional(),
+        normalizedName: z.string().optional(),
+        type: AccountTypeSchema.optional(),
+        credit: z.boolean().optional(),
+        permanent: z.boolean().optional(),
+        archived: z.boolean().optional(),
+        balance: z.string().optional(),
+        balanceVerified: z.boolean().optional(),
+        hasTransactionPosted: z.boolean().optional(),
+        groups: z.array(GroupPayloadSchema).optional(),
+        properties: PropertiesSchema.optional(),
+        agentId: z.string().optional(),
+        createdAt: z.string().optional(),
+        updatedAt: z.string().optional(),
+    })
+    .passthrough()
+    .openapi('Account');
+
+const FilePayloadSchema = z
+    .object({
+        id: z.string().optional(),
+        name: z.string().optional(),
+        content: z.string().optional(),
+        contentType: z.string().optional(),
+        size: z.number().optional(),
+        url: z.string().optional(),
+        properties: PropertiesSchema.optional(),
+        agentId: z.string().optional(),
+        createdAt: z.string().optional(),
+        updatedAt: z.string().optional(),
+    })
+    .passthrough()
+    .openapi('File');
+
+export const TransactionPayloadSchema = z
+    .object({
+        id: z.string().optional(),
+        date: z.string().optional(),
+        dateFormatted: z.string().optional(),
+        dateValue: z.number().int().optional(),
+        amount: z.string().optional(),
+        description: z.string().optional(),
+        posted: z.boolean().optional(),
+        draft: z.boolean().optional(),
+        checked: z.boolean().optional(),
+        trashed: z.boolean().optional(),
+        creditAccount: AccountPayloadSchema.optional(),
+        debitAccount: AccountPayloadSchema.optional(),
+        properties: PropertiesSchema.optional(),
+        files: z.array(FilePayloadSchema).optional(),
+        remoteIds: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        urls: z.array(z.string()).optional(),
+        agentId: z.string().optional(),
+        agentName: z.string().optional(),
+        agentLogo: z.string().optional(),
+        agentLogoDark: z.string().optional(),
+        createdBy: z.string().optional(),
+        createdAt: z.string().optional(),
+        updatedAt: z.string().optional(),
+    })
+    .passthrough()
+    .openapi('Transaction');
+
+const BookPayloadSchema = z
+    .object({
+        id: z.string().optional(),
+        name: z.string().optional(),
+        accounts: z.array(AccountPayloadSchema).optional(),
+        groups: z.array(GroupPayloadSchema).optional(),
+        autoPost: z.boolean().optional(),
+        closingDate: z.string().optional(),
+        lockDate: z.string().optional(),
+        datePattern: z.string().optional(),
+        decimalSeparator: z.enum(['DOT', 'COMMA']).optional(),
+        fractionDigits: z.number().int().optional(),
+        pageSize: z.number().int().optional(),
+        permission: PermissionSchema.optional(),
+        properties: PropertiesSchema.optional(),
+        timeZone: z.string().optional(),
+        timeZoneOffset: z.number().optional(),
+        visibility: z.enum(['PUBLIC', 'PRIVATE']).optional(),
+        agentId: z.string().optional(),
+        createdAt: z.string().optional(),
+        updatedAt: z.string().optional(),
+    })
+    .passthrough()
+    .openapi('Book');
+
+const CanonicalIdSchema = z
+    .string()
+    .min(1)
+    .max(256)
+    .refine(value => value === value.trim(), 'Transaction ID must be canonical.');
+
+const TransactionWithIdSchema = TransactionPayloadSchema.extend({ id: CanonicalIdSchema });
 
 export const SkippedCountsSchema = z
     .object({
@@ -43,81 +145,88 @@ export const SkippedCountsSchema = z
         checked: z.number().int().nonnegative(),
         trashed: z.number().int().nonnegative(),
         locked: z.number().int().nonnegative(),
+        invalid: z.number().int().nonnegative(),
     })
     .openapi('SkippedCounts');
 
 export const SuggestionSchema = z
     .object({
-        id: z.string(),
+        transactions: z.array(TransactionPayloadSchema).min(2).max(2),
         strength: z.enum(['Strong', 'Possible']),
         explanation: z.string(),
-        first: TransactionFingerprintSchema,
-        second: TransactionFingerprintSchema,
     })
     .openapi('Suggestion');
 
-export const ScanRequestSchema = z
+export const AnalyzeRequestSchema = z
     .object({
         bookId: z.string().trim().min(1).max(256),
-        query: z.string().max(4000),
-        cursor: z.string().max(4000).nullish(),
-        fingerprints: z.array(TransactionFingerprintSchema).max(20_000),
+        transactions: z.array(TransactionPayloadSchema).max(1_000),
     })
-    .openapi('ScanRequest');
+    .superRefine((value, context) => {
+        const ids = new Set<string>();
+        value.transactions.forEach((transaction, index) => {
+            const result = CanonicalIdSchema.safeParse(transaction.id);
+            if (!result.success) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['transactions', index, 'id'],
+                    message: result.error.issues[0]?.message ?? 'Transaction ID is required.',
+                });
+                return;
+            }
+            if (ids.has(result.data)) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['transactions', index, 'id'],
+                    message: 'Transaction IDs must be unique.',
+                });
+                return;
+            }
+            ids.add(result.data);
+        });
+    })
+    .openapi('AnalyzeRequest');
 
-export const ScanResponseSchema = z
+export const AnalyzeResponseSchema = z
     .object({
-        permission: z.enum(['OWNER', 'EDITOR', 'POSTER']),
         suggestions: z.array(SuggestionSchema),
-        fingerprints: z.array(TransactionFingerprintSchema),
-        cursor: z.string().optional(),
-        scanned: z.number().int().nonnegative(),
-        candidateCount: z.number().int().nonnegative(),
         skipped: SkippedCountsSchema,
-        promptVersion: z.string(),
     })
-    .openapi('ScanResponse');
+    .openapi('AnalyzeResponse');
 
 export const MergeRequestSchema = z
     .object({
         bookId: z.string().trim().min(1).max(256),
-        firstTransactionId: z.string().trim().min(1).max(256),
-        secondTransactionId: z.string().trim().min(1).max(256),
+        primary: TransactionWithIdSchema,
+        secondary: TransactionWithIdSchema,
     })
-    .refine(value => value.firstTransactionId !== value.secondTransactionId, {
+    .refine(value => value.primary.id !== value.secondary.id, {
         message: 'Transaction IDs must be distinct.',
     })
     .openapi('MergeRequest');
 
-export const MergeResponseSchema = z
-    .object({ mergedTransactionId: z.string().min(1) })
-    .openapi('MergeResponse');
+export const MergeResponseSchema = TransactionPayloadSchema.openapi('MergeResponse');
 
-const RejectedPairSchema = z.object({
-    first: TransactionFingerprintSchema,
-    second: TransactionFingerprintSchema,
-});
+const RejectedPairSchema = z.array(TransactionWithIdSchema).min(2).max(2);
 
 export const LearnRequestSchema = z
     .object({
         bookId: z.string().trim().min(1).max(256),
-        accountId: z.string().trim().min(1).max(256).nullish(),
-        groupId: z.string().trim().min(1).max(256).nullish(),
-        pair: RejectedPairSchema,
-        additionalPairs: z.array(RejectedPairSchema).max(39).optional(),
+        accountId: z.string().trim().min(1).max(256).optional(),
+        groupId: z.string().trim().min(1).max(256).optional(),
+        examples: z.array(RejectedPairSchema).min(1).max(50),
+    })
+    .refine(value => !(value.accountId && value.groupId), {
+        message: 'accountId and groupId are mutually exclusive.',
     })
     .openapi('LearnRequest');
 
 export const LearnResponseSchema = z
-    .object({
-        saved: z.boolean(),
-        skipped: z.boolean(),
-        resourceType: z.enum(['account', 'group', 'book']).nullable(),
-        resourceName: z.string().nullable().optional(),
-        propertyKey: z.string().optional(),
-        savedCount: z.number().int().nonnegative().optional(),
-        notice: z.string().optional(),
-    })
+    .union([
+        z.object({ book: BookPayloadSchema }),
+        z.object({ group: GroupPayloadSchema }),
+        z.object({ account: AccountPayloadSchema }),
+    ])
     .openapi('LearnResponse');
 
 export const apiErrorResponses = {

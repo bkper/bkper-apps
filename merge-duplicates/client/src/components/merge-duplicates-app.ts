@@ -1,9 +1,13 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import type { Suggestion, TransactionFingerprint } from '../api/app-api';
+import type { Suggestion, Transaction } from '../api/app-api';
 import { AppController } from '../app/app-controller';
 import { appEnvironment } from '../app/app-environment';
-import type { LearningProgress } from '../app/review-session';
+import {
+    suggestionKey,
+    suggestionTransactions,
+    type LearningProgress,
+} from '../app/review-session';
 
 @customElement('merge-duplicates-app')
 export class MergeDuplicatesApp extends LitElement {
@@ -599,7 +603,7 @@ export class MergeDuplicatesApp extends LitElement {
                                       ${review.suggestions.map(suggestion =>
                                           this.renderSuggestion(
                                               suggestion,
-                                              review.selectedIds.has(suggestion.id)
+                                              review.selectedIds.has(suggestionKey(suggestion))
                                           )
                                       )}
                                   </div>
@@ -659,17 +663,16 @@ export class MergeDuplicatesApp extends LitElement {
     }
 
     private renderSuggestion(suggestion: Suggestion, selected: boolean): TemplateResult {
+        const key = suggestionKey(suggestion);
+        const [first, second] = suggestionTransactions(suggestion);
         return html`
-            <article
-                class="pair"
-                @click=${(event: MouseEvent) => this.handlePairClick(event, suggestion.id)}
-            >
+            <article class="pair" @click=${(event: MouseEvent) => this.handlePairClick(event, key)}>
                 <div class="pair-heading">
                     <wa-checkbox
                         class="pair-selector"
                         size="s"
                         .checked=${selected}
-                        @change=${(event: Event) => this.handlePairSelection(event, suggestion.id)}
+                        @change=${(event: Event) => this.handlePairSelection(event, key)}
                     >
                         <span class="pair-copy">
                             <span class="pair-strength">${suggestion.strength} match</span>
@@ -681,39 +684,39 @@ export class MergeDuplicatesApp extends LitElement {
                     </wa-checkbox>
                 </div>
                 <div class="pair-transactions">
-                    ${this.renderTransaction(suggestion.first)}
-                    ${this.renderTransaction(suggestion.second)}
+                    ${this.renderTransaction(first)} ${this.renderTransaction(second)}
                 </div>
             </article>
         `;
     }
 
-    private renderTransaction(transaction: TransactionFingerprint): TemplateResult {
+    private renderTransaction(transaction: Transaction): TemplateResult {
         const formattedDate = this.getShortDate(transaction);
+        const draft = transaction.posted !== true;
         return html`
             <div class="transaction-row">
                 <wa-icon
-                    class="transaction-status ${transaction.draft ? 'draft' : ''}"
-                    name=${transaction.draft ? 'angles-right' : 'check'}
-                    label=${transaction.draft ? 'Draft' : 'Posted'}
+                    class="transaction-status ${draft ? 'draft' : ''}"
+                    name=${draft ? 'angles-right' : 'check'}
+                    label=${draft ? 'Draft' : 'Posted'}
                 ></wa-icon>
                 <div class="transaction-content">
                     <div class="transaction-summary">
                         <time
                             class="transaction-date"
-                            datetime=${transaction.date}
-                            title=${transaction.dateFormatted || transaction.date}
+                            datetime=${transaction.date ?? ''}
+                            title=${transaction.dateFormatted || transaction.date || ''}
                         >
                             <span class="date">${formattedDate}</span>
                         </time>
                         <span class="amount"
-                            >${transaction.amountFormatted || transaction.amount}</span
+                            >${this.controller.formatAmount(transaction.amount)}</span
                         >
                     </div>
                     <div class="account-flow">
-                        ${this.renderAccount(transaction.fromAccount)}
+                        ${this.renderAccount(transaction.creditAccount)}
                         <wa-icon class="movement-arrow" name="angles-right" label="to"></wa-icon>
-                        ${this.renderAccount(transaction.toAccount)}
+                        ${this.renderAccount(transaction.debitAccount)}
                     </div>
                     <span class="description"
                         >${transaction.description || '(no description)'}</span
@@ -723,7 +726,7 @@ export class MergeDuplicatesApp extends LitElement {
         `;
     }
 
-    private renderAccount(account: TransactionFingerprint['fromAccount']): TemplateResult {
+    private renderAccount(account: Transaction['creditAccount']): TemplateResult {
         if (!account) {
             return html`<span class="unassigned" role="img" aria-label="Unassigned account"
                 >—</span
@@ -735,10 +738,11 @@ export class MergeDuplicatesApp extends LitElement {
         >`;
     }
 
-    private getShortDate(transaction: TransactionFingerprint): string {
-        const formatted = transaction.dateFormatted || transaction.date;
+    private getShortDate(transaction: Transaction): string {
+        const date = transaction.date ?? '';
+        const formatted = transaction.dateFormatted || date;
         const currentYear = new Date().getFullYear().toString();
-        if (!transaction.date.startsWith(currentYear)) return formatted;
+        if (!date.startsWith(currentYear)) return formatted;
         if (formatted.startsWith(`${currentYear}/`) || formatted.startsWith(`${currentYear}-`)) {
             return formatted.slice(5);
         }
@@ -787,7 +791,7 @@ export class MergeDuplicatesApp extends LitElement {
                             <div class="result-row">
                                 <div class="result-copy">
                                     <strong
-                                        >${item.suggestion.first.description || item.suggestion.id}</strong
+                                        >${suggestionTransactions(item.suggestion)[0].description || suggestionKey(item.suggestion)}</strong
                                     >
                                     <span class="progress-message"
                                         >${item.message || item.status}</span
@@ -846,7 +850,7 @@ export class MergeDuplicatesApp extends LitElement {
                             <div class="result-row">
                                 <div class="result-copy">
                                     <strong
-                                        >${item.suggestion.first.description || item.suggestion.id}</strong
+                                        >${suggestionTransactions(item.suggestion)[0].description || suggestionKey(item.suggestion)}</strong
                                     >
                                     ${item.message ? html`<span class="progress-message">${item.message}</span>` : html``}
                                 </div>

@@ -1,17 +1,17 @@
 {
   "paths": {
-    "/api/v1/scan": {
+    "/api/v1/analyze": {
       "post": {
         "tags": [
           "Duplicate review"
         ],
-        "summary": "Scan one page of 200 transactions",
+        "summary": "Analyze up to 1,000 submitted Book transactions",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ScanRequest"
+                "$ref": "#/components/schemas/AnalyzeRequest"
               }
             }
           }
@@ -22,7 +22,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScanResponse"
+                  "$ref": "#/components/schemas/AnalyzeResponse"
                 }
               }
             }
@@ -118,7 +118,7 @@
         },
         "responses": {
           "200": {
-            "description": "Canonical merged transaction",
+            "description": "Full canonical merged transaction",
             "content": {
               "application/json": {
                 "schema": {
@@ -188,7 +188,7 @@
         },
         "responses": {
           "200": {
-            "description": "Learning result",
+            "description": "Full updated learning resource",
             "content": {
               "application/json": {
                 "schema": {
@@ -249,62 +249,34 @@
       }
     },
     "schemas": {
-      "ScanResponse": {
+      "AnalyzeResponse": {
         "type": "object",
         "properties": {
-          "permission": {
-            "type": "string",
-            "enum": [
-              "OWNER",
-              "EDITOR",
-              "POSTER"
-            ]
-          },
           "suggestions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Suggestion"
             }
           },
-          "fingerprints": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TransactionFingerprint"
-            }
-          },
-          "cursor": {
-            "type": "string"
-          },
-          "scanned": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "candidateCount": {
-            "type": "integer",
-            "minimum": 0
-          },
           "skipped": {
             "$ref": "#/components/schemas/SkippedCounts"
-          },
-          "promptVersion": {
-            "type": "string"
           }
         },
         "required": [
-          "permission",
           "suggestions",
-          "fingerprints",
-          "scanned",
-          "candidateCount",
-          "skipped",
-          "promptVersion"
+          "skipped"
         ]
       },
       "Suggestion": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            "minItems": 2,
+            "maxItems": 2
           },
           "strength": {
             "type": "string",
@@ -315,91 +287,120 @@
           },
           "explanation": {
             "type": "string"
-          },
-          "first": {
-            "$ref": "#/components/schemas/TransactionFingerprint"
-          },
-          "second": {
-            "$ref": "#/components/schemas/TransactionFingerprint"
           }
         },
         "required": [
-          "id",
+          "transactions",
           "strength",
-          "explanation",
-          "first",
-          "second"
+          "explanation"
         ]
       },
-      "TransactionFingerprint": {
+      "Transaction": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256
+            "type": "string"
           },
           "date": {
-            "type": "string",
-            "format": "date"
+            "type": "string"
           },
           "dateFormatted": {
-            "type": "string",
-            "maxLength": 100
+            "type": "string"
+          },
+          "dateValue": {
+            "type": "integer"
           },
           "amount": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "amountFormatted": {
-            "type": "string",
-            "maxLength": 100
+            "type": "string"
           },
           "description": {
-            "type": "string",
-            "maxLength": 2000
+            "type": "string"
           },
-          "fromAccount": {
-            "$ref": "#/components/schemas/AccountSnapshot"
+          "posted": {
+            "type": "boolean"
           },
-          "toAccount": {
-            "$ref": "#/components/schemas/AccountSnapshot"
+          "draft": {
+            "type": "boolean"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "trashed": {
+            "type": "boolean"
+          },
+          "creditAccount": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "debitAccount": {
+            "$ref": "#/components/schemas/Account"
           },
           "properties": {
             "type": "object",
             "additionalProperties": {
-              "type": "string",
-              "maxLength": 4000
+              "type": "string"
             }
           },
-          "draft": {
-            "type": "boolean"
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/File"
+            }
+          },
+          "remoteIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "agentLogo": {
+            "type": "string"
+          },
+          "agentLogoDark": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
           }
         },
-        "required": [
-          "id",
-          "date",
-          "amount",
-          "description",
-          "fromAccount",
-          "toAccount",
-          "properties",
-          "draft"
-        ]
+        "additionalProperties": {
+          "nullable": true
+        }
       },
-      "AccountSnapshot": {
+      "Account": {
         "type": "object",
-        "nullable": true,
         "properties": {
           "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256
+            "type": "string"
           },
           "name": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
+          },
+          "normalizedName": {
+            "type": "string"
           },
           "type": {
             "type": "string",
@@ -409,12 +410,153 @@
               "INCOMING",
               "OUTGOING"
             ]
+          },
+          "credit": {
+            "type": "boolean"
+          },
+          "permanent": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "balance": {
+            "type": "string"
+          },
+          "balanceVerified": {
+            "type": "boolean"
+          },
+          "hasTransactionPosted": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "additionalProperties": {
+          "nullable": true
+        }
+      },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "normalizedName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ASSET",
+              "LIABILITY",
+              "INCOMING",
+              "OUTGOING"
+            ]
+          },
+          "credit": {
+            "type": "boolean"
+          },
+          "permanent": {
+            "type": "boolean"
+          },
+          "mixed": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "hasAccounts": {
+            "type": "boolean"
+          },
+          "hasGroups": {
+            "type": "boolean"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "nullable": true
+        }
+      },
+      "File": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "url": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "nullable": true
+        }
       },
       "SkippedCounts": {
         "type": "object",
@@ -434,13 +576,18 @@
           "locked": {
             "type": "integer",
             "minimum": 0
+          },
+          "invalid": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
           "total",
           "checked",
           "trashed",
-          "locked"
+          "locked",
+          "invalid"
         ]
       },
       "ErrorResponse": {
@@ -474,7 +621,7 @@
           "error"
         ]
       },
-      "ScanRequest": {
+      "AnalyzeRequest": {
         "type": "object",
         "properties": {
           "bookId": {
@@ -482,40 +629,113 @@
             "minLength": 1,
             "maxLength": 256
           },
-          "query": {
-            "type": "string",
-            "maxLength": 4000
-          },
-          "cursor": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 4000
-          },
-          "fingerprints": {
+          "transactions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TransactionFingerprint"
+              "$ref": "#/components/schemas/Transaction"
             },
-            "maxItems": 20000
+            "maxItems": 1000
           }
         },
         "required": [
           "bookId",
-          "query",
-          "fingerprints"
+          "transactions"
         ]
       },
       "MergeResponse": {
         "type": "object",
         "properties": {
-          "mergedTransactionId": {
-            "type": "string",
-            "minLength": 1
+          "id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "dateFormatted": {
+            "type": "string"
+          },
+          "dateValue": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "posted": {
+            "type": "boolean"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "trashed": {
+            "type": "boolean"
+          },
+          "creditAccount": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "debitAccount": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/File"
+            }
+          },
+          "remoteIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "agentLogo": {
+            "type": "string"
+          },
+          "agentLogoDark": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
           }
         },
-        "required": [
-          "mergedTransactionId"
-        ]
+        "additionalProperties": {
+          "nullable": true
+        }
       },
       "MergeRequest": {
         "type": "object",
@@ -525,62 +745,185 @@
             "minLength": 1,
             "maxLength": 256
           },
-          "firstTransactionId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256
+          "primary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Transaction"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": {
+                  "nullable": true
+                }
+              }
+            ]
           },
-          "secondTransactionId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256
+          "secondary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Transaction"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": {
+                  "nullable": true
+                }
+              }
+            ]
           }
         },
         "required": [
           "bookId",
-          "firstTransactionId",
-          "secondTransactionId"
+          "primary",
+          "secondary"
         ]
       },
       "LearnResponse": {
-        "type": "object",
-        "properties": {
-          "saved": {
-            "type": "boolean"
-          },
-          "skipped": {
-            "type": "boolean"
-          },
-          "resourceType": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "account",
-              "group",
-              "book",
-              null
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "book": {
+                "$ref": "#/components/schemas/Book"
+              }
+            },
+            "required": [
+              "book"
             ]
           },
-          "resourceName": {
-            "type": "string",
-            "nullable": true
+          {
+            "type": "object",
+            "properties": {
+              "group": {
+                "$ref": "#/components/schemas/Group"
+              }
+            },
+            "required": [
+              "group"
+            ]
           },
-          "propertyKey": {
+          {
+            "type": "object",
+            "properties": {
+              "account": {
+                "$ref": "#/components/schemas/Account"
+              }
+            },
+            "required": [
+              "account"
+            ]
+          }
+        ]
+      },
+      "Book": {
+        "type": "object",
+        "properties": {
+          "id": {
             "type": "string"
           },
-          "savedCount": {
-            "type": "integer",
-            "minimum": 0
+          "name": {
+            "type": "string"
           },
-          "notice": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Account"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "autoPost": {
+            "type": "boolean"
+          },
+          "closingDate": {
+            "type": "string"
+          },
+          "lockDate": {
+            "type": "string"
+          },
+          "datePattern": {
+            "type": "string"
+          },
+          "decimalSeparator": {
+            "type": "string",
+            "enum": [
+              "DOT",
+              "COMMA"
+            ]
+          },
+          "fractionDigits": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "EDITOR",
+              "POSTER",
+              "RECORDER",
+              "VIEWER",
+              "NONE"
+            ]
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "timeZoneOffset": {
+            "type": "number"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
             "type": "string"
           }
         },
-        "required": [
-          "saved",
-          "skipped",
-          "resourceType"
-        ]
+        "additionalProperties": {
+          "nullable": true
+        }
       },
       "LearnRequest": {
         "type": "object",
@@ -592,54 +935,51 @@
           },
           "accountId": {
             "type": "string",
-            "nullable": true,
             "minLength": 1,
             "maxLength": 256
           },
           "groupId": {
             "type": "string",
-            "nullable": true,
             "minLength": 1,
             "maxLength": 256
           },
-          "pair": {
-            "type": "object",
-            "properties": {
-              "first": {
-                "$ref": "#/components/schemas/TransactionFingerprint"
-              },
-              "second": {
-                "$ref": "#/components/schemas/TransactionFingerprint"
-              }
-            },
-            "required": [
-              "first",
-              "second"
-            ]
-          },
-          "additionalPairs": {
+          "examples": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "first": {
-                  "$ref": "#/components/schemas/TransactionFingerprint"
-                },
-                "second": {
-                  "$ref": "#/components/schemas/TransactionFingerprint"
-                }
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Transaction"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": {
+                      "nullable": true
+                    }
+                  }
+                ]
               },
-              "required": [
-                "first",
-                "second"
-              ]
+              "minItems": 2,
+              "maxItems": 2
             },
-            "maxItems": 39
+            "minItems": 1,
+            "maxItems": 50
           }
         },
         "required": [
           "bookId",
-          "pair"
+          "examples"
         ]
       }
     },

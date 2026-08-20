@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/v1/scan": {
+    "/api/v1/analyze": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Scan one page of 200 transactions */
+        /** Analyze up to 1,000 submitted Book transactions */
         post: {
             parameters: {
                 query?: never;
@@ -23,7 +23,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ScanRequest"];
+                    "application/json": components["schemas"]["AnalyzeRequest"];
                 };
             };
             responses: {
@@ -33,7 +33,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ScanResponse"];
+                        "application/json": components["schemas"]["AnalyzeResponse"];
                     };
                 };
                 /** @description Invalid request */
@@ -130,7 +130,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Canonical merged transaction */
+                /** @description Full canonical merged transaction */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -206,7 +206,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Learning result */
+                /** @description Full updated learning resource */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -263,51 +263,112 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        ScanResponse: {
-            /** @enum {string} */
-            permission: "OWNER" | "EDITOR" | "POSTER";
+        AnalyzeResponse: {
             suggestions: components["schemas"]["Suggestion"][];
-            fingerprints: components["schemas"]["TransactionFingerprint"][];
-            cursor?: string;
-            scanned: number;
-            candidateCount: number;
             skipped: components["schemas"]["SkippedCounts"];
-            promptVersion: string;
         };
         Suggestion: {
-            id: string;
+            transactions: components["schemas"]["Transaction"][];
             /** @enum {string} */
             strength: "Strong" | "Possible";
             explanation: string;
-            first: components["schemas"]["TransactionFingerprint"];
-            second: components["schemas"]["TransactionFingerprint"];
         };
-        TransactionFingerprint: {
-            id: string;
-            /** Format: date */
-            date: string;
+        Transaction: {
+            id?: string;
+            date?: string;
             dateFormatted?: string;
-            amount: string;
-            amountFormatted?: string;
-            description: string;
-            fromAccount: components["schemas"]["AccountSnapshot"];
-            toAccount: components["schemas"]["AccountSnapshot"];
-            properties: {
+            dateValue?: number;
+            amount?: string;
+            description?: string;
+            posted?: boolean;
+            draft?: boolean;
+            checked?: boolean;
+            trashed?: boolean;
+            creditAccount?: components["schemas"]["Account"];
+            debitAccount?: components["schemas"]["Account"];
+            properties?: {
                 [key: string]: string;
             };
-            draft: boolean;
+            files?: components["schemas"]["File"][];
+            remoteIds?: string[];
+            tags?: string[];
+            urls?: string[];
+            agentId?: string;
+            agentName?: string;
+            agentLogo?: string;
+            agentLogoDark?: string;
+            createdBy?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
         };
-        AccountSnapshot: {
-            id: string;
-            name: string;
+        Account: {
+            id?: string;
+            name?: string;
+            normalizedName?: string;
             /** @enum {string} */
             type?: "ASSET" | "LIABILITY" | "INCOMING" | "OUTGOING";
-        } | null;
+            credit?: boolean;
+            permanent?: boolean;
+            archived?: boolean;
+            balance?: string;
+            balanceVerified?: boolean;
+            hasTransactionPosted?: boolean;
+            groups?: components["schemas"]["Group"][];
+            properties?: {
+                [key: string]: string;
+            };
+            agentId?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        Group: {
+            id?: string;
+            name?: string;
+            normalizedName?: string;
+            /** @enum {string} */
+            type?: "ASSET" | "LIABILITY" | "INCOMING" | "OUTGOING";
+            credit?: boolean;
+            permanent?: boolean;
+            mixed?: boolean;
+            hidden?: boolean;
+            locked?: boolean;
+            hasAccounts?: boolean;
+            hasGroups?: boolean;
+            properties?: {
+                [key: string]: string;
+            };
+            agentId?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        File: {
+            id?: string;
+            name?: string;
+            content?: string;
+            contentType?: string;
+            size?: number;
+            url?: string;
+            properties?: {
+                [key: string]: string;
+            };
+            agentId?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
+        };
         SkippedCounts: {
             total: number;
             checked: number;
             trashed: number;
             locked: number;
+            invalid: number;
         };
         ErrorResponse: {
             /** @enum {boolean} */
@@ -317,42 +378,97 @@ export interface components {
                 message: string;
             };
         };
-        ScanRequest: {
+        AnalyzeRequest: {
             bookId: string;
-            query: string;
-            cursor?: string | null;
-            fingerprints: components["schemas"]["TransactionFingerprint"][];
+            transactions: components["schemas"]["Transaction"][];
         };
         MergeResponse: {
-            mergedTransactionId: string;
+            id?: string;
+            date?: string;
+            dateFormatted?: string;
+            dateValue?: number;
+            amount?: string;
+            description?: string;
+            posted?: boolean;
+            draft?: boolean;
+            checked?: boolean;
+            trashed?: boolean;
+            creditAccount?: components["schemas"]["Account"];
+            debitAccount?: components["schemas"]["Account"];
+            properties?: {
+                [key: string]: string;
+            };
+            files?: components["schemas"]["File"][];
+            remoteIds?: string[];
+            tags?: string[];
+            urls?: string[];
+            agentId?: string;
+            agentName?: string;
+            agentLogo?: string;
+            agentLogoDark?: string;
+            createdBy?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
         };
         MergeRequest: {
             bookId: string;
-            firstTransactionId: string;
-            secondTransactionId: string;
+            primary: components["schemas"]["Transaction"] & ({
+                id: string;
+            } & {
+                [key: string]: unknown;
+            });
+            secondary: components["schemas"]["Transaction"] & ({
+                id: string;
+            } & {
+                [key: string]: unknown;
+            });
         };
         LearnResponse: {
-            saved: boolean;
-            skipped: boolean;
-            /** @enum {string|null} */
-            resourceType: "account" | "group" | "book" | null;
-            resourceName?: string | null;
-            propertyKey?: string;
-            savedCount?: number;
-            notice?: string;
+            book: components["schemas"]["Book"];
+        } | {
+            group: components["schemas"]["Group"];
+        } | {
+            account: components["schemas"]["Account"];
+        };
+        Book: {
+            id?: string;
+            name?: string;
+            accounts?: components["schemas"]["Account"][];
+            groups?: components["schemas"]["Group"][];
+            autoPost?: boolean;
+            closingDate?: string;
+            lockDate?: string;
+            datePattern?: string;
+            /** @enum {string} */
+            decimalSeparator?: "DOT" | "COMMA";
+            fractionDigits?: number;
+            pageSize?: number;
+            /** @enum {string} */
+            permission?: "OWNER" | "EDITOR" | "POSTER" | "RECORDER" | "VIEWER" | "NONE";
+            properties?: {
+                [key: string]: string;
+            };
+            timeZone?: string;
+            timeZoneOffset?: number;
+            /** @enum {string} */
+            visibility?: "PUBLIC" | "PRIVATE";
+            agentId?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        } & {
+            [key: string]: unknown;
         };
         LearnRequest: {
             bookId: string;
-            accountId?: string | null;
-            groupId?: string | null;
-            pair: {
-                first: components["schemas"]["TransactionFingerprint"];
-                second: components["schemas"]["TransactionFingerprint"];
-            };
-            additionalPairs?: {
-                first: components["schemas"]["TransactionFingerprint"];
-                second: components["schemas"]["TransactionFingerprint"];
-            }[];
+            accountId?: string;
+            groupId?: string;
+            examples: (components["schemas"]["Transaction"] & ({
+                id: string;
+            } & {
+                [key: string]: unknown;
+            }))[][];
         };
     };
     responses: never;
@@ -361,16 +477,19 @@ export interface components {
     headers: never;
     pathItems: never;
 }
-export type ScanResponse = components['schemas']['ScanResponse'];
+export type AnalyzeResponse = components['schemas']['AnalyzeResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
-export type TransactionFingerprint = components['schemas']['TransactionFingerprint'];
-export type AccountSnapshot = components['schemas']['AccountSnapshot'];
+export type Transaction = components['schemas']['Transaction'];
+export type Account = components['schemas']['Account'];
+export type Group = components['schemas']['Group'];
+export type File = components['schemas']['File'];
 export type SkippedCounts = components['schemas']['SkippedCounts'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
-export type ScanRequest = components['schemas']['ScanRequest'];
+export type AnalyzeRequest = components['schemas']['AnalyzeRequest'];
 export type MergeResponse = components['schemas']['MergeResponse'];
 export type MergeRequest = components['schemas']['MergeRequest'];
 export type LearnResponse = components['schemas']['LearnResponse'];
+export type Book = components['schemas']['Book'];
 export type LearnRequest = components['schemas']['LearnRequest'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

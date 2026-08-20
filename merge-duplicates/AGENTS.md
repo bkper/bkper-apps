@@ -149,17 +149,18 @@ Build output:
 
 Merge Duplicates is a Bkper sidebar app for human-reviewed duplicate detection. It never creates a movement itself and never reconstructs merge behavior. Confirmed pairs go through `Book.mergeTransactions`, preserving Core's canonical zero-sum merge operation.
 
-The AI proposes globally selected, non-overlapping pairs from cumulative eligible transaction snapshots. Every proposed pair is independently checked against deterministic amount, date, draft-recovery, and movement-side constraints before it can be shown. Model output cannot initiate writes. Browser memory owns pagination cursors, fingerprints, and accepted/rejected decisions; there is no persisted scan resource.
+The AI proposes globally selected, non-overlapping pairs from cumulative eligible transaction snapshots. Every proposed pair is independently checked against deterministic amount, date, draft-recovery, and movement-side constraints before it can be shown. Model output cannot initiate writes. Browser memory owns pagination cursors, cumulative full transaction payloads, and accepted/rejected decisions; there is no persisted scan resource.
 
 ## Workflow
 
-1. Capture the Book transaction query and selected Account/Group context from the menu URL.
-2. Scan 200 transactions, excluding checked, trashed, and locked rows before AI allowance is consumed.
-3. Identify cumulative eligible transactions that participate in at least one deterministic possibility: equal amounts, dates within seven calendar days, and either a shared Account on the same movement side or at least one draft with non-empty descriptions on both transactions. This draft recovery rule keeps incorrect Account discovery from suppressing candidates.
-4. Submit each cumulative candidate transaction once in canonical Book order to one strict `gemini-flash` request using prompt `merge-duplicates-v6`, medium reasoning, and low temperature. Ask the AI to compare all alternatives globally and return only its strongest non-overlapping likely pairs. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
-5. Reject the entire model output as invalid unless every proposed pair is non-overlapping and passes deterministic amount, date, Account, and draft-recovery constraints, then rank Strong before Possible. Each cumulative analysis replaces prior suggestions while preserving decisions for unchanged pair IDs.
-6. Require final human confirmation, then merge accepted pairs sequentially while continuing after failures.
-7. Save each rejected pair independently as one line in visible property `merge_duplicate_examples`; retain the latest 40 lines on Account, Group, or Book context.
+1. Capture the Book transaction query and selected Account/Group context from the menu URL, then reject Viewers before listing transactions.
+2. List 200 transactions in the browser with `Book.listTransactions`, accumulate unique full payloads up to 1,000, and submit the complete cumulative set to `/api/v1/analyze` after every page.
+3. On the server, independently enforce permission and exclude checked, trashed, locked, and malformed rows before AI allowance is consumed.
+4. Identify eligible transactions that participate in at least one deterministic possibility: equal amounts, dates within seven calendar days, and either a shared Account on the same movement side or at least one draft with non-empty descriptions on both transactions. This draft recovery rule keeps incorrect Account discovery from suppressing candidates.
+5. Submit each cumulative candidate transaction once in canonical Book order to one strict `gemini-flash` request using prompt `merge-duplicates-v6`, medium reasoning, and low temperature. Send only minimized fields. Ask the AI to compare all alternatives globally and return only its strongest non-overlapping likely pairs. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
+6. Reject the entire model output as invalid unless every proposed pair is non-overlapping and passes deterministic amount, date, Account, and draft-recovery constraints, then rank Strong before Possible and map results back to the original full payloads. Each cumulative analysis replaces prior suggestions while preserving decisions for unchanged sorted transaction-ID keys.
+7. Require final human confirmation, then merge accepted pairs sequentially through ID-only payloads while continuing after failures.
+8. Save rejected pairs in one batch as lines in visible property `merge_duplicate_examples`; retain the newest 50 lines within 90,000 characters on Account, Group, or Book context.
 
 While embedded, treat the validated iframe App URL as the canonical active scope. Automatically accept Bkper `bkper:app-url-changed` messages and rescan unless the user changed a selection, confirmation is open, or merges are being applied. Preserve protected reviews against the latest pending URL until the user explicitly updates results; never interrupt applying work or hide its completion results.
 
@@ -169,7 +170,7 @@ Owner and Editor collaborators may merge and learn. Post collaborators may merge
 
 | Behavior | Route |
 | --- | --- |
-| Scan and analyze one page | `POST /api/v1/scan` |
+| Analyze submitted Book transactions | `POST /api/v1/analyze` |
 | Canonically merge one pair | `POST /api/v1/merge` |
 | Save rejected examples | `POST /api/v1/learn` |
 | OpenAPI contract | `GET /openapi.json` |
@@ -196,6 +197,7 @@ Do not sync, deploy, install, publish, or run any command that writes to a live 
 | Browser review state | `client/src/app/review-session.ts` |
 | Typed API client | `client/src/api/app-api.ts` |
 | API schemas/routes | `server/src/api/schemas.ts`, `server/src/api/routes.ts` |
+| Analyze orchestration | `server/src/services/analyze-service.ts` |
 | Deterministic candidate logic | `server/src/services/candidate-service.ts` |
 | Bkper AI request | `server/src/services/bkper-ai-service.ts` |
 | Canonical merge call | `server/src/services/merge-service.ts` |

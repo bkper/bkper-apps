@@ -1,5 +1,6 @@
 import type { SkippedCounts } from '../api/app-api';
 import type { CapturedMenuContext } from './menu-context';
+import type { ReviewPermission } from './review-session';
 
 export interface AppState {
     context: CapturedMenuContext;
@@ -11,7 +12,7 @@ export interface AppState {
     error: string | null;
     notice: string | null;
     scanned: number;
-    candidateCount: number;
+    permission: ReviewPermission | null;
     pages: number;
     skipped: SkippedCounts;
 }
@@ -27,8 +28,8 @@ export function createInitialAppState(): AppState {
         error: null,
         notice: null,
         scanned: 0,
-        candidateCount: 0,
+        permission: null,
         pages: 0,
-        skipped: { total: 0, checked: 0, trashed: 0, locked: 0 },
+        skipped: { total: 0, checked: 0, trashed: 0, locked: 0, invalid: 0 },
     };
 }

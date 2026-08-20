@@ -1,18 +1,21 @@
 import type {
+    AnalyzeResponse,
     LearnRequest,
     LearnResponse,
     MergeRequest,
     MergeResponse,
-    ScanResponse,
     Suggestion,
-    TransactionFingerprint,
+    Transaction,
 } from '../api/app-api';
+
+export type ReviewPermission = 'OWNER' | 'EDITOR' | 'POSTER';
 
 export interface MenuContext {
     bookId: string;
     query: string;
     accountId: string | null;
     groupId: string | null;
+    permission: ReviewPermission;
 }
 
 export interface ReviewApi {
@@ -30,62 +33,84 @@ export interface LearningProgress {
     suggestions: Suggestion[];
     status: 'saved' | 'skipped' | 'failed';
     savedCount: number;
-    resourceType: LearnResponse['resourceType'];
+    resourceType: 'account' | 'group' | 'book' | null;
     resourceName?: string | null;
     propertyKey?: string;
     message?: string;
 }
 
+type TransactionWithId = Transaction & { id: string };
+
+export function suggestionTransactions(
+    suggestion: Suggestion
+): [TransactionWithId, TransactionWithId] {
+    const [first, second] = suggestion.transactions;
+    if (
+        suggestion.transactions.length !== 2 ||
+        !first ||
+        !second ||
+        typeof first.id !== 'string' ||
+        first.id.length === 0 ||
+        typeof second.id !== 'string' ||
+        second.id.length === 0
+    ) {
+        throw new Error('A suggestion requires exactly two transactions with IDs.');
+    }
+    return [first as TransactionWithId, second as TransactionWithId];
+}
+
+export function suggestionKey(suggestion: Suggestion): string {
+    const [first, second] = suggestionTransactions(suggestion);
+    return [first.id, second.id].sort((left, right) => left.localeCompare(right)).join('|');
+}
+
 export class ReviewSession {
     suggestions: Suggestion[] = [];
     selectedIds = new Set<string>();
-    fingerprints: TransactionFingerprint[] = [];
+    transactions: Transaction[] = [];
     cursor?: string;
     progress: PairProgress[] = [];
     learningResults: LearningProgress[] = [];
     processed = false;
 
     get accepted(): Suggestion[] {
-        return this.suggestions.filter(suggestion => this.selectedIds.has(suggestion.id));
+        return this.suggestions.filter(suggestion =>
+            this.selectedIds.has(suggestionKey(suggestion))
+        );
     }
 
     get rejected(): Suggestion[] {
-        return this.suggestions.filter(suggestion => !this.selectedIds.has(suggestion.id));
+        return this.suggestions.filter(
+            suggestion => !this.selectedIds.has(suggestionKey(suggestion))
+        );
     }
 
-    appendPage(response: ScanResponse): void {
-        const previousIds = new Set(this.suggestions.map(suggestion => suggestion.id));
+    replaceAnalysis(response: AnalyzeResponse, transactions: Transaction[], cursor?: string): void {
+        const previousIds = new Set(this.suggestions.map(suggestionKey));
         const previousSelections = this.selectedIds;
         this.suggestions = [...response.suggestions];
         this.selectedIds = new Set(
             this.suggestions
-                .filter(
-                    suggestion =>
-                        !previousIds.has(suggestion.id) || previousSelections.has(suggestion.id)
-                )
-                .map(suggestion => suggestion.id)
+                .filter(suggestion => {
+                    const key = suggestionKey(suggestion);
+                    return !previousIds.has(key) || previousSelections.has(key);
+                })
+                .map(suggestionKey)
         );
-
-        const fingerprints = new Map(this.fingerprints.map(item => [item.id, item]));
-        for (const fingerprint of response.fingerprints)
-            fingerprints.set(fingerprint.id, fingerprint);
-        this.fingerprints = [...fingerprints.values()];
-        this.cursor = response.cursor;
+        this.transactions = transactions;
+        this.cursor = cursor;
     }
 
     setSelected(id: string, selected: boolean): void {
-        if (!this.suggestions.some(suggestion => suggestion.id === id)) return;
-        if (selected) {
-            this.selectedIds.add(id);
-        } else {
-            this.selectedIds.delete(id);
-        }
+        if (!this.suggestions.some(suggestion => suggestionKey(suggestion) === id)) return;
+        if (selected) this.selectedIds.add(id);
+        else this.selectedIds.delete(id);
     }
 
     setAllSelected(selected: boolean): void {
         this.selectedIds = selected
-            ? new Set(this.suggestions.map(suggestion => suggestion.id))
-            : new Set();
+            ? new Set(this.suggestions.map(suggestionKey))
+            : new Set<string>();
     }
 
     async apply(api: ReviewApi, context: MenuContext, notify: () => void): Promise<void> {
@@ -97,18 +122,19 @@ export class ReviewSession {
 
         for (let index = 0; index < accepted.length; index += 1) {
             const suggestion = accepted[index];
+            const [primary, secondary] = suggestionTransactions(suggestion);
             this.progress[index] = { suggestion, status: 'merging' };
             notify();
             try {
                 const result = await api.merge({
                     bookId: context.bookId,
-                    firstTransactionId: suggestion.first.id,
-                    secondTransactionId: suggestion.second.id,
+                    primary: { id: primary.id },
+                    secondary: { id: secondary.id },
                 });
                 this.progress[index] = {
                     suggestion,
                     status: 'merged',
-                    message: `Created ${result.mergedTransactionId}`,
+                    message: `Created ${result.id ?? 'canonical transaction'}`,
                 };
             } catch (error) {
                 this.progress[index] = {
@@ -120,43 +146,52 @@ export class ReviewSession {
             notify();
         }
 
-        const retainedRejected = rejected.slice(-40);
+        const retainedRejected = rejected.slice(-50);
         if (retainedRejected.length > 0) {
-            try {
-                const [first, ...additional] = retainedRejected;
-                const result = await api.learn({
-                    bookId: context.bookId,
-                    accountId: context.accountId,
-                    groupId: context.groupId,
-                    pair: { first: first.first, second: first.second },
-                    additionalPairs: additional.map(suggestion => ({
-                        first: suggestion.first,
-                        second: suggestion.second,
-                    })),
-                });
+            if (context.permission === 'POSTER') {
                 this.learningResults.push({
                     suggestions: retainedRejected,
-                    status: result.skipped ? 'skipped' : 'saved',
-                    savedCount: result.savedCount ?? (result.saved ? retainedRejected.length : 0),
-                    resourceType: result.resourceType,
-                    resourceName: result.resourceName,
-                    propertyKey: result.propertyKey,
-                    message: result.notice,
-                });
-            } catch (error) {
-                this.learningResults.push({
-                    suggestions: retainedRejected,
-                    status: 'failed',
+                    status: 'skipped',
                     savedCount: 0,
                     resourceType: null,
-                    message: toErrorMessage(error),
+                    message:
+                        'Post collaborators can merge, but learning examples require Owner or Editor permission.',
                 });
+                notify();
+            } else {
+                try {
+                    const result = await api.learn({
+                        bookId: context.bookId,
+                        ...(context.accountId ? { accountId: context.accountId } : {}),
+                        ...(context.groupId ? { groupId: context.groupId } : {}),
+                        examples: retainedRejected.map(suggestion => [
+                            ...suggestionTransactions(suggestion),
+                        ]),
+                    });
+                    const resource = learningResource(result);
+                    this.learningResults.push({
+                        suggestions: retainedRejected,
+                        status: 'saved',
+                        savedCount: retainedRejected.length,
+                        resourceType: resource.type,
+                        resourceName: resource.name,
+                        propertyKey: 'merge_duplicate_examples',
+                    });
+                } catch (error) {
+                    this.learningResults.push({
+                        suggestions: retainedRejected,
+                        status: 'failed',
+                        savedCount: 0,
+                        resourceType: null,
+                        message: toErrorMessage(error),
+                    });
+                }
+                notify();
             }
-            notify();
         }
 
         this.cursor = undefined;
-        this.fingerprints = [];
+        this.transactions = [];
         this.processed = true;
         notify();
     }
@@ -164,12 +199,21 @@ export class ReviewSession {
     reset(): void {
         this.suggestions = [];
         this.selectedIds = new Set();
-        this.fingerprints = [];
+        this.transactions = [];
         this.cursor = undefined;
         this.progress = [];
         this.learningResults = [];
         this.processed = false;
     }
+}
+
+function learningResource(result: LearnResponse): {
+    type: 'book' | 'group' | 'account';
+    name: string | null;
+} {
+    if ('account' in result) return { type: 'account', name: result.account.name ?? null };
+    if ('group' in result) return { type: 'group', name: result.group.name ?? null };
+    return { type: 'book', name: result.book.name ?? null };
 }
 
 function toErrorMessage(error: unknown): string {

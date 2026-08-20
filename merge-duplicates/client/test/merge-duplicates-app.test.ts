@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { render, type TemplateResult } from 'lit';
-import type { Suggestion, TransactionFingerprint } from '../src/api/app-api';
+import type { Suggestion, Transaction } from '../src/api/app-api';
 import { MergeDuplicatesApp } from '../src/components/merge-duplicates-app';
 
 const renderHeader = Reflect.get(MergeDuplicatesApp.prototype, 'renderHeader') as (
@@ -8,11 +8,11 @@ const renderHeader = Reflect.get(MergeDuplicatesApp.prototype, 'renderHeader') a
 ) => TemplateResult;
 const renderAccount = Reflect.get(MergeDuplicatesApp.prototype, 'renderAccount') as (
     this: MergeDuplicatesApp,
-    account: TransactionFingerprint['fromAccount']
+    account: Transaction['creditAccount']
 ) => TemplateResult;
 const renderTransaction = Reflect.get(MergeDuplicatesApp.prototype, 'renderTransaction') as (
     this: MergeDuplicatesApp,
-    transaction: TransactionFingerprint
+    transaction: Transaction
 ) => TemplateResult;
 
 function templateText(result: TemplateResult): string {
@@ -32,17 +32,15 @@ function suggestion(): Suggestion {
         date: '2026-06-10',
         amount: '10',
         description: id,
-        fromAccount: { id: 'bank', name: 'Bank' },
-        toAccount: { id, name: id },
+        creditAccount: { id: 'bank', name: 'Bank' },
+        debitAccount: { id, name: id },
         properties: {},
-        draft: false,
+        posted: true,
     });
     return {
-        id: 'pair',
         strength: 'Strong',
         explanation: 'Likely duplicate',
-        first: snapshot('first'),
-        second: snapshot('second'),
+        transactions: [snapshot('first'), snapshot('second')],
     };
 }
 
@@ -103,7 +101,7 @@ describe('merge duplicates app', () => {
     });
 
     it('groups transaction identity details in the PWA reading order', () => {
-        const transaction = suggestion().first;
+        const transaction = suggestion().transactions[0];
         const container = document.createElement('div');
 
         render(renderTransaction.call(new MergeDuplicatesApp(), transaction), container);

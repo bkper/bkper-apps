@@ -1,79 +1,72 @@
-import type { Account, Book, Group } from 'bkper-js';
+import { Amount, type Account, type Book, type Group } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../app-context';
 import type { TransactionFingerprint } from './candidate-service';
-import { getLearningPermission } from './permission-service';
+import { requireLearningPermission } from './permission-service';
 
 export const LEARNING_PROPERTY = 'merge_duplicate_examples';
-const MAX_EXAMPLES = 40;
+const MAX_EXAMPLES = 50;
+const MAX_PROPERTY_CHARACTERS = 90_000;
 
-export interface RejectedPairSnapshot {
-    first: TransactionFingerprint;
-    second: TransactionFingerprint;
-}
+export type RejectedPair = bkper.Transaction[];
 
 export interface LearningRequest {
     bookId: string;
     accountId?: string | null;
     groupId?: string | null;
-    pair: RejectedPairSnapshot;
-    additionalPairs?: RejectedPairSnapshot[];
+    examples: RejectedPair[];
 }
 
-export interface LearningResult {
-    saved: boolean;
-    skipped: boolean;
-    resourceType: 'account' | 'group' | 'book' | null;
-    resourceName: string | null;
-    propertyKey: string;
-    savedCount: number;
-    notice?: string;
+export type LearningResult =
+    { book: bkper.Book } | { group: bkper.Group } | { account: bkper.Account };
+
+export function formatRejectedPairExample(pair: RejectedPair): string {
+    const [first, second] = pair;
+    if (!first || !second || pair.length !== 2) {
+        throw new Error('A rejected-pair example requires exactly two transactions.');
+    }
+    return `${formatTransaction(first)} <> ${formatTransaction(second)}`;
 }
 
-export function formatRejectedPairExample(pair: RejectedPairSnapshot): string {
-    return `${formatTransaction(pair.first)} <> ${formatTransaction(pair.second)}`;
+export function appendLearningExamples(
+    existing: string | undefined,
+    examples: readonly string[]
+): string {
+    const lines = [...(existing ?? '').split(/\r?\n/u), ...examples]
+        .map(cleanLine)
+        .filter(Boolean)
+        .map(line => line.slice(0, MAX_PROPERTY_CHARACTERS))
+        .slice(-MAX_EXAMPLES);
+
+    while (lines.join('\n').length > MAX_PROPERTY_CHARACTERS) lines.shift();
+    return lines.join('\n');
 }
 
-export function appendLearningExample(existing: string | undefined, example: string): string {
-    const lines = (existing ?? '').split(/\r?\n/u).map(cleanLine).filter(Boolean);
-    lines.push(cleanLine(example));
-    return lines.slice(-MAX_EXAMPLES).join('\n');
-}
-
-export async function saveRejectedPair(
+export async function saveRejectedExamples(
     context: AppContext,
     request: LearningRequest
 ): Promise<LearningResult> {
     const book = await context.bkper.getBook(request.bookId, true, true);
-    if (getLearningPermission(book) === 'skip') {
-        return {
-            saved: false,
-            skipped: true,
-            resourceType: null,
-            resourceName: null,
-            propertyKey: LEARNING_PROPERTY,
-            savedCount: 0,
-            notice: 'Post collaborators can merge, but learning examples require Owner or Editor permission.',
-        };
-    }
+    requireLearningPermission(book);
 
     const target = await selectLearningTarget(book, request.accountId, request.groupId);
-    const pairs = [request.pair, ...(request.additionalPairs ?? [])];
-    let updated = target.resource.getProperty(LEARNING_PROPERTY);
-    for (const pair of pairs) {
-        updated = appendLearningExample(updated, formatRejectedPairExample(pair));
-    }
+    const examples = request.examples.map(formatRejectedPairExample);
+    const updated = appendLearningExamples(
+        target.resource.getProperty(LEARNING_PROPERTY),
+        examples
+    );
     target.resource.setVisibleProperty(LEARNING_PROPERTY, updated);
-    await target.resource.update();
 
-    return {
-        saved: true,
-        skipped: false,
-        resourceType: target.type,
-        resourceName: target.resource.getName() ?? null,
-        propertyKey: LEARNING_PROPERTY,
-        savedCount: pairs.length,
-    };
+    if (target.type === 'account') {
+        const account = await target.resource.update();
+        return { account: account.json() };
+    }
+    if (target.type === 'group') {
+        const group = await target.resource.update();
+        return { group: group.json() };
+    }
+    const updatedBook = await target.resource.update();
+    return { book: updatedBook.json() };
 }
 
 export async function collectApplicableLearningExamples(
@@ -103,13 +96,18 @@ export async function collectApplicableLearningExamples(
     return examples;
 }
 
+type LearningTarget =
+    | { type: 'book'; resource: Book }
+    | { type: 'account'; resource: Account }
+    | { type: 'group'; resource: Group };
+
 type LearningResource = Book | Account | Group;
 
 async function selectLearningTarget(
     book: Book,
     accountId?: string | null,
     groupId?: string | null
-): Promise<{ type: 'account' | 'group' | 'book'; resource: LearningResource }> {
+): Promise<LearningTarget> {
     if (accountId) {
         const account = await book.getAccount(accountId);
         if (!account) throw new HTTPException(400, { message: 'Selected account was not found.' });
@@ -130,17 +128,27 @@ function readExamples(resource: LearningResource): string[] {
         .filter(Boolean);
 }
 
-function formatTransaction(transaction: TransactionFingerprint): string {
-    const movement = `${transaction.fromAccount?.name || '—'} → ${transaction.toAccount?.name || '—'}`;
-    const description = quoted(transaction.description);
-    const properties = Object.entries(transaction.properties)
+function formatTransaction(transaction: bkper.Transaction): string {
+    const movement = `${transaction.creditAccount?.name || '—'} → ${transaction.debitAccount?.name || '—'}`;
+    const description = quoted(transaction.description ?? '');
+    const properties = Object.entries(transaction.properties ?? {})
+        .filter(([key]) => !key.endsWith('_'))
         .sort(([left], [right]) => left.localeCompare(right))
         .slice(0, 12)
         .map(([key, value]) => `${trimContext(key, 40)}=${trimContext(value, 80)}`)
         .join(', ');
     return cleanLine(
-        `${transaction.date} ${transaction.amount} ${movement} ${description}${properties ? ` [${properties}]` : ''}`
+        `${transaction.date ?? ''} ${normalizeAmount(transaction.amount)} ${movement} ${description}${properties ? ` [${properties}]` : ''}`
     );
+}
+
+function normalizeAmount(value: string | undefined): string {
+    if (!value) return '';
+    try {
+        return new Amount(value).toString();
+    } catch {
+        return cleanLine(value);
+    }
 }
 
 function quoted(value: string): string {

@@ -26,13 +26,20 @@ export interface SkippedCounts {
     trashed: number;
     checked: number;
     locked: number;
+    invalid: number;
 }
 
 export function filterEligibleTransactions(
     transactions: readonly bkper.Transaction[],
     lockDate?: string
 ): { transactions: TransactionFingerprint[]; skipped: SkippedCounts } {
-    const skipped: SkippedCounts = { total: 0, trashed: 0, checked: 0, locked: 0 };
+    const skipped: SkippedCounts = {
+        total: 0,
+        trashed: 0,
+        checked: 0,
+        locked: 0,
+        invalid: 0,
+    };
     const eligible: TransactionFingerprint[] = [];
 
     for (const transaction of transactions) {
@@ -52,7 +59,12 @@ export function filterEligibleTransactions(
             continue;
         }
         const fingerprint = toFingerprint(transaction);
-        if (fingerprint) eligible.push(fingerprint);
+        if (fingerprint) {
+            eligible.push(fingerprint);
+        } else {
+            skipped.invalid += 1;
+            skipped.total += 1;
+        }
     }
 
     return { transactions: eligible, skipped };
@@ -101,7 +113,7 @@ export function collectCandidateTransactions(
     };
 }
 
-function toFingerprint(transaction: bkper.Transaction): TransactionFingerprint | undefined {
+export function toFingerprint(transaction: bkper.Transaction): TransactionFingerprint | undefined {
     const id = cleanRequired(transaction.id);
     const date = cleanRequired(transaction.date);
     const amount = normalizeAmount(transaction.amount);

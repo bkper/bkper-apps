@@ -1,35 +1,35 @@
 import { createRoute } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { AppEnv } from '../app-context';
-import { saveRejectedPair } from '../services/learning-service';
+import { analyzeTransactions } from '../services/analyze-service';
+import { saveRejectedExamples } from '../services/learning-service';
 import { mergePair } from '../services/merge-service';
-import { scanTransactions } from '../services/scan-service';
 import { buildApiError } from './errors';
 import { openApiDocumentConfig } from './openapi';
 import {
     aiErrorResponses,
+    AnalyzeRequestSchema,
+    AnalyzeResponseSchema,
     apiErrorResponses,
     LearnRequestSchema,
     LearnResponseSchema,
     MergeRequestSchema,
     MergeResponseSchema,
-    ScanRequestSchema,
-    ScanResponseSchema,
     jsonResponse,
 } from './schemas';
 
-const scanRoute = createRoute({
+const analyzeRoute = createRoute({
     method: 'post',
-    path: '/api/v1/scan',
+    path: '/api/v1/analyze',
     tags: ['Duplicate review'],
-    summary: 'Scan one page of 200 transactions',
+    summary: 'Analyze up to 1,000 submitted Book transactions',
     request: {
-        body: { required: true, content: { 'application/json': { schema: ScanRequestSchema } } },
+        body: { required: true, content: { 'application/json': { schema: AnalyzeRequestSchema } } },
     },
     responses: {
         200: jsonResponse(
             'AI-ranked, deterministically non-overlapping suggestions',
-            ScanResponseSchema
+            AnalyzeResponseSchema
         ),
         ...apiErrorResponses,
         ...aiErrorResponses,
@@ -45,7 +45,7 @@ const mergeRoute = createRoute({
         body: { required: true, content: { 'application/json': { schema: MergeRequestSchema } } },
     },
     responses: {
-        200: jsonResponse('Canonical merged transaction', MergeResponseSchema),
+        200: jsonResponse('Full canonical merged transaction', MergeResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -59,7 +59,7 @@ const learnRoute = createRoute({
         body: { required: true, content: { 'application/json': { schema: LearnRequestSchema } } },
     },
     responses: {
-        200: jsonResponse('Learning result', LearnResponseSchema),
+        200: jsonResponse('Full updated learning resource', LearnResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -70,8 +70,8 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         scheme: 'bearer',
     });
 
-    app.openapi(scanRoute, async c => {
-        const result = await scanTransactions(c.get('appContext'), c.req.valid('json'));
+    app.openapi(analyzeRoute, async c => {
+        const result = await analyzeTransactions(c.get('appContext'), c.req.valid('json'));
         return c.json(result, 200);
     });
 
@@ -81,7 +81,7 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
     });
 
     app.openapi(learnRoute, async c => {
-        const result = await saveRejectedPair(c.get('appContext'), c.req.valid('json'));
+        const result = await saveRejectedExamples(c.get('appContext'), c.req.valid('json'));
         return c.json(result, 200);
     });
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Book, Permission } from 'bkper-js';
 import {
-    getLearningPermission,
+    requireAnalyzePermission,
+    requireLearningPermission,
     requireMergePermission,
-    requireScanPermission,
 } from '../src/services/permission-service';
 
 function book(permission: Permission): Book {
@@ -11,16 +11,16 @@ function book(permission: Permission): Book {
 }
 
 describe('workflow permissions', () => {
-    it('stops viewers before scan and allows posters to scan and merge', () => {
-        expect(() => requireScanPermission(book(Permission.VIEWER))).toThrow();
-        expect(() => requireScanPermission(book(Permission.POSTER))).not.toThrow();
+    it('stops viewers before analysis and allows posters to analyze and merge', () => {
+        expect(() => requireAnalyzePermission(book(Permission.VIEWER))).toThrow();
+        expect(() => requireAnalyzePermission(book(Permission.POSTER))).not.toThrow();
         expect(() => requireMergePermission(book(Permission.POSTER))).not.toThrow();
     });
 
-    it('allows learning only for owner/editor and explicitly skips posters', () => {
-        expect(getLearningPermission(book(Permission.OWNER))).toBe('write');
-        expect(getLearningPermission(book(Permission.EDITOR))).toBe('write');
-        expect(getLearningPermission(book(Permission.POSTER))).toBe('skip');
-        expect(() => getLearningPermission(book(Permission.VIEWER))).toThrow();
+    it('allows learning only for owner/editor and rejects posters', () => {
+        expect(() => requireLearningPermission(book(Permission.OWNER))).not.toThrow();
+        expect(() => requireLearningPermission(book(Permission.EDITOR))).not.toThrow();
+        expect(() => requireLearningPermission(book(Permission.POSTER))).toThrow();
+        expect(() => requireLearningPermission(book(Permission.VIEWER))).toThrow();
     });
 });

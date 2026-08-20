@@ -27,7 +27,7 @@ export class BotService {
             }
         }
         for (const connectedBook of connectedBooks) {
-            if (this.getExcCode(connectedBook) == 'USD') {
+            if (connectedBook.getProperty(EXC_CODE_PROP) == 'USD') {
                 return connectedBook;
             }
         }
@@ -98,11 +98,7 @@ export class BotService {
     getUncalculatedAccountsQuery(stockBook: Book): string {
         const closingDateIso = stockBook.getClosingDate();
         if (closingDateIso && closingDateIso !== '1900-00-00') {
-            const closingDate = stockBook.parseDate(closingDateIso);
-            const openingDate = new Date();
-            openingDate.setTime(closingDate.getTime());
-            openingDate.setDate(openingDate.getDate() + 1);
-            return `after:${this.formatIsoDate(openingDate, stockBook.getTimeZone())} is:unchecked`;
+            return `after:${this.getNextIsoDate(closingDateIso)} is:unchecked`;
         }
         return 'is:unchecked';
     }
@@ -111,21 +107,10 @@ export class BotService {
         return book.getProperty(EXC_CODE_PROP, 'exchange_code');
     }
 
-    private formatIsoDate(date: Date, timeZone?: string): string {
-        const parts = new Intl.DateTimeFormat('en-US', {
-            calendar: 'gregory',
-            day: '2-digit',
-            month: '2-digit',
-            numberingSystem: 'latn',
-            timeZone,
-            year: 'numeric',
-        }).formatToParts(date);
-        const year = parts.find(part => part.type === 'year')?.value;
-        const month = parts.find(part => part.type === 'month')?.value;
-        const day = parts.find(part => part.type === 'day')?.value;
-        if (!year || !month || !day) {
-            throw new Error('The opening date could not be determined');
-        }
-        return `${year}-${month}-${day}`;
+    private getNextIsoDate(dateIso: string): string {
+        const [year, month, day] = dateIso.split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        date.setUTCDate(date.getUTCDate() + 1);
+        return date.toISOString().slice(0, 10);
     }
 }

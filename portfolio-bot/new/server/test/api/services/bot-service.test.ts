@@ -92,14 +92,20 @@ describe('legacy menu bot service', () => {
             collection: {
                 books: [
                     { id: 'eur', properties: { exc_code: 'EUR' } },
-                    { id: 'usd', properties: { exchange_code: 'USD' } },
+                    { id: 'usd', properties: { exc_code: 'USD' } },
                 ],
+            },
+        });
+        const aliasOnly = createPortfolioBook({
+            collection: {
+                books: [{ id: 'usd-alias', properties: { exchange_code: 'USD' } }],
             },
         });
 
         expect(service.getBaseBook(explicitBase)?.getId()).toBe('base');
         expect(service.getBaseBook(usdFallback)?.getId()).toBe('usd');
-        expect(service.getBaseBook(createPortfolioBook())?.getId()).toBeUndefined();
+        expect(service.getBaseBook(aliasOnly)).toBeNull();
+        expect(service.getBaseBook(createPortfolioBook())).toBeNull();
     });
 
     test('builds the unchecked Transaction query from the Portfolio Book closing date', () => {
@@ -112,6 +118,14 @@ describe('legacy menu bot service', () => {
         expect(
             service.getUncalculatedAccountsQuery(createPortfolioBook({ closingDate: '1900-00-00' }))
         ).toBe('is:unchecked');
+        expect(
+            service.getUncalculatedAccountsQuery(
+                createPortfolioBook({
+                    closingDate: '2026-11-01',
+                    timeZone: 'America/New_York',
+                })
+            )
+        ).toBe('after:2026-11-02 is:unchecked');
     });
 
     test('fails clearly when an unchecked Transaction Account cannot be resolved', async () => {

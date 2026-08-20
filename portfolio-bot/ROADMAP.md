@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–7 complete — Chunk 8 in progress.**
+**Chunks 1–8 complete — Chunk 9 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. Dependency advisory triage remains the separate open Chunk 8 item. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -451,6 +451,19 @@ Paths in the matrices below are relative to `portfolio-bot/`. Legacy event files
 - One incorrect audit-test assumption was corrected: unmatched lifecycle handling still performs the established remote-id lookup before exchange matching.
 - No actual migration drift was confirmed, no event production code changed, and no unexplained difference remains in movement amount, direction, state, lookup order, mutation order, cleanup side effects, or responses.
 
+#### Dependency advisory triage
+
+The frozen dependency audit reports eight advisories across four affected tooling packages. No affected package version is a runtime dependency of the deployed client or Worker, and no advisory's required vulnerable operation is used by the migration target. The package manifest and lockfile therefore remain unchanged; forced overrides and pre-release upgrades would add maintenance risk without reducing deployed exposure.
+
+| Advisory | Installed path | Required vulnerable operation | Portfolio Bot exposure | Decision |
+| --- | --- | --- | --- | --- |
+| Five `undici` advisories: `GHSA-8xcm-r25x-g524`, `GHSA-4cwx-7wf7-3272`, `GHSA-m8rv-5g2x-5cg5`, `GHSA-jr45-8vmc-qm54`, `GHSA-v3r7-h72x-cjcm` | `miniflare` uses affected `undici` 7.28.0; the separate `bkper` path resolves safe 8.9.0 | Retry or shared-cache interceptors, non-`fetch` blob-like dispatch, or untrusted cookie attributes | Miniflare is only the local Worker simulator, the target does not invoke those APIs, and it is absent from deployed bundles | Accept until a stable Miniflare release uses `undici` 7.29.0 or later; do not force an override or adopt the alpha-only major release |
+| `nanoid` `GHSA-2v37-7h3g-55p8` | Vite build tooling through PostCSS uses affected 3.3.17; Web Awesome separately resolves safe 5.1.16 | A custom generator called with attacker-controlled size `0` | PostCSS calls the standard non-secure generator with constant size `6`; it is build-only and absent from deployed bundles | Accept until the transitive lock resolves 3.3.18 or later; do not add an unused direct dependency or override |
+| `esbuild` `GHSA-g7r4-m6w7-qqqr` | `bkper` and Vite build tooling use affected 0.27.7 | The esbuild development server serving files on Windows | Bkper uses esbuild build/watch APIs, while Vite and Miniflare provide the local servers; esbuild's server API is not used and esbuild is absent from deployed bundles | Accept until the pinned toolchain supports 0.28.1 or later; do not force an incompatible range |
+| `js-yaml` `GHSA-5p4m-2wfm-xmqj` | `openapi-typescript` through Redocly uses affected 4.3.0 | Parsing attacker-influenced YAML containing a large `!!omap` | The local generator passes an in-memory OpenAPI object produced by the target server; it does not parse external YAML, and `js-yaml` is absent from deployed bundles | Accept until the transitive parent refreshes naturally; do not add an override |
+
+`bun audit` is expected to remain nonzero while these accepted transitive versions remain in the frozen lockfile. Re-triage is required if an affected package enters runtime code, an affected operation is introduced, development exposure changes, or a normal parent dependency update makes a compatible fix available.
+
 ## Migration chunks
 
 ### Chunk 1 — Capture baseline and establish parallel layout
@@ -552,18 +565,17 @@ Paths in the matrices below are relative to `portfolio-bot/`. Legacy event files
 
 ### Chunk 8 — Complete event parity and drift audit
 
-**Status: In progress.** The event-parity gate is complete; dependency advisory triage remains open.
+**Status: Complete.**
 
 - Completed the explicit subscribed-event and cross-event safety matrices.
 - Added focused deterministic coverage for the audit's high-value missing paths without changing event production behavior.
 - Classified every observed difference as accepted target-runtime behavior, inherited legacy behavior, or an incorrect test assumption; no actual migration drift was confirmed.
 - Handler and service comparison found no unexplained movement amount, direction, state, lookup order, mutation order, cleanup side effect, or response difference.
 - Metadata, generated artifacts, bundle contents, and the patch ledger have been reviewed.
-- Dependency advisories remain a separate open triage item; the previous `bun audit` reported eight tooling-related advisories.
+- Triaged all eight dependency advisories as unreachable tooling-only findings and retained the frozen package manifest and lockfile without overrides or pre-release upgrades.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 87 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
-**Event-parity gate:** Pass — no unexplained event-side difference remains in movement direction, amount, state, lookup order, mutation order, side effects, or responses.
-
-**Chunk completion blocker:** Dependency advisory triage.
+**Gate:** Pass — no unexplained event-side difference remains, and dependency advisories have explicit exposure and re-triage decisions.
 
 ### Chunk 9 — Define the typed menu API contract
 

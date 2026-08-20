@@ -184,11 +184,11 @@ export interface components {
             };
         };
         ExchangeUpdateResult: {
-            createdTransactions: components["schemas"]["BkperTransaction"][];
-            createdAccounts: components["schemas"]["BkperAccount"][];
+            createdTransactions: components["schemas"]["Transaction"][];
+            createdAccounts: components["schemas"]["Account"][];
         };
-        BkperTransaction: bkper.Transaction;
-        BkperAccount: bkper.Account;
+        Transaction: bkper.Transaction;
+        Account: bkper.Account;
     };
     responses: never;
     parameters: never;
@@ -199,7 +199,7 @@ export interface components {
 export type ExchangeRates = components['schemas']['ExchangeRates'];
 export type ApiError = components['schemas']['ApiError'];
 export type ExchangeUpdateResult = components['schemas']['ExchangeUpdateResult'];
-export type BkperTransaction = components['schemas']['BkperTransaction'];
-export type BkperAccount = components['schemas']['BkperAccount'];
+export type Transaction = components['schemas']['Transaction'];
+export type Account = components['schemas']['Account'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

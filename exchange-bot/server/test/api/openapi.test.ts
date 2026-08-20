@@ -48,21 +48,21 @@ describe('menu API OpenAPI contract', () => {
             properties: {
                 createdTransactions: {
                     type: 'array',
-                    items: { $ref: '#/components/schemas/BkperTransaction' },
+                    items: { $ref: '#/components/schemas/Transaction' },
                 },
                 createdAccounts: {
                     type: 'array',
-                    items: { $ref: '#/components/schemas/BkperAccount' },
+                    items: { $ref: '#/components/schemas/Account' },
                 },
             },
             required: ['createdTransactions', 'createdAccounts'],
         });
-        expect(schemas.BkperTransaction).toEqual({
+        expect(schemas.Transaction).toEqual({
             type: 'object',
             additionalProperties: true,
             'x-typescript-type': 'bkper.Transaction',
         });
-        expect(schemas.BkperAccount).toEqual({
+        expect(schemas.Account).toEqual({
             type: 'object',
             additionalProperties: true,
             'x-typescript-type': 'bkper.Account',

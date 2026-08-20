@@ -26,13 +26,13 @@ export const ExchangeRatesSchema = z
 export type ExchangeRates = z.infer<typeof ExchangeRatesSchema>;
 
 // Bkper owns and validates its API payload. This only types and documents the transport response.
-export const BkperTransactionSchema = z.custom<bkper.Transaction>().openapi('BkperTransaction', {
+export const TransactionSchema = z.custom<bkper.Transaction>().openapi('Transaction', {
     type: 'object',
     additionalProperties: true,
     'x-typescript-type': 'bkper.Transaction',
 });
 
-export const BkperAccountSchema = z.custom<bkper.Account>().openapi('BkperAccount', {
+export const AccountSchema = z.custom<bkper.Account>().openapi('Account', {
     type: 'object',
     additionalProperties: true,
     'x-typescript-type': 'bkper.Account',
@@ -40,8 +40,8 @@ export const BkperAccountSchema = z.custom<bkper.Account>().openapi('BkperAccoun
 
 export const ExchangeUpdateResultSchema = z
     .object({
-        createdTransactions: z.array(BkperTransactionSchema),
-        createdAccounts: z.array(BkperAccountSchema),
+        createdTransactions: z.array(TransactionSchema),
+        createdAccounts: z.array(AccountSchema),
     })
     .openapi('ExchangeUpdateResult');
 

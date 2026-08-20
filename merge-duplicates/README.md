@@ -117,6 +117,30 @@ curl -X POST \
   https://merge-duplicates.bkper.app/api/v1/analyze
 ```
 
+After a person explicitly confirms a suggested pair, `/api/v1/merge` needs only the two transaction IDs:
+
+```json
+{
+  "bookId": "<book-id>",
+  "primary": { "id": "<transaction-id-1>" },
+  "secondary": { "id": "<transaction-id-2>" }
+}
+```
+
+For `/api/v1/learn`, reuse the unchanged full transaction payloads from a rejected suggestion so the saved example retains useful context:
+
+```ts
+const [first, second] = rejectedSuggestion.transactions;
+
+const learnRequest = {
+    bookId: '<book-id>',
+    accountId: '<account-id>', // Or groupId; omit both to learn at Book level.
+    examples: [[first, second]],
+};
+```
+
+Learning requires Owner or Editor permission and updates the visible `merge_duplicate_examples` property.
+
 See the [OpenAPI specification](https://merge-duplicates.bkper.app/openapi.json) for complete request and response schemas.
 
 </details>

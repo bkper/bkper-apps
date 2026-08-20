@@ -341,34 +341,44 @@ The bot responds to the following Bkper events:
 
 ## API access
 
+<details>
+<summary><strong>Endpoints and examples</strong></summary>
+
+Authenticated clients can use the same Exchange Update workflow through the public API.
+
 ```text
-Base URL: https://exchange-bot.bkper.app
-OpenAPI:  https://exchange-bot.bkper.app/openapi.json
+Production: https://exchange-bot.bkper.app
+Preview:    https://exchange-bot-preview.bkper.app
+OpenAPI:    https://exchange-bot.bkper.app/openapi.json
 ```
 
-All requests require a Bkper OAuth bearer token:
+All requests require a Bkper OAuth bearer token. A safe integration should:
+
+1. load the rates for the intended Book and date;
+2. present the base currency and rates for human review; and
+3. run the Exchange Update only after explicit confirmation.
+
+The update operation writes immediately and can create exchange Accounts and balanced gain/loss Transactions. There is no API dry-run step.
+
+| Operation | Route | Effect |
+|---|---|---|
+| Load exchange rates | `GET /api/v1/books/{bookId}/exchange-rates?date=YYYY-MM-DD` | Returns connected-currency rates without changing the Book |
+| Run an Exchange Update | `POST /api/v1/books/{bookId}/exchange-update` | Creates the required exchange Accounts and gain/loss Transactions |
+
+Minimal rates example:
 
 ```bash
+# Run `bkper auth login` first if needed
 TOKEN="$(bkper auth token)"
-```
 
-### Load exchange rates
-
-`GET /api/v1/books/{bookId}/exchange-rates?date=YYYY-MM-DD`
-
-Loads rates for the requested date, filtered to currencies connected to the book. Requires view permission. The response contains `base`, `date`, and `rates` and can be used as the Exchange Update request body.
-
-```bash
 curl \
   -H "Authorization: Bearer ${TOKEN}" \
   "https://exchange-bot.bkper.app/api/v1/books/<book-id>/exchange-rates?date=2026-03-15"
 ```
 
-### Run an Exchange Update
+Loading rates requires view permission. The response contains `base`, `date`, and `rates` and can be used as the Exchange Update request body.
 
-`POST /api/v1/books/{bookId}/exchange-update`
-
-Runs an Exchange Update in the book using the supplied rates. Requires **EDITOR** or **OWNER** permission and can create exchange accounts and gain/loss transactions. The response contains `createdAccounts` and `createdTransactions`.
+After a person explicitly confirms the rates, the update requires **EDITOR** or **OWNER** permission:
 
 ```bash
 curl -X POST \
@@ -377,6 +387,10 @@ curl -X POST \
   -d '{"base":"USD","date":"2026-03-15","rates":{"EUR":0.92}}' \
   "https://exchange-bot.bkper.app/api/v1/books/<book-id>/exchange-update"
 ```
+
+The response contains `createdAccounts` and `createdTransactions`. See the [OpenAPI specification](https://exchange-bot.bkper.app/openapi.json) for complete request and response schemas.
+
+</details>
 
 ## Learn more
 

@@ -49,6 +49,16 @@ describe('Portfolio Bot OpenAPI contract', () => {
         expect(pending.responses?.['200'].content?.['application/json'].schema).toEqual({
             $ref: '#/components/schemas/PendingCalculationAccounts',
         });
+        expect(schemas.PendingCalculationAccounts).toEqual({
+            type: 'object',
+            properties: {
+                ids: {
+                    type: 'array',
+                    items: { type: 'string', minLength: 1 },
+                },
+            },
+            required: ['ids'],
+        });
         expect(calculate.requestBody?.content?.['application/json'].schema).toEqual({
             $ref: '#/components/schemas/CalculateRequest',
         });

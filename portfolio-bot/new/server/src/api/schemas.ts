@@ -27,8 +27,12 @@ export const ForwardRequestSchema = z
 export type ForwardRequest = z.infer<typeof ForwardRequestSchema>;
 
 export const PendingCalculationAccountsSchema = z
-    .array(z.string().trim().min(1))
+    .object({
+        ids: z.array(z.string().trim().min(1)),
+    })
     .openapi('PendingCalculationAccounts');
+
+export type PendingCalculationAccounts = z.infer<typeof PendingCalculationAccountsSchema>;
 
 const AccountChangesSchema = z.object({
     created: z.array(z.string().trim().min(1)),

@@ -29,7 +29,7 @@ describe('typed Portfolio Bot API', () => {
         const response = await request('/api/v1/books/portfolio-book/accounts/pending-calculation');
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual(['instrument-account']);
+        expect(await response.json()).toEqual({ ids: ['instrument-account'] });
     });
 
     test('passes Calculate inputs to the service and returns its result', async () => {

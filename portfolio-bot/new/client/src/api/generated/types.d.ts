@@ -386,7 +386,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        PendingCalculationAccounts: string[];
+        PendingCalculationAccounts: {
+            ids: string[];
+        };
         ApiError: {
             error: {
                 message: string;

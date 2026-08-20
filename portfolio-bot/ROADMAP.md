@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–7 complete — Chunk 8 not started.**
+**Chunks 1–7 complete — Chunk 8 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 audit has accepted the target SDK's Account–Group resolution, retry policy, and structured error behavior; the complete event matrix and dependency review remain open. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -384,6 +384,16 @@ Drift audits occur before preview routing, production deployment, each productio
 | --- | --- | --- | --- |
 | GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch and missing-Group behavior tests | Dispatch and Group deletion behavior ported |
 
+### Accepted target-runtime differences
+
+These differences are deliberate consequences of moving from the deployed `bkper-js` 2.18.0 runtime to the target `bkper-js` 2.42.0 Platform runtime. They are accepted runtime behavior, not silent Portfolio Bot domain changes.
+
+| Boundary | Deployed 2.18.0 behavior | Target 2.42.0 behavior | Migration decision |
+| --- | --- | --- | --- |
+| Account–Group resolution | `Account.getGroups()` performs an Account-specific Group request | `Account.getGroups()` loads and reuses the Book Group cache, then resolves the Account's embedded Group ids against that cache | Accept the current SDK lifecycle; do not load complete Books upfront or add Portfolio Bot lookup workarounds |
+| Request retries | The SDK retries broadly for non-400 and non-404 responses, including conflicts, with up to four retries after the initial request | The SDK retries only authentication, transient, rate-limit, server, and network failures, with at most three retries; conflicts such as `409` fail immediately | Accept the narrower modern retry policy; do not reproduce legacy conflict retries in Portfolio Bot |
+| API errors | API failures commonly propagate as plain strings | API failures propagate as structured `BkperError` values; event ingress records stack lines when available and logs retain richer diagnostics | Accept the structured error and response-presentation difference; it does not itself add a mutation, retry, or movement |
+
 ### Deferred inherited behavior ledger
 
 | Surface | Inherited behavior | Migration treatment | Deferred status |
@@ -491,11 +501,11 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 8 — Complete event parity and drift audit
 
-**Status: Not started.**
+**Status: In progress.**
 
-- Run the complete event matrix.
-- Compare every target handler and service with GCP.
-- Review dependencies, metadata, generated artifacts, bundle contents, and the patch ledger.
+- Complete the remaining event-matrix audit.
+- Handler and service comparison accepted the documented target-runtime differences without finding an unexplained movement amount or direction change.
+- Metadata, generated artifacts, bundle contents, and the patch ledger have been reviewed; dependency advisories remain to be triaged.
 
 **Gate:** No unexplained event-side difference remains in movement direction, amount, state, lookup order, mutation order, side effects, or responses.
 

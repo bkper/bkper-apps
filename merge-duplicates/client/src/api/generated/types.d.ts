@@ -3,6 +3,7 @@
  * Do not make direct changes to the file.
  */
 
+import "@bkper/bkper-api-types";
 export interface paths {
     "/api/v1/analyze": {
         parameters: {
@@ -273,96 +274,7 @@ export interface components {
             strength: "Strong" | "Possible";
             explanation: string;
         };
-        Transaction: {
-            id?: string;
-            date?: string;
-            dateFormatted?: string;
-            dateValue?: number;
-            amount?: string;
-            description?: string;
-            posted?: boolean;
-            draft?: boolean;
-            checked?: boolean;
-            trashed?: boolean;
-            creditAccount?: components["schemas"]["Account"];
-            debitAccount?: components["schemas"]["Account"];
-            properties?: {
-                [key: string]: string;
-            };
-            files?: components["schemas"]["File"][];
-            remoteIds?: string[];
-            tags?: string[];
-            urls?: string[];
-            agentId?: string;
-            agentName?: string;
-            agentLogo?: string;
-            agentLogoDark?: string;
-            createdBy?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
-        Account: {
-            id?: string;
-            name?: string;
-            normalizedName?: string;
-            /** @enum {string} */
-            type?: "ASSET" | "LIABILITY" | "INCOMING" | "OUTGOING";
-            credit?: boolean;
-            permanent?: boolean;
-            archived?: boolean;
-            balance?: string;
-            balanceVerified?: boolean;
-            hasTransactionPosted?: boolean;
-            groups?: components["schemas"]["Group"][];
-            properties?: {
-                [key: string]: string;
-            };
-            agentId?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
-        Group: {
-            id?: string;
-            name?: string;
-            normalizedName?: string;
-            /** @enum {string} */
-            type?: "ASSET" | "LIABILITY" | "INCOMING" | "OUTGOING";
-            credit?: boolean;
-            permanent?: boolean;
-            mixed?: boolean;
-            hidden?: boolean;
-            locked?: boolean;
-            hasAccounts?: boolean;
-            hasGroups?: boolean;
-            properties?: {
-                [key: string]: string;
-            };
-            agentId?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
-        File: {
-            id?: string;
-            name?: string;
-            content?: string;
-            contentType?: string;
-            size?: number;
-            url?: string;
-            properties?: {
-                [key: string]: string;
-            };
-            agentId?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
+        Transaction: bkper.Transaction;
         SkippedCounts: {
             total: number;
             checked: number;
@@ -382,48 +294,15 @@ export interface components {
             bookId: string;
             transactions: components["schemas"]["Transaction"][];
         };
-        MergeResponse: {
-            id?: string;
-            date?: string;
-            dateFormatted?: string;
-            dateValue?: number;
-            amount?: string;
-            description?: string;
-            posted?: boolean;
-            draft?: boolean;
-            checked?: boolean;
-            trashed?: boolean;
-            creditAccount?: components["schemas"]["Account"];
-            debitAccount?: components["schemas"]["Account"];
-            properties?: {
-                [key: string]: string;
-            };
-            files?: components["schemas"]["File"][];
-            remoteIds?: string[];
-            tags?: string[];
-            urls?: string[];
-            agentId?: string;
-            agentName?: string;
-            agentLogo?: string;
-            agentLogoDark?: string;
-            createdBy?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
+        MergeResponse: bkper.Transaction;
         MergeRequest: {
             bookId: string;
-            primary: components["schemas"]["Transaction"] & ({
+            primary: components["schemas"]["Transaction"] & {
                 id: string;
-            } & {
-                [key: string]: unknown;
-            });
-            secondary: components["schemas"]["Transaction"] & ({
+            };
+            secondary: components["schemas"]["Transaction"] & {
                 id: string;
-            } & {
-                [key: string]: unknown;
-            });
+            };
         };
         LearnResponse: {
             book: components["schemas"]["Book"];
@@ -432,43 +311,16 @@ export interface components {
         } | {
             account: components["schemas"]["Account"];
         };
-        Book: {
-            id?: string;
-            name?: string;
-            accounts?: components["schemas"]["Account"][];
-            groups?: components["schemas"]["Group"][];
-            autoPost?: boolean;
-            closingDate?: string;
-            lockDate?: string;
-            datePattern?: string;
-            /** @enum {string} */
-            decimalSeparator?: "DOT" | "COMMA";
-            fractionDigits?: number;
-            pageSize?: number;
-            /** @enum {string} */
-            permission?: "OWNER" | "EDITOR" | "POSTER" | "RECORDER" | "VIEWER" | "NONE";
-            properties?: {
-                [key: string]: string;
-            };
-            timeZone?: string;
-            timeZoneOffset?: number;
-            /** @enum {string} */
-            visibility?: "PUBLIC" | "PRIVATE";
-            agentId?: string;
-            createdAt?: string;
-            updatedAt?: string;
-        } & {
-            [key: string]: unknown;
-        };
+        Book: bkper.Book;
+        Group: bkper.Group;
+        Account: bkper.Account;
         LearnRequest: {
             bookId: string;
             accountId?: string;
             groupId?: string;
-            examples: (components["schemas"]["Transaction"] & ({
+            examples: (components["schemas"]["Transaction"] & {
                 id: string;
-            } & {
-                [key: string]: unknown;
-            }))[][];
+            })[][];
         };
     };
     responses: never;
@@ -480,9 +332,6 @@ export interface components {
 export type AnalyzeResponse = components['schemas']['AnalyzeResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type Transaction = components['schemas']['Transaction'];
-export type Account = components['schemas']['Account'];
-export type Group = components['schemas']['Group'];
-export type File = components['schemas']['File'];
 export type SkippedCounts = components['schemas']['SkippedCounts'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type AnalyzeRequest = components['schemas']['AnalyzeRequest'];
@@ -490,6 +339,8 @@ export type MergeResponse = components['schemas']['MergeResponse'];
 export type MergeRequest = components['schemas']['MergeRequest'];
 export type LearnResponse = components['schemas']['LearnResponse'];
 export type Book = components['schemas']['Book'];
+export type Group = components['schemas']['Group'];
+export type Account = components['schemas']['Account'];
 export type LearnRequest = components['schemas']['LearnRequest'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

@@ -42,6 +42,57 @@ describe('Merge Duplicates OpenAPI contract', () => {
         expect(analyzeRequest.properties?.transactions).toMatchObject({ maxItems: 1000 });
         expect(suggestion.properties?.transactions).toMatchObject({ minItems: 2, maxItems: 2 });
         expect(spec.components?.schemas?.TransactionFingerprint).toBeUndefined();
+
+        const canonicalTypes = {
+            Account: 'bkper.Account',
+            Book: 'bkper.Book',
+            Group: 'bkper.Group',
+            MergeResponse: 'bkper.Transaction',
+            Transaction: 'bkper.Transaction',
+        };
+        for (const [schemaName, typescriptType] of Object.entries(canonicalTypes)) {
+            expect(spec.components?.schemas?.[schemaName]?.['x-typescript-type']).toBe(
+                typescriptType
+            );
+        }
+        for (const schemaName of ['Account', 'Book', 'Group']) {
+            expect(spec.components?.schemas?.[schemaName]).toEqual({
+                type: 'object',
+                additionalProperties: true,
+                'x-typescript-type': canonicalTypes[schemaName as keyof typeof canonicalTypes],
+            });
+        }
+        expect(spec.components?.schemas?.File).toBeUndefined();
+
+        const transaction = spec.components?.schemas?.Transaction as {
+            properties?: Record<string, unknown>;
+        };
+        expect(Object.keys(transaction.properties ?? {}).sort()).toEqual([
+            'amount',
+            'checked',
+            'creditAccount',
+            'date',
+            'dateFormatted',
+            'debitAccount',
+            'description',
+            'id',
+            'posted',
+            'properties',
+            'trashed',
+        ]);
+
+        const mergeRequest = spec.components?.schemas?.MergeRequest as {
+            properties?: { primary?: Record<string, unknown> };
+        };
+        const learnRequest = spec.components?.schemas?.LearnRequest as {
+            properties?: {
+                examples?: { items?: { items?: Record<string, unknown> } };
+            };
+        };
+        expect(mergeRequest.properties?.primary?.['x-typescript-type']).toBeUndefined();
+        expect(
+            learnRequest.properties?.examples?.items?.items?.['x-typescript-type']
+        ).toBeUndefined();
     });
 
     it('matches the reviewed contract snapshot', async () => {

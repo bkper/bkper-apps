@@ -307,9 +307,6 @@
           "dateFormatted": {
             "type": "string"
           },
-          "dateValue": {
-            "type": "integer"
-          },
           "amount": {
             "type": "string"
           },
@@ -319,9 +316,6 @@
           "posted": {
             "type": "boolean"
           },
-          "draft": {
-            "type": "boolean"
-          },
           "checked": {
             "type": "boolean"
           },
@@ -329,110 +323,49 @@
             "type": "boolean"
           },
           "creditAccount": {
-            "$ref": "#/components/schemas/Account"
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ASSET",
+                  "LIABILITY",
+                  "INCOMING",
+                  "OUTGOING"
+                ]
+              }
+            },
+            "additionalProperties": {
+              "nullable": true
+            }
           },
           "debitAccount": {
-            "$ref": "#/components/schemas/Account"
-          },
-          "properties": {
             "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ASSET",
+                  "LIABILITY",
+                  "INCOMING",
+                  "OUTGOING"
+                ]
+              }
+            },
             "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/File"
-            }
-          },
-          "remoteIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "urls": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "agentName": {
-            "type": "string"
-          },
-          "agentLogo": {
-            "type": "string"
-          },
-          "agentLogoDark": {
-            "type": "string"
-          },
-          "createdBy": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": {
-          "nullable": true
-        }
-      },
-      "Account": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "normalizedName": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "ASSET",
-              "LIABILITY",
-              "INCOMING",
-              "OUTGOING"
-            ]
-          },
-          "credit": {
-            "type": "boolean"
-          },
-          "permanent": {
-            "type": "boolean"
-          },
-          "archived": {
-            "type": "boolean"
-          },
-          "balance": {
-            "type": "string"
-          },
-          "balanceVerified": {
-            "type": "boolean"
-          },
-          "hasTransactionPosted": {
-            "type": "boolean"
-          },
-          "groups": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Group"
+              "nullable": true
             }
           },
           "properties": {
@@ -440,123 +373,12 @@
             "additionalProperties": {
               "type": "string"
             }
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
           }
         },
         "additionalProperties": {
           "nullable": true
-        }
-      },
-      "Group": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "normalizedName": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "ASSET",
-              "LIABILITY",
-              "INCOMING",
-              "OUTGOING"
-            ]
-          },
-          "credit": {
-            "type": "boolean"
-          },
-          "permanent": {
-            "type": "boolean"
-          },
-          "mixed": {
-            "type": "boolean"
-          },
-          "hidden": {
-            "type": "boolean"
-          },
-          "locked": {
-            "type": "boolean"
-          },
-          "hasAccounts": {
-            "type": "boolean"
-          },
-          "hasGroups": {
-            "type": "boolean"
-          },
-          "properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
         },
-        "additionalProperties": {
-          "nullable": true
-        }
-      },
-      "File": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "content": {
-            "type": "string"
-          },
-          "contentType": {
-            "type": "string"
-          },
-          "size": {
-            "type": "number"
-          },
-          "url": {
-            "type": "string"
-          },
-          "properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": {
-          "nullable": true
-        }
+        "x-typescript-type": "bkper.Transaction"
       },
       "SkippedCounts": {
         "type": "object",
@@ -644,98 +466,8 @@
       },
       "MergeResponse": {
         "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "date": {
-            "type": "string"
-          },
-          "dateFormatted": {
-            "type": "string"
-          },
-          "dateValue": {
-            "type": "integer"
-          },
-          "amount": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "posted": {
-            "type": "boolean"
-          },
-          "draft": {
-            "type": "boolean"
-          },
-          "checked": {
-            "type": "boolean"
-          },
-          "trashed": {
-            "type": "boolean"
-          },
-          "creditAccount": {
-            "$ref": "#/components/schemas/Account"
-          },
-          "debitAccount": {
-            "$ref": "#/components/schemas/Account"
-          },
-          "properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/File"
-            }
-          },
-          "remoteIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "urls": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "agentName": {
-            "type": "string"
-          },
-          "agentLogo": {
-            "type": "string"
-          },
-          "agentLogoDark": {
-            "type": "string"
-          },
-          "createdBy": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": {
-          "nullable": true
-        }
+        "additionalProperties": true,
+        "x-typescript-type": "bkper.Transaction"
       },
       "MergeRequest": {
         "type": "object",
@@ -761,10 +493,7 @@
                 },
                 "required": [
                   "id"
-                ],
-                "additionalProperties": {
-                  "nullable": true
-                }
+                ]
               }
             ]
           },
@@ -784,10 +513,7 @@
                 },
                 "required": [
                   "id"
-                ],
-                "additionalProperties": {
-                  "nullable": true
-                }
+                ]
               }
             ]
           }
@@ -837,93 +563,18 @@
       },
       "Book": {
         "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "accounts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Account"
-            }
-          },
-          "groups": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Group"
-            }
-          },
-          "autoPost": {
-            "type": "boolean"
-          },
-          "closingDate": {
-            "type": "string"
-          },
-          "lockDate": {
-            "type": "string"
-          },
-          "datePattern": {
-            "type": "string"
-          },
-          "decimalSeparator": {
-            "type": "string",
-            "enum": [
-              "DOT",
-              "COMMA"
-            ]
-          },
-          "fractionDigits": {
-            "type": "integer"
-          },
-          "pageSize": {
-            "type": "integer"
-          },
-          "permission": {
-            "type": "string",
-            "enum": [
-              "OWNER",
-              "EDITOR",
-              "POSTER",
-              "RECORDER",
-              "VIEWER",
-              "NONE"
-            ]
-          },
-          "properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "timeZone": {
-            "type": "string"
-          },
-          "timeZoneOffset": {
-            "type": "number"
-          },
-          "visibility": {
-            "type": "string",
-            "enum": [
-              "PUBLIC",
-              "PRIVATE"
-            ]
-          },
-          "agentId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": {
-          "nullable": true
-        }
+        "additionalProperties": true,
+        "x-typescript-type": "bkper.Book"
+      },
+      "Group": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-typescript-type": "bkper.Group"
+      },
+      "Account": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-typescript-type": "bkper.Account"
       },
       "LearnRequest": {
         "type": "object",
@@ -963,10 +614,7 @@
                     },
                     "required": [
                       "id"
-                    ],
-                    "additionalProperties": {
-                      "nullable": true
-                    }
+                    ]
                   }
                 ]
               },

@@ -16,120 +16,51 @@ export const ErrorResponseSchema = z
 
 const PropertiesSchema = z.record(z.string(), z.string());
 const AccountTypeSchema = z.enum(['ASSET', 'LIABILITY', 'INCOMING', 'OUTGOING']);
-const PermissionSchema = z.enum(['OWNER', 'EDITOR', 'POSTER', 'RECORDER', 'VIEWER', 'NONE']);
 
-const GroupPayloadSchema = z
+// Bkper owns these response payloads. The app only types and documents their transport envelopes.
+const GroupPayloadSchema = z.custom<bkper.Group>().nonoptional().openapi('Group', {
+    type: 'object',
+    additionalProperties: true,
+    'x-typescript-type': 'bkper.Group',
+});
+
+const AccountPayloadSchema = z.custom<bkper.Account>().nonoptional().openapi('Account', {
+    type: 'object',
+    additionalProperties: true,
+    'x-typescript-type': 'bkper.Account',
+});
+
+const BookPayloadSchema = z.custom<bkper.Book>().nonoptional().openapi('Book', {
+    type: 'object',
+    additionalProperties: true,
+    'x-typescript-type': 'bkper.Book',
+});
+
+const MovementAccountSchema = z
     .object({
         id: z.string().optional(),
         name: z.string().optional(),
-        normalizedName: z.string().optional(),
         type: AccountTypeSchema.optional(),
-        credit: z.boolean().optional(),
-        permanent: z.boolean().optional(),
-        mixed: z.boolean().optional(),
-        hidden: z.boolean().optional(),
-        locked: z.boolean().optional(),
-        hasAccounts: z.boolean().optional(),
-        hasGroups: z.boolean().optional(),
-        properties: PropertiesSchema.optional(),
-        agentId: z.string().optional(),
-        createdAt: z.string().optional(),
-        updatedAt: z.string().optional(),
     })
-    .passthrough()
-    .openapi('Group');
+    .passthrough();
 
-const AccountPayloadSchema = z
-    .object({
-        id: z.string().optional(),
-        name: z.string().optional(),
-        normalizedName: z.string().optional(),
-        type: AccountTypeSchema.optional(),
-        credit: z.boolean().optional(),
-        permanent: z.boolean().optional(),
-        archived: z.boolean().optional(),
-        balance: z.string().optional(),
-        balanceVerified: z.boolean().optional(),
-        hasTransactionPosted: z.boolean().optional(),
-        groups: z.array(GroupPayloadSchema).optional(),
-        properties: PropertiesSchema.optional(),
-        agentId: z.string().optional(),
-        createdAt: z.string().optional(),
-        updatedAt: z.string().optional(),
-    })
-    .passthrough()
-    .openapi('Account');
-
-const FilePayloadSchema = z
-    .object({
-        id: z.string().optional(),
-        name: z.string().optional(),
-        content: z.string().optional(),
-        contentType: z.string().optional(),
-        size: z.number().optional(),
-        url: z.string().optional(),
-        properties: PropertiesSchema.optional(),
-        agentId: z.string().optional(),
-        createdAt: z.string().optional(),
-        updatedAt: z.string().optional(),
-    })
-    .passthrough()
-    .openapi('File');
-
+// Validate only the canonical fields used by this app and preserve every other Bkper field unchanged.
 export const TransactionPayloadSchema = z
     .object({
         id: z.string().optional(),
         date: z.string().optional(),
         dateFormatted: z.string().optional(),
-        dateValue: z.number().int().optional(),
         amount: z.string().optional(),
         description: z.string().optional(),
         posted: z.boolean().optional(),
-        draft: z.boolean().optional(),
         checked: z.boolean().optional(),
         trashed: z.boolean().optional(),
-        creditAccount: AccountPayloadSchema.optional(),
-        debitAccount: AccountPayloadSchema.optional(),
+        creditAccount: MovementAccountSchema.optional(),
+        debitAccount: MovementAccountSchema.optional(),
         properties: PropertiesSchema.optional(),
-        files: z.array(FilePayloadSchema).optional(),
-        remoteIds: z.array(z.string()).optional(),
-        tags: z.array(z.string()).optional(),
-        urls: z.array(z.string()).optional(),
-        agentId: z.string().optional(),
-        agentName: z.string().optional(),
-        agentLogo: z.string().optional(),
-        agentLogoDark: z.string().optional(),
-        createdBy: z.string().optional(),
-        createdAt: z.string().optional(),
-        updatedAt: z.string().optional(),
     })
     .passthrough()
-    .openapi('Transaction');
-
-const BookPayloadSchema = z
-    .object({
-        id: z.string().optional(),
-        name: z.string().optional(),
-        accounts: z.array(AccountPayloadSchema).optional(),
-        groups: z.array(GroupPayloadSchema).optional(),
-        autoPost: z.boolean().optional(),
-        closingDate: z.string().optional(),
-        lockDate: z.string().optional(),
-        datePattern: z.string().optional(),
-        decimalSeparator: z.enum(['DOT', 'COMMA']).optional(),
-        fractionDigits: z.number().int().optional(),
-        pageSize: z.number().int().optional(),
-        permission: PermissionSchema.optional(),
-        properties: PropertiesSchema.optional(),
-        timeZone: z.string().optional(),
-        timeZoneOffset: z.number().optional(),
-        visibility: z.enum(['PUBLIC', 'PRIVATE']).optional(),
-        agentId: z.string().optional(),
-        createdAt: z.string().optional(),
-        updatedAt: z.string().optional(),
-    })
-    .passthrough()
-    .openapi('Book');
+    .openapi('Transaction', { 'x-typescript-type': 'bkper.Transaction' });
 
 const CanonicalIdSchema = z
     .string()
@@ -137,7 +68,10 @@ const CanonicalIdSchema = z
     .max(256)
     .refine(value => value === value.trim(), 'Transaction ID must be canonical.');
 
-const TransactionWithIdSchema = TransactionPayloadSchema.extend({ id: CanonicalIdSchema });
+const TransactionWithIdSchema = z.intersection(
+    TransactionPayloadSchema,
+    z.object({ id: CanonicalIdSchema })
+);
 
 export const SkippedCountsSchema = z
     .object({
@@ -205,7 +139,14 @@ export const MergeRequestSchema = z
     })
     .openapi('MergeRequest');
 
-export const MergeResponseSchema = TransactionPayloadSchema.openapi('MergeResponse');
+export const MergeResponseSchema = z
+    .custom<bkper.Transaction>()
+    .nonoptional()
+    .openapi('MergeResponse', {
+        type: 'object',
+        additionalProperties: true,
+        'x-typescript-type': 'bkper.Transaction',
+    });
 
 const RejectedPairSchema = z.array(TransactionWithIdSchema).min(2).max(2);
 

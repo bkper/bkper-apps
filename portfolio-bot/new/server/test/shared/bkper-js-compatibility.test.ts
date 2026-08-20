@@ -44,6 +44,47 @@ describe('bkper-js server compatibility', () => {
         ).rejects.toBe(error);
     });
 
+    test('fails HTTP 409 immediately without invoking retry handling', async () => {
+        let requests = 0;
+        const retryAttempts: number[] = [];
+        globalThis.fetch = (async () => {
+            requests += 1;
+            return Response.json(
+                {
+                    error: {
+                        code: 409,
+                        message: 'Conflict',
+                        errors: [{ reason: 'conflict' }],
+                    },
+                },
+                { status: 409 }
+            );
+        }) as unknown as typeof fetch;
+        const book = new Book(
+            { id: 'book-1' },
+            {
+                requestRetryHandler: async (_status, _error, attempt) => {
+                    if (attempt != null) {
+                        retryAttempts.push(attempt);
+                    }
+                },
+            }
+        );
+
+        try {
+            await book.getAccount('Conflicting Account');
+            throw new Error('Expected HTTP 409 to fail');
+        } catch (error: unknown) {
+            expect(error).toBeInstanceOf(BkperError);
+            if (!(error instanceof BkperError)) {
+                throw error;
+            }
+            expect(error.code).toBe(409);
+        }
+        expect(requests).toBe(1);
+        expect(retryAttempts).toEqual([]);
+    });
+
     test('resolves embedded Account Groups from a complete Book chart without network requests', async () => {
         const book = new Book({
             id: 'book-1',

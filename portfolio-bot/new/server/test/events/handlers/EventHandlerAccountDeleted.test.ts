@@ -90,4 +90,47 @@ describe('legacy Account deletion synchronization', () => {
             "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME DELETED",
         ]);
     });
+
+    test('returns the missing-Account response and skips unmatched exchanges', async () => {
+        const mutations: string[] = [];
+        Account.prototype.update = async function (): Promise<Account> {
+            mutations.push(`update:${this.getName()}`);
+            return this;
+        };
+        Account.prototype.remove = async function (): Promise<Account> {
+            mutations.push(`remove:${this.getName()}`);
+            return this;
+        };
+
+        const matchedFinancialBook = createBook('financial', 'Financial', {
+            exc_code: 'USD',
+        });
+        const portfolioBook = createBook('portfolio', 'Portfolio');
+        const lookups: string[] = [];
+        portfolioBook.getAccount = async name => {
+            lookups.push(name ?? '');
+            return undefined;
+        };
+        const missingResult = await createHandler().processConnectedBook(
+            matchedFinancialBook,
+            portfolioBook,
+            createEvent(matchedFinancialBook)
+        );
+
+        const unmatchedFinancialBook = createBook('financial-eur', 'Financial EUR', {
+            exc_code: 'EUR',
+        });
+        const unmatchedResult = await createHandler().processConnectedBook(
+            unmatchedFinancialBook,
+            portfolioBook,
+            createEvent(unmatchedFinancialBook)
+        );
+
+        expect(lookups).toEqual(['ACME']);
+        expect(mutations).toEqual([]);
+        expect(missingResult).toBe(
+            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME NOT Found"
+        );
+        expect(unmatchedResult).toBeNull();
+    });
 });

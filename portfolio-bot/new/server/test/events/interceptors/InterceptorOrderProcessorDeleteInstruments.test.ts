@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, Bkper, Book, Group, Transaction, TransactionList } from 'bkper-js';
 import { InterceptorOrderProcessorDeleteInstruments } from '../../../src/events/interceptors/InterceptorOrderProcessorDeleteInstruments.js';
+import { BotService } from '../../../src/events/services/BotService.js';
 import { AppContext } from '../../../src/shared/app-context.js';
 
+const originalGetExchangeCode = BotService.prototype.getExchangeCode;
+const originalGetFinancialBook = BotService.prototype.getFinancialBook;
 const originalTransactionTrash = Transaction.prototype.trash;
 const originalTransactionUncheck = Transaction.prototype.uncheck;
 
@@ -34,6 +37,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    BotService.prototype.getExchangeCode = originalGetExchangeCode;
+    BotService.prototype.getFinancialBook = originalGetFinancialBook;
     Transaction.prototype.trash = originalTransactionTrash;
     Transaction.prototype.uncheck = originalTransactionUncheck;
 });
@@ -193,6 +198,109 @@ describe('legacy Portfolio movement deletion behavior', () => {
         expect(queries).not.toContain('financial:remoteId:interestmtm_portfolio-trade');
         expect(result).toEqual({
             result: 'DELETED: 2024-01-02 10 ACME Sell Deleted sale',
+        });
+    });
+
+    test('selects the debit permanent Account and preserves Portfolio deletion no-ops', async () => {
+        const portfolioBook = new Book({ id: 'portfolio', name: 'Portfolio' });
+        const buy = new Account(portfolioBook, {
+            id: 'portfolio-buy',
+            name: 'Buy',
+            type: AccountType.INCOMING,
+            permanent: false,
+        });
+        const instrument = new Account(portfolioBook, {
+            id: 'portfolio-acme',
+            name: 'ACME',
+            type: AccountType.ASSET,
+            permanent: true,
+        });
+        const sell = new Account(portfolioBook, {
+            id: 'portfolio-sell',
+            name: 'Sell',
+            type: AccountType.OUTGOING,
+            permanent: false,
+        });
+        portfolioBook.getAccount = async id =>
+            id === buy.getId() ? buy : id === instrument.getId() ? instrument : sell;
+        const interceptor = new InterceptorOrderProcessorDeleteInstruments(
+            new AppContext(new Bkper(), { ASSETS: { fetch } })
+        );
+
+        const purchase = new Transaction(
+            portfolioBook,
+            createTransaction('portfolio-purchase', buy, instrument)
+        );
+        expect(await interceptor.getStockAccount(purchase)).toBe(instrument);
+
+        const unsupported = new Transaction(
+            portfolioBook,
+            createTransaction('unsupported', buy, sell)
+        );
+        expect(await interceptor.getStockAccount(unsupported)).toBeNull();
+
+        let resourceLoads = 0;
+        portfolioBook.getTransaction = async () => {
+            resourceLoads += 1;
+            return undefined;
+        };
+        const unpostedResult = await interceptor.intercept(portfolioBook, {
+            type: 'TRANSACTION_DELETED',
+            data: {
+                object: {
+                    transaction: createTransaction('unposted', buy, instrument, {
+                        posted: false,
+                    }),
+                },
+            },
+        });
+        expect(unpostedResult).toEqual({ result: false });
+        expect(resourceLoads).toBe(0);
+    });
+
+    test('returns the inherited deletion response when no Financial exchange matches', async () => {
+        const portfolioBook = new Book({ id: 'portfolio', name: 'Portfolio' });
+        const instrument = new Account(portfolioBook, {
+            id: 'portfolio-acme',
+            name: 'ACME',
+            type: AccountType.ASSET,
+            permanent: true,
+        });
+        const sell = new Account(portfolioBook, {
+            id: 'portfolio-sell',
+            name: 'Sell',
+            type: AccountType.OUTGOING,
+            permanent: false,
+        });
+        portfolioBook.getAccount = async id => (id === instrument.getId() ? instrument : sell);
+        const sale = createTransaction('portfolio-sale', instrument, sell, {
+            description: 'Unmatched sale',
+        });
+        portfolioBook.getTransaction = async () => {
+            const transaction = new Transaction(portfolioBook, sale);
+            transaction.getCreditAccountName = async () => 'ACME';
+            transaction.getDebitAccountName = async () => 'Sell';
+            return transaction;
+        };
+        BotService.prototype.getExchangeCode = async () => 'EUR';
+        let financialBookLookups = 0;
+        BotService.prototype.getFinancialBook = async () => {
+            financialBookLookups += 1;
+            return null;
+        };
+        const interceptor = new InterceptorOrderProcessorDeleteInstruments(
+            new AppContext(new Bkper(), { ASSETS: { fetch } })
+        );
+
+        const result = await interceptor.intercept(portfolioBook, {
+            type: 'TRANSACTION_DELETED',
+            data: { object: { transaction: sale } },
+        });
+
+        expect(financialBookLookups).toBe(1);
+        expect(trashedTransactionIds).toEqual([]);
+        expect(result).toEqual({
+            result: 'DELETED: 2024-01-02 10 ACME Sell Unmatched sale',
         });
     });
 });

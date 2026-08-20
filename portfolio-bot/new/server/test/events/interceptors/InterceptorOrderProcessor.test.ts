@@ -355,6 +355,60 @@ describe('legacy posted order processing', () => {
         expect(result.result).toHaveLength(3);
     });
 
+    test('preserves combined-model historical sale calculations', async () => {
+        const book = createBook(
+            {},
+            {
+                stock_book: 'true',
+                stock_historical: 'true',
+                stock_fair: 'true',
+            }
+        );
+        registerAccount(book, 'Broker Fees', AccountType.OUTGOING);
+        registerAccount(book, 'ACME Interest', AccountType.ASSET);
+        registerAccount(book, 'ACME', AccountType.ASSET);
+        const transaction = createTransaction(
+            {
+                creditAccount: {
+                    id: 'broker',
+                    name: 'Broker',
+                    type: AccountType.ASSET,
+                    properties: { stock_fees_account: 'Broker Fees' },
+                },
+                debitAccount: {
+                    id: 'cash',
+                    name: 'Cash',
+                    type: AccountType.ASSET,
+                    properties: {},
+                },
+            },
+            { cost_base: '226', cost_hist: '1007', cost_hist_base: '2014' }
+        );
+
+        await createHandler(book).handleEvent(createEvent(transaction));
+
+        expect(boundary.postedTransactions).toHaveLength(3);
+        boundary.postedTransactions.forEach(expectCompleteMovement);
+        expect(transactionByRemoteId('instrument_order-1')).toEqual(
+            expect.objectContaining({
+                amount: '113',
+                creditAccount: expect.objectContaining({ name: 'ACME' }),
+                debitAccount: expect.objectContaining({ name: 'Broker' }),
+                properties: {
+                    quantity: '10',
+                    price: '11.3',
+                    order: '2',
+                    settlement_date: '2024-01-05',
+                    fees: '5',
+                    interest: '2',
+                    trade_exc_rate: '2',
+                    price_hist: '101',
+                    trade_exc_rate_hist: '2',
+                },
+            })
+        );
+    });
+
     test('does not create fee or interest movements for zero amounts', async () => {
         const book = createBook();
         registerAccount(book, 'ACME', AccountType.ASSET);

@@ -415,6 +415,39 @@ describe('legacy Financial order deletion behavior', () => {
         expect(result).toEqual({ result: false });
     });
 
+    test('preserves unposted and missing linked-resource deletion no-ops', async () => {
+        const { financialBook } = createBooks();
+        const financialAccount = registerAccount(financialBook, 'Broker', AccountType.ASSET);
+        const missingResources = createTransaction(
+            'missing-resources',
+            financialAccount,
+            financialAccount
+        );
+
+        const missingResult = await createInterceptor().intercept(
+            financialBook,
+            createEvent(missingResources)
+        );
+
+        expect(queries).toEqual([
+            'financial:remoteId:fees_missing-resources',
+            'financial:remoteId:interest_missing-resources',
+            'financial:remoteId:instrument_missing-resources',
+            'portfolio:remoteId:missing-resources',
+        ]);
+        expect(trashedTransactions).toEqual([]);
+        expect(accountUpdates).toEqual([]);
+        expect(missingResult).toEqual({ result: false });
+
+        queries.length = 0;
+        const unpostedResult = await createInterceptor().intercept(
+            financialBook,
+            createEvent({ ...missingResources, posted: false })
+        );
+        expect(queries).toEqual([]);
+        expect(unpostedResult).toEqual({ result: false });
+    });
+
     test('continues past a missing temporary remote ID to flag the canonical Portfolio Account', async () => {
         const { financialBook, portfolioBook } = createBooks();
         const buy = registerAccount(portfolioBook, 'Buy', AccountType.INCOMING);

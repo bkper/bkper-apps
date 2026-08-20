@@ -68,7 +68,7 @@ function createContext(): AppContext {
 
 function createEvent(
     transaction: bkper.Transaction,
-    previousAttributes: Record<string, string>
+    previousAttributes?: Record<string, string>
 ): bkper.Event {
     return {
         type: 'TRANSACTION_UPDATED',
@@ -170,7 +170,7 @@ function createHandler(): TestEventHandlerTransactionUpdated {
 }
 
 describe('legacy updated transaction behavior', () => {
-    test('awaits deletion before replacing a materially edited order', async () => {
+    test('awaits deletion before replacement and skips cleanup for no-op updates', async () => {
         const calls: string[] = [];
         let releaseDeletion: () => void = () => undefined;
         let signalDeletionStarted: () => void = () => undefined;
@@ -203,12 +203,68 @@ describe('legacy updated transaction behavior', () => {
         expect(await handlerPromise).toEqual({ result: ['replaced'] });
         expect(calls).toEqual(['delete', 'replace']);
 
+        const noCleanupPreviousAttributes: Array<Record<string, string> | undefined> = [
+            undefined,
+            {},
+            { description: 'Old description' },
+        ];
+        for (const previousAttributes of noCleanupPreviousAttributes) {
+            calls.length = 0;
+            await createHandler().interceptEvent(
+                book,
+                createEvent(createFinancialTransaction(), previousAttributes)
+            );
+            expect(calls).toEqual(['replace']);
+        }
+
+        const expectedError = new Error('Cleanup failed');
         calls.length = 0;
-        await createHandler().interceptEvent(
-            book,
-            createEvent(createFinancialTransaction(), { description: 'Old description' })
+        InterceptorOrderProcessorDeleteFinancial.prototype.intercept = async () => {
+            calls.push('delete');
+            throw expectedError;
+        };
+        await expect(
+            createHandler().interceptEvent(
+                book,
+                createEvent(createFinancialTransaction(), { amount: '100' })
+            )
+        ).rejects.toBe(expectedError);
+        expect(calls).toEqual(['delete']);
+    });
+
+    test('preserves unposted, zero-quantity, and missing-mirror no-op paths', async () => {
+        const unpostedFixture = createMirrorFixture(true);
+        const unpostedResult = await createHandler().processConnectedBook(
+            unpostedFixture.financialBook,
+            unpostedFixture.portfolioBook,
+            createEvent(createFinancialTransaction({ posted: false }), { posted: 'true' })
         );
-        expect(calls).toEqual(['replace']);
+
+        const zeroQuantityFixture = createMirrorFixture(true);
+        const zeroQuantityResult = await createHandler().processConnectedBook(
+            zeroQuantityFixture.financialBook,
+            zeroQuantityFixture.portfolioBook,
+            createEvent(createFinancialTransaction({ properties: { quantity: '0' } }), {
+                properties: 'quantity:10',
+            })
+        );
+
+        const missingMirrorFixture = createMirrorFixture(true);
+        missingMirrorFixture.portfolioBook.listTransactions = async () =>
+            new TransactionList(missingMirrorFixture.portfolioBook, { items: [] });
+        const missingMirrorResult = await createHandler().processConnectedBook(
+            missingMirrorFixture.financialBook,
+            missingMirrorFixture.portfolioBook,
+            createEvent(createFinancialTransaction(), { amount: '100' })
+        );
+
+        expect([unpostedResult, zeroQuantityResult, missingMirrorResult]).toEqual([
+            null,
+            null,
+            null,
+        ]);
+        expect(transactionMutations).toEqual([]);
+        expect(accountUpdates).toEqual([]);
     });
 
     test('updates a checked Portfolio mirror as one complete movement', async () => {

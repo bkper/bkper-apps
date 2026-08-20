@@ -4,7 +4,7 @@
 
 **Chunks 1–7 complete — Chunk 8 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 audit has accepted the target SDK's Account–Group resolution, retry policy, and structured error behavior; the complete event matrix and dependency review remain open. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. Dependency advisory triage remains the separate open Chunk 8 item. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -400,6 +400,57 @@ These differences are deliberate consequences of moving from the deployed `bkper
 | --- | --- | --- | --- |
 | GCF transaction lifecycle | Event cleanup does not query or delete linked `interestmtm_` movements even though the GAS Reset implementation recognizes them | Preserve the exact legacy event cleanup set and assert that `interestmtm_` remains absent | Any intentional correction remains separate post-migration work |
 
+### Chunk 8 event parity audit
+
+Paths in the matrices below are relative to `portfolio-bot/`. Legacy event files are under `legacy/gcf/src/`, target event files are under `new/server/src/events/`, and deterministic tests are under `new/server/test/`.
+
+#### Subscribed-event matrix
+
+| Subscribed event | Safety-relevant behavior | Legacy implementation | Target implementation | Deterministic evidence | Classification |
+| --- | --- | --- | --- | --- | --- |
+| `TRANSACTION_POSTED` | Recognize eligible orders; split fees, interest, and instrument movements with established amounts, directions, properties, dates, and remote ids; preserve no-ops and zero-quantity failure | `index.ts`; `EventHandlerTransactionPosted.ts`; `InterceptorOrderProcessor.ts` | `routes.ts`; `handlers/EventHandlerTransactionPosted.ts`; `interceptors/InterceptorOrderProcessor.ts` | `events/events.test.ts` routing; `events/interceptors/InterceptorOrderProcessor.test.ts` purchase, sale, combined model, zero, unsupported, unposted, and loop-prevention cases | **Parity** |
+| `TRANSACTION_CHECKED` | Mirror one quantity movement in the Portfolio Book, preserve `Buy >> instrument` and `instrument >> Sell`, avoid duplicates, and flag rebuild when required | `EventHandlerTransactionChecked.ts`; `EventHandlerTransaction.ts`; `InterceptorFlagRebuild.ts` | `handlers/EventHandlerTransactionChecked.ts`; `handlers/EventHandlerTransaction.ts`; `interceptors/InterceptorFlagRebuild.ts` | `events/handlers/EventHandlerTransactionChecked.test.ts` | **Parity** for movement behavior; **accepted runtime difference** for awaited rebuild completion and replay recovery after a previously abandoned update |
+| `TRANSACTION_UNCHECKED` | Flag an externally changed Portfolio instrument for rebuild; skip Portfolio Bot changes | `EventHandlerTransactionUnchecked.ts`; `InterceptorFlagRebuild.ts` | `handlers/EventHandlerTransactionUnchecked.ts`; `interceptors/InterceptorFlagRebuild.ts` | `events/handlers/EventHandlerTransactionUnchecked.test.ts`; rebuild cases in `EventHandlerTransactionChecked.test.ts` | **Parity**; **accepted runtime difference** for awaiting the required update before Worker completion |
+| `TRANSACTION_UPDATED` | Delete before replacing materially changed orders; skip cleanup for absent, empty, or description-only previous attributes; update complete mirrored movements; preserve unposted, zero-quantity, not-found, checked, and retry paths | `EventHandlerTransactionUpdated.ts`; `InterceptorOrderProcessorDeleteFinancial.ts`; `InterceptorOrderProcessor.ts` | `handlers/EventHandlerTransactionUpdated.ts`; `interceptors/InterceptorOrderProcessorDeleteFinancial.ts`; `interceptors/InterceptorOrderProcessor.ts` | `events/handlers/EventHandlerTransactionUpdated.test.ts`; order and cleanup interceptor tests | **Parity**; **accepted runtime difference** for awaited cleanup and uncheck completion |
+| `TRANSACTION_DELETED` | Select Financial or Portfolio deletion; remove split and mirrored movements; flag rebuild; delete the exact linked realized, MTM, FX, historical, historical-MTM, and historical-FX set | `EventHandlerTransactionDeleted.ts`; all three `InterceptorOrderProcessorDelete*.ts` files | `handlers/EventHandlerTransactionDeleted.ts`; all three `interceptors/InterceptorOrderProcessorDelete*.ts` files | `events/handlers/EventHandlerTransactionDeleted.test.ts`; both `events/interceptors/InterceptorOrderProcessorDelete*.test.ts` files | **Parity**; **accepted runtime difference** for awaited sibling completion and optional Base-Book adaptation; **inherited legacy behavior** for the omitted `interestmtm_` prefix |
+| `TRANSACTION_RESTORED` | Re-run recognized order processing, find only the trashed remote-id mirror, restore it, and preserve missing or unmatched no-ops | `EventHandlerTransactionRestored.ts`; `InterceptorOrderProcessor.ts`; `EventHandlerTransaction.ts` | `handlers/EventHandlerTransactionRestored.ts`; `interceptors/InterceptorOrderProcessor.ts`; `handlers/EventHandlerTransaction.ts` | `events/handlers/EventHandlerTransactionRestored.test.ts`; posted-order interceptor tests | **Parity** |
+| `ACCOUNT_CREATED` | Match exchange eligibility, create the Portfolio Account, create eligible flat Groups, copy synchronized fields, and add no movements | `EventHandlerAccount.ts`; `EventHandlerAccountCreatedOrUpdated.ts` | `handlers/EventHandlerAccount.ts`; `handlers/EventHandlerAccountCreatedOrUpdated.ts` | routing in `events/events.test.ts`; `events/handlers/EventHandlerAccountCreatedOrUpdated.test.ts` | **Parity** with the accepted Account–Group SDK cache lifecycle |
+| `ACCOUNT_UPDATED` | Resolve current name before previous name, replace synchronized fields and Group membership, rename/archive as established, and add no movements | Same Account handlers as `ACCOUNT_CREATED` | Same target Account handlers as `ACCOUNT_CREATED` | routing in `events/events.test.ts`; both Account create/update synchronization cases | **Parity** with the accepted Account–Group SDK cache lifecycle |
+| `ACCOUNT_DELETED` | Match exchange eligibility; return the legacy missing-Account response; archive Accounts with posted movements and remove Accounts without them | `EventHandlerAccount.ts`; `EventHandlerAccountDeleted.ts` | `handlers/EventHandlerAccount.ts`; `handlers/EventHandlerAccountDeleted.ts` | `events/handlers/EventHandlerAccount.test.ts`; `events/handlers/EventHandlerAccountDeleted.test.ts` | **Parity** |
+| `GROUP_CREATED` | Match exchange eligibility and create a flat Portfolio Group with visible properties and hidden state only | `EventHandlerGroup.ts`; `EventHandlerGroupCreatedOrUpdated.ts` | `handlers/EventHandlerGroup.ts`; `handlers/EventHandlerGroupCreatedOrUpdated.ts` | routing in `events/events.test.ts`; `events/handlers/EventHandlerGroupCreatedOrUpdated.test.ts` | **Parity** |
+| `GROUP_UPDATED` | Resolve current name before previous name and replace synchronized flat Group fields without hierarchy propagation | Same Group handlers as `GROUP_CREATED` | Same target Group handlers as `GROUP_CREATED` | `events/handlers/EventHandlerGroup.test.ts`; Group create/update synchronization test | **Parity** |
+| `GROUP_DELETED` | Remove the matching Portfolio Group or return the accepted missing-Group response | Current `index.ts`; `EventHandlerGroupDeleted.ts` | `routes.ts`; `handlers/EventHandlerGroupDeleted.ts` | routing in `events/events.test.ts`; `events/handlers/EventHandlerGroupDeleted.test.ts` | **Accepted runtime difference** from the older deployed routing artifact; target matches the explicitly accepted current-source baseline |
+| `BOOK_UPDATED` | Propagate the historical flag to the Base Book, clear competing Portfolio Book flags, preserve launch order, and add no movements | `EventHandlerBookUpdated.ts` | `handlers/EventHandlerBookUpdated.ts` | `events/handlers/EventHandlerBookUpdated.test.ts` | **Parity**; **accepted runtime difference** for waiting on every launched update before return or failure |
+
+#### Cross-event safety matrix
+
+| Safety-relevant behavior | Legacy implementation | Target implementation | Deterministic evidence | Classification |
+| --- | --- | --- | --- | --- |
+| All thirteen subscriptions, unknown-event no-op, response envelope, and one context per delivery | `index.ts`; `AppContext.ts` | `routes.ts`; `shared/app-context.ts` | `events/events.test.ts` | **Parity** for routing and normalization; **accepted runtime difference** for Platform authentication and structured `BkperError` presentation |
+| Portfolio, Financial, and Base Book selection; exchange aliases; first-match order; Account, Group, model, and realized-date selection | `BotService.ts`; `EventHandler.ts`; Account, Group, and Transaction base handlers | `services/BotService.ts`; `handlers/EventHandler.ts`; corresponding target base handlers | `events/services/BotService.test.ts`; `events/handlers/EventHandler.test.ts`; Account and Group selection tests | **Parity** |
+| Account–Group relationship resolution from embedded ids | SDK 2.18 Account-specific Group lookup | SDK 2.42 Book Group cache used by target handlers and services | `shared/bkper-js-compatibility.test.ts` complete-chart case | **Accepted runtime difference**; no eager complete-Book load or lookup workaround |
+| Optional 404 resources versus required failures | SDK 2.18 returned absence for optional resource lookup | `shared/optional-lookup.ts` converts only Account, Group, and explicitly optional Transaction 404s | `shared/bkper-js-compatibility.test.ts`; missing temporary remote-id deletion case | **Accepted runtime difference** |
+| Retry classification, especially HTTP `409` | SDK 2.18 retried broadly | SDK 2.42 fails `409` immediately and limits retryable authentication, transient, rate-limit, server, and network failures | `shared/bkper-js-compatibility.test.ts` immediate-409 case | **Accepted runtime difference** |
+| Every created movement has one nonzero amount, one origin, one destination, established direction, and canonical remote ids | `InterceptorOrderProcessor.ts`; `EventHandlerTransactionChecked.ts` | Corresponding target interceptor and checked handler | posted-order and checked-mirroring tests assert complete movements, directions, properties, and remote ids | **Parity**; no unexplained zero-sum risk found |
+| Combined-model historical sale amount and rates | `InterceptorOrderProcessor.getSalePriceHist()` and sale posting path | Same target methods and branch order | `events/interceptors/InterceptorOrderProcessor.test.ts` combined-model historical sale case | **Parity** |
+| Update cleanup-before-replacement and failure ordering | `EventHandlerTransactionUpdated.ts` | `handlers/EventHandlerTransactionUpdated.ts` | `events/handlers/EventHandlerTransactionUpdated.test.ts` no-op, replacement, cleanup failure, unposted, zero, and missing-mirror cases | **Parity**; **accepted runtime difference** for awaited completion |
+| Financial deletion of fees, interest, instrument split, Portfolio mirror, and linked result set | `InterceptorOrderProcessorDeleteFinancial.ts`; `InterceptorOrderProcessorDelete.ts` | Corresponding target interceptors | `events/interceptors/InterceptorOrderProcessorDeleteFinancial.test.ts` exact cleanup, sibling failure, no-Base, missing-resource, and temporary-id cases | **Parity**; `interestmtm_` omission is **inherited legacy behavior** |
+| Portfolio deletion chooses the credit permanent Account first, then debit permanent Account; unposted or non-permanent paths no-op | `InterceptorOrderProcessorDeleteInstruments.ts` | Corresponding target interceptor | `events/interceptors/InterceptorOrderProcessorDeleteInstruments.test.ts` sale, purchase, and no-op cases | **Parity** |
+| Portfolio deletion with no matching Financial exchange still returns its deletion response without linked cleanup | `InterceptorOrderProcessorDeleteInstruments.ts` | Corresponding target interceptor | unmatched-exchange case in `InterceptorOrderProcessorDeleteInstruments.test.ts` | **Inherited legacy behavior**; no production change |
+| Linked restoration untrashes only the matching Portfolio mirror; missing and unmatched paths do not restore a movement | `EventHandlerTransactionRestored.ts` | `handlers/EventHandlerTransactionRestored.ts` | `events/handlers/EventHandlerTransactionRestored.test.ts` | **Parity** |
+| Account and Group missing-resource deletion responses and unmatched-exchange no-ops | Account and Group base/deletion handlers | Corresponding target handlers | `EventHandlerAccountDeleted.test.ts`; `EventHandlerGroupDeleted.test.ts`; Account and Group selection tests | **Parity** |
+| Required asynchronous mutations finish before the Worker response; sibling cleanup settles before failure propagation | Legacy launched several updates and cascades without awaiting them | Target checked, update, deletion, rebuild, and Book handlers await the already-required work while retaining launch and mutation order | checked, update, both deletion-interceptor, and Book-update timing/failure tests | **Accepted runtime difference** required by the target request lifecycle |
+| Lifecycle lookup order checks the remote-id candidate before exchange matching | `EventHandlerTransaction.processObject()` | Same target method | unmatched restoration case in `EventHandlerTransactionRestored.test.ts` | **Incorrect test assumption** found during the audit: the first draft expected no lookup; the test was corrected and production was unchanged |
+| Exchange Bot and Portfolio Bot loop prevention | `InterceptorOrderProcessor.ts`; `InterceptorFlagRebuild.ts` | Corresponding target interceptors | posted-order no-op and checked rebuild loop-prevention cases | **Parity** |
+
+#### Audit result
+
+- All thirteen subscribed events map to the current legacy source and deterministic target evidence.
+- Eight high-value deterministic tests were added, and the existing update-order test was expanded, covering combined historical sales, update ordering and no-ops, exact deletion no-ops, permanent-Account selection, unmatched exchanges, linked restoration, missing Account deletion, and immediate HTTP `409` failure.
+- The exact event cleanup prefixes remain `''`, `mtm_`, `fx_`, and, for the combined model, `hist_`, `mtm_hist_`, and `fx_hist_`. `interestmtm_` remains intentionally absent as inherited legacy behavior.
+- One incorrect audit-test assumption was corrected: unmatched lifecycle handling still performs the established remote-id lookup before exchange matching.
+- No actual migration drift was confirmed, no event production code changed, and no unexplained difference remains in movement amount, direction, state, lookup order, mutation order, cleanup side effects, or responses.
+
 ## Migration chunks
 
 ### Chunk 1 — Capture baseline and establish parallel layout
@@ -501,13 +552,18 @@ These differences are deliberate consequences of moving from the deployed `bkper
 
 ### Chunk 8 — Complete event parity and drift audit
 
-**Status: In progress.**
+**Status: In progress.** The event-parity gate is complete; dependency advisory triage remains open.
 
-- Complete the remaining event-matrix audit.
-- Handler and service comparison accepted the documented target-runtime differences without finding an unexplained movement amount or direction change.
-- Metadata, generated artifacts, bundle contents, and the patch ledger have been reviewed; dependency advisories remain to be triaged.
+- Completed the explicit subscribed-event and cross-event safety matrices.
+- Added focused deterministic coverage for the audit's high-value missing paths without changing event production behavior.
+- Classified every observed difference as accepted target-runtime behavior, inherited legacy behavior, or an incorrect test assumption; no actual migration drift was confirmed.
+- Handler and service comparison found no unexplained movement amount, direction, state, lookup order, mutation order, cleanup side effect, or response difference.
+- Metadata, generated artifacts, bundle contents, and the patch ledger have been reviewed.
+- Dependency advisories remain a separate open triage item; the previous `bun audit` reported eight tooling-related advisories.
 
-**Gate:** No unexplained event-side difference remains in movement direction, amount, state, lookup order, mutation order, side effects, or responses.
+**Event-parity gate:** Pass — no unexplained event-side difference remains in movement direction, amount, state, lookup order, mutation order, side effects, or responses.
+
+**Chunk completion blocker:** Dependency advisory triage.
 
 ### Chunk 9 — Define the typed menu API contract
 

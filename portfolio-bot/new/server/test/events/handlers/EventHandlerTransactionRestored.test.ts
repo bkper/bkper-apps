@@ -15,7 +15,7 @@ afterEach(() => {
     restoredTransactionIds.length = 0;
 });
 
-function createFixture(): {
+function createFixture(financialExchangeCode = 'USD'): {
     financialBook: Book;
     financialTransaction: bkper.Transaction;
     portfolioBook: Book;
@@ -26,7 +26,7 @@ function createFixture(): {
             id: 'financial',
             name: 'Financial',
             fractionDigits: 2,
-            properties: { exc_code: 'USD' },
+            properties: { exc_code: financialExchangeCode },
         },
         {
             id: 'portfolio',
@@ -141,5 +141,42 @@ describe('legacy restored transaction behavior', () => {
         expect(result.result).toEqual([
             "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: RESTORED: 2024-01-02 10 Buy ACME Restored trade",
         ]);
+    });
+
+    test('does not restore a missing or unmatched linked Portfolio movement', async () => {
+        console.time = () => undefined;
+        console.timeEnd = () => undefined;
+        Transaction.prototype.untrash = async function (): Promise<Transaction> {
+            restoredTransactionIds.push(this.getId()!);
+            return this;
+        };
+
+        const missingFixture = createFixture();
+        missingFixture.portfolioBook.listTransactions = async query => {
+            missingFixture.queries.push(query ?? '');
+            return new TransactionList(missingFixture.portfolioBook, { items: [] });
+        };
+        const missingResult = await createHandler(missingFixture.financialBook).handleEvent({
+            type: 'TRANSACTION_RESTORED',
+            bookId: missingFixture.financialBook.getId(),
+            user: { username: 'tester' },
+            agent: { id: 'user' },
+            data: { object: { transaction: missingFixture.financialTransaction } },
+        });
+
+        const unmatchedFixture = createFixture('EUR');
+        const unmatchedResult = await createHandler(unmatchedFixture.financialBook).handleEvent({
+            type: 'TRANSACTION_RESTORED',
+            bookId: unmatchedFixture.financialBook.getId(),
+            user: { username: 'tester' },
+            agent: { id: 'user' },
+            data: { object: { transaction: unmatchedFixture.financialTransaction } },
+        });
+
+        expect(missingFixture.queries).toEqual(['remoteId:financial-trade is:trashed']);
+        expect(unmatchedFixture.queries).toEqual(['remoteId:financial-trade is:trashed']);
+        expect(restoredTransactionIds).toEqual([]);
+        expect(missingResult).toEqual({ result: false });
+        expect(unmatchedResult).toEqual({ result: false });
     });
 });

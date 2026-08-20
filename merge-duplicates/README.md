@@ -1,55 +1,122 @@
 # Merge Duplicates
 
-Merge Duplicates helps you find transaction rows that may represent the same real-world movement. It combines deterministic checks with Bkper AI, while keeping every merge under human control.
+Merge Duplicates finds transaction rows that may describe the **same real-world movement** and lets you combine them safely.
+
+Duplicate rows can appear when the same movement reaches a Book through different imports or entries. Merge Duplicates compares likely matches, shows them side by side, and changes only the pairs you explicitly confirm.
+
+> **Nothing is merged during the scan.** Every suggested pair requires human review and final confirmation.
+
+## One card payment, two imported rows
+
+Suppose the same card payment appears in both statement imports. One row may still be a draft because the other side of its movement has not been assigned:
+
+| Source | Status | Date | Amount | From | | To | Description |
+| --- | --- | --- | ---: | --- | --- | --- | --- |
+| Bank statement | Draft | 27 Jul | **1,554.06** | Checking `Asset` | >> | Unassigned | Scheduled card payment |
+| Card statement | Posted | 27 Jul | **1,554.06** | Checking `Asset` | >> | Credit Card `Liability` | Payment received from checking |
+
+```mermaid
+flowchart LR
+    Bank["Bank statement<br/>1,554.06<br/>Checking >> Unassigned"] --> Review{"You review<br/>and confirm"}
+    Card["Card statement<br/>1,554.06<br/>Checking >> Credit Card"] --> Review
+    Review --> Canonical["One canonical payment<br/>1,554.06<br/>Checking >> Credit Card"]
+
+    classDef source fill:#f5f7fa,stroke:#64748b,color:#334155
+    classDef review fill:#f3e8ff,stroke:#7e22ce,color:#6b21a8
+    classDef result fill:#e2f3e7,stroke:#228c33,color:#166523
+    class Bank,Card source
+    class Review review
+    class Canonical result
+```
+
+The two statements describe the same movement: `Checking >> Credit Card`. It is not a second expense or a second payment. After you confirm, Bkper creates one canonical transaction and schedules the two imported originals to move to Trash. The bank balance decreases and the card balance is settled once, while the Book remains balanced.
 
 ## How to use it
 
-1. Open a Book, select an Account or Group if useful, and set the transaction query you want to review.
+1. Open a Book and set the transaction query you want to review. Selecting an Account or Group narrows the context and makes learning more relevant.
 2. Choose **Merge Duplicates** from the Book menu.
-3. Review the suggested pairs. Every new suggestion starts selected.
-4. Unselect pairs that are not duplicates. Select them again to restore them.
-5. Choose **Look for more** to load up to 200 more transactions. The browser resubmits the cumulative set (up to 1,000 transactions), refreshes the suggestions, and preserves your decisions for unchanged pairs.
-6. Choose **Apply**, verify the selected and unselected counts, and confirm.
+3. Compare each suggested pair. Suggestions start selected, so **unselect every pair that is not a duplicate**.
+4. Choose **Look for more** to review up to 200 more transactions. The app keeps your decisions for pairs that remain in the results and can scan up to 1,000 transactions.
+5. Choose **Apply**, check the selected and unselected totals, and confirm.
 
-Selected pairs are merged one at a time. Bkper creates a canonical transaction and schedules the two originals to be moved to Trash. A failed pair does not stop later pairs.
+Selected pairs are merged one at a time. If one pair fails, the app reports it and continues with the remaining pairs.
 
-When you apply the review, unselected pairs are saved as plain-text examples on the selected Account, Group, or Book. Owner and Editor collaborators can retain the latest 50 examples within the property budget. Post collaborators can merge, but their examples are not saved. Viewers cannot list transactions, analyze, or merge.
+## What can be suggested
 
-Checked, trashed, and locked transactions are never suggested. The app never merges automatically.
+A pair must first pass deterministic checks:
 
-## API access
+- the amounts are equal;
+- the dates are no more than seven calendar days apart; and
+- the transactions share an Account on the same side of the movement, or at least one is a draft and both have descriptions that can be compared.
 
-Authenticated clients can use the same app workflow. See the [OpenAPI specification](https://merge-duplicates.bkper.app/openapi.json) for the complete contract.
+Bkper AI then compares all plausible alternatives and returns only its strongest non-overlapping pairs, labeled **Strong** or **Possible**. Checked, trashed, locked, and malformed transactions are not suggested.
 
-Example:
+## Human control and learning
+
+The app never merges automatically. Only selected pairs from the final confirmation are sent through Bkper's canonical transaction merge, preserving the Book's balanced movement model.
+
+When an Owner or Editor applies a review, unselected pairs are kept as plain-text examples in the visible `merge_duplicate_examples` property on the selected Account, Group, or Book. These examples help future reviews avoid similar false matches. The latest 50 examples are retained.
+
+Post collaborators can analyze and merge, but learning examples are not saved. Viewers cannot scan, analyze, or merge transactions.
+
+<details>
+<summary><strong>API access for developers and agents</strong></summary>
+
+Authenticated clients can use the same review workflow through the public API.
+
+```text
+Production: https://merge-duplicates.bkper.app
+Preview:    https://merge-duplicates-preview.bkper.app
+OpenAPI:    https://merge-duplicates.bkper.app/openapi.json
+```
+
+All requests require a Bkper OAuth bearer token. A safe integration should:
+
+1. submit up to 1,000 canonical Book transactions for analysis;
+2. present the returned non-overlapping suggestions for human review;
+3. call the merge operation only after explicit confirmation; and
+4. optionally save rejected pairs as learning examples.
+
+| Operation | Route | Effect |
+| --- | --- | --- |
+| Analyze transactions | `POST /api/v1/analyze` | Returns suggestions without changing transactions |
+| Merge a confirmed pair | `POST /api/v1/merge` | Creates one canonical transaction and schedules cleanup of the originals |
+| Save rejected pairs | `POST /api/v1/learn` | Updates `merge_duplicate_examples` on the requested context |
+
+Minimal analysis example:
 
 ```bash
 # Run `bkper auth login` first if needed
 TOKEN="$(bkper auth token)"
 
-curl \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
     "bookId": "<book-id>",
     "transactions": [
       {
         "id": "<transaction-id-1>",
-        "date": "2026-06-10",
-        "amount": "12.50",
-        "description": "Corner Cafe",
-        "posted": true,
-        "creditAccount": { "id": "<account-id>", "name": "Card" }
+        "date": "2026-07-27",
+        "amount": "1554.06",
+        "description": "Scheduled card payment",
+        "posted": false,
+        "creditAccount": { "id": "<checking-account-id>", "name": "Checking", "type": "ASSET" }
       },
       {
         "id": "<transaction-id-2>",
-        "date": "2026-06-11",
-        "amount": "12.50",
-        "description": "CORNER CAFE",
+        "date": "2026-07-27",
+        "amount": "1554.06",
+        "description": "Payment received from checking",
         "posted": true,
-        "creditAccount": { "id": "<account-id>", "name": "Card" }
+        "creditAccount": { "id": "<checking-account-id>", "name": "Checking", "type": "ASSET" },
+        "debitAccount": { "id": "<card-account-id>", "name": "Credit Card", "type": "LIABILITY" }
       }
     ]
   }' \
   https://merge-duplicates.bkper.app/api/v1/analyze
 ```
+
+See the [OpenAPI specification](https://merge-duplicates.bkper.app/openapi.json) for complete request and response schemas.
+
+</details>

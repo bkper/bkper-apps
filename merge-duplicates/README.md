@@ -60,7 +60,7 @@ When an Owner or Editor applies a review, unselected pairs are kept as plain-tex
 Post collaborators can analyze and merge, but learning examples are not saved. Viewers cannot scan, analyze, or merge transactions.
 
 <details data-toc>
-<summary><strong>API access for developers and agents</strong></summary>
+<summary><strong>API access</strong></summary>
 
 Authenticated clients can use the same review workflow through the public API.
 

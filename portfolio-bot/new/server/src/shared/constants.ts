@@ -38,6 +38,7 @@ export const EXCHANGE_LOSS_HASHTAG = '#exchange_loss';
 
 export const EXC_BASE_PROP = 'exc_base';
 export const EXC_CODE_PROP = 'exc_code';
+export const EXC_HISTORICAL_PROP = 'exc_historical';
 export const LEGACY_REALIZED_DATE_PROP = 'stock_realized_date';
 export const REALIZED_DATE_PROP = 'realized_date';
 export const STOCK_FAIR_PROP = 'stock_fair';

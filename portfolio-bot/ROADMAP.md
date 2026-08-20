@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–6 complete — Chunk 7 not started.**
+**Chunks 1–7 complete — Chunk 8 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, and transaction lifecycle behavior are established under `new/`. Resource synchronization handlers retain explicit no-op behavior until their behavior chunk. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -382,7 +382,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
-| GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch test | Dispatch ported; Group deletion behavior remains pending Chunk 7 |
+| GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch and missing-Group behavior tests | Dispatch and Group deletion behavior ported |
 
 ### Deferred inherited behavior ledger
 
@@ -477,12 +477,15 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 7 — Port Account, Group, and Book synchronization
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Port Account create, update, rename, archive, Group membership, and delete behavior.
-- Port Group create, update, rename, properties, hidden state, and delete behavior.
-- Preserve the absence of Group hierarchy synchronization.
-- Port selected Book property behavior.
+- Ported Account exchange eligibility, current-name and previous-name lookup, create, update, rename, archive, Group membership replacement, and delete behavior.
+- Ported Group exchange eligibility, current-name and previous-name lookup, create, update, rename, visible properties, hidden state, and delete behavior, including the accepted missing-Group response.
+- Preserved flat Group synchronization without parent or child hierarchy propagation.
+- Ported Portfolio historical-property propagation and competing `stock_book` property cleanup.
+- Adapted optional Account and Group 404 lookups to target SDK behavior while propagating non-404 failures.
+- Awaited all launched Book updates before returning or propagating the first failure while preserving mutation launch order.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 79 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
 **Gate:** Resource synchronization has deterministic event parity and creates no additional movement.
 

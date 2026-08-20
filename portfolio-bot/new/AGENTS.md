@@ -4,10 +4,10 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1–7 are complete; Chunk 8 will complete event parity and the event-side drift audit.
+- Chunks 1–9 are complete; Chunk 10 will port view initialization and validation.
 - The legacy GCP event handler and Google Apps Script menu under `../legacy/` remain production-authoritative.
 - One target Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
-- Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and Account, Group, and Book synchronization are deterministic.
+- Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, and the typed menu API contract are deterministic.
 - Preserve the audited legacy accounting behavior during later migration chunks; do not combine migration with business-logic changes, redesigns, refactors, or optimizations.
 - Protect Bkper's zero-sum invariant above all else. Every posted transaction must remain one complete movement with one amount from an origin Account to a destination Account; unresolved movements retain their established non-balance-affecting behavior.
 - Tests must never write to live Books.

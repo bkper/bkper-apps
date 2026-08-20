@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–8 complete — Chunk 9 not started.**
+**Chunks 1–9 complete — Chunk 10 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, and resource synchronization are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -579,14 +579,18 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 9 — Define the typed menu API contract
 
-**Status: Not started.**
+**Status: Complete.**
 
-- Define the minimal context, validation, Calculate, Reset, Full Reset, and Forward Date API.
-- Define schemas, structured outcomes, errors, permissions, and installation requirements.
-- Add thin routes backed by non-mutating service stubs.
-- Generate retained OpenAPI client types.
+- Defined one read-only Portfolio Book route that returns the Account ids pending calculation and four explicit Account-level operation routes for Calculate, Reset, Full Reset, and Forward Date.
+- Kept Account and Group menu selection, Portfolio Book discovery, and preliminary client validation on direct authenticated Bkper reads rather than duplicating the Core API.
+- Required explicit Calculate date and MTM intent, a Forward date, and no body for Reset or Full Reset.
+- Defined provisional operation results grouped by Book with created and updated Account ids, created, updated, and trashed Transaction ids, and Book-update state; successful operations with no changes return an empty Book list.
+- Retained the shared message-only error envelope with standard HTTP status categories.
+- Defined installation on every Book an operation may mutate, edit permission on each mutation target, and additional Portfolio Book owner and unlocked-Collection requirements for Full Reset and lower-forward-date repair; enforcement remains in the planned permission chunk.
+- Added thin routes backed by non-mutating service stubs and generated retained OpenAPI client types.
+- Verified the complete local gate: generated contracts, strict client and server typechecks, 60 client tests, 92 server tests, production client and Worker builds, formatting, and generated-file drift all pass without remote mutation.
 
-**Gate:** API tests protect the target contract without implementing accounting mutations.
+**Gate:** Pass — API tests protect the target contract without implementing accounting mutations.
 
 ### Chunk 10 — Port view initialization and validation
 

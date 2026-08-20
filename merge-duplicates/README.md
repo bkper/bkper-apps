@@ -24,8 +24,11 @@ Authenticated clients can use the same app workflow. See the [OpenAPI specificat
 Example:
 
 ```bash
+# Run `bkper auth login` first if needed
+TOKEN="$(bkper auth token)"
+
 curl \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"bookId":"<book-id>","query":"","fingerprints":[]}' \
   https://merge-duplicates.bkper.app/api/v1/scan

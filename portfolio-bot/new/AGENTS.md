@@ -4,10 +4,10 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1–9 are complete; Chunk 10 will port view initialization and validation.
+- Chunks 1–9 are complete; Chunk 10 is porting view initialization and validation. The pending-calculation Account query is complete; client context and the remaining validations are not.
 - The legacy GCP event handler and Google Apps Script menu under `../legacy/` remain production-authoritative.
 - One target Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
-- Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, and the typed menu API contract are deterministic.
+- Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, the typed menu API contract, and the pending-calculation Account query are deterministic.
 - Preserve the audited legacy accounting behavior during later migration chunks; do not combine migration with business-logic changes, redesigns, refactors, or optimizations.
 - Protect Bkper's zero-sum invariant above all else. Every posted transaction must remain one complete movement with one amount from an origin Account to a destination Account; unresolved movements retain their established non-balance-affecting behavior.
 - Tests must never write to live Books.

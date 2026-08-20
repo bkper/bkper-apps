@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–9 complete — Chunk 10 not started.**
+**Chunks 1–9 complete — Chunk 10 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query; Book, Account, and Group context and the remaining initialization validations are not yet ported. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -594,11 +594,14 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 10 — Port view initialization and validation
 
-**Status: Not started.**
+**Status: In progress.**
 
+- Ported the existing read-only pending-calculation Account query from the legacy `BotService.getUncalculatedAccounts`, `BotService.getUncalculatedAccountsQuery`, and `ValidationAccount` behavior.
+- Preserved Base Book selection, permanent Account chart order, unchecked purchase and sale handling, rebuild flags, missing exchange-rate rules, closing-date query behavior, and complete Transaction pagination without introducing mutations.
+- Verified the complete local gate with 60 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 - Port Book, Account, and Group context into target client/server responsibilities.
 - Port Portfolio Book discovery and instrument Account selection.
-- Port uncalculated Account discovery, permissions, pending tasks, locks, closing conditions, and date defaults.
+- Port permissions, pending tasks, locks, closing conditions, and date defaults.
 - Adapt preflight placement without changing which operations may begin.
 
 **Gate:** Deterministic fixtures produce the accepted Account scope and operation availability.

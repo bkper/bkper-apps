@@ -7,6 +7,7 @@ const env = {
     ASSETS: { fetch: async () => new Response('asset') },
 };
 
+const originalListAccountsPendingCalculation = CalculateService.listAccountsPendingCalculation;
 const originalCalculate = CalculateService.calculate;
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
@@ -14,15 +15,21 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
 }
 
 afterEach(() => {
+    CalculateService.listAccountsPendingCalculation = originalListAccountsPendingCalculation;
     CalculateService.calculate = originalCalculate;
 });
 
 describe('typed Portfolio Bot API', () => {
     test('lists pending-calculation Account ids', async () => {
+        CalculateService.listAccountsPendingCalculation = mock(async (_context, bookId) => {
+            expect(bookId).toBe('portfolio-book');
+            return ['instrument-account'];
+        });
+
         const response = await request('/api/v1/books/portfolio-book/accounts/pending-calculation');
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual([]);
+        expect(await response.json()).toEqual(['instrument-account']);
     });
 
     test('passes Calculate inputs to the service and returns its result', async () => {

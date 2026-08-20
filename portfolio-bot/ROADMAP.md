@@ -4,7 +4,7 @@
 
 **Chunks 1–9 complete — Chunk 10 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query; Book, Account, and Group context and the remaining initialization validations are not yet ported. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query and Book, Account, and Group context; the remaining initialization validations are not yet ported. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -581,7 +581,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 **Status: Complete.**
 
-- Defined one read-only Portfolio Book route that returns the Account ids pending calculation and four explicit Account-level operation routes for Calculate, Reset, Full Reset, and Forward Date.
+- Defined one read-only Portfolio Book route that returns the Account ids pending calculation as `{ ids: string[] }` and four explicit Account-level operation routes for Calculate, Reset, Full Reset, and Forward Date.
 - Kept Account and Group menu selection, Portfolio Book discovery, and preliminary client validation on direct authenticated Bkper reads rather than duplicating the Core API.
 - Required explicit Calculate date and MTM intent, a Forward date, and no body for Reset or Full Reset.
 - Defined provisional operation results grouped by Book with created and updated Account ids, created, updated, and trashed Transaction ids, and Book-update state; successful operations with no changes return an empty Book list.
@@ -598,9 +598,11 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 - Ported the existing read-only pending-calculation Account query from the legacy `BotService.getUncalculatedAccounts`, `BotService.getUncalculatedAccountsQuery`, and `ValidationAccount` behavior.
 - Preserved Base Book selection, permanent Account chart order, unchecked purchase and sale handling, rebuild flags, missing exchange-rate rules, closing-date query behavior, and complete Transaction pagination without introducing mutations.
-- Verified the complete local gate with 60 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
-- Port Book, Account, and Group context into target client/server responsibilities.
-- Port Portfolio Book discovery and instrument Account selection.
+- Ported legacy Portfolio Book discovery in Collection order, including the `stock_book` property and zero-fraction fallback.
+- Ported URL-selected Account and Group context, name-based Portfolio resource mapping, Account-over-Group precedence, permanent and active instrument eligibility, exchange Group requirements, alphabetical sorting, and the no-selection pending-calculation path.
+- Adapted the synchronous GAS chart access to asynchronous `bkper-js` reads by loading the selected and discovered Portfolio Book charts before resolving context.
+- Preserved the legacy missing-Portfolio-Book failure and Reset availability distinction without introducing mutations.
+- Verified the complete local gate with 68 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 - Port permissions, pending tasks, locks, closing conditions, and date defaults.
 - Adapt preflight placement without changing which operations may begin.
 

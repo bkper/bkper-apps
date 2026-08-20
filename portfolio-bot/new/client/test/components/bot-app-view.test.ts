@@ -18,7 +18,7 @@ describe('Bot app view', () => {
         const app = new App({ id: 'stock-bot', name: 'Global Portfolio Bot' });
         const book = new Book({ id: 'book-id', name: 'Portfolio Book' });
         view.app = app;
-        view.book = book;
+        view.portfolioBook = book;
 
         const result = renderHeader.call(view);
 
@@ -67,7 +67,7 @@ describe('Bot app view', () => {
 
     it('hides ready content when the selected Book is not viewable', () => {
         const view = new BotAppView();
-        view.book = new Book({ id: 'book-id', permission: Permission.RECORDER });
+        view.portfolioBook = new Book({ id: 'book-id', permission: Permission.RECORDER });
         view.error = {
             type: 'info',
             title: 'Insufficient Book permission.',
@@ -83,7 +83,7 @@ describe('Bot app view', () => {
 
     it('renders non-error content for a ready, viewable Book', () => {
         const view = new BotAppView();
-        view.book = new Book({ id: 'book-id', permission: Permission.VIEWER });
+        view.portfolioBook = new Book({ id: 'book-id', permission: Permission.VIEWER });
         view.hasViewerPermission = true;
         view.appState = BotAppState.READY;
 

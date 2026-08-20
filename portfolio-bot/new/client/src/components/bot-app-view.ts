@@ -1,4 +1,4 @@
-import type { App, Book } from 'bkper-js';
+import type { Account, App, Book, Group } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
@@ -25,7 +25,16 @@ export class BotAppView extends LitElement {
     bookId = '';
 
     @state()
-    book?: Book;
+    portfolioBook?: Book;
+
+    @state()
+    group?: Group;
+
+    @state()
+    accounts: Account[] = [];
+
+    @state()
+    enableReset = false;
 
     @state()
     error?: AppError;
@@ -64,7 +73,7 @@ export class BotAppView extends LitElement {
         if (this.embedded || !this.app) {
             return html``;
         }
-        return html`<app-header .app=${this.app} .book=${this.book}></app-header>`;
+        return html`<app-header .app=${this.app} .book=${this.portfolioBook}></app-header>`;
     }
 
     private renderBodyContent(): TemplateResult {
@@ -74,10 +83,10 @@ export class BotAppView extends LitElement {
         if (this.appState === BotAppState.ERROR) {
             return this.renderAppError();
         }
-        if (this.book && !this.hasViewerPermission) {
+        if (this.portfolioBook && !this.hasViewerPermission) {
             return this.renderAppError();
         }
-        if (this.book) {
+        if (this.portfolioBook) {
             return html`<p>Portfolio Bot is ready</p>`;
         }
         return html``;

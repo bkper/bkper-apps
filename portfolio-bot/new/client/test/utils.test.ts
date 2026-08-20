@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { AccountType, Book, Permission } from 'bkper-js';
 import { Utils } from '../src/utils.js';
 
 describe('Utils', () => {
@@ -19,6 +19,43 @@ describe('Utils', () => {
             expect(Utils.canViewBook(book)).toBe(permissionCase.canView);
             expect(Utils.canEditBook(book)).toBe(permissionCase.canEdit);
         }
+    });
+
+    it('gets the first exchange code only for eligible instrument Accounts', async () => {
+        const book = new Book({
+            id: 'portfolio-book',
+            groups: [
+                { id: 'other-group', properties: {} },
+                { id: 'exchange-group', properties: { stock_exc_code: 'USD' } },
+            ],
+            accounts: [
+                {
+                    id: 'instrument',
+                    type: AccountType.ASSET,
+                    groups: [{ id: 'other-group' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'incoming',
+                    type: AccountType.INCOMING,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                {
+                    id: 'missing-exchange',
+                    type: AccountType.ASSET,
+                    groups: [{ id: 'other-group' }],
+                },
+            ],
+        });
+        const instrument = await book.getAccount('instrument');
+        const incoming = await book.getAccount('incoming');
+        const missingExchange = await book.getAccount('missing-exchange');
+        if (!instrument || !incoming || !missingExchange) {
+            throw new Error('Expected Account fixtures');
+        }
+
+        expect(await Utils.getExchangeCode(instrument)).toBe('USD');
+        expect(await Utils.getExchangeCode(incoming)).toBeNull();
+        expect(await Utils.getExchangeCode(missingExchange)).toBeNull();
     });
 
     it('returns the calendar date in the Book timezone', () => {

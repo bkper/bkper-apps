@@ -1,4 +1,5 @@
-import { Amount, Permission, type Book, type Transaction } from 'bkper-js';
+import { AccountType, Permission, type Account, type Book } from 'bkper-js';
+import { STOCK_EXC_CODE_PROP } from './constants.js';
 
 /** Book permissions that allow the current user to view Book data. */
 export const VIEW_PERMISSIONS: readonly Permission[] = [
@@ -31,6 +32,27 @@ export class Utils {
      */
     static canEditBook(book: Book): boolean {
         return EDIT_PERMISSIONS.includes(book.getPermission());
+    }
+
+    /**
+     * Gets the first Portfolio exchange code configured on an eligible Account.
+     *
+     * @param account - The Account whose Groups should be inspected.
+     * @returns The configured exchange code, or `null` when the Account is not eligible.
+     */
+    static async getExchangeCode(account: Account): Promise<string | null> {
+        const type = account.getType();
+        if (type == AccountType.INCOMING || type == AccountType.OUTGOING) {
+            return null;
+        }
+        const groups = await account.getGroups();
+        for (const group of groups) {
+            const exchangeCode = group.getProperty(STOCK_EXC_CODE_PROP);
+            if (exchangeCode != null && exchangeCode.trim() != '') {
+                return exchangeCode;
+            }
+        }
+        return null;
     }
 
     /**

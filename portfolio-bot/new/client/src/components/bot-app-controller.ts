@@ -1,4 +1,4 @@
-import type { Book } from 'bkper-js';
+import type { Account, Book, Group } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
 import { APP_ID } from './../constants.js';
@@ -6,9 +6,9 @@ import { isBookAccessRequiredError, isNotFoundError } from './../errors.js';
 import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
+import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
 import type { BotAppView } from './bot-app-view.js';
-import type { PortfolioBotBook } from '../types.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
 export enum BotAppState {
@@ -65,6 +65,8 @@ export class BotAppController implements ReactiveController {
             return;
         }
 
+        await this.initContext(book);
+
         // const books = await this.loadBooks(book);
         this.view.appState = BotAppState.READY;
 
@@ -72,7 +74,10 @@ export class BotAppController implements ReactiveController {
     }
 
     private async initBook(): Promise<Book | undefined> {
-        this.view.book = undefined;
+        this.view.portfolioBook = undefined;
+        this.view.accounts = [];
+        this.view.group = undefined;
+        this.view.enableReset = false;
         this.view.error = undefined;
 
         this.view.validating = false;
@@ -102,7 +107,6 @@ export class BotAppController implements ReactiveController {
             return undefined;
         }
 
-        this.view.book = book;
         this.view.initialDate = this.getInitialDate(book);
 
         const canView = Utils.canViewBook(book);
@@ -132,6 +136,91 @@ export class BotAppController implements ReactiveController {
         this.view.error = BotAppErrors.appInstallationNotVerified(book.getId());
         this.view.appState = BotAppState.ERROR;
         return false;
+    }
+
+    private async initContext(book: Book): Promise<void> {
+        const stockBook = botService.getStockBook(book);
+        if (!stockBook) {
+            throw new Error('Stock Book not found in the collection');
+        }
+
+        const portfolioBook =
+            stockBook.getId() == book.getId()
+                ? book
+                : await bkperService.loadBook(stockBook.getId(), true);
+        const accountId = appEnv.getSearchParam('accountId') ?? undefined;
+        const groupId = appEnv.getSearchParam('groupId') ?? undefined;
+        await this.buildContext(book, portfolioBook, accountId, groupId);
+
+        this.view.portfolioBook = portfolioBook;
+    }
+
+    private async buildContext(
+        book: Book,
+        stockBook: Book,
+        accountId?: string,
+        groupId?: string
+    ): Promise<void> {
+        const account = accountId ? await book.getAccount(accountId) : undefined;
+        const group = groupId ? await book.getGroup(groupId) : undefined;
+
+        const accounts: Account[] = [];
+        let viewGroup: Group | undefined;
+        let enableReset = true;
+
+        if (account) {
+            const stockAccount = await stockBook.getAccount(account.getName());
+            await this.addAccount(accounts, stockAccount, account);
+        } else if (group) {
+            const stockGroup = await stockBook.getGroup(group.getName());
+            if (stockGroup) {
+                viewGroup = stockGroup;
+                for (const stockAccount of await stockGroup.getAccounts()) {
+                    await this.addAccount(accounts, stockAccount);
+                }
+            }
+        } else {
+            const pendingAccounts = await botApiService.listAccountsPendingCalculation(
+                stockBook.getId()
+            );
+            for (const pendingAccountId of pendingAccounts.ids) {
+                const stockAccount = await stockBook.getAccount(pendingAccountId);
+                await this.addAccount(accounts, stockAccount);
+            }
+            enableReset = false;
+        }
+
+        accounts.sort((first, second) =>
+            (first.getName() ?? '').localeCompare(second.getName() ?? '')
+        );
+
+        this.view.accounts = accounts;
+        this.view.group = viewGroup;
+        this.view.enableReset = enableReset;
+    }
+
+    private async addAccount(
+        accounts: Account[],
+        stockAccount: Account | undefined,
+        selectedAccount?: Account
+    ): Promise<void> {
+        if (!stockAccount) {
+            return;
+        }
+        if (
+            !stockAccount.isPermanent() ||
+            stockAccount.isArchived() ||
+            !(await Utils.getExchangeCode(stockAccount))
+        ) {
+            return;
+        }
+        if (
+            selectedAccount &&
+            selectedAccount.getNormalizedName() != stockAccount.getNormalizedName()
+        ) {
+            return;
+        }
+        accounts.push(stockAccount);
     }
 
     // private async loadBooks(book: Book): Promise<Set<Book>> {

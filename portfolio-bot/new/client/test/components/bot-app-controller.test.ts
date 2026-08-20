@@ -1,18 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { App, Book, Permission } from 'bkper-js';
+import { AccountType, App, Book, Permission, type Account, type Group } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppErrors } from '../../src/components/bot-app-errors.js';
 import type { BotAppView } from '../../src/components/bot-app-view.js';
 import { authService } from '../../src/services/auth-service.js';
 import { bkperService } from '../../src/services/bkper-service.js';
+import { botApiService } from '../../src/services/bot-api-service.js';
+import { botService } from '../../src/services/bot-service.js';
 import type { AppError, PortfolioBotBook } from '../../src/types.js';
 
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
     app?: App;
-    book?: Book;
     bookId = '';
+    portfolioBook?: Book;
+    accounts: Account[] = [];
+    group?: Group;
+    enableReset = false;
     initialDate = '';
     error?: AppError;
     embedded = false;
@@ -43,6 +48,8 @@ const originalAuthInit = authService.init;
 const originalLoadApp = bkperService.loadApp;
 const originalLoadBook = bkperService.loadBook;
 const originalLoadInstalledApp = bkperService.loadInstalledApp;
+const originalListAccountsPendingCalculation = botApiService.listAccountsPendingCalculation;
+const originalGetStockBook = botService.getStockBook;
 const originalLocation = Object.getOwnPropertyDescriptor(self, 'location');
 const originalTop = Object.getOwnPropertyDescriptor(self, 'top');
 
@@ -68,6 +75,8 @@ beforeEach(() => {
             })
     );
     bkperService.loadInstalledApp = mock(async () => new App({ id: 'stock-bot' }));
+    botApiService.listAccountsPendingCalculation = mock(async () => ({ ids: [] }));
+    botService.getStockBook = mock(book => book);
 });
 
 afterEach(() => {
@@ -76,6 +85,8 @@ afterEach(() => {
     bkperService.loadApp = originalLoadApp;
     bkperService.loadBook = originalLoadBook;
     bkperService.loadInstalledApp = originalLoadInstalledApp;
+    botApiService.listAccountsPendingCalculation = originalListAccountsPendingCalculation;
+    botService.getStockBook = originalGetStockBook;
     if (originalLocation) {
         Object.defineProperty(self, 'location', originalLocation);
     } else {
@@ -164,10 +175,215 @@ describe('Bot app controller', () => {
         expect(bkperService.loadBook).toHaveBeenCalledWith('book-id', true);
         expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(book, 'stock-bot');
         expect(view.bookId).toBe('book-id');
-        expect(view.book).toBe(book);
+        expect(view.portfolioBook).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.hasViewerPermission).toBe(true);
         expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('loads the Portfolio Book and resolves the legacy Account context', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=financial-book&accountId=source-account&groupId=source-group',
+            },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            groups: [{ id: 'source-group', name: 'Technology' }],
+            accounts: [
+                {
+                    id: 'source-account',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'source-group' }],
+                },
+            ],
+        });
+        const portfolioCandidate = new Book({ id: 'portfolio-book', fractionDigits: 0 });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            fractionDigits: 0,
+            groups: [
+                {
+                    id: 'exchange-group',
+                    name: 'NASDAQ',
+                    properties: { stock_exc_code: 'USD' },
+                },
+            ],
+            accounts: [
+                {
+                    id: 'portfolio-account',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => portfolioCandidate);
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(1, 'financial-book', true);
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(2, 'portfolio-book', true);
+        expect(view.portfolioBook).toBe(portfolioBook);
+        expect(view.accounts.map(account => account.getId())).toEqual(['portfolio-account']);
+        expect(view.group).toBeUndefined();
+        expect(view.enableReset).toBe(true);
+        expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('maps a Group selection and keeps only eligible Portfolio Accounts', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=financial-book&groupId=source-group',
+            },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            groups: [{ id: 'source-group', name: 'Technology' }],
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            fractionDigits: 0,
+            groups: [
+                { id: 'portfolio-group', name: 'Technology' },
+                {
+                    id: 'exchange-group',
+                    name: 'NASDAQ',
+                    properties: { stock_exc_code: 'USD' },
+                },
+            ],
+            accounts: [
+                {
+                    id: 'apple',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'portfolio-group' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'alphabet',
+                    name: 'Alphabet',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'portfolio-group' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'archived',
+                    name: 'Archived',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    archived: true,
+                    groups: [{ id: 'portfolio-group' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'missing-exchange',
+                    name: 'Missing Exchange',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'portfolio-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.accounts.map(account => account.getId())).toEqual(['alphabet', 'apple']);
+        expect(view.group).toBe(await portfolioBook.getGroup('portfolio-group'));
+        expect(view.enableReset).toBe(true);
+        expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
+    });
+
+    it('loads pending-calculation Accounts without selected context', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=financial-book' },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            fractionDigits: 0,
+            groups: [
+                {
+                    id: 'exchange-group',
+                    properties: { stock_exc_code: 'USD' },
+                },
+            ],
+            accounts: [
+                {
+                    id: 'apple',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                {
+                    id: 'alphabet',
+                    name: 'Alphabet',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                {
+                    id: 'archived',
+                    name: 'Archived',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    archived: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        botApiService.listAccountsPendingCalculation = mock(async bookId => {
+            expect(bookId).toBe('portfolio-book');
+            return { ids: ['apple', 'archived', 'alphabet'] };
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.accounts.map(account => account.getId())).toEqual(['alphabet', 'apple']);
+        expect(view.group).toBeUndefined();
+        expect(view.enableReset).toBe(false);
+        expect(botApiService.listAccountsPendingCalculation).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the legacy failure when the Collection has no Portfolio Book', async () => {
+        botService.getStockBook = mock(() => null);
+        const view = new TestView();
+
+        await expect(createController(view).initialize()).rejects.toThrow(
+            'Stock Book not found in the collection'
+        );
+
+        expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
+        expect(view.portfolioBook).toBeUndefined();
     });
 
     it('blocks initialization when Portfolio Bot is not installed', async () => {
@@ -224,7 +440,8 @@ describe('Bot app controller', () => {
 
         await expect(createController(view).initialize()).rejects.toThrow();
 
-        expect(view.book?.getId()).toBe('book-id');
+        expect(bkperService.loadBook).toHaveBeenCalledWith('book-id', true);
+        expect(view.portfolioBook).toBeUndefined();
         expect(view.initialDate).toBe('');
         expect(view.error).toBeUndefined();
     });

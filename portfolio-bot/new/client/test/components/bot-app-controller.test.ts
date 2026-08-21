@@ -494,7 +494,7 @@ describe('Bot app controller', () => {
         expect(view.hasViewerPermission).toBe(false);
         expect(view.error?.title).toBe('Insufficient Book permission.');
         expect(bkperService.loadInstalledApp).not.toHaveBeenCalled();
-        expect(view.appState).toBe(BotAppState.READY);
+        expect(view.appState).toBe(BotAppState.ERROR);
     });
 
     it('stops after resolving a Portfolio Book without view permission', async () => {

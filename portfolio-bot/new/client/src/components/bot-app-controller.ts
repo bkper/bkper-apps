@@ -132,7 +132,7 @@ export class BotAppController implements ReactiveController {
 
         if (!canView) {
             this.view.error = this.insufficientViewPermission(book);
-            this.view.appState = BotAppState.READY;
+            this.view.appState = BotAppState.ERROR;
             return undefined;
         }
 

@@ -23,14 +23,19 @@ export const BotAppErrors = {
     /**
      * Creates an error for a Book identifier that could not be resolved.
      *
+     * @param bookName - The Book name displayed in the error title.
+     * @param guidance - The recovery guidance displayed with the error.
      * @returns The structured Book-not-found error.
      */
-    bookNotFound(): AppError {
+    bookNotFound(
+        bookName = 'Book',
+        guidance = 'Verify the bookId param in the URL and try again.'
+    ): AppError {
         return {
             type: 'info',
-            title: 'Book not found.',
+            title: `${bookName} not found.`,
             message: {
-                before: 'Verify the bookId param in the URL and try again.',
+                before: guidance,
             },
         };
     },
@@ -39,12 +44,13 @@ export const BotAppErrors = {
      * Creates an error directing the User to request access to a Book.
      *
      * @param bookId - The identifier of the inaccessible Book.
+     * @param bookName - The Book name displayed in the error title.
      * @returns The structured Book-access error.
      */
-    bookAccessRequired(bookId: string): AppError {
+    bookAccessRequired(bookId: string, bookName = 'this Book'): AppError {
         return {
             type: 'info',
-            title: "You don't have access to this Book.",
+            title: `You don't have access to ${bookName}.`,
             message: {
                 action: {
                     label: 'Request access',
@@ -58,12 +64,13 @@ export const BotAppErrors = {
     /**
      * Creates an error for a Book that could not be loaded.
      *
+     * @param bookName - The Book name displayed in the error title.
      * @returns The structured Book-loading error.
      */
-    bookLoadFailed(): AppError {
+    bookLoadFailed(bookName = 'selected Book'): AppError {
         return {
             type: 'info',
-            title: 'The selected Book could not be loaded.',
+            title: `The ${bookName} could not be loaded.`,
             message: {
                 before: 'Please try again.',
             },
@@ -95,12 +102,13 @@ export const BotAppErrors = {
      * Creates an error describing insufficient view permission on a Book.
      *
      * @param book - The Book whose current permission is insufficient.
+     * @param bookName - The Book name displayed in the error title.
      * @returns The structured view-permission error.
      */
-    insufficientViewPermission(book: Book): AppError {
+    insufficientViewPermission(book: Book, bookName = 'Book'): AppError {
         return {
             type: 'info',
-            title: 'Insufficient Book permission.',
+            title: `Insufficient ${bookName} permission.`,
             message: {
                 before: formatPermissionError(book.getPermission(), VIEW_PERMISSIONS),
             },

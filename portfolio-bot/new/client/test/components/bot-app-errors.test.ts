@@ -25,6 +25,25 @@ describe('Bot app errors', () => {
         });
     });
 
+    it('identifies Portfolio Book access and permission failures', () => {
+        const accessError = BotAppErrors.bookAccessRequired('portfolio/id', 'the Portfolio Book');
+        const permissionError = BotAppErrors.insufficientViewPermission(
+            new Book({ permission: Permission.RECORDER }),
+            'Portfolio Book'
+        );
+        const notFoundError = BotAppErrors.bookNotFound('Portfolio Book');
+        const loadError = BotAppErrors.bookLoadFailed('Portfolio Book');
+
+        expect(accessError.title).toBe("You don't have access to the Portfolio Book.");
+        expect(accessError.message.action?.url).toBe(
+            'https://bkper.app/books/portfolio%2Fid/transactions'
+        );
+        expect(permissionError.title).toBe('Insufficient Portfolio Book permission.');
+        expect(permissionError.message.before).toContain(Permission.RECORDER);
+        expect(notFoundError.title).toBe('Portfolio Book not found.');
+        expect(loadError.title).toBe('The Portfolio Book could not be loaded.');
+    });
+
     it('builds the Portfolio Bot installation action for the selected Book', () => {
         const error = BotAppErrors.appInstallationNotVerified('book/id');
 

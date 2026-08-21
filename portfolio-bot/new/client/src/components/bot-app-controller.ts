@@ -50,6 +50,8 @@ export class BotAppController implements ReactiveController {
     }
 
     private async initBookContext(): Promise<void> {
+        this.resetStates();
+
         await authService.init();
         if (!authService.accessToken) {
             return;
@@ -60,12 +62,24 @@ export class BotAppController implements ReactiveController {
             return;
         }
 
-        const installedApp = await this.initInstalledApp(book);
-        if (!installedApp) {
+        const bookAppInstalled = await this.initInstalledApp(book);
+        if (!bookAppInstalled) {
             return;
         }
 
-        await this.initContext(book);
+        const portfolioBook = await this.initPortfolioBook(book);
+        if (!portfolioBook) {
+            return;
+        }
+
+        if (portfolioBook.getId() !== book.getId()) {
+            const portfolioBookAppInstalled = await this.initInstalledApp(portfolioBook);
+            if (!portfolioBookAppInstalled) {
+                return;
+            }
+        }
+
+        await this.initContext(book, portfolioBook);
 
         // const books = await this.loadBooks(book);
         this.view.appState = BotAppState.READY;
@@ -73,19 +87,24 @@ export class BotAppController implements ReactiveController {
         // await this.validateBooks(book, books);
     }
 
-    private async initBook(): Promise<Book | undefined> {
+    private resetStates(): void {
+        this.view.appState = BotAppState.LOADING;
         this.view.portfolioBook = undefined;
-        this.view.accounts = [];
         this.view.group = undefined;
+        this.view.accounts = [];
         this.view.enableReset = false;
         this.view.error = undefined;
-
+        this.view.initialDate = '';
+        this.view.books = [];
+        this.view.hasViewerPermission = false;
+        this.view.hasEditorPermission = false;
         this.view.validating = false;
         this.view.validationError = '';
+        this.view.warnings = [];
+    }
 
+    private async initBook(): Promise<Book | undefined> {
         const bookId = appEnv.getSearchParam('bookId');
-        this.view.bookId = bookId ?? '';
-
         if (!bookId) {
             this.view.error = BotAppErrors.bookNotSpecified();
             this.view.appState = BotAppState.ERROR;
@@ -107,21 +126,69 @@ export class BotAppController implements ReactiveController {
             return undefined;
         }
 
-        this.view.initialDate = this.getInitialDate(book);
-
         const canView = Utils.canViewBook(book);
         this.view.hasViewerPermission = canView;
 
         if (!canView) {
-            this.view.books = [];
-            this.view.hasEditorPermission = false;
             this.view.error = BotAppErrors.insufficientViewPermission(book);
-            this.view.warnings = [];
             this.view.appState = BotAppState.READY;
             return undefined;
         }
 
         return book;
+    }
+
+    private async initPortfolioBook(book: Book): Promise<Book | undefined> {
+        let portfolioBook = botService.getStockBook(book);
+        if (!portfolioBook) {
+            this.view.error = BotAppErrors.bookNotFound(
+                'Portfolio Book',
+                "No Portfolio Book was found in the selected Book's Collection."
+            );
+            this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
+
+        const portfolioBookId = portfolioBook.getId();
+        try {
+            portfolioBook =
+                portfolioBookId == book.getId()
+                    ? book
+                    : await bkperService.loadBook(portfolioBookId, true);
+        } catch (error: unknown) {
+            if (isBookAccessRequiredError(error)) {
+                this.view.error = BotAppErrors.bookAccessRequired(
+                    portfolioBookId,
+                    'the Portfolio Book'
+                );
+            } else {
+                this.view.error = isNotFoundError(error)
+                    ? BotAppErrors.bookNotFound(
+                          'Portfolio Book',
+                          "Verify the selected Book's Collection and try again."
+                      )
+                    : BotAppErrors.bookLoadFailed('Portfolio Book');
+            }
+            this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
+
+        this.view.initialDate = this.getInitialDate(portfolioBook);
+        this.view.portfolioBook = portfolioBook;
+
+        const canView = Utils.canViewBook(portfolioBook);
+        this.view.hasViewerPermission = canView;
+
+        if (!canView) {
+            this.view.error = BotAppErrors.insufficientViewPermission(
+                portfolioBook,
+                'Portfolio Book'
+            );
+            this.view.appState = BotAppState.READY;
+            return undefined;
+        }
+
+        return portfolioBook;
     }
 
     private async initInstalledApp(book: Book): Promise<boolean> {
@@ -138,21 +205,10 @@ export class BotAppController implements ReactiveController {
         return false;
     }
 
-    private async initContext(book: Book): Promise<void> {
-        const stockBook = botService.getStockBook(book);
-        if (!stockBook) {
-            throw new Error('Stock Book not found in the collection');
-        }
-
-        const portfolioBook =
-            stockBook.getId() == book.getId()
-                ? book
-                : await bkperService.loadBook(stockBook.getId(), true);
+    private async initContext(book: Book, portfolioBook: Book): Promise<void> {
         const accountId = appEnv.getSearchParam('accountId') ?? undefined;
         const groupId = appEnv.getSearchParam('groupId') ?? undefined;
         await this.buildContext(book, portfolioBook, accountId, groupId);
-
-        this.view.portfolioBook = portfolioBook;
     }
 
     private async buildContext(

@@ -13,7 +13,6 @@ import type { AppError, PortfolioBotBook } from '../../src/types.js';
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
     app?: App;
-    bookId = '';
     portfolioBook?: Book;
     accounts: Account[] = [];
     group?: Group;
@@ -172,9 +171,9 @@ describe('Bot app controller', () => {
 
         await createController(view).initialize();
 
+        expect(bkperService.loadBook).toHaveBeenCalledTimes(1);
         expect(bkperService.loadBook).toHaveBeenCalledWith('book-id', true);
         expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(book, 'stock-bot');
-        expect(view.bookId).toBe('book-id');
         expect(view.portfolioBook).toBe(book);
         expect(view.initialDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(view.hasViewerPermission).toBe(true);
@@ -207,6 +206,7 @@ describe('Bot app controller', () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
+            permission: Permission.VIEWER,
             groups: [
                 {
                     id: 'exchange-group',
@@ -258,6 +258,7 @@ describe('Bot app controller', () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
+            permission: Permission.VIEWER,
             groups: [
                 { id: 'portfolio-group', name: 'Technology' },
                 {
@@ -325,6 +326,7 @@ describe('Bot app controller', () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
+            permission: Permission.VIEWER,
             groups: [
                 {
                     id: 'exchange-group',
@@ -374,14 +376,19 @@ describe('Bot app controller', () => {
         expect(botApiService.listAccountsPendingCalculation).toHaveBeenCalledTimes(1);
     });
 
-    it('preserves the legacy failure when the Collection has no Portfolio Book', async () => {
+    it('shows an error when the Collection has no Portfolio Book', async () => {
         botService.getStockBook = mock(() => null);
         const view = new TestView();
 
-        await expect(createController(view).initialize()).rejects.toThrow(
-            'Stock Book not found in the collection'
-        );
+        await createController(view).initialize();
 
+        expect(view.error).toEqual(
+            BotAppErrors.bookNotFound(
+                'Portfolio Book',
+                "No Portfolio Book was found in the selected Book's Collection."
+            )
+        );
+        expect(view.appState).toBe(BotAppState.ERROR);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
         expect(view.portfolioBook).toBeUndefined();
     });
@@ -393,6 +400,69 @@ describe('Bot app controller', () => {
         await createController(view).initialize();
 
         expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('book-id'));
+        expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('requires Portfolio Bot to be installed in the selected Book', async () => {
+        const selectedBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            permission: Permission.VIEWER,
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? selectedBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        bkperService.loadInstalledApp = mock(async book =>
+            book.getId() === 'portfolio-book' ? new App({ id: 'stock-bot' }) : null
+        );
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(selectedBook, 'stock-bot');
+        expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('financial-book'));
+        expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('requires Portfolio Bot to be installed in a distinct Portfolio Book', async () => {
+        const selectedBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            permission: Permission.VIEWER,
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? selectedBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        bkperService.loadInstalledApp = mock(async book =>
+            book.getId() === 'financial-book' ? new App({ id: 'stock-bot' }) : null
+        );
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(bkperService.loadInstalledApp).toHaveBeenNthCalledWith(1, selectedBook, 'stock-bot');
+        expect(bkperService.loadInstalledApp).toHaveBeenNthCalledWith(
+            2,
+            portfolioBook,
+            'stock-bot'
+        );
+        expect(view.error).toEqual(BotAppErrors.appInstallationNotVerified('portfolio-book'));
         expect(view.appState).toBe(BotAppState.ERROR);
     });
 
@@ -425,6 +495,67 @@ describe('Bot app controller', () => {
         expect(view.error?.title).toBe('Insufficient Book permission.');
         expect(bkperService.loadInstalledApp).not.toHaveBeenCalled();
         expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('stops after resolving a Portfolio Book without view permission', async () => {
+        const selectedBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+        });
+        const portfolioCandidate = new Book({ id: 'portfolio-book', fractionDigits: 0 });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            permission: Permission.RECORDER,
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? selectedBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => portfolioCandidate);
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(1, 'financial-book', true);
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(2, 'portfolio-book', true);
+        expect(view.portfolioBook).toBe(portfolioBook);
+        expect(view.hasViewerPermission).toBe(false);
+        expect(view.error?.title).toBe('Insufficient Portfolio Book permission.');
+        expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(selectedBook, 'stock-bot');
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('offers access to the resolved Portfolio Book when it cannot be loaded', async () => {
+        const selectedBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+        });
+        bkperService.loadBook = mock(async bookId => {
+            if (bookId === 'financial-book') {
+                return selectedBook;
+            }
+            throw {
+                status: 401,
+                message: 'The user is not a collaborator on the book',
+            };
+        });
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.error).toEqual(
+            BotAppErrors.bookAccessRequired('portfolio-book', 'the Portfolio Book')
+        );
+        expect(bkperService.loadInstalledApp).toHaveBeenCalledWith(selectedBook, 'stock-bot');
+        expect(view.appState).toBe(BotAppState.ERROR);
     });
 
     it('does not classify default-date failures as selected Book failures', async () => {
@@ -495,6 +626,33 @@ describe('Bot app controller', () => {
 
         expect(view.error).toEqual(BotAppErrors.bookLoadFailed());
         expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('clears the previous Book context when reinitializing', async () => {
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+        expect(view.portfolioBook?.getId()).toBe('book-id');
+
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/' },
+        });
+        await controller.initialize();
+
+        expect(view.portfolioBook).toBeUndefined();
+        expect(view.error).toEqual(BotAppErrors.bookNotSpecified());
+
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://stock-bot.bkper.app/?bookId=book-id' },
+        });
+        await controller.initialize();
+
+        expect(view.error).toBeUndefined();
+        expect(view.portfolioBook?.getId()).toBe('book-id');
+        expect(view.appState).toBe(BotAppState.READY);
     });
 
     it('starts initialization when the view connects', () => {

@@ -601,6 +601,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Ported legacy Portfolio Book discovery in Collection order, including the `stock_book` property and zero-fraction fallback.
 - Ported URL-selected Account and Group context, name-based Portfolio resource mapping, Account-over-Group precedence, permanent and active instrument eligibility, exchange Group requirements, alphabetical sorting, and the no-selection pending-calculation path.
 - Adapted the synchronous GAS chart access to asynchronous `bkper-js` reads by loading the selected and discovered Portfolio Book charts before resolving context.
+- Agreed that the Book used to open the menu is only a context anchor for resolving resources from the Portfolio Book. After resolution, the Portfolio Book is authoritative for the default date and timezone; this deliberate target behavior is not a regression from the GAS menu's use of the originating Book timezone.
 - Preserved the legacy missing-Portfolio-Book failure and Reset availability distinction without introducing mutations.
 - Verified the complete local gate with 68 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 - Port permissions, pending tasks, locks, closing conditions, and date defaults.

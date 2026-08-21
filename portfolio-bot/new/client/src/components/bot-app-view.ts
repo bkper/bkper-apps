@@ -22,9 +22,6 @@ export class BotAppView extends LitElement {
     appState = BotAppState.LOADING;
 
     @state()
-    bookId = '';
-
-    @state()
     portfolioBook?: Book;
 
     @state()

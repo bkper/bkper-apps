@@ -232,6 +232,71 @@ export class BotAppController implements ReactiveController {
         this.view.enableReset = enableReset;
     }
 
+    private async loadAccount(
+        book: Book,
+        portfolioBook: Book
+    ): Promise<Account | null | undefined> {
+        const accountId = appEnv.getSearchParam('accountId');
+        if (!accountId) {
+            return undefined;
+        }
+
+        let accountIdentifier = accountId;
+        let bookIdentifier = book.getName() ?? book.getId();
+
+        const fail = (): null => {
+            this.view.error = BotAppErrors.accountNotFound(accountIdentifier, bookIdentifier);
+            this.view.appState = BotAppState.ERROR;
+            return null;
+        };
+
+        try {
+            const account = await book.getAccount(accountId);
+            if (!account) {
+                return fail();
+            }
+
+            accountIdentifier = account.getName() ?? accountId;
+            bookIdentifier = portfolioBook.getName() ?? portfolioBook.getId();
+
+            const portfolioAccount = await portfolioBook.getAccount(accountIdentifier);
+            return portfolioAccount ?? fail();
+        } catch {
+            return fail();
+        }
+    }
+
+    private async loadGroup(book: Book, portfolioBook: Book): Promise<Group | null | undefined> {
+        const groupId = appEnv.getSearchParam('groupId');
+        if (!groupId) {
+            return undefined;
+        }
+
+        let groupIdentifier = groupId;
+        let bookIdentifier = book.getName() ?? book.getId();
+
+        const fail = (): null => {
+            this.view.error = BotAppErrors.groupNotFound(groupIdentifier, bookIdentifier);
+            this.view.appState = BotAppState.ERROR;
+            return null;
+        };
+
+        try {
+            const group = await book.getGroup(groupId);
+            if (!group) {
+                return fail();
+            }
+
+            groupIdentifier = group.getName() ?? groupId;
+            bookIdentifier = portfolioBook.getName() ?? portfolioBook.getId();
+
+            const portfolioGroup = await portfolioBook.getGroup(groupIdentifier);
+            return portfolioGroup ?? fail();
+        } catch {
+            return fail();
+        }
+    }
+
     private async addAccount(
         accounts: Account[],
         stockAccount: Account | undefined,

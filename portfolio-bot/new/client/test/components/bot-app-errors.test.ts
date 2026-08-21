@@ -15,6 +15,24 @@ describe('Bot app errors', () => {
         expect(message).toContain(Permission.OWNER);
     });
 
+    it('identifies a missing Account by Account and Book identifiers', () => {
+        const error = BotAppErrors.accountNotFound('account/id', 'book/id');
+
+        expect(error.type).toBe('info');
+        expect(error.title).toBe('Account not found.');
+        expect(error.message.before).toContain('account/id');
+        expect(error.message.before).toContain('book/id');
+    });
+
+    it('identifies a missing Group by Group and Book identifiers', () => {
+        const error = BotAppErrors.groupNotFound('group/id', 'book/id');
+
+        expect(error.type).toBe('info');
+        expect(error.title).toBe('Group not found.');
+        expect(error.message.before).toContain('group/id');
+        expect(error.message.before).toContain('book/id');
+    });
+
     it('builds the Book access action from the supplied Book id', () => {
         const error = BotAppErrors.bookAccessRequired('book/id');
 

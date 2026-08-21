@@ -41,6 +41,40 @@ export const BotAppErrors = {
     },
 
     /**
+     * Creates an error for an Account that could not be resolved in a Book.
+     *
+     * @param accountIdentifier - The identifier used to resolve the Account.
+     * @param bookIdentifier - The identifier of the Book where the Account was expected.
+     * @returns The structured Account-not-found error.
+     */
+    accountNotFound(accountIdentifier: string, bookIdentifier: string): AppError {
+        return {
+            type: 'info',
+            title: 'Account not found.',
+            message: {
+                before: `Account ${accountIdentifier} could not be found in Book ${bookIdentifier}.`,
+            },
+        };
+    },
+
+    /**
+     * Creates an error for a Group that could not be resolved in a Book.
+     *
+     * @param groupIdentifier - The identifier used to resolve the Group.
+     * @param bookIdentifier - The identifier of the Book where the Group was expected.
+     * @returns The structured Group-not-found error.
+     */
+    groupNotFound(groupIdentifier: string, bookIdentifier: string): AppError {
+        return {
+            type: 'info',
+            title: 'Group not found.',
+            message: {
+                before: `Group ${groupIdentifier} could not be found in Book ${bookIdentifier}.`,
+            },
+        };
+    },
+
+    /**
      * Creates an error directing the User to request access to a Book.
      *
      * @param bookId - The identifier of the inaccessible Book.

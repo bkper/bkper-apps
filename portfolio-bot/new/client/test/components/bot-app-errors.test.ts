@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { Account, Book, Group, Permission } from 'bkper-js';
 import { BotAppErrors } from '../../src/components/bot-app-errors.js';
 
 describe('Bot app errors', () => {
@@ -15,27 +15,36 @@ describe('Bot app errors', () => {
         expect(message).toContain(Permission.OWNER);
     });
 
-    it('identifies a missing Account by Account and Book identifiers', () => {
-        const error = BotAppErrors.accountNotFound('account/id', 'book/id');
+    it('identifies a missing Book resource by resource and Book identifiers', () => {
+        const book = new Book({ id: 'book/id' });
+        const accountError = BotAppErrors.bookResourceNotFound(
+            new Account(book, { id: 'account/id' }),
+            'book/id'
+        );
+        const groupError = BotAppErrors.bookResourceNotFound(
+            new Group(book, { id: 'group/id' }),
+            'book/id'
+        );
 
-        expect(error.type).toBe('info');
-        expect(error.title).toBe('Account not found.');
-        expect(error.message.before).toContain('account/id');
-        expect(error.message.before).toContain('book/id');
+        expect(accountError.type).toBe('info');
+        expect(accountError.title).toBe('Account not found.');
+        expect(accountError.message.before).toContain('account/id');
+        expect(accountError.message.before).toContain('book/id');
+        expect(groupError.title).toBe('Group not found.');
+        expect(groupError.message.before).toContain('group/id');
+        expect(groupError.message.before).toContain('book/id');
     });
 
-    it('identifies a missing Group by Group and Book identifiers', () => {
-        const error = BotAppErrors.groupNotFound('group/id', 'book/id');
-
-        expect(error.type).toBe('info');
-        expect(error.title).toBe('Group not found.');
-        expect(error.message.before).toContain('group/id');
-        expect(error.message.before).toContain('book/id');
-    });
-
-    it('identifies Account and Group loading failures', () => {
-        const accountError = BotAppErrors.accountLoadFailed('account/id', 'book/id');
-        const groupError = BotAppErrors.groupLoadFailed('group/id', 'book/id');
+    it('identifies Book resource loading failures', () => {
+        const book = new Book({ id: 'book/id' });
+        const accountError = BotAppErrors.bookResourceLoadFailed(
+            new Account(book, { id: 'account/id' }),
+            'book/id'
+        );
+        const groupError = BotAppErrors.bookResourceLoadFailed(
+            new Group(book, { id: 'group/id' }),
+            'book/id'
+        );
 
         expect(accountError.title).toBe('Account could not be loaded.');
         expect(accountError.message.before).toContain('account/id');

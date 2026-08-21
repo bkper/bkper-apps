@@ -1,4 +1,4 @@
-import type { Account, Book, Group } from 'bkper-js';
+import { Account, Group, type Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
 import { APP_ID } from './../constants.js';
@@ -241,8 +241,8 @@ export class BotAppController implements ReactiveController {
             return undefined;
         }
 
-        let accountIdentifier = accountId;
-        let bookIdentifier = book.getName() ?? book.getId();
+        let account = new Account(book, { id: accountId });
+        let bookName = book.getName() ?? book.getId();
 
         const fail = (error: AppError): null => {
             this.view.error = error;
@@ -251,23 +251,21 @@ export class BotAppController implements ReactiveController {
         };
 
         try {
-            const account = await book.getAccount(accountId);
-            if (!account) {
-                return fail(this.accountNotFound(accountIdentifier, bookIdentifier));
+            const bookAccount = await book.getAccount(accountId);
+            if (!bookAccount) {
+                return fail(this.resourceNotFound(account, bookName));
             }
 
-            accountIdentifier = account.getName() ?? accountId;
-            bookIdentifier = portfolioBook.getName() ?? portfolioBook.getId();
+            account = bookAccount;
+            bookName = portfolioBook.getName() ?? portfolioBook.getId();
 
-            const portfolioAccount = await portfolioBook.getAccount(accountIdentifier);
-            return (
-                portfolioAccount ?? fail(this.accountNotFound(accountIdentifier, bookIdentifier))
-            );
+            const portfolioAccount = await portfolioBook.getAccount(account.getName());
+            return portfolioAccount ?? fail(this.resourceNotFound(account, bookName));
         } catch (error: unknown) {
             return fail(
                 isNotFoundError(error)
-                    ? this.accountNotFound(accountIdentifier, bookIdentifier)
-                    : this.accountLoadFailed(accountIdentifier, bookIdentifier)
+                    ? this.resourceNotFound(account, bookName)
+                    : this.resourceLoadFailed(account, bookName)
             );
         }
     }
@@ -278,8 +276,8 @@ export class BotAppController implements ReactiveController {
             return undefined;
         }
 
-        let groupIdentifier = groupId;
-        let bookIdentifier = book.getName() ?? book.getId();
+        let group = new Group(book, { id: groupId });
+        let bookName = book.getName() ?? book.getId();
 
         const fail = (error: AppError): null => {
             this.view.error = error;
@@ -288,21 +286,21 @@ export class BotAppController implements ReactiveController {
         };
 
         try {
-            const group = await book.getGroup(groupId);
-            if (!group) {
-                return fail(this.groupNotFound(groupIdentifier, bookIdentifier));
+            const bookGroup = await book.getGroup(groupId);
+            if (!bookGroup) {
+                return fail(this.resourceNotFound(group, bookName));
             }
 
-            groupIdentifier = group.getName() ?? groupId;
-            bookIdentifier = portfolioBook.getName() ?? portfolioBook.getId();
+            group = bookGroup;
+            bookName = portfolioBook.getName() ?? portfolioBook.getId();
 
-            const portfolioGroup = await portfolioBook.getGroup(groupIdentifier);
-            return portfolioGroup ?? fail(this.groupNotFound(groupIdentifier, bookIdentifier));
+            const portfolioGroup = await portfolioBook.getGroup(group.getName());
+            return portfolioGroup ?? fail(this.resourceNotFound(group, bookName));
         } catch (error: unknown) {
             return fail(
                 isNotFoundError(error)
-                    ? this.groupNotFound(groupIdentifier, bookIdentifier)
-                    : this.groupLoadFailed(groupIdentifier, bookIdentifier)
+                    ? this.resourceNotFound(group, bookName)
+                    : this.resourceLoadFailed(group, bookName)
             );
         }
     }
@@ -353,20 +351,12 @@ export class BotAppController implements ReactiveController {
         return BotAppErrors.bookNotFound(name, guidance);
     }
 
-    private accountNotFound(identifier: string, bookIdentifier: string): AppError {
-        return BotAppErrors.accountNotFound(identifier, bookIdentifier);
+    private resourceNotFound(resource: Account | Group, bookName: string): AppError {
+        return BotAppErrors.bookResourceNotFound(resource, bookName);
     }
 
-    private accountLoadFailed(identifier: string, bookIdentifier: string): AppError {
-        return BotAppErrors.accountLoadFailed(identifier, bookIdentifier);
-    }
-
-    private groupNotFound(identifier: string, bookIdentifier: string): AppError {
-        return BotAppErrors.groupNotFound(identifier, bookIdentifier);
-    }
-
-    private groupLoadFailed(identifier: string, bookIdentifier: string): AppError {
-        return BotAppErrors.groupLoadFailed(identifier, bookIdentifier);
+    private resourceLoadFailed(resource: Account | Group, bookName: string): AppError {
+        return BotAppErrors.bookResourceLoadFailed(resource, bookName);
     }
 
     private portfolioBookNotFoundInCollection(): AppError {

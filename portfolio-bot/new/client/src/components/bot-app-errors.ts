@@ -1,7 +1,9 @@
-import type { Book, Permission } from 'bkper-js';
+import { Account, Group, type Book, type Permission } from 'bkper-js';
 import { appEnv } from '../app-env.js';
 import type { AppError, PortfolioBotBook } from '../types.js';
 import { VIEW_PERMISSIONS } from '../utils.js';
+
+type BookResource = Account | Group;
 
 /** Factories for structured errors displayed by the Portfolio Bot application shell. */
 export const BotAppErrors = {
@@ -41,69 +43,39 @@ export const BotAppErrors = {
     },
 
     /**
-     * Creates an error for an Account that could not be resolved in a Book.
+     * Creates an error for a Book resource that could not be resolved.
      *
-     * @param accountIdentifier - The identifier used to resolve the Account.
-     * @param bookIdentifier - The identifier of the Book where the Account was expected.
-     * @returns The structured Account-not-found error.
+     * @param resource - The Book resource that could not be resolved.
+     * @param bookName - The name of the Book where the resource was expected.
+     * @returns The structured Book-resource-not-found error.
      */
-    accountNotFound(accountIdentifier: string, bookIdentifier: string): AppError {
+    bookResourceNotFound(resource: BookResource, bookName: string): AppError {
+        const type = resolveBookResourceType(resource);
+        const identifier = resource.getName() ?? resource.getId() ?? 'unknown';
         return {
             type: 'info',
-            title: 'Account not found.',
+            title: `${type} not found.`,
             message: {
-                before: `Account ${accountIdentifier} could not be found in Book ${bookIdentifier}.`,
+                before: `${type} ${identifier} could not be found in Book ${bookName}.`,
             },
         };
     },
 
     /**
-     * Creates an error for a Group that could not be resolved in a Book.
+     * Creates an error for a Book resource that could not be loaded.
      *
-     * @param groupIdentifier - The identifier used to resolve the Group.
-     * @param bookIdentifier - The identifier of the Book where the Group was expected.
-     * @returns The structured Group-not-found error.
+     * @param resource - The Book resource that could not be loaded.
+     * @param bookName - The name of the Book containing the resource.
+     * @returns The structured Book-resource-loading error.
      */
-    groupNotFound(groupIdentifier: string, bookIdentifier: string): AppError {
+    bookResourceLoadFailed(resource: BookResource, bookName: string): AppError {
+        const type = resolveBookResourceType(resource);
+        const identifier = resource.getName() ?? resource.getId() ?? 'unknown';
         return {
             type: 'info',
-            title: 'Group not found.',
+            title: `${type} could not be loaded.`,
             message: {
-                before: `Group ${groupIdentifier} could not be found in Book ${bookIdentifier}.`,
-            },
-        };
-    },
-
-    /**
-     * Creates an error for an Account that could not be loaded from a Book.
-     *
-     * @param accountIdentifier - The identifier used to load the Account.
-     * @param bookIdentifier - The identifier of the Book containing the Account.
-     * @returns The structured Account-loading error.
-     */
-    accountLoadFailed(accountIdentifier: string, bookIdentifier: string): AppError {
-        return {
-            type: 'info',
-            title: 'Account could not be loaded.',
-            message: {
-                before: `Account ${accountIdentifier} could not be loaded from Book ${bookIdentifier}. Please try again.`,
-            },
-        };
-    },
-
-    /**
-     * Creates an error for a Group that could not be loaded from a Book.
-     *
-     * @param groupIdentifier - The identifier used to load the Group.
-     * @param bookIdentifier - The identifier of the Book containing the Group.
-     * @returns The structured Group-loading error.
-     */
-    groupLoadFailed(groupIdentifier: string, bookIdentifier: string): AppError {
-        return {
-            type: 'info',
-            title: 'Group could not be loaded.',
-            message: {
-                before: `Group ${groupIdentifier} could not be loaded from Book ${bookIdentifier}. Please try again.`,
+                before: `${type} ${identifier} could not be loaded from Book ${bookName}. Please try again.`,
             },
         };
     },
@@ -219,4 +191,12 @@ function formatPermissionList(permissions: readonly Permission[]): string {
         return `${permissions[0]} or ${permissions[1]}`;
     }
     return `${permissions.slice(0, -1).join(', ')}, or ${permissions.at(-1)}`;
+}
+
+function resolveBookResourceType(resource: BookResource): string {
+    if (resource instanceof Account) {
+        return 'Account';
+    } else {
+        return 'Group';
+    }
 }

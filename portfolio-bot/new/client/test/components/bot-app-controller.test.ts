@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { AccountType, App, Book, Permission, type Account, type Group } from 'bkper-js';
+import { Account, AccountType, App, Book, Group, Permission } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController, BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppErrors } from '../../src/components/bot-app-errors.js';
@@ -658,7 +658,10 @@ describe('Bot app controller', () => {
             await loadAccount.call(createController(missingView), missingBook, portfolioBook)
         ).toBe(null);
         expect(missingView.error).toEqual(
-            BotAppErrors.accountNotFound('account-id', 'Source Book')
+            BotAppErrors.bookResourceNotFound(
+                new Account(missingBook, { id: 'account-id' }),
+                'Source Book'
+            )
         );
 
         const sourceBook = new Book({
@@ -675,7 +678,12 @@ describe('Bot app controller', () => {
         expect(
             await loadAccount.call(createController(failedView), sourceBook, portfolioBook)
         ).toBe(null);
-        expect(failedView.error).toEqual(BotAppErrors.accountLoadFailed('Apple', 'Portfolio Book'));
+        expect(failedView.error).toEqual(
+            BotAppErrors.bookResourceLoadFailed(
+                new Account(sourceBook, { name: 'Apple' }),
+                'Portfolio Book'
+            )
+        );
     });
 
     it('distinguishes Group not-found and loading failures', async () => {
@@ -695,7 +703,12 @@ describe('Bot app controller', () => {
         expect(
             await loadGroup.call(createController(missingView), missingBook, portfolioBook)
         ).toBe(null);
-        expect(missingView.error).toEqual(BotAppErrors.groupNotFound('group-id', 'Source Book'));
+        expect(missingView.error).toEqual(
+            BotAppErrors.bookResourceNotFound(
+                new Group(missingBook, { id: 'group-id' }),
+                'Source Book'
+            )
+        );
 
         const sourceBook = new Book({
             id: 'source-book',
@@ -712,7 +725,10 @@ describe('Bot app controller', () => {
             null
         );
         expect(failedView.error).toEqual(
-            BotAppErrors.groupLoadFailed('Technology', 'Portfolio Book')
+            BotAppErrors.bookResourceLoadFailed(
+                new Group(sourceBook, { name: 'Technology' }),
+                'Portfolio Book'
+            )
         );
     });
 

@@ -63,8 +63,8 @@ export class BotAppController implements ReactiveController {
             return;
         }
 
-        const bookAppInstalled = await this.initInstalledApp(book);
-        if (!bookAppInstalled) {
+        const installedInBook = await this.initInstalledApp(book);
+        if (!installedInBook) {
             return;
         }
 
@@ -74,18 +74,14 @@ export class BotAppController implements ReactiveController {
         }
 
         if (portfolioBook.getId() !== book.getId()) {
-            const portfolioBookAppInstalled = await this.initInstalledApp(portfolioBook);
-            if (!portfolioBookAppInstalled) {
+            const installedInPortfolioBook = await this.initInstalledApp(portfolioBook);
+            if (!installedInPortfolioBook) {
                 return;
             }
         }
 
-        await this.initContext(book, portfolioBook);
-
-        // const books = await this.loadBooks(book);
+        await this.loadContext(book, portfolioBook);
         this.view.appState = BotAppState.READY;
-
-        // await this.validateBooks(book, books);
     }
 
     private resetStates(): void {
@@ -194,18 +190,10 @@ export class BotAppController implements ReactiveController {
         return false;
     }
 
-    private async initContext(book: Book, portfolioBook: Book): Promise<void> {
-        const accountId = appEnv.getSearchParam('accountId') ?? undefined;
-        const groupId = appEnv.getSearchParam('groupId') ?? undefined;
-        await this.buildContext(book, portfolioBook, accountId, groupId);
-    }
+    private async loadContext(book: Book, portfolioBook: Book): Promise<void> {
+        const accountId = appEnv.getSearchParam('accountId');
+        const groupId = appEnv.getSearchParam('groupId');
 
-    private async buildContext(
-        book: Book,
-        stockBook: Book,
-        accountId?: string,
-        groupId?: string
-    ): Promise<void> {
         const account = accountId ? await book.getAccount(accountId) : undefined;
         const group = groupId ? await book.getGroup(groupId) : undefined;
 
@@ -214,10 +202,10 @@ export class BotAppController implements ReactiveController {
         let enableReset = true;
 
         if (account) {
-            const stockAccount = await stockBook.getAccount(account.getName());
+            const stockAccount = await portfolioBook.getAccount(account.getName());
             await this.addAccount(accounts, stockAccount, account);
         } else if (group) {
-            const stockGroup = await stockBook.getGroup(group.getName());
+            const stockGroup = await portfolioBook.getGroup(group.getName());
             if (stockGroup) {
                 viewGroup = stockGroup;
                 for (const stockAccount of await stockGroup.getAccounts()) {
@@ -226,10 +214,10 @@ export class BotAppController implements ReactiveController {
             }
         } else {
             const pendingAccounts = await botApiService.listAccountsPendingCalculation(
-                stockBook.getId()
+                portfolioBook.getId()
             );
             for (const pendingAccountId of pendingAccounts.ids) {
-                const stockAccount = await stockBook.getAccount(pendingAccountId);
+                const stockAccount = await portfolioBook.getAccount(pendingAccountId);
                 await this.addAccount(accounts, stockAccount);
             }
             enableReset = false;
@@ -267,75 +255,6 @@ export class BotAppController implements ReactiveController {
         }
         accounts.push(stockAccount);
     }
-
-    // private async loadBooks(book: Book): Promise<Set<Book>> {
-    //     this.view.books = [];
-    //     this.view.hasEditorPermission = false;
-    //     this.view.error = undefined;
-    //     this.view.warnings = [];
-
-    //     const hasBaseBook = Utils.hasBaseBookInCollection(book);
-    //     const connectedBooks = await botService.getConnectedBooks(book);
-    //     const books = connectedBooks.add(book);
-
-    //     // Add books to view
-    //     for (const b of books) {
-    //         const appBook = this.createExchangeBotBook(b, hasBaseBook);
-    //         this.view.books.push(appBook);
-    //     }
-
-    //     // Check editor permission (only on Books that the Exchange Update targets)
-    //     const booksMissingEditPermission = this.view.books.filter(
-    //         b => b.isBase && !Utils.canEditBook(b.book)
-    //     );
-    //     if (booksMissingEditPermission.length > 0) {
-    //         this.view.hasEditorPermission = false;
-    //         this.view.error = BotAppErrors.insufficientEditPermission(booksMissingEditPermission);
-    //     } else {
-    //         this.view.hasEditorPermission = true;
-    //     }
-
-    //     // Pending-task validation applies only to Books visible to the User.
-    //     const visibleBooks = Array.from(books).filter(Utils.canViewBook);
-    //     return new Set(visibleBooks);
-    // }
-
-    // private async validateBooks(book: Book, books: Set<Book>): Promise<void> {
-    //     this.view.validating = true;
-    //     this.view.validationError = '';
-    //     this.view.warnings = [];
-
-    //     const warnings: string[] = [];
-
-    //     try {
-    //         const missingExcCodes = await this.mapMissingExcCodes(book);
-    //         if (missingExcCodes.size > 0) {
-    //             warnings.push(
-    //                 this.buildWarning(
-    //                     'Configured currencies do not have a visible connected Book:',
-    //                     missingExcCodes
-    //                 )
-    //             );
-    //             this.view.warnings = [...warnings];
-    //         }
-
-    //         const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
-    //         if (pendingTasksExcCodes.size > 0) {
-    //             warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
-    //             this.view.warnings = [...warnings];
-    //         }
-
-    //         const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
-    //         if (eventErrorsExcCodes.size > 0) {
-    //             warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
-    //             this.view.warnings = [...warnings];
-    //         }
-    //     } catch {
-    //         this.view.validationError = 'An error occurred while validating connected Books.';
-    //     } finally {
-    //         this.view.validating = false;
-    //     }
-    // }
 
     private getInitialDate(book: Book): string {
         const timeZone = book.getTimeZone();
@@ -379,56 +298,4 @@ export class BotAppController implements ReactiveController {
     private appInstallationNotVerified(bookId: string): AppError {
         return BotAppErrors.appInstallationNotVerified(bookId);
     }
-
-    // private createExchangeBotBook(book: Book, hasBaseBook: boolean): PortfolioBotBook {
-    //     return {
-    //         book,
-    //         excCode: Utils.getExcCode(book),
-    //         isBase: Utils.isBaseBook(book) || !hasBaseBook,
-    //     };
-    // }
-
-    // private async mapPendingTasksExcCodes(collectionBooks: Set<Book>): Promise<Set<string>> {
-    //     const excCodes = new Set<string>();
-    //     const booksWithPendingTasks = await botService.getBooksWithPendingTasks(collectionBooks);
-    //     for (const book of booksWithPendingTasks) {
-    //         excCodes.add(Utils.getExcCode(book) ?? '');
-    //     }
-    //     return excCodes;
-    // }
-
-    // private async mapEventErrorsExcCodes(book: Book): Promise<Set<string>> {
-    //     const excCodes = new Set<string>();
-    //     const collection = book.getCollection();
-    //     const collectionBooks = (collection?.getBooks() ?? []).filter(
-    //         b => Utils.getExcCode(b) && Utils.canViewBook(b)
-    //     );
-    //     const booksWithEventErrors = await botService.getBooksWithEventErrors(
-    //         new Set(collectionBooks)
-    //     );
-    //     for (const book of booksWithEventErrors) {
-    //         const excCode = Utils.getExcCode(book);
-    //         if (excCode) {
-    //             excCodes.add(excCode);
-    //         }
-    //     }
-    //     return excCodes;
-    // }
-
-    // private async mapMissingExcCodes(book: Book): Promise<Set<string>> {
-    //     const missingExcCodes = new Set<string>();
-    //     const visibleExcCodes = botService.getCollectionExcCodes(book);
-    //     const configuredExcCodes = await botService.getBookConfiguredExcCodes(book);
-    //     for (const configuredExcCode of configuredExcCodes) {
-    //         if (!visibleExcCodes.has(configuredExcCode)) {
-    //             missingExcCodes.add(configuredExcCode);
-    //         }
-    //     }
-    //     return missingExcCodes;
-    // }
-
-    // private buildWarning(prefix: string, excCodes: Set<string>): string {
-    //     const codesArray = Array.from(excCodes);
-    //     return `${prefix} ${codesArray.join(', ')}`;
-    // }
 }

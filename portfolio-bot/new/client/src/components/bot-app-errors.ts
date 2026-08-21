@@ -75,6 +75,40 @@ export const BotAppErrors = {
     },
 
     /**
+     * Creates an error for an Account that could not be loaded from a Book.
+     *
+     * @param accountIdentifier - The identifier used to load the Account.
+     * @param bookIdentifier - The identifier of the Book containing the Account.
+     * @returns The structured Account-loading error.
+     */
+    accountLoadFailed(accountIdentifier: string, bookIdentifier: string): AppError {
+        return {
+            type: 'info',
+            title: 'Account could not be loaded.',
+            message: {
+                before: `Account ${accountIdentifier} could not be loaded from Book ${bookIdentifier}. Please try again.`,
+            },
+        };
+    },
+
+    /**
+     * Creates an error for a Group that could not be loaded from a Book.
+     *
+     * @param groupIdentifier - The identifier used to load the Group.
+     * @param bookIdentifier - The identifier of the Book containing the Group.
+     * @returns The structured Group-loading error.
+     */
+    groupLoadFailed(groupIdentifier: string, bookIdentifier: string): AppError {
+        return {
+            type: 'info',
+            title: 'Group could not be loaded.',
+            message: {
+                before: `Group ${groupIdentifier} could not be loaded from Book ${bookIdentifier}. Please try again.`,
+            },
+        };
+    },
+
+    /**
      * Creates an error directing the User to request access to a Book.
      *
      * @param bookId - The identifier of the inaccessible Book.

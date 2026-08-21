@@ -20,8 +20,7 @@ export function isBookAccessRequiredError(error: unknown): boolean {
 }
 
 export function isNotFoundError(error: unknown): boolean {
-    const status = getErrorStatus(error);
-    return status === 400 || status === 404;
+    return getErrorStatus(error) === 404;
 }
 
 function getErrorStatus(error: unknown): number | undefined {

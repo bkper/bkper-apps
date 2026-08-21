@@ -11,8 +11,8 @@ describe('Error classification', () => {
         expect(isBookAccessRequiredError({ status: 401, message: 'Login required' })).toBe(false);
     });
 
-    it('identifies invalid and missing errors', () => {
-        expect(isNotFoundError({ status: 400 })).toBe(true);
+    it('requires an actual not-found status', () => {
+        expect(isNotFoundError({ status: 400 })).toBe(false);
         expect(isNotFoundError({ code: 404 })).toBe(true);
         expect(isNotFoundError({ status: 500 })).toBe(false);
     });

@@ -33,6 +33,18 @@ describe('Bot app errors', () => {
         expect(error.message.before).toContain('book/id');
     });
 
+    it('identifies Account and Group loading failures', () => {
+        const accountError = BotAppErrors.accountLoadFailed('account/id', 'book/id');
+        const groupError = BotAppErrors.groupLoadFailed('group/id', 'book/id');
+
+        expect(accountError.title).toBe('Account could not be loaded.');
+        expect(accountError.message.before).toContain('account/id');
+        expect(accountError.message.before).toContain('book/id');
+        expect(groupError.title).toBe('Group could not be loaded.');
+        expect(groupError.message.before).toContain('group/id');
+        expect(groupError.message.before).toContain('book/id');
+    });
+
     it('builds the Book access action from the supplied Book id', () => {
         const error = BotAppErrors.bookAccessRequired('book/id');
 

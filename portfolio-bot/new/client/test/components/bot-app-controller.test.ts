@@ -102,6 +102,18 @@ function createController(view: TestView): BotAppController {
     return new BotAppController(view as unknown as BotAppView);
 }
 
+const loadAccount = Reflect.get(BotAppController.prototype, 'loadAccount') as (
+    this: BotAppController,
+    book: Book,
+    portfolioBook: Book
+) => Promise<Account | null | undefined>;
+
+const loadGroup = Reflect.get(BotAppController.prototype, 'loadGroup') as (
+    this: BotAppController,
+    book: Book,
+    portfolioBook: Book
+) => Promise<Group | null | undefined>;
+
 describe('Bot app controller', () => {
     it('loads App metadata even when authentication does not establish a session', async () => {
         const app = new App({ id: 'stock-bot', name: 'Global Portfolio Bot' });
@@ -626,6 +638,82 @@ describe('Bot app controller', () => {
 
         expect(view.error).toEqual(BotAppErrors.bookLoadFailed());
         expect(view.appState).toBe(BotAppState.ERROR);
+    });
+
+    it('distinguishes Account not-found and loading failures', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=source-book&accountId=account-id',
+            },
+        });
+        const portfolioBook = new Book({ id: 'portfolio-book', name: 'Portfolio Book' });
+
+        const missingBook = new Book({ id: 'source-book', name: 'Source Book' });
+        missingBook.getAccount = async () => {
+            throw { status: 404, message: 'Account not found' };
+        };
+        const missingView = new TestView();
+        expect(
+            await loadAccount.call(createController(missingView), missingBook, portfolioBook)
+        ).toBe(null);
+        expect(missingView.error).toEqual(
+            BotAppErrors.accountNotFound('account-id', 'Source Book')
+        );
+
+        const sourceBook = new Book({
+            id: 'source-book',
+            name: 'Source Book',
+            accounts: [{ id: 'account-id', name: 'Apple' }],
+        });
+        const sourceAccount = await sourceBook.getAccount('account-id');
+        sourceBook.getAccount = async () => sourceAccount;
+        portfolioBook.getAccount = async () => {
+            throw { status: 500, message: 'Unavailable' };
+        };
+        const failedView = new TestView();
+        expect(
+            await loadAccount.call(createController(failedView), sourceBook, portfolioBook)
+        ).toBe(null);
+        expect(failedView.error).toEqual(BotAppErrors.accountLoadFailed('Apple', 'Portfolio Book'));
+    });
+
+    it('distinguishes Group not-found and loading failures', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=source-book&groupId=group-id',
+            },
+        });
+        const portfolioBook = new Book({ id: 'portfolio-book', name: 'Portfolio Book' });
+
+        const missingBook = new Book({ id: 'source-book', name: 'Source Book' });
+        missingBook.getGroup = async () => {
+            throw { status: 404, message: 'Group not found' };
+        };
+        const missingView = new TestView();
+        expect(
+            await loadGroup.call(createController(missingView), missingBook, portfolioBook)
+        ).toBe(null);
+        expect(missingView.error).toEqual(BotAppErrors.groupNotFound('group-id', 'Source Book'));
+
+        const sourceBook = new Book({
+            id: 'source-book',
+            name: 'Source Book',
+            groups: [{ id: 'group-id', name: 'Technology' }],
+        });
+        const sourceGroup = await sourceBook.getGroup('group-id');
+        sourceBook.getGroup = async () => sourceGroup;
+        portfolioBook.getGroup = async () => {
+            throw { status: 500, message: 'Unavailable' };
+        };
+        const failedView = new TestView();
+        expect(await loadGroup.call(createController(failedView), sourceBook, portfolioBook)).toBe(
+            null
+        );
+        expect(failedView.error).toEqual(
+            BotAppErrors.groupLoadFailed('Technology', 'Portfolio Book')
+        );
     });
 
     it('clears the previous Book context when reinitializing', async () => {

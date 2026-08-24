@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
 import { createApp } from '../../src/index.js';
 import { CalculateService } from '../../src/api/services/calculate-service.js';
+import { ForwardService } from '../../src/api/services/forward-service.js';
+import { ResetService } from '../../src/api/services/reset-service.js';
 import type { CalculateResult } from '../../src/api/schemas.js';
 
 const env = {
@@ -9,6 +11,9 @@ const env = {
 
 const originalListAccountsPendingCalculation = CalculateService.listAccountsPendingCalculation;
 const originalCalculate = CalculateService.calculate;
+const originalReset = ResetService.reset;
+const originalFullReset = ResetService.fullReset;
+const originalForward = ForwardService.forward;
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
     return createApp().request(path, init, env);
@@ -17,6 +22,9 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
 afterEach(() => {
     CalculateService.listAccountsPendingCalculation = originalListAccountsPendingCalculation;
     CalculateService.calculate = originalCalculate;
+    ResetService.reset = originalReset;
+    ResetService.fullReset = originalFullReset;
+    ForwardService.forward = originalForward;
 });
 
 describe('typed Portfolio Bot API', () => {
@@ -71,6 +79,11 @@ describe('typed Portfolio Bot API', () => {
     });
 
     test('returns empty domain results when write stubs make no changes', async () => {
+        CalculateService.calculate = mock(async () => ({ books: [] }));
+        ResetService.reset = mock(async () => ({ books: [] }));
+        ResetService.fullReset = mock(async () => ({ books: [] }));
+        ForwardService.forward = mock(async () => ({ books: [] }));
+
         const requests: Array<[string, RequestInit]> = [
             [
                 '/api/v1/books/portfolio-book/accounts/instrument-account/calculate',

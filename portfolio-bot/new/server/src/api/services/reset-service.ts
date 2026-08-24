@@ -4,18 +4,20 @@ import { OperationService } from './operation-service.js';
 
 export class ResetService extends OperationService {
     static async reset(
-        _context: AppContext,
-        _bookId: string,
-        _accountId: string
+        context: AppContext,
+        bookId: string,
+        accountId: string
     ): Promise<ResetResult> {
+        await this.resolveContext(context, bookId, accountId);
         return { books: [] };
     }
 
     static async fullReset(
-        _context: AppContext,
-        _bookId: string,
-        _accountId: string
+        context: AppContext,
+        bookId: string,
+        accountId: string
     ): Promise<FullResetResult> {
+        await this.resolveContext(context, bookId, accountId);
         return { books: [] };
     }
 }

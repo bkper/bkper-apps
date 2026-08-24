@@ -86,3 +86,22 @@ describe('Calculate service pending-calculation Account query', () => {
         expect(loads).toEqual([{ id: 'portfolio-book', includeAccounts: true }]);
     });
 });
+
+describe('Calculate service operation', () => {
+    test('resolves operation context before calculating', async () => {
+        const loadError = new Error('Portfolio Book unavailable');
+        const bkper = new Bkper();
+        bkper.getBook = async () => {
+            throw loadError;
+        };
+
+        const request = CalculateService.calculate(
+            new AppContext(bkper, { ASSETS: { fetch } }),
+            'portfolio-book',
+            'instrument-account',
+            { date: '2026-08-05', performMtm: false }
+        );
+
+        await expect(request).rejects.toBe(loadError);
+    });
+});

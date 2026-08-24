@@ -27,11 +27,12 @@ export class CalculateService extends OperationService {
     }
 
     static async calculate(
-        _context: AppContext,
-        _bookId: string,
-        _accountId: string,
+        context: AppContext,
+        bookId: string,
+        accountId: string,
         _request: CalculateRequest
     ): Promise<CalculateResult> {
+        await this.resolveContext(context, bookId, accountId);
         return { books: [] };
     }
 }

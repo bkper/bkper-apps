@@ -4,11 +4,12 @@ import { OperationService } from './operation-service.js';
 
 export class ForwardService extends OperationService {
     static async forward(
-        _context: AppContext,
-        _bookId: string,
-        _accountId: string,
+        context: AppContext,
+        bookId: string,
+        accountId: string,
         _request: ForwardRequest
     ): Promise<ForwardResult> {
+        await this.resolveContext(context, bookId, accountId);
         return { books: [] };
     }
 }

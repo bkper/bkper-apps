@@ -59,7 +59,31 @@ export const botAppCSS = css`
         display: flex;
         flex-wrap: wrap;
         gap: var(--bkper-spacing-small);
-        align-items: end;
+        align-items: center;
+    }
+
+    .account-type {
+        display: inline-block;
+        width: var(--bkper-spacing-x-small);
+        height: var(--bkper-spacing-x-small);
+        flex-shrink: 0;
+        border-radius: 50%;
+    }
+
+    .account-type.asset {
+        background-color: var(--bkper-color-blue-medium);
+    }
+
+    .account-type.liability {
+        background-color: var(--bkper-color-yellow-medium);
+    }
+
+    .account-type.incoming {
+        background-color: var(--bkper-color-green-medium);
+    }
+
+    .account-type.outgoing {
+        background-color: var(--bkper-color-red-medium);
     }
 
     wa-spinner {

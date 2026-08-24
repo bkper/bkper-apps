@@ -1,4 +1,4 @@
-import type { App, Book } from 'bkper-js';
+import type { Account, App, Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
@@ -99,12 +99,12 @@ export class BotAppView extends LitElement {
         let title = '';
 
         if (account) {
-            title = `Showing selected account:`;
+            title = `Selected account:`;
         } else if (group) {
             const groupName = group.getName() ?? group.getId() ?? 'Unknown';
-            title = `Showing accounts in selected group: ${groupName}`;
+            title = `Accounts from selected group: ${groupName}`;
         } else {
-            title = `Showing uncalculated accounts:`;
+            title = `Uncalculated accounts:`;
         }
 
         return html`<h3>${title}</h3>`;
@@ -117,12 +117,27 @@ export class BotAppView extends LitElement {
         }
         return html`
             <div class="accounts" role="list">
-                ${accounts.map(account => {
-                    const name = account.getName() ?? account.getId() ?? '';
-                    return html`<div class="account" role="listitem">${name}</div>`;
-                })}
+                ${accounts.map(account => this.renderAccount(account))}
             </div>
         `;
+    }
+
+    private renderAccount(account: Account): TemplateResult {
+        const name = account.getName() ?? account.getId() ?? '';
+        return html`
+            <div class="account" role="listitem">
+                ${this.renderAccountType(account)}
+                <span>${name}</span>
+            </div>
+        `;
+    }
+
+    private renderAccountType(account: Account): TemplateResult {
+        const typeClass = account.getType()?.toLowerCase();
+        if (!typeClass) {
+            return html``;
+        }
+        return html`<span class="account-type ${typeClass}" aria-hidden="true"></span>`;
     }
 
     private renderAppError(): TemplateResult {

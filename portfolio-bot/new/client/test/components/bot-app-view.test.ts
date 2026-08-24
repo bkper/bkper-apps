@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Account, App, Book, Group, Permission } from 'bkper-js';
+import { Account, AccountType, App, Book, Group, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
@@ -124,6 +124,31 @@ describe('Bot app view', () => {
         expect(renderedText).toContain('Technology');
         expect(renderedText).toContain('Alphabet');
         expect(renderedText).toContain('Apple');
+    });
+
+    it('maps Account types to their canonical indicator classes', () => {
+        const view = new BotAppView();
+        const portfolioBook = new Book({ id: 'portfolio-book', permission: Permission.VIEWER });
+        view.portfolioBook = portfolioBook;
+        view.realizedResultsContext = {
+            portfolioBook,
+            accounts: [
+                new Account(portfolioBook, { name: 'Asset', type: AccountType.ASSET }),
+                new Account(portfolioBook, { name: 'Liability', type: AccountType.LIABILITY }),
+                new Account(portfolioBook, { name: 'Incoming', type: AccountType.INCOMING }),
+                new Account(portfolioBook, { name: 'Outgoing', type: AccountType.OUTGOING }),
+            ],
+            resetEnabled: true,
+        };
+        view.hasViewerPermission = true;
+        view.appState = BotAppState.READY;
+
+        const renderedText = collectRenderedText(renderBodyContent.call(view));
+
+        expect(renderedText).toContain('asset');
+        expect(renderedText).toContain('liability');
+        expect(renderedText).toContain('incoming');
+        expect(renderedText).toContain('outgoing');
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

@@ -211,17 +211,11 @@ export class BotAppController implements ReactiveController {
         const viewAccounts: Account[] = [];
 
         if (account) {
-            const isEligible = await Utils.isEligiblePortfolioAccount(account);
-            if (isEligible) {
-                viewAccounts.push(account);
-            }
+            await this.addEligiblePortfolioAccount(viewAccounts, account);
         } else if (group) {
             viewGroup = group;
             for (const groupAccount of await group.getAccounts()) {
-                const isEligible = await Utils.isEligiblePortfolioAccount(groupAccount);
-                if (isEligible) {
-                    viewAccounts.push(groupAccount);
-                }
+                await this.addEligiblePortfolioAccount(viewAccounts, groupAccount);
             }
         } else {
             const pendingAccounts = await botApiService.listAccountsPendingCalculation(
@@ -229,12 +223,7 @@ export class BotAppController implements ReactiveController {
             );
             for (const pendingAccountId of pendingAccounts.ids) {
                 const portfolioAccount = await portfolioBook.getAccount(pendingAccountId);
-                if (portfolioAccount) {
-                    const isEligible = await Utils.isEligiblePortfolioAccount(portfolioAccount);
-                    if (isEligible) {
-                        viewAccounts.push(portfolioAccount);
-                    }
-                }
+                await this.addEligiblePortfolioAccount(viewAccounts, portfolioAccount);
             }
             // Disable reset operation when displaying all uncalculated accounts
             enableReset = false;
@@ -320,6 +309,19 @@ export class BotAppController implements ReactiveController {
                     ? this.resourceNotFound(group, bookName)
                     : this.resourceLoadFailed(group, bookName)
             );
+        }
+    }
+
+    private async addEligiblePortfolioAccount(
+        accounts: Account[],
+        account: Account | undefined
+    ): Promise<void> {
+        if (!account) {
+            return;
+        }
+        const isEligible = await Utils.isEligiblePortfolioAccount(account);
+        if (isEligible) {
+            accounts.push(account);
         }
     }
 

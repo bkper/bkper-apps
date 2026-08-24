@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–9 complete — Chunk 10 in progress.**
+**Chunks 1–10 complete — Chunk 11 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability; pending-task validation remains. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -307,7 +307,7 @@ Each behavior chunk follows this workflow:
 
 - Book, Account, and Group context resolve to the accepted Portfolio Book and instrument Accounts.
 - Uncalculated Account discovery, sorting, no-context behavior, and default date retain accepted outcomes.
-- Edit permissions, Full Reset eligibility, pending tasks, locks, closing dates, and installation produce explicit target states.
+- Edit permissions, Full Reset eligibility, locks, closing dates, and installation produce explicit target states during context loading; pending tasks produce an explicit action-time state before an operation batch starts.
 - Each mutating API operation identifies every Portfolio, Financial, and Base Book it may change and preflights the required permission on all of them.
 - Unauthorized API operations fail before any Account, Transaction, or Book mutation begins.
 
@@ -594,7 +594,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 10 — Port view initialization and validation
 
-**Status: In progress.**
+**Status: Complete.**
 
 - Ported the existing read-only pending-calculation Account query from the legacy `BotService.getUncalculatedAccounts`, `BotService.getUncalculatedAccountsQuery`, and `ValidationAccount` behavior.
 - Preserved Base Book selection, permanent Account chart order, unchecked purchase and sale handling, rebuild flags, missing exchange-rate rules, closing-date query behavior, and complete Transaction pagination without introducing mutations.
@@ -607,11 +607,10 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Ported legacy Base and Financial Book resolution into the client context, including Collection order, explicit Base and USD fallback selection, Financial Book fraction-digit and currency matching, and the deprecated `exchange_code` alias where established.
 - Ported legacy edit-permission availability for the Financial Books required by the resolved Account scope. Missing Financial Books and permissions below EDITOR remain one blocking availability error while the resolved view context stays visible.
 - Ported legacy Full Reset view availability for selected Account and Group scopes: the Portfolio Book must grant OWNER permission, and every Book in the originating Collection must have no effective lock or closing date. Missing dates and the legacy `1900-00-00` sentinel remain unlocked and open; the no-selection pending-calculation scope remains ineligible.
+- Confirmed that legacy pending-task validation is action-time workflow behavior rather than view initialization: each click checks the Portfolio Book backlog once before the first Account request. Its migration therefore remains in Chunk 15 with the operation-batch client instead of introducing an unused helper or stale initialization state here.
 - Verified the complete local gate with 88 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
-- Port remaining pending-task validation.
-- Adapt preflight placement without changing which operations may begin.
 
-**Gate:** Deterministic fixtures produce the accepted Account scope and operation availability.
+**Gate:** Pass — deterministic fixtures produce the accepted Account scope and operation availability.
 
 ### Chunk 11 — Enforce API and client Book permissions
 
@@ -668,6 +667,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 - Replace GAS templates and `google.script.run` with Lit and the authenticated generated API client.
 - Implement Calculate, Reset, Full Reset, and Forward Date workflows.
+- Preserve the legacy action-time pending-task guard: after an operation click, check the Portfolio Book backlog once before the first Account request, and abort the complete batch without mutation when pending tasks exist.
 - Preserve selected resources, inputs, operation intent, progress, and accounting results.
 - Deliver explicit validation, permission, warning, error, and completed-mutation states.
 - Adopt a responsive, accessible, theme-aware, production-quality Bkper UI.

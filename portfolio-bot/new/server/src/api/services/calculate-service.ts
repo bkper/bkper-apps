@@ -1,4 +1,5 @@
 import type { AppContext } from '../../shared/app-context.js';
+import { requireAppInstallation, requireViewPermission } from '../authorization.js';
 import type { CalculateRequest, CalculateResult } from '../schemas.js';
 import { BotService } from './bot-service.js';
 
@@ -8,6 +9,9 @@ export class CalculateService {
         bookId: string
     ): Promise<string[]> {
         const stockBook = await context.bkper.getBook(bookId, true);
+        requireViewPermission(stockBook);
+        await requireAppInstallation(stockBook);
+
         const botService = new BotService(context);
         const baseBook = botService.getBaseBook(stockBook);
         const accounts = await botService.getUncalculatedAccounts(stockBook, baseBook ?? undefined);

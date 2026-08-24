@@ -56,6 +56,23 @@ export class Utils {
     }
 
     /**
+     * Tells whether an Account is eligible for Portfolio Bot instrument context.
+     *
+     * An eligible Portfolio Account is permanent, active, and assigned to at least one
+     * Group with a non-empty `stock_exc_code` property.
+     *
+     * @param account - The Portfolio Book Account to evaluate.
+     * @returns `true` when the Account is an eligible Portfolio instrument; otherwise, `false`.
+     */
+    static async isEligiblePortfolioAccount(account: Account): Promise<boolean> {
+        if (!account.isPermanent() || account.isArchived()) {
+            return false;
+        }
+        const excCode = await Utils.getExchangeCode(account);
+        return excCode !== null;
+    }
+
+    /**
      * Formats a date as an ISO calendar date in the specified timezone.
      *
      * @param date - The instant to format.

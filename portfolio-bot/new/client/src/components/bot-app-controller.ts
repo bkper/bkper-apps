@@ -206,33 +206,46 @@ export class BotAppController implements ReactiveController {
             return null;
         }
 
-        const accounts: Account[] = [];
-        let viewGroup: Group | undefined;
         let enableReset = true;
+        let viewGroup: Group | undefined;
+        const viewAccounts: Account[] = [];
 
         if (account) {
-            await this.addAccount(accounts, account);
+            const isEligible = await Utils.isEligiblePortfolioAccount(account);
+            if (isEligible) {
+                viewAccounts.push(account);
+            }
         } else if (group) {
             viewGroup = group;
-            for (const stockAccount of await group.getAccounts()) {
-                await this.addAccount(accounts, stockAccount);
+            for (const groupAccount of await group.getAccounts()) {
+                const isEligible = await Utils.isEligiblePortfolioAccount(groupAccount);
+                if (isEligible) {
+                    viewAccounts.push(groupAccount);
+                }
             }
         } else {
             const pendingAccounts = await botApiService.listAccountsPendingCalculation(
                 portfolioBook.getId()
             );
             for (const pendingAccountId of pendingAccounts.ids) {
-                const stockAccount = await portfolioBook.getAccount(pendingAccountId);
-                await this.addAccount(accounts, stockAccount);
+                const portfolioAccount = await portfolioBook.getAccount(pendingAccountId);
+                if (portfolioAccount) {
+                    const isEligible = await Utils.isEligiblePortfolioAccount(portfolioAccount);
+                    if (isEligible) {
+                        viewAccounts.push(portfolioAccount);
+                    }
+                }
             }
+            // Disable reset operation when displaying all uncalculated accounts
             enableReset = false;
         }
 
-        accounts.sort((first, second) =>
+        // Sort accounts alphabetically
+        viewAccounts.sort((first, second) =>
             (first.getName() ?? '').localeCompare(second.getName() ?? '')
         );
 
-        this.view.accounts = accounts;
+        this.view.accounts = viewAccounts;
         this.view.group = viewGroup;
         this.view.enableReset = enableReset;
     }
@@ -308,30 +321,6 @@ export class BotAppController implements ReactiveController {
                     : this.resourceLoadFailed(group, bookName)
             );
         }
-    }
-
-    private async addAccount(
-        accounts: Account[],
-        stockAccount: Account | undefined,
-        selectedAccount?: Account
-    ): Promise<void> {
-        if (!stockAccount) {
-            return;
-        }
-        if (
-            !stockAccount.isPermanent() ||
-            stockAccount.isArchived() ||
-            !(await Utils.getExchangeCode(stockAccount))
-        ) {
-            return;
-        }
-        if (
-            selectedAccount &&
-            selectedAccount.getNormalizedName() != stockAccount.getNormalizedName()
-        ) {
-            return;
-        }
-        accounts.push(stockAccount);
     }
 
     private getInitialDate(book: Book): string {

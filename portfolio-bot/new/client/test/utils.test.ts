@@ -58,6 +58,44 @@ describe('Utils', () => {
         expect(await Utils.getExchangeCode(missingExchange)).toBeNull();
     });
 
+    it('identifies active permanent Portfolio Accounts assigned to an exchange', async () => {
+        const book = new Book({
+            id: 'portfolio-book',
+            groups: [{ id: 'exchange-group', properties: { stock_exc_code: 'USD' } }],
+            accounts: [
+                {
+                    id: 'eligible',
+                    permanent: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                {
+                    id: 'non-permanent',
+                    permanent: false,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                {
+                    id: 'archived',
+                    permanent: true,
+                    archived: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+                { id: 'missing-exchange', permanent: true, groups: [] },
+            ],
+        });
+        const eligible = await book.getAccount('eligible');
+        const nonPermanent = await book.getAccount('non-permanent');
+        const archived = await book.getAccount('archived');
+        const missingExchange = await book.getAccount('missing-exchange');
+        if (!eligible || !nonPermanent || !archived || !missingExchange) {
+            throw new Error('Expected Account fixtures');
+        }
+
+        expect(await Utils.isEligiblePortfolioAccount(eligible)).toBe(true);
+        expect(await Utils.isEligiblePortfolioAccount(nonPermanent)).toBe(false);
+        expect(await Utils.isEligiblePortfolioAccount(archived)).toBe(false);
+        expect(await Utils.isEligiblePortfolioAccount(missingExchange)).toBe(false);
+    });
+
     it('returns the calendar date in the Book timezone', () => {
         const date = new Date('2026-01-01T00:30:00.000Z');
 

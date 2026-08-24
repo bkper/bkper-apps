@@ -70,8 +70,16 @@ describe('legacy menu bot service', () => {
         });
 
         expect(botService.getBaseBook(selectedBook)?.getId()).toBe('brl-base-book');
-        expect(botService.getFinancialBook(selectedBook, 'EUR')?.getId()).toBe('first-eur-book');
-        expect(botService.getFinancialBook(selectedBook, 'QTY')).toBeNull();
+        expect(
+            Array.from(botService.getFinancialBooks(selectedBook)).map(([currency, book]) => [
+                currency,
+                book.getId(),
+            ])
+        ).toEqual([
+            ['USD', 'usd-book'],
+            ['BRL', 'brl-base-book'],
+            ['EUR', 'first-eur-book'],
+        ]);
         expect(botService.getBooksExcCodesUserCanEdit(selectedBook)).toEqual(
             new Set(['USD', 'EUR', 'QTY'])
         );

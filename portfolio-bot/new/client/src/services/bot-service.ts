@@ -40,20 +40,20 @@ class BotService {
         return null;
     }
 
-    getFinancialBook(book: Book, excCode?: string): Book | null {
+    getFinancialBooks(book: Book): Map<string, Book> {
+        const financialBooks = new Map<string, Book>();
         const collection = book.getCollection();
         if (collection == null) {
-            return null;
+            return financialBooks;
         }
-        const connectedBooks = collection.getBooks();
-        for (const connectedBook of connectedBooks) {
+        for (const connectedBook of collection.getBooks()) {
             const bookExcCode = this.getExcCode(connectedBook);
             const fractionDigits = connectedBook.getFractionDigits();
-            if (fractionDigits != 0 && excCode == bookExcCode) {
-                return connectedBook;
+            if (fractionDigits != 0 && bookExcCode && !financialBooks.has(bookExcCode)) {
+                financialBooks.set(bookExcCode, connectedBook);
             }
         }
-        return null;
+        return financialBooks;
     }
 
     getBooksExcCodesUserCanEdit(book: Book): Set<string> {

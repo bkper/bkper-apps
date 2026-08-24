@@ -23,7 +23,7 @@ export interface RealizedResultsContext {
     portfolioBook: Book;
     /** The Base Book, when one can be resolved. */
     baseBook?: Book;
-    /** Required Financial Books mapped by currency. */
+    /** Collection Financial Books mapped by currency. */
     financialBooks: Map<string, Book>;
     /** The selected Portfolio Account, if any. */
     selectedAccount?: Account;

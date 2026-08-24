@@ -255,7 +255,7 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
-    it('maps required Financial Books and preserves legacy edit-permission availability', async () => {
+    it('maps Financial Books once and preserves scoped legacy edit-permission availability', async () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
@@ -276,6 +276,13 @@ describe('Bot app controller', () => {
                         fractionDigits: 2,
                         permission: Permission.VIEWER,
                         properties: { exchange_code: 'BRL' },
+                    },
+                    {
+                        id: 'cad-book',
+                        name: 'CAD Book',
+                        fractionDigits: 2,
+                        permission: Permission.VIEWER,
+                        properties: { exc_code: 'CAD' },
                     },
                 ],
             },
@@ -324,6 +331,7 @@ describe('Bot app controller', () => {
         ).toEqual([
             ['USD', 'usd-book'],
             ['BRL', 'brl-book'],
+            ['CAD', 'cad-book'],
         ]);
         expect(view.hasEditorPermission).toBe(false);
         expect(view.error?.message.before).toContain('BRL');

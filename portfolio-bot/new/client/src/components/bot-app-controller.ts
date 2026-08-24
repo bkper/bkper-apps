@@ -213,21 +213,14 @@ export class BotAppController implements ReactiveController {
         }
 
         const accountsExcCodes = new Set<string>();
-        const financialBooks = new Map<string, Book>();
-
         for (const portfolioAccount of accounts) {
             const excCode = await Utils.getExchangeCode(portfolioAccount);
             if (excCode) {
                 accountsExcCodes.add(excCode);
             }
         }
-        for (const excCode of accountsExcCodes) {
-            const financialBook = botService.getFinancialBook(portfolioBook, excCode);
-            if (financialBook) {
-                financialBooks.set(excCode, financialBook);
-            }
-        }
 
+        const financialBooks = botService.getFinancialBooks(portfolioBook);
         const bookExcCodesUserCanEdit = botService.getBooksExcCodesUserCanEdit(portfolioBook);
         const bookExcCodesUserCannotEdit = Array.from(accountsExcCodes).filter(
             excCode => !bookExcCodesUserCanEdit.has(excCode)

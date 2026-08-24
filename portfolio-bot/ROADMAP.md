@@ -599,12 +599,12 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Ported the existing read-only pending-calculation Account query from the legacy `BotService.getUncalculatedAccounts`, `BotService.getUncalculatedAccountsQuery`, and `ValidationAccount` behavior.
 - Preserved Base Book selection, permanent Account chart order, unchecked purchase and sale handling, rebuild flags, missing exchange-rate rules, closing-date query behavior, and complete Transaction pagination without introducing mutations.
 - Ported legacy Portfolio Book discovery in Collection order, including the `stock_book` property and zero-fraction fallback.
-- Ported URL-selected Account and Group context, name-based Portfolio resource mapping, Account-over-Group precedence, permanent and active instrument eligibility, exchange Group requirements, alphabetical sorting, and the no-selection pending-calculation path.
+- Ported URL-selected Account and Group context, name-based Portfolio resource mapping, Account-over-Group precedence, permanent and active instrument eligibility, exchange Group requirements, alphabetical sorting, and the no-selection pending-calculation path; unresolved selected or mapped resources produce structured blocking errors instead of falling through to another context.
 - Adapted the synchronous GAS chart access to asynchronous `bkper-js` reads by loading the selected and discovered Portfolio Book charts before resolving context.
 - Agreed that the Book used to open the menu is only a context anchor for resolving resources from the Portfolio Book. After resolution, the Portfolio Book is authoritative for the default date and timezone; this deliberate target behavior is not a regression from the GAS menu's use of the originating Book timezone.
 - Replaced the legacy missing-Portfolio-Book throw with a structured client error and explicit error state while preserving the Reset availability distinction without introducing mutations.
 - Added originating and Portfolio Book view-permission and installation checks, and reset stale view state before reinitialization.
-- Verified the complete local gate with 74 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+- Verified the complete local gate with 81 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 - Port remaining edit-permission availability, pending tasks, locks, and closing conditions.
 - Adapt preflight placement without changing which operations may begin.
 

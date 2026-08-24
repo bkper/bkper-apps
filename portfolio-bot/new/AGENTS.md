@@ -4,7 +4,7 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1–10 are complete; Chunk 11 is next. The pending-calculation Account query, client Book, Account, and Group context, Financial Book edit availability, and Full Reset view availability are complete. Legacy pending-task validation occurs only after an operation click and remains planned with the Chunk 15 operation-batch client.
+- Chunks 1–10 are complete; Chunk 11 is in progress. The pending-calculation API now enforces view permission and Portfolio Bot installation, and shared operation context resolution is established for Calculate, Reset, Full Reset, and Forward Date. Cross-Book mutation permission and installation preflight remains to be implemented. Legacy pending-task validation occurs only after an operation click and remains planned with the Chunk 15 operation-batch client.
 - The legacy GCP event handler and Google Apps Script menu under `../legacy/` remain production-authoritative.
 - One target Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
 - Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, the typed menu API contract, and the pending-calculation Account query are deterministic.

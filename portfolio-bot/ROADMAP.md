@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–10 complete — Chunk 11 not started.**
+**Chunks 1–10 complete — Chunk 11 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 now protects the pending-calculation API with view and installation checks and establishes shared fail-fast operation context resolution; cross-Book mutation authorization remains in progress. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -614,10 +614,12 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 11 — Enforce API and client Book permissions
 
-**Status: Not started.**
+**Status: In progress.**
 
+- Protected the pending-calculation API with explicit view permission and Portfolio Bot installation checks before its Account query.
+- Established shared application-service orchestration that resolves and validates the Portfolio Book, Portfolio Account, Financial Book, and Base Book before operation-specific preflight.
 - Enforce app installation and explicit operation-specific permission allowlists inside API services before mutation.
-- Resolve the Portfolio Book and every Financial and Base Book an operation may mutate, then preflight all required permissions before its first write.
+- Use the resolved Portfolio, Financial, and Base Book context to preflight all required permissions before an operation's first write.
 - Keep Bkper Core authoritative for every request after the application preflight.
 - Enforce Full Reset and lower-forward-date owner and unlocked-Collection requirements at the server boundary.
 - Preserve upstream authentication, permission, validation, network, and server failures through structured API errors.

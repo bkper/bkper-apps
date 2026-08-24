@@ -35,6 +35,16 @@ export class Utils {
     }
 
     /**
+     * Tells whether the user owns a Book.
+     *
+     * @param book - The Book whose current-user permission should be checked.
+     * @returns `true` for OWNER permission; otherwise, `false`.
+     */
+    static isBookOwner(book: Book): boolean {
+        return book.getPermission() === Permission.OWNER;
+    }
+
+    /**
      * Gets the first Portfolio exchange code configured on an eligible Account.
      *
      * @param account - The Account whose Groups should be inspected.

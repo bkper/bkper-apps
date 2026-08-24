@@ -39,6 +39,8 @@ export interface RealizedResultsContext {
     selectedGroup?: Group;
     /** The eligible accounts to operate on. */
     accounts: Account[];
-    /** Whether reset operations are enabled. */
+    /** Whether the Reset operation is enabled. */
     resetEnabled: boolean;
+    /** Whether the Full Reset operation is enabled. */
+    fullResetEnabled: boolean;
 }

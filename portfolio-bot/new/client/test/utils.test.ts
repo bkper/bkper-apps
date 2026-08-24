@@ -3,21 +3,22 @@ import { AccountType, Book, Permission } from 'bkper-js';
 import { Utils } from '../src/utils.js';
 
 describe('Utils', () => {
-    it('uses explicit view and edit permission allowlists', () => {
+    it('uses explicit view, edit, and owner permission checks', () => {
         const cases = [
-            { permission: Permission.OWNER, canView: true, canEdit: true },
-            { permission: Permission.EDITOR, canView: true, canEdit: true },
-            { permission: Permission.POSTER, canView: true, canEdit: false },
-            { permission: Permission.VIEWER, canView: true, canEdit: false },
-            { permission: Permission.RECORDER, canView: false, canEdit: false },
-            { permission: Permission.NONE, canView: false, canEdit: false },
-            { permission: undefined, canView: false, canEdit: false },
+            { permission: Permission.OWNER, canView: true, canEdit: true, isOwner: true },
+            { permission: Permission.EDITOR, canView: true, canEdit: true, isOwner: false },
+            { permission: Permission.POSTER, canView: true, canEdit: false, isOwner: false },
+            { permission: Permission.VIEWER, canView: true, canEdit: false, isOwner: false },
+            { permission: Permission.RECORDER, canView: false, canEdit: false, isOwner: false },
+            { permission: Permission.NONE, canView: false, canEdit: false, isOwner: false },
+            { permission: undefined, canView: false, canEdit: false, isOwner: false },
         ] as const;
 
         for (const permissionCase of cases) {
             const book = new Book({ id: 'book-id', permission: permissionCase.permission });
             expect(Utils.canViewBook(book)).toBe(permissionCase.canView);
             expect(Utils.canEditBook(book)).toBe(permissionCase.canEdit);
+            expect(Utils.isBookOwner(book)).toBe(permissionCase.isOwner);
         }
     });
 

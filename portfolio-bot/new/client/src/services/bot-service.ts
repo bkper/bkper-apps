@@ -56,6 +56,23 @@ class BotService {
         return financialBooks;
     }
 
+    areAllCollectionBooksOpenAndUnlocked(book: Book): boolean {
+        const collection = book.getCollection();
+        if (!collection) {
+            return false;
+        }
+        for (const connectedBook of collection.getBooks()) {
+            const lockDate = connectedBook.getLockDate();
+            const closingDate = connectedBook.getClosingDate();
+            const isUnlocked = !lockDate || lockDate === '1900-00-00';
+            const isOpen = !closingDate || closingDate === '1900-00-00';
+            if (!isUnlocked || !isOpen) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     getBooksExcCodesUserCanEdit(book: Book): Set<string> {
         const excCodes = new Set<string>();
         const collection = book.getCollection();

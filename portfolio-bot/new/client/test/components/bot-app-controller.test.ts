@@ -251,8 +251,63 @@ describe('Bot app controller', () => {
             'portfolio-account',
         ]);
         expect(view.realizedResultsContext?.resetEnabled).toBe(true);
+        expect(view.realizedResultsContext?.fullResetEnabled).toBe(false);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
         expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('enables Full Reset for an OWNER Account scope when every Collection Book is unlocked', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=financial-book&accountId=source-account',
+            },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+            collection: {
+                books: [
+                    {
+                        id: 'financial-book',
+                        fractionDigits: 2,
+                        permission: Permission.EDITOR,
+                        properties: { exc_code: 'USD' },
+                    },
+                    {
+                        id: 'portfolio-book',
+                        fractionDigits: 0,
+                        lockDate: '1900-00-00',
+                        closingDate: '1900-00-00',
+                    },
+                ],
+            },
+            accounts: [{ id: 'source-account', name: 'Apple' }],
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            fractionDigits: 0,
+            permission: Permission.OWNER,
+            groups: [{ id: 'exchange-group', properties: { stock_exc_code: 'USD' } }],
+            accounts: [
+                {
+                    id: 'portfolio-account',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'exchange-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.realizedResultsContext?.fullResetEnabled).toBe(true);
     });
 
     it('maps Financial Books once and preserves scoped legacy edit-permission availability', async () => {
@@ -572,6 +627,7 @@ describe('Bot app controller', () => {
             'apple',
         ]);
         expect(view.realizedResultsContext?.resetEnabled).toBe(false);
+        expect(view.realizedResultsContext?.fullResetEnabled).toBe(false);
         expect(botApiService.listAccountsPendingCalculation).toHaveBeenCalledTimes(1);
     });
 

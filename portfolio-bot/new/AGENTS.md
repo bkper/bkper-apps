@@ -4,7 +4,7 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1–9 are complete; Chunk 10 is porting view initialization and validation. The pending-calculation Account query and client Book, Account, and Group context are complete; the remaining validations are not.
+- Chunks 1–9 are complete; Chunk 10 is porting view initialization and validation. The pending-calculation Account query, client Book, Account, and Group context, Financial Book edit availability, and Full Reset view availability are complete; pending-task validation remains.
 - The legacy GCP event handler and Google Apps Script menu under `../legacy/` remain production-authoritative.
 - One target Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
 - Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, the typed menu API contract, and the pending-calculation Account query are deterministic.

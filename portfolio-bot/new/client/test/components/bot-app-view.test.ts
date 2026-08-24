@@ -118,6 +118,7 @@ describe('Bot app view', () => {
             ],
             financialBooks: [],
             resetEnabled: true,
+            fullResetEnabled: false,
         };
         view.hasViewerPermission = true;
         view.appState = BotAppState.READY;
@@ -145,6 +146,7 @@ describe('Bot app view', () => {
             ],
             financialBooks: [],
             resetEnabled: true,
+            fullResetEnabled: false,
         };
         view.hasViewerPermission = true;
         view.appState = BotAppState.READY;

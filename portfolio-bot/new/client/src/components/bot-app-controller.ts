@@ -228,6 +228,12 @@ export class BotAppController implements ReactiveController {
         // Sort accounts alphabetically
         accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
 
+        const hasSelectedContext = account != null || group != null;
+        const fullResetEnabled =
+            hasSelectedContext &&
+            Utils.isBookOwner(portfolioBook) &&
+            botService.areAllCollectionBooksOpenAndUnlocked(book);
+
         const context: RealizedResultsContext = {
             portfolioBook,
             baseBook,
@@ -236,6 +242,7 @@ export class BotAppController implements ReactiveController {
             selectedGroup: group,
             accounts,
             resetEnabled,
+            fullResetEnabled,
         };
 
         this.view.realizedResultsContext = context;

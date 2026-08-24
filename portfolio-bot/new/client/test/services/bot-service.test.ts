@@ -31,6 +31,35 @@ describe('legacy menu bot service', () => {
         expect(botService.getStockBook(createSourceBook())).toBeNull();
     });
 
+    it('reports the Collection unlocked only when every lock and closing date is empty', () => {
+        const unlockedBook = createSourceBook({
+            collection: {
+                books: [
+                    { id: 'empty-dates' },
+                    {
+                        id: 'legacy-empty-dates',
+                        lockDate: '1900-00-00',
+                        closingDate: '1900-00-00',
+                    },
+                ],
+            },
+        });
+        const lockedBook = createSourceBook({
+            collection: {
+                books: [{ id: 'locked-book', lockDate: '2026-08-25' }],
+            },
+        });
+        const closedBook = createSourceBook({
+            collection: {
+                books: [{ id: 'closed-book', closingDate: '2026-08-24' }],
+            },
+        });
+
+        expect(botService.areAllCollectionBooksOpenAndUnlocked(unlockedBook)).toBe(true);
+        expect(botService.areAllCollectionBooksOpenAndUnlocked(lockedBook)).toBe(false);
+        expect(botService.areAllCollectionBooksOpenAndUnlocked(closedBook)).toBe(false);
+    });
+
     it('resolves Base and Financial Books and editable currencies with legacy precedence', () => {
         const selectedBook = createSourceBook({
             collection: {

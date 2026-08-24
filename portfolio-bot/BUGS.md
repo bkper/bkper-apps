@@ -78,3 +78,44 @@ Separate missing Financial Book resolution from insufficient edit permission:
 - Both conditions prevent mutation requests from starting.
 - Server-side authorization remains authoritative regardless of client presentation.
 - Deterministic client tests cover existing inaccessible Books, missing Books, and mixed failures without accessing live Books.
+
+## 3. Full Reset availability checks unrelated Collection Books
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+Portfolio Bot enables Full Reset only when the Portfolio Book grants OWNER permission and every Book in the originating Collection has no effective lock or closing date. Missing dates and the legacy `1900-00-00` sentinel are treated as unlocked and open.
+
+The migrated client preserves this Collection-wide check for parity with the legacy GAS menu.
+
+### Problem
+
+A Full Reset does not mutate every Book in the Collection. For the complete selected Account or Group scope, it can mutate only:
+
+- the Portfolio Book;
+- the Base Book; and
+- the Financial Books matching the selected Accounts' exchange currencies.
+
+A locked or closed Book for an unrelated currency can therefore disable Full Reset even though the operation would not read or mutate that Book. The Collection-wide check is a conservative legacy shortcut rather than a requirement of the Full Reset movement model.
+
+### Intended fix
+
+Preflight only the complete Book scope that the selected Full Reset can mutate:
+
+- Resolve every selected Account before the first write.
+- Resolve the Portfolio Book, Base Book, and the union of matching Financial Books for all selected Account currencies.
+- Check owner, installation, edit permission, lock, and closing requirements on that complete target set before starting any Account-level mutation.
+- Do not perform preflight independently immediately before each Account operation, because an earlier Account could be mutated before a later target fails.
+- Keep transaction-level locked-resource detection and Bkper Core enforcement authoritative after the application preflight.
+
+### Acceptance criteria
+
+- An unrelated locked or closed Financial Book does not disable Full Reset.
+- A locked or closed Portfolio Book, Base Book, or selected-currency Financial Book blocks Full Reset.
+- Account scope preflights its one selected currency; Group scope preflights the union of all selected currencies.
+- Missing target Books and insufficient target permissions remain blocking.
+- Every target Book is preflighted before the first Account, Transaction, or Book mutation begins.
+- A failed scoped preflight produces no mutation in any participating Book.
+- Missing lock and closing dates and the legacy `1900-00-00` sentinel remain treated as unlocked and open.
+- Deterministic tests cover Account, multi-currency Group, unrelated-Book, and no-side-effect failure cases without accessing live Books.

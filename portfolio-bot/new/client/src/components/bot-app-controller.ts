@@ -80,7 +80,10 @@ export class BotAppController implements ReactiveController {
             }
         }
 
-        await this.loadContext(book, portfolioBook);
+        const context = await this.loadContext(book, portfolioBook);
+        if (context === null) {
+            return;
+        }
         this.view.appState = BotAppState.READY;
     }
 
@@ -190,27 +193,29 @@ export class BotAppController implements ReactiveController {
         return false;
     }
 
-    private async loadContext(book: Book, portfolioBook: Book): Promise<void> {
-        const accountId = appEnv.getSearchParam('accountId');
-        const groupId = appEnv.getSearchParam('groupId');
+    private async loadContext(book: Book, portfolioBook: Book): Promise<void | null> {
+        // Account context takes precedence over Group context when both are selected.
+        const account = await this.loadAccount(book, portfolioBook);
+        if (account === null) {
+            return null;
+        }
 
-        const account = accountId ? await book.getAccount(accountId) : undefined;
-        const group = groupId ? await book.getGroup(groupId) : undefined;
+        // Resolve Group context only when no Account was selected.
+        const group = account ? undefined : await this.loadGroup(book, portfolioBook);
+        if (group === null) {
+            return null;
+        }
 
         const accounts: Account[] = [];
         let viewGroup: Group | undefined;
         let enableReset = true;
 
         if (account) {
-            const stockAccount = await portfolioBook.getAccount(account.getName());
-            await this.addAccount(accounts, stockAccount, account);
+            await this.addAccount(accounts, account);
         } else if (group) {
-            const stockGroup = await portfolioBook.getGroup(group.getName());
-            if (stockGroup) {
-                viewGroup = stockGroup;
-                for (const stockAccount of await stockGroup.getAccounts()) {
-                    await this.addAccount(accounts, stockAccount);
-                }
+            viewGroup = group;
+            for (const stockAccount of await group.getAccounts()) {
+                await this.addAccount(accounts, stockAccount);
             }
         } else {
             const pendingAccounts = await botApiService.listAccountsPendingCalculation(

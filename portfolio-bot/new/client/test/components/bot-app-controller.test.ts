@@ -254,6 +254,90 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
+    it('stops Account context loading when the mapped Portfolio Account is missing', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=financial-book&accountId=source-account&groupId=source-group',
+            },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            name: 'Financial Book',
+            permission: Permission.EDITOR,
+            groups: [{ id: 'source-group', name: 'Technology' }],
+            accounts: [{ id: 'source-account', name: 'Apple' }],
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            name: 'Portfolio Book',
+            fractionDigits: 0,
+            permission: Permission.VIEWER,
+            groups: [{ id: 'portfolio-group', name: 'Technology' }],
+            accounts: [],
+        });
+        portfolioBook.getAccount = async () => undefined;
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.error).toEqual(
+            BotAppErrors.bookResourceNotFound(
+                new Account(financialBook, { name: 'Apple' }),
+                'Portfolio Book'
+            )
+        );
+        expect(view.accounts).toEqual([]);
+        expect(view.group).toBeUndefined();
+        expect(view.appState).toBe(BotAppState.ERROR);
+        expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
+    });
+
+    it('stops Group context loading when the mapped Portfolio Group is missing', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=financial-book&groupId=source-group',
+            },
+        });
+        const financialBook = new Book({
+            id: 'financial-book',
+            name: 'Financial Book',
+            permission: Permission.EDITOR,
+            groups: [{ id: 'source-group', name: 'Technology' }],
+        });
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            name: 'Portfolio Book',
+            fractionDigits: 0,
+            permission: Permission.VIEWER,
+            groups: [],
+        });
+        portfolioBook.getGroup = async () => undefined;
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? financialBook : portfolioBook
+        );
+        botService.getStockBook = mock(() => new Book({ id: 'portfolio-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.error).toEqual(
+            BotAppErrors.bookResourceNotFound(
+                new Group(financialBook, { name: 'Technology' }),
+                'Portfolio Book'
+            )
+        );
+        expect(view.accounts).toEqual([]);
+        expect(view.group).toBeUndefined();
+        expect(view.appState).toBe(BotAppState.ERROR);
+        expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
+    });
+
     it('maps a Group selection and keeps only eligible Portfolio Accounts', async () => {
         Object.defineProperty(self, 'location', {
             configurable: true,

@@ -11,6 +11,10 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
+const renderEditPermissionError = Reflect.get(
+    BotAppView.prototype,
+    'renderEditPermissionError'
+) as (this: BotAppView) => TemplateResult;
 
 function collectRenderedText(value: unknown): string[] {
     if (typeof value === 'string') {
@@ -112,6 +116,7 @@ describe('Bot app view', () => {
                 new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
                 new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
             ],
+            financialBooks: new Map(),
             resetEnabled: true,
         };
         view.hasViewerPermission = true;
@@ -138,6 +143,7 @@ describe('Bot app view', () => {
                 new Account(portfolioBook, { name: 'Incoming', type: AccountType.INCOMING }),
                 new Account(portfolioBook, { name: 'Outgoing', type: AccountType.OUTGOING }),
             ],
+            financialBooks: new Map(),
             resetEnabled: true,
         };
         view.hasViewerPermission = true;
@@ -149,6 +155,25 @@ describe('Bot app view', () => {
         expect(renderedText).toContain('liability');
         expect(renderedText).toContain('incoming');
         expect(renderedText).toContain('outgoing');
+    });
+
+    it('renders an edit-permission error without hiding the ready context', () => {
+        const view = new BotAppView();
+        view.portfolioBook = new Book({ id: 'book-id', permission: Permission.VIEWER });
+        view.hasViewerPermission = true;
+        view.hasEditorPermission = false;
+        view.error = {
+            type: 'error',
+            message: { before: 'User needs EDITOR or OWNER permission in BRL books' },
+        };
+        view.appState = BotAppState.READY;
+
+        const result = renderBodyContent.call(view);
+        const permissionError = renderEditPermissionError.call(view);
+
+        expect(permissionError.strings.join('')).toContain('<app-error');
+        expect(permissionError.values[0]).toBe(view.error);
+        expect(result.strings.join('')).toContain('Realized Results');
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

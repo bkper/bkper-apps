@@ -255,6 +255,82 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
+    it('maps required Financial Books and preserves legacy edit-permission availability', async () => {
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            fractionDigits: 0,
+            permission: Permission.EDITOR,
+            collection: {
+                books: [
+                    { id: 'portfolio-book', fractionDigits: 0 },
+                    {
+                        id: 'usd-book',
+                        name: 'USD Book',
+                        fractionDigits: 2,
+                        permission: Permission.EDITOR,
+                        properties: { exc_base: 'true', exc_code: 'USD' },
+                    },
+                    {
+                        id: 'brl-book',
+                        name: 'BRL Book',
+                        fractionDigits: 2,
+                        permission: Permission.VIEWER,
+                        properties: { exchange_code: 'BRL' },
+                    },
+                ],
+            },
+            groups: [
+                { id: 'usd-exchange', properties: { stock_exc_code: 'USD' } },
+                { id: 'brl-exchange', properties: { stock_exc_code: 'BRL' } },
+                { id: 'eur-exchange', properties: { stock_exc_code: 'EUR' } },
+            ],
+            accounts: [
+                {
+                    id: 'usd-account',
+                    name: 'USD Instrument',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'usd-exchange' }],
+                },
+                {
+                    id: 'brl-account',
+                    name: 'BRL Instrument',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'brl-exchange' }],
+                },
+                {
+                    id: 'eur-account',
+                    name: 'EUR Instrument',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'eur-exchange' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async () => portfolioBook);
+        botApiService.listAccountsPendingCalculation = mock(async () => ({
+            ids: ['usd-account', 'brl-account', 'eur-account'],
+        }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.realizedResultsContext?.baseBook?.getId()).toBe('usd-book');
+        expect(
+            Array.from(view.realizedResultsContext?.financialBooks.entries() ?? []).map(
+                ([currency, book]) => [currency, book.getId()]
+            )
+        ).toEqual([
+            ['USD', 'usd-book'],
+            ['BRL', 'brl-book'],
+        ]);
+        expect(view.hasEditorPermission).toBe(false);
+        expect(view.error?.message.before).toContain('BRL');
+        expect(view.error?.message.before).toContain('EUR');
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
     it('stops Account context loading when the mapped Portfolio Account is missing', async () => {
         Object.defineProperty(self, 'location', {
             configurable: true,

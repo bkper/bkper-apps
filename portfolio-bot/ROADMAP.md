@@ -604,8 +604,10 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Agreed that the Book used to open the menu is only a context anchor for resolving resources from the Portfolio Book. After resolution, the Portfolio Book is authoritative for the default date and timezone; this deliberate target behavior is not a regression from the GAS menu's use of the originating Book timezone.
 - Replaced the legacy missing-Portfolio-Book throw with a structured client error and explicit error state while preserving the Reset availability distinction without introducing mutations.
 - Added originating and Portfolio Book view-permission and installation checks, and reset stale view state before reinitialization.
-- Verified the complete local gate with 81 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
-- Port remaining edit-permission availability, pending tasks, locks, and closing conditions.
+- Ported legacy Base and Financial Book resolution into the client context, including Collection order, explicit Base and USD fallback selection, Financial Book fraction-digit and currency matching, and the deprecated `exchange_code` alias where established.
+- Ported legacy edit-permission availability for the Financial Books required by the resolved Account scope. Missing Financial Books and permissions below EDITOR remain one blocking availability error while the resolved view context stays visible.
+- Verified the complete local gate with 86 client tests, 100 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+- Port remaining pending tasks, locks, and closing conditions.
 - Adapt preflight placement without changing which operations may begin.
 
 **Gate:** Deterministic fixtures produce the accepted Account scope and operation availability.

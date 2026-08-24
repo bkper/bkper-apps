@@ -158,11 +158,13 @@ export const BotAppErrors = {
     /**
      * Creates an error identifying Book targets without edit permission.
      *
-     * @param books - The target Books that the User cannot edit.
+     * @param books - The target Books or currency codes that the User cannot edit.
      * @returns The structured edit-permission error.
      */
-    insufficientEditPermission(books: Book[]): AppError {
-        const identifiers = books.map(b => b.getName() ?? b.getId());
+    insufficientEditPermission(books: Array<Book | string>): AppError {
+        const identifiers = books.map(book =>
+            typeof book === 'string' ? book : (book.getName() ?? book.getId())
+        );
         const prefix = 'User needs EDITOR or OWNER permission in the following books:';
         const suffix = identifiers.length > 1 ? 'books' : 'book';
         return {

@@ -212,11 +212,38 @@ export class BotAppController implements ReactiveController {
             resetEnabled = false;
         }
 
+        const accountsExcCodes = new Set<string>();
+        const financialBooks = new Map<string, Book>();
+
+        for (const portfolioAccount of accounts) {
+            const excCode = await Utils.getExchangeCode(portfolioAccount);
+            if (excCode) {
+                accountsExcCodes.add(excCode);
+            }
+        }
+        for (const excCode of accountsExcCodes) {
+            const financialBook = botService.getFinancialBook(portfolioBook, excCode);
+            if (financialBook) {
+                financialBooks.set(excCode, financialBook);
+            }
+        }
+
+        const bookExcCodesUserCanEdit = botService.getBooksExcCodesUserCanEdit(portfolioBook);
+        const bookExcCodesUserCannotEdit = Array.from(accountsExcCodes).filter(
+            excCode => !bookExcCodesUserCanEdit.has(excCode)
+        );
+        this.view.hasEditorPermission = bookExcCodesUserCannotEdit.length == 0;
+        if (!this.view.hasEditorPermission) {
+            this.view.error = BotAppErrors.insufficientEditPermission(bookExcCodesUserCannotEdit);
+        }
+
         // Sort accounts alphabetically
         accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
 
         const context: RealizedResultsContext = {
             portfolioBook,
+            baseBook: botService.getBaseBook(portfolioBook) ?? undefined,
+            financialBooks,
             selectedAccount: account,
             selectedGroup: group,
             accounts,

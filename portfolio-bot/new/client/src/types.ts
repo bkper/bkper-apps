@@ -19,8 +19,12 @@ export interface AppError {
 
 /** The resolved context for realized-result operations. */
 export interface RealizedResultsContext {
-    /** The Portfolio Book */
+    /** The Portfolio Book. */
     portfolioBook: Book;
+    /** The Base Book, when one can be resolved. */
+    baseBook?: Book;
+    /** Required Financial Books mapped by currency. */
+    financialBooks: Map<string, Book>;
     /** The selected Portfolio Account, if any. */
     selectedAccount?: Account;
     /** The selected Portfolio Group, if any. */

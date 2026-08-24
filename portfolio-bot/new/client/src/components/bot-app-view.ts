@@ -87,8 +87,16 @@ export class BotAppView extends LitElement {
                 <div class="accounts-container">
                     ${this.renderAccountsTitle()} ${this.renderAccounts()}
                 </div>
+                ${this.renderEditPermissionError()}
             </div>
         `;
+    }
+
+    private renderEditPermissionError(): TemplateResult {
+        if (this.hasEditorPermission || !this.error) {
+            return html``;
+        }
+        return this.renderAppError();
     }
 
     private renderAccountsTitle(): TemplateResult {

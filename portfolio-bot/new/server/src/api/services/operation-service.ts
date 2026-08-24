@@ -1,6 +1,7 @@
 import type { Account, Book } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
+import { requireAppInstallation, requireEditPermission } from '../authorization.js';
 import { BotService } from './bot-service.js';
 
 export interface OperationContext {
@@ -11,6 +12,19 @@ export interface OperationContext {
 }
 
 export abstract class OperationService {
+    protected static async validateContext(context: OperationContext): Promise<void> {
+        requireEditPermission(context.portfolioBook);
+        await requireAppInstallation(context.portfolioBook);
+
+        requireEditPermission(context.financialBook);
+        await requireAppInstallation(context.financialBook);
+
+        if (context.baseBook.getId() !== context.financialBook.getId()) {
+            requireEditPermission(context.baseBook);
+            await requireAppInstallation(context.baseBook);
+        }
+    }
+
     protected static async resolveContext(
         context: AppContext,
         portfolioBookId: string,

@@ -9,7 +9,8 @@ export class ForwardService extends OperationService {
         accountId: string,
         _request: ForwardRequest
     ): Promise<ForwardResult> {
-        await this.resolveContext(context, bookId, accountId);
+        const operationContext = await this.resolveContext(context, bookId, accountId);
+        await this.validateContext(operationContext);
         return { books: [] };
     }
 }

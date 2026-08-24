@@ -1,12 +1,19 @@
 import { expect, test } from 'bun:test';
-import { AccountType, Bkper, Book } from 'bkper-js';
+import { Account, AccountType, App, Bkper, Book, Permission } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
+import { CalculateService } from '../../../src/api/services/calculate-service.js';
+import { ForwardService } from '../../../src/api/services/forward-service.js';
 import {
     type OperationContext,
     OperationService,
 } from '../../../src/api/services/operation-service.js';
+import { ResetService } from '../../../src/api/services/reset-service.js';
 
 class TestOperationService extends OperationService {
+    static validateContextForTest(context: OperationContext): Promise<void> {
+        return this.validateContext(context);
+    }
+
     static resolveContextForTest(
         context: AppContext,
         portfolioBookId: string,
@@ -18,6 +25,25 @@ class TestOperationService extends OperationService {
 
 function createContext(bkper: Bkper): AppContext {
     return new AppContext(bkper, { ASSETS: { fetch } });
+}
+
+function createBook(id: string, permission = Permission.EDITOR, installed = true): Book {
+    const book = new Book({ id, permission });
+    book.getApps = async () => (installed ? [new App({ id: 'stock-bot' })] : []);
+    return book;
+}
+
+function createOperationContext(
+    portfolioBook: Book,
+    financialBook: Book,
+    baseBook: Book
+): OperationContext {
+    return {
+        portfolioBook,
+        portfolioAccount: new Account(portfolioBook, { id: 'portfolio-account' }),
+        financialBook,
+        baseBook,
+    };
 }
 
 function createPortfolioBook(extra: Partial<bkper.Book> = {}): Book {
@@ -38,6 +64,103 @@ function createPortfolioBook(extra: Partial<bkper.Book> = {}): Book {
         ...extra,
     });
 }
+
+test('validates edit permission and Portfolio Bot installation on every operation Book', async () => {
+    const portfolioBook = createBook('portfolio-book');
+    const financialBook = createBook('financial-book', Permission.OWNER);
+    const baseBook = createBook('base-book');
+
+    await expect(
+        TestOperationService.validateContextForTest(
+            createOperationContext(portfolioBook, financialBook, baseBook)
+        )
+    ).resolves.toBeUndefined();
+});
+
+test('fails validation when an operation Book is not editable or lacks Portfolio Bot', async () => {
+    const roles = ['portfolioBook', 'financialBook', 'baseBook'] as const;
+
+    for (const role of roles) {
+        const books = {
+            portfolioBook: createBook('portfolio-book'),
+            financialBook: createBook('financial-book'),
+            baseBook: createBook('base-book'),
+        };
+        books[role] = createBook(`${role}-denied`, Permission.VIEWER);
+
+        await expect(
+            TestOperationService.validateContextForTest(
+                createOperationContext(books.portfolioBook, books.financialBook, books.baseBook)
+            )
+        ).rejects.toMatchObject({ status: 403 });
+    }
+
+    for (const role of roles) {
+        const books = {
+            portfolioBook: createBook('portfolio-book'),
+            financialBook: createBook('financial-book'),
+            baseBook: createBook('base-book'),
+        };
+        books[role] = createBook(`${role}-missing-installation`, Permission.EDITOR, false);
+
+        await expect(
+            TestOperationService.validateContextForTest(
+                createOperationContext(books.portfolioBook, books.financialBook, books.baseBook)
+            )
+        ).rejects.toMatchObject({
+            status: 403,
+            message: 'Portfolio Bot is not installed in this Book.',
+        });
+    }
+});
+
+test('validates a shared Financial and Base Book once', async () => {
+    const portfolioBook = createBook('portfolio-book');
+    const financialAndBaseBook = createBook('financial-and-base-book');
+    let installationChecks = 0;
+    financialAndBaseBook.getApps = async () => {
+        installationChecks += 1;
+        return [new App({ id: 'stock-bot' })];
+    };
+
+    await TestOperationService.validateContextForTest(
+        createOperationContext(portfolioBook, financialAndBaseBook, financialAndBaseBook)
+    );
+
+    expect(installationChecks).toBe(1);
+});
+
+test('applies shared validation to every mutating operation service', async () => {
+    const portfolioBook = createPortfolioBook({
+        permission: Permission.VIEWER,
+        collection: {
+            books: [
+                { id: 'eur-book', fractionDigits: 2, properties: { exc_code: 'EUR' } },
+                { id: 'usd-book', fractionDigits: 2, properties: { exc_code: 'USD' } },
+            ],
+        },
+    });
+    const bkper = new Bkper();
+    bkper.getBook = async () => portfolioBook;
+    const context = createContext(bkper);
+    const operations = [
+        () =>
+            CalculateService.calculate(context, 'portfolio-book', 'round-trip', {
+                date: '2026-08-05',
+                performMtm: false,
+            }),
+        () => ResetService.reset(context, 'portfolio-book', 'round-trip'),
+        () => ResetService.fullReset(context, 'portfolio-book', 'round-trip'),
+        () =>
+            ForwardService.forward(context, 'portfolio-book', 'round-trip', {
+                date: '2026-09-01',
+            }),
+    ];
+
+    for (const operation of operations) {
+        await expect(operation()).rejects.toMatchObject({ status: 403 });
+    }
+});
 
 test('resolves the Portfolio Book, Portfolio Account, Financial Book, and Base Book', async () => {
     const portfolioBook = createPortfolioBook({

@@ -8,7 +8,8 @@ export class ResetService extends OperationService {
         bookId: string,
         accountId: string
     ): Promise<ResetResult> {
-        await this.resolveContext(context, bookId, accountId);
+        const operationContext = await this.resolveContext(context, bookId, accountId);
+        await this.validateContext(operationContext);
         return { books: [] };
     }
 
@@ -17,7 +18,8 @@ export class ResetService extends OperationService {
         bookId: string,
         accountId: string
     ): Promise<FullResetResult> {
-        await this.resolveContext(context, bookId, accountId);
+        const operationContext = await this.resolveContext(context, bookId, accountId);
+        await this.validateContext(operationContext);
         return { books: [] };
     }
 }

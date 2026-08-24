@@ -32,7 +32,8 @@ export class CalculateService extends OperationService {
         accountId: string,
         _request: CalculateRequest
     ): Promise<CalculateResult> {
-        await this.resolveContext(context, bookId, accountId);
+        const operationContext = await this.resolveContext(context, bookId, accountId);
+        await this.validateContext(operationContext);
         return { books: [] };
     }
 }

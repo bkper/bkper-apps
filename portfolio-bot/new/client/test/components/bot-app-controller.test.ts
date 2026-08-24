@@ -278,6 +278,13 @@ describe('Bot app controller', () => {
                         properties: { exchange_code: 'BRL' },
                     },
                     {
+                        id: 'editable-brl-book',
+                        name: 'Editable BRL Book',
+                        fractionDigits: 2,
+                        permission: Permission.OWNER,
+                        properties: { exchange_code: 'BRL' },
+                    },
+                    {
                         id: 'cad-book',
                         name: 'CAD Book',
                         fractionDigits: 2,
@@ -335,7 +342,7 @@ describe('Bot app controller', () => {
             ['CAD', 'cad-book'],
         ]);
         expect(view.hasEditorPermission).toBe(false);
-        expect(view.error?.message.before).toContain('BRL Book');
+        expect(view.error?.message.before).not.toContain('BRL');
         expect(view.error?.message.before).toContain('EUR');
         expect(view.appState).toBe(BotAppState.READY);
     });

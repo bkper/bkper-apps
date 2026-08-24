@@ -217,12 +217,12 @@ export class BotAppController implements ReactiveController {
         const baseBook = botService.getBaseBook(portfolioBook) ?? undefined;
         const financialBooks = this.getFinancialBooks(portfolioBook);
 
-        const missingBooks = this.getBooksMissingEditPermission(accountsExcCodes, financialBooks);
-        const isMissingBook = missingBooks.length > 0;
+        const editableExcCodes = botService.getBooksExcCodesUserCanEdit(portfolioBook);
+        const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
 
-        this.view.hasEditorPermission = !isMissingBook;
-        if (isMissingBook) {
-            this.view.error = BotAppErrors.insufficientEditPermission(missingBooks);
+        this.view.hasEditorPermission = missingExcCodes.length == 0;
+        if (!this.view.hasEditorPermission) {
+            this.view.error = BotAppErrors.insufficientEditPermission(missingExcCodes);
         }
 
         // Sort accounts alphabetically
@@ -250,24 +250,17 @@ export class BotAppController implements ReactiveController {
         return books;
     }
 
-    private getBooksMissingEditPermission(
+    private getMissingExcCodes(
         accountExcCodes: Set<string>,
-        financialBooks: PortfolioBotBook[]
+        editableExcCodes: Set<string>
     ): string[] {
-        const identifiers = new Set<string>();
+        const missingExcCodes: string[] = [];
         for (const accountExcCode of accountExcCodes) {
-            const financialBook = financialBooks.find(b => b.excCode == accountExcCode);
-            if (financialBook && Utils.canEditBook(financialBook.book)) {
-                continue;
+            if (!editableExcCodes.has(accountExcCode)) {
+                missingExcCodes.push(accountExcCode);
             }
-            const identifier =
-                financialBook?.book.getName() ??
-                financialBook?.excCode ??
-                financialBook?.book.getId() ??
-                accountExcCode;
-            identifiers.add(identifier);
         }
-        return Array.from(identifiers);
+        return missingExcCodes;
     }
 
     private async loadAccount(

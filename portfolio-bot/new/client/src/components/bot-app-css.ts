@@ -23,63 +23,47 @@ export const botAppCSS = css`
         place-items: center;
     }
 
-    .validations,
-    .validation-error,
-    .warnings {
-        margin-top: var(--bkper-spacing-large);
+    .intro h2 {
+        margin: 0;
+        font-size: var(--bkper-font-size-large);
     }
 
-    .validation-error {
-        display: flex;
-        gap: var(--bkper-spacing-2x-small);
-        align-items: center;
+    .intro p {
+        margin: 0;
+        margin-top: var(--bkper-spacing-x-small);
+        color: var(--bkper-color-grey-high);
     }
 
-    .validation-retry {
-        padding: 0;
-        border: 0;
-        background: transparent;
-        color: var(--bkper-color-link);
-        font: inherit;
-        text-decoration: underline;
-        cursor: pointer;
-    }
-
-    .validations-title,
-    .warnings-title {
-        display: flex;
-        gap: var(--bkper-spacing-x-small);
-        align-items: center;
-    }
-
-    .warnings-title wa-icon {
-        color: var(--bkper-color-warning);
-        font-size: 18px;
-    }
-
-    .warnings-title span {
-        font-size: 14px;
+    .intro p span {
         font-weight: var(--bkper-font-weight-bold);
     }
 
-    .warnings-list {
-        display: grid;
-        gap: var(--bkper-spacing-small);
-        margin-top: var(--bkper-spacing-small);
+    .accounts-container {
+        margin-top: var(--bkper-spacing-large);
     }
 
-    .warning {
-        padding-left: var(--bkper-spacing-small);
-        border-left: 0.25rem solid var(--bkper-color-warning);
+    .accounts-container h3 {
+        margin: 0;
+        font-size: var(--bkper-font-size-medium);
+    }
+
+    .accounts {
+        margin-top: var(--bkper-spacing-small);
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: var(--bkper-spacing-x-small);
+    }
+
+    .account {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--bkper-spacing-small);
+        align-items: end;
     }
 
     wa-spinner {
         font-size: 2rem;
         --track-width: 0.125em;
-    }
-
-    .validations wa-spinner,
-    .warnings wa-spinner {
-        font-size: 1.5rem;
     }
 `;

@@ -35,17 +35,6 @@ export class BotAppController implements ReactiveController {
         await Promise.all([this.initApp(), this.initBookContext()]);
     }
 
-    // async retryValidations(): Promise<void> {
-    //     const book = this.view.book;
-    //     if (!book || this.view.validating) {
-    //         return;
-    //     }
-    //     const visibleBooks = this.view.books
-    //         .map(exchangeBook => exchangeBook.book)
-    //         .filter(Utils.canViewBook);
-    //     await this.validateBooks(book, new Set(visibleBooks));
-    // }
-
     private async initApp(): Promise<void> {
         this.view.app = await bkperService.loadApp();
     }
@@ -100,7 +89,6 @@ export class BotAppController implements ReactiveController {
         this.view.hasEditorPermission = false;
         this.view.validating = false;
         this.view.validationError = '';
-        this.view.warnings = [];
     }
 
     private async initBook(): Promise<Book | undefined> {

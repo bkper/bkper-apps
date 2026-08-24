@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { App, Book, Permission } from 'bkper-js';
+import { Account, App, Book, Group, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
@@ -11,6 +11,19 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
+
+function collectRenderedText(value: unknown): string[] {
+    if (typeof value === 'string') {
+        return [value];
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap(collectRenderedText);
+    }
+    if (value && typeof value === 'object' && 'values' in value) {
+        return collectRenderedText((value as TemplateResult).values);
+    }
+    return [];
+}
 
 describe('Bot app view', () => {
     it('passes the App and selected Book to the app header', () => {
@@ -79,6 +92,31 @@ describe('Bot app view', () => {
 
         expect(result.strings.join('')).toContain('<app-error');
         expect(result.values[0] as AppError).toBe(view.error);
+    });
+
+    it('renders Group and Account context without repeating the header Book name', () => {
+        const view = new BotAppView();
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            name: 'Portfolio Book',
+            permission: Permission.VIEWER,
+        });
+        view.portfolioBook = portfolioBook;
+        view.group = new Group(portfolioBook, { id: 'technology', name: 'Technology' });
+        view.accounts = [
+            new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
+            new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
+        ];
+        view.hasViewerPermission = true;
+        view.appState = BotAppState.READY;
+
+        const result = renderBodyContent.call(view);
+        const renderedText = collectRenderedText(result).join(' ');
+
+        expect(renderedText).not.toContain('Portfolio Book');
+        expect(renderedText).toContain('Technology');
+        expect(renderedText).toContain('Alphabet');
+        expect(renderedText).toContain('Apple');
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

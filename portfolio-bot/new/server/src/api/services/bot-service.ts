@@ -1,18 +1,79 @@
 import type { Account, Book } from 'bkper-js';
+import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
 import {
     EXC_BASE_PROP,
     EXC_CODE_PROP,
     STOCK_BUY_ACCOUNT_NAME,
+    STOCK_EXC_CODE_PROP,
     STOCK_SELL_ACCOUNT_NAME,
 } from '../../shared/constants.js';
 import { ValidationAccount } from './validation-account.js';
+
+export interface MutationContext {
+    portfolioBook: Book;
+    portfolioAccount: Account;
+    financialBook: Book;
+    baseBook: Book;
+}
 
 export class BotService {
     private context: AppContext;
 
     constructor(context: AppContext) {
         this.context = context;
+    }
+
+    async resolveMutationContext(
+        portfolioBookId: string,
+        portfolioAccountId: string
+    ): Promise<MutationContext> {
+        const portfolioBook = await this.context.bkper.getBook(portfolioBookId, true);
+        const portfolioBookName = portfolioBook.getName() ?? portfolioBookId;
+
+        const portfolioAccount = await portfolioBook.getAccount(portfolioAccountId);
+        if (!portfolioAccount) {
+            throw new HTTPException(400, {
+                message: `Account ${portfolioAccountId} was not found in Book ${portfolioBookName}.`,
+            });
+        }
+
+        const accountName = portfolioAccount.getName() ?? portfolioAccountId;
+
+        if (!portfolioAccount.isPermanent()) {
+            throw new HTTPException(400, {
+                message: `Account ${accountName} is non-permanent in Book ${portfolioBookName}.`,
+            });
+        }
+
+        if (portfolioAccount.isArchived()) {
+            throw new HTTPException(400, {
+                message: `Account ${accountName} is archived in Book ${portfolioBookName}.`,
+            });
+        }
+
+        const accountExcCode = await this.getAccountExcCode(portfolioAccount);
+        if (!accountExcCode) {
+            throw new HTTPException(400, {
+                message: `Account ${accountName} has no configured exchange code in Book ${portfolioBookName}.`,
+            });
+        }
+
+        const financialBook = this.getFinancialBook(portfolioBook, accountExcCode);
+        if (!financialBook) {
+            throw new HTTPException(400, {
+                message: `Financial Book for exchange code ${accountExcCode} was not found in the Collection of ${portfolioBookName}.`,
+            });
+        }
+
+        const baseBook = this.getBaseBook(portfolioBook);
+        if (!baseBook) {
+            throw new HTTPException(400, {
+                message: `Base Book was not found in the Collection of ${portfolioBookName}.`,
+            });
+        }
+
+        return { portfolioBook, portfolioAccount, financialBook, baseBook };
     }
 
     getBaseBook(book: Book): Book | null {
@@ -34,8 +95,24 @@ export class BotService {
         return null;
     }
 
+    private getFinancialBook(book: Book, excCode: string): Book | null {
+        const collection = book.getCollection();
+        if (!collection) {
+            return null;
+        }
+        for (const connectedBook of collection.getBooks()) {
+            if (
+                connectedBook.getFractionDigits() != 0 &&
+                this.getBookExcCode(connectedBook) == excCode
+            ) {
+                return connectedBook;
+            }
+        }
+        return null;
+    }
+
     async getUncalculatedAccounts(stockBook: Book, baseBook?: Book): Promise<Account[]> {
-        const baseBookCurrency = baseBook ? this.getExcCode(baseBook) : undefined;
+        const baseBookCurrency = baseBook ? this.getBookExcCode(baseBook) : undefined;
 
         const validationAccountsMap = new Map<string | undefined, ValidationAccount>();
 
@@ -103,8 +180,18 @@ export class BotService {
         return 'is:unchecked';
     }
 
-    private getExcCode(book: Book): string | undefined {
+    private getBookExcCode(book: Book): string | undefined {
         return book.getProperty(EXC_CODE_PROP, 'exchange_code');
+    }
+
+    private async getAccountExcCode(account: Account): Promise<string | null> {
+        for (const group of await account.getGroups()) {
+            const stockExcCode = group.getProperty(STOCK_EXC_CODE_PROP);
+            if (stockExcCode && stockExcCode.trim()) {
+                return stockExcCode;
+            }
+        }
+        return null;
     }
 
     private getNextIsoDate(dateIso: string): string {

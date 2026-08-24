@@ -17,14 +17,22 @@ export interface AppError {
     };
 }
 
+/** A Financial Book with the context needed by the Portfolio Bot client. */
+export interface PortfolioBotBook {
+    /** The Bkper Book instance. */
+    book: Book;
+    /** The exchange currency code configured for the Book. */
+    excCode: string;
+}
+
 /** The resolved context for realized-result operations. */
 export interface RealizedResultsContext {
     /** The Portfolio Book. */
     portfolioBook: Book;
     /** The Base Book, when one can be resolved. */
     baseBook?: Book;
-    /** Collection Financial Books mapped by currency. */
-    financialBooks: Map<string, Book>;
+    /** Collection Financial Books. */
+    financialBooks: PortfolioBotBook[];
     /** The selected Portfolio Account, if any. */
     selectedAccount?: Account;
     /** The selected Portfolio Group, if any. */

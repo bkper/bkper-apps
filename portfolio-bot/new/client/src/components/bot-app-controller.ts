@@ -8,7 +8,7 @@ import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
 import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AppError, RealizedResultsContext } from './../types.js';
+import type { AppError, PortfolioBotBook, RealizedResultsContext } from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
@@ -212,22 +212,17 @@ export class BotAppController implements ReactiveController {
             resetEnabled = false;
         }
 
-        const accountsExcCodes = new Set<string>();
-        for (const portfolioAccount of accounts) {
-            const excCode = await Utils.getExchangeCode(portfolioAccount);
-            if (excCode) {
-                accountsExcCodes.add(excCode);
-            }
-        }
+        const accountsExcCodes = await Utils.getExchangeCodes(accounts);
 
-        const financialBooks = botService.getFinancialBooks(portfolioBook);
-        const bookExcCodesUserCanEdit = botService.getBooksExcCodesUserCanEdit(portfolioBook);
-        const bookExcCodesUserCannotEdit = Array.from(accountsExcCodes).filter(
-            excCode => !bookExcCodesUserCanEdit.has(excCode)
-        );
-        this.view.hasEditorPermission = bookExcCodesUserCannotEdit.length == 0;
-        if (!this.view.hasEditorPermission) {
-            this.view.error = BotAppErrors.insufficientEditPermission(bookExcCodesUserCannotEdit);
+        const baseBook = botService.getBaseBook(portfolioBook) ?? undefined;
+        const financialBooks = this.getFinancialBooks(portfolioBook);
+
+        const missingBooks = this.getBooksMissingEditPermission(accountsExcCodes, financialBooks);
+        const isMissingBook = missingBooks.length > 0;
+
+        this.view.hasEditorPermission = !isMissingBook;
+        if (isMissingBook) {
+            this.view.error = BotAppErrors.insufficientEditPermission(missingBooks);
         }
 
         // Sort accounts alphabetically
@@ -235,7 +230,7 @@ export class BotAppController implements ReactiveController {
 
         const context: RealizedResultsContext = {
             portfolioBook,
-            baseBook: botService.getBaseBook(portfolioBook) ?? undefined,
+            baseBook,
             financialBooks,
             selectedAccount: account,
             selectedGroup: group,
@@ -244,6 +239,35 @@ export class BotAppController implements ReactiveController {
         };
 
         this.view.realizedResultsContext = context;
+    }
+
+    private getFinancialBooks(portfolioBook: Book): PortfolioBotBook[] {
+        const books: PortfolioBotBook[] = [];
+        const financialBook = botService.getFinancialBooks(portfolioBook);
+        for (const [excCode, book] of financialBook) {
+            books.push({ book, excCode });
+        }
+        return books;
+    }
+
+    private getBooksMissingEditPermission(
+        accountExcCodes: Set<string>,
+        financialBooks: PortfolioBotBook[]
+    ): string[] {
+        const identifiers = new Set<string>();
+        for (const accountExcCode of accountExcCodes) {
+            const financialBook = financialBooks.find(b => b.excCode == accountExcCode);
+            if (financialBook && Utils.canEditBook(financialBook.book)) {
+                continue;
+            }
+            const identifier =
+                financialBook?.book.getName() ??
+                financialBook?.excCode ??
+                financialBook?.book.getId() ??
+                accountExcCode;
+            identifiers.add(identifier);
+        }
+        return Array.from(identifiers);
     }
 
     private async loadAccount(

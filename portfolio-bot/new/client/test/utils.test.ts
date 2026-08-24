@@ -56,6 +56,9 @@ describe('Utils', () => {
         expect(await Utils.getExchangeCode(instrument)).toBe('USD');
         expect(await Utils.getExchangeCode(incoming)).toBeNull();
         expect(await Utils.getExchangeCode(missingExchange)).toBeNull();
+        expect(
+            await Utils.getExchangeCodes([instrument, incoming, instrument, missingExchange])
+        ).toEqual(new Set(['USD']));
     });
 
     it('identifies active permanent Portfolio Accounts assigned to an exchange', async () => {

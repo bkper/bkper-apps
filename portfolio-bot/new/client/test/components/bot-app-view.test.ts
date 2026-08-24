@@ -116,7 +116,7 @@ describe('Bot app view', () => {
                 new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
                 new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
             ],
-            financialBooks: new Map(),
+            financialBooks: [],
             resetEnabled: true,
         };
         view.hasViewerPermission = true;
@@ -143,7 +143,7 @@ describe('Bot app view', () => {
                 new Account(portfolioBook, { name: 'Incoming', type: AccountType.INCOMING }),
                 new Account(portfolioBook, { name: 'Outgoing', type: AccountType.OUTGOING }),
             ],
-            financialBooks: new Map(),
+            financialBooks: [],
             resetEnabled: true,
         };
         view.hasViewerPermission = true;

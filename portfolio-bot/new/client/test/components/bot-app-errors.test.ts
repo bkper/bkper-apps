@@ -92,14 +92,11 @@ describe('Bot app errors', () => {
         });
     });
 
-    it('identifies Books missing edit permission by name or id', () => {
-        const namedBook = new Book({ id: 'named-id', name: 'Portfolio Book' });
-        const identifiedBook = new Book({ id: 'identified-id' });
-
-        const error = BotAppErrors.insufficientEditPermission([namedBook, identifiedBook]);
+    it('identifies Books missing edit permission', () => {
+        const error = BotAppErrors.insufficientEditPermission(['Brazil Book', 'EUR']);
 
         expect(error.type).toBe('error');
-        expect(error.message.before).toContain('Portfolio Book');
-        expect(error.message.before).toContain('identified-id');
+        expect(error.message.before).toContain('Brazil Book');
+        expect(error.message.before).toContain('EUR');
     });
 });

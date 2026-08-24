@@ -56,6 +56,26 @@ export class Utils {
     }
 
     /**
+     * Gets the unique Portfolio exchange codes configured on the supplied Accounts.
+     *
+     * Accounts without an eligible exchange code are omitted. Exchange codes retain
+     * the order in which they are first found.
+     *
+     * @param accounts - The Accounts whose exchange codes should be collected.
+     * @returns The unique configured exchange codes in first-found order.
+     */
+    static async getExchangeCodes(accounts: Account[]): Promise<Set<string>> {
+        const exchangeCodes = new Set<string>();
+        for (const account of accounts) {
+            const exchangeCode = await Utils.getExchangeCode(account);
+            if (exchangeCode) {
+                exchangeCodes.add(exchangeCode);
+            }
+        }
+        return exchangeCodes;
+    }
+
+    /**
      * Tells whether an Account is eligible for Portfolio Bot instrument context.
      *
      * An eligible Portfolio Account is permanent, active, and assigned to at least one

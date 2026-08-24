@@ -325,16 +325,17 @@ describe('Bot app controller', () => {
 
         expect(view.realizedResultsContext?.baseBook?.getId()).toBe('usd-book');
         expect(
-            Array.from(view.realizedResultsContext?.financialBooks.entries() ?? []).map(
-                ([currency, book]) => [currency, book.getId()]
-            )
+            view.realizedResultsContext?.financialBooks.map(financialBook => [
+                financialBook.excCode,
+                financialBook.book.getId(),
+            ])
         ).toEqual([
             ['USD', 'usd-book'],
             ['BRL', 'brl-book'],
             ['CAD', 'cad-book'],
         ]);
         expect(view.hasEditorPermission).toBe(false);
-        expect(view.error?.message.before).toContain('BRL');
+        expect(view.error?.message.before).toContain('BRL Book');
         expect(view.error?.message.before).toContain('EUR');
         expect(view.appState).toBe(BotAppState.READY);
     });

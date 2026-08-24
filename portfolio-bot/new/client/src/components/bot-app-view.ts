@@ -1,9 +1,9 @@
-import type { Account, App, Book, Group } from 'bkper-js';
+import type { App, Book } from 'bkper-js';
 import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
-import type { AppError, PortfolioBotBook } from '../types.js';
+import type { AppError, RealizedResultsContext } from '../types.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
 import { sharedCSS } from './shared-css.js';
@@ -25,22 +25,13 @@ export class BotAppView extends LitElement {
     portfolioBook?: Book;
 
     @state()
-    group?: Group;
-
-    @state()
-    accounts: Account[] = [];
-
-    @state()
-    enableReset = false;
-
-    @state()
     error?: AppError;
 
     @state()
     initialDate = '';
 
     @state()
-    books: PortfolioBotBook[] = [];
+    realizedResultsContext?: RealizedResultsContext;
 
     @state()
     hasViewerPermission = false;
@@ -101,28 +92,32 @@ export class BotAppView extends LitElement {
     }
 
     private renderAccountsTitle(): TemplateResult {
+        const context = this.realizedResultsContext;
+        const group = context?.selectedGroup;
+        const account = context?.selectedAccount;
+
         let title = '';
-        if (this.group) {
-            const groupName = this.group.getName() ?? this.group.getId() ?? 'Unknown';
-            title = `Selected group: ${groupName}`;
-        } else if (this.accounts.length === 1) {
-            const account = this.accounts[0];
-            const accountName = account.getName() ?? account.getId() ?? 'Unknown';
-            title = `Selected account: ${accountName}`;
+
+        if (account) {
+            title = `Showing selected account:`;
+        } else if (group) {
+            const groupName = group.getName() ?? group.getId() ?? 'Unknown';
+            title = `Showing accounts in selected group: ${groupName}`;
         } else {
             title = `Showing uncalculated accounts:`;
         }
+
         return html`<h3>${title}</h3>`;
     }
 
     private renderAccounts(): TemplateResult {
-        const accounts = this.accounts;
+        const accounts = this.realizedResultsContext?.accounts ?? [];
         if (accounts.length === 0) {
             return html`<div class="account" role="status">No eligible accounts found.</div>`;
         }
         return html`
             <div class="accounts" role="list">
-                ${this.accounts.map(account => {
+                ${accounts.map(account => {
                     const name = account.getName() ?? account.getId() ?? '';
                     return html`<div class="account" role="listitem">${name}</div>`;
                 })}

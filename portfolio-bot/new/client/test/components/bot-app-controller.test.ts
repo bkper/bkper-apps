@@ -8,19 +8,16 @@ import { authService } from '../../src/services/auth-service.js';
 import { bkperService } from '../../src/services/bkper-service.js';
 import { botApiService } from '../../src/services/bot-api-service.js';
 import { botService } from '../../src/services/bot-service.js';
-import type { AppError, PortfolioBotBook } from '../../src/types.js';
+import type { AppError, RealizedResultsContext } from '../../src/types.js';
 
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
     app?: App;
     portfolioBook?: Book;
-    accounts: Account[] = [];
-    group?: Group;
-    enableReset = false;
     initialDate = '';
     error?: AppError;
     embedded = false;
-    books: PortfolioBotBook[] = [];
+    realizedResultsContext?: RealizedResultsContext;
     hasViewerPermission = false;
     hasEditorPermission = false;
     warnings: string[] = [];
@@ -247,9 +244,13 @@ describe('Bot app controller', () => {
         expect(bkperService.loadBook).toHaveBeenNthCalledWith(1, 'financial-book', true);
         expect(bkperService.loadBook).toHaveBeenNthCalledWith(2, 'portfolio-book', true);
         expect(view.portfolioBook).toBe(portfolioBook);
-        expect(view.accounts.map(account => account.getId())).toEqual(['portfolio-account']);
-        expect(view.group).toBeUndefined();
-        expect(view.enableReset).toBe(true);
+        expect(view.realizedResultsContext?.portfolioBook).toBe(portfolioBook);
+        expect(view.realizedResultsContext?.selectedAccount?.getId()).toBe('portfolio-account');
+        expect(view.realizedResultsContext?.selectedGroup).toBeUndefined();
+        expect(view.realizedResultsContext?.accounts.map(account => account.getId())).toEqual([
+            'portfolio-account',
+        ]);
+        expect(view.realizedResultsContext?.resetEnabled).toBe(true);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
         expect(view.appState).toBe(BotAppState.READY);
     });
@@ -291,8 +292,7 @@ describe('Bot app controller', () => {
                 'Portfolio Book'
             )
         );
-        expect(view.accounts).toEqual([]);
-        expect(view.group).toBeUndefined();
+        expect(view.realizedResultsContext).toBeUndefined();
         expect(view.appState).toBe(BotAppState.ERROR);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
     });
@@ -332,8 +332,7 @@ describe('Bot app controller', () => {
                 'Portfolio Book'
             )
         );
-        expect(view.accounts).toEqual([]);
-        expect(view.group).toBeUndefined();
+        expect(view.realizedResultsContext).toBeUndefined();
         expect(view.appState).toBe(BotAppState.ERROR);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
     });
@@ -403,9 +402,16 @@ describe('Bot app controller', () => {
 
         await createController(view).initialize();
 
-        expect(view.accounts.map(account => account.getId())).toEqual(['alphabet', 'apple']);
-        expect(view.group).toBe(await portfolioBook.getGroup('portfolio-group'));
-        expect(view.enableReset).toBe(true);
+        expect(view.realizedResultsContext?.portfolioBook).toBe(portfolioBook);
+        expect(view.realizedResultsContext?.selectedAccount).toBeUndefined();
+        expect(view.realizedResultsContext?.selectedGroup).toBe(
+            await portfolioBook.getGroup('portfolio-group')
+        );
+        expect(view.realizedResultsContext?.accounts.map(account => account.getId())).toEqual([
+            'alphabet',
+            'apple',
+        ]);
+        expect(view.realizedResultsContext?.resetEnabled).toBe(true);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
     });
 
@@ -466,9 +472,14 @@ describe('Bot app controller', () => {
 
         await createController(view).initialize();
 
-        expect(view.accounts.map(account => account.getId())).toEqual(['alphabet', 'apple']);
-        expect(view.group).toBeUndefined();
-        expect(view.enableReset).toBe(false);
+        expect(view.realizedResultsContext?.portfolioBook).toBe(portfolioBook);
+        expect(view.realizedResultsContext?.selectedAccount).toBeUndefined();
+        expect(view.realizedResultsContext?.selectedGroup).toBeUndefined();
+        expect(view.realizedResultsContext?.accounts.map(account => account.getId())).toEqual([
+            'alphabet',
+            'apple',
+        ]);
+        expect(view.realizedResultsContext?.resetEnabled).toBe(false);
         expect(botApiService.listAccountsPendingCalculation).toHaveBeenCalledTimes(1);
     });
 
@@ -830,6 +841,7 @@ describe('Bot app controller', () => {
         await controller.initialize();
 
         expect(view.portfolioBook).toBeUndefined();
+        expect(view.realizedResultsContext).toBeUndefined();
         expect(view.error).toEqual(BotAppErrors.bookNotSpecified());
 
         Object.defineProperty(self, 'location', {

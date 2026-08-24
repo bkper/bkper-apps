@@ -93,8 +93,8 @@ describe('Bot app errors', () => {
     });
 
     it('identifies Books missing edit permission by name or id', () => {
-        const namedBook = { book: new Book({ id: 'named-id', name: 'Portfolio Book' }) };
-        const identifiedBook = { book: new Book({ id: 'identified-id' }) };
+        const namedBook = new Book({ id: 'named-id', name: 'Portfolio Book' });
+        const identifiedBook = new Book({ id: 'identified-id' });
 
         const error = BotAppErrors.insufficientEditPermission([namedBook, identifiedBook]);
 

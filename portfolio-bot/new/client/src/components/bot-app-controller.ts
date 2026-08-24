@@ -8,7 +8,7 @@ import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
 import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AppError } from './../types.js';
+import type { AppError, RealizedResultsContext } from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
@@ -79,12 +79,9 @@ export class BotAppController implements ReactiveController {
     private resetStates(): void {
         this.view.appState = BotAppState.LOADING;
         this.view.portfolioBook = undefined;
-        this.view.group = undefined;
-        this.view.accounts = [];
-        this.view.enableReset = false;
         this.view.error = undefined;
         this.view.initialDate = '';
-        this.view.books = [];
+        this.view.realizedResultsContext = undefined;
         this.view.hasViewerPermission = false;
         this.view.hasEditorPermission = false;
         this.view.validating = false;
@@ -194,16 +191,14 @@ export class BotAppController implements ReactiveController {
             return null;
         }
 
-        let enableReset = true;
-        let viewGroup: Group | undefined;
-        const viewAccounts: Account[] = [];
+        let resetEnabled = true;
+        const accounts: Account[] = [];
 
         if (account) {
-            await this.addEligiblePortfolioAccount(viewAccounts, account);
+            await this.addEligiblePortfolioAccount(accounts, account);
         } else if (group) {
-            viewGroup = group;
             for (const groupAccount of await group.getAccounts()) {
-                await this.addEligiblePortfolioAccount(viewAccounts, groupAccount);
+                await this.addEligiblePortfolioAccount(accounts, groupAccount);
             }
         } else {
             const pendingAccounts = await botApiService.listAccountsPendingCalculation(
@@ -211,20 +206,24 @@ export class BotAppController implements ReactiveController {
             );
             for (const pendingAccountId of pendingAccounts.ids) {
                 const portfolioAccount = await portfolioBook.getAccount(pendingAccountId);
-                await this.addEligiblePortfolioAccount(viewAccounts, portfolioAccount);
+                await this.addEligiblePortfolioAccount(accounts, portfolioAccount);
             }
             // Disable reset operation when displaying all uncalculated accounts
-            enableReset = false;
+            resetEnabled = false;
         }
 
         // Sort accounts alphabetically
-        viewAccounts.sort((first, second) =>
-            (first.getName() ?? '').localeCompare(second.getName() ?? '')
-        );
+        accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
 
-        this.view.accounts = viewAccounts;
-        this.view.group = viewGroup;
-        this.view.enableReset = enableReset;
+        const context: RealizedResultsContext = {
+            portfolioBook,
+            selectedAccount: account,
+            selectedGroup: group,
+            accounts,
+            resetEnabled,
+        };
+
+        this.view.realizedResultsContext = context;
     }
 
     private async loadAccount(

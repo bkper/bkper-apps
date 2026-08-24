@@ -1,4 +1,4 @@
-import type { Book } from 'bkper-js';
+import type { Account, Book, Group } from 'bkper-js';
 
 /** An application error shown to the user. */
 export interface AppError {
@@ -17,8 +17,16 @@ export interface AppError {
     };
 }
 
-/** A Bkper Book with the context needed by the Portfolio Bot client. */
-export interface PortfolioBotBook {
-    /** The Bkper Book instance. */
-    book: Book;
+/** The resolved context for realized-result operations. */
+export interface RealizedResultsContext {
+    /** The Portfolio Book */
+    portfolioBook: Book;
+    /** The selected Portfolio Account, if any. */
+    selectedAccount?: Account;
+    /** The selected Portfolio Group, if any. */
+    selectedGroup?: Group;
+    /** The eligible accounts to operate on. */
+    accounts: Account[];
+    /** Whether reset operations are enabled. */
+    resetEnabled: boolean;
 }

@@ -102,11 +102,18 @@ describe('Bot app view', () => {
             permission: Permission.VIEWER,
         });
         view.portfolioBook = portfolioBook;
-        view.group = new Group(portfolioBook, { id: 'technology', name: 'Technology' });
-        view.accounts = [
-            new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
-            new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
-        ];
+        view.realizedResultsContext = {
+            portfolioBook,
+            selectedGroup: new Group(portfolioBook, {
+                id: 'technology',
+                name: 'Technology',
+            }),
+            accounts: [
+                new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
+                new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
+            ],
+            resetEnabled: true,
+        };
         view.hasViewerPermission = true;
         view.appState = BotAppState.READY;
 

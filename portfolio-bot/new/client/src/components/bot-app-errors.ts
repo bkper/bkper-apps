@@ -1,6 +1,6 @@
 import { Account, Group, type Book, type Permission } from 'bkper-js';
 import { appEnv } from '../app-env.js';
-import type { AppError, PortfolioBotBook } from '../types.js';
+import type { AppError } from '../types.js';
 import { VIEW_PERMISSIONS } from '../utils.js';
 
 type BookResource = Account | Group;
@@ -161,8 +161,8 @@ export const BotAppErrors = {
      * @param books - The target Books that the User cannot edit.
      * @returns The structured edit-permission error.
      */
-    insufficientEditPermission(books: PortfolioBotBook[]): AppError {
-        const identifiers = books.map(b => b.book.getName() ?? b.book.getId());
+    insufficientEditPermission(books: Book[]): AppError {
+        const identifiers = books.map(b => b.getName() ?? b.getId());
         const prefix = 'User needs EDITOR or OWNER permission in the following books:';
         const suffix = identifiers.length > 1 ? 'books' : 'book';
         return {

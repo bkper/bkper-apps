@@ -40,3 +40,41 @@ Use explicit Book properties as the authoritative role metadata:
 - Base Book and Financial Book Collection-order rules remain deterministic.
 - Event and menu Book resolution use the same role-selection rules.
 - Deterministic client and server tests cover zero-decimal Financial Books and fallback behavior without accessing live Books.
+
+## 2. Edit-permission errors identify Financial Books only by exchange code
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+Portfolio Bot compares the exchange codes required by the selected Accounts with the exchange codes of Collection Books the user can edit. When a required code is unavailable, the menu reports only that exchange code.
+
+This behavior does not distinguish between:
+
+- a Financial Book that exists but the user cannot edit; and
+- a required exchange code with no matching visible Financial Book.
+
+The migrated client preserves this code-only message for parity with the legacy GAS menu.
+
+### Problem
+
+An exchange code does not identify the affected Book as clearly as its name or id. When a Financial Book exists, users need the concrete Book identifier so they can quickly locate it and request the required permission.
+
+Exchange Bot already handles these cases separately: existing targets without edit permission use the Book name, exchange code, or Book id, while configured currencies without a visible connected Book are reported independently by exchange code.
+
+### Intended fix
+
+Separate missing Financial Book resolution from insufficient edit permission:
+
+- For an existing Financial Book without edit permission, identify it by Book name, then exchange code, then Book id.
+- For a required exchange code without a matching visible Financial Book, report the exchange code as a distinct resolution error.
+- Keep both conditions blocking for Portfolio Bot operations that require the affected Book.
+
+### Acceptance criteria
+
+- Existing Financial Books without edit permission are identified by name, with exchange code and Book id fallbacks.
+- Missing visible Financial Books are reported separately by required exchange code.
+- Permission and missing-Book errors remain distinct from warnings and operation failures.
+- Both conditions prevent mutation requests from starting.
+- Server-side authorization remains authoritative regardless of client presentation.
+- Deterministic client tests cover existing inaccessible Books, missing Books, and mixed failures without accessing live Books.

@@ -64,11 +64,11 @@ describe('typed Portfolio Bot API', () => {
 
     test('returns the shared operation response when mutation stubs complete', async () => {
         CalculateService.calculate = mock(async () => undefined);
-        ResetService.reset = mock(async () => undefined);
-        ResetService.fullReset = mock(async () => undefined);
+        ResetService.reset = mock(async () => ({ message: 'Resetting' }));
+        ResetService.fullReset = mock(async () => ({ message: 'Fully resetting' }));
         ForwardService.forward = mock(async () => undefined);
 
-        const requests: Array<[string, RequestInit]> = [
+        const requests: Array<[string, RequestInit, { message: string }]> = [
             [
                 '/api/v1/books/portfolio-book/accounts/instrument-account/calculate',
                 {
@@ -76,11 +76,17 @@ describe('typed Portfolio Bot API', () => {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ date: '2026-08-05', performMtm: false }),
                 },
+                { message: '' },
             ],
-            ['/api/v1/books/portfolio-book/accounts/instrument-account/reset', { method: 'POST' }],
+            [
+                '/api/v1/books/portfolio-book/accounts/instrument-account/reset',
+                { method: 'POST' },
+                { message: 'Resetting' },
+            ],
             [
                 '/api/v1/books/portfolio-book/accounts/instrument-account/full-reset',
                 { method: 'POST' },
+                { message: 'Fully resetting' },
             ],
             [
                 '/api/v1/books/portfolio-book/accounts/instrument-account/forward',
@@ -89,13 +95,14 @@ describe('typed Portfolio Bot API', () => {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ date: '2026-09-01' }),
                 },
+                { message: '' },
             ],
         ];
 
-        for (const [path, init] of requests) {
+        for (const [path, init, expectedResponse] of requests) {
             const response = await request(path, init);
             expect(response.status).toBe(200);
-            expect(await response.json()).toEqual({ message: '' });
+            expect(await response.json()).toEqual(expectedResponse);
         }
     });
 

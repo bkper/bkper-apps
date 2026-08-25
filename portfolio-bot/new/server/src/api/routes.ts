@@ -104,15 +104,15 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
     app.openapi(resetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
-        await ResetService.reset(context, bookId, accountId);
-        return c.json({ message: '' }, 200);
+        const response = await ResetService.reset(context, bookId, accountId);
+        return c.json(response, 200);
     });
 
     app.openapi(fullResetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
-        await ResetService.fullReset(context, bookId, accountId);
-        return c.json({ message: '' }, 200);
+        const response = await ResetService.fullReset(context, bookId, accountId);
+        return c.json(response, 200);
     });
 
     app.openapi(forwardRoute, async c => {

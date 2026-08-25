@@ -215,7 +215,7 @@ describe('legacy batched Reset behavior', () => {
         );
 
         expect(result).toBeInstanceOf(Summary);
-        expect(result.getResult()).toBe('"Reseting async..."');
+        expect(result.getMessage()).toBe('Reseting async...');
         expect(sourceRequests).toEqual([
             { query: "account:'Instrument' after:2025-03-31", cursor: undefined },
             { query: "account:'Instrument' after:2025-03-31", cursor: 'source-page-2' },
@@ -311,7 +311,7 @@ describe('legacy batched Reset behavior', () => {
         );
 
         expect(result).toBeInstanceOf(Summary);
-        expect(result.getResult()).toBe('"Reseting async..."');
+        expect(result.getMessage()).toBe('Reseting async...');
         expect(accountUpdates).toBe(1);
         expect(fixture.account.getProperty('needs_rebuild')).toBeUndefined();
         expect(fixture.account.getProperty('realized_date')).toBeUndefined();
@@ -365,7 +365,7 @@ describe('legacy batched Reset behavior', () => {
         );
 
         expect(result).toBeInstanceOf(Summary);
-        expect(result.getResult()).toBe('"Reseting async..."');
+        expect(result.getMessage()).toBe('Reseting async...');
         expect(sourceQuery).toBe("account:'Instrument'");
         expect(calls.map(call => call.phase)).toEqual(['portfolio-update', 'account-update']);
         expect(calls[0]).toEqual({
@@ -436,7 +436,7 @@ describe('legacy batched Reset behavior', () => {
         );
 
         expect(result).toBeInstanceOf(Summary);
-        expect(result.getResult()).toBe('"Cannot proceed: collection has locked/closed book(s)"');
+        expect(result.getMessage()).toBe('Cannot proceed: collection has locked/closed book(s)');
         expect(fixture.account.getProperty('needs_rebuild')).toBe('true');
         expect(fixture.account.getProperty('realized_date')).toBe('2025-05-31');
     });

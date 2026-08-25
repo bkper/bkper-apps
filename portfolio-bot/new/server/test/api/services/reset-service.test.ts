@@ -33,7 +33,7 @@ beforeEach(() => {
             financialBookId: financialBook.getId(),
             baseBookId: baseBook.getId(),
         });
-        return new Summary(stockAccount.getId()!).resetingAsync();
+        return new Summary().resetingAsync();
     };
 });
 
@@ -100,7 +100,7 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.reset(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toBeUndefined();
+        ).resolves.toEqual({ message: 'Reseting async...' });
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
         ).rejects.toMatchObject({ status: 403 });
@@ -130,20 +130,23 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toBeUndefined();
+        ).resolves.toEqual({ message: 'Reseting async...' });
     });
 
     test('runs regular and Full Reset with the resolved operation context', async () => {
-        await ResetService.reset(
+        const resetResponse = await ResetService.reset(
             createOperationContext(Permission.EDITOR),
             'portfolio-book',
             'instrument-account'
         );
-        await ResetService.fullReset(
+        const fullResetResponse = await ResetService.fullReset(
             createOperationContext(Permission.OWNER),
             'portfolio-book',
             'instrument-account'
         );
+
+        expect(resetResponse).toEqual({ message: 'Reseting async...' });
+        expect(fullResetResponse).toEqual({ message: 'Reseting async...' });
 
         expect(resetCalls).toEqual([
             {
@@ -167,7 +170,11 @@ describe('Reset service operations', () => {
         ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync = async (
             _portfolioBook,
             stockAccount
-        ) => new Summary(stockAccount.getId()!).lockError();
+        ) => {
+            const summary = new Summary().lockError();
+            summary.getMessage = () => 'Locked operation';
+            return summary;
+        };
 
         await expect(
             ResetService.reset(
@@ -177,7 +184,7 @@ describe('Reset service operations', () => {
             )
         ).rejects.toMatchObject({
             status: 400,
-            message: 'Cannot proceed: collection has locked/closed book(s)',
+            message: 'Locked operation',
         });
     });
 

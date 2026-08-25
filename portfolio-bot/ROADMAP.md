@@ -716,8 +716,15 @@ Subchunk 6 evidence:
 Post-chunk contract adjustment:
 
 - Replaced the four `204 No Content` success responses with one shared `200 OK` `{ message: string }` schema so the UI can receive operation commentary.
-- Kept the accounting implementations and `Summary` unchanged; the API-only boundary returns an empty message until operation summaries are wired in the separate follow-up.
+- Kept the accounting implementations and `Summary` unchanged in the API-contract step; the initial API-only boundary returned an empty message.
 - Regenerated client types and verified 95 client tests, 134 server tests, strict typechecks, production client and Worker builds, formatting, and repeated-generation stability.
+
+Post-chunk Summary adjustment:
+
+- Retained the migrated `Summary` class and fluent operation methods while replacing GAS-only result serialization with typed states and direct UI messages; parameterless completion now returns `Done!` without the legacy empty-object serialization artifact.
+- Replaced Reset's serialized-message lock comparison with the typed locked state; the facade now translates that state to the structured error using the separate message.
+- Wired regular and Full Reset success messages through the shared API response. Calculate and Forward retain empty placeholders until their operation ports.
+- Added focused Summary, facade, and route coverage; the complete gate passes with 95 client tests and 134 server tests.
 
 **Gate:** Reset and Full Reset leave no unintended active movement, retain accepted forward-state differences, and perform no mutation when preflight or lock requirements fail.
 

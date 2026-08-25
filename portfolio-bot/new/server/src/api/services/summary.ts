@@ -1,54 +1,58 @@
+export enum SummaryState {
+    EMPTY = 'empty',
+    DONE = 'done',
+    REBUILD = 'rebuild',
+    RESETTING = 'resetting',
+    CALCULATING = 'calculating',
+    LOCKED = 'locked',
+    FORWARD_ERROR = 'forward_error',
+}
+
 export class Summary {
-    private accountId: string;
-    private result: any = {};
-    private error = false;
+    private state = SummaryState.EMPTY;
+    private message = '';
 
-    constructor(accountId: string) {
-        this.accountId = accountId;
+    getState(): SummaryState {
+        return this.state;
     }
 
-    getResult(): string {
-        return JSON.stringify(this.result);
+    getMessage(): string {
+        return this.message;
     }
 
-    done(msg?: string): this {
-        if (msg) {
-            this.result = msg;
-            return this;
-        }
-        this.result = `Done! ${JSON.stringify(this.result)}`;
+    done(message = 'Done!'): this {
+        this.state = SummaryState.DONE;
+        this.message = message;
         return this;
     }
 
     rebuild(): this {
-        this.result = 'Account needs rebuild: reseting async...';
+        this.state = SummaryState.REBUILD;
+        this.message = 'Account needs rebuild: reseting async...';
         return this;
     }
 
     resetingAsync(): this {
-        this.result = 'Reseting async...';
+        this.state = SummaryState.RESETTING;
+        this.message = 'Reseting async...';
         return this;
     }
 
     calculatingAsync(): this {
-        this.result = 'Calculating async...';
+        this.state = SummaryState.CALCULATING;
+        this.message = 'Calculating async...';
         return this;
     }
 
     lockError(): this {
-        this.error = true;
-        this.result = 'Cannot proceed: collection has locked/closed book(s)';
+        this.state = SummaryState.LOCKED;
+        this.message = 'Cannot proceed: collection has locked/closed book(s)';
         return this;
     }
 
     forwardError(errorMsg: string): this {
-        this.error = true;
-        this.result = errorMsg;
-        return this;
-    }
-
-    json(): this {
-        this.result = JSON.stringify(this.result);
+        this.state = SummaryState.FORWARD_ERROR;
+        this.message = errorMsg;
         return this;
     }
 }

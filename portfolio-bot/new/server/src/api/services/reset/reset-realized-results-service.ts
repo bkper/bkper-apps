@@ -45,8 +45,9 @@ export class ResetRealizedResultsService {
         financialBook: Book,
         baseBook: Book
     ): Promise<Summary> {
+        const summary = new Summary();
+
         const query = this.botService.getAccountQuery(stockAccount, full);
-        const summary = new Summary(stockAccount.getId()!);
         const transactions = await this.listTransactions(stockBook, query);
         const processor = new ResetRealizedResultsProcessor(stockBook, financialBook, baseBook);
 

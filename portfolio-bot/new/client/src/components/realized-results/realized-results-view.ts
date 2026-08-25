@@ -3,8 +3,8 @@ import { customElement, property } from 'lit/decorators.js';
 import type { AppError, RealizedResultsContext } from '../../types.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
+import '../service-intro/service-intro-view.js';
 import { sharedCSS } from '../shared-css.js';
-import { realizedResultsCSS } from './realized-results-css.js';
 
 @customElement('realized-results')
 export class RealizedResultsView extends LitElement {
@@ -14,16 +14,16 @@ export class RealizedResultsView extends LitElement {
     @property({ attribute: false })
     permissionError?: AppError;
 
-    static styles = [sharedCSS, realizedResultsCSS];
+    static styles = [sharedCSS];
 
     render(): TemplateResult {
         const context = this.context;
         return html`
             <div class="realized-results">
-                <div class="intro">
-                    <h2>Realized Results</h2>
-                    <p>Review the accounts below before running an operation.</p>
-                </div>
+                <service-intro
+                    heading="Realized Results"
+                    instructions="Review the accounts below before running an operation."
+                ></service-intro>
                 <account-list
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}

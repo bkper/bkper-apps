@@ -38,7 +38,7 @@ describe('Realized results view', () => {
 
         const result = render.call(view);
 
-        expect(result.strings.join('')).toContain('Realized Results');
+        expect(result.strings.join('')).toContain('<service-intro');
         expect(result.strings.join('')).toContain('<account-list');
         expect(result.values[0]).toBe(context.accounts);
         expect(result.values[1]).toBeUndefined();

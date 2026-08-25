@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–11 complete — Chunk 12 in progress; subchunks 1–5 complete.**
+**Chunks 1–12 complete — Chunk 13 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 subchunks 1–5 have established the Reset file structure, constants, Reset-required `StockAccount` and legacy `Summary` behavior, Account query construction, purchase and sale recognition, the ordered batched Reset processor, regular and Full Reset behavior, and the shared `204 No Content` mutation contract without wiring any mutation operation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with `204 No Content` mutation success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared `204 No Content` mutation contract, and both Reset operation routes with preflight and lock-failure translation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -638,7 +638,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 12 — Port Reset and Full Reset
 
-**Status: In progress — subchunks 1–5 complete.**
+**Status: Complete.**
 
 This chunk is a parity port of the legacy batched `resetRealizedResultsForAccountAsync` behavior used by the Reset and Full Reset menu operations and by Calculate's `needs_rebuild` branch. The separate immediate and sequential `resetRealizedResultsForAccountSync` behavior is used only by lower-forward-date repair; it remains with the Forward Date port in Chunk 14 and must not be deduplicated with the batched implementation during migration.
 
@@ -669,10 +669,10 @@ Planned committable subchunks follow the existing legacy file and method boundar
 
 Subchunk 1 evidence:
 
-- Established `stock-account.ts` and the organizational `reset/` service and processor files while retaining `reset-service.ts` as the unchanged thin authorization facade.
+- Established `stock-account.ts` and the organizational `reset/` service and processor files.
 - Ported only the constants and `StockAccount` state behavior required by batched Reset, including asynchronous Group resolution and Account update delegation for `bkper-js`.
 - Extended the existing menu `BotService` with legacy Account query clause order and posted purchase and sale recognition; the query retains regular, Full Reset, forwarded-date, and optional before-date branches.
-- Added deterministic supporting-surface parity tests without implementing the processor, transaction loop, API mutation behavior, or route wiring. The unchanged Reset and Full Reset methods still return empty non-mutating results after preflight.
+- Added deterministic supporting-surface parity tests.
 - Verified the complete local gate with 95 client tests, 123 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 2 evidence:
@@ -680,7 +680,6 @@ Subchunk 2 evidence:
 - Ported the four legacy Transaction Maps, id-based replacement without insertion-order drift, and locked-Transaction detection in `ResetRealizedResultsProcessor`.
 - Preserved and explicitly awaited the established Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, including empty-phase no-ops and failure-before-later-phase behavior.
 - Preserved the legacy `void` return boundary as `Promise<void>` and kept API response construction out of the processor.
-- Kept the Reset service transaction loop unimplemented and left both Reset operation stubs non-mutating and unwired.
 - Added four deterministic processor parity tests and verified the complete local gate with 95 client tests, 127 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 3 evidence:
@@ -691,7 +690,6 @@ Subchunk 3 evidence:
 - Preserved lock detection across every queued Portfolio, Financial, and Base Book Transaction and returned before any batch or Account write when a lock is found.
 - Explicitly awaited the established four processor phases before clearing rebuild state and applying the regular Reset realized-date outcome to the Portfolio Account.
 - Ported the legacy `Summary` source and method-return boundary, including its original result type and the retained `resetingAsync()` and `lockError()` outcomes, without adding API response construction.
-- Kept Full Reset guarded for subchunk 4 and left both Reset operation stubs non-mutating and unwired.
 - Added three deterministic regular Reset parity tests plus shared `Summary` behavior coverage and verified the complete local gate with 95 client tests, 131 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 4 evidence:
@@ -699,19 +697,21 @@ Subchunk 4 evidence:
 - Extended the retained batched Reset loop with the legacy Full Reset branches, restoring historical order, date, and quantity before the established parent-restoration path.
 - Removed the historical and forward Transaction properties in the established order and retained the regular linked cleanup, lock detection, movement endpoints, and four ordered processor phases.
 - Preserved the Full Reset Account outcome by clearing rebuild, realized-date, forwarded-date, forwarded-rate, and forwarded-price state only after the lock gate and successful batch phases.
-- Retained the existing Portfolio Book owner and open and unlocked Collection preflight coverage while leaving both Reset operation stubs non-mutating and unwired.
+- Retained the existing Portfolio Book owner and open and unlocked Collection preflight coverage.
 - Added one deterministic Full Reset parity test and verified the complete local gate with 95 client tests, 132 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 5 evidence:
 
-- Applied `204 No Content` to all four mutation routes while retaining their non-mutating operation stubs and existing structured error responses.
+- Applied `204 No Content` to all four mutation routes and retained their structured error responses.
 - Removed the unused mutation result schemas and resource-receipt types from the server contract and regenerated the client OpenAPI types without them.
 - Added deterministic API and OpenAPI coverage; 95 client tests, 132 server tests, strict typechecks, production client and Worker builds, and formatting pass, and regenerated client types remain stable across repeated generation.
 
-- Port linked realized, historical, FX, MTM, interest-MTM, split, and forwarded-result cleanup.
-- Port checked-state handling, parent restoration, original-state and property restoration, Account dates, and rebuild behavior.
-- Port Full Reset forward-state removal and historical-state restoration.
-- Preserve mutation phases across Portfolio, Financial, and Base Books.
+Subchunk 6 evidence:
+
+- Wired regular Reset and Full Reset through the thin `reset-service.ts` facade using the resolved Portfolio, Financial, and Base Book context.
+- Preserved authorization, installation, owner, and open and unlocked Collection preflight order; denied requests do not invoke the accounting operation.
+- Translated the legacy locked no-write outcome to the structured `400` API error while successful operations retain `204 No Content`.
+- Added deterministic facade coverage; 95 client tests, 134 server tests, strict typechecks, production client and Worker builds, and formatting pass, and generated files remain stable across repeated generation.
 
 **Gate:** Reset and Full Reset leave no unintended active movement, retain accepted forward-state differences, and perform no mutation when preflight or lock requirements fail.
 

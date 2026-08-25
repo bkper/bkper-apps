@@ -1,7 +1,46 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { AccountType, App, Bkper, Book, Permission } from 'bkper-js';
 import { ResetService } from '../../../src/api/services/reset-service.js';
+import { ResetRealizedResultsService } from '../../../src/api/services/reset/reset-realized-results-service.js';
+import { Summary } from '../../../src/api/services/summary.js';
 import { AppContext } from '../../../src/shared/app-context.js';
+
+interface ResetCall {
+    portfolioBookId: string | undefined;
+    accountId: string | undefined;
+    full: boolean;
+    financialBookId: string | undefined;
+    baseBookId: string | undefined;
+}
+
+const originalResetRealizedResultsForAccountAsync =
+    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync;
+let resetCalls: ResetCall[] = [];
+
+beforeEach(() => {
+    resetCalls = [];
+    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync = async (
+        portfolioBook,
+        stockAccount,
+        full,
+        financialBook,
+        baseBook
+    ) => {
+        resetCalls.push({
+            portfolioBookId: portfolioBook.getId(),
+            accountId: stockAccount.getId(),
+            full,
+            financialBookId: financialBook.getId(),
+            baseBookId: baseBook.getId(),
+        });
+        return new Summary(stockAccount.getId()!).resetingAsync();
+    };
+});
+
+afterEach(() => {
+    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync =
+        originalResetRealizedResultsForAccountAsync;
+});
 
 function createOperationContext(
     portfolioPermission: Permission,
@@ -65,6 +104,7 @@ describe('Reset service operations', () => {
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
         ).rejects.toMatchObject({ status: 403 });
+        expect(resetCalls.map(call => call.full)).toEqual([false]);
     });
 
     test('requires every Collection Book to be open and unlocked for Full Reset', async () => {
@@ -79,6 +119,7 @@ describe('Reset service operations', () => {
                     'Full Reset requires every Book in the Collection to be open and unlocked.',
             });
         }
+        expect(resetCalls).toEqual([]);
     });
 
     test('treats missing and legacy sentinel dates as open and unlocked', async () => {
@@ -90,6 +131,54 @@ describe('Reset service operations', () => {
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
         ).resolves.toBeUndefined();
+    });
+
+    test('runs regular and Full Reset with the resolved operation context', async () => {
+        await ResetService.reset(
+            createOperationContext(Permission.EDITOR),
+            'portfolio-book',
+            'instrument-account'
+        );
+        await ResetService.fullReset(
+            createOperationContext(Permission.OWNER),
+            'portfolio-book',
+            'instrument-account'
+        );
+
+        expect(resetCalls).toEqual([
+            {
+                portfolioBookId: 'portfolio-book',
+                accountId: 'instrument-account',
+                full: false,
+                financialBookId: 'eur-book',
+                baseBookId: 'usd-book',
+            },
+            {
+                portfolioBookId: 'portfolio-book',
+                accountId: 'instrument-account',
+                full: true,
+                financialBookId: 'eur-book',
+                baseBookId: 'usd-book',
+            },
+        ]);
+    });
+
+    test('returns a structured invalid-request error for a locked no-write outcome', async () => {
+        ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync = async (
+            _portfolioBook,
+            stockAccount
+        ) => new Summary(stockAccount.getId()!).lockError();
+
+        await expect(
+            ResetService.reset(
+                createOperationContext(Permission.EDITOR),
+                'portfolio-book',
+                'instrument-account'
+            )
+        ).rejects.toMatchObject({
+            status: 400,
+            message: 'Cannot proceed: collection has locked/closed book(s)',
+        });
     });
 
     test('resolves operation context before Reset and Full Reset', async () => {

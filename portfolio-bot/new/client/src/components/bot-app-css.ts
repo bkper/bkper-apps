@@ -38,54 +38,6 @@ export const botAppCSS = css`
         font-weight: var(--bkper-font-weight-bold);
     }
 
-    .accounts-container {
-        margin-top: var(--bkper-spacing-large);
-    }
-
-    .accounts-container h3 {
-        margin: 0;
-        font-size: var(--bkper-font-size-medium);
-    }
-
-    .accounts {
-        margin-top: var(--bkper-spacing-small);
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: var(--bkper-spacing-x-small);
-    }
-
-    .account {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--bkper-spacing-small);
-        align-items: center;
-    }
-
-    .account-type {
-        display: inline-block;
-        width: var(--bkper-spacing-x-small);
-        height: var(--bkper-spacing-x-small);
-        flex-shrink: 0;
-        border-radius: 50%;
-    }
-
-    .account-type.asset {
-        background-color: var(--bkper-color-blue-medium);
-    }
-
-    .account-type.liability {
-        background-color: var(--bkper-color-yellow-medium);
-    }
-
-    .account-type.incoming {
-        background-color: var(--bkper-color-green-medium);
-    }
-
-    .account-type.outgoing {
-        background-color: var(--bkper-color-red-medium);
-    }
-
     wa-spinner {
         font-size: 2rem;
         --track-width: 0.125em;

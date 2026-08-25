@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Account, AccountType, App, Book, Group, Permission } from 'bkper-js';
+import { Account, App, Book, Group, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
@@ -15,19 +15,9 @@ const renderEditPermissionError = Reflect.get(
     BotAppView.prototype,
     'renderEditPermissionError'
 ) as (this: BotAppView) => TemplateResult;
-
-function collectRenderedText(value: unknown): string[] {
-    if (typeof value === 'string') {
-        return [value];
-    }
-    if (Array.isArray(value)) {
-        return value.flatMap(collectRenderedText);
-    }
-    if (value && typeof value === 'object' && 'values' in value) {
-        return collectRenderedText((value as TemplateResult).values);
-    }
-    return [];
-}
+const renderRealizedResults = Reflect.get(BotAppView.prototype, 'renderRealizedResults') as (
+    this: BotAppView
+) => TemplateResult;
 
 describe('Bot app view', () => {
     it('passes the App and selected Book to the app header', () => {
@@ -98,65 +88,36 @@ describe('Bot app view', () => {
         expect(result.values[0] as AppError).toBe(view.error);
     });
 
-    it('renders Group and Account context without repeating the header Book name', () => {
+    it('delegates the resolved Account scope to the Account list', () => {
         const view = new BotAppView();
         const portfolioBook = new Book({
             id: 'portfolio-book',
             name: 'Portfolio Book',
             permission: Permission.VIEWER,
         });
-        view.portfolioBook = portfolioBook;
+        const selectedGroup = new Group(portfolioBook, {
+            id: 'technology',
+            name: 'Technology',
+        });
+        const accounts = [
+            new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
+            new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
+        ];
         view.realizedResultsContext = {
             portfolioBook,
-            selectedGroup: new Group(portfolioBook, {
-                id: 'technology',
-                name: 'Technology',
-            }),
-            accounts: [
-                new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
-                new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
-            ],
+            selectedGroup,
+            accounts,
             financialBooks: [],
             resetEnabled: true,
             fullResetEnabled: false,
         };
-        view.hasViewerPermission = true;
-        view.appState = BotAppState.READY;
 
-        const result = renderBodyContent.call(view);
-        const renderedText = collectRenderedText(result).join(' ');
+        const result = renderRealizedResults.call(view);
 
-        expect(renderedText).not.toContain('Portfolio Book');
-        expect(renderedText).toContain('Technology');
-        expect(renderedText).toContain('Alphabet');
-        expect(renderedText).toContain('Apple');
-    });
-
-    it('maps Account types to their canonical indicator classes', () => {
-        const view = new BotAppView();
-        const portfolioBook = new Book({ id: 'portfolio-book', permission: Permission.VIEWER });
-        view.portfolioBook = portfolioBook;
-        view.realizedResultsContext = {
-            portfolioBook,
-            accounts: [
-                new Account(portfolioBook, { name: 'Asset', type: AccountType.ASSET }),
-                new Account(portfolioBook, { name: 'Liability', type: AccountType.LIABILITY }),
-                new Account(portfolioBook, { name: 'Incoming', type: AccountType.INCOMING }),
-                new Account(portfolioBook, { name: 'Outgoing', type: AccountType.OUTGOING }),
-            ],
-            financialBooks: [],
-            resetEnabled: true,
-            fullResetEnabled: false,
-        };
-        view.hasViewerPermission = true;
-        view.appState = BotAppState.READY;
-
-        const renderedText = collectRenderedText(renderBodyContent.call(view));
-
-        expect(renderedText).toContain('asset');
-        expect(renderedText).toContain('liability');
-        expect(renderedText).toContain('incoming');
-        expect(renderedText).toContain('outgoing');
+        expect(result.strings.join('')).toContain('<account-list');
+        expect(result.values[0]).toBe(accounts);
+        expect(result.values[1]).toBeUndefined();
+        expect(result.values[2]).toBe(selectedGroup);
     });
 
     it('renders an edit-permission error without hiding the ready context', () => {

@@ -1,5 +1,5 @@
 import type { AppContext } from '../../shared/app-context.js';
-import type { ForwardRequest, ForwardResult } from '../schemas.js';
+import type { ForwardRequest } from '../schemas.js';
 import { OperationService } from './operation-service.js';
 
 export class ForwardService extends OperationService {
@@ -8,9 +8,8 @@ export class ForwardService extends OperationService {
         bookId: string,
         accountId: string,
         _request: ForwardRequest
-    ): Promise<ForwardResult> {
+    ): Promise<void> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
-        return { books: [] };
     }
 }

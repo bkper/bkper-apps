@@ -3,7 +3,6 @@ import { createApp } from '../../src/index.js';
 import { CalculateService } from '../../src/api/services/calculate-service.js';
 import { ForwardService } from '../../src/api/services/forward-service.js';
 import { ResetService } from '../../src/api/services/reset-service.js';
-import type { CalculateResult } from '../../src/api/schemas.js';
 
 const env = {
     ASSETS: { fetch: async () => new Response('asset') },
@@ -40,21 +39,7 @@ describe('typed Portfolio Bot API', () => {
         expect(await response.json()).toEqual({ ids: ['instrument-account'] });
     });
 
-    test('passes Calculate inputs to the service and returns its result', async () => {
-        const result: CalculateResult = {
-            books: [
-                {
-                    bookId: 'portfolio-book',
-                    accounts: { created: [], updated: ['instrument-account'] },
-                    transactions: {
-                        created: ['created-transaction'],
-                        updated: ['updated-transaction'],
-                        trashed: [],
-                    },
-                    bookUpdated: false,
-                },
-            ],
-        };
+    test('passes Calculate inputs to the service and returns no content', async () => {
         CalculateService.calculate = mock(async (_context, bookId, accountId, calculateRequest) => {
             expect(bookId).toBe('portfolio-book');
             expect(accountId).toBe('instrument-account');
@@ -62,7 +47,6 @@ describe('typed Portfolio Bot API', () => {
                 date: '2026-08-05',
                 performMtm: true,
             });
-            return result;
         });
 
         const response = await request(
@@ -74,15 +58,15 @@ describe('typed Portfolio Bot API', () => {
             }
         );
 
-        expect(response.status).toBe(200);
-        expect(await response.json()).toEqual(result);
+        expect(response.status).toBe(204);
+        expect(await response.text()).toBe('');
     });
 
-    test('returns empty domain results when write stubs make no changes', async () => {
-        CalculateService.calculate = mock(async () => ({ books: [] }));
-        ResetService.reset = mock(async () => ({ books: [] }));
-        ResetService.fullReset = mock(async () => ({ books: [] }));
-        ForwardService.forward = mock(async () => ({ books: [] }));
+    test('returns no content when mutation stubs complete', async () => {
+        CalculateService.calculate = mock(async () => undefined);
+        ResetService.reset = mock(async () => undefined);
+        ResetService.fullReset = mock(async () => undefined);
+        ForwardService.forward = mock(async () => undefined);
 
         const requests: Array<[string, RequestInit]> = [
             [
@@ -110,8 +94,8 @@ describe('typed Portfolio Bot API', () => {
 
         for (const [path, init] of requests) {
             const response = await request(path, init);
-            expect(response.status).toBe(200);
-            expect(await response.json()).toEqual({ books: [] });
+            expect(response.status).toBe(204);
+            expect(await response.text()).toBe('');
         }
     });
 

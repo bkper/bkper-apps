@@ -34,56 +34,6 @@ export const PendingCalculationAccountsSchema = z
 
 export type PendingCalculationAccounts = z.infer<typeof PendingCalculationAccountsSchema>;
 
-const AccountChangesSchema = z.object({
-    created: z.array(z.string().trim().min(1)),
-    updated: z.array(z.string().trim().min(1)),
-});
-
-const TransactionChangesSchema = z.object({
-    created: z.array(z.string().trim().min(1)),
-    updated: z.array(z.string().trim().min(1)),
-    trashed: z.array(z.string().trim().min(1)),
-});
-
-const BookChangesSchema = z.object({
-    bookId: z.string().trim().min(1),
-    accounts: AccountChangesSchema,
-    transactions: TransactionChangesSchema,
-    bookUpdated: z.boolean(),
-});
-
-export const CalculateResultSchema = z
-    .object({
-        books: z.array(BookChangesSchema),
-    })
-    .openapi('CalculateResult');
-
-export type CalculateResult = z.infer<typeof CalculateResultSchema>;
-
-export const ResetResultSchema = z
-    .object({
-        books: z.array(BookChangesSchema),
-    })
-    .openapi('ResetResult');
-
-export type ResetResult = z.infer<typeof ResetResultSchema>;
-
-export const FullResetResultSchema = z
-    .object({
-        books: z.array(BookChangesSchema),
-    })
-    .openapi('FullResetResult');
-
-export type FullResetResult = z.infer<typeof FullResetResultSchema>;
-
-export const ForwardResultSchema = z
-    .object({
-        books: z.array(BookChangesSchema),
-    })
-    .openapi('ForwardResult');
-
-export type ForwardResult = z.infer<typeof ForwardResultSchema>;
-
 export const ApiErrorSchema = z
     .object({
         error: z.object({

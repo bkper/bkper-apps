@@ -103,14 +103,12 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Calculate result */
-                200: {
+                /** @description Calculate completed */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["CalculateResult"];
-                    };
+                    content?: never;
                 };
                 /** @description Invalid request */
                 400: {
@@ -177,14 +175,12 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Reset result */
-                200: {
+                /** @description Reset completed */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["ResetResult"];
-                    };
+                    content?: never;
                 };
                 /** @description Invalid request */
                 400: {
@@ -251,14 +247,12 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Full Reset result */
-                200: {
+                /** @description Full Reset completed */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["FullResetResult"];
-                    };
+                    content?: never;
                 };
                 /** @description Invalid request */
                 400: {
@@ -329,14 +323,12 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Forward result */
-                200: {
+                /** @description Forward completed */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["ForwardResult"];
-                    };
+                    content?: never;
                 };
                 /** @description Invalid request */
                 400: {
@@ -394,70 +386,10 @@ export interface components {
                 message: string;
             };
         };
-        CalculateResult: {
-            books: {
-                bookId: string;
-                accounts: {
-                    created: string[];
-                    updated: string[];
-                };
-                transactions: {
-                    created: string[];
-                    updated: string[];
-                    trashed: string[];
-                };
-                bookUpdated: boolean;
-            }[];
-        };
         CalculateRequest: {
             /** Format: date */
             date: string;
             performMtm: boolean;
-        };
-        ResetResult: {
-            books: {
-                bookId: string;
-                accounts: {
-                    created: string[];
-                    updated: string[];
-                };
-                transactions: {
-                    created: string[];
-                    updated: string[];
-                    trashed: string[];
-                };
-                bookUpdated: boolean;
-            }[];
-        };
-        FullResetResult: {
-            books: {
-                bookId: string;
-                accounts: {
-                    created: string[];
-                    updated: string[];
-                };
-                transactions: {
-                    created: string[];
-                    updated: string[];
-                    trashed: string[];
-                };
-                bookUpdated: boolean;
-            }[];
-        };
-        ForwardResult: {
-            books: {
-                bookId: string;
-                accounts: {
-                    created: string[];
-                    updated: string[];
-                };
-                transactions: {
-                    created: string[];
-                    updated: string[];
-                    trashed: string[];
-                };
-                bookUpdated: boolean;
-            }[];
         };
         ForwardRequest: {
             /** Format: date */
@@ -472,11 +404,7 @@ export interface components {
 }
 export type PendingCalculationAccounts = components['schemas']['PendingCalculationAccounts'];
 export type ApiError = components['schemas']['ApiError'];
-export type CalculateResult = components['schemas']['CalculateResult'];
 export type CalculateRequest = components['schemas']['CalculateRequest'];
-export type ResetResult = components['schemas']['ResetResult'];
-export type FullResetResult = components['schemas']['FullResetResult'];
-export type ForwardResult = components['schemas']['ForwardResult'];
 export type ForwardRequest = components['schemas']['ForwardRequest'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

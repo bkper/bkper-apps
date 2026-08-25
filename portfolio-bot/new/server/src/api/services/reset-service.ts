@@ -1,30 +1,19 @@
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
 import { requireOwnerPermission } from '../authorization.js';
-import type { FullResetResult, ResetResult } from '../schemas.js';
 import { BotService } from './bot-service.js';
 import { type OperationContext, OperationService } from './operation-service.js';
 
 export class ResetService extends OperationService {
-    static async reset(
-        context: AppContext,
-        bookId: string,
-        accountId: string
-    ): Promise<ResetResult> {
+    static async reset(context: AppContext, bookId: string, accountId: string): Promise<void> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
-        return { books: [] };
     }
 
-    static async fullReset(
-        context: AppContext,
-        bookId: string,
-        accountId: string
-    ): Promise<FullResetResult> {
+    static async fullReset(context: AppContext, bookId: string, accountId: string): Promise<void> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
         this.validateFullResetContext(operationContext);
-        return { books: [] };
     }
 
     private static validateFullResetContext(context: OperationContext): void {

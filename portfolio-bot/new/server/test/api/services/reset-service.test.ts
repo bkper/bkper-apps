@@ -61,7 +61,7 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.reset(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toEqual({ books: [] });
+        ).resolves.toBeUndefined();
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
         ).rejects.toMatchObject({ status: 403 });
@@ -89,7 +89,7 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toEqual({ books: [] });
+        ).resolves.toBeUndefined();
     });
 
     test('resolves operation context before Reset and Full Reset', async () => {

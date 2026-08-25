@@ -36,7 +36,7 @@ describe('Portfolio Bot OpenAPI contract', () => {
         expect(spec.paths['/health']).toBeUndefined();
     });
 
-    it('documents operation inputs, results, and errors', async () => {
+    it('documents operation inputs, no-content success, and errors', async () => {
         const response = await createApp().request('/openapi.json');
         const spec = (await response.json()) as OpenApiDocument;
         const schemas = spec.components?.schemas ?? {};
@@ -65,32 +65,20 @@ describe('Portfolio Bot OpenAPI contract', () => {
         expect(forward.requestBody?.content?.['application/json'].schema).toEqual({
             $ref: '#/components/schemas/ForwardRequest',
         });
-        expect(calculate.responses?.['200'].content?.['application/json'].schema).toEqual({
-            $ref: '#/components/schemas/CalculateResult',
-        });
-        expect(reset.responses?.['200'].content?.['application/json'].schema).toEqual({
-            $ref: '#/components/schemas/ResetResult',
-        });
-        expect(fullReset.responses?.['200'].content?.['application/json'].schema).toEqual({
-            $ref: '#/components/schemas/FullResetResult',
-        });
-        expect(forward.responses?.['200'].content?.['application/json'].schema).toEqual({
-            $ref: '#/components/schemas/ForwardResult',
-        });
-        expect(calculate.responses?.['204']).toBeUndefined();
-        expect(reset.responses?.['204']).toBeUndefined();
-        expect(fullReset.responses?.['204']).toBeUndefined();
-        expect(forward.responses?.['204']).toBeUndefined();
+        for (const operation of [calculate, reset, fullReset, forward]) {
+            expect(operation.responses?.['200']).toBeUndefined();
+            expect(operation.responses?.['204']).toBeDefined();
+            expect(operation.responses?.['204'].content).toBeUndefined();
+        }
         expect(calculate.responses?.['403']).toBeDefined();
         expect(calculate.responses?.['404']).toBeUndefined();
         expect(calculate.responses?.['409']).toBeUndefined();
         expect(pending.responses?.['404']).toBeUndefined();
         expect(pending.responses?.['409']).toBeUndefined();
         expect(schemas.ApiError).toBeDefined();
-        expect(schemas.CalculateResult).toBeDefined();
-        expect(schemas.ResetResult).toBeDefined();
-        expect(schemas.FullResetResult).toBeDefined();
-        expect(schemas.ForwardResult).toBeDefined();
-        expect(schemas.OperationReceipt).toBeUndefined();
+        expect(schemas.CalculateResult).toBeUndefined();
+        expect(schemas.ResetResult).toBeUndefined();
+        expect(schemas.FullResetResult).toBeUndefined();
+        expect(schemas.ForwardResult).toBeUndefined();
     });
 });

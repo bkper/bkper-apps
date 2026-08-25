@@ -709,6 +709,33 @@ Planned committable subchunks follow the existing legacy file and method boundar
 
 **Status: Not started.**
 
+This chunk is a strict parity port of the complete legacy `ForwardDateService` behavior and of the separate immediate and sequential `resetRealizedResultsForAccountSync` behavior used only by lower-forward-date repair. Every validation, branch, query, recursive lookup, balance read, property, relationship, remote id, state transition, no-op, delay, mutation, failure boundary, and return outcome remains aligned with legacy unless an unavoidable target-runtime adaptation is explicitly recorded. The target awaits asynchronous SDK work but does not batch, parallelize, reorder, deduplicate, or redesign the established Forward sequence.
+
+`ForwardDateService` remains one service with its existing top-level routing, regular-forward, lower-date-repair, Transaction-forwarding, state-update, builder, balance, and lookup method boundaries. In particular, regular Forward retains the immediate sequence that posts each history log and then updates its source Transaction; it does not gain a processor. The liquidation bridge, batch check, forwarded result, Portfolio Account update, five-second pre-closing delay, and optional Portfolio Book closing-date update retain their established order. The delay is intercepted deterministically in tests rather than removed based on unverified target-runtime assumptions.
+
+The agreed target structure uses a dedicated organizational directory consistent with Reset and Calculate:
+
+```text
+new/server/src/api/services/
+├── forward-service.ts
+├── bot-service.ts
+├── stock-account.ts
+├── forward/
+│   └── forward-date-service.ts
+└── reset/
+    ├── reset-realized-results-processor.ts
+    └── reset-realized-results-service.ts
+```
+
+`forward-service.ts` remains the thin API and authorization facade, `bot-service.ts` and `stock-account.ts` are extended in place, `forward/` is organizational only, and the sequential Reset variant remains a distinct method in the existing Reset service rather than being deduplicated with its batched implementation.
+
+Planned committable subchunks follow the existing legacy service and major method boundaries:
+
+1. Establish the agreed Forward structure and port the remaining Forward-specific constants, `StockAccount` behavior, and existing `BotService` dependencies without wiring the Forward route.
+2. Port regular Forward Date and its existing helper methods as one parity unit: ordered balance reads, FIFO input selection, history-log posting, immediate source-Transaction updates, liquidation bridge creation, batch checking, unrealized-balance reads, forwarded-result creation, Portfolio Account state, deterministic five-second delay, and optional Portfolio Book closing-date update. Keep the API stub non-mutating.
+3. Port lower-forward-date repair together with the separate sequential Reset variant: current-forward Reset, forwarded-Transaction discovery, recursive previous-state lookup, restoration, superseded-log cleanup, requested-date Reset, and re-forwarding in the established order. Enforce owner and open and unlocked Collection requirements before the first mutation.
+4. Port the top-level Forward Date validation and branch order, including uncalculated-result, equal-forward-date, lower-date, realized-date, and rebuild behavior; return typed per-Book outcomes and replace the non-mutating API stub only after regular and lower-date paths are covered.
+
 - Port Forward Date validation, balances, forward logs, liquidation bridges, forwarded results, and Account state.
 - Port optional Portfolio Book closing-date updates after all required movements and checks complete.
 - Port lower-forward-date reset, previous-state repair, cleanup, and re-forward behavior.

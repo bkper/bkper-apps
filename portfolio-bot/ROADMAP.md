@@ -632,6 +632,31 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 **Status: Not started.**
 
+This chunk is a parity port of the legacy batched `resetRealizedResultsForAccountAsync` behavior used by the Reset and Full Reset menu operations and by Calculate's `needs_rebuild` branch. The separate immediate and sequential `resetRealizedResultsForAccountSync` behavior is used only by lower-forward-date repair; it remains with the Forward Date port in Chunk 14 and must not be deduplicated with the batched implementation during migration.
+
+Reset remains one service with one primary transaction loop and the established `full` branches. The linked-cleanup paths, split and parent restoration, property order, lookup order, checked-state handling, and Account-state updates remain in that service rather than being redistributed into newly designed cleanup utilities, strategies, or pipelines. `ResetRealizedResultsProcessor` remains a separate ordered mutation coordinator.
+
+The agreed target structure preserves those legacy file-level boundaries:
+
+```text
+new/server/src/api/services/
+├── reset-service.ts
+├── bot-service.ts
+├── stock-account.ts
+└── reset/
+    ├── reset-realized-results-processor.ts
+    └── reset-realized-results-service.ts
+```
+
+`reset-service.ts` remains the thin API and authorization facade, `bot-service.ts` is extended in place, `stock-account.ts` contains the Reset-required Account state behavior and remains reusable by Calculate and Forward Date, and `reset/` is organizational only.
+
+Planned committable subchunks follow the existing legacy file and method boundaries:
+
+1. Establish the agreed structure and port Reset-required constants, `StockAccount` behavior, and existing `BotService` dependencies such as Account query construction and purchase and sale recognition without wiring either Reset route.
+2. Port `ResetRealizedResultsProcessor` with its established four Maps, id-based deduplication, locked-Transaction detection, Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, explicit target-runtime awaiting, and minimal typed API result tracking.
+3. Port regular Reset as one parity unit inside the retained transaction loop: complete paginated loading, source order, `stock-bot` filtering, forward-log and forward-liquidation handling, exact realized, MTM, interest-MTM, FX, and historical linked cleanup, split trashing, parent quantity and property restoration, legacy price fallback, forwarded-price correction, locked-path no-write behavior, ordered batch execution, and the final Portfolio Account state update. Keep the API stubs non-mutating.
+4. Extend the same method with the existing Full Reset branches for historical order, date, and quantity restoration and forward-state removal; retain the established regular-versus-full Account-date outcomes, verify the existing owner and open and unlocked Collection boundary, and replace both non-mutating API stubs only after regular and Full Reset behavior is covered.
+
 - Port linked realized, historical, FX, MTM, interest-MTM, split, and forwarded-result cleanup.
 - Port checked-state handling, parent restoration, original-state and property restoration, Account dates, and rebuild behavior.
 - Port Full Reset forward-state removal and historical-state restoration.

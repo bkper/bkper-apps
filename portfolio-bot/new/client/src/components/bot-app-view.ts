@@ -3,7 +3,7 @@ import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
-import './account-list/account-list-view.js';
+import './realized-results/realized-results-view.js';
 import type { AppError, RealizedResultsContext } from '../types.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
@@ -73,34 +73,14 @@ export class BotAppView extends LitElement {
             return this.renderAppError();
         }
         if (this.portfolioBook) {
-            return this.renderRealizedResults();
+            return html`
+                <realized-results
+                    .context=${this.realizedResultsContext}
+                    .permissionError=${this.hasEditorPermission ? undefined : this.error}
+                ></realized-results>
+            `;
         }
         return html``;
-    }
-
-    private renderRealizedResults(): TemplateResult {
-        const context = this.realizedResultsContext;
-        return html`
-            <div class="realized-results">
-                <div class="intro">
-                    <h2>Realized Results</h2>
-                    <p>Review the accounts below before running an operation.</p>
-                </div>
-                <account-list
-                    .accounts=${context?.accounts ?? []}
-                    .selectedAccount=${context?.selectedAccount}
-                    .selectedGroup=${context?.selectedGroup}
-                ></account-list>
-                ${this.renderEditPermissionError()}
-            </div>
-        `;
-    }
-
-    private renderEditPermissionError(): TemplateResult {
-        if (this.hasEditorPermission || !this.error) {
-            return html``;
-        }
-        return this.renderAppError();
     }
 
     private renderAppError(): TemplateResult {

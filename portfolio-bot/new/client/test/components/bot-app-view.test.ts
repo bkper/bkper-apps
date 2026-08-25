@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Account, App, Book, Group, Permission } from 'bkper-js';
+import { App, Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
@@ -9,13 +9,6 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
     this: BotAppView
 ) => TemplateResult;
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
-    this: BotAppView
-) => TemplateResult;
-const renderEditPermissionError = Reflect.get(
-    BotAppView.prototype,
-    'renderEditPermissionError'
-) as (this: BotAppView) => TemplateResult;
-const renderRealizedResults = Reflect.get(BotAppView.prototype, 'renderRealizedResults') as (
     this: BotAppView
 ) => TemplateResult;
 
@@ -88,36 +81,31 @@ describe('Bot app view', () => {
         expect(result.values[0] as AppError).toBe(view.error);
     });
 
-    it('delegates the resolved Account scope to the Account list', () => {
+    it('delegates the resolved operation context to Realized Results', () => {
         const view = new BotAppView();
         const portfolioBook = new Book({
             id: 'portfolio-book',
             name: 'Portfolio Book',
             permission: Permission.VIEWER,
         });
-        const selectedGroup = new Group(portfolioBook, {
-            id: 'technology',
-            name: 'Technology',
-        });
-        const accounts = [
-            new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
-            new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
-        ];
-        view.realizedResultsContext = {
+        const context = {
             portfolioBook,
-            selectedGroup,
-            accounts,
+            accounts: [],
             financialBooks: [],
             resetEnabled: true,
             fullResetEnabled: false,
         };
+        view.portfolioBook = portfolioBook;
+        view.realizedResultsContext = context;
+        view.hasViewerPermission = true;
+        view.hasEditorPermission = true;
+        view.appState = BotAppState.READY;
 
-        const result = renderRealizedResults.call(view);
+        const result = renderBodyContent.call(view);
 
-        expect(result.strings.join('')).toContain('<account-list');
-        expect(result.values[0]).toBe(accounts);
+        expect(result.strings.join('')).toContain('<realized-results');
+        expect(result.values[0]).toBe(context);
         expect(result.values[1]).toBeUndefined();
-        expect(result.values[2]).toBe(selectedGroup);
     });
 
     it('renders an edit-permission error without hiding the ready context', () => {
@@ -132,11 +120,9 @@ describe('Bot app view', () => {
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
-        const permissionError = renderEditPermissionError.call(view);
 
-        expect(permissionError.strings.join('')).toContain('<app-error');
-        expect(permissionError.values[0]).toBe(view.error);
-        expect(result.strings.join('')).toContain('Realized Results');
+        expect(result.strings.join('')).toContain('<realized-results');
+        expect(result.values[1]).toBe(view.error);
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

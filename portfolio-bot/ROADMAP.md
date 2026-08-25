@@ -640,7 +640,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 **Status: Complete.**
 
-This chunk is a parity port of the legacy batched `resetRealizedResultsForAccountAsync` behavior used by the Reset and Full Reset menu operations and by Calculate's `needs_rebuild` branch. The separate immediate and sequential `resetRealizedResultsForAccountSync` behavior is used only by lower-forward-date repair; it remains with the Forward Date port in Chunk 14 and must not be deduplicated with the batched implementation during migration.
+This chunk is a parity port of the legacy batched `resetRealizedResultsForAccountAsync` behavior used by the Reset and Full Reset menu operations and by Calculate's `needs_rebuild` branch. The target method is named `ResetRealizedResultsService.resetAccount(context, full)`; the class already supplies the realized-result context, the shared operation context carries its Portfolio, Financial, and Base Book resources, and target methods are asynchronous. The separate immediate and sequential `resetRealizedResultsForAccountSync` behavior is used only by lower-forward-date repair; it remains with the Forward Date port in Chunk 14 and must not be deduplicated with the batched implementation during migration.
 
 Reset remains one service with one primary transaction loop and the established `full` branches. The linked-cleanup paths, split and parent restoration, property order, lookup order, checked-state handling, and Account-state updates remain in that service rather than being redistributed into newly designed cleanup utilities, strategies, or pipelines. `ResetRealizedResultsProcessor` remains a separate ordered mutation coordinator.
 

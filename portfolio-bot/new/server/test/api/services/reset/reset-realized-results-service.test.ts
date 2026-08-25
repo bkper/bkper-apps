@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { Account, AccountType, Book, Transaction, TransactionList, type Amount } from 'bkper-js';
+import type { OperationContext } from '../../../../src/api/services/operation-service.js';
 import { ResetRealizedResultsService } from '../../../../src/api/services/reset/reset-realized-results-service.js';
-import { StockAccount } from '../../../../src/api/services/stock-account.js';
 import { Summary } from '../../../../src/api/services/summary.js';
 
 interface BooksFixture {
+    operationContext: OperationContext;
     portfolioBook: Book;
     financialBook: Book;
     baseBook: Book;
-    stockAccount: StockAccount;
     account: Account;
     instrument: Account;
     buy: Account;
@@ -36,10 +36,15 @@ function createBooks(): BooksFixture {
         },
     });
     return {
+        operationContext: {
+            portfolioBook,
+            portfolioAccount: account,
+            financialBook,
+            baseBook,
+        },
         portfolioBook,
         financialBook,
         baseBook,
-        stockAccount: new StockAccount(account),
         account,
         instrument: account,
         buy: new Account(portfolioBook, {
@@ -206,12 +211,9 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
-            fixture.portfolioBook,
-            fixture.stockAccount,
-            false,
-            fixture.financialBook,
-            fixture.baseBook
+        const result = await new ResetRealizedResultsService().resetAccount(
+            fixture.operationContext,
+            false
         );
 
         expect(result).toBeInstanceOf(Summary);
@@ -302,12 +304,9 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
-            fixture.portfolioBook,
-            fixture.stockAccount,
-            false,
-            fixture.financialBook,
-            fixture.baseBook
+        const result = await new ResetRealizedResultsService().resetAccount(
+            fixture.operationContext,
+            false
         );
 
         expect(result).toBeInstanceOf(Summary);
@@ -356,12 +355,9 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
-            fixture.portfolioBook,
-            fixture.stockAccount,
-            true,
-            fixture.financialBook,
-            fixture.baseBook
+        const result = await new ResetRealizedResultsService().resetAccount(
+            fixture.operationContext,
+            true
         );
 
         expect(result).toBeInstanceOf(Summary);
@@ -427,12 +423,9 @@ describe('legacy batched Reset behavior', () => {
             throw new Error('Unexpected Account update');
         };
 
-        const result = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
-            fixture.portfolioBook,
-            fixture.stockAccount,
-            false,
-            fixture.financialBook,
-            fixture.baseBook
+        const result = await new ResetRealizedResultsService().resetAccount(
+            fixture.operationContext,
+            false
         );
 
         expect(result).toBeInstanceOf(Summary);

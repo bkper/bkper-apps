@@ -31,20 +31,20 @@ import {
     SHORT_SALE_PROP,
 } from '../../../shared/constants.js';
 import { BotService } from '../bot-service.js';
-import type { StockAccount } from '../stock-account.js';
+import type { OperationContext } from '../operation-service.js';
+import { StockAccount } from '../stock-account.js';
 import { Summary } from '../summary.js';
 import { ResetRealizedResultsProcessor } from './reset-realized-results-processor.js';
 
 export class ResetRealizedResultsService {
     private readonly botService = new BotService();
 
-    async resetRealizedResultsForAccountAsync(
-        stockBook: Book,
-        stockAccount: StockAccount,
-        full: boolean,
-        financialBook: Book,
-        baseBook: Book
-    ): Promise<Summary> {
+    async resetAccount(context: OperationContext, full: boolean): Promise<Summary> {
+        const stockBook = context.portfolioBook;
+        const financialBook = context.financialBook;
+        const baseBook = context.baseBook;
+
+        const stockAccount = new StockAccount(context.portfolioAccount);
         const summary = new Summary();
 
         const query = this.botService.getAccountQuery(stockAccount, full);

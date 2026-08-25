@@ -13,33 +13,25 @@ interface ResetCall {
     baseBookId: string | undefined;
 }
 
-const originalResetRealizedResultsForAccountAsync =
-    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync;
+const originalResetAccount = ResetRealizedResultsService.prototype.resetAccount;
 let resetCalls: ResetCall[] = [];
 
 beforeEach(() => {
     resetCalls = [];
-    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync = async (
-        portfolioBook,
-        stockAccount,
-        full,
-        financialBook,
-        baseBook
-    ) => {
+    ResetRealizedResultsService.prototype.resetAccount = async (context, full) => {
         resetCalls.push({
-            portfolioBookId: portfolioBook.getId(),
-            accountId: stockAccount.getId(),
+            portfolioBookId: context.portfolioBook.getId(),
+            accountId: context.portfolioAccount.getId(),
             full,
-            financialBookId: financialBook.getId(),
-            baseBookId: baseBook.getId(),
+            financialBookId: context.financialBook.getId(),
+            baseBookId: context.baseBook.getId(),
         });
         return new Summary().resetingAsync();
     };
 });
 
 afterEach(() => {
-    ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync =
-        originalResetRealizedResultsForAccountAsync;
+    ResetRealizedResultsService.prototype.resetAccount = originalResetAccount;
 });
 
 function createOperationContext(
@@ -167,10 +159,7 @@ describe('Reset service operations', () => {
     });
 
     test('returns a structured invalid-request error for a locked no-write outcome', async () => {
-        ResetRealizedResultsService.prototype.resetRealizedResultsForAccountAsync = async (
-            _portfolioBook,
-            stockAccount
-        ) => {
+        ResetRealizedResultsService.prototype.resetAccount = async () => {
             const summary = new Summary().lockError();
             summary.getMessage = () => 'Locked operation';
             return summary;

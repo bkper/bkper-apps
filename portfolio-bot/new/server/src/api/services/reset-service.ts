@@ -5,7 +5,6 @@ import type { OperationResponse } from '../schemas.js';
 import { BotService } from './bot-service.js';
 import { type OperationContext, OperationService } from './operation-service.js';
 import { ResetRealizedResultsService } from './reset/reset-realized-results-service.js';
-import { StockAccount } from './stock-account.js';
 import { SummaryState } from './summary.js';
 
 export class ResetService extends OperationService {
@@ -34,14 +33,7 @@ export class ResetService extends OperationService {
         context: OperationContext,
         full: boolean
     ): Promise<OperationResponse> {
-        const stockAccount = new StockAccount(context.portfolioAccount);
-        const summary = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
-            context.portfolioBook,
-            stockAccount,
-            full,
-            context.financialBook,
-            context.baseBook
-        );
+        const summary = await new ResetRealizedResultsService().resetAccount(context, full);
         if (summary.getState() === SummaryState.LOCKED) {
             throw new HTTPException(400, { message: summary.getMessage() });
         }

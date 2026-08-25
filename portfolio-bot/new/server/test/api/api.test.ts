@@ -39,7 +39,7 @@ describe('typed Portfolio Bot API', () => {
         expect(await response.json()).toEqual({ ids: ['instrument-account'] });
     });
 
-    test('passes Calculate inputs to the service and returns no content', async () => {
+    test('passes Calculate inputs to the service and returns the operation message', async () => {
         CalculateService.calculate = mock(async (_context, bookId, accountId, calculateRequest) => {
             expect(bookId).toBe('portfolio-book');
             expect(accountId).toBe('instrument-account');
@@ -58,11 +58,11 @@ describe('typed Portfolio Bot API', () => {
             }
         );
 
-        expect(response.status).toBe(204);
-        expect(await response.text()).toBe('');
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ message: '' });
     });
 
-    test('returns no content when mutation stubs complete', async () => {
+    test('returns the shared operation response when mutation stubs complete', async () => {
         CalculateService.calculate = mock(async () => undefined);
         ResetService.reset = mock(async () => undefined);
         ResetService.fullReset = mock(async () => undefined);
@@ -94,8 +94,8 @@ describe('typed Portfolio Bot API', () => {
 
         for (const [path, init] of requests) {
             const response = await request(path, init);
-            expect(response.status).toBe(204);
-            expect(await response.text()).toBe('');
+            expect(response.status).toBe(200);
+            expect(await response.json()).toEqual({ message: '' });
         }
     });
 

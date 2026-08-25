@@ -13,6 +13,7 @@ import {
     CalculateRequestSchema,
     ForwardRequestSchema,
     PendingCalculationAccountsSchema,
+    OperationResponseSchema,
     jsonResponse,
 } from './schemas.js';
 
@@ -39,7 +40,7 @@ const calculateRoute = createRoute({
         },
     },
     responses: {
-        204: { description: 'Calculate completed' },
+        200: jsonResponse('Calculate completed', OperationResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -51,7 +52,7 @@ const resetRoute = createRoute({
         params: BookAccountIdParamSchema,
     },
     responses: {
-        204: { description: 'Reset completed' },
+        200: jsonResponse('Reset completed', OperationResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -63,7 +64,7 @@ const fullResetRoute = createRoute({
         params: BookAccountIdParamSchema,
     },
     responses: {
-        204: { description: 'Full Reset completed' },
+        200: jsonResponse('Full Reset completed', OperationResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -79,7 +80,7 @@ const forwardRoute = createRoute({
         },
     },
     responses: {
-        204: { description: 'Forward completed' },
+        200: jsonResponse('Forward completed', OperationResponseSchema),
         ...apiErrorResponses,
     },
 });
@@ -97,21 +98,21 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         const request = c.req.valid('json');
         const context = new AppContext(new Bkper(), c.env);
         await CalculateService.calculate(context, bookId, accountId, request);
-        return c.body(null, 204);
+        return c.json({ message: '' }, 200);
     });
 
     app.openapi(resetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
         await ResetService.reset(context, bookId, accountId);
-        return c.body(null, 204);
+        return c.json({ message: '' }, 200);
     });
 
     app.openapi(fullResetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
         await ResetService.fullReset(context, bookId, accountId);
-        return c.body(null, 204);
+        return c.json({ message: '' }, 200);
     });
 
     app.openapi(forwardRoute, async c => {
@@ -119,6 +120,6 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         const request = c.req.valid('json');
         const context = new AppContext(new Bkper(), c.env);
         await ForwardService.forward(context, bookId, accountId, request);
-        return c.body(null, 204);
+        return c.json({ message: '' }, 200);
     });
 }

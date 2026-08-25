@@ -104,11 +104,13 @@ export interface paths {
             };
             responses: {
                 /** @description Calculate completed */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["OperationResponse"];
+                    };
                 };
                 /** @description Invalid request */
                 400: {
@@ -176,11 +178,13 @@ export interface paths {
             requestBody?: never;
             responses: {
                 /** @description Reset completed */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["OperationResponse"];
+                    };
                 };
                 /** @description Invalid request */
                 400: {
@@ -248,11 +252,13 @@ export interface paths {
             requestBody?: never;
             responses: {
                 /** @description Full Reset completed */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["OperationResponse"];
+                    };
                 };
                 /** @description Invalid request */
                 400: {
@@ -324,11 +330,13 @@ export interface paths {
             };
             responses: {
                 /** @description Forward completed */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["OperationResponse"];
+                    };
                 };
                 /** @description Invalid request */
                 400: {
@@ -386,6 +394,9 @@ export interface components {
                 message: string;
             };
         };
+        OperationResponse: {
+            message: string;
+        };
         CalculateRequest: {
             /** Format: date */
             date: string;
@@ -404,6 +415,7 @@ export interface components {
 }
 export type PendingCalculationAccounts = components['schemas']['PendingCalculationAccounts'];
 export type ApiError = components['schemas']['ApiError'];
+export type OperationResponse = components['schemas']['OperationResponse'];
 export type CalculateRequest = components['schemas']['CalculateRequest'];
 export type ForwardRequest = components['schemas']['ForwardRequest'];
 export type $defs = Record<string, never>;

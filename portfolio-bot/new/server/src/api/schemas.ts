@@ -34,6 +34,14 @@ export const PendingCalculationAccountsSchema = z
 
 export type PendingCalculationAccounts = z.infer<typeof PendingCalculationAccountsSchema>;
 
+export const OperationResponseSchema = z
+    .object({
+        message: z.string(),
+    })
+    .openapi('OperationResponse');
+
+export type OperationResponse = z.infer<typeof OperationResponseSchema>;
+
 export const ApiErrorSchema = z
     .object({
         error: z.object({

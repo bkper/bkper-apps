@@ -36,7 +36,7 @@ describe('Portfolio Bot OpenAPI contract', () => {
         expect(spec.paths['/health']).toBeUndefined();
     });
 
-    it('documents operation inputs, no-content success, and errors', async () => {
+    it('documents operation inputs, shared success messages, and errors', async () => {
         const response = await createApp().request('/openapi.json');
         const spec = (await response.json()) as OpenApiDocument;
         const schemas = spec.components?.schemas ?? {};
@@ -65,10 +65,18 @@ describe('Portfolio Bot OpenAPI contract', () => {
         expect(forward.requestBody?.content?.['application/json'].schema).toEqual({
             $ref: '#/components/schemas/ForwardRequest',
         });
+        expect(schemas.OperationResponse).toEqual({
+            type: 'object',
+            properties: {
+                message: { type: 'string' },
+            },
+            required: ['message'],
+        });
         for (const operation of [calculate, reset, fullReset, forward]) {
-            expect(operation.responses?.['200']).toBeUndefined();
-            expect(operation.responses?.['204']).toBeDefined();
-            expect(operation.responses?.['204'].content).toBeUndefined();
+            expect(operation.responses?.['200'].content?.['application/json'].schema).toEqual({
+                $ref: '#/components/schemas/OperationResponse',
+            });
+            expect(operation.responses?.['204']).toBeUndefined();
         }
         expect(calculate.responses?.['403']).toBeDefined();
         expect(calculate.responses?.['404']).toBeUndefined();

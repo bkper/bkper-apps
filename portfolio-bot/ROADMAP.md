@@ -132,8 +132,8 @@ Portfolio Bot coordinates one Portfolio Book, one or more Financial Books, and a
 - Keep API routes thin and move accounting behavior into server services.
 - Use explicit schemas, authorization, errors, and generated client types.
 - During Reset, Calculate, and Forward parity ports, keep legacy processors and accounting services free of API response construction. Preserve their return behavior except for unavoidable asynchronous `Promise` adaptation.
-- Keep parity migration and target-server integration in separate subchunks. Parity subchunks leave API facades, response schemas, routes, generated contracts, and non-mutating operation stubs unchanged; only a dedicated subsequent integration subchunk may review those boundaries and wire the migrated behavior.
-- Treat mutating-operation response schemas as provisional until each operation is ready for its dedicated route-wiring subchunk. Review the response then and keep any required translation in the thin API facade rather than the legacy accounting implementation.
+- Keep parity migration and target-server integration in separate subchunks. Parity subchunks leave API facades, response schemas, routes, generated contracts, and non-mutating operation stubs unchanged; only a dedicated subsequent integration subchunk may apply the accepted API contract and wire the migrated behavior.
+- Successful Calculate, Reset, Full Reset, and Forward Date requests return `204 No Content`. Do not add mutation receipts or response tracking to the accounting implementations without a concrete consumer requirement; errors retain the structured API error envelope.
 - Replace synchronous `bkper-gs` with asynchronous `bkper-js` deliberately, preserving mutation order where accounting behavior depends on it.
 - Do not preserve GAS UI structure or styling for its own sake.
 - Use the Bkper design foundation and deliver a responsive, accessible, theme-aware, production-quality client.
@@ -251,9 +251,15 @@ Exact Bkper CLI, TypeScript, Miniflare, browser, and supporting versions are pin
 
 ### API contract
 
-The route names, request payloads, operation grouping, preflight placement, and initial response schemas were established in the typed API chunk.
+The route names, request payloads, operation grouping, and preflight placement were established in the typed API chunk.
 
-The contract remains small: context and validation required by the client plus Calculate, Reset, Full Reset, and Forward Date. It must preserve safe operation ordering without carrying `google.script.run` implementation details into the public API. The mutating-operation response schemas remain provisional: review Reset and Full Reset in Chunk 12 subchunk 4, Calculate in Chunk 13 subchunk 6, and Forward in Chunk 14 subchunk 4 immediately before wiring each route. Until those reviews, parity implementations do not collect or reshape data solely for an API response.
+The contract remains small: context and validation required by the client plus Calculate, Reset, Full Reset, and Forward Date. It must preserve safe operation ordering without carrying `google.script.run` implementation details into the public API. Parity implementations do not collect or reshape data solely for an API response.
+
+### Mutating-operation responses
+
+Successful Calculate, Reset, Full Reset, and Forward Date requests return `204 No Content`. Their Account-level routes already identify the operation target, and the client only needs completion or failure for per-Account batch progress. Bkper remains the authoritative resource and audit source, so the operations do not produce mutation receipts or track changes solely for transport.
+
+Validation, authorization, installation, lock, and domain failures retain the structured API error envelope. An unexpected failure after mutation begins remains an uncertain outcome and must not be presented as safely retryable. Response payloads may be introduced later if a concrete consumer requires operation-specific data.
 
 ### Client behavior
 
@@ -587,7 +593,6 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Defined one read-only Portfolio Book route that returns the Account ids pending calculation as `{ ids: string[] }` and four explicit Account-level operation routes for Calculate, Reset, Full Reset, and Forward Date.
 - Kept Account and Group menu selection, Portfolio Book discovery, and preliminary client validation on direct authenticated Bkper reads rather than duplicating the Core API.
 - Required explicit Calculate date and MTM intent, a Forward date, and no body for Reset or Full Reset.
-- Defined provisional operation results grouped by Book with created and updated Account ids, created, updated, and trashed Transaction ids, and Book-update state; successful operations with no changes return an empty Book list.
 - Retained the shared message-only error envelope with standard HTTP status categories.
 - Defined installation on every Book an operation may mutate, edit permission on each mutation target, and additional Portfolio Book owner and unlocked-Collection requirements for Full Reset and lower-forward-date repair; enforcement remains in the planned permission chunk.
 - Added thin routes backed by non-mutating service stubs and generated retained OpenAPI client types.
@@ -659,7 +664,7 @@ Planned committable subchunks follow the existing legacy file and method boundar
 2. Port `ResetRealizedResultsProcessor` with its established four Maps, id-based deduplication, locked-Transaction detection, Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, and explicit target-runtime awaiting. Preserve the legacy `void` return boundary as `Promise<void>` and do not add API response tracking.
 3. Port regular Reset as one parity unit inside the retained transaction loop: complete paginated loading, source order, `stock-bot` filtering, forward-log and forward-liquidation handling, exact realized, MTM, interest-MTM, FX, and historical linked cleanup, split trashing, parent quantity and property restoration, legacy price fallback, forwarded-price correction, locked-path no-write behavior, ordered batch execution, and the final Portfolio Account state update. Keep the API stubs non-mutating.
 4. Extend the same method with the existing Full Reset branches for historical order, date, and quantity restoration and forward-state removal; retain the established regular-versus-full Account-date outcomes and verify the existing owner and open and unlocked Collection boundary. Keep both API stubs non-mutating and do not add response tracking, schema changes, route wiring, or facade integration in this parity subchunk.
-5. After regular and Full Reset behavior is fully ported and covered, review the provisional response schemas, keep any translation in `reset-service.ts`, and only then replace both non-mutating API stubs.
+5. After regular and Full Reset behavior is fully ported and covered, remove the unused Reset result schemas, apply the accepted `204 No Content` contract to both routes and generated client types, teach the client HTTP boundary to accept successful no-content responses, and only then replace both non-mutating API stubs. Keep error translation in `reset-service.ts` and do not add mutation tracking to the parity implementation.
 
 Subchunk 1 evidence:
 
@@ -674,7 +679,7 @@ Subchunk 2 evidence:
 - Ported the four legacy Transaction Maps, id-based replacement without insertion-order drift, and locked-Transaction detection in `ResetRealizedResultsProcessor`.
 - Preserved and explicitly awaited the established Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, including empty-phase no-ops and failure-before-later-phase behavior.
 - Preserved the legacy `void` return boundary as `Promise<void>` and kept API response construction out of the processor.
-- Kept the Reset service transaction loop unimplemented and left the Reset facade, provisional response schemas, non-mutating operation stubs, and routes unchanged.
+- Kept the Reset service transaction loop unimplemented and left both Reset operation stubs non-mutating and unwired.
 - Added four deterministic processor parity tests and verified the complete local gate with 95 client tests, 127 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 3 evidence:
@@ -684,8 +689,8 @@ Subchunk 3 evidence:
 - Preserved checked-state clearing, split trashing, parent quantity and property restoration, legacy price fallback, forwarded-price correction, and movement endpoints without creating a Transaction.
 - Preserved lock detection across every queued Portfolio, Financial, and Base Book Transaction and returned before any batch or Account write when a lock is found.
 - Explicitly awaited the established four processor phases before clearing rebuild state and applying the regular Reset realized-date outcome to the Portfolio Account.
-- Ported the legacy `Summary` source and method-return boundary, including its original result type and the retained `resetingAsync()` and `lockError()` outcomes, independently from the deferred Zod API response review.
-- Kept Full Reset guarded for subchunk 4 and left the Reset facade, provisional response schemas, non-mutating operation stubs, and routes unchanged.
+- Ported the legacy `Summary` source and method-return boundary, including its original result type and the retained `resetingAsync()` and `lockError()` outcomes, without adding API response construction.
+- Kept Full Reset guarded for subchunk 4 and left both Reset operation stubs non-mutating and unwired.
 - Added three deterministic regular Reset parity tests plus shared `Summary` behavior coverage and verified the complete local gate with 95 client tests, 131 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 Subchunk 4 evidence:
@@ -693,7 +698,7 @@ Subchunk 4 evidence:
 - Extended the retained batched Reset loop with the legacy Full Reset branches, restoring historical order, date, and quantity before the established parent-restoration path.
 - Removed the historical and forward Transaction properties in the established order and retained the regular linked cleanup, lock detection, movement endpoints, and four ordered processor phases.
 - Preserved the Full Reset Account outcome by clearing rebuild, realized-date, forwarded-date, forwarded-rate, and forwarded-price state only after the lock gate and successful batch phases.
-- Retained the existing Portfolio Book owner and open and unlocked Collection preflight coverage without changing the non-mutating Reset facade, provisional response schemas, routes, or generated contracts.
+- Retained the existing Portfolio Book owner and open and unlocked Collection preflight coverage while leaving both Reset operation stubs non-mutating and unwired.
 - Added one deterministic Full Reset parity test and verified the complete local gate with 95 client tests, 132 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 - Port linked realized, historical, FX, MTM, interest-MTM, split, and forwarded-result cleanup.
@@ -735,7 +740,7 @@ Planned committable subchunks follow the existing legacy file and method boundar
 4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior; keep them in `CalculateRealizedResultsService`.
 5. Port the complete `processSale` method in place as one parity unit, preserving its long, multiple-lot, partial, short-sale, split, historical-only, fair-only, combined, and MTM branches together with their exact branch, property, relationship, and mutation order. Cover the complete behavior matrix without extracting a new calculation engine or landing deliberately incomplete versions of the method.
 6. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, and preserve transaction loading and FIFO sorting. Keep the Calculate API stub non-mutating and do not add response tracking, schema changes, route wiring, or facade integration in this parity subchunk.
-7. After Calculate behavior is fully ported and covered, review the provisional Calculate response schema, keep any translation in `calculate-service.ts`, and only then replace the non-mutating API stub.
+7. After Calculate behavior is fully ported and covered, remove the unused Calculate result schema, apply the accepted `204 No Content` contract to the route and generated client types, and only then replace the non-mutating API stub. Keep error translation in `calculate-service.ts` and do not add mutation tracking to the parity implementation.
 
 - Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
 - Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.
@@ -775,7 +780,7 @@ Planned committable subchunks follow the existing legacy service and major metho
 2. Port regular Forward Date and its existing helper methods as one parity unit: ordered balance reads, FIFO input selection, history-log posting, immediate source-Transaction updates, liquidation bridge creation, batch checking, unrealized-balance reads, forwarded-result creation, Portfolio Account state, deterministic five-second delay, and optional Portfolio Book closing-date update. Keep the API stub non-mutating.
 3. Port lower-forward-date repair together with the separate sequential Reset variant: current-forward Reset, forwarded-Transaction discovery, recursive previous-state lookup, restoration, superseded-log cleanup, requested-date Reset, and re-forwarding in the established order. Enforce owner and open and unlocked Collection requirements before the first mutation.
 4. Port the top-level Forward Date validation and branch order, including uncalculated-result, equal-forward-date, lower-date, realized-date, and rebuild behavior. Keep the Forward API stub non-mutating and do not add response tracking, schema changes, route wiring, or facade integration in this parity subchunk.
-5. After regular and lower-date Forward behavior is fully ported and covered, review the provisional Forward response schema, keep any translation in `forward-service.ts`, and only then replace the non-mutating API stub.
+5. After regular and lower-date Forward behavior is fully ported and covered, remove the unused Forward result schema, apply the accepted `204 No Content` contract to the route and generated client types, and only then replace the non-mutating API stub. Keep error translation in `forward-service.ts` and do not add mutation tracking to the parity implementation.
 
 - Port Forward Date validation, balances, forward logs, liquidation bridges, forwarded results, and Account state.
 - Port optional Portfolio Book closing-date updates after all required movements and checks complete.
@@ -788,7 +793,7 @@ Planned committable subchunks follow the existing legacy service and major metho
 
 **Status: Not started.**
 
-- Replace GAS templates and `google.script.run` with Lit and the authenticated generated API client.
+- Replace GAS templates and `google.script.run` with Lit and the authenticated generated API client, including successful `204 No Content` mutation handling.
 - Implement Calculate, Reset, Full Reset, and Forward Date workflows.
 - Preserve the legacy action-time pending-task guard: after an operation click, check the Portfolio Book backlog once before the first Account request, and abort the complete batch without mutation when pending tasks exist.
 - Preserve selected resources, inputs, operation intent, progress, and accounting results.

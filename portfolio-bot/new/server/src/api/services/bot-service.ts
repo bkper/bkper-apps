@@ -1,4 +1,4 @@
-import type { Account, Book } from 'bkper-js';
+import { AccountType, type Account, type Book, type Transaction } from 'bkper-js';
 import {
     EXC_BASE_PROP,
     EXC_CODE_PROP,
@@ -6,6 +6,7 @@ import {
     STOCK_EXC_CODE_PROP,
     STOCK_SELL_ACCOUNT_NAME,
 } from '../../shared/constants.js';
+import type { StockAccount } from './stock-account.js';
 import { ValidationAccount } from './validation-account.js';
 
 export class BotService {
@@ -28,7 +29,7 @@ export class BotService {
         return null;
     }
 
-    getFinancialBook(book: Book, excCode: string): Book | null {
+    getFinancialBook(book: Book, excCode?: string | null): Book | null {
         const collection = book.getCollection();
         if (!collection) {
             return null;
@@ -42,6 +43,31 @@ export class BotService {
             }
         }
         return null;
+    }
+
+    getAccountQuery(stockAccount: StockAccount, full: boolean, beforeDate?: string): string {
+        let query = `account:'${stockAccount.getName()}'`;
+        if (!full && stockAccount.getForwardedDate()) {
+            query += ` after:${stockAccount.getForwardedDate()}`;
+        }
+        if (beforeDate) {
+            query += ` before:${beforeDate}`;
+        }
+        return query;
+    }
+
+    async isSale(transaction: Transaction): Promise<boolean> {
+        return (
+            Boolean(transaction.isPosted()) &&
+            (await transaction.getDebitAccount())!.getType() == AccountType.OUTGOING
+        );
+    }
+
+    async isPurchase(transaction: Transaction): Promise<boolean> {
+        return (
+            Boolean(transaction.isPosted()) &&
+            (await transaction.getCreditAccount())!.getType() == AccountType.INCOMING
+        );
     }
 
     async getUncalculatedAccounts(stockBook: Book, baseBook?: Book): Promise<Account[]> {

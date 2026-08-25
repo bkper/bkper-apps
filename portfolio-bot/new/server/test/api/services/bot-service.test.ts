@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { AccountType, Book, Transaction, TransactionList } from 'bkper-js';
+import { Account, AccountType, Book, Transaction, TransactionList } from 'bkper-js';
 import { BotService } from '../../../src/api/services/bot-service.js';
+import { StockAccount } from '../../../src/api/services/stock-account.js';
 
 function createService(): BotService {
     return new BotService();
@@ -128,6 +129,56 @@ describe('legacy menu bot service', () => {
         expect(service.getBaseBook(usdFallback)?.getId()).toBe('usd');
         expect(service.getBaseBook(aliasOnly)).toBeNull();
         expect(service.getBaseBook(createPortfolioBook())).toBeNull();
+    });
+
+    test('builds the Reset Account query in legacy clause order', () => {
+        const service = createService();
+        const book = createPortfolioBook();
+        const account = new StockAccount(
+            new Account(book, {
+                id: 'instrument',
+                name: "Owner's Instrument",
+                properties: { forwarded_date: '2025-02-03' },
+            })
+        );
+
+        expect(service.getAccountQuery(account, false)).toBe(
+            "account:'Owner's Instrument' after:2025-02-03"
+        );
+        expect(service.getAccountQuery(account, false, '2025-04-06')).toBe(
+            "account:'Owner's Instrument' after:2025-02-03 before:2025-04-06"
+        );
+        expect(service.getAccountQuery(account, true, '2025-04-06')).toBe(
+            "account:'Owner's Instrument' before:2025-04-06"
+        );
+    });
+
+    test('recognizes posted purchases and sales from the legacy contra Account types', async () => {
+        const service = createService();
+        const book = createPortfolioBook();
+        const incoming = new Account(book, { id: 'incoming', type: AccountType.INCOMING });
+        const outgoing = new Account(book, { id: 'outgoing', type: AccountType.OUTGOING });
+        const instrument = new Account(book, { id: 'instrument', type: AccountType.ASSET });
+        const purchase = new Transaction(book, { id: 'purchase', posted: true });
+        purchase.getCreditAccount = async () => incoming;
+        purchase.getDebitAccount = async () => instrument;
+        const sale = new Transaction(book, { id: 'sale', posted: true });
+        sale.getCreditAccount = async () => instrument;
+        sale.getDebitAccount = async () => outgoing;
+        const draft = new Transaction(book, { id: 'draft', posted: false });
+        draft.getCreditAccount = async () => {
+            throw new Error('Draft Account must not be loaded');
+        };
+        draft.getDebitAccount = async () => {
+            throw new Error('Draft Account must not be loaded');
+        };
+
+        await expect(service.isPurchase(purchase)).resolves.toBe(true);
+        await expect(service.isSale(purchase)).resolves.toBe(false);
+        await expect(service.isSale(sale)).resolves.toBe(true);
+        await expect(service.isPurchase(sale)).resolves.toBe(false);
+        await expect(service.isPurchase(draft)).resolves.toBe(false);
+        await expect(service.isSale(draft)).resolves.toBe(false);
     });
 
     test('builds the unchecked Transaction query from the Portfolio Book closing date', () => {

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–11 complete — Chunk 12 in progress; subchunk 1 complete.**
+**Chunks 1–11 complete — Chunk 12 in progress; subchunks 1–2 complete.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 subchunk 1 has established the Reset file structure, constants, Reset-required `StockAccount` behavior, Account query construction, and purchase and sale recognition without wiring either Reset operation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 subchunks 1–2 have established the Reset file structure, constants, Reset-required `StockAccount` behavior, Account query construction, purchase and sale recognition, and the ordered batched Reset processor without wiring either Reset operation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -131,6 +131,8 @@ Portfolio Bot coordinates one Portfolio Book, one or more Financial Books, and a
 - Treat `/api/v1/*` as a new reusable extraction, not a legacy transport contract.
 - Keep API routes thin and move accounting behavior into server services.
 - Use explicit schemas, authorization, errors, and generated client types.
+- During Reset, Calculate, and Forward parity ports, keep legacy processors and accounting services free of API response construction. Preserve their return behavior except for unavoidable asynchronous `Promise` adaptation.
+- Treat mutating-operation response schemas as provisional until each operation is ready for route wiring. Review the response then and keep any required translation in the thin API facade rather than the legacy accounting implementation.
 - Replace synchronous `bkper-gs` with asynchronous `bkper-js` deliberately, preserving mutation order where accounting behavior depends on it.
 - Do not preserve GAS UI structure or styling for its own sake.
 - Use the Bkper design foundation and deliver a responsive, accessible, theme-aware, production-quality client.
@@ -248,9 +250,9 @@ Exact Bkper CLI, TypeScript, Miniflare, browser, and supporting versions are pin
 
 ### API contract
 
-The exact route names, payloads, operation grouping, preflight placement, and response schemas are defined in the typed API chunk.
+The route names, request payloads, operation grouping, preflight placement, and initial response schemas were established in the typed API chunk.
 
-The contract remains small: context and validation required by the client plus Calculate, Reset, Full Reset, and Forward Date. It must preserve safe operation ordering without carrying `google.script.run` implementation details into the public API.
+The contract remains small: context and validation required by the client plus Calculate, Reset, Full Reset, and Forward Date. It must preserve safe operation ordering without carrying `google.script.run` implementation details into the public API. The mutating-operation response schemas remain provisional: review Reset and Full Reset in Chunk 12 subchunk 4, Calculate in Chunk 13 subchunk 6, and Forward in Chunk 14 subchunk 4 immediately before wiring each route. Until those reviews, parity implementations do not collect or reshape data solely for an API response.
 
 ### Client behavior
 
@@ -630,7 +632,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 ### Chunk 12 — Port Reset and Full Reset
 
-**Status: In progress — subchunk 1 complete.**
+**Status: In progress — subchunks 1–2 complete.**
 
 This chunk is a parity port of the legacy batched `resetRealizedResultsForAccountAsync` behavior used by the Reset and Full Reset menu operations and by Calculate's `needs_rebuild` branch. The separate immediate and sequential `resetRealizedResultsForAccountSync` behavior is used only by lower-forward-date repair; it remains with the Forward Date port in Chunk 14 and must not be deduplicated with the batched implementation during migration.
 
@@ -653,9 +655,9 @@ new/server/src/api/services/
 Planned committable subchunks follow the existing legacy file and method boundaries:
 
 1. Establish the agreed structure and port Reset-required constants, `StockAccount` behavior, and existing `BotService` dependencies such as Account query construction and purchase and sale recognition without wiring either Reset route.
-2. Port `ResetRealizedResultsProcessor` with its established four Maps, id-based deduplication, locked-Transaction detection, Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, explicit target-runtime awaiting, and minimal typed API result tracking.
+2. Port `ResetRealizedResultsProcessor` with its established four Maps, id-based deduplication, locked-Transaction detection, Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, and explicit target-runtime awaiting. Preserve the legacy `void` return boundary as `Promise<void>` and do not add API response tracking.
 3. Port regular Reset as one parity unit inside the retained transaction loop: complete paginated loading, source order, `stock-bot` filtering, forward-log and forward-liquidation handling, exact realized, MTM, interest-MTM, FX, and historical linked cleanup, split trashing, parent quantity and property restoration, legacy price fallback, forwarded-price correction, locked-path no-write behavior, ordered batch execution, and the final Portfolio Account state update. Keep the API stubs non-mutating.
-4. Extend the same method with the existing Full Reset branches for historical order, date, and quantity restoration and forward-state removal; retain the established regular-versus-full Account-date outcomes, verify the existing owner and open and unlocked Collection boundary, and replace both non-mutating API stubs only after regular and Full Reset behavior is covered.
+4. Extend the same method with the existing Full Reset branches for historical order, date, and quantity restoration and forward-state removal; retain the established regular-versus-full Account-date outcomes and verify the existing owner and open and unlocked Collection boundary. After regular and Full Reset behavior is covered, review the provisional response schemas, keep any translation in `reset-service.ts`, and only then replace both non-mutating API stubs.
 
 Subchunk 1 evidence:
 
@@ -664,6 +666,14 @@ Subchunk 1 evidence:
 - Extended the existing menu `BotService` with legacy Account query clause order and posted purchase and sale recognition; the query retains regular, Full Reset, forwarded-date, and optional before-date branches.
 - Added deterministic supporting-surface parity tests without implementing the processor, transaction loop, API mutation behavior, or route wiring. The unchanged Reset and Full Reset methods still return empty non-mutating results after preflight.
 - Verified the complete local gate with 95 client tests, 123 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+
+Subchunk 2 evidence:
+
+- Ported the four legacy Transaction Maps, id-based replacement without insertion-order drift, and locked-Transaction detection in `ResetRealizedResultsProcessor`.
+- Preserved and explicitly awaited the established Portfolio update, Portfolio trash, Financial trash, and Base trash phase order, including empty-phase no-ops and failure-before-later-phase behavior.
+- Preserved the legacy `void` return boundary as `Promise<void>` and kept API response construction out of the processor.
+- Kept the Reset service transaction loop unimplemented and left the Reset facade, provisional response schemas, non-mutating operation stubs, and routes unchanged.
+- Added four deterministic processor parity tests and verified the complete local gate with 95 client tests, 127 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 - Port linked realized, historical, FX, MTM, interest-MTM, split, and forwarded-result cleanup.
 - Port checked-state handling, parent restoration, original-state and property restoration, Account dates, and rebuild behavior.
@@ -700,10 +710,10 @@ Planned committable subchunks follow the existing legacy file and method boundar
 
 1. Port supporting constants, calculation model, log types, and the async `StockAccount` adaptation in the agreed target structure without wiring Calculate.
 2. Port the legacy `BotService` methods required by Calculate, preserving price and rate precedence, FIFO comparison, gain calculations, query behavior, and support Account inference.
-3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, ordered batch phases, and target API result tracking.
+3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, and ordered batch phases. Preserve its legacy return behavior except for explicit target-runtime awaiting, and do not add API response tracking.
 4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior; keep them in `CalculateRealizedResultsService`.
 5. Port the complete `processSale` method in place as one parity unit, preserving its long, multiple-lot, partial, short-sale, split, historical-only, fair-only, combined, and MTM branches together with their exact branch, property, relationship, and mutation order. Cover the complete behavior matrix without extracting a new calculation engine or landing deliberately incomplete versions of the method.
-6. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, preserve transaction loading and FIFO sorting, return typed per-Book outcomes, and replace the non-mutating API stub only after the retained behavior is covered.
+6. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, and preserve transaction loading and FIFO sorting. After the retained behavior is covered, review the provisional Calculate response schema, keep any translation in `calculate-service.ts`, and only then replace the non-mutating API stub.
 
 - Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
 - Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.
@@ -742,7 +752,7 @@ Planned committable subchunks follow the existing legacy service and major metho
 1. Establish the agreed Forward structure and port the remaining Forward-specific constants, `StockAccount` behavior, and existing `BotService` dependencies without wiring the Forward route.
 2. Port regular Forward Date and its existing helper methods as one parity unit: ordered balance reads, FIFO input selection, history-log posting, immediate source-Transaction updates, liquidation bridge creation, batch checking, unrealized-balance reads, forwarded-result creation, Portfolio Account state, deterministic five-second delay, and optional Portfolio Book closing-date update. Keep the API stub non-mutating.
 3. Port lower-forward-date repair together with the separate sequential Reset variant: current-forward Reset, forwarded-Transaction discovery, recursive previous-state lookup, restoration, superseded-log cleanup, requested-date Reset, and re-forwarding in the established order. Enforce owner and open and unlocked Collection requirements before the first mutation.
-4. Port the top-level Forward Date validation and branch order, including uncalculated-result, equal-forward-date, lower-date, realized-date, and rebuild behavior; return typed per-Book outcomes and replace the non-mutating API stub only after regular and lower-date paths are covered.
+4. Port the top-level Forward Date validation and branch order, including uncalculated-result, equal-forward-date, lower-date, realized-date, and rebuild behavior. After regular and lower-date paths are covered, review the provisional Forward response schema, keep any translation in `forward-service.ts`, and only then replace the non-mutating API stub.
 
 - Port Forward Date validation, balances, forward logs, liquidation bridges, forwarded results, and Account state.
 - Port optional Portfolio Book closing-date updates after all required movements and checks complete.

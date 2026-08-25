@@ -19,9 +19,7 @@ describe('menu context', () => {
         expect(getMenuContext('?bookId=book-123').query).toBe('');
         expect(getMenuContext('?bookId=book-123&query=undefined').query).toBe('');
         expect(getMenuContext('?bookId=book-123&query=null').query).toBe('');
-        expect(getMenuContext('?bookId=book-123&query=%24%7Btransactions.query%7D').query).toBe(
-            '',
-        );
+        expect(getMenuContext('?bookId=book-123&query=%24%7Btransactions.query%7D').query).toBe('');
     });
 
     it('accepts trusted live app URL updates for this app origin', () => {
@@ -39,7 +37,7 @@ describe('menu context', () => {
                 parent,
                 bkperOrigin: 'https://bkper.app',
                 appOrigin: 'http://localhost:5176',
-            },
+            }
         );
 
         expect(nextUrl?.searchParams.get('bookId')).toBe('book-456');
@@ -64,8 +62,8 @@ describe('menu context', () => {
                         url: 'http://localhost:5176/?bookId=book-456',
                     },
                 },
-                expectedContext,
-            ),
+                expectedContext
+            )
         ).toBeNull();
         expect(
             getAppUrlChange(
@@ -77,8 +75,8 @@ describe('menu context', () => {
                         url: 'http://localhost:5176/?bookId=book-456',
                     },
                 },
-                expectedContext,
-            ),
+                expectedContext
+            )
         ).toBeNull();
         expect(
             getAppUrlChange(
@@ -90,8 +88,8 @@ describe('menu context', () => {
                         url: 'https://evil.example/?bookId=book-456',
                     },
                 },
-                expectedContext,
-            ),
+                expectedContext
+            )
         ).toBeNull();
         expect(
             getAppUrlChange(
@@ -100,8 +98,8 @@ describe('menu context', () => {
                     origin: 'https://bkper.app',
                     data: { type: 'other', url: 'not a URL' },
                 },
-                expectedContext,
-            ),
+                expectedContext
+            )
         ).toBeNull();
     });
 });

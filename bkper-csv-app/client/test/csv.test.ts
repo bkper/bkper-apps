@@ -3,19 +3,25 @@ import { createCsvFileName, dataTableToCsv } from '../src/csv';
 
 describe('CSV serialization', () => {
     it('serializes rows with semicolon delimiters and CRLF line endings', () => {
-        const csv = dataTableToCsv([
-            ['Date', 'Description', 'Amount'],
-            ['2026-06-03', 'Taxi', '12,50'],
-        ], ';');
+        const csv = dataTableToCsv(
+            [
+                ['Date', 'Description', 'Amount'],
+                ['2026-06-03', 'Taxi', '12,50'],
+            ],
+            ';'
+        );
 
         expect(csv).toBe('Date;Description;Amount\r\n2026-06-03;Taxi;12,50');
     });
 
     it('quotes cells containing delimiters, quotes, or new lines', () => {
-        const csv = dataTableToCsv([
-            ['Description', 'Notes'],
-            ['Taxi; airport', 'Driver said "ok"\npaid'],
-        ], ';');
+        const csv = dataTableToCsv(
+            [
+                ['Description', 'Notes'],
+                ['Taxi; airport', 'Driver said "ok"\npaid'],
+            ],
+            ';'
+        );
 
         expect(csv).toBe('Description;Notes\r\n"Taxi; airport";"Driver said ""ok""\npaid"');
     });

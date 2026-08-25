@@ -1,28 +1,25 @@
-import { BkperAuth } from '@bkper/web-auth';
 import { Bkper } from 'bkper-js';
 import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import type WaSelect from '@awesome.me/webawesome/dist/components/select/select.js';
 import { html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { createAuthSession } from '../auth-session';
 import { getAppUrlChange, getMenuContext } from '../context';
-import { createCsvFileName, dataTableToCsv } from '../csv';
+import { createCsvFileName } from '../csv';
 import { isExportAvailable, type AuthenticationStatus } from '../export-app-state';
-import { configureTransactionsDataTableBuilder } from '../export-builder';
 import {
     defaultExportOptions,
     normalizeExportOptions,
     type CsvDelimiter,
     type ExportOptions,
 } from '../export-config';
-import { listTransactionsForExport } from '../export-service';
+import { createCsvExportService } from '../export-service';
 
 type BooleanExportOption = {
     [Key in keyof ExportOptions]: ExportOptions[Key] extends boolean ? Key : never;
 }[keyof ExportOptions];
 
 const BKPER_ORIGIN = 'https://bkper.app';
-const isLocalDev =
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 @customElement('csv-export-app')
 export class CsvExportApp extends LitElement {
@@ -58,8 +55,7 @@ export class CsvExportApp extends LitElement {
         this.applyMenuContext(nextUrl.search);
     };
 
-    private readonly auth = new BkperAuth({
-        baseUrl: isLocalDev ? window.location.origin : undefined,
+    private readonly auth = createAuthSession({
         onLoginSuccess: () => {
             this.authenticationStatus = 'authenticated';
             void this.loadBookContext();
@@ -72,6 +68,11 @@ export class CsvExportApp extends LitElement {
             this.errorMessage = `Authentication failed: ${toErrorMessage(error)}`;
         },
     });
+    private readonly exportService = createCsvExportService(
+        new Bkper({
+            oauthTokenProvider: async () => this.auth.getAccessToken(),
+        })
+    );
 
     connectedCallback(): void {
         super.connectedCallback();
@@ -107,7 +108,9 @@ export class CsvExportApp extends LitElement {
         return html`
             <wa-card class="context-card" appearance="filled-outlined">
                 <section aria-label="Export context">
-                    <div class="book-name">${this.bookName ?? this.bookId ?? 'Loading book...'}</div>
+                    <div class="book-name">
+                        ${this.bookName ?? this.bookId ?? 'Loading book...'}
+                    </div>
                     <div class="query">
                         ${this.query ? html`Query: ${this.query}` : 'All transactions'}
                     </div>
@@ -173,16 +176,14 @@ export class CsvExportApp extends LitElement {
                     <wa-checkbox
                         size="s"
                         .checked=${this.options.formatDates}
-                        @change=${(event: Event) =>
-                            this.updateBooleanOption('formatDates', event)}
+                        @change=${(event: Event) => this.updateBooleanOption('formatDates', event)}
                     >
                         Format dates
                     </wa-checkbox>
                     <wa-checkbox
                         size="s"
                         .checked=${this.options.formatValues}
-                        @change=${(event: Event) =>
-                            this.updateBooleanOption('formatValues', event)}
+                        @change=${(event: Event) => this.updateBooleanOption('formatValues', event)}
                     >
                         Format amounts
                     </wa-checkbox>
@@ -274,52 +275,60 @@ export class CsvExportApp extends LitElement {
 
         return html`
             <div class="messages wa-stack wa-gap-s">
-                ${this.progressMessage
-                    ? html`<wa-callout
-                          variant="neutral"
-                          appearance="filled-outlined"
-                          role="status"
-                          aria-live="polite"
-                      >
-                          ${this.progressMessage}
-                      </wa-callout>`
-                    : ''}
-                ${this.successMessage || this.downloadUrl
-                    ? html`
-                          <wa-callout
-                              variant="success"
+                ${
+                    this.progressMessage
+                        ? html`<wa-callout
+                              variant="neutral"
                               appearance="filled-outlined"
                               role="status"
                               aria-live="polite"
                           >
-                              <div class="wa-stack wa-gap-m">
-                                  <span>${this.successMessage ?? 'CSV ready.'}</span>
-                                  ${this.downloadUrl && this.downloadFileName
-                                      ? html`
-                                            <div class="message-actions">
-                                                <wa-button
-                                                    variant="success"
-                                                    .href=${this.downloadUrl}
-                                                    .download=${this.downloadFileName}
-                                                >
-                                                    Download file
-                                                </wa-button>
-                                            </div>
-                                        `
-                                      : ''}
-                              </div>
-                          </wa-callout>
-                      `
-                    : ''}
-                ${this.errorMessage
-                    ? html`<wa-callout
-                          variant="danger"
-                          appearance="filled-outlined"
-                          role="alert"
-                      >
-                          ${this.errorMessage}
-                      </wa-callout>`
-                    : ''}
+                              ${this.progressMessage}
+                          </wa-callout>`
+                        : ''
+                }
+                ${
+                    this.successMessage || this.downloadUrl
+                        ? html`
+                              <wa-callout
+                                  variant="success"
+                                  appearance="filled-outlined"
+                                  role="status"
+                                  aria-live="polite"
+                              >
+                                  <div class="wa-stack wa-gap-m">
+                                      <span>${this.successMessage ?? 'CSV ready.'}</span>
+                                      ${
+                                          this.downloadUrl && this.downloadFileName
+                                              ? html`
+                                                    <div class="message-actions">
+                                                        <wa-button
+                                                            variant="success"
+                                                            .href=${this.downloadUrl}
+                                                            .download=${this.downloadFileName}
+                                                        >
+                                                            Download file
+                                                        </wa-button>
+                                                    </div>
+                                                `
+                                              : ''
+                                      }
+                                  </div>
+                              </wa-callout>
+                          `
+                        : ''
+                }
+                ${
+                    this.errorMessage
+                        ? html`<wa-callout
+                              variant="danger"
+                              appearance="filled-outlined"
+                              role="alert"
+                          >
+                              ${this.errorMessage}
+                          </wa-callout>`
+                        : ''
+                }
             </div>
         `;
     }
@@ -334,10 +343,9 @@ export class CsvExportApp extends LitElement {
         this.errorMessage = null;
 
         try {
-            const bkper = this.createBkperClient();
-            const book = await bkper.getBook(bookId);
+            const bookName = await this.exportService.getBookName(bookId);
             if (this.bookId === bookId) {
-                this.bookName = book.getName() ?? bookId;
+                this.bookName = bookName;
             }
         } catch (error) {
             this.errorMessage = toErrorMessage(error);
@@ -361,43 +369,41 @@ export class CsvExportApp extends LitElement {
         this.progressMessage = 'Loading transactions...';
 
         try {
-            const bkper = this.createBkperClient();
-            const book = await bkper.getBook(bookId);
-            const result = await listTransactionsForExport(book, {
+            const normalizedOptions = normalizeExportOptions(this.options);
+            const result = await this.exportService.createCsv(bookId, {
                 query,
+                options: normalizedOptions,
                 onProgress: loaded => {
                     if (this.contextRevision === contextRevision) {
                         this.progressMessage = `Loaded ${loaded.toLocaleString()} transactions...`;
                     }
                 },
+                onBuilding: () => {
+                    if (this.contextRevision === contextRevision) {
+                        this.progressMessage = 'Building CSV...';
+                    }
+                },
             });
 
             if (this.contextRevision !== contextRevision) {
-                this.errorMessage = 'Book context changed. Review the current query and export again.';
+                this.errorMessage =
+                    'Book context changed. Review the current query and export again.';
                 this.progressMessage = null;
                 return;
             }
 
-            if (result.transactions.length === 0) {
+            if (!result.csv) {
                 this.errorMessage = 'No transactions found for this export.';
                 this.progressMessage = null;
                 return;
             }
 
-            this.progressMessage = 'Building CSV...';
-            const normalizedOptions = normalizeExportOptions(this.options);
-            const builder = configureTransactionsDataTableBuilder(
-                book.createTransactionsDataTable(result.transactions, result.account),
-                normalizedOptions
-            );
-            const dataTable = await builder.build();
-            const csv = dataTableToCsv(dataTable, normalizedOptions.delimiter);
             const filename = createCsvFileName();
-            const url = createCsvObjectUrl(csv);
+            const url = createCsvObjectUrl(result.csv);
 
             this.setDownload(url, filename);
             triggerDownload(url, filename);
-            this.successMessage = `CSV ready: ${filename} (${formatTransactionCount(result.transactions.length)})`;
+            this.successMessage = `CSV ready: ${filename} (${formatTransactionCount(result.transactionCount)})`;
             this.progressMessage = null;
         } catch (error) {
             this.errorMessage = toErrorMessage(error);
@@ -458,12 +464,6 @@ export class CsvExportApp extends LitElement {
 
     private resetOptions(): void {
         this.options = { ...defaultExportOptions };
-    }
-
-    private createBkperClient(): Bkper {
-        return new Bkper({
-            oauthTokenProvider: async () => this.auth.getAccessToken(),
-        });
     }
 
     private setDownload(url: string, filename: string): void {

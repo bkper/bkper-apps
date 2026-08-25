@@ -18,11 +18,10 @@ developers: '*@bkper.com'
 menuUrl: https://bkper-csv-app.bkper.app?bookId=${book.id}&query=${transactions.query}
 menuUrlDev: https://bkper-csv-app-preview.bkper.app?bookId=${book.id}&query=${transactions.query}
 menuText: Export CSV
-menuPopupWidth: 550
-menuPopupHeight: 620
+menuOpenMode: SIDEBAR
 
 deployment:
-  server: server/src/index.ts
-  client: client
-  secrets: []
-  compatibility_date: '2026-01-28'
+    server: server/src/index.ts
+    client: client
+    secrets: []
+    compatibility_date: '2026-01-28'

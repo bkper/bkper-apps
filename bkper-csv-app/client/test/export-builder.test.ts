@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { defaultExportOptions } from '../src/export-config';
-import { configureTransactionsDataTableBuilder, type TransactionsDataTableBuilderLike } from '../src/export-builder';
+import {
+    configureTransactionsDataTableBuilder,
+    type TransactionsDataTableBuilderLike,
+} from '../src/export-builder';
 
 class RecordingBuilder implements TransactionsDataTableBuilderLike {
     readonly calls: Array<[string, boolean]> = [];

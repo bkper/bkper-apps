@@ -1,4 +1,8 @@
 import type { Account, Transaction } from 'bkper-js';
+import { dataTableToCsv } from './csv';
+import { configureTransactionsDataTableBuilder } from './export-builder';
+import type { TransactionsDataTableBuilderLike } from './export-builder';
+import type { ExportOptions } from './export-config';
 
 export interface TransactionsForExport {
     transactions: Transaction[];
@@ -15,8 +19,66 @@ export interface BookForExport {
     listTransactions(
         query?: string,
         limit?: number,
-        cursor?: string,
+        cursor?: string
     ): Promise<TransactionListForExport>;
+}
+
+export interface TransactionsDataTableBuilderForExport extends TransactionsDataTableBuilderLike {
+    build(): Promise<unknown[][]> | unknown[][];
+}
+
+export interface BookForCsvExport extends BookForExport {
+    getName(): string | undefined;
+    createTransactionsDataTable(
+        transactions: Transaction[],
+        account?: Account
+    ): TransactionsDataTableBuilderForExport;
+}
+
+export interface BkperClientForCsvExport {
+    getBook(bookId: string): Promise<BookForCsvExport>;
+}
+
+export interface CreateCsvOptions extends ListTransactionsOptions {
+    options: ExportOptions;
+    onBuilding?: () => void;
+}
+
+export interface CsvExportResult {
+    csv: string | null;
+    transactionCount: number;
+}
+
+export interface CsvExportService {
+    getBookName(bookId: string): Promise<string>;
+    createCsv(bookId: string, options: CreateCsvOptions): Promise<CsvExportResult>;
+}
+
+export function createCsvExportService(client: BkperClientForCsvExport): CsvExportService {
+    return {
+        async getBookName(bookId) {
+            const book = await client.getBook(bookId);
+            return book.getName() ?? bookId;
+        },
+        async createCsv(bookId, options) {
+            const book = await client.getBook(bookId);
+            const result = await listTransactionsForExport(book, options);
+            if (result.transactions.length === 0) {
+                return { csv: null, transactionCount: 0 };
+            }
+
+            options.onBuilding?.();
+            const builder = configureTransactionsDataTableBuilder(
+                book.createTransactionsDataTable(result.transactions, result.account),
+                options.options
+            );
+            const dataTable = await builder.build();
+            return {
+                csv: dataTableToCsv(dataTable, options.options.delimiter),
+                transactionCount: result.transactions.length,
+            };
+        },
+    };
 }
 
 export interface ListTransactionsOptions {
@@ -33,7 +95,7 @@ export function getEffectiveTransactionsQuery(query: string): string {
 
 export async function listTransactionsForExport(
     book: BookForExport,
-    options: ListTransactionsOptions,
+    options: ListTransactionsOptions
 ): Promise<TransactionsForExport> {
     const transactions: Transaction[] = [];
     const query = getEffectiveTransactionsQuery(options.query);

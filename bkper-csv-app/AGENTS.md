@@ -9,10 +9,10 @@ Platform replacement for the archived Apps Script CSV app. It adds an **Export C
 - Export-only.
 - Read-only: the app never creates, updates, checks, unchecks, trashes, or imports transactions.
 - Preserve the old app's default export behavior where practical:
-  - semicolon delimiter
-  - Book-formatted dates
-  - Book-formatted values
-  - `bkper_<timestamp>.csv` filename pattern
+    - semicolon delimiter
+    - Book-formatted dates
+    - Book-formatted values
+    - `bkper_<timestamp>.csv` filename pattern
 
 ## Architecture
 

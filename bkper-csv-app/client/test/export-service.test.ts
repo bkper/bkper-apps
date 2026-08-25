@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'bun:test';
+import { Transaction } from 'bkper-js';
+import { defaultExportOptions } from '../src/export-config';
 import {
+    createCsvExportService,
     getEffectiveTransactionsQuery,
     listTransactionsForExport,
     type BookForExport,
     type TransactionListForExport,
+    type TransactionsDataTableBuilderForExport,
 } from '../src/export-service';
 
 function transactionList(cursor?: string): TransactionListForExport {
@@ -73,4 +77,64 @@ describe('transaction export loading', () => {
 
         expect(calls).toEqual([{ cursor: undefined }, { cursor: 'next-page' }]);
     });
+
+    it('loads Book metadata and builds CSV through one service boundary', async () => {
+        const transaction = Object.create(Transaction.prototype) as Transaction;
+        const builder = createBuilder([
+            ['Date', 'Description'],
+            ['2026-08-25', 'Taxi; airport'],
+        ]);
+        const service = createCsvExportService({
+            async getBook(bookId) {
+                expect(bookId).toBe('book-123');
+                return {
+                    getName: () => 'Operations',
+                    async listTransactions(query) {
+                        expect(query).toBe('is:draft');
+                        return {
+                            async getAccount() {
+                                return undefined;
+                            },
+                            getCursor() {
+                                return undefined;
+                            },
+                            getItems() {
+                                return [transaction];
+                            },
+                        };
+                    },
+                    createTransactionsDataTable() {
+                        return builder;
+                    },
+                };
+            },
+        });
+
+        expect(await service.getBookName('book-123')).toBe('Operations');
+        expect(
+            await service.createCsv('book-123', {
+                query: 'is:draft',
+                options: defaultExportOptions,
+            })
+        ).toEqual({
+            csv: 'Date;Description\r\n2026-08-25;"Taxi; airport"',
+            transactionCount: 1,
+        });
+    });
 });
+
+function createBuilder(rows: unknown[][]): TransactionsDataTableBuilderForExport {
+    const builder: TransactionsDataTableBuilderForExport = {
+        formatDates: () => builder,
+        formatValues: () => builder,
+        recordedAt: () => builder,
+        ids: () => builder,
+        properties: () => builder,
+        hiddenProperties: () => builder,
+        urls: () => builder,
+        async build() {
+            return rows;
+        },
+    };
+    return builder;
+}

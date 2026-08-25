@@ -1,32 +1,33 @@
 {
-  "name": "bkper-csv-app",
-  "private": true,
-  "scripts": {
-    "clean": "rm -rf node_modules dist",
-    "predev": "bun install",
-    "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8789\"",
-    "dev:client": "vite dev",
-    "dev:server": "bkper app dev --sp 8789",
-    "prebuild": "bun install",
-    "build": "vite build && bkper app build",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "deploy": "bun run build && bkper app sync && bkper app deploy",
-    "deploy:preview": "bun run build && bkper app sync && bkper app deploy --preview"
-  },
-  "devDependencies": {
-    "bkper": "latest",
-    "concurrently": "^9",
-    "miniflare": "^4",
-    "prettier": "^3",
-    "typescript": "^5",
-    "vite": "^7"
-  },
-  "dependencies": {
-    "@awesome.me/webawesome": "latest",
-    "@bkper/web-auth": "^1.1.0",
-    "@bkper/web-design": "latest",
-    "bkper-js": "latest",
-    "lit": "^3.3.2"
-  }
+    "name": "bkper-csv-app",
+    "private": true,
+    "scripts": {
+        "clean": "rm -rf node_modules dist",
+        "predev": "bun install",
+        "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8789\"",
+        "dev:client": "vite dev",
+        "dev:server": "bkper app dev --sp 8789",
+        "prebuild": "bun install",
+        "build": "vite build && bkper app build",
+        "test": "bun test",
+        "typecheck": "tsc --noEmit",
+        "format": "prettier --check .",
+        "deploy": "bun run build && bkper app sync && bkper app deploy",
+        "deploy:preview": "bun run build && bkper app sync && bkper app deploy --preview"
+    },
+    "devDependencies": {
+        "bkper": "latest",
+        "concurrently": "^9",
+        "miniflare": "^4",
+        "prettier": "^3",
+        "typescript": "^5",
+        "vite": "^7"
+    },
+    "dependencies": {
+        "@awesome.me/webawesome": "latest",
+        "@bkper/web-auth": "^1.1.0",
+        "@bkper/web-design": "latest",
+        "bkper-js": "latest",
+        "lit": "^3.3.2"
+    }
 }

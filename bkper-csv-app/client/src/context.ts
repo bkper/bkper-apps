@@ -17,7 +17,7 @@ export interface AppUrlChangeContext {
 
 export function getAppUrlChange(
     event: AppUrlChangeEvent,
-    context: AppUrlChangeContext,
+    context: AppUrlChangeContext
 ): URL | null {
     if (event.source !== context.parent || event.origin !== context.bkperOrigin) {
         return null;

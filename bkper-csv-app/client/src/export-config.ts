@@ -25,6 +25,8 @@ export const defaultExportOptions: ExportOptions = {
 export function normalizeExportOptions(options: ExportOptions): ExportOptions {
     return {
         ...options,
-        includeHiddenProperties: options.includeProperties ? options.includeHiddenProperties : false,
+        includeHiddenProperties: options.includeProperties
+            ? options.includeHiddenProperties
+            : false,
     };
 }

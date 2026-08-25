@@ -13,7 +13,7 @@ export interface TransactionsDataTableBuilderLike {
 
 export function configureTransactionsDataTableBuilder<T extends TransactionsDataTableBuilderLike>(
     builder: T,
-    options: ExportOptions,
+    options: ExportOptions
 ): T {
     const normalizedOptions = normalizeExportOptions(options);
 

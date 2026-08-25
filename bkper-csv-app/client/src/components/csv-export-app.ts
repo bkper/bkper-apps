@@ -304,7 +304,7 @@ export class CsvExportApp extends LitElement {
             <section class="panel" aria-label="Export options">
                 <div class="panel-title">Options</div>
 
-                <div class="select-row">
+                <label class="select-row">
                     <span>CSV separator</span>
                     <select
                         .value=${this.options.delimiter}
@@ -313,7 +313,7 @@ export class CsvExportApp extends LitElement {
                         <option value=";">Semicolon (;)</option>
                         <option value=",">Comma (,)</option>
                     </select>
-                </div>
+                </label>
 
                 <label>
                     <input
@@ -422,11 +422,13 @@ export class CsvExportApp extends LitElement {
         return html`
             <div class="messages">
                 ${this.progressMessage
-                    ? html`<div class="message">${this.progressMessage}</div>`
+                    ? html`<div class="message" role="status" aria-live="polite">
+                          ${this.progressMessage}
+                      </div>`
                     : ''}
                 ${this.successMessage || this.downloadUrl
                     ? html`
-                          <div class="message success">
+                          <div class="message success" role="status" aria-live="polite">
                               ${this.successMessage ?? 'CSV ready.'}
                               ${this.downloadUrl && this.downloadFileName
                                   ? html`
@@ -445,7 +447,7 @@ export class CsvExportApp extends LitElement {
                       `
                     : ''}
                 ${this.errorMessage
-                    ? html`<div class="message error">${this.errorMessage}</div>`
+                    ? html`<div class="message error" role="alert">${this.errorMessage}</div>`
                     : ''}
             </div>
         `;

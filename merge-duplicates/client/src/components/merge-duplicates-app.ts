@@ -557,7 +557,7 @@ export class MergeDuplicatesApp extends LitElement {
         return html`
             <div class="loading-status" role="status">
                 <wa-spinner></wa-spinner>
-                <span>Looking for duplicates…</span>
+                <span>Looking for duplicates with AI…</span>
             </div>
         `;
     }

@@ -4,6 +4,7 @@ import { html, css, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { getAppUrlChange, getMenuContext } from '../context';
 import { createCsvFileName, dataTableToCsv } from '../csv';
+import { isExportAvailable, type AuthenticationStatus } from '../export-app-state';
 import { configureTransactionsDataTableBuilder } from '../export-builder';
 import {
     defaultExportOptions,
@@ -193,9 +194,9 @@ export class CsvExportApp extends LitElement {
     @state() private query = '';
     @state() private bookName: string | null = null;
     @state() private options: ExportOptions = { ...defaultExportOptions };
+    @state() private authenticationStatus: AuthenticationStatus = 'pending';
     @state() private loading = false;
     @state() private exporting = false;
-    @state() private loginRequired = false;
     @state() private errorMessage: string | null = null;
     @state() private progressMessage: string | null = null;
     @state() private successMessage: string | null = null;
@@ -220,12 +221,14 @@ export class CsvExportApp extends LitElement {
     private readonly auth = new BkperAuth({
         baseUrl: isLocalDev ? window.location.origin : undefined,
         onLoginSuccess: () => {
+            this.authenticationStatus = 'authenticated';
             void this.loadBookContext();
         },
         onLoginRequired: () => {
-            this.loginRequired = true;
+            this.authenticationStatus = 'required';
         },
         onError: error => {
+            this.authenticationStatus = 'error';
             this.errorMessage = `Authentication failed: ${toErrorMessage(error)}`;
         },
     });
@@ -253,9 +256,7 @@ export class CsvExportApp extends LitElement {
                 <h1>Export CSV</h1>
                 <p class="subtitle">Choose options and download transactions from this book.</p>
 
-                ${this.renderContext()}
-                ${this.loginRequired ? this.renderLogin() : this.renderExportForm()}
-                ${this.renderMessages()}
+                ${this.renderContext()} ${this.renderPrimaryContent()} ${this.renderMessages()}
             </main>
         `;
     }
@@ -269,6 +270,22 @@ export class CsvExportApp extends LitElement {
                 </div>
             </section>
         `;
+    }
+
+    private renderPrimaryContent() {
+        if (!this.bookId || this.authenticationStatus === 'error') {
+            return '';
+        }
+
+        if (this.authenticationStatus === 'pending' || this.loading) {
+            return html`<div class="message" role="status">Connecting to Bkper...</div>`;
+        }
+
+        if (this.authenticationStatus === 'required') {
+            return this.renderLogin();
+        }
+
+        return this.renderExportForm();
     }
 
     private renderLogin() {
@@ -376,7 +393,12 @@ export class CsvExportApp extends LitElement {
                 </button>
                 <button
                     class="primary"
-                    ?disabled=${this.loading || this.exporting || !this.bookId}
+                    ?disabled=${!isExportAvailable({
+                        authentication: this.authenticationStatus,
+                        loading: this.loading,
+                        exporting: this.exporting,
+                        bookId: this.bookId,
+                    })}
                     @click=${() => {
                         void this.exportCsv();
                     }}
@@ -437,7 +459,6 @@ export class CsvExportApp extends LitElement {
 
         this.loading = true;
         this.errorMessage = null;
-        this.loginRequired = false;
 
         try {
             const bkper = this.createBkperClient();

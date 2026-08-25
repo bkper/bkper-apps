@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { getMenuContext } from '../src/context';
+import { getAppUrlChange, getMenuContext } from '../src/context';
 
 describe('menu context', () => {
     it('reads the book and current transaction query from menu URL params', () => {
@@ -22,5 +22,86 @@ describe('menu context', () => {
         expect(getMenuContext('?bookId=book-123&query=%24%7Btransactions.query%7D').query).toBe(
             '',
         );
+    });
+
+    it('accepts trusted live app URL updates for this app origin', () => {
+        const parent = {};
+        const nextUrl = getAppUrlChange(
+            {
+                source: parent,
+                origin: 'https://bkper.app',
+                data: {
+                    type: 'bkper:app-url-changed',
+                    url: 'http://localhost:5176/?bookId=book-456&query=is%3Achecked',
+                },
+            },
+            {
+                parent,
+                bkperOrigin: 'https://bkper.app',
+                appOrigin: 'http://localhost:5176',
+            },
+        );
+
+        expect(nextUrl?.searchParams.get('bookId')).toBe('book-456');
+        expect(nextUrl?.searchParams.get('query')).toBe('is:checked');
+    });
+
+    it('rejects untrusted or malformed live app URL updates', () => {
+        const parent = {};
+        const expectedContext = {
+            parent,
+            bkperOrigin: 'https://bkper.app',
+            appOrigin: 'http://localhost:5176',
+        };
+
+        expect(
+            getAppUrlChange(
+                {
+                    source: {},
+                    origin: 'https://bkper.app',
+                    data: {
+                        type: 'bkper:app-url-changed',
+                        url: 'http://localhost:5176/?bookId=book-456',
+                    },
+                },
+                expectedContext,
+            ),
+        ).toBeNull();
+        expect(
+            getAppUrlChange(
+                {
+                    source: parent,
+                    origin: 'https://evil.example',
+                    data: {
+                        type: 'bkper:app-url-changed',
+                        url: 'http://localhost:5176/?bookId=book-456',
+                    },
+                },
+                expectedContext,
+            ),
+        ).toBeNull();
+        expect(
+            getAppUrlChange(
+                {
+                    source: parent,
+                    origin: 'https://bkper.app',
+                    data: {
+                        type: 'bkper:app-url-changed',
+                        url: 'https://evil.example/?bookId=book-456',
+                    },
+                },
+                expectedContext,
+            ),
+        ).toBeNull();
+        expect(
+            getAppUrlChange(
+                {
+                    source: parent,
+                    origin: 'https://bkper.app',
+                    data: { type: 'other', url: 'not a URL' },
+                },
+                expectedContext,
+            ),
+        ).toBeNull();
     });
 });

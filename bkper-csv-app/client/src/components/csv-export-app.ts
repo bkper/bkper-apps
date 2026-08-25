@@ -2,7 +2,7 @@ import { BkperAuth } from '@bkper/web-auth';
 import { Bkper } from 'bkper-js';
 import { html, css, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { getMenuContext } from '../context';
+import { getAppUrlChange, getMenuContext } from '../context';
 import { createCsvFileName, dataTableToCsv } from '../csv';
 import { configureTransactionsDataTableBuilder } from '../export-builder';
 import {
@@ -17,6 +17,7 @@ type BooleanExportOption = {
     [Key in keyof ExportOptions]: ExportOptions[Key] extends boolean ? Key : never;
 }[keyof ExportOptions];
 
+const BKPER_ORIGIN = 'https://bkper.app';
 const isLocalDev =
     window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -201,6 +202,21 @@ export class CsvExportApp extends LitElement {
     @state() private downloadUrl: string | null = null;
     @state() private downloadFileName: string | null = null;
 
+    private contextRevision = 0;
+    private readonly handleWindowMessage = (event: MessageEvent): void => {
+        const nextUrl = getAppUrlChange(event, {
+            parent: window.parent,
+            bkperOrigin: BKPER_ORIGIN,
+            appOrigin: window.location.origin,
+        });
+        if (!nextUrl) {
+            return;
+        }
+
+        window.history.replaceState(window.history.state, '', nextUrl);
+        this.applyMenuContext(nextUrl.search);
+    };
+
     private readonly auth = new BkperAuth({
         baseUrl: isLocalDev ? window.location.origin : undefined,
         onLoginSuccess: () => {
@@ -217,19 +233,16 @@ export class CsvExportApp extends LitElement {
     connectedCallback(): void {
         super.connectedCallback();
 
-        const context = getMenuContext(window.location.search);
-        this.bookId = context.bookId;
-        this.query = context.query;
+        this.applyMenuContext(window.location.search);
+        window.addEventListener('message', this.handleWindowMessage);
 
-        if (!this.bookId) {
-            this.errorMessage = 'Missing book context. Open this app from a Bkper book menu.';
-            return;
+        if (this.bookId) {
+            void this.auth.init();
         }
-
-        void this.auth.init();
     }
 
     disconnectedCallback(): void {
+        window.removeEventListener('message', this.handleWindowMessage);
         this.revokeDownloadUrl();
         super.disconnectedCallback();
     }
@@ -429,7 +442,9 @@ export class CsvExportApp extends LitElement {
         try {
             const bkper = this.createBkperClient();
             const book = await bkper.getBook(bookId);
-            this.bookName = book.getName() ?? bookId;
+            if (this.bookId === bookId) {
+                this.bookName = book.getName() ?? bookId;
+            }
         } catch (error) {
             this.errorMessage = toErrorMessage(error);
         } finally {
@@ -439,6 +454,8 @@ export class CsvExportApp extends LitElement {
 
     private async exportCsv(): Promise<void> {
         const bookId = this.bookId;
+        const query = this.query;
+        const contextRevision = this.contextRevision;
         if (!bookId) {
             return;
         }
@@ -453,11 +470,19 @@ export class CsvExportApp extends LitElement {
             const bkper = this.createBkperClient();
             const book = await bkper.getBook(bookId);
             const result = await listTransactionsForExport(book, {
-                query: this.query,
+                query,
                 onProgress: loaded => {
-                    this.progressMessage = `Loaded ${loaded.toLocaleString()} transactions...`;
+                    if (this.contextRevision === contextRevision) {
+                        this.progressMessage = `Loaded ${loaded.toLocaleString()} transactions...`;
+                    }
                 },
             });
+
+            if (this.contextRevision !== contextRevision) {
+                this.errorMessage = 'Book context changed. Review the current query and export again.';
+                this.progressMessage = null;
+                return;
+            }
 
             if (result.transactions.length === 0) {
                 this.errorMessage = 'No transactions found for this export.';
@@ -485,6 +510,32 @@ export class CsvExportApp extends LitElement {
             this.progressMessage = null;
         } finally {
             this.exporting = false;
+        }
+    }
+
+    private applyMenuContext(search: string): void {
+        const previousBookId = this.bookId;
+        const context = getMenuContext(search);
+
+        this.contextRevision += 1;
+        this.bookId = context.bookId;
+        this.query = context.query;
+        this.successMessage = null;
+        this.progressMessage = null;
+        this.clearDownload();
+
+        if (!this.bookId) {
+            this.bookName = null;
+            this.errorMessage = 'Missing book context. Open this app from a Bkper book menu.';
+            return;
+        }
+
+        this.errorMessage = null;
+        if (previousBookId !== this.bookId) {
+            this.bookName = null;
+            if (this.auth.getAccessToken()) {
+                void this.loadBookContext();
+            }
         }
     }
 

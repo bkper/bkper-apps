@@ -4,7 +4,7 @@
 
 **Chunks 1–11 complete — Chunk 12 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -628,19 +628,7 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 **Gate:** Pass — the deterministic API permission matrix and non-mutating operation stubs establish the pre-accounting authorization boundary.
 
-### Chunk 12 — Port Calculate
-
-**Status: Not started.**
-
-- Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
-- Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.
-- Port support Account lookup, creation, type inference, and Group inference.
-- Preserve canonical Portfolio split ids before dependent Financial and Base Book movements are created.
-- Preserve the ordered Portfolio, Financial, and Base Book batch phases and per-Account outcomes.
-
-**Zero-sum gate:** Every Calculate result is a complete movement with the accepted amount and direction, and a failed preflight or locked-resource path performs no mutation.
-
-### Chunk 13 — Port Reset and Full Reset
+### Chunk 12 — Port Reset and Full Reset
 
 **Status: Not started.**
 
@@ -650,6 +638,50 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Preserve mutation phases across Portfolio, Financial, and Base Books.
 
 **Gate:** Reset and Full Reset leave no unintended active movement, retain accepted forward-state differences, and perform no mutation when preflight or lock requirements fail.
+
+### Chunk 13 — Port Calculate
+
+**Status: Not started.**
+
+Regular Reset from Chunk 12 is an implementation dependency: when the legacy Calculate path finds `needs_rebuild`, it invokes regular Reset and returns instead of continuing calculation.
+
+This chunk is a parity port, not a calculation redesign. A `new/server/src/api/services/calculate/` subdirectory may organize the existing Calculate files, but it is only an organizational boundary. `CalculateRealizedResultsService` remains one service, its large `processSale` method remains one method, and its branch, lookup, property, relationship, and mutation order remain aligned with legacy. Existing helper-method boundaries remain intact; `CalculateRealizedResultsProcessor` remains a separate ordered mutation coordinator; `StockAccount` remains a separate shared wrapper; and Calculate dependencies extend the existing target `BotService` instead of being redistributed into newly designed rule, loader, rate, Account, or movement modules. Deeper modularization remains post-migration work.
+
+The agreed target structure preserves those boundaries explicitly:
+
+```text
+new/server/src/api/services/
+├── calculate-service.ts
+├── bot-service.ts
+├── stock-account.ts
+└── calculate/
+    ├── calculation-model.ts
+    ├── types.ts
+    ├── calculate-realized-results-processor.ts
+    └── calculate-realized-results-service.ts
+```
+
+`calculate-service.ts` remains the thin API facade, `bot-service.ts` is extended in place, `stock-account.ts` remains reusable by later operation ports, and `calculate/` mirrors only the legacy file-level decomposition.
+
+Planned committable subchunks are behavioral test slices rather than architectural extractions:
+
+1. Port supporting constants, calculation model, log types, and the async `StockAccount` adaptation without wiring Calculate.
+2. Port the legacy `BotService` methods required by Calculate, preserving price and rate precedence, FIFO comparison, gain calculations, query behavior, and support Account inference.
+3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, and ordered batch phases.
+4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior.
+5. Port the complete-lot and multiple-lot long FIFO paths in place inside `processSale`.
+6. Extend the same method with partial-purchase and partial-sale splits, preserving parent ids, properties, checked state, and canonical relationships.
+7. Extend the same method with short-sale behavior, preserving liquidation interpretation, logs, result direction, and order.
+8. Complete the historical-only, fair-only, and combined branches together with regular, historical, and interest MTM behavior without extracting strategies or a new calculation engine.
+9. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, return typed per-Book outcomes, and replace the non-mutating API stub only after the retained behavior is covered.
+
+- Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
+- Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.
+- Port support Account lookup, creation, type inference, and Group inference.
+- Preserve canonical Portfolio split ids before dependent Financial and Base Book movements are created.
+- Preserve the ordered Portfolio, Financial, and Base Book batch phases and per-Account outcomes.
+
+**Zero-sum gate:** Every Calculate result is a complete movement with the accepted amount and direction, and a failed preflight or locked-resource path performs no mutation.
 
 ### Chunk 14 — Port Forward Date and lower-date repair
 

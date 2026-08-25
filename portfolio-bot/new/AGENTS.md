@@ -4,11 +4,13 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1–10 are complete; Chunk 11 is in progress. The pending-calculation API now enforces view permission and Portfolio Bot installation, and Calculate, Reset, Full Reset, and Forward Date now invoke shared operation context resolution. Cross-Book mutation permission and installation preflight remains to be implemented. Legacy pending-task validation occurs only after an operation click and remains planned with the Chunk 15 operation-batch client.
+- Chunks 1–11 are complete; Chunk 12 ports Reset and Full Reset before Calculate in Chunk 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. The pending-calculation API enforces view permission and Portfolio Bot installation, and every mutation stub resolves and preflights its Portfolio, Financial, and Base Book context. Legacy pending-task validation occurs only after an operation click and remains planned with the Chunk 15 operation-batch client.
 - The legacy GCP event handler and Google Apps Script menu under `../legacy/` remain production-authoritative.
 - One target Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
 - Event dispatch, common orchestration, posted order processing, checked quantity mirroring, transaction lifecycle behavior, Account, Group, and Book synchronization, the typed menu API contract, and the pending-calculation Account query are deterministic.
 - Preserve the audited legacy accounting behavior during later migration chunks; do not combine migration with business-logic changes, redesigns, refactors, or optimizations.
+- Preserve the legacy file, class, function, branch, lookup, relationship, and mutation order during menu operation ports wherever target-runtime adaptation permits. Use committable behavioral test slices, not architectural extraction, to port large methods.
+- For Calculate specifically, any `api/services/calculate/` subdirectory is organizational only. Keep `CalculateRealizedResultsService.processSale` as one method during migration, retain the existing helper-method boundaries and separate processor class, and do not introduce a new rules engine, strategy hierarchy, or redesigned calculation pipeline.
 - Protect Bkper's zero-sum invariant above all else. Every posted transaction must remain one complete movement with one amount from an origin Account to a destination Account; unresolved movements retain their established non-balance-affecting behavior.
 - Tests must never write to live Books.
 

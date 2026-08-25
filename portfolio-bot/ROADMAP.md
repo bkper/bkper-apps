@@ -663,17 +663,14 @@ new/server/src/api/services/
 
 `calculate-service.ts` remains the thin API facade, `bot-service.ts` is extended in place, `stock-account.ts` remains reusable by later operation ports, and `calculate/` mirrors only the legacy file-level decomposition.
 
-Planned committable subchunks are behavioral test slices rather than architectural extractions:
+Planned committable subchunks follow the existing legacy file and method boundaries rather than splitting one large method into artificial intermediate implementations:
 
-1. Port supporting constants, calculation model, log types, and the async `StockAccount` adaptation without wiring Calculate.
+1. Port supporting constants, calculation model, log types, and the async `StockAccount` adaptation in the agreed target structure without wiring Calculate.
 2. Port the legacy `BotService` methods required by Calculate, preserving price and rate precedence, FIFO comparison, gain calculations, query behavior, and support Account inference.
-3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, and ordered batch phases.
-4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior.
-5. Port the complete-lot and multiple-lot long FIFO paths in place inside `processSale`.
-6. Extend the same method with partial-purchase and partial-sale splits, preserving parent ids, properties, checked state, and canonical relationships.
-7. Extend the same method with short-sale behavior, preserving liquidation interpretation, logs, result direction, and order.
-8. Complete the historical-only, fair-only, and combined branches together with regular, historical, and interest MTM behavior without extracting strategies or a new calculation engine.
-9. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, return typed per-Book outcomes, and replace the non-mutating API stub only after the retained behavior is covered.
+3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, ordered batch phases, and target API result tracking.
+4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior; keep them in `CalculateRealizedResultsService`.
+5. Port the complete `processSale` method in place as one parity unit, preserving its long, multiple-lot, partial, short-sale, split, historical-only, fair-only, combined, and MTM branches together with their exact branch, property, relationship, and mutation order. Cover the complete behavior matrix without extracting a new calculation engine or landing deliberately incomplete versions of the method.
+6. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, preserve transaction loading and FIFO sorting, return typed per-Book outcomes, and replace the non-mutating API stub only after the retained behavior is covered.
 
 - Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
 - Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.

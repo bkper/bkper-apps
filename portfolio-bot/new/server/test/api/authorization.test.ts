@@ -4,26 +4,28 @@ import { HTTPException } from 'hono/http-exception';
 import {
     requireAppInstallation,
     requireEditPermission,
+    requireOwnerPermission,
     requireViewPermission,
 } from '../../src/api/authorization.js';
 
 const cases = [
-    { permission: Permission.OWNER, canView: true, canEdit: true },
-    { permission: Permission.EDITOR, canView: true, canEdit: true },
-    { permission: Permission.POSTER, canView: true, canEdit: false },
-    { permission: Permission.VIEWER, canView: true, canEdit: false },
-    { permission: Permission.RECORDER, canView: false, canEdit: false },
-    { permission: Permission.NONE, canView: false, canEdit: false },
-    { permission: undefined, canView: false, canEdit: false },
+    { permission: Permission.OWNER, canView: true, canEdit: true, isOwner: true },
+    { permission: Permission.EDITOR, canView: true, canEdit: true, isOwner: false },
+    { permission: Permission.POSTER, canView: true, canEdit: false, isOwner: false },
+    { permission: Permission.VIEWER, canView: true, canEdit: false, isOwner: false },
+    { permission: Permission.RECORDER, canView: false, canEdit: false, isOwner: false },
+    { permission: Permission.NONE, canView: false, canEdit: false, isOwner: false },
+    { permission: undefined, canView: false, canEdit: false, isOwner: false },
 ] as const;
 
 describe('API Book authorization', () => {
-    test('uses explicit view and edit permission allowlists', () => {
-        for (const { permission, canView, canEdit } of cases) {
+    test('uses explicit view, edit, and owner permission allowlists', () => {
+        for (const { permission, canView, canEdit, isOwner } of cases) {
             const book = new Book({ id: 'book-id', permission });
 
             expectPermissionResult(() => requireViewPermission(book), canView);
             expectPermissionResult(() => requireEditPermission(book), canEdit);
+            expectPermissionResult(() => requireOwnerPermission(book), isOwner);
         }
     });
 
@@ -43,6 +45,13 @@ describe('API Book authorization', () => {
         expect(editError.message).toContain(Permission.EDITOR);
         expect(editError.message).toContain(Permission.OWNER);
         expect(editError.message).toContain('unavailable');
+
+        const ownerError = getHttpException(() =>
+            requireOwnerPermission(new Book({ permission: Permission.EDITOR }))
+        );
+        expect(ownerError.status).toBe(403);
+        expect(ownerError.message).toContain(Permission.OWNER);
+        expect(ownerError.message).toContain(Permission.EDITOR);
     });
 
     test('requires Portfolio Bot to be installed in the Book', async () => {

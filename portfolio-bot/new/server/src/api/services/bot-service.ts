@@ -113,6 +113,15 @@ export class BotService {
         return 'is:unchecked';
     }
 
+    isBookOpenAndUnlocked(book: Book): boolean {
+        const lockDate = book.getLockDate();
+        const closingDate = book.getClosingDate();
+        return (
+            (!lockDate || lockDate === '1900-00-00') &&
+            (!closingDate || closingDate === '1900-00-00')
+        );
+    }
+
     private getBookExcCode(book: Book): string | undefined {
         return book.getProperty(EXC_CODE_PROP, 'exchange_code');
     }

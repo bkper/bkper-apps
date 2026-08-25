@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–10 complete — Chunk 11 in progress.**
+**Chunks 1–11 complete — Chunk 12 not started.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 now protects the pending-calculation API with view and installation checks, and all four mutation stubs invoke shared fail-fast operation context resolution; cross-Book mutation authorization remains in progress. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The Chunk 9 contract exposes one read-only pending-calculation Account query and four Account-level operation routes backed by non-mutating stubs. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -612,22 +612,21 @@ The frozen dependency audit reports eight advisories across four affected toolin
 
 **Gate:** Pass — deterministic fixtures produce the accepted Account scope and operation availability.
 
-### Chunk 11 — Enforce API and client Book permissions
+### Chunk 11 — Enforce API Book permissions
 
-**Status: In progress.**
+**Status: Complete.**
 
 - Protected the pending-calculation API with explicit view permission and Portfolio Bot installation checks before its Account query.
-- Established and wired shared application-service orchestration that resolves and validates the Portfolio Book, Portfolio Account, Financial Book, and Base Book before every mutation stub reaches operation-specific preflight.
-- Enforce app installation and explicit operation-specific permission allowlists inside API services before mutation.
-- Use the resolved Portfolio, Financial, and Base Book context to preflight all required permissions before an operation's first write.
-- Keep Bkper Core authoritative for every request after the application preflight.
-- Enforce Full Reset and lower-forward-date owner and unlocked-Collection requirements at the server boundary.
-- Preserve upstream authentication, permission, validation, network, and server failures through structured API errors.
-- Gate client mutation controls from operation-specific authorization states without relying on hidden buttons as authorization.
-- Keep warnings distinct from blocking permission errors and prevent automatic retries for authorization failures or known accepted mutations.
-- Verify denied operations produce no Account, Transaction, Book, or balance mutation in any participating Book.
+- Established and wired shared application-service orchestration that resolves the Portfolio Book, Portfolio Account, Financial Book, and Base Book before every mutation stub.
+- Preflighted explicit `EDITOR` or `OWNER` permission and Portfolio Bot installation on every resolved mutation Book, validating a shared Financial and Base Book once.
+- Enforced Portfolio Book `OWNER` permission and the accepted Collection-wide open and unlocked requirement for Full Reset, including missing dates and the legacy `1900-00-00` sentinel.
+- Kept Bkper Core authoritative after application preflight and retained the structured API error boundary.
+- Kept all four operation implementations as non-mutating stubs; deterministic permission and service-wiring tests reject denied requests before later accounting behavior can begin.
+- Left lower-forward-date owner and Collection validation with the Forward Date behavior port in Chunk 14, where the requested date can be compared with established Account state.
+- Left mutation-control gating, warnings, and non-retry behavior with the operation client in Chunk 15; no mutation controls or operation retry workflow exist yet.
+- Verified the complete local gate with 88 client tests, 115 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
-**Gate:** The deterministic permission matrix and cross-Book no-side-effect assertions pass before accounting mutations are implemented.
+**Gate:** Pass — the deterministic API permission matrix and non-mutating operation stubs establish the pre-accounting authorization boundary.
 
 ### Chunk 12 — Port Calculate
 

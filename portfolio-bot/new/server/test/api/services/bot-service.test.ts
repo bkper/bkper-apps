@@ -77,6 +77,29 @@ function movement(
 }
 
 describe('legacy menu bot service', () => {
+    test('identifies an individual Book as open and unlocked', () => {
+        const service = createService();
+
+        expect(service.isBookOpenAndUnlocked(new Book({ id: 'open-book' }))).toBe(true);
+        expect(
+            service.isBookOpenAndUnlocked(
+                new Book({
+                    id: 'legacy-open-book',
+                    lockDate: '1900-00-00',
+                    closingDate: '1900-00-00',
+                })
+            )
+        ).toBe(true);
+        expect(
+            service.isBookOpenAndUnlocked(new Book({ id: 'locked-book', lockDate: '2026-08-05' }))
+        ).toBe(false);
+        expect(
+            service.isBookOpenAndUnlocked(
+                new Book({ id: 'closed-book', closingDate: '2026-08-05' })
+            )
+        ).toBe(false);
+    });
+
     test('selects the Base Book by explicit property and then USD fallback', () => {
         const service = createService();
         const explicitBase = createPortfolioBook({

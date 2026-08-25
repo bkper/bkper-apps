@@ -19,6 +19,10 @@ export function requireEditPermission(book: Book): void {
     requirePermission(book, EDIT_PERMISSIONS);
 }
 
+export function requireOwnerPermission(book: Book): void {
+    requirePermission(book, [Permission.OWNER]);
+}
+
 export async function requireAppInstallation(book: Book): Promise<void> {
     const apps = await book.getApps();
     if (!apps.some(app => app.getId() === APP_ID)) {

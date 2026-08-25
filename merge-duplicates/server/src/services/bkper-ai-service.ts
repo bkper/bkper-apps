@@ -2,6 +2,10 @@ import { isPlausiblePair, type TransactionFingerprint } from './candidate-servic
 
 export const PROMPT_VERSION = 'merge-duplicates-v6';
 const AI_URL = 'https://ai.bkper.app/v1/responses';
+const MAX_AI_TEXT_CHARACTERS = 500;
+const MAX_AI_PROPERTY_KEY_CHARACTERS = 30;
+const MAX_AI_PROPERTY_VALUE_CHARACTERS = 256;
+const MAX_AI_INPUT_BYTES = 500_000;
 
 interface ModelAttempt {
     model: 'gemini-flash' | 'gpt-luna' | 'deepseek-flash';
@@ -54,13 +58,14 @@ export async function analyzeCandidateTransactions(
 ): Promise<AiAnalysis> {
     if (transactions.length < 2) return { pairs: [] };
 
+    const inputText = buildAiInputText(transactions, learningExamples);
     const failures: AiAttemptFailure[] = [];
     for (const attempt of MODEL_ATTEMPTS) {
         let response: Response;
         try {
             response = await fetchWithTimeout(
                 fetcher,
-                buildAiRequest(attempt, transactions, learningExamples),
+                buildAiRequest(attempt, transactions, inputText),
                 attempt.timeoutMs
             );
         } catch (error) {
@@ -125,7 +130,7 @@ export async function analyzeCandidateTransactions(
 function buildAiRequest(
     attempt: ModelAttempt,
     transactions: readonly TransactionFingerprint[],
-    learningExamples: readonly string[]
+    inputText: string
 ): Request {
     return new Request(AI_URL, {
         method: 'POST',
@@ -138,10 +143,7 @@ function buildAiRequest(
                     content: [
                         {
                             type: 'input_text',
-                            text: JSON.stringify({
-                                humanRejectedPairs: learningExamples,
-                                candidateTransactions: toAiSnapshots(transactions),
-                            }),
+                            text: inputText,
                         },
                     ],
                 },
@@ -224,6 +226,42 @@ IMPORTANT: Every pair in humanRejectedPairs is a human-confirmed false positive 
 Never request a write. Return Strong only when the evidence is compelling; otherwise use Possible. Keep explanations under 140 characters.`;
 }
 
+function buildAiInputText(
+    transactions: readonly TransactionFingerprint[],
+    learningExamples: readonly string[]
+): string {
+    const snapshots = toAiSnapshots(transactions);
+    const withAllContext = serializeAiInput(snapshots, learningExamples);
+    if (inputByteLength(withAllContext) <= MAX_AI_INPUT_BYTES) return withAllContext;
+
+    const withoutLearning = serializeAiInput(snapshots, []);
+    if (inputByteLength(withoutLearning) <= MAX_AI_INPUT_BYTES) return withoutLearning;
+
+    const snapshotsWithoutProperties = snapshots.map(snapshot => {
+        const { properties: _properties, ...requiredContext } = snapshot;
+        return requiredContext;
+    });
+    const requiredContext = serializeAiInput(snapshotsWithoutProperties, []);
+    if (inputByteLength(requiredContext) <= MAX_AI_INPUT_BYTES) return requiredContext;
+
+    throw new BkperAiError(
+        400,
+        'analysis_input_too_large',
+        'Transaction context is too large to analyze safely.'
+    );
+}
+
+function serializeAiInput(
+    candidateTransactions: readonly Record<string, unknown>[],
+    humanRejectedPairs: readonly string[]
+): string {
+    return JSON.stringify({ humanRejectedPairs, candidateTransactions });
+}
+
+function inputByteLength(value: string): number {
+    return new TextEncoder().encode(value).byteLength;
+}
+
 function toAiSnapshots(
     transactions: readonly TransactionFingerprint[]
 ): Array<Record<string, unknown>> {
@@ -235,19 +273,34 @@ function toAiSnapshots(
             reference = accountReferences.size;
             accountReferences.set(account.id, reference);
         }
-        return { reference, name: account.name };
+        return { reference, name: truncateAiText(account.name) };
     };
 
     return transactions.map((transaction, index) => ({
         index,
         date: transaction.date,
         amount: transaction.amount,
-        description: transaction.description,
+        description: truncateAiText(transaction.description),
         fromAccount: accountSnapshot(transaction.fromAccount),
         toAccount: accountSnapshot(transaction.toAccount),
-        properties: transaction.properties,
+        properties: toAiProperties(transaction.properties),
         draft: transaction.draft,
     }));
+}
+
+function truncateAiText(value: string): string {
+    return value.slice(0, MAX_AI_TEXT_CHARACTERS);
+}
+
+function toAiProperties(properties: Readonly<Record<string, string>>): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(properties).filter(
+            ([key, value]) =>
+                !key.endsWith('_') &&
+                key.length <= MAX_AI_PROPERTY_KEY_CHARACTERS &&
+                value.length <= MAX_AI_PROPERTY_VALUE_CHARACTERS
+        )
+    );
 }
 
 function responseSchema(transactionCount: number): Record<string, unknown> {

@@ -104,6 +104,104 @@ describe('Bkper AI structured analysis', () => {
         expect(serializedPayload).not.toContain('secret-account');
     });
 
+    it('bounds text and omits hidden or oversized properties from the AI projection', async () => {
+        const oversizedKey = 'k'.repeat(31);
+        const boundedTransactions = transactions.map(transaction => ({
+            ...transaction,
+            description: 'd'.repeat(501),
+            fromAccount: transaction.fromAccount
+                ? { ...transaction.fromAccount, name: 'f'.repeat(501) }
+                : null,
+            toAccount: transaction.toAccount
+                ? { ...transaction.toAccount, name: 't'.repeat(501) }
+                : null,
+            properties: {
+                reference: 'invoice-123',
+                hidden_: 'private',
+                [oversizedKey]: 'oversized key',
+                oversized_value: 'v'.repeat(257),
+            },
+        }));
+        let captured: Request | undefined;
+
+        await analyzeCandidateTransactions(boundedTransactions, [], async input => {
+            captured = input instanceof Request ? input : new Request(input);
+            return completedResponse();
+        });
+
+        const body = (await captured?.json()) as {
+            input: Array<{ content: Array<{ text: string }> }>;
+        };
+        const payload = JSON.parse(body.input[0]?.content[0]?.text ?? '{}') as {
+            candidateTransactions: Array<{
+                description: string;
+                fromAccount: { name: string };
+                toAccount: { name: string };
+                properties: Record<string, string>;
+            }>;
+        };
+        for (const transaction of payload.candidateTransactions) {
+            expect(transaction.description).toHaveLength(500);
+            expect(transaction.fromAccount.name).toHaveLength(500);
+            expect(transaction.toAccount.name).toHaveLength(500);
+            expect(transaction.properties).toEqual({ reference: 'invoice-123' });
+        }
+    });
+
+    it('drops learning examples and optional properties before exceeding the input budget', async () => {
+        const properties = Object.fromEntries(
+            Array.from({ length: 1_100 }, (_, index) => [`property_${index}`, 'v'.repeat(256)])
+        );
+        const largeTransactions = transactions.map(transaction => ({
+            ...transaction,
+            properties,
+        }));
+        let captured: Request | undefined;
+
+        await analyzeCandidateTransactions(
+            largeTransactions,
+            ['learning context '.repeat(30_000)],
+            async input => {
+                captured = input instanceof Request ? input : new Request(input);
+                return completedResponse();
+            }
+        );
+
+        const body = (await captured?.json()) as {
+            input: Array<{ content: Array<{ text: string }> }>;
+        };
+        const payload = JSON.parse(body.input[0]?.content[0]?.text ?? '{}') as {
+            humanRejectedPairs: string[];
+            candidateTransactions: Array<Record<string, unknown>>;
+        };
+        expect(payload.humanRejectedPairs).toEqual([]);
+        expect(
+            payload.candidateTransactions.every(transaction => !('properties' in transaction))
+        ).toBe(true);
+    });
+
+    it('rejects oversized mandatory transaction context before calling AI', async () => {
+        const largeTransactions = Array.from({ length: 400 }, (_, index) => ({
+            ...pair.first,
+            id: `transaction-${index}`,
+            description: 'd'.repeat(500),
+            fromAccount: { id: 'from-account', name: 'f'.repeat(500) },
+            toAccount: { id: 'to-account', name: 't'.repeat(500) },
+        }));
+        let calls = 0;
+
+        const analysis = analyzeCandidateTransactions(largeTransactions, [], async () => {
+            calls += 1;
+            return completedResponse();
+        });
+
+        await expect(analysis).rejects.toMatchObject({
+            status: 400,
+            code: 'analysis_input_too_large',
+        });
+        expect(calls).toBe(0);
+    });
+
     it('accepts a selected draft pair despite conflicting discovered Accounts', async () => {
         const discoveredDraft: TransactionFingerprint = {
             ...pair.second,

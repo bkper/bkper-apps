@@ -90,7 +90,7 @@ function amount(transaction: Transaction): string | undefined {
     return (transaction.getAmount() as Amount | undefined)?.toString();
 }
 
-describe('legacy regular Reset behavior', () => {
+describe('legacy batched Reset behavior', () => {
     test('loads every page and restores parents while cleaning the complete linked result set', async () => {
         const fixture = createBooks();
         const sale = createTransaction(fixture.portfolioBook, 'sale', {
@@ -315,6 +315,90 @@ describe('legacy regular Reset behavior', () => {
         expect(accountUpdates).toBe(1);
         expect(fixture.account.getProperty('needs_rebuild')).toBeUndefined();
         expect(fixture.account.getProperty('realized_date')).toBeUndefined();
+    });
+
+    test('restores historical Transaction and Account state during Full Reset', async () => {
+        const fixture = createBooks();
+        fixture.account
+            .setProperty('forwarded_exc_rate', '1.25')
+            .setProperty('forwarded_price', '30');
+        const historicalSale = createTransaction(fixture.portfolioBook, 'historical-sale', {
+            original_amount: '70',
+            order: 'current-order',
+            hist_order: 'historical-order',
+            hist_quantity: '7',
+            date: '2024-03-15',
+            fwd_purchase_price: '8',
+            fwd_sale_price: '10',
+            fwd_purchase_exc_rate: '1.1',
+            fwd_sale_exc_rate: '1.2',
+            fwd_log: 'forward-log-id',
+        });
+        historicalSale.setDate('2025-03-31');
+        setMovement(historicalSale, fixture.instrument, fixture.sell);
+
+        let sourceQuery: string | undefined;
+        fixture.portfolioBook.listTransactions = async query => {
+            sourceQuery = query;
+            return transactionPage(fixture.portfolioBook, [historicalSale]);
+        };
+        fixture.financialBook.listTransactions = async () =>
+            transactionPage(fixture.financialBook, []);
+        fixture.baseBook.listTransactions = async () => transactionPage(fixture.baseBook, []);
+
+        const calls: BatchCall[] = [];
+        fixture.portfolioBook.batchUpdateTransactions = async (transactions, includeChecked) => {
+            calls.push({ phase: 'portfolio-update', transactions, includeChecked });
+            return transactions;
+        };
+        fixture.account.update = async () => {
+            calls.push({ phase: 'account-update', transactions: [], includeChecked: undefined });
+            return fixture.account;
+        };
+
+        const result = await new ResetRealizedResultsService().resetRealizedResultsForAccountAsync(
+            fixture.portfolioBook,
+            fixture.stockAccount,
+            true,
+            fixture.financialBook,
+            fixture.baseBook
+        );
+
+        expect(result).toBeInstanceOf(Summary);
+        expect(result.getResult()).toBe('"Reseting async..."');
+        expect(sourceQuery).toBe("account:'Instrument'");
+        expect(calls.map(call => call.phase)).toEqual(['portfolio-update', 'account-update']);
+        expect(calls[0]).toEqual({
+            phase: 'portfolio-update',
+            transactions: [historicalSale],
+            includeChecked: true,
+        });
+
+        expect(historicalSale.getDate()).toBe('2024-03-15');
+        expect(amount(historicalSale)).toBe('7');
+        expect(historicalSale.getProperty('order')).toBe('historical-order');
+        expect(historicalSale.getProperty('original_quantity')).toBe('7');
+        expect(historicalSale.getProperty('sale_price')).toBe('10');
+        for (const property of [
+            'date',
+            'hist_order',
+            'hist_quantity',
+            'fwd_purchase_price',
+            'fwd_sale_price',
+            'fwd_purchase_exc_rate',
+            'fwd_sale_exc_rate',
+            'fwd_log',
+        ]) {
+            expect(historicalSale.getProperty(property)).toBeUndefined();
+        }
+        expect(await historicalSale.getCreditAccount()).toBe(fixture.instrument);
+        expect(await historicalSale.getDebitAccount()).toBe(fixture.sell);
+
+        expect(fixture.account.getProperty('needs_rebuild')).toBeUndefined();
+        expect(fixture.account.getProperty('realized_date')).toBeUndefined();
+        expect(fixture.account.getProperty('forwarded_date')).toBeUndefined();
+        expect(fixture.account.getProperty('forwarded_exc_rate')).toBeUndefined();
+        expect(fixture.account.getProperty('forwarded_price')).toBeUndefined();
     });
 
     test('performs no Book or Account write when any queued Transaction is locked', async () => {

@@ -1,8 +1,11 @@
 import { Amount, type Book, type Transaction } from 'bkper-js';
 import {
+    DATE_PROP,
     EXC_RATE_PROP,
     FWD_LIQUIDATION_PROP,
+    FWD_LOG_PROP,
     FWD_PURCHASE_AMOUNT_PROP,
+    FWD_PURCHASE_EXC_RATE_PROP,
     FWD_PURCHASE_LOG_PROP,
     FWD_PURCHASE_PRICE_PROP,
     FWD_SALE_AMOUNT_PROP,
@@ -11,7 +14,10 @@ import {
     FWD_TX_PROP,
     GAIN_AMOUNT_HIST_PROP,
     GAIN_AMOUNT_PROP,
+    HIST_ORDER_PROP,
+    HIST_QUANTITY_PROP,
     LIQUIDATION_LOG_PROP,
+    ORDER_PROP,
     ORIGINAL_AMOUNT_PROP,
     ORIGINAL_QUANTITY_PROP,
     PURCHASE_AMOUNT_PROP,
@@ -39,10 +45,6 @@ export class ResetRealizedResultsService {
         financialBook: Book,
         baseBook: Book
     ): Promise<Summary> {
-        if (full) {
-            throw new Error('Full Reset behavior is not implemented yet.');
-        }
-
         const query = this.botService.getAccountQuery(stockAccount, full);
         const summary = new Summary(stockAccount.getId()!);
         const transactions = await this.listTransactions(stockBook, query);
@@ -148,6 +150,27 @@ export class ResetRealizedResultsService {
                 let originalAmountProp = tx.getProperty(ORIGINAL_AMOUNT_PROP);
                 let originalQuantityProp = tx.getProperty(ORIGINAL_QUANTITY_PROP);
 
+                if (full) {
+                    tx.setProperty(ORDER_PROP, tx.getProperty(HIST_ORDER_PROP));
+                    const originalDate = tx.getProperty(DATE_PROP);
+                    if (originalDate) {
+                        tx.setDate(originalDate);
+                    }
+                    const histQuantity = tx.getProperty(HIST_QUANTITY_PROP);
+                    if (histQuantity) {
+                        tx.setProperty(ORIGINAL_QUANTITY_PROP, histQuantity);
+                        originalQuantityProp = histQuantity;
+                    }
+                    tx.deleteProperty(DATE_PROP)
+                        .deleteProperty(HIST_ORDER_PROP)
+                        .deleteProperty(HIST_QUANTITY_PROP)
+                        .deleteProperty(FWD_PURCHASE_PRICE_PROP)
+                        .deleteProperty(FWD_SALE_PRICE_PROP)
+                        .deleteProperty(FWD_PURCHASE_EXC_RATE_PROP)
+                        .deleteProperty(FWD_SALE_EXC_RATE_PROP)
+                        .deleteProperty(FWD_LOG_PROP);
+                }
+
                 if (!originalQuantityProp) {
                     processor.setStockBookTransactionToTrash(tx);
                 } else {
@@ -215,6 +238,13 @@ export class ResetRealizedResultsService {
         await processor.fireBatchOperations();
 
         stockAccount.clearNeedsRebuild();
+        if (full) {
+            stockAccount
+                .deleteRealizedDate()
+                .deleteForwardedDate()
+                .deleteForwardedExcRate()
+                .deleteForwardedPrice();
+        }
 
         let forwardedDate = stockAccount.getForwardedDate();
         if (forwardedDate) {

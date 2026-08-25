@@ -15,7 +15,7 @@
     "deploy:preview": "bun run build && bkper app sync && bkper app deploy --preview"
   },
   "devDependencies": {
-    "bkper": "^4.16.0",
+    "bkper": "latest",
     "concurrently": "^9",
     "miniflare": "^4",
     "prettier": "^3",
@@ -23,9 +23,9 @@
     "vite": "^7"
   },
   "dependencies": {
-    "@awesome.me/webawesome": "3.11.0",
-    "@bkper/web-auth": "latest",
-    "@bkper/web-design": "2.1.0",
+    "@awesome.me/webawesome": "latest",
+    "@bkper/web-auth": "^1.1.0",
+    "@bkper/web-design": "latest",
     "bkper-js": "latest",
     "lit": "^3.3.2"
   }

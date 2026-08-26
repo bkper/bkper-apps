@@ -12,13 +12,17 @@ export class CalculateService extends OperationService {
         context: AppContext,
         bookId: string
     ): Promise<string[]> {
-        const stockBook = await context.bkper.getBook(bookId, true);
-        requireViewPermission(stockBook);
-        await requireAppInstallation(stockBook);
+        const portfolioBook = await this.loadFullBook(context, bookId);
+        requireViewPermission(portfolioBook);
+        await requireAppInstallation(portfolioBook);
 
         const botService = new BotService();
-        const baseBook = botService.getBaseBook(stockBook);
-        const accounts = await botService.getUncalculatedAccounts(stockBook, baseBook ?? undefined);
+        const baseBook = botService.getBaseBook(portfolioBook);
+        const accounts = await botService.getUncalculatedAccounts(
+            portfolioBook,
+            baseBook ?? undefined
+        );
+
         const accountIds: string[] = [];
         for (const account of accounts) {
             const accountId = account.getId();
@@ -26,6 +30,7 @@ export class CalculateService extends OperationService {
                 accountIds.push(accountId);
             }
         }
+
         return accountIds;
     }
 

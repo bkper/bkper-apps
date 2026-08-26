@@ -114,10 +114,9 @@ describe('bkper-js server compatibility', () => {
         }) as unknown as typeof fetch;
 
         const accounts = await book.getAccounts();
+        const groups = await book.getGroups();
         const accountGroups = await Promise.all(accounts.map(account => account.getGroups()));
-        const groupAccounts = await Promise.all(
-            (await book.getGroups()).map(group => group.getAccounts())
-        );
+        const groupAccounts = await Promise.all(groups.map(group => group.getAccounts()));
 
         expect(accountGroups.map(groups => groups.map(group => group.getId()))).toEqual([
             ['group-1'],
@@ -127,6 +126,8 @@ describe('bkper-js server compatibility', () => {
             ['account-1'],
             [],
         ]);
+        expect(await accounts[0]!.isInGroup(groups[0]!)).toBe(true);
+        expect(await accounts[1]!.isInGroup(groups[0]!)).toBe(false);
         expect(requests).toBe(0);
     });
 });

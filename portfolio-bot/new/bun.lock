@@ -19,7 +19,7 @@
         "@bkper/web-auth": "1.1.0",
         "@bkper/web-components": "0.2.0",
         "@bkper/web-design": "2.1.0",
-        "bkper-js": "2.42.0",
+        "bkper-js": "2.43.3",
         "lit": "3.3.3",
       },
       "devDependencies": {
@@ -33,7 +33,7 @@
       "name": "portfolio-bot-server",
       "dependencies": {
         "@hono/zod-openapi": "1.5.1",
-        "bkper-js": "2.42.0",
+        "bkper-js": "2.43.3",
         "hono": "4.13.0",
         "zod": "4.4.3",
       },
@@ -455,7 +455,7 @@
 
     "bkper": ["bkper@4.24.3", "", { "dependencies": { "@earendil-works/pi-coding-agent": "0.84.1", "@earendil-works/pi-tui": "0.84.1", "bkper-js": "^2.42.0", "commander": "^13.1.0", "dotenv": "^8.2.0", "esbuild": "^0.27.2", "google-auth-library": "^10.5.0", "mime": "^4.1.0", "openapi-fetch": "^0.15.0", "tar": "^7.0.0", "yaml": "^2.5.1" }, "bin": { "bkper": "lib/cli.js" } }, "sha512-6OIaFpN/PI6t5GCqrh6/0wRE4kDuRuGPqp61nUO+wxRGMGONzo2H5GS/yY5vY1ES6NUcaWAT2my5mA1m4ug9mw=="],
 
-    "bkper-js": ["bkper-js@2.42.0", "", { "dependencies": { "@bkper/bkper-api-types": "^5.44.0", "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" } }, "sha512-r5dowuwHcJC+ZAvg1WSgMZPrXj2oXvvJ18cygvnLGwXMOLi6vjxU7zhCJ3JcxPqQvSZU/vqL0t4eNJ2hkhlpJA=="],
+    "bkper-js": ["bkper-js@2.43.3", "", { "dependencies": { "@bkper/bkper-api-types": "^5.44.0", "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" } }, "sha512-aSucDm1L5AHX7WU6qCZlNXsNIJ9UJg5H8GEfOAtdDaUtpQp16SELNHekvBdaGq3NrA/0Qnq3a3U2pFk/GAwDkQ=="],
 
     "bowser": ["bowser@2.14.1", "", {}, "sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg=="],
 
@@ -516,10 +516,6 @@
     "esbuild": ["esbuild@0.27.7", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.27.7", "@esbuild/android-arm": "0.27.7", "@esbuild/android-arm64": "0.27.7", "@esbuild/android-x64": "0.27.7", "@esbuild/darwin-arm64": "0.27.7", "@esbuild/darwin-x64": "0.27.7", "@esbuild/freebsd-arm64": "0.27.7", "@esbuild/freebsd-x64": "0.27.7", "@esbuild/linux-arm": "0.27.7", "@esbuild/linux-arm64": "0.27.7", "@esbuild/linux-ia32": "0.27.7", "@esbuild/linux-loong64": "0.27.7", "@esbuild/linux-mips64el": "0.27.7", "@esbuild/linux-ppc64": "0.27.7", "@esbuild/linux-riscv64": "0.27.7", "@esbuild/linux-s390x": "0.27.7", "@esbuild/linux-x64": "0.27.7", "@esbuild/netbsd-arm64": "0.27.7", "@esbuild/netbsd-x64": "0.27.7", "@esbuild/openbsd-arm64": "0.27.7", "@esbuild/openbsd-x64": "0.27.7", "@esbuild/openharmony-arm64": "0.27.7", "@esbuild/sunos-x64": "0.27.7", "@esbuild/win32-arm64": "0.27.7", "@esbuild/win32-ia32": "0.27.7", "@esbuild/win32-x64": "0.27.7" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-IxpibTjyVnmrIQo5aqNpCgoACA/dTKLTlhMHihVHhdkxKyPO1uBBthumT0rdHmcsk9uMonIWS0m4FljWzILh3w=="],
 
     "escalade": ["escalade@3.2.0", "", {}, "sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA=="],
-
-    "exchange-bot-client": ["exchange-bot-client@workspace:client"],
-
-    "exchange-bot-server": ["exchange-bot-server@workspace:server"],
 
     "extend": ["extend@3.0.2", "", {}, "sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g=="],
 
@@ -651,6 +647,10 @@
 
     "pluralize": ["pluralize@8.0.0", "", {}, "sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA=="],
 
+    "portfolio-bot-client": ["portfolio-bot-client@workspace:client"],
+
+    "portfolio-bot-server": ["portfolio-bot-server@workspace:server"],
+
     "postcss": ["postcss@8.5.25", "", { "dependencies": { "nanoid": "^3.3.16", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw=="],
 
     "prettier": ["prettier@3.9.6", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g=="],
@@ -764,6 +764,8 @@
     "@poppinss/dumper/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
 
     "@redocly/openapi-core/minimatch": ["minimatch@5.1.9", "", { "dependencies": { "brace-expansion": "^2.0.1" } }, "sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw=="],
+
+    "bkper/bkper-js": ["bkper-js@2.42.0", "", { "dependencies": { "@bkper/bkper-api-types": "^5.44.0", "big.js": "^6.0.3", "dayjs": "^1.10.3", "luxon": "^1.25.0", "uuid": "^11.0.3" } }, "sha512-r5dowuwHcJC+ZAvg1WSgMZPrXj2oXvvJ18cygvnLGwXMOLi6vjxU7zhCJ3JcxPqQvSZU/vqL0t4eNJ2hkhlpJA=="],
 
     "chalk/supports-color": ["supports-color@7.2.0", "", { "dependencies": { "has-flag": "^4.0.0" } }, "sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw=="],
 

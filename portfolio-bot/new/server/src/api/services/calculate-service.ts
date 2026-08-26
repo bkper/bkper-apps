@@ -8,6 +8,15 @@ import { OperationService } from './operation-service.js';
 import { SummaryState } from './summary.js';
 
 export class CalculateService extends OperationService {
+    /**
+     * Lists Portfolio Account ids that have pending calculation work.
+     *
+     * @param context - Request-scoped Bkper application context.
+     * @param bookId - Portfolio Book id.
+     *
+     * @returns The ids of Accounts pending calculation, in Portfolio chart order.
+     * @throws When the Book cannot be viewed or Portfolio Bot is not installed.
+     */
     static async listAccountsPendingCalculation(
         context: AppContext,
         bookId: string
@@ -36,6 +45,17 @@ export class CalculateService extends OperationService {
         return accountIds;
     }
 
+    /**
+     * Calculates realized results for one Portfolio Account.
+     *
+     * @param context - Request-scoped Bkper application context.
+     * @param bookId - Portfolio Book id.
+     * @param accountId - Portfolio Account id to calculate.
+     * @param request - Calculation date and mark-to-market intent.
+     *
+     * @returns A response containing the calculation status message.
+     * @throws When context validation fails or calculation encounters a locked movement.
+     */
     static async execute(
         context: AppContext,
         bookId: string,

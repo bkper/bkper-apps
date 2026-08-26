@@ -8,6 +8,16 @@ import { ResetRealizedResultsService } from './reset/reset-realized-results-serv
 import { SummaryState } from './summary.js';
 
 export class ResetService extends OperationService {
+    /**
+     * Resets realized results for one Portfolio Account.
+     *
+     * @param context - Request-scoped Bkper application context.
+     * @param bookId - Portfolio Book id.
+     * @param accountId - Portfolio Account id to reset.
+     * 
+     * @returns A response containing the reset status message.
+     * @throws When context validation fails or Reset encounters a locked movement.
+     */
     static async execute(
         context: AppContext,
         bookId: string,
@@ -21,6 +31,16 @@ export class ResetService extends OperationService {
         return this.runReset(operationContext, false);
     }
 
+    /**
+     * Fully resets realized and forward state for one Portfolio Account.
+     *
+     * @param context - Request-scoped Bkper application context.
+     * @param bookId - Portfolio Book id.
+     * @param accountId - Portfolio Account id to fully reset.
+     * 
+     * @returns A response containing the full-reset status message.
+     * @throws When context, ownership, Collection lock, or movement lock validation fails.
+     */
     static async executeFull(
         context: AppContext,
         bookId: string,

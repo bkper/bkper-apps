@@ -12,6 +12,8 @@ export class CalculateService extends OperationService {
         context: AppContext,
         bookId: string
     ): Promise<string[]> {
+        // Pending calculation scans the Portfolio chart and only reads Base Book
+        // exchange-code metadata, so no additional full Book load is needed.
         const portfolioBook = await this.loadFullBook(context, bookId);
         requireViewPermission(portfolioBook);
         await requireAppInstallation(portfolioBook);

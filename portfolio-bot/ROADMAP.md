@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–12 complete — Chunk 13 in progress (Subchunks 1–3 complete).**
+**Chunks 1–12 complete — Chunk 13 in progress (Subchunks 1–4 complete).**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, and ordered mutation processor without wiring Calculate. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, and existing Calculate helper behavior without wiring Calculate. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -392,14 +392,15 @@ Drift audits occur before preview routing, production deployment, each productio
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
 | GCF event ingress | Current `GROUP_DELETED` dispatch is explicitly accepted over the older production artifact | Retained event-dispatch and missing-Group behavior tests | Dispatch and Group deletion behavior ported |
+| Target SDK Account–Group membership | Upgraded `bkper-js` 2.42.0 to 2.43.3 so `Account.isInGroup(Group)` recognizes embedded Group payloads used by Calculate Account inference | `shared/bkper-js-compatibility.test.ts` embedded Account–Group membership assertions | Client and server pins updated; complete local gate verified |
 
 ### Accepted target-runtime differences
 
-These differences are deliberate consequences of moving from the deployed `bkper-js` 2.18.0 runtime to the target `bkper-js` 2.42.0 Platform runtime. They are accepted runtime behavior, not silent Portfolio Bot domain changes.
+These differences are deliberate consequences of moving from the deployed `bkper-js` 2.18.0 runtime to the target `bkper-js` 2.43.3 Platform runtime. They are accepted runtime behavior, not silent Portfolio Bot domain changes.
 
-| Boundary | Deployed 2.18.0 behavior | Target 2.42.0 behavior | Migration decision |
+| Boundary | Deployed 2.18.0 behavior | Target 2.43.3 behavior | Migration decision |
 | --- | --- | --- | --- |
-| Account–Group resolution | `Account.getGroups()` performs an Account-specific Group request | `Account.getGroups()` loads and reuses the Book Group cache, then resolves the Account's embedded Group ids against that cache | Accept the current SDK lifecycle; do not load complete Books upfront or add Portfolio Bot lookup workarounds |
+| Account–Group resolution | `Account.getGroups()` performs an Account-specific Group request | `Account.getGroups()` loads and reuses the Book Group cache, resolves the Account's embedded Group ids against that cache, and `Account.isInGroup(Group)` recognizes those embedded relationships | Accept the current SDK lifecycle; do not load complete Books upfront or add Portfolio Bot lookup workarounds |
 | Request retries | The SDK retries broadly for non-400 and non-404 responses, including conflicts, with up to four retries after the initial request | The SDK retries only authentication, transient, rate-limit, server, and network failures, with at most three retries; conflicts such as `409` fail immediately | Accept the narrower modern retry policy; do not reproduce legacy conflict retries in Portfolio Bot |
 | API errors | API failures commonly propagate as plain strings | API failures propagate as structured `BkperError` values; event ingress records stack lines when available and logs retain richer diagnostics | Accept the structured error and response-presentation difference; it does not itself add a mutation, retry, or movement |
 
@@ -730,7 +731,7 @@ Post-chunk Summary adjustment:
 
 ### Chunk 13 — Port Calculate
 
-**Status: In progress — Subchunks 1–3 complete.**
+**Status: In progress — Subchunks 1–4 complete.**
 
 Regular Reset from Chunk 12 is an implementation dependency: when the legacy Calculate path finds `needs_rebuild`, it invokes regular Reset and returns instead of continuing calculation.
 
@@ -782,6 +783,13 @@ Subchunk 3 evidence:
 - Preserved canonical Portfolio id replacement for realized, historical, FX, historical-FX, MTM, and historical-MTM relationships before awaiting the Portfolio update, Financial create, and Base create phases in legacy order.
 - Kept the Calculate API stub non-mutating and unwired, and added no response tracking.
 - Verified the complete local gate with 95 client tests, 144 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+
+Subchunk 4 evidence:
+
+- Ported the existing Calculate helper methods for logs, exchange-rate recording, Account lookup and creation, realized and FX results, regular and historical MTM, interest-MTM, balance reads, and Account-date behavior into `CalculateRealizedResultsService`.
+- Preserved legacy rate precedence, support Account and Group inference, remote-id prefixes, descriptions, properties, movement directions, and zero-result no-ops with explicit asynchronous SDK boundaries.
+- Kept `processSale`, Calculate orchestration, the API stub, routes, schemas, and response tracking unchanged and unwired.
+- Added five focused deterministic helper tests and verified the complete local gate with 95 client tests, 149 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 - Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
 - Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.

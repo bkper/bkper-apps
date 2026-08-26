@@ -1,7 +1,14 @@
-import { describe, expect, test } from 'bun:test';
-import { Account, AccountType, Book, Transaction, TransactionList } from 'bkper-js';
+import { afterEach, describe, expect, test } from 'bun:test';
+import { Account, AccountType, Amount, Book, Transaction, TransactionList } from 'bkper-js';
 import { BotService } from '../../../src/api/services/bot-service.js';
+import { CalculationModel } from '../../../src/api/services/calculate/types.js';
 import { StockAccount } from '../../../src/api/services/stock-account.js';
+
+const originalAccountCreate = Account.prototype.create;
+
+afterEach(() => {
+    Account.prototype.create = originalAccountCreate;
+});
 
 function createService(): BotService {
     return new BotService();
@@ -248,5 +255,240 @@ describe('legacy menu bot service', () => {
             { query: 'is:unchecked', cursor: undefined },
             { query: 'is:unchecked', cursor: 'next-page' },
         ]);
+    });
+
+    test('preserves calculation model, before-date, and FIFO precedence', () => {
+        const service = createService();
+        const book = createPortfolioBook();
+        const first = new Transaction(book, {
+            dateValue: 20250101,
+            createdAt: '1735689600100',
+            properties: { order: '1' },
+        });
+        const laterOrder = new Transaction(book, {
+            dateValue: 20250101,
+            createdAt: '1735689600100',
+            properties: { order: '2' },
+        });
+        const laterCreation = new Transaction(book, {
+            dateValue: 20250101,
+            createdAt: '1735689600900',
+            properties: { order: '1' },
+        });
+        const laterDate = new Transaction(book, { dateValue: 20250102 });
+
+        expect(
+            service.getCalculationModel(
+                createPortfolioBook({ properties: { stock_historical: ' TRUE ' } })
+            )
+        ).toBe(CalculationModel.HISTORICAL_ONLY);
+        expect(
+            service.getCalculationModel(createPortfolioBook({ properties: { stock_fair: 'true' } }))
+        ).toBe(CalculationModel.FAIR_ONLY);
+        expect(service.getCalculationModel(book)).toBe(CalculationModel.BOTH);
+        expect(service.getBeforeDateIsoString(book, '2024-02-29')).toBe('2024-03-01');
+        expect(service.compareToFIFO(laterDate, first)).toBeGreaterThan(0);
+        expect(service.compareToFIFO(laterOrder, first)).toBe(1);
+        expect(service.compareToFIFO(laterCreation, first)).toBe(800);
+    });
+
+    test('preserves price, rate, and gain precedence', () => {
+        const service = createService();
+        const book = createPortfolioBook();
+        const transaction = new Transaction(book, {
+            properties: {
+                price: '30',
+                sale_price: '20',
+                sale_price_hist: '10',
+                fwd_sale_price: '40',
+                purchase_price: '21',
+                purchase_price_hist: '11',
+                fwd_purchase_price: '41',
+                trade_exc_rate: '1.2',
+                trade_exc_rate_hist: '1.1',
+                fwd_sale_exc_rate: '1.3',
+            },
+        });
+
+        expect(service.getHistSalePrice(transaction).toString()).toBe('10');
+        expect(service.getSalePrice(transaction).toString()).toBe('40');
+        expect(service.getHistPurchasePrice(transaction).toString()).toBe('11');
+        expect(service.getPurchasePrice(transaction).toString()).toBe('41');
+        expect(service.getTradeExcRate(transaction)?.toString()).toBe('1.1');
+        expect(service.getFwdExcRate(transaction, 'fwd_sale_exc_rate', undefined)?.toString()).toBe(
+            '1.3'
+        );
+        expect(
+            service
+                .calculateGainBaseNoFX(new Amount(10), new Amount(2), new Amount(3), false)
+                .toString()
+        ).toBe('30');
+        expect(
+            service
+                .calculateGainBaseNoFX(new Amount(10), new Amount(2), new Amount(3), true)
+                .toString()
+        ).toBe('20');
+        expect(
+            service
+                .calculateGainBaseWithFX(new Amount(5), new Amount(2), new Amount(8), new Amount(3))
+                .toString()
+        ).toBe('14');
+        expect(
+            service
+                .calculateGainBaseWithFX(new Amount(5), undefined, new Amount(8), new Amount(3))
+                .toString()
+        ).toBe('0');
+    });
+
+    test('resolves the first replicated exchange rate across remote ids and pages', async () => {
+        const service = createService();
+        const financialBook = new Book({
+            id: 'financial-book',
+            properties: { exc_code: 'EUR' },
+            collection: {
+                books: [
+                    {
+                        id: 'base-book',
+                        properties: { exc_base: 'true', exc_code: 'USD' },
+                    },
+                    { id: 'financial-book', properties: { exc_code: 'EUR' } },
+                ],
+            },
+        });
+        const baseBook = new Book({ id: 'base-book', properties: { exc_code: 'USD' } });
+        const portfolioBook = createPortfolioBook();
+        const stockTransaction = new Transaction(portfolioBook, {
+            remoteIds: ['first-financial', 'second-financial'],
+        });
+        const providedRateTransaction = new Transaction(portfolioBook, {
+            remoteIds: ['first-financial'],
+            properties: { trade_exc_rate_hist: '1.25', sale_exc_rate: '9' },
+        });
+        const storedRateTransaction = new Transaction(portfolioBook, {
+            remoteIds: ['first-financial'],
+            properties: { sale_exc_rate: '1.5' },
+        });
+        financialBook.getTransaction = async id => new Transaction(financialBook, { id });
+        const requests: Array<{ query?: string; cursor?: string }> = [];
+        baseBook.listTransactions = async (query, _limit, cursor) => {
+            requests.push({ query, cursor });
+            if (query === 'remoteId:first-financial') {
+                return new TransactionList(baseBook, { items: [] });
+            }
+            if (!cursor) {
+                return new TransactionList(baseBook, { items: [], cursor: 'next-page' });
+            }
+            return new TransactionList(baseBook, {
+                items: [{ id: 'base-transaction', properties: { exc_base_rate: '1.75' } }],
+            });
+        };
+
+        expect(
+            (
+                await service.getExcRate(
+                    baseBook,
+                    financialBook,
+                    providedRateTransaction,
+                    'sale_exc_rate'
+                )
+            )?.toString()
+        ).toBe('1.25');
+        expect(
+            (
+                await service.getExcRate(
+                    baseBook,
+                    financialBook,
+                    storedRateTransaction,
+                    'sale_exc_rate'
+                )
+            )?.toString()
+        ).toBe('1.5');
+        expect(requests).toEqual([]);
+
+        const rate = await service.getExcRate(
+            baseBook,
+            financialBook,
+            stockTransaction,
+            'sale_exc_rate'
+        );
+
+        expect(rate?.toString()).toBe('1.75');
+        expect(requests).toEqual([
+            { query: 'remoteId:first-financial', cursor: undefined },
+            { query: 'remoteId:second-financial', cursor: undefined },
+            { query: 'remoteId:second-financial', cursor: 'next-page' },
+        ]);
+    });
+
+    test('infers and creates support Accounts from the established chart', async () => {
+        const service = createService();
+        const book = new Book({
+            id: 'financial-book',
+            groups: [
+                { id: 'common', name: 'Common' },
+                { id: 'partial', name: 'Partial' },
+            ],
+            accounts: [
+                {
+                    id: 'alpha',
+                    name: 'Alpha Unrealized',
+                    type: AccountType.ASSET,
+                    groups: [{ id: 'common' }, { id: 'partial' }],
+                },
+                {
+                    id: 'beta',
+                    name: 'Beta Unrealized',
+                    type: AccountType.ASSET,
+                    groups: [{ id: 'common' }],
+                },
+                {
+                    id: 'interest',
+                    name: 'instrument interest',
+                    type: AccountType.INCOMING,
+                },
+                {
+                    id: 'holder',
+                    name: 'Holder',
+                    type: AccountType.ASSET,
+                    properties: { exc_account: 'FX Liability' },
+                },
+                { id: 'fx-liability', name: 'FX Liability', type: AccountType.LIABILITY },
+                { id: 'exchange-asset', name: 'Exchange_Asset', type: AccountType.ASSET },
+                { id: 'other-exc', name: 'Other EXC', type: AccountType.ASSET },
+            ],
+        });
+        const accounts = await book.getAccounts();
+        for (const group of await book.getGroups()) {
+            group.getAccounts = async () =>
+                group.getId() === 'common'
+                    ? accounts.filter(account => ['alpha', 'beta'].includes(account.getId() ?? ''))
+                    : accounts.filter(account => account.getId() === 'alpha');
+        }
+        book.getAccount = async idOrName =>
+            accounts.find(
+                account => account.getId() === idOrName || account.getName() === idOrName
+            );
+        let createdAccount: Account | undefined;
+        Account.prototype.create = async function (): Promise<Account> {
+            createdAccount = this;
+            return this;
+        };
+
+        const groups = await service.getGroupsByAccountSuffix(book, 'Unrealized');
+        const supportAccount = await service.getSupportAccount(
+            book,
+            new StockAccount(new Account(createPortfolioBook(), { name: 'Instrument' })),
+            'Unrealized',
+            await service.getTypeByAccountSuffix(book, 'Unrealized')
+        );
+
+        expect([...groups].map(group => group.getId())).toEqual(['common']);
+        expect(createdAccount).toBe(supportAccount);
+        expect(supportAccount.getName()).toBe('Instrument Unrealized');
+        expect(supportAccount.getType()).toBe(AccountType.ASSET);
+        expect(supportAccount.json().groups?.map(group => group.id)).toEqual(['common']);
+        expect((await service.getInterestAccount(book, ' Instrument '))?.getId()).toBe('interest');
+        expect(await service.getRealizedExcAccountType(book)).toBe(AccountType.ASSET);
+        expect(await service.getTypeByAccountSuffix(book, 'Missing')).toBe(AccountType.LIABILITY);
     });
 });

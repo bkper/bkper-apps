@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { Account, AccountType, Book, Transaction } from 'bkper-js';
+import { Account, AccountType, Book, Group, Transaction, TransactionList } from 'bkper-js';
+import type { OperationContext } from '../../../../src/api/services/operation-service.js';
+import { ResetRealizedResultsService } from '../../../../src/api/services/reset/reset-realized-results-service.js';
 import { CalculateRealizedResultsProcessor } from '../../../../src/api/services/calculate/calculate-realized-results-processor.js';
 import { CalculateRealizedResultsService } from '../../../../src/api/services/calculate/calculate-realized-results-service.js';
 import { CalculationModel } from '../../../../src/api/services/calculate/types.js';
 import { StockAccount } from '../../../../src/api/services/stock-account.js';
-import { Summary } from '../../../../src/api/services/summary.js';
+import { Summary, SummaryState } from '../../../../src/api/services/summary.js';
 
 interface ResultCall {
     transaction: Transaction;
@@ -1030,5 +1032,462 @@ describe('legacy Calculate processSale behavior', () => {
             expect(calls.fx.map(call => call.gain)).toEqual([testCase.expectedFxInput, '0']);
             expect(calls.mtm).toHaveLength(0);
         }
+    });
+});
+
+interface Fixture {
+    context: OperationContext;
+    buy: Account;
+    sell: Account;
+    instrument: Account;
+}
+
+function createFixture(portfolioProperties: Record<string, string> = {}): Fixture {
+    const collection: bkper.Collection = {
+        books: [
+            {
+                id: 'base',
+                name: 'Base',
+                fractionDigits: 2,
+                properties: { exc_base: 'true', exc_code: 'USD' },
+            },
+            {
+                id: 'financial',
+                name: 'Financial',
+                fractionDigits: 2,
+                properties: { exc_code: 'EUR' },
+            },
+            {
+                id: 'portfolio',
+                name: 'Portfolio',
+                fractionDigits: 0,
+                properties: { stock_book: 'true' },
+            },
+        ],
+    };
+    const portfolioBook = new Book({
+        id: 'portfolio',
+        name: 'Portfolio',
+        fractionDigits: 0,
+        datePattern: 'yyyy-MM-dd',
+        timeZone: 'UTC',
+        properties: { stock_book: 'true', ...portfolioProperties },
+        collection,
+    });
+    const financialBook = new Book({
+        id: 'financial',
+        name: 'Financial',
+        fractionDigits: 2,
+        datePattern: 'yyyy-MM-dd',
+        timeZone: 'UTC',
+        properties: { exc_code: 'EUR' },
+        collection,
+    });
+    const baseBook = new Book({
+        id: 'base',
+        name: 'Base',
+        fractionDigits: 2,
+        datePattern: 'yyyy-MM-dd',
+        timeZone: 'UTC',
+        properties: { exc_base: 'true', exc_code: 'USD' },
+        collection,
+    });
+    const buy = new Account(portfolioBook, {
+        id: 'buy',
+        name: 'Buy',
+        type: AccountType.INCOMING,
+    });
+    const sell = new Account(portfolioBook, {
+        id: 'sell',
+        name: 'Sell',
+        type: AccountType.OUTGOING,
+    });
+    const instrument = new Account(portfolioBook, {
+        id: 'instrument',
+        name: 'ACME',
+        type: AccountType.ASSET,
+        properties: portfolioProperties,
+    });
+    const exchangeGroup = new Group(portfolioBook, {
+        id: 'eur-group',
+        name: 'EUR',
+        properties: { stock_exc_code: 'EUR' },
+    });
+    instrument.getGroups = async () => [exchangeGroup];
+    const accounts = [buy, sell, instrument];
+    portfolioBook.getAccount = async idOrName =>
+        accounts.find(account => account.getId() === idOrName || account.getName() === idOrName);
+
+    return {
+        context: {
+            portfolioBook,
+            portfolioAccount: instrument,
+            financialBook,
+            baseBook,
+        },
+        buy,
+        sell,
+        instrument,
+    };
+}
+
+function order(
+    book: Book,
+    id: string,
+    date: string,
+    orderValue: string,
+    amount: string,
+    creditAccount: Account,
+    debitAccount: Account,
+    checked = false
+): bkper.Transaction {
+    return new Transaction(book, {
+        id,
+        date,
+        dateValue: +date.replaceAll('-', ''),
+        amount,
+        posted: true,
+        checked,
+        properties: { order: orderValue, price: '10' },
+        creditAccount: creditAccount.json(),
+        debitAccount: debitAccount.json(),
+    }).json();
+}
+
+function transactionPage(book: Book, items: bkper.Transaction[], cursor?: string): TransactionList {
+    return new TransactionList(book, { items, cursor });
+}
+
+describe('legacy Calculate entry orchestration', () => {
+    test('loads every page, filters checked Transactions, sorts FIFO, and preserves operation order', async () => {
+        const fixture = createFixture({ stock_historical: 'true' });
+        const { portfolioBook, financialBook, baseBook } = fixture.context;
+        const laterSale = order(
+            portfolioBook,
+            'sale-later',
+            '2026-03-01',
+            '2',
+            '2',
+            fixture.instrument,
+            fixture.sell
+        );
+        const earlierSale = order(
+            portfolioBook,
+            'sale-earlier',
+            '2026-01-01',
+            '1',
+            '1',
+            fixture.instrument,
+            fixture.sell
+        );
+        const laterPurchase = order(
+            portfolioBook,
+            'purchase-later',
+            '2026-02-01',
+            '2',
+            '2',
+            fixture.buy,
+            fixture.instrument
+        );
+        const earlierPurchase = order(
+            portfolioBook,
+            'purchase-earlier',
+            '2025-12-01',
+            '1',
+            '2',
+            fixture.buy,
+            fixture.instrument
+        );
+        const checkedSale = order(
+            portfolioBook,
+            'checked-sale',
+            '2025-11-01',
+            '1',
+            '1',
+            fixture.instrument,
+            fixture.sell,
+            true
+        );
+        const requests: Array<{ query?: string; cursor?: string }> = [];
+        portfolioBook.listTransactions = async (query, _limit, cursor) => {
+            requests.push({ query, cursor });
+            return cursor
+                ? transactionPage(portfolioBook, [earlierSale, earlierPurchase])
+                : transactionPage(
+                      portfolioBook,
+                      [laterSale, checkedSale, laterPurchase],
+                      'next-page'
+                  );
+        };
+        let formattedDefaultDate = false;
+        portfolioBook.formatDate = date => {
+            formattedDefaultDate = date instanceof Date;
+            return '2026-08-05';
+        };
+        const interestAccount = new Account(financialBook, {
+            id: 'interest',
+            name: 'acme interest',
+            type: AccountType.ASSET,
+        });
+        const service = new CalculateRealizedResultsService();
+        const operationOrder: string[] = [];
+        const processCalls: Array<{
+            sale: string | undefined;
+            purchases: Array<string | undefined>;
+        }> = [];
+        service['processSale'] = async (
+            receivedBaseBook,
+            receivedFinancialBook,
+            stockExcCode,
+            receivedPortfolioBook,
+            _stockAccount,
+            sale,
+            purchases,
+            _summary,
+            autoMtM,
+            model,
+            processor
+        ) => {
+            operationOrder.push(`sale:${sale.getId()}`);
+            processCalls.push({
+                sale: sale.getId(),
+                purchases: purchases.map(transaction => transaction.getId()),
+            });
+            expect(receivedBaseBook).toBe(baseBook);
+            expect(receivedFinancialBook).toBe(financialBook);
+            expect(receivedPortfolioBook).toBe(portfolioBook);
+            expect(stockExcCode).toBe('EUR');
+            expect(autoMtM).toBe(true);
+            expect(model).toBe(CalculationModel.HISTORICAL_ONLY);
+            processor.fireBatchOperations = async () => {
+                operationOrder.push('batch');
+            };
+        };
+        service['support'].checkAndRecordExchangeRates = async (
+            receivedBaseBook,
+            receivedFinancialBook,
+            sales,
+            purchases
+        ) => {
+            operationOrder.push('rates');
+            expect(receivedBaseBook).toBe(baseBook);
+            expect(receivedFinancialBook).toBe(financialBook);
+            expect(sales.map(transaction => transaction.getId())).toEqual([
+                'sale-earlier',
+                'sale-later',
+            ]);
+            expect(purchases.map(transaction => transaction.getId())).toEqual([
+                'purchase-earlier',
+                'purchase-later',
+            ]);
+        };
+        service['botService'].getInterestAccount = async (book, accountName) => {
+            expect(book).toBe(financialBook);
+            expect(accountName).toBe('ACME');
+            return interestAccount;
+        };
+        service['support'].checkAndRecordInterestMtm = async (
+            _stockAccount,
+            receivedPortfolioBook,
+            receivedInterestAccount,
+            receivedFinancialBook,
+            onDateIso,
+            lastTransactionId
+        ) => {
+            operationOrder.push('interest');
+            expect(receivedPortfolioBook).toBe(portfolioBook);
+            expect(receivedInterestAccount).toBe(interestAccount);
+            expect(receivedFinancialBook).toBe(financialBook);
+            expect(onDateIso).toBe('2026-08-05');
+            expect(lastTransactionId).toBe('sale-later');
+        };
+        service['support'].checkLastTxDate = async (_stockAccount, sales, purchases) => {
+            operationOrder.push('last-date');
+            expect(sales.map(transaction => transaction.getId())).toEqual([
+                'sale-earlier',
+                'sale-later',
+            ]);
+            expect(purchases.map(transaction => transaction.getId())).toEqual([
+                'purchase-earlier',
+                'purchase-later',
+            ]);
+        };
+
+        const result = await service.calculateAccount(fixture.context, true, '');
+
+        expect(formattedDefaultDate).toBe(true);
+        expect(requests).toEqual([
+            { query: "account:'ACME' before:2026-08-06", cursor: undefined },
+            { query: "account:'ACME' before:2026-08-06", cursor: 'next-page' },
+        ]);
+        expect(processCalls).toEqual([
+            {
+                sale: 'sale-earlier',
+                purchases: ['purchase-earlier', 'purchase-later'],
+            },
+            {
+                sale: 'sale-later',
+                purchases: ['purchase-earlier', 'purchase-later'],
+            },
+        ]);
+        expect(operationOrder).toEqual([
+            'sale:sale-earlier',
+            'sale:sale-later',
+            'rates',
+            'interest',
+            'batch',
+            'last-date',
+        ]);
+        expect(result.getState()).toBe(SummaryState.CALCULATING);
+    });
+
+    test('awaits regular Reset and returns immediately when the Account needs rebuild', async () => {
+        const fixture = createFixture({ needs_rebuild: 'TRUE' });
+        fixture.context.portfolioBook.listTransactions = async () => {
+            throw new Error('Transactions must not load during rebuild');
+        };
+        const originalResetAccount = ResetRealizedResultsService.prototype.resetAccount;
+        const resetCalls: Array<{ context: OperationContext; full: boolean }> = [];
+        ResetRealizedResultsService.prototype.resetAccount = async (context, full) => {
+            resetCalls.push({ context, full });
+            return new Summary().resetingAsync();
+        };
+
+        try {
+            const result = await new CalculateRealizedResultsService().calculateAccount(
+                fixture.context,
+                true,
+                '2026-08-05'
+            );
+
+            expect(resetCalls).toEqual([{ context: fixture.context, full: false }]);
+            expect(result.getState()).toBe(SummaryState.REBUILD);
+        } finally {
+            ResetRealizedResultsService.prototype.resetAccount = originalResetAccount;
+        }
+    });
+
+    test('returns the empty legacy Summary when no Financial Book matches the Account', async () => {
+        const fixture = createFixture();
+        const jpyGroup = new Group(fixture.context.portfolioBook, {
+            id: 'jpy-group',
+            name: 'JPY',
+            properties: { stock_exc_code: 'JPY' },
+        });
+        fixture.instrument.getGroups = async () => [jpyGroup];
+        fixture.context.portfolioBook.listTransactions = async () => {
+            throw new Error('Transactions must not load without a Financial Book');
+        };
+
+        const result = await new CalculateRealizedResultsService().calculateAccount(
+            fixture.context,
+            false,
+            '2026-08-05'
+        );
+
+        expect(result.getState()).toBe(SummaryState.EMPTY);
+    });
+
+    test('does not process a sale when no purchase exists', async () => {
+        const fixture = createFixture();
+        const { portfolioBook } = fixture.context;
+        const sale = order(
+            portfolioBook,
+            'sale',
+            '2026-01-01',
+            '1',
+            '2',
+            fixture.instrument,
+            fixture.sell
+        );
+        portfolioBook.listTransactions = async () => transactionPage(portfolioBook, [sale]);
+        const service = new CalculateRealizedResultsService();
+        let processCalls = 0;
+        let exchangeRateCalls = 0;
+        let lastDateCalls = 0;
+        service['processSale'] = async () => {
+            processCalls++;
+        };
+        service['support'].checkAndRecordExchangeRates = async () => {
+            exchangeRateCalls++;
+        };
+        service['support'].checkLastTxDate = async () => {
+            lastDateCalls++;
+        };
+
+        const result = await service.calculateAccount(fixture.context, false, '2026-08-05');
+
+        expect(processCalls).toBe(0);
+        expect(exchangeRateCalls).toBe(1);
+        expect(lastDateCalls).toBe(1);
+        expect(result.getState()).toBe(SummaryState.CALCULATING);
+    });
+
+    test('preserves legacy lock detection after sale processing and before saving Transactions', async () => {
+        const fixture = createFixture();
+        fixture.context.portfolioBook.setClosingDate('2026-12-31');
+        const { portfolioBook, financialBook } = fixture.context;
+        const sale = order(
+            portfolioBook,
+            'sale',
+            '2026-01-01',
+            '1',
+            '2',
+            fixture.instrument,
+            fixture.sell
+        );
+        const purchase = order(
+            portfolioBook,
+            'purchase',
+            '2025-01-01',
+            '1',
+            '2',
+            fixture.buy,
+            fixture.instrument
+        );
+        portfolioBook.listTransactions = async () =>
+            transactionPage(portfolioBook, [sale, purchase]);
+        const service = new CalculateRealizedResultsService();
+        const operationOrder: string[] = [];
+        const supportAccount = new Account(financialBook, {
+            id: 'unrealized',
+            name: 'ACME Unrealized',
+            type: AccountType.ASSET,
+        });
+        service['support'].getUnrealizedAccount = async () => {
+            operationOrder.push('support-account');
+            return supportAccount;
+        };
+        service['processSale'] = async (
+            _baseBook,
+            receivedFinancialBook,
+            _stockExcCode,
+            _stockBook,
+            stockAccount,
+            receivedSale,
+            _purchases,
+            _summary,
+            _autoMtM,
+            _model,
+            processor
+        ) => {
+            await service['support'].getUnrealizedAccount(receivedFinancialBook, stockAccount);
+            operationOrder.push('queue-locked-transaction');
+            processor.setStockBookTransactionToUpdate(receivedSale);
+            processor.fireBatchOperations = async () => {
+                operationOrder.push('batch');
+            };
+        };
+        service['support'].checkAndRecordExchangeRates = async () => {
+            operationOrder.push('rates');
+        };
+        service['support'].checkLastTxDate = async () => {
+            operationOrder.push('last-date');
+        };
+
+        const result = await service.calculateAccount(fixture.context, false, '2026-08-05');
+
+        expect(operationOrder).toEqual(['support-account', 'queue-locked-transaction']);
+        expect(result.getState()).toBe(SummaryState.LOCKED);
     });
 });

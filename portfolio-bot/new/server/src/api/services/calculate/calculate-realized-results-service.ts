@@ -26,9 +26,11 @@ import {
     SHORT_SALE_PROP,
 } from '../../../shared/constants.js';
 import { BotService } from '../bot-service.js';
-import type { StockAccount } from '../stock-account.js';
-import type { Summary } from '../summary.js';
-import type { CalculateRealizedResultsProcessor } from './calculate-realized-results-processor.js';
+import type { OperationContext } from '../operation-service.js';
+import { ResetRealizedResultsService } from '../reset/reset-realized-results-service.js';
+import { StockAccount } from '../stock-account.js';
+import { Summary } from '../summary.js';
+import { CalculateRealizedResultsProcessor } from './calculate-realized-results-processor.js';
 import { CalculateRealizedResultsSupport } from './calculate-realized-results-support.js';
 import { CalculationModel, type LiquidationLogEntry, type PurchaseLogEntry } from './types.js';
 
@@ -36,7 +38,142 @@ export class CalculateRealizedResultsService {
     private readonly botService = new BotService();
     private readonly support = new CalculateRealizedResultsSupport();
 
-    constructor() {}
+    async calculateAccount(
+        context: OperationContext,
+        autoMtM: boolean,
+        toDate: string
+    ): Promise<Summary> {
+        let stockBook = context.portfolioBook;
+        if (!toDate) {
+            toDate = stockBook.formatDate(new Date());
+        }
+
+        let stockAccount = new StockAccount(context.portfolioAccount);
+
+        // Calculation model
+        const model = this.botService.getCalculationModel(stockBook);
+
+        const summary = new Summary();
+
+        if (stockAccount.needsRebuild()) {
+            // Fire reset async
+            await new ResetRealizedResultsService().resetAccount(context, false);
+            return summary.rebuild();
+        }
+
+        let stockExcCode = await stockAccount.getExchangeCode();
+        let financialBook = this.botService.getFinancialBook(stockBook, stockExcCode);
+        // Skip
+        if (financialBook == null) {
+            return summary;
+        }
+        financialBook = context.financialBook;
+
+        const beforeDate = this.botService.getBeforeDateIsoString(stockBook, toDate);
+        const query = this.botService.getAccountQuery(stockAccount, false, beforeDate);
+        const transactions: Transaction[] = [];
+        let cursor: string | undefined;
+        do {
+            const page = await stockBook.listTransactions(query, undefined, cursor);
+            transactions.push(...page.getItems());
+            cursor = page.getCursor();
+        } while (cursor);
+
+        let stockAccountSaleTransactions: Transaction[] = [];
+        let stockAccountPurchaseTransactions: Transaction[] = [];
+
+        for (const tx of transactions) {
+            // Filter only unchecked
+            if (tx.isChecked()) {
+                continue;
+            }
+            if (await this.botService.isSale(tx)) {
+                stockAccountSaleTransactions.push(tx);
+            }
+            if (await this.botService.isPurchase(tx)) {
+                stockAccountPurchaseTransactions.push(tx);
+            }
+        }
+
+        stockAccountSaleTransactions = stockAccountSaleTransactions.sort(
+            this.botService.compareToFIFO
+        );
+        stockAccountPurchaseTransactions = stockAccountPurchaseTransactions.sort(
+            this.botService.compareToFIFO
+        );
+
+        const baseBook = context.baseBook;
+
+        // Processor
+        const processor = new CalculateRealizedResultsProcessor(stockBook, financialBook, baseBook);
+
+        // Process sales
+        for (const saleTransaction of stockAccountSaleTransactions) {
+            if (stockAccountPurchaseTransactions.length > 0) {
+                await this.processSale(
+                    baseBook,
+                    financialBook,
+                    stockExcCode!,
+                    stockBook,
+                    stockAccount,
+                    saleTransaction,
+                    stockAccountPurchaseTransactions,
+                    summary,
+                    autoMtM,
+                    model,
+                    processor
+                );
+            }
+            // Abort if any transaction is locked
+            if (processor.hasLockedTransaction()) {
+                return summary.lockError();
+            }
+        }
+
+        // Check & record exchange rates if missing
+        await this.support.checkAndRecordExchangeRates(
+            baseBook,
+            financialBook,
+            stockAccountSaleTransactions,
+            stockAccountPurchaseTransactions,
+            processor
+        );
+
+        // Check & record Interest account MTM if necessary
+        if (autoMtM) {
+            const financialInterestAccount = await this.botService.getInterestAccount(
+                financialBook,
+                stockAccount.getName()!
+            );
+            const lastTransactionId = this.support.getLastTransactionId(
+                stockAccountSaleTransactions,
+                stockAccountPurchaseTransactions
+            );
+            if (financialInterestAccount && lastTransactionId) {
+                await this.support.checkAndRecordInterestMtm(
+                    stockAccount,
+                    stockBook,
+                    financialInterestAccount,
+                    financialBook,
+                    toDate,
+                    lastTransactionId,
+                    summary,
+                    processor
+                );
+            }
+        }
+
+        // Fire batch operations
+        await processor.fireBatchOperations();
+
+        await this.support.checkLastTxDate(
+            stockAccount,
+            stockAccountSaleTransactions,
+            stockAccountPurchaseTransactions
+        );
+
+        return summary.calculatingAsync();
+    }
 
     private async processSale(
         baseBook: Book,

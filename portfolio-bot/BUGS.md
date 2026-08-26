@@ -120,7 +120,7 @@ Preflight only the complete Book scope that the selected Full Reset can mutate:
 - Missing lock and closing dates and the legacy `1900-00-00` sentinel remain treated as unlocked and open.
 - Deterministic tests cover Account, multi-currency Group, unrelated-Book, and no-side-effect failure cases without accessing live Books.
 
-## 4. BotService and operation processors have mixed responsibilities
+## 4. BotService has mixed responsibilities
 
 **Status:** Deferred until after migration stabilization.
 
@@ -137,11 +137,9 @@ The legacy GAS `BotService` namespace and the migrated server `BotService` colle
 
 The migration preserves this structure where required for parity rather than redesigning operation behavior while accounting outcomes are still being ported.
 
-The Calculate and Reset processors preserve their legacy mutation queues and ordered batch phases. They also retain supporting behavior such as lock accumulation and, for Calculate, temporary-id generation, remote-id classification, date conversion, and MTM balance accumulation.
-
 ### Problem
 
-`BotService` has no clear, bounded responsibility. It mixes pure calculations, chart reads, cross-Book resolution, query construction, and mutation-capable resource creation. The processors also mix their core ordered-mutation role with supporting calculations and identifier handling. Unrelated changes therefore converge on broad classes, making behavior, authorization, mutation order, and zero-sum safeguards harder to understand, test, and audit.
+`BotService` has no clear, bounded responsibility. It mixes pure calculations, chart reads, cross-Book resolution, query construction, and mutation-capable resource creation. Unrelated changes therefore converge on one broad class, making behavior, authorization, lookup order, mutation boundaries, and zero-sum safeguards harder to understand, test, and audit.
 
 No authorization bypass or other concrete security vulnerability is currently confirmed. The structure is an architectural and auditability risk that can hide future mistakes if it remains after migration.
 
@@ -149,10 +147,9 @@ No authorization bypass or other concrete security vulnerability is currently co
 
 After migration stabilization:
 
-- Inventory every `BotService` call site and every Calculate and Reset processor method across Calculate, Reset, Forward Date, context loading, and shared operation preflight.
+- Inventory every `BotService` call site across Calculate, Reset, Forward Date, context loading, and shared operation preflight.
 - Define one narrow meaning for any retained `BotService`, such as genuinely bot-wide Book-role or operation-context resolution, or remove the class if no cohesive responsibility remains.
 - Move operation-specific behavior beside Calculate, Reset, or Forward Date.
-- Keep processors focused on mutation queueing, deduplication, lock state, canonical relationship rewiring, and ordered batch execution.
 - Move pure operation-specific calculations and classifications beside their owning operation when a cohesive boundary is established.
 - Extract shared behavior only when multiple real consumers require the same domain rule.
 - Prefer cohesive domain modules over generic `utils` files or one file per method.
@@ -164,11 +161,68 @@ After migration stabilization:
 
 - Every retained service or module has one documented responsibility and clear dependency direction.
 - Calculate-, Reset-, and Forward-specific behavior lives with its owning operation.
-- Processors retain only behavior required to coordinate deterministic mutation phases and relationships.
 - Shared modules have multiple concrete consumers or represent an explicitly shared domain boundary.
 - Generic miscellaneous utility modules do not replace the current catch-all service.
 - Pure calculation helpers cannot create or mutate Bkper resources.
 - Resource creation and other mutations remain explicit and occur only after the established preflight boundaries.
-- Accounting outcomes, Map and Set replacement semantics, canonical-id relationships, lookup and mutation order, API contracts, and the per-Book zero-sum invariant remain unchanged.
+- Accounting outcomes, lookup and mutation order, API contracts, and the per-Book zero-sum invariant remain unchanged.
 - Existing deterministic parity tests continue to pass, with focused characterization added before moving insufficiently covered behavior.
 - Tests do not access or write to live Books.
+
+## 5. Calculate mixes orchestration, lookups, resource creation, and movement construction
+
+**Status:** Deferred until after migration stabilization.
+
+### Current migration behavior
+
+The Calculate migration deliberately preserves the legacy behavior and method boundaries while accounting parity is established:
+
+- `CalculateRealizedResultsService` owns Account-level orchestration and the complete `processSale` method.
+- `CalculateRealizedResultsSupport` is a temporary file-level boundary for the already-ported helper methods.
+- `CalculateRealizedResultsProcessor` preserves the legacy mutation queues, canonical-id replacement, lock accumulation, MTM accumulation, and ordered Portfolio, Financial, and Base Book batch phases.
+
+`CalculateRealizedResultsSupport` currently combines:
+
+- log construction and FIFO classification;
+- exchange-rate property resolution and queued Portfolio Transaction updates;
+- balance reads and Account and Group lookups;
+- support Account inference and creation;
+- realized, FX, MTM, historical MTM, and interest-MTM movement construction and queueing; and
+- Portfolio Account realized-date updates.
+
+The support split makes the parity port easier to navigate, but it is not intended as the final Calculate architecture. The migration keeps `processSale` intact and does not redistribute these responsibilities before preview and production stabilization.
+
+### Problem
+
+The Calculate module places pure derivation, SDK reads, chart mutation, movement construction, mutation queueing, relationship handling, and Account-state updates behind broad classes. The generic `Support` boundary improves file size but does not provide one cohesive domain responsibility.
+
+The complete `processSale` workflow is also branch-dense: it coordinates FIFO lots, complete and partial liquidation, short sales, split Transactions, historical and fair models, MTM behavior, properties, remote ids, and relationships. Combined with the broad support and processor dependencies, this makes movement amounts, directions, canonical relationships, no-op behavior, asynchronous ordering, and failure boundaries difficult to audit.
+
+No concrete accounting bug is confirmed solely from this structure. It is an architectural and auditability risk that can conceal inherited or future mistakes, especially mistakes that could create an incomplete, reversed, duplicated, or incorrectly related movement.
+
+### Intended improvement
+
+After migration stabilization:
+
+- Inventory every `CalculateRealizedResultsService`, `CalculateRealizedResultsSupport`, and `CalculateRealizedResultsProcessor` responsibility and call path before moving behavior.
+- Characterize every `processSale` branch, including long and short sales, complete and partial lots, splits, all calculation models, realized and FX results, MTM variants, properties, remote ids, checked state, and canonical relationships.
+- Replace the generic support boundary with cohesive Calculate domain modules rather than another catch-all helper or one file per method.
+- Separate pure amount, rate, classification, and log derivation from Bkper SDK reads and mutations.
+- Separate chart lookup from support Account creation so resource provisioning remains explicit.
+- Keep movement construction explicit about amount, origin Account, destination Account, properties, remote ids, and source relationships.
+- Keep the processor focused on mutation queueing, deduplication, lock state, canonical relationship rewiring, MTM accumulation required for ordered results, and deterministic batch execution.
+- Refactor `processSale` only in small characterized steps; do not introduce a rules engine, strategy hierarchy, or redesigned calculation pipeline without evidence that it improves the domain boundary.
+- Keep every mutation behind the established authorization, installation, lock, and complete-operation preflight boundaries.
+- Treat any intentional accounting correction discovered during the work as a separate bug with its own deterministic test, preview evidence, and rollout decision.
+
+### Acceptance criteria
+
+- The Calculate service, support replacements, and processor each have one documented responsibility and clear dependency direction.
+- No generic `Support`, `Helpers`, or `Utils` catch-all remains.
+- Pure calculations and classifications cannot read, create, or mutate Bkper resources.
+- Account and Group reads are distinguishable from support Account creation.
+- Movement builders always produce one amount with one origin Account and one destination Account, or explicitly produce no movement.
+- Canonical ids, parent and remote ids, split relationships, checked state, and ordered Portfolio, Financial, and Base Book mutation phases remain deterministic.
+- Locked, unresolved, zero-result, and failed-preflight paths produce no unintended movement.
+- Existing accounting outcomes remain unchanged unless a separately approved bug fix intentionally changes them.
+- The complete deterministic Calculate matrix and per-Book zero-sum assertions pass without accessing live Books.

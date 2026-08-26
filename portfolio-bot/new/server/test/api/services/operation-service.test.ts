@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { Account, AccountType, App, Bkper, Book, Permission } from 'bkper-js';
+import { Account, AccountType, App, Bkper, BkperError, Book, Permission } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { CalculateService } from '../../../src/api/services/calculate-service.js';
 import { ForwardService } from '../../../src/api/services/forward-service.js';
@@ -250,7 +250,9 @@ test('fails immediately when the operation context cannot be fully resolved', as
             ],
         },
     });
-    missingAccountBook.getAccount = async () => undefined;
+    missingAccountBook.getAccount = async () => {
+        throw new BkperError(404, 'Resource not found', 'notFound');
+    };
     const missingExchangeBook = createPortfolioBook({
         groups: [],
         accounts: [

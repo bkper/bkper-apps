@@ -1,6 +1,7 @@
 import type { Account, Book } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { requireAppInstallation, requireEditPermission } from '../authorization.js';
 import { BotService } from './bot-service.js';
 
@@ -33,7 +34,9 @@ export abstract class OperationService {
         const portfolioBook = await this.loadFullBook(context, portfolioBookId);
         const portfolioBookName = portfolioBook.getName() ?? portfolioBookId;
 
-        const portfolioAccount = await portfolioBook.getAccount(portfolioAccountId);
+        const portfolioAccount = await optionalLookup(() =>
+            portfolioBook.getAccount(portfolioAccountId)
+        );
         if (!portfolioAccount) {
             throw new HTTPException(400, {
                 message: `Account ${portfolioAccountId} was not found in Book ${portfolioBookName}.`,

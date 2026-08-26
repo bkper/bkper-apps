@@ -120,7 +120,7 @@ Preflight only the complete Book scope that the selected Full Reset can mutate:
 - Missing lock and closing dates and the legacy `1900-00-00` sentinel remain treated as unlocked and open.
 - Deterministic tests cover Account, multi-currency Group, unrelated-Book, and no-side-effect failure cases without accessing live Books.
 
-## 4. BotService has unbounded mixed responsibilities
+## 4. BotService and operation processors have mixed responsibilities
 
 **Status:** Deferred until after migration stabilization.
 
@@ -137,9 +137,11 @@ The legacy GAS `BotService` namespace and the migrated server `BotService` colle
 
 The migration preserves this structure where required for parity rather than redesigning operation behavior while accounting outcomes are still being ported.
 
+The Calculate and Reset processors preserve their legacy mutation queues and ordered batch phases. They also retain supporting behavior such as lock accumulation and, for Calculate, temporary-id generation, remote-id classification, date conversion, and MTM balance accumulation.
+
 ### Problem
 
-`BotService` has no clear, bounded responsibility. It mixes pure calculations, chart reads, cross-Book resolution, query construction, and mutation-capable resource creation. Unrelated changes therefore converge on one class with broad dependencies, making behavior, authorization, and mutation boundaries harder to understand, test, and audit.
+`BotService` has no clear, bounded responsibility. It mixes pure calculations, chart reads, cross-Book resolution, query construction, and mutation-capable resource creation. The processors also mix their core ordered-mutation role with supporting calculations and identifier handling. Unrelated changes therefore converge on broad classes, making behavior, authorization, mutation order, and zero-sum safeguards harder to understand, test, and audit.
 
 No authorization bypass or other concrete security vulnerability is currently confirmed. The structure is an architectural and auditability risk that can hide future mistakes if it remains after migration.
 
@@ -147,9 +149,11 @@ No authorization bypass or other concrete security vulnerability is currently co
 
 After migration stabilization:
 
-- Inventory every `BotService` call site across Calculate, Reset, Forward Date, context loading, and shared operation preflight.
+- Inventory every `BotService` call site and every Calculate and Reset processor method across Calculate, Reset, Forward Date, context loading, and shared operation preflight.
 - Define one narrow meaning for any retained `BotService`, such as genuinely bot-wide Book-role or operation-context resolution, or remove the class if no cohesive responsibility remains.
 - Move operation-specific behavior beside Calculate, Reset, or Forward Date.
+- Keep processors focused on mutation queueing, deduplication, lock state, canonical relationship rewiring, and ordered batch execution.
+- Move pure operation-specific calculations and classifications beside their owning operation when a cohesive boundary is established.
 - Extract shared behavior only when multiple real consumers require the same domain rule.
 - Prefer cohesive domain modules over generic `utils` files or one file per method.
 - Separate pure calculations and lookups from resource creation and other mutations.
@@ -160,10 +164,11 @@ After migration stabilization:
 
 - Every retained service or module has one documented responsibility and clear dependency direction.
 - Calculate-, Reset-, and Forward-specific behavior lives with its owning operation.
+- Processors retain only behavior required to coordinate deterministic mutation phases and relationships.
 - Shared modules have multiple concrete consumers or represent an explicitly shared domain boundary.
 - Generic miscellaneous utility modules do not replace the current catch-all service.
 - Pure calculation helpers cannot create or mutate Bkper resources.
 - Resource creation and other mutations remain explicit and occur only after the established preflight boundaries.
-- Accounting outcomes, lookup and mutation order, API contracts, and the per-Book zero-sum invariant remain unchanged.
+- Accounting outcomes, Map and Set replacement semantics, canonical-id relationships, lookup and mutation order, API contracts, and the per-Book zero-sum invariant remain unchanged.
 - Existing deterministic parity tests continue to pass, with focused characterization added before moving insufficiently covered behavior.
 - Tests do not access or write to live Books.

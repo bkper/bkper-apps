@@ -28,6 +28,19 @@ export class StockAccount {
         return this.account.update();
     }
 
+    getRealizedDateValue(): number | null {
+        const realizedDate = this.getRealizedDate();
+        return realizedDate ? +realizedDate.replaceAll('-', '') : null;
+    }
+
+    getRealizedDate(): string | undefined {
+        const legacyRealizedDate = this.account.getProperty(LEGACY_REALIZED_DATE_PROP);
+        if (legacyRealizedDate) {
+            return `${legacyRealizedDate.substring(0, 4)}-${legacyRealizedDate.substring(4, 6)}-${legacyRealizedDate.substring(6, 8)}`;
+        }
+        return this.account.getProperty(REALIZED_DATE_PROP);
+    }
+
     setRealizedDate(date: string): StockAccount {
         this.account
             .deleteProperty('last_sale_date')
@@ -51,6 +64,10 @@ export class StockAccount {
     deleteForwardedDate(): StockAccount {
         this.account.deleteProperty(FORWARDED_DATE_PROP);
         return this;
+    }
+
+    needsRebuild(): boolean {
+        return this.account.getProperty(NEEDS_REBUILD_PROP) == 'TRUE';
     }
 
     clearNeedsRebuild(): void {

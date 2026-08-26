@@ -6,7 +6,7 @@ function createAccount(payload: bkper.Account): Account {
     return new Account(new Book({ id: 'portfolio-book' }), payload);
 }
 
-describe('legacy StockAccount Reset behavior', () => {
+describe('legacy StockAccount behavior', () => {
     test('exposes identity and delegates the Account update', async () => {
         const account = createAccount({ id: 'instrument', name: 'Instrument' });
         let updateCalls = 0;
@@ -20,6 +20,30 @@ describe('legacy StockAccount Reset behavior', () => {
         expect(stockAccount.getName()).toBe('Instrument');
         await expect(stockAccount.update()).resolves.toBe(account);
         expect(updateCalls).toBe(1);
+    });
+
+    test('reads legacy and current realized dates and rebuild state', () => {
+        const legacyAccount = createAccount({
+            properties: {
+                stock_realized_date: '20240203',
+                realized_date: '2025-01-01',
+                needs_rebuild: 'TRUE',
+            },
+        });
+        const currentAccount = createAccount({
+            properties: { realized_date: '2025-01-02', needs_rebuild: 'FALSE' },
+        });
+        const emptyAccount = createAccount({});
+
+        expect(new StockAccount(legacyAccount).getRealizedDate()).toBe('2024-02-03');
+        expect(new StockAccount(legacyAccount).getRealizedDateValue()).toBe(20240203);
+        expect(new StockAccount(legacyAccount).needsRebuild()).toBe(true);
+        expect(new StockAccount(currentAccount).getRealizedDate()).toBe('2025-01-02');
+        expect(new StockAccount(currentAccount).getRealizedDateValue()).toBe(20250102);
+        expect(new StockAccount(currentAccount).needsRebuild()).toBe(false);
+        expect(new StockAccount(emptyAccount).getRealizedDate()).toBeUndefined();
+        expect(new StockAccount(emptyAccount).getRealizedDateValue()).toBeNull();
+        expect(new StockAccount(emptyAccount).needsRebuild()).toBe(false);
     });
 
     test('sets and deletes realized dates with legacy property cleanup', () => {

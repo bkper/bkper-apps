@@ -9,9 +9,11 @@ export const STOCK_FAIR_PROP = 'stock_fair';
 export const EXC_BASE_PROP = 'exc_base';
 export const EXC_CODE_PROP = 'exc_code';
 export const EXC_HISTORICAL_PROP = 'exc_historical';
+export const EXC_AGGREGATE_PROP = 'exc_aggregate';
 
 // Group properties
 export const STOCK_EXC_CODE_PROP = 'stock_exc_code';
+export const EXC_ACCOUNT_PROP = 'exc_account';
 
 // Account properties
 export const STOCK_FEES_ACCOUNT_PROP = 'stock_fees_account';
@@ -42,6 +44,7 @@ export const ORDER_PROP = 'order';
 // Original and historical trade state
 export const ORIGINAL_QUANTITY_PROP = 'original_quantity';
 export const HIST_QUANTITY_PROP = 'hist_quantity';
+export const OPEN_QUANTITY_PROP = 'open_quantity';
 export const ORIGINAL_AMOUNT_PROP = 'original_amount';
 export const HIST_ORDER_PROP = 'hist_order';
 export const DATE_PROP = 'date';
@@ -76,6 +79,18 @@ export const GAIN_AMOUNT_PROP = 'gain_amount';
 export const GAIN_AMOUNT_HIST_PROP = 'gain_amount_hist';
 export const EXC_RATE_PROP = 'exc_rate';
 export const LIQUIDATION_LOG_PROP = 'liquidation_log';
+export const EXC_AMOUNT_PROP = 'exc_amount';
+
+// Result Account suffixes
+export const UNREALIZED_SUFFIX = 'Unrealized';
+export const UNREALIZED_HIST_SUFFIX = 'Unrealized Hist';
+export const UNREALIZED_EXC_SUFFIX = 'Unrealized EXC';
+export const UNREALIZED_HIST_EXC_SUFFIX = 'Unrealized Hist EXC';
+export const REALIZED_SUFFIX = 'Realized';
+export const REALIZED_HIST_SUFFIX = 'Realized Hist';
+export const REALIZED_EXC_SUFFIX = 'Realized EXC';
+export const REALIZED_HIST_EXC_SUFFIX = 'Realized Hist EXC';
+export const MTM_SUFFIX = 'MTM';
 
 // Forward transaction state
 export const FWD_TX_PROP = 'fwd_tx';
@@ -84,9 +99,13 @@ export const FWD_LOG_PROP = 'fwd_log';
 
 // Linked movement identifiers
 export const FX_PREFIX = 'fx_';
+export const PARENT_ID = 'parent_id';
 
 // Result hashtags
 export const STOCK_GAIN_HASHTAG = '#stock_gain';
 export const STOCK_LOSS_HASHTAG = '#stock_loss';
 export const EXCHANGE_GAIN_HASHTAG = '#exchange_gain';
 export const EXCHANGE_LOSS_HASHTAG = '#exchange_loss';
+
+// Other configuration
+export const MAX_DECIMAL_PLACES = 8;

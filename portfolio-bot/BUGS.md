@@ -1,6 +1,6 @@
-# Deferred Bug Fixes
+# Deferred Bugs and Improvements
 
-This document tracks known Portfolio Bot bugs that are intentionally preserved during the Cloudflare migration to maintain production parity. Address these fixes after migration stabilization, each with dedicated tests and review.
+This document tracks known Portfolio Bot bugs and architectural improvements that are intentionally deferred during the Cloudflare migration to maintain production parity. Address them after migration stabilization, each with dedicated tests and review.
 
 ## 1. Fraction digits are incorrectly used as Book-role metadata
 
@@ -119,3 +119,51 @@ Preflight only the complete Book scope that the selected Full Reset can mutate:
 - A failed scoped preflight produces no mutation in any participating Book.
 - Missing lock and closing dates and the legacy `1900-00-00` sentinel remain treated as unlocked and open.
 - Deterministic tests cover Account, multi-currency Group, unrelated-Book, and no-side-effect failure cases without accessing live Books.
+
+## 4. BotService has unbounded mixed responsibilities
+
+**Status:** Deferred until after migration stabilization.
+
+### Current legacy behavior
+
+The legacy GAS `BotService` namespace and the migrated server `BotService` collect behavior from unrelated domains, including:
+
+- Portfolio, Financial, and Base Book role resolution;
+- exchange-code and Account context resolution;
+- date and Transaction query construction;
+- calculation-model, FIFO, price, rate, and gain rules;
+- pending-calculation discovery; and
+- support Account lookup, inference, and creation.
+
+The migration preserves this structure where required for parity rather than redesigning operation behavior while accounting outcomes are still being ported.
+
+### Problem
+
+`BotService` has no clear, bounded responsibility. It mixes pure calculations, chart reads, cross-Book resolution, query construction, and mutation-capable resource creation. Unrelated changes therefore converge on one class with broad dependencies, making behavior, authorization, and mutation boundaries harder to understand, test, and audit.
+
+No authorization bypass or other concrete security vulnerability is currently confirmed. The structure is an architectural and auditability risk that can hide future mistakes if it remains after migration.
+
+### Intended improvement
+
+After migration stabilization:
+
+- Inventory every `BotService` call site across Calculate, Reset, Forward Date, context loading, and shared operation preflight.
+- Define one narrow meaning for any retained `BotService`, such as genuinely bot-wide Book-role or operation-context resolution, or remove the class if no cohesive responsibility remains.
+- Move operation-specific behavior beside Calculate, Reset, or Forward Date.
+- Extract shared behavior only when multiple real consumers require the same domain rule.
+- Prefer cohesive domain modules over generic `utils` files or one file per method.
+- Separate pure calculations and lookups from resource creation and other mutations.
+- Keep mutation-capable behavior behind the established authorization, installation, lock, and complete-operation preflight boundaries.
+- Perform the refactor incrementally with existing behavior characterized before each move.
+
+### Acceptance criteria
+
+- Every retained service or module has one documented responsibility and clear dependency direction.
+- Calculate-, Reset-, and Forward-specific behavior lives with its owning operation.
+- Shared modules have multiple concrete consumers or represent an explicitly shared domain boundary.
+- Generic miscellaneous utility modules do not replace the current catch-all service.
+- Pure calculation helpers cannot create or mutate Bkper resources.
+- Resource creation and other mutations remain explicit and occur only after the established preflight boundaries.
+- Accounting outcomes, lookup and mutation order, API contracts, and the per-Book zero-sum invariant remain unchanged.
+- Existing deterministic parity tests continue to pass, with focused characterization added before moving insufficiently covered behavior.
+- Tests do not access or write to live Books.

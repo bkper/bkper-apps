@@ -3,7 +3,7 @@ import type { ForwardRequest } from '../schemas.js';
 import { OperationService } from './operation-service.js';
 
 export class ForwardService extends OperationService {
-    static async forward(
+    static async execute(
         context: AppContext,
         bookId: string,
         accountId: string,

@@ -97,21 +97,21 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         const { bookId, accountId } = c.req.valid('param');
         const request = c.req.valid('json');
         const context = new AppContext(new Bkper(), c.env);
-        const response = await CalculateService.calculate(context, bookId, accountId, request);
+        const response = await CalculateService.execute(context, bookId, accountId, request);
         return c.json(response, 200);
     });
 
     app.openapi(resetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
-        const response = await ResetService.reset(context, bookId, accountId);
+        const response = await ResetService.execute(context, bookId, accountId);
         return c.json(response, 200);
     });
 
     app.openapi(fullResetRoute, async c => {
         const { bookId, accountId } = c.req.valid('param');
         const context = new AppContext(new Bkper(), c.env);
-        const response = await ResetService.fullReset(context, bookId, accountId);
+        const response = await ResetService.executeFull(context, bookId, accountId);
         return c.json(response, 200);
     });
 
@@ -119,7 +119,7 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         const { bookId, accountId } = c.req.valid('param');
         const request = c.req.valid('json');
         const context = new AppContext(new Bkper(), c.env);
-        await ForwardService.forward(context, bookId, accountId, request);
+        await ForwardService.execute(context, bookId, accountId, request);
         return c.json({ message: '' }, 200);
     });
 }

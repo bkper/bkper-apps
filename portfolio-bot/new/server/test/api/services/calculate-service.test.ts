@@ -15,16 +15,12 @@ interface CalculateCall {
     date: string;
 }
 
-const originalCalculateAccount = CalculateRealizedResultsService.prototype.calculateAccount;
+const originalExecute = CalculateRealizedResultsService.prototype.execute;
 let calculateCalls: CalculateCall[] = [];
 
 beforeEach(() => {
     calculateCalls = [];
-    CalculateRealizedResultsService.prototype.calculateAccount = async (
-        context,
-        performMtm,
-        date
-    ) => {
+    CalculateRealizedResultsService.prototype.execute = async (context, performMtm, date) => {
         calculateCalls.push({
             portfolioBookId: context.portfolioBook.getId(),
             accountId: context.portfolioAccount.getId(),
@@ -38,7 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    CalculateRealizedResultsService.prototype.calculateAccount = originalCalculateAccount;
+    CalculateRealizedResultsService.prototype.execute = originalExecute;
 });
 
 describe('Calculate service pending-calculation Account query', () => {
@@ -158,7 +154,7 @@ describe('Calculate service operation', () => {
         }
 
         const context = new AppContext(new Bkper(), { ASSETS: { fetch } });
-        const response = await TestCalculateService.calculate(
+        const response = await TestCalculateService.execute(
             context,
             'portfolio-book',
             'instrument-account',
@@ -190,7 +186,7 @@ describe('Calculate service operation', () => {
             financialBook: leanFinancialBook,
             baseBook: leanFinancialBook,
         };
-        await TestCalculateService.calculate(context, 'portfolio-book', 'instrument-account', {
+        await TestCalculateService.execute(context, 'portfolio-book', 'instrument-account', {
             date: '2026-08-05',
             performMtm: false,
         });
@@ -209,8 +205,7 @@ describe('Calculate service operation', () => {
     });
 
     test('returns a structured invalid-request error for a locked no-write outcome', async () => {
-        CalculateRealizedResultsService.prototype.calculateAccount = async () =>
-            new Summary().lockError();
+        CalculateRealizedResultsService.prototype.execute = async () => new Summary().lockError();
 
         class TestCalculateService extends CalculateService {
             protected static override async resolveContext(): Promise<OperationContext> {
@@ -235,7 +230,7 @@ describe('Calculate service operation', () => {
         }
 
         await expect(
-            TestCalculateService.calculate(
+            TestCalculateService.execute(
                 new AppContext(new Bkper(), { ASSETS: { fetch } }),
                 'portfolio-book',
                 'instrument-account',
@@ -254,7 +249,7 @@ describe('Calculate service operation', () => {
             throw loadError;
         };
 
-        const request = CalculateService.calculate(
+        const request = CalculateService.execute(
             new AppContext(bkper, { ASSETS: { fetch } }),
             'portfolio-book',
             'instrument-account',

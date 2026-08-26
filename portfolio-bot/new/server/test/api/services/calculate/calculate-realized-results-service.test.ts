@@ -1313,7 +1313,7 @@ describe('legacy Calculate entry orchestration', () => {
             ]);
         };
 
-        const result = await service.calculateAccount(fixture.context, true, '');
+        const result = await service.execute(fixture.context, true, '');
 
         expect(formattedDefaultDate).toBe(true);
         expect(requests).toEqual([
@@ -1346,15 +1346,15 @@ describe('legacy Calculate entry orchestration', () => {
         fixture.context.portfolioBook.listTransactions = async () => {
             throw new Error('Transactions must not load during rebuild');
         };
-        const originalResetAccount = ResetRealizedResultsService.prototype.resetAccount;
+        const originalResetExecute = ResetRealizedResultsService.prototype.execute;
         const resetCalls: Array<{ context: OperationContext; full: boolean }> = [];
-        ResetRealizedResultsService.prototype.resetAccount = async (context, full) => {
+        ResetRealizedResultsService.prototype.execute = async (context, full) => {
             resetCalls.push({ context, full });
             return new Summary().resetingAsync();
         };
 
         try {
-            const result = await new CalculateRealizedResultsService().calculateAccount(
+            const result = await new CalculateRealizedResultsService().execute(
                 fixture.context,
                 true,
                 '2026-08-05'
@@ -1363,7 +1363,7 @@ describe('legacy Calculate entry orchestration', () => {
             expect(resetCalls).toEqual([{ context: fixture.context, full: false }]);
             expect(result.getState()).toBe(SummaryState.REBUILD);
         } finally {
-            ResetRealizedResultsService.prototype.resetAccount = originalResetAccount;
+            ResetRealizedResultsService.prototype.execute = originalResetExecute;
         }
     });
 
@@ -1379,7 +1379,7 @@ describe('legacy Calculate entry orchestration', () => {
             throw new Error('Transactions must not load without a Financial Book');
         };
 
-        const result = await new CalculateRealizedResultsService().calculateAccount(
+        const result = await new CalculateRealizedResultsService().execute(
             fixture.context,
             false,
             '2026-08-05'
@@ -1415,7 +1415,7 @@ describe('legacy Calculate entry orchestration', () => {
             lastDateCalls++;
         };
 
-        const result = await service.calculateAccount(fixture.context, false, '2026-08-05');
+        const result = await service.execute(fixture.context, false, '2026-08-05');
 
         expect(processCalls).toBe(0);
         expect(exchangeRateCalls).toBe(1);
@@ -1485,7 +1485,7 @@ describe('legacy Calculate entry orchestration', () => {
             operationOrder.push('last-date');
         };
 
-        const result = await service.calculateAccount(fixture.context, false, '2026-08-05');
+        const result = await service.execute(fixture.context, false, '2026-08-05');
 
         expect(operationOrder).toEqual(['support-account', 'queue-locked-transaction']);
         expect(result.getState()).toBe(SummaryState.LOCKED);

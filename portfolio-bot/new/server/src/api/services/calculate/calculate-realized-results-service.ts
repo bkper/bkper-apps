@@ -38,11 +38,7 @@ export class CalculateRealizedResultsService {
     private readonly botService = new BotService();
     private readonly support = new CalculateRealizedResultsSupport();
 
-    async calculateAccount(
-        context: OperationContext,
-        autoMtM: boolean,
-        toDate: string
-    ): Promise<Summary> {
+    async execute(context: OperationContext, autoMtM: boolean, toDate: string): Promise<Summary> {
         let stockBook = context.portfolioBook;
         if (!toDate) {
             toDate = stockBook.formatDate(new Date());
@@ -57,7 +53,7 @@ export class CalculateRealizedResultsService {
 
         if (stockAccount.needsRebuild()) {
             // Fire reset async
-            await new ResetRealizedResultsService().resetAccount(context, false);
+            await new ResetRealizedResultsService().execute(context, false);
             return summary.rebuild();
         }
 

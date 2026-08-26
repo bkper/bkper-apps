@@ -145,14 +145,14 @@ test('applies shared validation to every mutating operation service', async () =
     const context = createContext(bkper);
     const operations = [
         () =>
-            CalculateService.calculate(context, 'portfolio-book', 'round-trip', {
+            CalculateService.execute(context, 'portfolio-book', 'round-trip', {
                 date: '2026-08-05',
                 performMtm: false,
             }),
-        () => ResetService.reset(context, 'portfolio-book', 'round-trip'),
-        () => ResetService.fullReset(context, 'portfolio-book', 'round-trip'),
+        () => ResetService.execute(context, 'portfolio-book', 'round-trip'),
+        () => ResetService.executeFull(context, 'portfolio-book', 'round-trip'),
         () =>
-            ForwardService.forward(context, 'portfolio-book', 'round-trip', {
+            ForwardService.execute(context, 'portfolio-book', 'round-trip', {
                 date: '2026-09-01',
             }),
     ];

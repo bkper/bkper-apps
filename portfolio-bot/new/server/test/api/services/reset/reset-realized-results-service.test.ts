@@ -211,7 +211,7 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetAccount(
+        const result = await new ResetRealizedResultsService().execute(
             fixture.operationContext,
             false
         );
@@ -304,7 +304,7 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetAccount(
+        const result = await new ResetRealizedResultsService().execute(
             fixture.operationContext,
             false
         );
@@ -355,7 +355,7 @@ describe('legacy batched Reset behavior', () => {
             return fixture.account;
         };
 
-        const result = await new ResetRealizedResultsService().resetAccount(
+        const result = await new ResetRealizedResultsService().execute(
             fixture.operationContext,
             true
         );
@@ -423,7 +423,7 @@ describe('legacy batched Reset behavior', () => {
             throw new Error('Unexpected Account update');
         };
 
-        const result = await new ResetRealizedResultsService().resetAccount(
+        const result = await new ResetRealizedResultsService().execute(
             fixture.operationContext,
             false
         );

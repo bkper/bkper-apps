@@ -36,7 +36,7 @@ export class CalculateService extends OperationService {
         return accountIds;
     }
 
-    static async calculate(
+    static async execute(
         context: AppContext,
         bookId: string,
         accountId: string,
@@ -59,7 +59,7 @@ export class CalculateService extends OperationService {
         operationContext.financialBook = financialBook;
         operationContext.baseBook = baseBook;
 
-        const summary = await new CalculateRealizedResultsService().calculateAccount(
+        const summary = await new CalculateRealizedResultsService().execute(
             operationContext,
             request.performMtm,
             request.date

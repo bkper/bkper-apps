@@ -9,10 +9,10 @@ const env = {
 };
 
 const originalListAccountsPendingCalculation = CalculateService.listAccountsPendingCalculation;
-const originalCalculate = CalculateService.calculate;
-const originalReset = ResetService.reset;
-const originalFullReset = ResetService.fullReset;
-const originalForward = ForwardService.forward;
+const originalCalculate = CalculateService.execute;
+const originalReset = ResetService.execute;
+const originalFullReset = ResetService.executeFull;
+const originalForward = ForwardService.execute;
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
     return createApp().request(path, init, env);
@@ -20,10 +20,10 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
 
 afterEach(() => {
     CalculateService.listAccountsPendingCalculation = originalListAccountsPendingCalculation;
-    CalculateService.calculate = originalCalculate;
-    ResetService.reset = originalReset;
-    ResetService.fullReset = originalFullReset;
-    ForwardService.forward = originalForward;
+    CalculateService.execute = originalCalculate;
+    ResetService.execute = originalReset;
+    ResetService.executeFull = originalFullReset;
+    ForwardService.execute = originalForward;
 });
 
 describe('typed Portfolio Bot API', () => {
@@ -40,7 +40,7 @@ describe('typed Portfolio Bot API', () => {
     });
 
     test('passes Calculate inputs to the service and returns the operation message', async () => {
-        CalculateService.calculate = mock(async (_context, bookId, accountId, calculateRequest) => {
+        CalculateService.execute = mock(async (_context, bookId, accountId, calculateRequest) => {
             expect(bookId).toBe('portfolio-book');
             expect(accountId).toBe('instrument-account');
             expect(calculateRequest).toEqual({
@@ -64,10 +64,10 @@ describe('typed Portfolio Bot API', () => {
     });
 
     test('returns the shared operation response when mutation stubs complete', async () => {
-        CalculateService.calculate = mock(async () => ({ message: 'Calculating' }));
-        ResetService.reset = mock(async () => ({ message: 'Resetting' }));
-        ResetService.fullReset = mock(async () => ({ message: 'Fully resetting' }));
-        ForwardService.forward = mock(async () => undefined);
+        CalculateService.execute = mock(async () => ({ message: 'Calculating' }));
+        ResetService.execute = mock(async () => ({ message: 'Resetting' }));
+        ResetService.executeFull = mock(async () => ({ message: 'Fully resetting' }));
+        ForwardService.execute = mock(async () => undefined);
 
         const requests: Array<[string, RequestInit, { message: string }]> = [
             [

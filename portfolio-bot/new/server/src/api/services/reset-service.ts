@@ -8,7 +8,7 @@ import { ResetRealizedResultsService } from './reset/reset-realized-results-serv
 import { SummaryState } from './summary.js';
 
 export class ResetService extends OperationService {
-    static async reset(
+    static async execute(
         context: AppContext,
         bookId: string,
         accountId: string
@@ -21,7 +21,7 @@ export class ResetService extends OperationService {
         return this.runReset(operationContext, false);
     }
 
-    static async fullReset(
+    static async executeFull(
         context: AppContext,
         bookId: string,
         accountId: string
@@ -38,7 +38,7 @@ export class ResetService extends OperationService {
         context: OperationContext,
         full: boolean
     ): Promise<OperationResponse> {
-        const summary = await new ResetRealizedResultsService().resetAccount(context, full);
+        const summary = await new ResetRealizedResultsService().execute(context, full);
         if (summary.getState() === SummaryState.LOCKED) {
             throw new HTTPException(400, { message: summary.getMessage() });
         }

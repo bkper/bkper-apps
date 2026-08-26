@@ -36,7 +36,7 @@ describe('Forward service operation', () => {
         }
 
         const context = new AppContext(new Bkper(), { ASSETS: { fetch } });
-        await TestForwardService.forward(context, 'portfolio-book', 'instrument-account', {
+        await TestForwardService.execute(context, 'portfolio-book', 'instrument-account', {
             date: '2026-09-01',
         });
 
@@ -50,7 +50,7 @@ describe('Forward service operation', () => {
             financialBook: leanFinancialBook,
             baseBook: leanFinancialBook,
         };
-        await TestForwardService.forward(context, 'portfolio-book', 'instrument-account', {
+        await TestForwardService.execute(context, 'portfolio-book', 'instrument-account', {
             date: '2026-09-01',
         });
 
@@ -65,7 +65,7 @@ describe('Forward service operation', () => {
             throw loadError;
         };
 
-        const request = ForwardService.forward(
+        const request = ForwardService.execute(
             new AppContext(bkper, { ASSETS: { fetch } }),
             'portfolio-book',
             'instrument-account',

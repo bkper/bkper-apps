@@ -39,7 +39,7 @@ import { ResetRealizedResultsProcessor } from './reset-realized-results-processo
 export class ResetRealizedResultsService {
     private readonly botService = new BotService();
 
-    async resetAccount(context: OperationContext, full: boolean): Promise<Summary> {
+    async execute(context: OperationContext, full: boolean): Promise<Summary> {
         const stockBook = context.portfolioBook;
         const financialBook = context.financialBook;
         const baseBook = context.baseBook;

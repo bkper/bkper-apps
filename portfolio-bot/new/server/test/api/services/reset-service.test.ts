@@ -13,12 +13,12 @@ interface ResetCall {
     baseBookId: string | undefined;
 }
 
-const originalResetAccount = ResetRealizedResultsService.prototype.resetAccount;
+const originalExecute = ResetRealizedResultsService.prototype.execute;
 let resetCalls: ResetCall[] = [];
 
 beforeEach(() => {
     resetCalls = [];
-    ResetRealizedResultsService.prototype.resetAccount = async (context, full) => {
+    ResetRealizedResultsService.prototype.execute = async (context, full) => {
         resetCalls.push({
             portfolioBookId: context.portfolioBook.getId(),
             accountId: context.portfolioAccount.getId(),
@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    ResetRealizedResultsService.prototype.resetAccount = originalResetAccount;
+    ResetRealizedResultsService.prototype.execute = originalExecute;
 });
 
 function createOperationContext(
@@ -91,10 +91,10 @@ describe('Reset service operations', () => {
         const context = createOperationContext(Permission.EDITOR);
 
         await expect(
-            ResetService.reset(context, 'portfolio-book', 'instrument-account')
+            ResetService.execute(context, 'portfolio-book', 'instrument-account')
         ).resolves.toEqual({ message: 'Reseting async...' });
         await expect(
-            ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
+            ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
         ).rejects.toMatchObject({ status: 403 });
         expect(resetCalls.map(call => call.full)).toEqual([false]);
     });
@@ -104,7 +104,7 @@ describe('Reset service operations', () => {
             const context = createOperationContext(Permission.OWNER, unavailableBook);
 
             await expect(
-                ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
+                ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
             ).rejects.toMatchObject({
                 status: 400,
                 message:
@@ -121,7 +121,7 @@ describe('Reset service operations', () => {
         });
 
         await expect(
-            ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
+            ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
         ).resolves.toEqual({ message: 'Reseting async...' });
     });
 
@@ -134,18 +134,18 @@ describe('Reset service operations', () => {
             return getBook(bookId, includeAccounts);
         };
 
-        await ResetService.reset(context, 'portfolio-book', 'instrument-account');
+        await ResetService.execute(context, 'portfolio-book', 'instrument-account');
 
         expect(loads).toEqual([['portfolio-book', true]]);
     });
 
     test('runs regular and Full Reset with the resolved operation context', async () => {
-        const resetResponse = await ResetService.reset(
+        const resetResponse = await ResetService.execute(
             createOperationContext(Permission.EDITOR),
             'portfolio-book',
             'instrument-account'
         );
-        const fullResetResponse = await ResetService.fullReset(
+        const fullResetResponse = await ResetService.executeFull(
             createOperationContext(Permission.OWNER),
             'portfolio-book',
             'instrument-account'
@@ -173,14 +173,14 @@ describe('Reset service operations', () => {
     });
 
     test('returns a structured invalid-request error for a locked no-write outcome', async () => {
-        ResetRealizedResultsService.prototype.resetAccount = async () => {
+        ResetRealizedResultsService.prototype.execute = async () => {
             const summary = new Summary().lockError();
             summary.getMessage = () => 'Locked operation';
             return summary;
         };
 
         await expect(
-            ResetService.reset(
+            ResetService.execute(
                 createOperationContext(Permission.EDITOR),
                 'portfolio-book',
                 'instrument-account'
@@ -200,10 +200,10 @@ describe('Reset service operations', () => {
         const context = new AppContext(bkper, { ASSETS: { fetch } });
 
         await expect(
-            ResetService.reset(context, 'portfolio-book', 'instrument-account')
+            ResetService.execute(context, 'portfolio-book', 'instrument-account')
         ).rejects.toBe(loadError);
         await expect(
-            ResetService.fullReset(context, 'portfolio-book', 'instrument-account')
+            ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
         ).rejects.toBe(loadError);
     });
 });

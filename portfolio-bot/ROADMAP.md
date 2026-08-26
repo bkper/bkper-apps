@@ -2,7 +2,7 @@
 
 ## Status
 
-**Chunks 1–12 complete — Chunk 13 in progress (Subchunks 1–4 complete).**
+**Chunks 1–12 complete — Chunk 13 in progress (Subchunks 1–4 complete; Subchunk 5 support separation complete).**
 
 The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, and existing Calculate helper behavior without wiring Calculate. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Lower-forward-date validation remains with the Forward Date behavior port in Chunk 14, while mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
@@ -731,11 +731,11 @@ Post-chunk Summary adjustment:
 
 ### Chunk 13 — Port Calculate
 
-**Status: In progress — Subchunks 1–4 complete.**
+**Status: In progress — Subchunks 1–4 complete; Subchunk 5 support separation complete.**
 
 Regular Reset from Chunk 12 is an implementation dependency: when the legacy Calculate path finds `needs_rebuild`, it invokes regular Reset and returns instead of continuing calculation.
 
-This chunk is a parity port, not a calculation redesign. A `new/server/src/api/services/calculate/` subdirectory may organize the existing Calculate files, but it is only an organizational boundary. `CalculateRealizedResultsService` remains one service, its large `processSale` method remains one method, and its branch, lookup, property, relationship, and mutation order remain aligned with legacy. Existing helper-method boundaries remain intact; `CalculateRealizedResultsProcessor` remains a separate ordered mutation coordinator; `StockAccount` remains a separate shared wrapper; and Calculate dependencies extend the existing target `BotService` instead of being redistributed into newly designed rule, loader, rate, Account, or movement modules. Deeper modularization remains post-migration work.
+This chunk is a parity port, not a calculation redesign. The `new/server/src/api/services/calculate/` subdirectory is an organizational boundary. `CalculateRealizedResultsService` owns account-level orchestration and its large `processSale` method, while `CalculateRealizedResultsSupport` contains the already-separated legacy helper methods. This file-level composition does not split or redesign a legacy method. `processSale` remains one method, and its branch, lookup, property, relationship, and mutation order remain aligned with legacy. Existing helper-method boundaries remain intact; `CalculateRealizedResultsProcessor` remains a separate ordered mutation coordinator; `StockAccount` remains a separate shared wrapper; and Calculate dependencies extend the existing target `BotService` instead of being redistributed into newly designed rule, loader, rate, Account, or movement modules. Deeper modularization remains post-migration work.
 
 The agreed target structure preserves those boundaries explicitly:
 
@@ -747,18 +747,19 @@ new/server/src/api/services/
 └── calculate/
     ├── types.ts
     ├── calculate-realized-results-processor.ts
+    ├── calculate-realized-results-support.ts
     └── calculate-realized-results-service.ts
 ```
 
-`calculate-service.ts` remains the thin API facade, `bot-service.ts` is extended in place, `stock-account.ts` remains reusable by later operation ports, and `calculate/` mirrors only the legacy file-level decomposition.
+`calculate-service.ts` remains the thin API facade, `bot-service.ts` is extended in place, `stock-account.ts` remains reusable by later operation ports, and `calculate/` retains the legacy method boundaries while separating main orchestration from supporting behavior through composition.
 
 Planned committable subchunks follow the existing legacy file and method boundaries rather than splitting one large method into artificial intermediate implementations:
 
 1. Port supporting constants, calculation model, log types, and the async `StockAccount` adaptation in the agreed target structure without wiring Calculate.
 2. Port the legacy `BotService` methods required by Calculate, preserving price and rate precedence, FIFO comparison, gain calculations, query behavior, and support Account inference.
 3. Port `CalculateRealizedResultsProcessor` with its established Maps, Sets, temporary ids, MTM accumulation, canonical-id replacement, and ordered batch phases. Preserve its legacy return behavior except for explicit target-runtime awaiting, and do not add API response tracking.
-4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior; keep them in `CalculateRealizedResultsService`.
-5. Port the complete `processSale` method in place as one parity unit, preserving its long, multiple-lot, partial, short-sale, split, historical-only, fair-only, combined, and MTM branches together with their exact branch, property, relationship, and mutation order. Cover the complete behavior matrix without extracting a new calculation engine or landing deliberately incomplete versions of the method.
+4. Port the helper methods already separated in the legacy Calculate service, including logs, rate recording, Account lookup and creation, realized, FX, MTM, interest-MTM, and Account-date behavior.
+5. Move the unchanged helper implementation into `CalculateRealizedResultsSupport`, compose it from `CalculateRealizedResultsService`, and port the complete `processSale` method in the main service as one parity unit. Preserve its long, multiple-lot, partial, short-sale, split, historical-only, fair-only, combined, and MTM branches together with their exact branch, property, relationship, and mutation order. Cover the complete behavior matrix without extracting a new calculation engine or landing deliberately incomplete versions of the method.
 6. Port entry orchestration, preserve the `needs_rebuild` Reset-and-return dependency, perform locked-resource checks before support Account creation or any other mutation, and preserve transaction loading and FIFO sorting. Keep the Calculate API stub non-mutating and do not add response tracking, schema changes, route wiring, or facade integration in this parity subchunk.
 7. After Calculate behavior is fully ported and covered, wire the accepted shared `200 OK` operation response by replacing the non-mutating API stub. Keep error translation in `calculate-service.ts` and do not add mutation tracking to the parity implementation.
 
@@ -786,10 +787,17 @@ Subchunk 3 evidence:
 
 Subchunk 4 evidence:
 
-- Ported the existing Calculate helper methods for logs, exchange-rate recording, Account lookup and creation, realized and FX results, regular and historical MTM, interest-MTM, balance reads, and Account-date behavior into `CalculateRealizedResultsService`.
+- Ported the existing Calculate helper methods for logs, exchange-rate recording, Account lookup and creation, realized and FX results, regular and historical MTM, interest-MTM, balance reads, and Account-date behavior; they were subsequently moved unchanged into `CalculateRealizedResultsSupport` as the preparatory separation for Subchunk 5.
 - Preserved legacy rate precedence, support Account and Group inference, remote-id prefixes, descriptions, properties, movement directions, and zero-result no-ops with explicit asynchronous SDK boundaries.
 - Kept `processSale`, Calculate orchestration, the API stub, routes, schemas, and response tracking unchanged and unwired.
 - Added five focused deterministic helper tests and verified the complete local gate with 95 client tests, 149 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+
+Subchunk 5 support-separation evidence:
+
+- Moved the unchanged helper class and its focused tests to `calculate-realized-results-support.ts` and `calculate-realized-results-support.test.ts`.
+- Reserved `CalculateRealizedResultsService` for account-level orchestration and the intact `processSale` method, composing the support class without introducing another calculation layer or changing helper behavior.
+- Left `processSale`, operation orchestration, routes, schemas, the API stub, and response tracking unchanged and unwired.
+- Verified the focused support tests and the complete local gate with 95 client tests, 149 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
 - Port FIFO ordering, complete and partial lots, short sales, splits, logs, checked state, and model branches.
 - Port explicit and inherited rates, realized and historical results, exchange results, MTM, historical MTM, and interest-MTM movements.

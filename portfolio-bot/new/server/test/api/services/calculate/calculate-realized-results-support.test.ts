@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, Amount, BalancesReport, Book, Transaction } from 'bkper-js';
 import { CalculateRealizedResultsProcessor } from '../../../../src/api/services/calculate/calculate-realized-results-processor.js';
-import { CalculateRealizedResultsService } from '../../../../src/api/services/calculate/calculate-realized-results-service.js';
+import { CalculateRealizedResultsSupport } from '../../../../src/api/services/calculate/calculate-realized-results-support.js';
 import { StockAccount } from '../../../../src/api/services/stock-account.js';
 import { Summary } from '../../../../src/api/services/summary.js';
 
@@ -68,9 +68,9 @@ async function movementAccounts(
     };
 }
 
-describe('legacy Calculate helper behavior', () => {
+describe('legacy Calculate support behavior', () => {
     test('records logs, missing exchange rates, FIFO identity, and the latest Account date', async () => {
-        const service = new CalculateRealizedResultsService();
+        const service = new CalculateRealizedResultsSupport();
         const portfolioBook = createBook({ id: 'portfolio', fractionDigits: 0 });
         const financialBook = createBook({
             id: 'financial',
@@ -146,7 +146,7 @@ describe('legacy Calculate helper behavior', () => {
     });
 
     test('queues complete realized gain, loss, and historical movements', async () => {
-        const service = new CalculateRealizedResultsService();
+        const service = new CalculateRealizedResultsSupport();
         const portfolioBook = createBook({ id: 'portfolio' });
         const baseBook = createBook({ id: 'base', properties: { exc_code: 'USD' } });
         const financialBook = createBook({
@@ -256,7 +256,7 @@ describe('legacy Calculate helper behavior', () => {
     });
 
     test('infers and creates the established realized FX Account', async () => {
-        const service = new CalculateRealizedResultsService();
+        const service = new CalculateRealizedResultsSupport();
         const baseBook = createBook({
             id: 'base',
             groups: [{ id: 'exchange-results', name: 'Exchange Results' }],
@@ -297,7 +297,7 @@ describe('legacy Calculate helper behavior', () => {
     });
 
     test('queues complete regular and historical FX gain and loss movements', async () => {
-        const service = new CalculateRealizedResultsService();
+        const service = new CalculateRealizedResultsSupport();
         const portfolioBook = createBook({ id: 'portfolio' });
         const baseBook = createBook({
             id: 'base',
@@ -394,7 +394,7 @@ describe('legacy Calculate helper behavior', () => {
     });
 
     test('uses balances to queue complete MTM and interest-MTM movements', async () => {
-        const service = new CalculateRealizedResultsService();
+        const service = new CalculateRealizedResultsSupport();
         const portfolioBook = createBook({ id: 'portfolio', fractionDigits: 0 });
         const financialBook = createBook({
             id: 'financial',

@@ -34,5 +34,19 @@ export class CalculateService extends OperationService {
     ): Promise<void> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
+
+        // Calculate resolves and creates Accounts across the Financial and Base charts,
+        // so replace their Collection metadata Books before entering calculation logic.
+        const financialBookId = operationContext.financialBook.getId();
+        const baseBookId = operationContext.baseBook.getId();
+
+        const financialBook = await this.loadFullBook(context, financialBookId);
+        const baseBook =
+            baseBookId === financialBookId
+                ? financialBook
+                : await this.loadFullBook(context, baseBookId);
+
+        operationContext.financialBook = financialBook;
+        operationContext.baseBook = baseBook;
     }
 }

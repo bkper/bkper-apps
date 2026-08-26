@@ -30,7 +30,7 @@ export abstract class OperationService {
         portfolioBookId: string,
         portfolioAccountId: string
     ): Promise<OperationContext> {
-        const portfolioBook = await context.bkper.getBook(portfolioBookId, true);
+        const portfolioBook = await this.loadFullBook(context, portfolioBookId);
         const portfolioBookName = portfolioBook.getName() ?? portfolioBookId;
 
         const portfolioAccount = await portfolioBook.getAccount(portfolioAccountId);
@@ -78,5 +78,9 @@ export abstract class OperationService {
         }
 
         return { portfolioBook, portfolioAccount, financialBook, baseBook };
+    }
+
+    protected static loadFullBook(context: AppContext, bookId: string): Promise<Book> {
+        return context.bkper.getBook(bookId, true);
     }
 }

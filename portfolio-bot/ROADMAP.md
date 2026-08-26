@@ -214,6 +214,7 @@ The previous GCP and GAS source remains recoverable from Git history. Their unch
 - The initial API remains limited to the operations and context required by Portfolio Bot.
 - API authorization and installation checks are explicit and do not rely only on hidden client controls.
 - Every mutating operation resolves and preflights the Portfolio, Financial, and Base Books it may change before its first write.
+- Operation facades load complete Account and Group charts only where their inner behavior requires them: Calculate uses complete Portfolio, Financial, and Base Books; Reset and Full Reset require only the complete Portfolio Book; Forward Date uses complete Portfolio and Financial Books while a distinct Base Book remains metadata-only.
 - Full Reset and lower-forward-date requirements are enforced at the server boundary.
 - Bkper Core remains authoritative for every request after the application preflight.
 - Server routes and event handlers create request-scoped `Bkper` instances without OAuth, API-key, or agent-id providers.
@@ -635,7 +636,13 @@ The frozen dependency audit reports eight advisories across four affected toolin
 - Left mutation-control gating, warnings, and non-retry behavior with the operation client in Chunk 15; no mutation controls or operation retry workflow exist yet.
 - Verified the complete local gate with 88 client tests, 115 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
 
-**Gate:** Pass — the deterministic API permission matrix and non-mutating operation stubs establish the pre-accounting authorization boundary.
+Post-chunk Book-loading adjustment:
+
+- Added one shared full-Book loader while keeping chart requirements explicit in each operation facade after common context validation.
+- Calculate replaces Financial and Base Collection metadata with complete charts and reuses one loaded Book when both roles share an id; Forward replaces Financial and also reuses it for Base when shared; Reset and Full Reset retain metadata-only Financial and Base Books.
+- Added focused facade coverage for these loading boundaries; the complete local gate passes with 95 client tests and 152 server tests.
+
+**Gate:** Pass — the deterministic API permission matrix and operation-specific Book-loading boundaries establish the pre-accounting authorization boundary.
 
 ### Chunk 12 — Port Reset and Full Reset
 

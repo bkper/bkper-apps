@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { AccountType, App, Bkper, Book, Permission, TransactionList } from 'bkper-js';
+import { Account, AccountType, App, Bkper, Book, Permission, TransactionList } from 'bkper-js';
 import { CalculateService } from '../../../src/api/services/calculate-service.js';
+import type { OperationContext } from '../../../src/api/services/operation-service.js';
 import { AppContext } from '../../../src/shared/app-context.js';
 
 describe('Calculate service pending-calculation Account query', () => {
@@ -88,6 +89,64 @@ describe('Calculate service pending-calculation Account query', () => {
 });
 
 describe('Calculate service operation', () => {
+    test('loads and reuses the Financial and Base Book charts before calculating', async () => {
+        const portfolioBook = new Book({ id: 'portfolio-book' });
+        const portfolioAccount = new Account(portfolioBook, { id: 'instrument-account' });
+        const leanFinancialBook = new Book({ id: 'financial-book' });
+        const leanBaseBook = new Book({ id: 'base-book' });
+        const fullFinancialBook = new Book({ id: 'financial-book', accounts: [] });
+        const fullBaseBook = new Book({ id: 'base-book', accounts: [] });
+        let operationContext: OperationContext = {
+            portfolioBook,
+            portfolioAccount,
+            financialBook: leanFinancialBook,
+            baseBook: leanBaseBook,
+        };
+        const loads: string[] = [];
+
+        class TestCalculateService extends CalculateService {
+            protected static override async resolveContext(): Promise<OperationContext> {
+                return operationContext;
+            }
+
+            protected static override async validateContext(): Promise<void> {}
+
+            protected static override async loadFullBook(
+                _context: AppContext,
+                bookId: string
+            ): Promise<Book> {
+                loads.push(bookId);
+                return bookId === 'financial-book' ? fullFinancialBook : fullBaseBook;
+            }
+        }
+
+        const context = new AppContext(new Bkper(), { ASSETS: { fetch } });
+        await TestCalculateService.calculate(context, 'portfolio-book', 'instrument-account', {
+            date: '2026-08-05',
+            performMtm: false,
+        });
+
+        expect(loads).toEqual(['financial-book', 'base-book']);
+        expect(operationContext.financialBook).toBe(fullFinancialBook);
+        expect(operationContext.baseBook).toBe(fullBaseBook);
+
+        loads.length = 0;
+        operationContext = {
+            portfolioBook,
+            portfolioAccount,
+            financialBook: leanFinancialBook,
+            baseBook: leanFinancialBook,
+        };
+        await TestCalculateService.calculate(context, 'portfolio-book', 'instrument-account', {
+            date: '2026-08-05',
+            performMtm: false,
+        });
+
+        expect(loads).toEqual(['financial-book']);
+        expect(operationContext.financialBook).toBe(fullFinancialBook);
+        expect(operationContext.baseBook).toBe(fullFinancialBook);
+    });
+
     test('resolves operation context before calculating', async () => {
         const loadError = new Error('Portfolio Book unavailable');
         const bkper = new Bkper();

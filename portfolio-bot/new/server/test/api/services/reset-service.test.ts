@@ -125,6 +125,20 @@ describe('Reset service operations', () => {
         ).resolves.toEqual({ message: 'Reseting async...' });
     });
 
+    test('does not load Financial or Base Book charts', async () => {
+        const context = createOperationContext(Permission.EDITOR);
+        const getBook = context.bkper.getBook.bind(context.bkper);
+        const loads: Array<[string, boolean | undefined]> = [];
+        context.bkper.getBook = async (bookId, includeAccounts) => {
+            loads.push([bookId, includeAccounts]);
+            return getBook(bookId, includeAccounts);
+        };
+
+        await ResetService.reset(context, 'portfolio-book', 'instrument-account');
+
+        expect(loads).toEqual([['portfolio-book', true]]);
+    });
+
     test('runs regular and Full Reset with the resolved operation context', async () => {
         const resetResponse = await ResetService.reset(
             createOperationContext(Permission.EDITOR),

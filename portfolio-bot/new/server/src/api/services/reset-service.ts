@@ -15,6 +15,9 @@ export class ResetService extends OperationService {
     ): Promise<OperationResponse> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
+
+        // Reset only queries and trashes linked Transactions in Financial and Base Books,
+        // so their resolved Collection metadata is sufficient and no extra chart load is needed.
         return this.runReset(operationContext, false);
     }
 
@@ -25,6 +28,8 @@ export class ResetService extends OperationService {
     ): Promise<OperationResponse> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
+
+        // Full Reset has the same Book chart requirements as regular Reset.
         this.validateFullResetContext(operationContext);
         return this.runReset(operationContext, true);
     }

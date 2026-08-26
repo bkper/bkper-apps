@@ -1,8 +1,45 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Account, AccountType, App, Bkper, Book, Permission, TransactionList } from 'bkper-js';
 import { CalculateService } from '../../../src/api/services/calculate-service.js';
+import { CalculateRealizedResultsService } from '../../../src/api/services/calculate/calculate-realized-results-service.js';
 import type { OperationContext } from '../../../src/api/services/operation-service.js';
+import { Summary } from '../../../src/api/services/summary.js';
 import { AppContext } from '../../../src/shared/app-context.js';
+
+interface CalculateCall {
+    portfolioBookId: string | undefined;
+    accountId: string | undefined;
+    financialBookId: string | undefined;
+    baseBookId: string | undefined;
+    performMtm: boolean;
+    date: string;
+}
+
+const originalCalculateAccount = CalculateRealizedResultsService.prototype.calculateAccount;
+let calculateCalls: CalculateCall[] = [];
+
+beforeEach(() => {
+    calculateCalls = [];
+    CalculateRealizedResultsService.prototype.calculateAccount = async (
+        context,
+        performMtm,
+        date
+    ) => {
+        calculateCalls.push({
+            portfolioBookId: context.portfolioBook.getId(),
+            accountId: context.portfolioAccount.getId(),
+            financialBookId: context.financialBook.getId(),
+            baseBookId: context.baseBook.getId(),
+            performMtm,
+            date,
+        });
+        return new Summary().calculatingAsync();
+    };
+});
+
+afterEach(() => {
+    CalculateRealizedResultsService.prototype.calculateAccount = originalCalculateAccount;
+});
 
 describe('Calculate service pending-calculation Account query', () => {
     test('rejects a non-viewer before querying pending-calculation Accounts', async () => {
@@ -121,14 +158,30 @@ describe('Calculate service operation', () => {
         }
 
         const context = new AppContext(new Bkper(), { ASSETS: { fetch } });
-        await TestCalculateService.calculate(context, 'portfolio-book', 'instrument-account', {
-            date: '2026-08-05',
-            performMtm: false,
-        });
+        const response = await TestCalculateService.calculate(
+            context,
+            'portfolio-book',
+            'instrument-account',
+            {
+                date: '2026-08-05',
+                performMtm: true,
+            }
+        );
 
+        expect(response).toEqual({ message: 'Calculating async...' });
         expect(loads).toEqual(['financial-book', 'base-book']);
         expect(operationContext.financialBook).toBe(fullFinancialBook);
         expect(operationContext.baseBook).toBe(fullBaseBook);
+        expect(calculateCalls).toEqual([
+            {
+                portfolioBookId: 'portfolio-book',
+                accountId: 'instrument-account',
+                financialBookId: 'financial-book',
+                baseBookId: 'base-book',
+                performMtm: true,
+                date: '2026-08-05',
+            },
+        ]);
 
         loads.length = 0;
         operationContext = {
@@ -145,6 +198,53 @@ describe('Calculate service operation', () => {
         expect(loads).toEqual(['financial-book']);
         expect(operationContext.financialBook).toBe(fullFinancialBook);
         expect(operationContext.baseBook).toBe(fullFinancialBook);
+        expect(calculateCalls.at(-1)).toEqual({
+            portfolioBookId: 'portfolio-book',
+            accountId: 'instrument-account',
+            financialBookId: 'financial-book',
+            baseBookId: 'financial-book',
+            performMtm: false,
+            date: '2026-08-05',
+        });
+    });
+
+    test('returns a structured invalid-request error for a locked no-write outcome', async () => {
+        CalculateRealizedResultsService.prototype.calculateAccount = async () =>
+            new Summary().lockError();
+
+        class TestCalculateService extends CalculateService {
+            protected static override async resolveContext(): Promise<OperationContext> {
+                const portfolioBook = new Book({ id: 'portfolio-book' });
+                const portfolioAccount = new Account(portfolioBook, {
+                    id: 'instrument-account',
+                });
+                const financialBook = new Book({ id: 'financial-book' });
+                return {
+                    portfolioBook,
+                    portfolioAccount,
+                    financialBook,
+                    baseBook: financialBook,
+                };
+            }
+
+            protected static override async validateContext(): Promise<void> {}
+
+            protected static override async loadFullBook(): Promise<Book> {
+                return new Book({ id: 'financial-book', accounts: [] });
+            }
+        }
+
+        await expect(
+            TestCalculateService.calculate(
+                new AppContext(new Bkper(), { ASSETS: { fetch } }),
+                'portfolio-book',
+                'instrument-account',
+                { date: '2026-08-05', performMtm: false }
+            )
+        ).rejects.toMatchObject({
+            status: 400,
+            message: 'Cannot proceed: collection has locked/closed book(s)',
+        });
     });
 
     test('resolves operation context before calculating', async () => {

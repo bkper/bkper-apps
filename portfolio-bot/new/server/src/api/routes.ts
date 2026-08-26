@@ -97,8 +97,8 @@ export function registerApiRoutes(app: OpenAPIHono<AppEnv>): void {
         const { bookId, accountId } = c.req.valid('param');
         const request = c.req.valid('json');
         const context = new AppContext(new Bkper(), c.env);
-        await CalculateService.calculate(context, bookId, accountId, request);
-        return c.json({ message: '' }, 200);
+        const response = await CalculateService.calculate(context, bookId, accountId, request);
+        return c.json(response, 200);
     });
 
     app.openapi(resetRoute, async c => {

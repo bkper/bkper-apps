@@ -47,6 +47,7 @@ describe('typed Portfolio Bot API', () => {
                 date: '2026-08-05',
                 performMtm: true,
             });
+            return { message: 'Calculating async...' };
         });
 
         const response = await request(
@@ -59,11 +60,11 @@ describe('typed Portfolio Bot API', () => {
         );
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ message: '' });
+        expect(await response.json()).toEqual({ message: 'Calculating async...' });
     });
 
     test('returns the shared operation response when mutation stubs complete', async () => {
-        CalculateService.calculate = mock(async () => undefined);
+        CalculateService.calculate = mock(async () => ({ message: 'Calculating' }));
         ResetService.reset = mock(async () => ({ message: 'Resetting' }));
         ResetService.fullReset = mock(async () => ({ message: 'Fully resetting' }));
         ForwardService.forward = mock(async () => undefined);
@@ -76,7 +77,7 @@ describe('typed Portfolio Bot API', () => {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ date: '2026-08-05', performMtm: false }),
                 },
-                { message: '' },
+                { message: 'Calculating' },
             ],
             [
                 '/api/v1/books/portfolio-book/accounts/instrument-account/reset',

@@ -1,8 +1,11 @@
+import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
 import { requireAppInstallation, requireViewPermission } from '../authorization.js';
-import type { CalculateRequest } from '../schemas.js';
+import type { CalculateRequest, OperationResponse } from '../schemas.js';
 import { BotService } from './bot-service.js';
+import { CalculateRealizedResultsService } from './calculate/calculate-realized-results-service.js';
 import { OperationService } from './operation-service.js';
+import { SummaryState } from './summary.js';
 
 export class CalculateService extends OperationService {
     static async listAccountsPendingCalculation(
@@ -30,8 +33,8 @@ export class CalculateService extends OperationService {
         context: AppContext,
         bookId: string,
         accountId: string,
-        _request: CalculateRequest
-    ): Promise<void> {
+        request: CalculateRequest
+    ): Promise<OperationResponse> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
 
@@ -48,5 +51,16 @@ export class CalculateService extends OperationService {
 
         operationContext.financialBook = financialBook;
         operationContext.baseBook = baseBook;
+
+        const summary = await new CalculateRealizedResultsService().calculateAccount(
+            operationContext,
+            request.performMtm,
+            request.date
+        );
+        if (summary.getState() === SummaryState.LOCKED) {
+            throw new HTTPException(400, { message: summary.getMessage() });
+        }
+
+        return { message: summary.getMessage() };
     }
 }

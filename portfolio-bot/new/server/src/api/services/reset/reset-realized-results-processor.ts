@@ -5,10 +5,10 @@ export class ResetRealizedResultsProcessor {
     private financialBook: Book;
     private baseBook: Book;
 
-    private stockBookTransactionsToUpdateMap = new Map<string, Transaction>();
-    private stockBookTransactionsToTrashMap = new Map<string, Transaction>();
-    private financialBookTransactionsToTrashMap = new Map<string, Transaction>();
-    private baseBookTransactionsToTrashMap = new Map<string, Transaction>();
+    private stockBookTransactionsToUpdate = new Map<string, Transaction>();
+    private stockBookTransactionsToTrash = new Map<string, Transaction>();
+    private financialBookTransactionsToTrash = new Map<string, Transaction>();
+    private baseBookTransactionsToTrash = new Map<string, Transaction>();
 
     private isAnyTransactionLocked = false;
 
@@ -30,22 +30,22 @@ export class ResetRealizedResultsProcessor {
 
     setStockBookTransactionToUpdate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.stockBookTransactionsToUpdateMap.set(transaction.getId()!, transaction);
+        this.stockBookTransactionsToUpdate.set(transaction.getId()!, transaction);
     }
 
     setStockBookTransactionToTrash(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.stockBookTransactionsToTrashMap.set(transaction.getId()!, transaction);
+        this.stockBookTransactionsToTrash.set(transaction.getId()!, transaction);
     }
 
     setFinancialBookTransactionToTrash(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.financialBookTransactionsToTrashMap.set(transaction.getId()!, transaction);
+        this.financialBookTransactionsToTrash.set(transaction.getId()!, transaction);
     }
 
     setBaseBookTransactionToTrash(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.baseBookTransactionsToTrashMap.set(transaction.getId()!, transaction);
+        this.baseBookTransactionsToTrash.set(transaction.getId()!, transaction);
     }
 
     async fireBatchOperations(): Promise<void> {
@@ -56,28 +56,28 @@ export class ResetRealizedResultsProcessor {
     }
 
     private async fireBatchUpdateStockBookTransactions(): Promise<void> {
-        const batch = Array.from(this.stockBookTransactionsToUpdateMap.values());
+        const batch = Array.from(this.stockBookTransactionsToUpdate.values());
         if (batch.length > 0) {
             await this.portfolioBook.batchUpdateTransactions(batch, true);
         }
     }
 
     private async fireBatchTrashStockBookTransactions(): Promise<void> {
-        const batch = Array.from(this.stockBookTransactionsToTrashMap.values());
+        const batch = Array.from(this.stockBookTransactionsToTrash.values());
         if (batch.length > 0) {
             await this.portfolioBook.batchTrashTransactions(batch, true);
         }
     }
 
     private async fireBatchTrashFinancialBookTransactions(): Promise<void> {
-        const batch = Array.from(this.financialBookTransactionsToTrashMap.values());
+        const batch = Array.from(this.financialBookTransactionsToTrash.values());
         if (batch.length > 0) {
             await this.financialBook.batchTrashTransactions(batch, true);
         }
     }
 
     private async fireBatchTrashBaseBookTransactions(): Promise<void> {
-        const batch = Array.from(this.baseBookTransactionsToTrashMap.values());
+        const batch = Array.from(this.baseBookTransactionsToTrash.values());
         if (batch.length > 0) {
             await this.baseBook.batchTrashTransactions(batch, true);
         }

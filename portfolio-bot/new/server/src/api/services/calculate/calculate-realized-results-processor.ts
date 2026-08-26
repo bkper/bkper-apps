@@ -7,12 +7,12 @@ export class CalculateRealizedResultsProcessor {
     private baseBook: Book;
 
     private stockBookTransactionsToCreate = new Map<string, Transaction>();
-    private stockBookTransactionsToUpdateMap = new Map<string, Transaction>();
-    private financialBookTransactionsToCreateMap = new Map<string, Transaction>();
-    private baseBookTransactionsToCreateMap = new Map<string, Transaction>();
+    private stockBookTransactionsToUpdate = new Map<string, Transaction>();
+    private financialBookTransactionsToCreate = new Map<string, Transaction>();
+    private baseBookTransactionsToCreate = new Map<string, Transaction>();
 
-    private mtmTransactionsSet = new Set<Transaction>();
-    private mtmHistTransactionsSet = new Set<Transaction>();
+    private mtmTransactions = new Set<Transaction>();
+    private mtmHistTransactions = new Set<Transaction>();
 
     private isAnyTransactionLocked = false;
 
@@ -73,23 +73,23 @@ export class CalculateRealizedResultsProcessor {
 
     setStockBookTransactionToUpdate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.stockBookTransactionsToUpdateMap.set(transaction.getId()!, transaction);
+        this.stockBookTransactionsToUpdate.set(transaction.getId()!, transaction);
     }
 
     setFinancialBookTransactionToCreate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.financialBookTransactionsToCreateMap.set(this.getRemoteId(transaction), transaction);
+        this.financialBookTransactionsToCreate.set(this.getRemoteId(transaction), transaction);
         if (this.isMtmTransaction(transaction)) {
-            this.mtmTransactionsSet.add(transaction);
+            this.mtmTransactions.add(transaction);
         }
         if (this.isMtmHistTransaction(transaction)) {
-            this.mtmHistTransactionsSet.add(transaction);
+            this.mtmHistTransactions.add(transaction);
         }
     }
 
     setBaseBookTransactionToCreate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
-        this.baseBookTransactionsToCreateMap.set(this.getRemoteId(transaction), transaction);
+        this.baseBookTransactionsToCreate.set(this.getRemoteId(transaction), transaction);
     }
 
     private getDateValue(isoDate: string): number {
@@ -98,7 +98,7 @@ export class CalculateRealizedResultsProcessor {
 
     async getMtmBalance(onIsoDate: string): Promise<Amount> {
         let balance = new Amount(0);
-        for (const mtmTransaction of Array.from(this.mtmTransactionsSet.values())) {
+        for (const mtmTransaction of Array.from(this.mtmTransactions.values())) {
             if (this.getDateValue(mtmTransaction.getDate()!) <= this.getDateValue(onIsoDate)) {
                 const debitAccountName = (await mtmTransaction.getDebitAccountName())!;
                 const amount = debitAccountName.endsWith(` ${UNREALIZED_SUFFIX}`)
@@ -112,7 +112,7 @@ export class CalculateRealizedResultsProcessor {
 
     async getHistMtmBalance(onIsoDate: string): Promise<Amount> {
         let balance = new Amount(0);
-        for (const mtmHistTransaction of Array.from(this.mtmHistTransactionsSet.values())) {
+        for (const mtmHistTransaction of Array.from(this.mtmHistTransactions.values())) {
             if (this.getDateValue(mtmHistTransaction.getDate()!) <= this.getDateValue(onIsoDate)) {
                 const debitAccountName = (await mtmHistTransaction.getDebitAccountName())!;
                 const amount = debitAccountName.endsWith(` ${UNREALIZED_HIST_SUFFIX}`)
@@ -131,34 +131,32 @@ export class CalculateRealizedResultsProcessor {
             const oldId = this.getTemporaryId(newStockBookTx);
             const newId = newStockBookTx.getId();
 
-            const connectedRrTx = this.financialBookTransactionsToCreateMap.get(`${oldId}`);
+            const connectedRrTx = this.financialBookTransactionsToCreate.get(`${oldId}`);
             if (connectedRrTx) {
                 connectedRrTx.addRemoteId(`${newId}`);
             }
 
-            const connectedHistRrTx = this.financialBookTransactionsToCreateMap.get(
-                `hist_${oldId}`
-            );
+            const connectedHistRrTx = this.financialBookTransactionsToCreate.get(`hist_${oldId}`);
             if (connectedHistRrTx) {
                 connectedHistRrTx.addRemoteId(`hist_${newId}`);
             }
 
-            const connectedFxTx = this.baseBookTransactionsToCreateMap.get(`fx_${oldId}`);
+            const connectedFxTx = this.baseBookTransactionsToCreate.get(`fx_${oldId}`);
             if (connectedFxTx) {
                 connectedFxTx.addRemoteId(`fx_${newId}`);
             }
 
-            const connectedHistFxTx = this.baseBookTransactionsToCreateMap.get(`fx_hist_${oldId}`);
+            const connectedHistFxTx = this.baseBookTransactionsToCreate.get(`fx_hist_${oldId}`);
             if (connectedHistFxTx) {
                 connectedHistFxTx.addRemoteId(`fx_hist_${newId}`);
             }
 
-            const connectedMtmTx = this.financialBookTransactionsToCreateMap.get(`mtm_${oldId}`);
+            const connectedMtmTx = this.financialBookTransactionsToCreate.get(`mtm_${oldId}`);
             if (connectedMtmTx) {
                 connectedMtmTx.addRemoteId(`mtm_${newId}`);
             }
 
-            const connectedHistMtmTx = this.financialBookTransactionsToCreateMap.get(
+            const connectedHistMtmTx = this.financialBookTransactionsToCreate.get(
                 `mtm_hist_${oldId}`
             );
             if (connectedHistMtmTx) {
@@ -180,21 +178,21 @@ export class CalculateRealizedResultsProcessor {
     }
 
     private async fireBatchUpdateStockBookTransactions(): Promise<void> {
-        const batch = Array.from(this.stockBookTransactionsToUpdateMap.values());
+        const batch = Array.from(this.stockBookTransactionsToUpdate.values());
         if (batch.length > 0) {
             await this.portfolioBook.batchUpdateTransactions(batch, true);
         }
     }
 
     private async fireBatchCreateFinancialBookTransactions(): Promise<void> {
-        const batch = Array.from(this.financialBookTransactionsToCreateMap.values());
+        const batch = Array.from(this.financialBookTransactionsToCreate.values());
         if (batch.length > 0) {
             await this.financialBook.batchCreateTransactions(batch);
         }
     }
 
     private async fireBatchCreateBaseBookTransactions(): Promise<void> {
-        const batch = Array.from(this.baseBookTransactionsToCreateMap.values());
+        const batch = Array.from(this.baseBookTransactionsToCreate.values());
         if (batch.length > 0) {
             await this.baseBook.batchCreateTransactions(batch);
         }

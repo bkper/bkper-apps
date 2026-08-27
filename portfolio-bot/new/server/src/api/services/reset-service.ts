@@ -14,7 +14,7 @@ export class ResetService extends OperationService {
      * @param context - Request-scoped Bkper application context.
      * @param bookId - Portfolio Book id.
      * @param accountId - Portfolio Account id to reset.
-     * 
+     *
      * @returns A response containing the reset status message.
      * @throws When context validation fails or Reset encounters a locked movement.
      */
@@ -37,7 +37,7 @@ export class ResetService extends OperationService {
      * @param context - Request-scoped Bkper application context.
      * @param bookId - Portfolio Book id.
      * @param accountId - Portfolio Account id to fully reset.
-     * 
+     *
      * @returns A response containing the full-reset status message.
      * @throws When context, ownership, Collection lock, or movement lock validation fails.
      */

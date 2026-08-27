@@ -10,7 +10,7 @@ export class ForwardService extends OperationService {
      * @param bookId - Portfolio Book id.
      * @param accountId - Portfolio Account id to forward.
      * @param request - Requested forward date.
-     * 
+     *
      * @returns A Promise that resolves after operation context preparation.
      * @throws When context validation fails.
      */

@@ -8,7 +8,7 @@ import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
 import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AppError, RealizedResultsContext } from './../types.js';
+import type { AccountOperationContext, AppError, RealizedResultsContext } from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
@@ -82,6 +82,7 @@ export class BotAppController implements ReactiveController {
         this.view.error = undefined;
         this.view.initialDate = '';
         this.view.realizedResultsContext = undefined;
+        this.view.forwardDateContext = undefined;
         this.view.hasViewerPermission = false;
         this.view.hasEditorPermission = false;
         this.view.validating = false;
@@ -231,16 +232,20 @@ export class BotAppController implements ReactiveController {
             Utils.isBookOwner(portfolioBook) &&
             botService.areAllCollectionBooksOpenAndUnlocked(book);
 
-        const context: RealizedResultsContext = {
+        const accountContext: AccountOperationContext = {
             portfolioBook,
             selectedAccount: account,
             selectedGroup: group,
             accounts,
+        };
+        const realizedResultsContext: RealizedResultsContext = {
+            ...accountContext,
             resetEnabled,
             fullResetEnabled,
         };
 
-        this.view.realizedResultsContext = context;
+        this.view.realizedResultsContext = realizedResultsContext;
+        this.view.forwardDateContext = accountContext;
     }
 
     private getMissingExcCodes(

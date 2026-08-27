@@ -8,7 +8,7 @@ import { authService } from '../../src/services/auth-service.js';
 import { bkperService } from '../../src/services/bkper-service.js';
 import { botApiService } from '../../src/services/bot-api-service.js';
 import { botService } from '../../src/services/bot-service.js';
-import type { AppError, RealizedResultsContext } from '../../src/types.js';
+import type { AppError, ForwardDateContext, RealizedResultsContext } from '../../src/types.js';
 
 class TestView implements ReactiveControllerHost {
     appState = BotAppState.LOADING;
@@ -18,6 +18,7 @@ class TestView implements ReactiveControllerHost {
     error?: AppError;
     embedded = false;
     realizedResultsContext?: RealizedResultsContext;
+    forwardDateContext?: ForwardDateContext;
     hasViewerPermission = false;
     hasEditorPermission = false;
     warnings: string[] = [];
@@ -252,6 +253,10 @@ describe('Bot app controller', () => {
         ]);
         expect(view.realizedResultsContext?.resetEnabled).toBe(true);
         expect(view.realizedResultsContext?.fullResetEnabled).toBe(false);
+        expect(view.forwardDateContext?.portfolioBook).toBe(portfolioBook);
+        expect(view.forwardDateContext?.selectedAccount?.getId()).toBe('portfolio-account');
+        expect(view.forwardDateContext?.selectedGroup).toBeUndefined();
+        expect(view.forwardDateContext?.accounts).toBe(view.realizedResultsContext?.accounts);
         expect(botApiService.listAccountsPendingCalculation).not.toHaveBeenCalled();
         expect(view.appState).toBe(BotAppState.READY);
     });
@@ -979,6 +984,7 @@ describe('Bot app controller', () => {
 
         expect(view.portfolioBook).toBeUndefined();
         expect(view.realizedResultsContext).toBeUndefined();
+        expect(view.forwardDateContext).toBeUndefined();
         expect(view.error).toEqual(BotAppErrors.bookNotSpecified());
 
         Object.defineProperty(self, 'location', {

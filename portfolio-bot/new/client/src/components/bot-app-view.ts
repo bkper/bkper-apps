@@ -4,7 +4,7 @@ import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
 import './realized-results/realized-results-view.js';
-import type { AppError, RealizedResultsContext } from '../types.js';
+import type { AppError, ForwardDateContext, RealizedResultsContext } from '../types.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
 import { sharedCSS } from './shared-css.js';
@@ -33,6 +33,9 @@ export class BotAppView extends LitElement {
 
     @state()
     realizedResultsContext?: RealizedResultsContext;
+
+    @state()
+    forwardDateContext?: ForwardDateContext;
 
     @state()
     hasViewerPermission = false;

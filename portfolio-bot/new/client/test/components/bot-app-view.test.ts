@@ -91,7 +91,6 @@ describe('Bot app view', () => {
         const context = {
             portfolioBook,
             accounts: [],
-            financialBooks: [],
             resetEnabled: true,
             fullResetEnabled: false,
         };

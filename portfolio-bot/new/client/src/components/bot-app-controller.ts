@@ -8,7 +8,7 @@ import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
 import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AppError, PortfolioBotBook, RealizedResultsContext } from './../types.js';
+import type { AppError, RealizedResultsContext } from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
@@ -214,9 +214,6 @@ export class BotAppController implements ReactiveController {
 
         const accountsExcCodes = await Utils.getExchangeCodes(accounts);
 
-        const baseBook = botService.getBaseBook(portfolioBook) ?? undefined;
-        const financialBooks = this.getFinancialBooks(portfolioBook);
-
         const editableExcCodes = botService.getBooksExcCodesUserCanEdit(portfolioBook);
         const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
 
@@ -236,8 +233,6 @@ export class BotAppController implements ReactiveController {
 
         const context: RealizedResultsContext = {
             portfolioBook,
-            baseBook,
-            financialBooks,
             selectedAccount: account,
             selectedGroup: group,
             accounts,
@@ -246,15 +241,6 @@ export class BotAppController implements ReactiveController {
         };
 
         this.view.realizedResultsContext = context;
-    }
-
-    private getFinancialBooks(portfolioBook: Book): PortfolioBotBook[] {
-        const books: PortfolioBotBook[] = [];
-        const financialBook = botService.getFinancialBooks(portfolioBook);
-        for (const [excCode, book] of financialBook) {
-            books.push({ book, excCode });
-        }
-        return books;
     }
 
     private getMissingExcCodes(

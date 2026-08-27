@@ -60,7 +60,7 @@ describe('legacy menu bot service', () => {
         expect(botService.areAllCollectionBooksOpenAndUnlocked(closedBook)).toBe(false);
     });
 
-    it('resolves Base and Financial Books and editable currencies with legacy precedence', () => {
+    it('resolves editable currencies with legacy precedence', () => {
         const selectedBook = createSourceBook({
             collection: {
                 books: [
@@ -98,17 +98,6 @@ describe('legacy menu bot service', () => {
             },
         });
 
-        expect(botService.getBaseBook(selectedBook)?.getId()).toBe('brl-base-book');
-        expect(
-            Array.from(botService.getFinancialBooks(selectedBook)).map(([currency, book]) => [
-                currency,
-                book.getId(),
-            ])
-        ).toEqual([
-            ['USD', 'usd-book'],
-            ['BRL', 'brl-base-book'],
-            ['EUR', 'first-eur-book'],
-        ]);
         expect(botService.getBooksExcCodesUserCanEdit(selectedBook)).toEqual(
             new Set(['USD', 'EUR', 'QTY'])
         );

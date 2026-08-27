@@ -1,27 +1,8 @@
 import type { Book } from 'bkper-js';
-import { EXC_BASE_PROP, EXC_CODE_PROP, STOCK_BOOK_PROP } from '../constants.js';
+import { EXC_CODE_PROP, STOCK_BOOK_PROP } from '../constants.js';
 import { Utils } from '../utils.js';
 
 class BotService {
-    getBaseBook(book: Book): Book | null {
-        const collection = book.getCollection();
-        if (collection == null) {
-            return null;
-        }
-        const connectedBooks = collection.getBooks();
-        for (const connectedBook of connectedBooks) {
-            if (connectedBook.getProperty(EXC_BASE_PROP)) {
-                return connectedBook;
-            }
-        }
-        for (const connectedBook of connectedBooks) {
-            if (connectedBook.getProperty(EXC_CODE_PROP) == 'USD') {
-                return connectedBook;
-            }
-        }
-        return null;
-    }
-
     getStockBook(book: Book): Book | null {
         const collection = book.getCollection();
         if (collection == null) {
@@ -38,22 +19,6 @@ class BotService {
             }
         }
         return null;
-    }
-
-    getFinancialBooks(book: Book): Map<string, Book> {
-        const financialBooks = new Map<string, Book>();
-        const collection = book.getCollection();
-        if (collection == null) {
-            return financialBooks;
-        }
-        for (const connectedBook of collection.getBooks()) {
-            const bookExcCode = this.getExcCode(connectedBook);
-            const fractionDigits = connectedBook.getFractionDigits();
-            if (fractionDigits != 0 && bookExcCode && !financialBooks.has(bookExcCode)) {
-                financialBooks.set(bookExcCode, connectedBook);
-            }
-        }
-        return financialBooks;
     }
 
     areAllCollectionBooksOpenAndUnlocked(book: Book): boolean {

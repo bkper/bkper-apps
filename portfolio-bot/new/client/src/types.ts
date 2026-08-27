@@ -17,30 +17,25 @@ export interface AppError {
     };
 }
 
-/** A Financial Book with the context needed by the Portfolio Bot client. */
-export interface PortfolioBotBook {
-    /** The Bkper Book instance. */
-    book: Book;
-    /** The exchange currency code configured for the Book. */
-    excCode: string;
-}
-
-/** The resolved context for realized-result operations. */
-export interface RealizedResultsContext {
+/** The resolved Account scope shared by Portfolio Bot operations. */
+export interface AccountOperationContext {
     /** The Portfolio Book. */
     portfolioBook: Book;
-    /** The Base Book, when one can be resolved. */
-    baseBook?: Book;
-    /** Collection Financial Books. */
-    financialBooks: PortfolioBotBook[];
     /** The selected Portfolio Account, if any. */
     selectedAccount?: Account;
     /** The selected Portfolio Group, if any. */
     selectedGroup?: Group;
     /** The eligible accounts to operate on. */
     accounts: Account[];
+}
+
+/** The resolved context for realized-result operations. */
+export interface RealizedResultsContext extends AccountOperationContext {
     /** Whether the Reset operation is enabled. */
     resetEnabled: boolean;
     /** Whether the Full Reset operation is enabled. */
     fullResetEnabled: boolean;
 }
+
+/** The resolved context for Forward Date operations. */
+export type ForwardDateContext = AccountOperationContext;

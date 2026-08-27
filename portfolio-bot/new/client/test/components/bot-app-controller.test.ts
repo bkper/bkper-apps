@@ -310,7 +310,7 @@ describe('Bot app controller', () => {
         expect(view.realizedResultsContext?.fullResetEnabled).toBe(true);
     });
 
-    it('maps Financial Books once and preserves scoped legacy edit-permission availability', async () => {
+    it('preserves scoped legacy edit-permission availability', async () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
@@ -385,17 +385,6 @@ describe('Bot app controller', () => {
 
         await createController(view).initialize();
 
-        expect(view.realizedResultsContext?.baseBook?.getId()).toBe('usd-book');
-        expect(
-            view.realizedResultsContext?.financialBooks.map(financialBook => [
-                financialBook.excCode,
-                financialBook.book.getId(),
-            ])
-        ).toEqual([
-            ['USD', 'usd-book'],
-            ['BRL', 'brl-book'],
-            ['CAD', 'cad-book'],
-        ]);
         expect(view.hasEditorPermission).toBe(false);
         expect(view.error?.message.before).not.toContain('BRL');
         expect(view.error?.message.before).toContain('EUR');

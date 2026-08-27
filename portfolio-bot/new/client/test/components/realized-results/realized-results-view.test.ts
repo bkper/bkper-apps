@@ -24,7 +24,6 @@ function createContext(): RealizedResultsContext {
             new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
             new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
         ],
-        financialBooks: [],
         resetEnabled: true,
         fullResetEnabled: false,
     };

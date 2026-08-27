@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { AccountType, Book, Permission } from 'bkper-js';
+import { Account, AccountType, Book, Group, Permission } from 'bkper-js';
+import type { AccountOperationContext } from '../src/types.js';
 import { Utils } from '../src/utils.js';
 
 describe('Utils', () => {
@@ -98,6 +99,31 @@ describe('Utils', () => {
         expect(await Utils.isEligiblePortfolioAccount(nonPermanent)).toBe(false);
         expect(await Utils.isEligiblePortfolioAccount(archived)).toBe(false);
         expect(await Utils.isEligiblePortfolioAccount(missingExchange)).toBe(false);
+    });
+
+    it('allows service switching only for a selected context with eligible Accounts', () => {
+        const portfolioBook = new Book({ id: 'portfolio-book' });
+        const account = new Account(portfolioBook, { id: 'instrument' });
+        const group = new Group(portfolioBook, { id: 'instruments' });
+        const pendingContext: AccountOperationContext = {
+            portfolioBook,
+            accounts: [account],
+        };
+        const emptySelectedContext: AccountOperationContext = {
+            portfolioBook,
+            selectedGroup: group,
+            accounts: [],
+        };
+        const selectedContext: AccountOperationContext = {
+            portfolioBook,
+            selectedAccount: account,
+            accounts: [account],
+        };
+
+        expect(Utils.canSwitchServices()).toBe(false);
+        expect(Utils.canSwitchServices(pendingContext)).toBe(false);
+        expect(Utils.canSwitchServices(emptySelectedContext)).toBe(false);
+        expect(Utils.canSwitchServices(selectedContext)).toBe(true);
     });
 
     it('returns the calendar date in the Book timezone', () => {

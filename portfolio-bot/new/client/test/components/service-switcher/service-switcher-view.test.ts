@@ -18,19 +18,40 @@ function createSelectEvent(value: string): WaSelectEvent {
     return new CustomEvent('wa-select', { detail: { item } }) as WaSelectEvent;
 }
 
+function isTemplateResult(value: unknown): value is TemplateResult {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        Array.isArray(Reflect.get(value, 'strings')) &&
+        Array.isArray(Reflect.get(value, 'values'))
+    );
+}
+
 function collectTemplateStrings(value: unknown): string {
     if (Array.isArray(value)) {
         return value.map(item => collectTemplateStrings(item)).join('');
     }
-    if (typeof value !== 'object' || value === null) {
+    if (!isTemplateResult(value)) {
         return '';
     }
-    const strings = Reflect.get(value, 'strings');
-    const values = Reflect.get(value, 'values');
-    if (!Array.isArray(strings) || !Array.isArray(values)) {
-        return '';
+    return value.strings.join('') + value.values.map(item => collectTemplateStrings(item)).join('');
+}
+
+function findTemplateResultArray(value: unknown): TemplateResult[] | undefined {
+    if (Array.isArray(value)) {
+        if (value.length > 0 && value.every(isTemplateResult)) {
+            return value;
+        }
+        for (const item of value) {
+            const result = findTemplateResultArray(item);
+            if (result) {
+                return result;
+            }
+        }
+    } else if (isTemplateResult(value)) {
+        return findTemplateResultArray(value.values);
     }
-    return strings.join('') + values.map(item => collectTemplateStrings(item)).join('');
+    return undefined;
 }
 
 describe('Service switcher view', () => {
@@ -44,6 +65,18 @@ describe('Service switcher view', () => {
         expect(markup).toContain('<wa-icon');
         expect(markup).toMatch(/<wa-icon[^>]*label=/);
         expect(markup.match(/<wa-dropdown-item/g)).toHaveLength(2);
+    });
+
+    it('renders only the service heading when switching is unavailable', () => {
+        const view = new ServiceSwitcherView();
+        view.showMenu = false;
+
+        const markup = collectTemplateStrings(render.call(view));
+
+        expect(markup).toContain('<h2>');
+        expect(markup).not.toContain('<wa-dropdown');
+        expect(markup).not.toContain('<wa-button');
+        expect(markup).not.toContain('<wa-icon');
     });
 
     it('updates the heading for the active service and retains its instructions', () => {
@@ -63,10 +96,8 @@ describe('Service switcher view', () => {
         const forwardDate = new ServiceSwitcherView();
         forwardDate.service = PortfolioService.FORWARD_DATE;
         const forwardDateRender = render.call(forwardDate);
-        const realizedResultsOptions = realizedResultsRender.values.find(Array.isArray) as
-            TemplateResult[] | undefined;
-        const forwardDateOptions = forwardDateRender.values.find(Array.isArray) as
-            TemplateResult[] | undefined;
+        const realizedResultsOptions = findTemplateResultArray(realizedResultsRender);
+        const forwardDateOptions = findTemplateResultArray(forwardDateRender);
 
         expect(realizedResultsOptions?.map(option => option.values[0])).toEqual(['selected', '']);
         expect(forwardDateOptions?.map(option => option.values[0])).toEqual(['', 'selected']);

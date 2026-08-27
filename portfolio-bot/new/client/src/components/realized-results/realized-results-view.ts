@@ -1,6 +1,7 @@
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { PortfolioService, type AppError, type RealizedResultsContext } from '../../types.js';
+import { Utils } from '../../utils.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../service-switcher/service-switcher-view.js';
@@ -22,6 +23,7 @@ export class RealizedResultsView extends LitElement {
             <div class="realized-results">
                 <service-switcher
                     .service=${PortfolioService.REALIZED_RESULTS}
+                    .showMenu=${Utils.canSwitchServices(context)}
                     instructions="Review the accounts below before running an operation."
                 ></service-switcher>
                 <account-list

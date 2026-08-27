@@ -1,5 +1,6 @@
 import { AccountType, Permission, type Account, type Book } from 'bkper-js';
 import { STOCK_EXC_CODE_PROP } from './constants.js';
+import type { AccountOperationContext } from './types.js';
 
 /** Book permissions that allow the current user to view Book data. */
 export const VIEW_PERMISSIONS: readonly Permission[] = [
@@ -100,6 +101,20 @@ export class Utils {
         }
         const excCode = await Utils.getExchangeCode(account);
         return excCode !== null;
+    }
+
+    /**
+     * Tells whether the current Account context can navigate between services.
+     *
+     * @param context - The resolved Account operation context.
+     * @returns `true` when a selected Account or Group has eligible Accounts.
+     */
+    static canSwitchServices(context?: AccountOperationContext): boolean {
+        return (
+            context !== undefined &&
+            context.accounts.length > 0 &&
+            (context.selectedAccount !== undefined || context.selectedGroup !== undefined)
+        );
     }
 
     /**

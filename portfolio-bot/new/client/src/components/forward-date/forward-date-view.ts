@@ -1,6 +1,7 @@
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { PortfolioService, type AppError, type ForwardDateContext } from '../../types.js';
+import { Utils } from '../../utils.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../service-switcher/service-switcher-view.js';
@@ -22,6 +23,7 @@ export class ForwardDateView extends LitElement {
             <div class="forward-date">
                 <service-switcher
                     .service=${PortfolioService.FORWARD_DATE}
+                    .showMenu=${Utils.canSwitchServices(context)}
                     instructions="Review the accounts below before setting a forward date."
                 ></service-switcher>
                 <account-list

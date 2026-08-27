@@ -24,6 +24,9 @@ export class ServiceSwitcherView extends LitElement {
     @property()
     instructions = '';
 
+    @property({ type: Boolean })
+    showMenu = true;
+
     static styles = [sharedCSS, serviceSwitcherCSS];
 
     render(): TemplateResult {
@@ -31,29 +34,38 @@ export class ServiceSwitcherView extends LitElement {
         return html`
             <div class="heading">
                 <h2>${heading}</h2>
-                <wa-dropdown placement="bottom-start" @wa-select=${this.handleSelect}>
-                    <wa-button
-                        class="trigger"
-                        slot="trigger"
-                        variant="neutral"
-                        appearance="plain"
-                        size="s"
-                    >
-                        <wa-icon name="keyboard_arrow_down" label="Switch service"></wa-icon>
-                    </wa-button>
-                    ${SERVICE_OPTIONS.map(
-                        option => html`
-                            <wa-dropdown-item
-                                class=${option.value === this.service ? 'selected' : ''}
-                                value=${option.value}
-                            >
-                                ${option.label}
-                            </wa-dropdown-item>
-                        `
-                    )}
-                </wa-dropdown>
+                ${this.renderDropdown()}
             </div>
             <p>${this.instructions}</p>
+        `;
+    }
+
+    private renderDropdown(): TemplateResult {
+        if (!this.showMenu) {
+            return html``;
+        }
+        return html`
+            <wa-dropdown placement="bottom-start" @wa-select=${this.handleSelect}>
+                <wa-button
+                    class="trigger"
+                    slot="trigger"
+                    variant="neutral"
+                    appearance="plain"
+                    size="s"
+                >
+                    <wa-icon name="keyboard_arrow_down" label="Switch service"></wa-icon>
+                </wa-button>
+                ${SERVICE_OPTIONS.map(
+                    option => html`
+                        <wa-dropdown-item
+                            class=${option.value === this.service ? 'selected' : ''}
+                            value=${option.value}
+                        >
+                            ${option.label}
+                        </wa-dropdown-item>
+                    `
+                )}
+            </wa-dropdown>
         `;
     }
 

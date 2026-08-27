@@ -44,9 +44,25 @@ describe('Realized results view', () => {
         expect(result.strings.join('')).toContain('<service-switcher');
         expect(result.strings.join('')).toContain('<account-list');
         expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
-        expect(result.values[1]).toBe(context.accounts);
-        expect(result.values[2]).toBeUndefined();
-        expect(result.values[3]).toBe(context.selectedGroup);
+        expect(result.values[1]).toBe(true);
+        expect(result.values[2]).toBe(context.accounts);
+        expect(result.values[3]).toBeUndefined();
+        expect(result.values[4]).toBe(context.selectedGroup);
+    });
+
+    it('hides service switching without a usable selected context', () => {
+        const pendingContext = createContext();
+        pendingContext.selectedGroup = undefined;
+        const emptyGroupContext = createContext();
+        emptyGroupContext.accounts = [];
+
+        const pendingView = new RealizedResultsView();
+        pendingView.context = pendingContext;
+        const emptyGroupView = new RealizedResultsView();
+        emptyGroupView.context = emptyGroupContext;
+
+        expect(render.call(pendingView).values[1]).toBe(false);
+        expect(render.call(emptyGroupView).values[1]).toBe(false);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

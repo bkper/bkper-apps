@@ -34,9 +34,22 @@ describe('Forward Date view', () => {
         expect(result.strings.join('')).toContain('<service-switcher');
         expect(result.strings.join('')).toContain('<account-list');
         expect(result.values[0]).toBe(PortfolioService.FORWARD_DATE);
-        expect(result.values[1]).toBe(context.accounts);
-        expect(result.values[2]).toBe(context.selectedAccount);
-        expect(result.values[3]).toBe(context.selectedGroup);
+        expect(result.values[1]).toBe(true);
+        expect(result.values[2]).toBe(context.accounts);
+        expect(result.values[3]).toBe(context.selectedAccount);
+        expect(result.values[4]).toBe(context.selectedGroup);
+    });
+
+    it('hides service switching when the selected context has no eligible Accounts', () => {
+        const portfolioBook = new Book({ id: 'portfolio-book' });
+        const view = new ForwardDateView();
+        view.context = {
+            portfolioBook,
+            accounts: [],
+            selectedGroup: new Group(portfolioBook, { id: 'empty-group' }),
+        };
+
+        expect(render.call(view).values[1]).toBe(false);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

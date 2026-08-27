@@ -518,11 +518,10 @@ describe('legacy regular Forward Date behavior', () => {
             throw new Error('Balances must not be loaded');
         };
 
-        const summary = await new ForwardDateService()['forwardDateForAccount'](
-            fixture.context,
-            '2026-09-01',
-            false
-        );
+        const service = new ForwardDateService();
+        service['botService'].isAccountUncalculated = async () => false;
+
+        const summary = await service.execute(fixture.context, '2026-09-01');
 
         expect(summary.getState()).toBe(SummaryState.FORWARD_ERROR);
         expect(summary.getMessage()).toBe('Cannot set forward date: account needs rebuild');
@@ -663,15 +662,132 @@ describe('legacy lower Forward Date repair behavior', () => {
             ResetRealizedResultsService.prototype.executeSync = async () => {
                 throw new Error('Reset must not begin');
             };
+            const service = new ForwardDateService();
+            service['botService'].isAccountUncalculated = async () => false;
 
-            const summary = await new ForwardDateService()['fixAndForwardDateForAccount'](
-                fixture.context,
-                new StockAccount(fixture.instrument),
-                '2026-03-01'
-            );
+            const summary = await service.execute(fixture.context, '2024-03-01');
 
             expect(summary.getState()).toBe(SummaryState.FORWARD_ERROR);
             expect(summary.getMessage()).toBe(scenario.message);
         }
+    });
+});
+
+describe('legacy top-level Forward Date behavior', () => {
+    test('preserves uncalculated, equal-forwarded-date, and realized-date validation order', async () => {
+        const uncalculatedFixture = await createContext();
+        const uncalculatedService = new ForwardDateService();
+        uncalculatedService['botService'].isAccountUncalculated = async (
+            stockBook,
+            stockAccount,
+            forwardDate
+        ) => {
+            expect(stockBook).toBe(uncalculatedFixture.portfolioBook);
+            expect(stockAccount).toBe(uncalculatedFixture.instrument);
+            expect(forwardDate).toBe('2025-01-01');
+            return true;
+        };
+        uncalculatedService['fixAndForwardDateForAccount'] = async () => {
+            throw new Error('Lower Forward must not begin');
+        };
+        uncalculatedService['forwardDateForAccount'] = async () => {
+            throw new Error('Regular Forward must not begin');
+        };
+
+        const uncalculatedSummary = await uncalculatedService.execute(
+            uncalculatedFixture.context,
+            '2025-01-01'
+        );
+
+        expect(uncalculatedSummary.getState()).toBe(SummaryState.FORWARD_ERROR);
+        expect(uncalculatedSummary.getMessage()).toBe(
+            'Cannot set forward date: account has uncalculated results'
+        );
+
+        const forwardedFixture = await createContext();
+        const forwardedService = new ForwardDateService();
+        forwardedService['botService'].isAccountUncalculated = async () => false;
+        forwardedService['fixAndForwardDateForAccount'] = async () => {
+            throw new Error('Lower Forward must not begin');
+        };
+        forwardedService['forwardDateForAccount'] = async () => {
+            throw new Error('Regular Forward must not begin');
+        };
+
+        const forwardedSummary = await forwardedService.execute(
+            forwardedFixture.context,
+            '2025-01-01'
+        );
+
+        expect(forwardedSummary.getState()).toBe(SummaryState.FORWARD_ERROR);
+        expect(forwardedSummary.getMessage()).toBe(
+            'Cannot set forward date: account forwarded date is already 2025-01-01'
+        );
+
+        const realizedFixture = await createContext();
+        realizedFixture.instrument
+            .deleteProperty('forwarded_date')
+            .setProperty('realized_date', '2025-02-01');
+        const realizedService = new ForwardDateService();
+        realizedService['botService'].isAccountUncalculated = async () => false;
+        realizedService['fixAndForwardDateForAccount'] = async () => {
+            throw new Error('Lower Forward must not begin');
+        };
+        realizedService['forwardDateForAccount'] = async () => {
+            throw new Error('Regular Forward must not begin');
+        };
+
+        const realizedSummary = await realizedService.execute(
+            realizedFixture.context,
+            '2025-02-01'
+        );
+
+        expect(realizedSummary.getState()).toBe(SummaryState.FORWARD_ERROR);
+        expect(realizedSummary.getMessage()).toBe(
+            'Cannot set forward date: account has realized results up to 2025-02-01'
+        );
+    });
+
+    test('routes lower and regular dates through the established implementations', async () => {
+        const lowerFixture = await createContext();
+        lowerFixture.instrument.setProperty('realized_date', '2026-01-01');
+        const lowerService = new ForwardDateService();
+        const calls: string[] = [];
+        lowerService['botService'].isAccountUncalculated = async () => false;
+        lowerService['fixAndForwardDateForAccount'] = async (
+            context,
+            stockAccount,
+            forwardDate
+        ) => {
+            expect(context).toBe(lowerFixture.context);
+            expect(stockAccount.getAccount()).toBe(lowerFixture.instrument);
+            calls.push(`lower:${forwardDate}`);
+            return new Summary().done('lower');
+        };
+        lowerService['forwardDateForAccount'] = async () => {
+            throw new Error('Regular Forward must not begin for a lower date');
+        };
+
+        const lowerSummary = await lowerService.execute(lowerFixture.context, '2024-03-01');
+
+        expect(lowerSummary.getMessage()).toBe('lower');
+        expect(calls).toEqual(['lower:2024-03-01']);
+
+        const regularFixture = await createContext();
+        const regularService = new ForwardDateService();
+        regularService['botService'].isAccountUncalculated = async () => false;
+        regularService['fixAndForwardDateForAccount'] = async () => {
+            throw new Error('Lower Forward must not begin for a later date');
+        };
+        regularService['forwardDateForAccount'] = async (context, forwardDate, fixingForward) => {
+            expect(context).toBe(regularFixture.context);
+            calls.push(`regular:${forwardDate}:${fixingForward}`);
+            return new Summary().done('regular');
+        };
+
+        const regularSummary = await regularService.execute(regularFixture.context, '2026-09-01');
+
+        expect(regularSummary.getMessage()).toBe('regular');
+        expect(calls).toEqual(['lower:2024-03-01', 'regular:2026-09-01:false']);
     });
 });

@@ -37,8 +37,50 @@ import { CalculationModel } from '../calculate/types.js';
 export class ForwardDateService {
     private readonly botService = new BotService();
 
-    async execute(_context: OperationContext, _forwardDate: string): Promise<Summary> {
-        throw new Error('Forward Date is not implemented');
+    async execute(context: OperationContext, date: string): Promise<Summary> {
+        const stockBook = context.portfolioBook;
+        const stockAccount = new StockAccount(context.portfolioAccount);
+
+        const dateValue = +date.replaceAll('-', '');
+
+        const realizedDateValue = stockAccount.getRealizedDateValue();
+        const forwardedDateValue = stockAccount.getForwardedDateValue();
+
+        const summary = new Summary();
+
+        const isUncalculated = await this.botService.isAccountUncalculated(
+            stockBook,
+            stockAccount.getAccount(),
+            date
+        );
+        if (isUncalculated) {
+            const errorMsg = 'Cannot set forward date: account has uncalculated results';
+            return summary.forwardError(errorMsg);
+        }
+
+        if (forwardedDateValue && dateValue === forwardedDateValue) {
+            const errorMsg = `Cannot set forward date: account forwarded date is already ${this.botService.formatDate(stockBook, stockAccount.getForwardedDate()!)}`;
+            return summary.forwardError(errorMsg);
+        }
+
+        if (forwardedDateValue && dateValue < forwardedDateValue) {
+            if (!this.isUserBookOwner(stockBook)) {
+                const errorMsg = `Cannot lower forward date: user must be book owner`;
+                return summary.forwardError(errorMsg);
+            }
+            if (!this.isCollectionUnlocked(stockBook)) {
+                const errorMsg = `Cannot lower forward date: collection has locked/closed book(s)`;
+                return summary.forwardError(errorMsg);
+            }
+            return this.fixAndForwardDateForAccount(context, stockAccount, date);
+        }
+
+        if (realizedDateValue && dateValue <= realizedDateValue) {
+            const errorMsg = `Cannot set forward date: account has realized results up to ${this.botService.formatDate(stockBook, stockAccount.getRealizedDate()!)}`;
+            return summary.forwardError(errorMsg);
+        }
+
+        return this.forwardDateForAccount(context, date, false);
     }
 
     private async fixAndForwardDateForAccount(
@@ -47,16 +89,6 @@ export class ForwardDateService {
         forwardDate: string
     ): Promise<Summary> {
         const stockBook = context.portfolioBook;
-
-        if (!this.isUserBookOwner(stockBook)) {
-            const errorMsg = `Cannot lower forward date: user must be book owner`;
-            return new Summary().forwardError(errorMsg);
-        }
-
-        if (!this.isCollectionUnlocked(stockBook)) {
-            const errorMsg = `Cannot lower forward date: collection has locked/closed book(s)`;
-            return new Summary().forwardError(errorMsg);
-        }
 
         await new ResetRealizedResultsService().executeSync(context, stockAccount, false);
 

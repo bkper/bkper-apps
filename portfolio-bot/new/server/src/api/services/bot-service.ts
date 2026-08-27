@@ -338,19 +338,24 @@ export class BotService {
         stockTransaction: Transaction,
         excRateProp: string
     ): Promise<Amount | undefined> {
+        // No base book defined
         if (!this.hasBaseBookDefined(financialBook)) {
             return undefined;
         }
+        // Base currency
         if (baseBook.getProperty(EXC_CODE_PROP) == financialBook.getProperty(EXC_CODE_PROP)) {
             return undefined;
         }
+        // If specific trade exc rate was provided, use it
         if (this.hasProvidedTradeExcRates(stockTransaction)) {
             return this.getTradeExcRate(stockTransaction);
         }
+        // Exc rate already set
         const excRate = stockTransaction.getProperty(excRateProp);
         if (excRate) {
             return new Amount(excRate);
         }
+        // Get from replicated transaction
         for (const remoteId of stockTransaction.getRemoteIds()) {
             try {
                 const financialTransaction = await financialBook.getTransaction(remoteId);
@@ -388,6 +393,7 @@ export class BotService {
         fwdExcRateProp: string,
         fallbackExcRate: Amount | undefined
     ): Amount | undefined {
+        // If specific trade exc rate was provided, use it
         if (this.hasProvidedTradeExcRates(stockTransaction)) {
             return this.getFwdTradeExcRate(stockTransaction, fwdExcRateProp);
         }
@@ -403,10 +409,12 @@ export class BotService {
     }
 
     getFwdTradeExcRate(stockTransaction: Transaction, fwdExcRateProp: string): Amount | undefined {
+        // Try last fwd exc rate set
         const fwdExcRate = stockTransaction.getProperty(fwdExcRateProp);
         if (fwdExcRate) {
             return new Amount(fwdExcRate);
         }
+        // Fallback to original provided trade exc rate
         return this.findTradeExcRate(stockTransaction, TRADE_EXC_RATE_PROP);
     }
 
@@ -487,6 +495,7 @@ export class BotService {
     }
 
     async getGroupsByAccountSuffix(book: Book, suffix: string): Promise<Set<Group>> {
+        // Map account names
         const accountNames = new Set<string>();
         for (const account of await book.getAccounts()) {
             const accountName = account.getName();
@@ -495,6 +504,7 @@ export class BotService {
             }
         }
 
+        // Map accounts by group
         const groups = new Set<Group>();
         if (accountNames.size === 0) {
             return groups;
@@ -524,6 +534,7 @@ export class BotService {
     }
 
     async getTypeByAccountSuffix(book: Book, suffix: string): Promise<AccountType> {
+        // Map accounts by type
         const accountTypes = new Map<AccountType, Account[]>();
         for (const account of await book.getAccounts()) {
             if (!account.getName()?.endsWith(` ${suffix}`)) {
@@ -536,6 +547,7 @@ export class BotService {
                 accountTypes.set(account.getType(), [account]);
             }
         }
+        // Return most common type
         let maxOccurrencesType = AccountType.LIABILITY;
         let maxOccurrences = 1;
         for (const [accountType, accounts] of accountTypes) {
@@ -548,6 +560,7 @@ export class BotService {
     }
 
     async getRealizedExcAccountType(book: Book): Promise<AccountType> {
+        // Map exchange account names
         const excAccountNames = new Set<string>();
         for (const account of await book.getAccounts()) {
             const excAccountProp = account.getProperty(EXC_ACCOUNT_PROP);
@@ -560,6 +573,7 @@ export class BotService {
             }
         }
 
+        // Map exchange accounts by type
         const excAccountTypes = new Map<AccountType, Account[]>();
         for (const accountName of excAccountNames) {
             const account = await optionalLookup(() => book.getAccount(accountName));
@@ -573,6 +587,7 @@ export class BotService {
                 excAccountTypes.set(account.getType(), [account]);
             }
         }
+        // Return most common type
         let maxOccurrencesType = AccountType.LIABILITY;
         let maxOccurrences = 1;
         for (const [accountType, accounts] of excAccountTypes) {

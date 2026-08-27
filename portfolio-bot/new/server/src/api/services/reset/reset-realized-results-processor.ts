@@ -55,6 +55,7 @@ export class ResetRealizedResultsProcessor {
         await this.fireBatchTrashBaseBookTransactions();
     }
 
+    // Stock book: update
     private async fireBatchUpdateStockBookTransactions(): Promise<void> {
         const batch = Array.from(this.stockBookTransactionsToUpdate.values());
         if (batch.length > 0) {
@@ -62,6 +63,7 @@ export class ResetRealizedResultsProcessor {
         }
     }
 
+    // Stock book: trash
     private async fireBatchTrashStockBookTransactions(): Promise<void> {
         const batch = Array.from(this.stockBookTransactionsToTrash.values());
         if (batch.length > 0) {
@@ -69,6 +71,7 @@ export class ResetRealizedResultsProcessor {
         }
     }
 
+    // Financial book: trash
     private async fireBatchTrashFinancialBookTransactions(): Promise<void> {
         const batch = Array.from(this.financialBookTransactionsToTrash.values());
         if (batch.length > 0) {
@@ -76,6 +79,7 @@ export class ResetRealizedResultsProcessor {
         }
     }
 
+    // Base book: trash
     private async fireBatchTrashBaseBookTransactions(): Promise<void> {
         const batch = Array.from(this.baseBookTransactionsToTrash.values());
         if (batch.length > 0) {

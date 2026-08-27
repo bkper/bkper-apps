@@ -41,6 +41,7 @@ export class ValidationAccount {
     async hasTransactionsMissingExcRates(baseCurrency?: string): Promise<boolean> {
         const accountCurrency = await this.getExchangeCode();
         if (accountCurrency && baseCurrency && accountCurrency !== baseCurrency) {
+            // Purchases
             if (this.uncheckedPurchases.length > 0) {
                 for (const purchase of this.uncheckedPurchases) {
                     const excRateProp = purchase.getProperty(PURCHASE_EXC_RATE_PROP);
@@ -50,6 +51,7 @@ export class ValidationAccount {
                     }
                 }
             }
+            // Sales
             if (this.uncheckedSales.length > 0) {
                 for (const sale of this.uncheckedSales) {
                     const excRateProp = sale.getProperty(SALE_EXC_RATE_PROP);

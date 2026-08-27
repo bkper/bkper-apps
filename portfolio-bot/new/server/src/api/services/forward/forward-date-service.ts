@@ -41,13 +41,18 @@ export class ForwardDateService {
         const stockBook = context.portfolioBook;
         const stockAccount = new StockAccount(context.portfolioAccount);
 
+        // New forward date
         const dateValue = +date.replaceAll('-', '');
 
+        // Current realized date
         const realizedDateValue = stockAccount.getRealizedDateValue();
+        // Current forwarded date
         const forwardedDateValue = stockAccount.getForwardedDateValue();
 
+        // Summary
         const summary = new Summary();
 
+        // Do NOT allow forward if account has uncalculated results
         const isUncalculated = await this.botService.isAccountUncalculated(
             stockBook,
             stockAccount.getAccount(),
@@ -58,11 +63,13 @@ export class ForwardDateService {
             return summary.forwardError(errorMsg);
         }
 
+        // Do NOT allow forward if new date is equal the current forwarded date
         if (forwardedDateValue && dateValue === forwardedDateValue) {
             const errorMsg = `Cannot set forward date: account forwarded date is already ${this.botService.formatDate(stockBook, stockAccount.getForwardedDate()!)}`;
             return summary.forwardError(errorMsg);
         }
 
+        // Forward fix: allow only if the conditions are met
         if (forwardedDateValue && dateValue < forwardedDateValue) {
             if (!this.isUserBookOwner(stockBook)) {
                 const errorMsg = `Cannot lower forward date: user must be book owner`;
@@ -75,11 +82,13 @@ export class ForwardDateService {
             return this.fixAndForwardDateForAccount(context, stockAccount, date);
         }
 
+        // Do NOT allow forward if new date is equal or below the current realized date
         if (realizedDateValue && dateValue <= realizedDateValue) {
             const errorMsg = `Cannot set forward date: account has realized results up to ${this.botService.formatDate(stockBook, stockAccount.getRealizedDate()!)}`;
             return summary.forwardError(errorMsg);
         }
 
+        // Regular forward
         return this.forwardDateForAccount(context, date, false);
     }
 
@@ -90,8 +99,10 @@ export class ForwardDateService {
     ): Promise<Summary> {
         const stockBook = context.portfolioBook;
 
+        // Reset results up to current forwarded date using the sequential Reset path
         await new ResetRealizedResultsService().executeSync(context, stockAccount, false);
 
+        // Fix previous forward
         let transactions = await this.listTransactions(
             stockBook,
             `account:'${stockAccount.getName()}' after:${stockAccount.getForwardedDate()}`
@@ -103,14 +114,17 @@ export class ForwardDateService {
             }
         }
         for (const transaction of forwardedTransactions) {
+            // Log operation status
             console.log(`processing transaction: ${transaction.getId()}`);
 
+            // Get forwarded transaction previous state
             let previousStateTx = await this.getForwardedTransactionPreviousState(
                 stockBook,
                 stockAccount,
                 transaction,
                 forwardDate
             );
+            // Return forwarded transaction to previous state
             await transaction
                 .setDate(previousStateTx.getDate()!)
                 .setVisibleProperties(previousStateTx.getProperties())
@@ -119,8 +133,10 @@ export class ForwardDateService {
                 .update();
             stockAccount.pushTrash(previousStateTx);
         }
+        // Delete unnecessary transactions
         await stockAccount.cleanTrash();
 
+        // Reset results up to new forward date using the sequential Reset path
         const resetTransactions = await this.listTransactions(
             stockBook,
             `account:'${stockAccount.getName()}' after:${forwardDate}`
@@ -132,6 +148,7 @@ export class ForwardDateService {
             resetTransactions
         );
 
+        // Set new forward date
         const newForward = await this.forwardDateForAccount(context, forwardDate, true);
         const newForwardMsg = newForward.getMessage().replaceAll(`"`, '').replace(`Done! `, '');
         const doneMsg = `Done! ${forwardedTransactions.length} fixed and ${newForwardMsg}`;
@@ -146,6 +163,7 @@ export class ForwardDateService {
         const stockBook = context.portfolioBook;
         const stockAccount = new StockAccount(context.portfolioAccount);
 
+        // Do not allow forward if account needs rebuild
         if (stockAccount.needsRebuild()) {
             const errorMsg = 'Cannot set forward date: account needs rebuild';
             return new Summary().forwardError(errorMsg);
@@ -156,9 +174,11 @@ export class ForwardDateService {
         const baseExcCode = this.botService.getExcCode(baseBook)!;
         const stockExcCode = (await stockAccount.getExchangeCode())!;
 
+        // Closing Date: Forward Date - 1 day
         const [year, month, day] = forwardDate.split('-').map(Number);
         const closingDateValue = new Date(Date.UTC(year, month - 1, day));
         closingDateValue.setUTCDate(closingDateValue.getUTCDate() - 1);
+        // Closing Date ISO
         const closingDateISO = closingDateValue.toISOString().slice(0, 10);
         const closingDate = stockBook.parseDate(closingDateISO);
         const stockAccountName = stockAccount.getName()!;
@@ -174,12 +194,15 @@ export class ForwardDateService {
         );
 
         let needToRecordLiquidationTx = true;
+        // Open amount from Base Book
         const openAmountBase = baseBookBalancesReport
             .getBalancesContainer(stockAccountName)
             .getCumulativeBalanceRaw();
+        // Open amount from Local Book
         const openAmountLocal = financialBookBalancesReport
             .getBalancesContainer(stockAccountName)
             .getCumulativeBalanceRaw();
+        // Open quantity from Stock Book
         let openQuantity = stockBookBalancesReport
             .getBalancesContainer(stockAccountName)
             .getCumulativeBalanceRaw();
@@ -194,7 +217,9 @@ export class ForwardDateService {
             }
         }
 
+        // Current price
         const fwdPrice = !openQuantity.eq(0) ? openAmountLocal.div(openQuantity) : undefined;
+        // Current exchange rate
         const fwdExcRate = !openAmountLocal.eq(0) ? openAmountBase.div(openAmountLocal) : undefined;
 
         let transactions = await this.listTransactions(
@@ -210,11 +235,14 @@ export class ForwardDateService {
         let order = -transactions.length;
 
         for (const transaction of transactions) {
+            // Log operation status
             console.log(`processing transaction: ${transaction.getId()}`);
 
+            // Post copy of transaction in order to keep a forward history
             const logTransaction = await this.buildLogTransaction(stockBook, transaction);
             await logTransaction.post();
 
+            // Forward transaction
             await this.forwardTransaction(
                 transaction,
                 logTransaction,
@@ -231,6 +259,7 @@ export class ForwardDateService {
             order++;
         }
 
+        // Record new transaction liquidating the logs
         let liquidationTxId = '';
         if (needToRecordLiquidationTx && !openQuantity.eq(0)) {
             const liquidationTransaction = await this.buildLiquidationTransaction(
@@ -249,6 +278,7 @@ export class ForwardDateService {
             transactionsToCheck.push(liquidationTransaction);
         }
 
+        // Check logs and liquidation transaction
         await stockBook.batchCheckTransactions(transactionsToCheck);
 
         const urFinancialBookBalancesReport = await financialBook.getBalancesReport(
@@ -257,6 +287,7 @@ export class ForwardDateService {
         const urBaseBookBalancesReport = await baseBook.getBalancesReport(
             `account:'${stockAccountName} ${UNREALIZED_SUFFIX}' after:${stockAccount.getForwardedDate()} before:${forwardDate}`
         );
+        // Unrealized account balances
         const urBalanceLocal = this.getAccountBalance(
             urFinancialBookBalancesReport,
             `${stockAccountName} ${UNREALIZED_SUFFIX}`
@@ -266,6 +297,7 @@ export class ForwardDateService {
             `${stockAccountName} ${UNREALIZED_SUFFIX}`
         );
 
+        // Record "Forwarded Results" (Unrealized account gap) - DO NOT RECORD IF BOOK IS HISTORICAL
         const model = this.botService.getCalculationModel(stockBook);
         if (
             model !== CalculationModel.HISTORICAL_ONLY &&
@@ -286,6 +318,7 @@ export class ForwardDateService {
                 .create();
         }
 
+        // Update stock account
         await this.updateStockAccount(
             stockAccount,
             stockExcCode,
@@ -299,6 +332,7 @@ export class ForwardDateService {
             (await this.isForwardedDateSameOnAllAccounts(stockBook, forwardDate)) &&
             stockBook.getClosingDate() != closingDateISO
         ) {
+            // Prevent book from closing before last transaction check
             await this.delay(5000);
             await stockBook.setClosingDate(closingDateISO).update();
             const doneMsg = `Done! ${transactions.length} forwarded to ${this.botService.formatDate(stockBook, forwardDate)} and book closed on ${stockBook.formatDate(closingDate)}`;
@@ -524,6 +558,7 @@ export class ForwardDateService {
         baseAmount: Amount
     ): Promise<Transaction> {
         const isBaseBook = baseBook.getId() === financialBook.getId();
+
         const unrealizedAccount = await this.botService.getSupportAccount(
             financialBook,
             stockAccount,

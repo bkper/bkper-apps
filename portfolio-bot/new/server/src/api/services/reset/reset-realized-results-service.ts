@@ -45,13 +45,18 @@ export class ResetRealizedResultsService {
         const baseBook = context.baseBook;
 
         const stockAccount = new StockAccount(context.portfolioAccount);
+
+        // Summary
         const summary = new Summary();
 
         const query = this.botService.getAccountQuery(stockAccount, full);
         const transactions = await this.listTransactions(stockBook, query);
+
+        // Processor
         const processor = new ResetRealizedResultsProcessor(stockBook, financialBook, baseBook);
 
         for (let tx of transactions) {
+            // Log operation status
             console.log(`processing transaction: ${tx.getId()}`);
 
             if (tx.isChecked()) {
@@ -59,12 +64,16 @@ export class ResetRealizedResultsService {
             }
 
             if (tx.getAgentId() == 'stock-bot') {
+                // Trash fwd log
                 if (tx.getProperty(FWD_TX_PROP)) {
+                    // Store transaction to be trashed
                     processor.setStockBookTransactionToTrash(tx);
                     continue;
                 }
 
+                // Trash fwd liquidation
                 if (tx.getProperty(FWD_LIQUIDATION_PROP)) {
+                    // Trash forwarded result
                     let i = await this.listTransactions(
                         financialBook,
                         `remoteId:fwd_${tx.getId()}`
@@ -73,29 +82,37 @@ export class ResetRealizedResultsService {
                         if (fwdTx.isChecked()) {
                             fwdTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(fwdTx);
                     }
+                    // Store transaction to be trashed
                     processor.setStockBookTransactionToTrash(tx);
                     continue;
                 }
 
+                // Trash transactions connected to liquidations
                 if (this.isLiquidationTransaction(tx)) {
+                    // RRs
                     let i = await this.listTransactions(financialBook, `remoteId:${tx.getId()}`);
                     for (let rrTx of i) {
                         if (rrTx.isChecked()) {
                             rrTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(rrTx);
                     }
 
+                    // MTMs
                     i = await this.listTransactions(financialBook, `remoteId:mtm_${tx.getId()}`);
                     for (let mtmTx of i) {
                         if (mtmTx.isChecked()) {
                             mtmTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(mtmTx);
                     }
 
+                    // Interest MTMs
                     i = await this.listTransactions(
                         financialBook,
                         `remoteId:interestmtm_${tx.getId()}`
@@ -104,19 +121,24 @@ export class ResetRealizedResultsService {
                         if (interestMtmTx.isChecked()) {
                             interestMtmTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(interestMtmTx);
                     }
 
+                    // FXs
                     i = await this.listTransactions(baseBook, `remoteId:fx_${tx.getId()}`);
                     for (let fxTx of i) {
                         if (fxTx.isChecked()) {
                             fxTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setBaseBookTransactionToTrash(fxTx);
                     }
                 }
 
+                // Trash transactions connected to historical liquidations
                 if (this.isHistLiquidationTransaction(tx)) {
+                    // RRs
                     let i = await this.listTransactions(
                         financialBook,
                         `remoteId:hist_${tx.getId()}`
@@ -125,9 +147,11 @@ export class ResetRealizedResultsService {
                         if (rrTx.isChecked()) {
                             rrTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(rrTx);
                     }
 
+                    // MTMs
                     i = await this.listTransactions(
                         financialBook,
                         `remoteId:mtm_hist_${tx.getId()}`
@@ -136,18 +160,22 @@ export class ResetRealizedResultsService {
                         if (mtmTx.isChecked()) {
                             mtmTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setFinancialBookTransactionToTrash(mtmTx);
                     }
 
+                    // FXs
                     i = await this.listTransactions(baseBook, `remoteId:fx_hist_${tx.getId()}`);
                     for (let fxTx of i) {
                         if (fxTx.isChecked()) {
                             fxTx.setChecked(false);
                         }
+                        // Store transaction to be trashed
                         processor.setBaseBookTransactionToTrash(fxTx);
                     }
                 }
 
+                // Reset properties
                 let originalAmountProp = tx.getProperty(ORIGINAL_AMOUNT_PROP);
                 let originalQuantityProp = tx.getProperty(ORIGINAL_QUANTITY_PROP);
 
@@ -172,9 +200,14 @@ export class ResetRealizedResultsService {
                         .deleteProperty(FWD_LOG_PROP);
                 }
 
+                // Trash splitted transaction
                 if (!originalQuantityProp) {
+                    // Store transaction to be trashed
                     processor.setStockBookTransactionToTrash(tx);
                 } else {
+                    // Reset parent transaction
+
+                    // Fix wrong negative prices from forwarded date error
                     if (tx.getProperty(FWD_SALE_PRICE_PROP)) {
                         tx.setProperty(
                             FWD_SALE_PRICE_PROP,
@@ -200,8 +233,10 @@ export class ResetRealizedResultsService {
                         .deleteProperty(FWD_SALE_AMOUNT_PROP)
                         .deleteProperty(LIQUIDATION_LOG_PROP);
 
+                    // Sales
                     if (await this.botService.isSale(tx)) {
                         let salePriceProp = tx.getProperty(SALE_PRICE_PROP);
+                        // OLD way to find price
                         if (originalAmountProp && originalQuantityProp && !salePriceProp) {
                             let salePrice = new Amount(originalAmountProp).div(
                                 new Amount(originalQuantityProp)
@@ -212,9 +247,12 @@ export class ResetRealizedResultsService {
                             .deleteProperty(PURCHASE_PRICE_PROP)
                             .deleteProperty(FWD_PURCHASE_LOG_PROP)
                             .setAmount(originalQuantityProp);
+                        // Store transaction to be updated
                         processor.setStockBookTransactionToUpdate(tx);
+                        // Purchases
                     } else if (await this.botService.isPurchase(tx)) {
                         let purchasePriceProp = tx.getProperty(PURCHASE_PRICE_PROP);
+                        // OLD way to find price
                         if (originalAmountProp && originalQuantityProp && !purchasePriceProp) {
                             let purchasePrice = new Amount(originalAmountProp).div(
                                 new Amount(originalQuantityProp)
@@ -226,18 +264,22 @@ export class ResetRealizedResultsService {
                             .deleteProperty(FWD_SALE_PRICE_PROP)
                             .deleteProperty(FWD_SALE_EXC_RATE_PROP)
                             .setAmount(originalQuantityProp);
+                        // Store transaction to be updated
                         processor.setStockBookTransactionToUpdate(tx);
                     }
                 }
             }
         }
 
+        // Abort if any transaction is locked
         if (processor.hasLockedTransaction()) {
             return summary.lockError();
         }
 
+        // Fire batch operations
         await processor.fireBatchOperations();
 
+        // Update account
         stockAccount.clearNeedsRebuild();
         if (full) {
             stockAccount
@@ -284,6 +326,7 @@ export class ResetRealizedResultsService {
         const baseBook = context.baseBook;
 
         for (let tx of transactions) {
+            // Log operation status
             console.log(`processing transaction: ${tx.getId()}`);
 
             if (tx.isChecked()) {
@@ -291,12 +334,15 @@ export class ResetRealizedResultsService {
             }
 
             if (tx.getAgentId() == 'stock-bot') {
+                // Trash fwd log
                 if (tx.getProperty(FWD_TX_PROP)) {
                     await tx.trash();
                     continue;
                 }
 
+                // Trash fwd liquidation
                 if (tx.getProperty(FWD_LIQUIDATION_PROP)) {
+                    // Trash forwarded result
                     let i = await this.listTransactions(
                         financialBook,
                         `remoteId:fwd_${tx.getId()}`
@@ -311,7 +357,9 @@ export class ResetRealizedResultsService {
                     continue;
                 }
 
+                // Trash transactions connected to liquidations
                 if (this.isLiquidationTransaction(tx)) {
+                    // Trash RRs, MTMs and FXs
                     let i = await this.listTransactions(financialBook, `remoteId:${tx.getId()}`);
                     for (let rrTx of i) {
                         if (rrTx.isChecked()) {
@@ -345,7 +393,9 @@ export class ResetRealizedResultsService {
                     }
                 }
 
+                // Trash transactions connected to historical liquidations
                 if (this.isHistLiquidationTransaction(tx)) {
+                    // Trash RRs, MTMs and FXs
                     let i = await this.listTransactions(
                         financialBook,
                         `remoteId:hist_${tx.getId()}`
@@ -401,6 +451,7 @@ export class ResetRealizedResultsService {
                 if (!originalQuantityProp) {
                     await tx.trash();
                 } else {
+                    // Fix wrong negative prices from forwarded date error
                     if (tx.getProperty(FWD_SALE_PRICE_PROP)) {
                         tx.setProperty(
                             FWD_SALE_PRICE_PROP,
@@ -429,6 +480,7 @@ export class ResetRealizedResultsService {
 
                     if (await this.botService.isSale(tx)) {
                         let salePriceProp = tx.getProperty(SALE_PRICE_PROP);
+                        // OLD way to find price
                         if (originalAmountProp && originalQuantityProp && !salePriceProp) {
                             let salePrice = new Amount(originalAmountProp).div(
                                 new Amount(originalQuantityProp)
@@ -444,6 +496,7 @@ export class ResetRealizedResultsService {
                         stockAccountSaleTransactions.push(tx);
                     } else if (await this.botService.isPurchase(tx)) {
                         let purchasePriceProp = tx.getProperty(PURCHASE_PRICE_PROP);
+                        // OLD way to find price
                         if (originalAmountProp && originalQuantityProp && !purchasePriceProp) {
                             let purchasePrice = new Amount(originalAmountProp).div(
                                 new Amount(originalQuantityProp)

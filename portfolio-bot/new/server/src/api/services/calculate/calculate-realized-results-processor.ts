@@ -68,6 +68,7 @@ export class CalculateRealizedResultsProcessor {
 
     setStockBookTransactionToCreate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
+        // Use remoteId as key since transaction does not have an id yet
         this.stockBookTransactionsToCreate.set(this.getRemoteId(transaction), transaction);
     }
 
@@ -78,10 +79,13 @@ export class CalculateRealizedResultsProcessor {
 
     setFinancialBookTransactionToCreate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
+        // Use remoteId as key since transaction does not have an id yet
         this.financialBookTransactionsToCreate.set(this.getRemoteId(transaction), transaction);
+        // Store MTM transaction
         if (this.isMtmTransaction(transaction)) {
             this.mtmTransactions.add(transaction);
         }
+        // Store MTM Hist transaction
         if (this.isMtmHistTransaction(transaction)) {
             this.mtmHistTransactions.add(transaction);
         }
@@ -89,6 +93,7 @@ export class CalculateRealizedResultsProcessor {
 
     setBaseBookTransactionToCreate(transaction: Transaction): void {
         this.checkTransactionLocked(transaction);
+        // Use remoteId as key since transaction does not have an id yet
         this.baseBookTransactionsToCreate.set(this.getRemoteId(transaction), transaction);
     }
 
@@ -125,37 +130,45 @@ export class CalculateRealizedResultsProcessor {
     }
 
     async fireBatchOperations(): Promise<void> {
+        // Fire batch creation of stock book transactions first in order to get new ids
         const newStockBookTransactions = await this.fireBatchCreateStockBookTransactions();
 
+        // Fix remoteIds references on RR, FX and MTM transactions
         for (const newStockBookTx of newStockBookTransactions) {
             const oldId = this.getTemporaryId(newStockBookTx);
             const newId = newStockBookTx.getId();
 
+            // RR
             const connectedRrTx = this.financialBookTransactionsToCreate.get(`${oldId}`);
             if (connectedRrTx) {
                 connectedRrTx.addRemoteId(`${newId}`);
             }
 
+            // RR Hist
             const connectedHistRrTx = this.financialBookTransactionsToCreate.get(`hist_${oldId}`);
             if (connectedHistRrTx) {
                 connectedHistRrTx.addRemoteId(`hist_${newId}`);
             }
 
+            // FX
             const connectedFxTx = this.baseBookTransactionsToCreate.get(`fx_${oldId}`);
             if (connectedFxTx) {
                 connectedFxTx.addRemoteId(`fx_${newId}`);
             }
 
+            // FX Hist
             const connectedHistFxTx = this.baseBookTransactionsToCreate.get(`fx_hist_${oldId}`);
             if (connectedHistFxTx) {
                 connectedHistFxTx.addRemoteId(`fx_hist_${newId}`);
             }
 
+            // MTM
             const connectedMtmTx = this.financialBookTransactionsToCreate.get(`mtm_${oldId}`);
             if (connectedMtmTx) {
                 connectedMtmTx.addRemoteId(`mtm_${newId}`);
             }
 
+            // MTM Hist
             const connectedHistMtmTx = this.financialBookTransactionsToCreate.get(
                 `mtm_hist_${oldId}`
             );
@@ -164,11 +177,13 @@ export class CalculateRealizedResultsProcessor {
             }
         }
 
+        // Fire other batch operations
         await this.fireBatchUpdateStockBookTransactions();
         await this.fireBatchCreateFinancialBookTransactions();
         await this.fireBatchCreateBaseBookTransactions();
     }
 
+    // Stock book: create
     private async fireBatchCreateStockBookTransactions(): Promise<Transaction[]> {
         const batch = Array.from(this.stockBookTransactionsToCreate.values());
         if (batch.length > 0) {
@@ -177,6 +192,7 @@ export class CalculateRealizedResultsProcessor {
         return [];
     }
 
+    // Stock book: update
     private async fireBatchUpdateStockBookTransactions(): Promise<void> {
         const batch = Array.from(this.stockBookTransactionsToUpdate.values());
         if (batch.length > 0) {
@@ -184,6 +200,7 @@ export class CalculateRealizedResultsProcessor {
         }
     }
 
+    // Financial book: create
     private async fireBatchCreateFinancialBookTransactions(): Promise<void> {
         const batch = Array.from(this.financialBookTransactionsToCreate.values());
         if (batch.length > 0) {
@@ -191,6 +208,7 @@ export class CalculateRealizedResultsProcessor {
         }
     }
 
+    // Base book: create
     private async fireBatchCreateBaseBookTransactions(): Promise<void> {
         const batch = Array.from(this.baseBookTransactionsToCreate.values());
         if (batch.length > 0) {

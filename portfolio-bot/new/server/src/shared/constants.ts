@@ -90,10 +90,12 @@ export const REALIZED_SUFFIX = 'Realized';
 export const REALIZED_HIST_SUFFIX = 'Realized Hist';
 export const REALIZED_EXC_SUFFIX = 'Realized EXC';
 export const REALIZED_HIST_EXC_SUFFIX = 'Realized Hist EXC';
+export const FORWARDED_SUFFIX = 'Forwarded';
 export const MTM_SUFFIX = 'MTM';
 
 // Forward transaction state
 export const FWD_TX_PROP = 'fwd_tx';
+export const FWD_TX_REMOTE_IDS_PROP = 'fwd_tx_remote_ids';
 export const FWD_LIQUIDATION_PROP = 'fwd_liquidation';
 export const FWD_LOG_PROP = 'fwd_log';
 

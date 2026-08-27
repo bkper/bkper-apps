@@ -130,6 +130,10 @@ export class BotService {
         return this.getNextIsoDate(toDateIsoString);
     }
 
+    formatDate(book: Book, date: string): string {
+        return book.formatDate(book.parseDate(date));
+    }
+
     async getUncalculatedAccounts(stockBook: Book, baseBook?: Book): Promise<Account[]> {
         const baseBookCurrency = baseBook ? this.getExcCode(baseBook) : undefined;
 
@@ -197,6 +201,67 @@ export class BotService {
             return `after:${this.getNextIsoDate(closingDateIso)} is:unchecked`;
         }
         return 'is:unchecked';
+    }
+
+    async getBuyAccount(book: Book): Promise<Account> {
+        const account = await optionalLookup(() => book.getAccount(STOCK_BUY_ACCOUNT_NAME));
+        if (account) {
+            return account;
+        }
+        return new Account(book)
+            .setName(STOCK_BUY_ACCOUNT_NAME)
+            .setType(AccountType.INCOMING)
+            .create();
+    }
+
+    async getSellAccount(book: Book): Promise<Account> {
+        const account = await optionalLookup(() => book.getAccount(STOCK_SELL_ACCOUNT_NAME));
+        if (account) {
+            return account;
+        }
+        return new Account(book)
+            .setName(STOCK_SELL_ACCOUNT_NAME)
+            .setType(AccountType.OUTGOING)
+            .create();
+    }
+
+    async isAccountUncalculated(
+        stockBook: Book,
+        stockAccount: Account,
+        forwardDate: string
+    ): Promise<boolean> {
+        const validationAccount = new ValidationAccount(stockAccount);
+        const query = `account:'${stockAccount.getName()}' before:${forwardDate}`;
+        let cursor: string | undefined;
+
+        do {
+            const page = await stockBook.listTransactions(query, undefined, cursor);
+            for (const transaction of page.getItems()) {
+                if (validationAccount.hasUncalculatedResults()) {
+                    return false;
+                }
+                if (transaction.isChecked()) {
+                    continue;
+                }
+                const creditAccount = await transaction.getCreditAccount();
+                const debitAccount = await transaction.getDebitAccount();
+                if (!creditAccount || !debitAccount) {
+                    throw new Error(
+                        `Could not resolve both Accounts for Transaction ${transaction.getId() ?? 'unknown'} while validating Forward Date.`
+                    );
+                }
+                const contraAccount = creditAccount.isPermanent() ? debitAccount : creditAccount;
+                if (contraAccount.getName() == STOCK_BUY_ACCOUNT_NAME) {
+                    validationAccount.pushUncheckedPurchase(transaction);
+                }
+                if (contraAccount.getName() == STOCK_SELL_ACCOUNT_NAME) {
+                    validationAccount.pushUncheckedSale(transaction);
+                }
+            }
+            cursor = page.getCursor();
+        } while (cursor);
+
+        return validationAccount.hasUncalculatedResults();
     }
 
     private getNextIsoDate(dateIso: string): string {

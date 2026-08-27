@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Account, AccountType, Book } from 'bkper-js';
+import { Account, AccountType, Amount, Book, Transaction } from 'bkper-js';
 import { StockAccount } from '../../../src/api/services/stock-account.js';
 
 function createAccount(payload: bkper.Account): Account {
@@ -8,7 +8,12 @@ function createAccount(payload: bkper.Account): Account {
 
 describe('legacy StockAccount behavior', () => {
     test('exposes identity and delegates the Account update', async () => {
-        const account = createAccount({ id: 'instrument', name: 'Instrument' });
+        const account = createAccount({
+            id: 'instrument',
+            name: 'Instrument',
+            archived: false,
+            permanent: true,
+        });
         let updateCalls = 0;
         account.update = async () => {
             updateCalls++;
@@ -18,6 +23,9 @@ describe('legacy StockAccount behavior', () => {
 
         expect(stockAccount.getId()).toBe('instrument');
         expect(stockAccount.getName()).toBe('Instrument');
+        expect(stockAccount.getAccount()).toBe(account);
+        expect(stockAccount.isArchived()).toBe(false);
+        expect(stockAccount.isPermanent()).toBe(true);
         await expect(stockAccount.update()).resolves.toBe(account);
         expect(updateCalls).toBe(1);
     });
@@ -67,6 +75,21 @@ describe('legacy StockAccount behavior', () => {
         expect(account.getProperty('realized_date')).toBeUndefined();
     });
 
+    test('sets Forward Account state without persisting it', () => {
+        const account = createAccount({});
+        const stockAccount = new StockAccount(account);
+
+        expect(stockAccount.getForwardedDateValue()).toBeNull();
+        expect(stockAccount.setForwardedDate('2025-02-03')).toBe(stockAccount);
+        expect(stockAccount.setForwardedExcRate(new Amount('1.2'))).toBe(stockAccount);
+        expect(stockAccount.setForwardedPrice(new Amount('42'))).toBe(stockAccount);
+
+        expect(stockAccount.getForwardedDate()).toBe('2025-02-03');
+        expect(stockAccount.getForwardedDateValue()).toBe(20250203);
+        expect(account.getProperty('forwarded_exc_rate')).toBe('1.2');
+        expect(account.getProperty('forwarded_price')).toBe('42');
+    });
+
     test('clears Reset and Full Reset Account state without persisting it', () => {
         const account = createAccount({
             properties: {
@@ -94,6 +117,37 @@ describe('legacy StockAccount behavior', () => {
         expect(account.getProperty('forwarded_exc_rate')).toBeUndefined();
         expect(account.getProperty('forwarded_price')).toBeUndefined();
         expect(updateCalls).toBe(0);
+    });
+
+    test('trashes queued Forward history sequentially and skips already trashed entries', async () => {
+        const book = new Book({ id: 'portfolio-book' });
+        const account = new Account(book, { id: 'instrument' });
+        const alreadyTrashed = new Transaction(book, { id: 'trashed', trashed: true });
+        const checked = new Transaction(book, { id: 'checked', checked: true });
+        const unchecked = new Transaction(book, { id: 'unchecked', checked: false });
+        const calls: string[] = [];
+
+        checked.uncheck = async () => {
+            calls.push('uncheck:checked');
+            checked.setChecked(false);
+            return checked;
+        };
+        checked.trash = async () => {
+            calls.push('trash:checked');
+            return checked;
+        };
+        unchecked.trash = async () => {
+            calls.push('trash:unchecked');
+            return unchecked;
+        };
+
+        const stockAccount = new StockAccount(account);
+        stockAccount.pushTrash(alreadyTrashed);
+        stockAccount.pushTrash(checked);
+        stockAccount.pushTrash(unchecked);
+        await stockAccount.cleanTrash();
+
+        expect(calls).toEqual(['uncheck:checked', 'trash:checked', 'trash:unchecked']);
     });
 
     test('selects the first nonblank exchange Group for permanent Accounts', async () => {

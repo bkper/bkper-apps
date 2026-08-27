@@ -1,4 +1,4 @@
-import { AccountType, type Account } from 'bkper-js';
+import { AccountType, type Account, type Amount, type Transaction } from 'bkper-js';
 import {
     FORWARDED_DATE_PROP,
     FORWARDED_EXC_RATE_PROP,
@@ -11,6 +11,7 @@ import {
 
 export class StockAccount {
     private readonly account: Account;
+    private readonly trash: Transaction[] = [];
 
     constructor(account: Account) {
         this.account = account;
@@ -22,6 +23,18 @@ export class StockAccount {
 
     getName(): string | undefined {
         return this.account.getName();
+    }
+
+    getAccount(): Account {
+        return this.account;
+    }
+
+    isArchived(): boolean | undefined {
+        return this.account.isArchived();
+    }
+
+    isPermanent(): boolean | undefined {
+        return this.account.isPermanent();
     }
 
     update(): Promise<Account> {
@@ -57,8 +70,18 @@ export class StockAccount {
         return this;
     }
 
+    getForwardedDateValue(): number | null {
+        const forwardedDate = this.getForwardedDate();
+        return forwardedDate ? +forwardedDate.replaceAll('-', '') : null;
+    }
+
     getForwardedDate(): string | undefined {
         return this.account.getProperty(FORWARDED_DATE_PROP);
+    }
+
+    setForwardedDate(date: string): StockAccount {
+        this.account.setProperty(FORWARDED_DATE_PROP, date);
+        return this;
     }
 
     deleteForwardedDate(): StockAccount {
@@ -94,13 +117,39 @@ export class StockAccount {
         return null;
     }
 
+    setForwardedExcRate(forwardedExcRate: Amount | undefined): StockAccount {
+        this.account.setProperty(FORWARDED_EXC_RATE_PROP, forwardedExcRate?.toString());
+        return this;
+    }
+
     deleteForwardedExcRate(): StockAccount {
         this.account.deleteProperty(FORWARDED_EXC_RATE_PROP);
+        return this;
+    }
+
+    setForwardedPrice(forwardedPrice: Amount | undefined): StockAccount {
+        this.account.setProperty(FORWARDED_PRICE_PROP, forwardedPrice?.toString());
         return this;
     }
 
     deleteForwardedPrice(): StockAccount {
         this.account.deleteProperty(FORWARDED_PRICE_PROP);
         return this;
+    }
+
+    pushTrash(transaction: Transaction): void {
+        this.trash.push(transaction);
+    }
+
+    async cleanTrash(): Promise<void> {
+        for (const transaction of this.trash) {
+            if (transaction.isTrashed()) {
+                continue;
+            }
+            if (transaction.isChecked()) {
+                await transaction.uncheck();
+            }
+            await transaction.trash();
+        }
     }
 }

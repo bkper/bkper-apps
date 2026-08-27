@@ -188,6 +188,40 @@ describe('legacy menu bot service', () => {
         await expect(service.isSale(draft)).resolves.toBe(false);
     });
 
+    test('returns existing Buy and creates missing Sell support Accounts', async () => {
+        const service = createService();
+        const book = new Book({
+            id: 'portfolio-book',
+            accounts: [
+                {
+                    id: 'buy',
+                    name: 'Buy',
+                    type: AccountType.INCOMING,
+                },
+            ],
+        });
+        const existingBuy = new Account(book, {
+            id: 'buy',
+            name: 'Buy',
+            type: AccountType.INCOMING,
+        });
+        book.getAccount = async idOrName =>
+            idOrName === 'buy' || idOrName === 'Buy' ? existingBuy : undefined;
+        const created: Account[] = [];
+        Account.prototype.create = async function () {
+            created.push(this);
+            return this;
+        };
+
+        const buy = await service.getBuyAccount(book);
+        const sell = await service.getSellAccount(book);
+
+        expect(buy.getId()).toBe('buy');
+        expect(sell.getName()).toBe('Sell');
+        expect(sell.getType()).toBe(AccountType.OUTGOING);
+        expect(created).toEqual([sell]);
+    });
+
     test('builds the unchecked Transaction query from the Portfolio Book closing date', () => {
         const service = createService();
 
@@ -206,6 +240,49 @@ describe('legacy menu bot service', () => {
                 })
             )
         ).toBe('after:2026-11-02 is:unchecked');
+    });
+
+    test('detects an uncalculated Account before the requested Forward date across pages', async () => {
+        const service = createService();
+        const portfolioBook = createPortfolioBook();
+        const buy = await portfolioBook.getAccount('buy');
+        const sell = await portfolioBook.getAccount('sell');
+        const instrument = await portfolioBook.getAccount('round-trip');
+        if (!buy || !sell || !instrument) {
+            throw new Error('Expected Forward validation fixture Accounts');
+        }
+
+        const purchase = new Transaction(portfolioBook, { id: 'purchase', posted: true });
+        purchase.getCreditAccount = async () => buy;
+        purchase.getDebitAccount = async () => instrument;
+        const sale = new Transaction(portfolioBook, { id: 'sale', posted: true });
+        sale.getCreditAccount = async () => instrument;
+        sale.getDebitAccount = async () => sell;
+
+        const requests: Array<{ query?: string; cursor?: string }> = [];
+        portfolioBook.listTransactions = async (query, _limit, cursor) => {
+            requests.push({ query, cursor });
+            const page = new TransactionList(portfolioBook, {
+                items: [],
+                cursor: cursor ? undefined : 'next-page',
+            });
+            page.getItems = () => (cursor ? [sale] : [purchase]);
+            return page;
+        };
+
+        await expect(
+            service.isAccountUncalculated(portfolioBook, instrument, '2026-09-01')
+        ).resolves.toBe(true);
+        expect(requests).toEqual([
+            {
+                query: "account:'Round Trip' before:2026-09-01",
+                cursor: undefined,
+            },
+            {
+                query: "account:'Round Trip' before:2026-09-01",
+                cursor: 'next-page',
+            },
+        ]);
     });
 
     test('fails clearly when an unchecked Transaction Account cannot be resolved', async () => {
@@ -287,6 +364,9 @@ describe('legacy menu bot service', () => {
         ).toBe(CalculationModel.FAIR_ONLY);
         expect(service.getCalculationModel(book)).toBe(CalculationModel.BOTH);
         expect(service.getBeforeDateIsoString(book, '2024-02-29')).toBe('2024-03-01');
+        expect(
+            service.formatDate(createPortfolioBook({ datePattern: 'dd/MM/yyyy' }), '2025-02-03')
+        ).toBe('03/02/2025');
         expect(service.compareToFIFO(laterDate, first)).toBeGreaterThan(0);
         expect(service.compareToFIFO(laterOrder, first)).toBe(1);
         expect(service.compareToFIFO(laterCreation, first)).toBe(800);

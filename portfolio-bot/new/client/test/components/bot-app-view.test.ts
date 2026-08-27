@@ -3,7 +3,7 @@ import { App, Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
-import type { AppError } from '../../src/types.js';
+import { PortfolioService, type AppError, type ServiceChangeEvent } from '../../src/types.js';
 
 const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
     this: BotAppView
@@ -11,6 +11,10 @@ const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
 const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent') as (
     this: BotAppView
 ) => TemplateResult;
+const handleServiceChange = Reflect.get(BotAppView.prototype, 'handleServiceChange') as (
+    this: BotAppView,
+    event: ServiceChangeEvent
+) => void;
 
 describe('Bot app view', () => {
     it('passes the App and selected Book to the app header', () => {
@@ -103,6 +107,37 @@ describe('Bot app view', () => {
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<realized-results');
+        expect(result.values[0]).toBe(context);
+        expect(result.values[1]).toBeUndefined();
+    });
+
+    it('renders Forward Date after handling a service change', () => {
+        const view = new BotAppView();
+        const portfolioBook = new Book({
+            id: 'portfolio-book',
+            name: 'Portfolio Book',
+            permission: Permission.VIEWER,
+        });
+        const context = {
+            portfolioBook,
+            accounts: [],
+        };
+        view.portfolioBook = portfolioBook;
+        view.forwardDateContext = context;
+        view.hasViewerPermission = true;
+        view.hasEditorPermission = true;
+        view.appState = BotAppState.READY;
+
+        handleServiceChange.call(
+            view,
+            new CustomEvent('service-change', {
+                detail: { service: PortfolioService.FORWARD_DATE },
+            })
+        );
+        const result = renderBodyContent.call(view);
+
+        expect(view.activeService).toBe(PortfolioService.FORWARD_DATE);
+        expect(result.strings.join('')).toContain('<forward-date');
         expect(result.values[0]).toBe(context);
         expect(result.values[1]).toBeUndefined();
     });

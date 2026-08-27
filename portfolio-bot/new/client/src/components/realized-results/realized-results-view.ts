@@ -1,9 +1,9 @@
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { AppError, RealizedResultsContext } from '../../types.js';
+import { PortfolioService, type AppError, type RealizedResultsContext } from '../../types.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
-import '../service-intro/service-intro-view.js';
+import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 
 @customElement('realized-results')
@@ -20,10 +20,10 @@ export class RealizedResultsView extends LitElement {
         const context = this.context;
         return html`
             <div class="realized-results">
-                <service-intro
-                    heading="Realized Results"
+                <service-switcher
+                    .service=${PortfolioService.REALIZED_RESULTS}
                     instructions="Review the accounts below before running an operation."
-                ></service-intro>
+                ></service-switcher>
                 <account-list
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}

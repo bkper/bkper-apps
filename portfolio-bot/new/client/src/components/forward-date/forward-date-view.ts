@@ -1,9 +1,9 @@
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { AppError, ForwardDateContext } from '../../types.js';
+import { PortfolioService, type AppError, type ForwardDateContext } from '../../types.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
-import '../service-intro/service-intro-view.js';
+import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 
 @customElement('forward-date')
@@ -20,10 +20,10 @@ export class ForwardDateView extends LitElement {
         const context = this.context;
         return html`
             <div class="forward-date">
-                <service-intro
-                    heading="Forward Date"
+                <service-switcher
+                    .service=${PortfolioService.FORWARD_DATE}
                     instructions="Review the accounts below before setting a forward date."
-                ></service-intro>
+                ></service-switcher>
                 <account-list
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}

@@ -3,8 +3,15 @@ import { LitElement, TemplateResult, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-header/app-header-view.js';
 import './app-error/app-error-view.js';
+import './forward-date/forward-date-view.js';
 import './realized-results/realized-results-view.js';
-import type { AppError, ForwardDateContext, RealizedResultsContext } from '../types.js';
+import {
+    PortfolioService,
+    type AppError,
+    type ForwardDateContext,
+    type RealizedResultsContext,
+    type ServiceChangeEvent,
+} from '../types.js';
 import { BotAppController, BotAppState } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
 import { sharedCSS } from './shared-css.js';
@@ -36,6 +43,9 @@ export class BotAppView extends LitElement {
 
     @state()
     forwardDateContext?: ForwardDateContext;
+
+    @state()
+    activeService = PortfolioService.REALIZED_RESULTS;
 
     @state()
     hasViewerPermission = false;
@@ -76,10 +86,21 @@ export class BotAppView extends LitElement {
             return this.renderAppError();
         }
         if (this.portfolioBook) {
+            const permissionError = this.hasEditorPermission ? undefined : this.error;
+            if (this.activeService === PortfolioService.FORWARD_DATE) {
+                return html`
+                    <forward-date
+                        .context=${this.forwardDateContext}
+                        .permissionError=${permissionError}
+                        @service-change=${this.handleServiceChange}
+                    ></forward-date>
+                `;
+            }
             return html`
                 <realized-results
                     .context=${this.realizedResultsContext}
-                    .permissionError=${this.hasEditorPermission ? undefined : this.error}
+                    .permissionError=${permissionError}
+                    @service-change=${this.handleServiceChange}
                 ></realized-results>
             `;
         }
@@ -88,6 +109,13 @@ export class BotAppView extends LitElement {
 
     private renderAppError(): TemplateResult {
         return html`<app-error .error=${this.error}></app-error>`;
+    }
+
+    private handleServiceChange(event: ServiceChangeEvent): void {
+        const service = event.detail.service;
+        if (service !== this.activeService) {
+            this.activeService = service;
+        }
     }
 }
 

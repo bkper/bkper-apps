@@ -2,7 +2,11 @@ import { describe, expect, it } from 'bun:test';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { RealizedResultsView } from '../../../src/components/realized-results/realized-results-view.js';
-import type { AppError, RealizedResultsContext } from '../../../src/types.js';
+import {
+    PortfolioService,
+    type AppError,
+    type RealizedResultsContext,
+} from '../../../src/types.js';
 
 const render = Reflect.get(RealizedResultsView.prototype, 'render') as (
     this: RealizedResultsView
@@ -37,11 +41,12 @@ describe('Realized results view', () => {
 
         const result = render.call(view);
 
-        expect(result.strings.join('')).toContain('<service-intro');
+        expect(result.strings.join('')).toContain('<service-switcher');
         expect(result.strings.join('')).toContain('<account-list');
-        expect(result.values[0]).toBe(context.accounts);
-        expect(result.values[1]).toBeUndefined();
-        expect(result.values[2]).toBe(context.selectedGroup);
+        expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
+        expect(result.values[1]).toBe(context.accounts);
+        expect(result.values[2]).toBeUndefined();
+        expect(result.values[3]).toBe(context.selectedGroup);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

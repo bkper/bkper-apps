@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { ForwardDateView } from '../../../src/components/forward-date/forward-date-view.js';
-import type { AppError, ForwardDateContext } from '../../../src/types.js';
+import { PortfolioService, type AppError, type ForwardDateContext } from '../../../src/types.js';
 
 const render = Reflect.get(ForwardDateView.prototype, 'render') as (
     this: ForwardDateView
@@ -31,11 +31,12 @@ describe('Forward Date view', () => {
 
         const result = render.call(view);
 
-        expect(result.strings.join('')).toContain('<service-intro');
+        expect(result.strings.join('')).toContain('<service-switcher');
         expect(result.strings.join('')).toContain('<account-list');
-        expect(result.values[0]).toBe(context.accounts);
-        expect(result.values[1]).toBe(context.selectedAccount);
-        expect(result.values[2]).toBe(context.selectedGroup);
+        expect(result.values[0]).toBe(PortfolioService.FORWARD_DATE);
+        expect(result.values[1]).toBe(context.accounts);
+        expect(result.values[2]).toBe(context.selectedAccount);
+        expect(result.values[3]).toBe(context.selectedGroup);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

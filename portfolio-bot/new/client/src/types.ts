@@ -1,5 +1,22 @@
 import type { Account, Book, Group } from 'bkper-js';
 
+/** A Portfolio Bot service available in the client. */
+export enum PortfolioService {
+    /** Realized-result calculation and reset operations. */
+    REALIZED_RESULTS = 'realized-results',
+    /** Forward Date operations. */
+    FORWARD_DATE = 'forward-date',
+}
+
+/** The selected service carried by a service-change event. */
+export interface ServiceChangeDetail {
+    /** The service selected by the user. */
+    service: PortfolioService;
+}
+
+/** A service selection event dispatched by the service switcher. */
+export type ServiceChangeEvent = CustomEvent<ServiceChangeDetail>;
+
 /** An application error shown to the user. */
 export interface AppError {
     /** The presentation severity of the error. */

@@ -1,6 +1,9 @@
+import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
-import type { ForwardRequest } from '../schemas.js';
+import type { ForwardRequest, OperationResponse } from '../schemas.js';
 import { OperationService } from './operation-service.js';
+import { ForwardDateService } from './forward/forward-date-service.js';
+import { SummaryState } from './summary.js';
 
 export class ForwardService extends OperationService {
     /**
@@ -11,15 +14,15 @@ export class ForwardService extends OperationService {
      * @param accountId - Portfolio Account id to forward.
      * @param request - Requested forward date.
      *
-     * @returns A Promise that resolves after operation context preparation.
-     * @throws When context validation fails.
+     * @returns A response containing the Forward Date status message.
+     * @throws When context or Forward Date validation fails.
      */
     static async execute(
         context: AppContext,
         bookId: string,
         accountId: string,
-        _request: ForwardRequest
-    ): Promise<void> {
+        request: ForwardRequest
+    ): Promise<OperationResponse> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
 
@@ -33,5 +36,12 @@ export class ForwardService extends OperationService {
         if (baseBookId === financialBookId) {
             operationContext.baseBook = financialBook;
         }
+
+        const summary = await new ForwardDateService().execute(operationContext, request.date);
+        if (summary.getState() === SummaryState.FORWARD_ERROR) {
+            throw new HTTPException(400, { message: summary.getMessage() });
+        }
+
+        return { message: summary.getMessage() };
     }
 }

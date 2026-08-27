@@ -67,7 +67,7 @@ describe('typed Portfolio Bot API', () => {
         CalculateService.execute = mock(async () => ({ message: 'Calculating' }));
         ResetService.execute = mock(async () => ({ message: 'Resetting' }));
         ResetService.executeFull = mock(async () => ({ message: 'Fully resetting' }));
-        ForwardService.execute = mock(async () => undefined);
+        ForwardService.execute = mock(async () => ({ message: 'Forwarded' }));
 
         const requests: Array<[string, RequestInit, { message: string }]> = [
             [
@@ -96,7 +96,7 @@ describe('typed Portfolio Bot API', () => {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ date: '2026-09-01' }),
                 },
-                { message: '' },
+                { message: 'Forwarded' },
             ],
         ];
 

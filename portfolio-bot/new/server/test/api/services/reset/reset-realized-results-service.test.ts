@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { Account, AccountType, Book, Transaction, TransactionList, type Amount } from 'bkper-js';
 import type { OperationContext } from '../../../../src/api/services/operation-service.js';
 import { ResetRealizedResultsService } from '../../../../src/api/services/reset/reset-realized-results-service.js';
+import { StockAccount } from '../../../../src/api/services/stock-account.js';
 import { Summary } from '../../../../src/api/services/summary.js';
 
 interface BooksFixture {
@@ -432,5 +433,153 @@ describe('legacy batched Reset behavior', () => {
         expect(result.getMessage()).toBe('Cannot proceed: collection has locked/closed book(s)');
         expect(fixture.account.getProperty('needs_rebuild')).toBe('true');
         expect(fixture.account.getProperty('realized_date')).toBe('2025-05-31');
+    });
+});
+
+describe('legacy sequential Reset behavior', () => {
+    test('performs the complete linked cleanup and parent restoration immediately in source order', async () => {
+        const fixture = createBooks();
+        const calls: string[] = [];
+        const sale = createTransaction(fixture.portfolioBook, 'sale', {
+            original_amount: '120',
+            original_quantity: '4',
+            gain_amount: '20',
+            gain_amount_hist: '10',
+            purchase_log: 'purchase-log',
+            purchase_price: '20',
+            fwd_sale_price: '-30',
+        });
+        setMovement(sale, fixture.instrument, fixture.sell);
+        const forwardLog = createTransaction(fixture.portfolioBook, 'forward-log', {
+            fwd_tx: 'source',
+        });
+        const forwardLiquidation = createTransaction(fixture.portfolioBook, 'forward-liquidation', {
+            fwd_liquidation: '[]',
+        });
+        const purchase = createTransaction(fixture.portfolioBook, 'purchase', {
+            original_amount: '50',
+            original_quantity: '5',
+            sale_price: '12',
+            fwd_purchase_price: '-10',
+        });
+        setMovement(purchase, fixture.buy, fixture.instrument);
+        const split = createTransaction(fixture.portfolioBook, 'split');
+        const transactions = [sale, forwardLog, forwardLiquidation, purchase, split];
+
+        fixture.portfolioBook.listTransactions = async query => {
+            calls.push(`list:portfolio:${query}`);
+            return transactionPage(fixture.portfolioBook, transactions);
+        };
+
+        const linkedTransactions = new Map<string, Transaction>();
+        for (const remoteId of [
+            'sale',
+            'mtm_sale',
+            'interestmtm_sale',
+            'hist_sale',
+            'mtm_hist_sale',
+            'fwd_forward-liquidation',
+        ]) {
+            linkedTransactions.set(
+                remoteId,
+                createTransaction(fixture.financialBook, `${remoteId}-linked`)
+            );
+        }
+        fixture.financialBook.listTransactions = async query => {
+            const remoteId = query!.replace('remoteId:', '');
+            calls.push(`list:financial:${remoteId}`);
+            return transactionPage(fixture.financialBook, [linkedTransactions.get(remoteId)!]);
+        };
+
+        for (const remoteId of ['fx_sale', 'fx_hist_sale']) {
+            linkedTransactions.set(
+                remoteId,
+                createTransaction(fixture.baseBook, `${remoteId}-linked`)
+            );
+        }
+        fixture.baseBook.listTransactions = async query => {
+            const remoteId = query!.replace('remoteId:', '');
+            calls.push(`list:base:${remoteId}`);
+            return transactionPage(fixture.baseBook, [linkedTransactions.get(remoteId)!]);
+        };
+
+        for (const transaction of [...transactions, ...linkedTransactions.values()]) {
+            transaction.uncheck = async () => {
+                calls.push(`uncheck:${transaction.getId()}`);
+                transaction.setChecked(false);
+                return transaction;
+            };
+            transaction.trash = async () => {
+                calls.push(`trash:${transaction.getId()}`);
+                return transaction;
+            };
+            transaction.update = async () => {
+                calls.push(`update:${transaction.getId()}`);
+                return transaction;
+            };
+        }
+        fixture.account.update = async () => {
+            calls.push('update:account');
+            return fixture.account;
+        };
+
+        const result = await new ResetRealizedResultsService().executeSync(
+            fixture.operationContext,
+            new StockAccount(fixture.account),
+            false
+        );
+
+        expect(result).toBeInstanceOf(Summary);
+        expect(result.getMessage()).toBe('Done!');
+        expect(calls).toEqual([
+            "list:portfolio:account:'Instrument' after:2025-03-31",
+            'uncheck:sale',
+            'list:financial:sale',
+            'uncheck:sale-linked',
+            'trash:sale-linked',
+            'list:financial:mtm_sale',
+            'uncheck:mtm_sale-linked',
+            'trash:mtm_sale-linked',
+            'list:financial:interestmtm_sale',
+            'uncheck:interestmtm_sale-linked',
+            'trash:interestmtm_sale-linked',
+            'list:base:fx_sale',
+            'uncheck:fx_sale-linked',
+            'trash:fx_sale-linked',
+            'list:financial:hist_sale',
+            'uncheck:hist_sale-linked',
+            'trash:hist_sale-linked',
+            'list:financial:mtm_hist_sale',
+            'uncheck:mtm_hist_sale-linked',
+            'trash:mtm_hist_sale-linked',
+            'list:base:fx_hist_sale',
+            'uncheck:fx_hist_sale-linked',
+            'trash:fx_hist_sale-linked',
+            'update:sale',
+            'uncheck:forward-log',
+            'trash:forward-log',
+            'uncheck:forward-liquidation',
+            'list:financial:fwd_forward-liquidation',
+            'uncheck:fwd_forward-liquidation-linked',
+            'trash:fwd_forward-liquidation-linked',
+            'trash:forward-liquidation',
+            'uncheck:purchase',
+            'update:purchase',
+            'uncheck:split',
+            'trash:split',
+            'update:account',
+        ]);
+        expect(amount(sale)).toBe('4');
+        expect(sale.getProperty('sale_price')).toBe('30');
+        expect(sale.getProperty('fwd_sale_price')).toBe('30');
+        expect(await sale.getCreditAccount()).toBe(fixture.instrument);
+        expect(await sale.getDebitAccount()).toBe(fixture.sell);
+        expect(amount(purchase)).toBe('5');
+        expect(purchase.getProperty('purchase_price')).toBe('10');
+        expect(purchase.getProperty('fwd_purchase_price')).toBe('10');
+        expect(await purchase.getCreditAccount()).toBe(fixture.buy);
+        expect(await purchase.getDebitAccount()).toBe(fixture.instrument);
+        expect(fixture.account.getProperty('needs_rebuild')).toBeUndefined();
+        expect(fixture.account.getProperty('realized_date')).toBe('2025-03-31');
     });
 });

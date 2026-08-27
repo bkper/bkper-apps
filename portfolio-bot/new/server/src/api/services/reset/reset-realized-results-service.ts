@@ -259,6 +259,232 @@ export class ResetRealizedResultsService {
         return summary.resetingAsync();
     }
 
+    async executeSync(
+        context: OperationContext,
+        stockAccount: StockAccount,
+        full: boolean,
+        resetTransactions?: Transaction[]
+    ): Promise<Summary> {
+        const stockBook = context.portfolioBook;
+
+        let transactions: Transaction[];
+        if (resetTransactions) {
+            transactions = resetTransactions;
+        } else {
+            transactions = await this.listTransactions(
+                stockBook,
+                this.botService.getAccountQuery(stockAccount, full)
+            );
+        }
+
+        let stockAccountSaleTransactions: Transaction[] = [];
+        let stockAccountPurchaseTransactions: Transaction[] = [];
+
+        const financialBook = context.financialBook;
+        const baseBook = context.baseBook;
+
+        for (let tx of transactions) {
+            console.log(`processing transaction: ${tx.getId()}`);
+
+            if (tx.isChecked()) {
+                tx = await tx.uncheck();
+            }
+
+            if (tx.getAgentId() == 'stock-bot') {
+                if (tx.getProperty(FWD_TX_PROP)) {
+                    await tx.trash();
+                    continue;
+                }
+
+                if (tx.getProperty(FWD_LIQUIDATION_PROP)) {
+                    let i = await this.listTransactions(
+                        financialBook,
+                        `remoteId:fwd_${tx.getId()}`
+                    );
+                    for (let fwdTx of i) {
+                        if (fwdTx.isChecked()) {
+                            fwdTx = await fwdTx.uncheck();
+                        }
+                        await fwdTx.trash();
+                    }
+                    await tx.trash();
+                    continue;
+                }
+
+                if (this.isLiquidationTransaction(tx)) {
+                    let i = await this.listTransactions(financialBook, `remoteId:${tx.getId()}`);
+                    for (let rrTx of i) {
+                        if (rrTx.isChecked()) {
+                            rrTx = await rrTx.uncheck();
+                        }
+                        await rrTx.trash();
+                    }
+                    i = await this.listTransactions(financialBook, `remoteId:mtm_${tx.getId()}`);
+                    for (let mtmTx of i) {
+                        if (mtmTx.isChecked()) {
+                            mtmTx = await mtmTx.uncheck();
+                        }
+                        await mtmTx.trash();
+                    }
+                    i = await this.listTransactions(
+                        financialBook,
+                        `remoteId:interestmtm_${tx.getId()}`
+                    );
+                    for (let interestMtmTx of i) {
+                        if (interestMtmTx.isChecked()) {
+                            interestMtmTx = await interestMtmTx.uncheck();
+                        }
+                        await interestMtmTx.trash();
+                    }
+                    i = await this.listTransactions(baseBook, `remoteId:fx_${tx.getId()}`);
+                    for (let fxTx of i) {
+                        if (fxTx.isChecked()) {
+                            fxTx = await fxTx.uncheck();
+                        }
+                        await fxTx.trash();
+                    }
+                }
+
+                if (this.isHistLiquidationTransaction(tx)) {
+                    let i = await this.listTransactions(
+                        financialBook,
+                        `remoteId:hist_${tx.getId()}`
+                    );
+                    for (let rrTx of i) {
+                        if (rrTx.isChecked()) {
+                            rrTx = await rrTx.uncheck();
+                        }
+                        await rrTx.trash();
+                    }
+                    i = await this.listTransactions(
+                        financialBook,
+                        `remoteId:mtm_hist_${tx.getId()}`
+                    );
+                    for (let mtmTx of i) {
+                        if (mtmTx.isChecked()) {
+                            mtmTx = await mtmTx.uncheck();
+                        }
+                        await mtmTx.trash();
+                    }
+                    i = await this.listTransactions(baseBook, `remoteId:fx_hist_${tx.getId()}`);
+                    for (let fxTx of i) {
+                        if (fxTx.isChecked()) {
+                            fxTx = await fxTx.uncheck();
+                        }
+                        await fxTx.trash();
+                    }
+                }
+
+                let originalAmountProp = tx.getProperty(ORIGINAL_AMOUNT_PROP);
+                let originalQuantityProp = tx.getProperty(ORIGINAL_QUANTITY_PROP);
+
+                if (full) {
+                    tx.setProperty(ORDER_PROP, tx.getProperty(HIST_ORDER_PROP));
+                    if (tx.getProperty(DATE_PROP)) {
+                        tx.setDate(tx.getProperty(DATE_PROP)!);
+                    }
+                    const histQuantity = tx.getProperty(HIST_QUANTITY_PROP);
+                    if (histQuantity) {
+                        tx.setProperty(ORIGINAL_QUANTITY_PROP, histQuantity);
+                        originalQuantityProp = histQuantity;
+                    }
+                    tx.deleteProperty(DATE_PROP)
+                        .deleteProperty(HIST_ORDER_PROP)
+                        .deleteProperty(HIST_QUANTITY_PROP)
+                        .deleteProperty(FWD_PURCHASE_PRICE_PROP)
+                        .deleteProperty(FWD_SALE_PRICE_PROP)
+                        .deleteProperty(FWD_PURCHASE_EXC_RATE_PROP)
+                        .deleteProperty(FWD_SALE_EXC_RATE_PROP)
+                        .deleteProperty(FWD_LOG_PROP);
+                }
+
+                if (!originalQuantityProp) {
+                    await tx.trash();
+                } else {
+                    if (tx.getProperty(FWD_SALE_PRICE_PROP)) {
+                        tx.setProperty(
+                            FWD_SALE_PRICE_PROP,
+                            new Amount(tx.getProperty(FWD_SALE_PRICE_PROP)!).abs().toString()
+                        );
+                    }
+                    if (tx.getProperty(FWD_PURCHASE_PRICE_PROP)) {
+                        tx.setProperty(
+                            FWD_PURCHASE_PRICE_PROP,
+                            new Amount(tx.getProperty(FWD_PURCHASE_PRICE_PROP)!).abs().toString()
+                        );
+                    }
+
+                    tx.deleteProperty(GAIN_AMOUNT_PROP)
+                        .deleteProperty(GAIN_AMOUNT_HIST_PROP)
+                        .deleteProperty(PURCHASE_AMOUNT_PROP)
+                        .deleteProperty('gain_log')
+                        .deleteProperty(SALE_AMOUNT_PROP)
+                        .deleteProperty(SHORT_SALE_PROP)
+                        .deleteProperty(EXC_RATE_PROP)
+                        .deleteProperty(PURCHASE_EXC_RATE_PROP)
+                        .deleteProperty(SALE_EXC_RATE_PROP)
+                        .deleteProperty(FWD_PURCHASE_AMOUNT_PROP)
+                        .deleteProperty(FWD_SALE_AMOUNT_PROP)
+                        .deleteProperty(LIQUIDATION_LOG_PROP);
+
+                    if (await this.botService.isSale(tx)) {
+                        let salePriceProp = tx.getProperty(SALE_PRICE_PROP);
+                        if (originalAmountProp && originalQuantityProp && !salePriceProp) {
+                            let salePrice = new Amount(originalAmountProp).div(
+                                new Amount(originalQuantityProp)
+                            );
+                            tx.setProperty(SALE_PRICE_PROP, salePrice.toString());
+                        }
+                        await tx
+                            .deleteProperty(PURCHASE_LOG_PROP)
+                            .deleteProperty(PURCHASE_PRICE_PROP)
+                            .deleteProperty(FWD_PURCHASE_LOG_PROP)
+                            .setAmount(originalQuantityProp)
+                            .update();
+                        stockAccountSaleTransactions.push(tx);
+                    } else if (await this.botService.isPurchase(tx)) {
+                        let purchasePriceProp = tx.getProperty(PURCHASE_PRICE_PROP);
+                        if (originalAmountProp && originalQuantityProp && !purchasePriceProp) {
+                            let purchasePrice = new Amount(originalAmountProp).div(
+                                new Amount(originalQuantityProp)
+                            );
+                            tx.setProperty(PURCHASE_PRICE_PROP, purchasePrice.toString());
+                        }
+                        await tx
+                            .deleteProperty(SALE_DATE_PROP)
+                            .deleteProperty(SALE_PRICE_PROP)
+                            .deleteProperty(FWD_SALE_PRICE_PROP)
+                            .deleteProperty(FWD_SALE_EXC_RATE_PROP)
+                            .setAmount(originalQuantityProp)
+                            .update();
+                        stockAccountPurchaseTransactions.push(tx);
+                    }
+                }
+            }
+        }
+
+        stockAccount.clearNeedsRebuild();
+
+        if (full) {
+            stockAccount
+                .deleteRealizedDate()
+                .deleteForwardedDate()
+                .deleteForwardedExcRate()
+                .deleteForwardedPrice();
+        }
+
+        let forwardedDate = stockAccount.getForwardedDate();
+        if (forwardedDate) {
+            stockAccount.setRealizedDate(forwardedDate);
+        } else {
+            stockAccount.deleteRealizedDate();
+        }
+
+        await stockAccount.update();
+
+        return new Summary().done();
+    }
+
     private async listTransactions(book: Book, query: string): Promise<Transaction[]> {
         const transactions: Transaction[] = [];
         let cursor: string | undefined;

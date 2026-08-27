@@ -1,15 +1,27 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { Account, AccountType, BalancesReport, Book, Transaction, TransactionList } from 'bkper-js';
+import {
+    Account,
+    AccountType,
+    BalancesReport,
+    Book,
+    Permission,
+    Transaction,
+    TransactionList,
+} from 'bkper-js';
 import { ForwardDateService } from '../../../../src/api/services/forward/forward-date-service.js';
 import type { OperationContext } from '../../../../src/api/services/operation-service.js';
-import { SummaryState } from '../../../../src/api/services/summary.js';
+import { ResetRealizedResultsService } from '../../../../src/api/services/reset/reset-realized-results-service.js';
+import { StockAccount } from '../../../../src/api/services/stock-account.js';
+import { Summary, SummaryState } from '../../../../src/api/services/summary.js';
 
 const originalCreate = Transaction.prototype.create;
 const originalPost = Transaction.prototype.post;
+const originalSequentialReset = ResetRealizedResultsService.prototype.executeSync;
 
 afterEach(() => {
     Transaction.prototype.create = originalCreate;
     Transaction.prototype.post = originalPost;
+    ResetRealizedResultsService.prototype.executeSync = originalSequentialReset;
 });
 
 function createBook(payload: Partial<bkper.Book>): Book {
@@ -58,6 +70,10 @@ async function createContext(): Promise<{
     const portfolioBook = createBook({
         id: 'portfolio-book',
         fractionDigits: 0,
+        permission: Permission.OWNER,
+        collection: {
+            books: [{ id: 'portfolio-book' }, { id: 'financial-book' }, { id: 'base-book' }],
+        },
         groups: [{ id: 'eur-group', properties: { stock_exc_code: 'EUR' } }],
         accounts: [
             { id: 'buy', name: 'Buy', type: AccountType.INCOMING, permanent: false },
@@ -510,5 +526,152 @@ describe('legacy regular Forward Date behavior', () => {
 
         expect(summary.getState()).toBe(SummaryState.FORWARD_ERROR);
         expect(summary.getMessage()).toBe('Cannot set forward date: account needs rebuild');
+    });
+});
+
+describe('legacy lower Forward Date repair behavior', () => {
+    test('resets, restores recursive Forward history, cleans it, resets the requested range, and re-forwards in order', async () => {
+        const fixture = await createContext();
+        const service = new ForwardDateService();
+        const stockAccount = new StockAccount(fixture.instrument);
+        const calls: string[] = [];
+
+        const transaction = new Transaction(fixture.portfolioBook, {
+            id: 'forwarded-transaction',
+            date: '2026-09-01',
+            dateValue: 20260901,
+            posted: true,
+            properties: {
+                fwd_log: 'latest-log',
+                fwd_tx: 'current-source',
+                fwd_tx_remote_ids: '["current-remote"]',
+                state: 'current',
+            },
+        });
+        const latestLog = new Transaction(fixture.portfolioBook, {
+            id: 'latest-log',
+            date: '2026-05-01',
+            dateValue: 20260501,
+            posted: true,
+            checked: true,
+            properties: { fwd_log: 'previous-log', state: 'latest' },
+        });
+        const previousLog = new Transaction(fixture.portfolioBook, {
+            id: 'previous-log',
+            date: '2026-02-01',
+            dateValue: 20260201,
+            posted: true,
+            properties: { state: 'previous' },
+        });
+        const resetTransaction = new Transaction(fixture.portfolioBook, {
+            id: 'reset-transaction',
+        });
+
+        fixture.portfolioBook.listTransactions = async query => {
+            calls.push(`list:${query}`);
+            const page = new TransactionList(fixture.portfolioBook, { items: [] });
+            page.getItems = () =>
+                query === "account:'Instrument' after:2025-01-01"
+                    ? [transaction]
+                    : [resetTransaction];
+            return page;
+        };
+        fixture.portfolioBook.getTransaction = async id => {
+            calls.push(`get:${id}`);
+            return id === 'latest-log' ? latestLog : previousLog;
+        };
+        transaction.update = async () => {
+            calls.push('update:forwarded-transaction');
+            return transaction;
+        };
+        latestLog.uncheck = async () => {
+            calls.push('uncheck:latest-log');
+            latestLog.setChecked(false);
+            return latestLog;
+        };
+        latestLog.trash = async () => {
+            calls.push('trash:latest-log');
+            return latestLog;
+        };
+        previousLog.trash = async () => {
+            calls.push('trash:previous-log');
+            return previousLog;
+        };
+
+        ResetRealizedResultsService.prototype.executeSync = async (
+            _context,
+            _stockAccount,
+            _full,
+            resetIterator
+        ) => {
+            calls.push(
+                resetIterator
+                    ? `reset:${resetIterator.map(tx => tx.getId()).join(',')}`
+                    : 'reset:current-forward'
+            );
+            return new Summary().done();
+        };
+        service['forwardDateForAccount'] = async (_context, forwardDate, fixingForward) => {
+            calls.push(`forward:${forwardDate}:${fixingForward}`);
+            return new Summary().done('Done! 2 forwarded to 2026-03-01');
+        };
+
+        const summary = await service['fixAndForwardDateForAccount'](
+            fixture.context,
+            stockAccount,
+            '2026-03-01'
+        );
+
+        expect(calls).toEqual([
+            'reset:current-forward',
+            "list:account:'Instrument' after:2025-01-01",
+            'get:latest-log',
+            'get:previous-log',
+            'update:forwarded-transaction',
+            'uncheck:latest-log',
+            'trash:latest-log',
+            'trash:previous-log',
+            "list:account:'Instrument' after:2026-03-01",
+            'reset:reset-transaction',
+            'forward:2026-03-01:true',
+        ]);
+        expect(transaction.getDate()).toBe('2026-02-01');
+        expect(transaction.getProperty('state')).toBe('previous');
+        expect(transaction.getProperty('fwd_tx')).toBeUndefined();
+        expect(transaction.getProperty('fwd_tx_remote_ids')).toBeUndefined();
+        expect(summary.getState()).toBe(SummaryState.DONE);
+        expect(summary.getMessage()).toBe('Done! 1 fixed and 2 forwarded to 2026-03-01');
+    });
+
+    test('requires ownership and an open and unlocked Collection before the first mutation', async () => {
+        for (const scenario of [
+            {
+                prepare: (book: Book) => {
+                    book.getPermission = () => Permission.EDITOR;
+                },
+                message: 'Cannot lower forward date: user must be book owner',
+            },
+            {
+                prepare: (book: Book) => {
+                    book.getCollection()!.getBooks()[1]!.setClosingDate('2026-02-28');
+                },
+                message: 'Cannot lower forward date: collection has locked/closed book(s)',
+            },
+        ]) {
+            const fixture = await createContext();
+            scenario.prepare(fixture.portfolioBook);
+            ResetRealizedResultsService.prototype.executeSync = async () => {
+                throw new Error('Reset must not begin');
+            };
+
+            const summary = await new ForwardDateService()['fixAndForwardDateForAccount'](
+                fixture.context,
+                new StockAccount(fixture.instrument),
+                '2026-03-01'
+            );
+
+            expect(summary.getState()).toBe(SummaryState.FORWARD_ERROR);
+            expect(summary.getMessage()).toBe(scenario.message);
+        }
     });
 });

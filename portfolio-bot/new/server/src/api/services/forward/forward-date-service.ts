@@ -1,4 +1,11 @@
-import { AccountType, Amount, Transaction, type BalancesReport, type Book } from 'bkper-js';
+import {
+    AccountType,
+    Amount,
+    Permission,
+    Transaction,
+    type BalancesReport,
+    type Book,
+} from 'bkper-js';
 import {
     DATE_PROP,
     EXC_AMOUNT_PROP,
@@ -19,8 +26,10 @@ import {
     ORIGINAL_QUANTITY_PROP,
     UNREALIZED_SUFFIX,
 } from '../../../shared/constants.js';
+import { optionalLookup } from '../../../shared/optional-lookup.js';
 import { BotService } from '../bot-service.js';
 import type { OperationContext } from '../operation-service.js';
+import { ResetRealizedResultsService } from '../reset/reset-realized-results-service.js';
 import { StockAccount } from '../stock-account.js';
 import { Summary } from '../summary.js';
 import { CalculationModel } from '../calculate/types.js';
@@ -30,6 +39,71 @@ export class ForwardDateService {
 
     async execute(_context: OperationContext, _forwardDate: string): Promise<Summary> {
         throw new Error('Forward Date is not implemented');
+    }
+
+    private async fixAndForwardDateForAccount(
+        context: OperationContext,
+        stockAccount: StockAccount,
+        forwardDate: string
+    ): Promise<Summary> {
+        const stockBook = context.portfolioBook;
+
+        if (!this.isUserBookOwner(stockBook)) {
+            const errorMsg = `Cannot lower forward date: user must be book owner`;
+            return new Summary().forwardError(errorMsg);
+        }
+
+        if (!this.isCollectionUnlocked(stockBook)) {
+            const errorMsg = `Cannot lower forward date: collection has locked/closed book(s)`;
+            return new Summary().forwardError(errorMsg);
+        }
+
+        await new ResetRealizedResultsService().executeSync(context, stockAccount, false);
+
+        let transactions = await this.listTransactions(
+            stockBook,
+            `account:'${stockAccount.getName()}' after:${stockAccount.getForwardedDate()}`
+        );
+        let forwardedTransactions: Transaction[] = [];
+        for (const tx of transactions) {
+            if (tx.getProperty(FWD_LOG_PROP)) {
+                forwardedTransactions.push(tx);
+            }
+        }
+        for (const transaction of forwardedTransactions) {
+            console.log(`processing transaction: ${transaction.getId()}`);
+
+            let previousStateTx = await this.getForwardedTransactionPreviousState(
+                stockBook,
+                stockAccount,
+                transaction,
+                forwardDate
+            );
+            await transaction
+                .setDate(previousStateTx.getDate()!)
+                .setVisibleProperties(previousStateTx.getProperties())
+                .deleteProperty(FWD_TX_PROP)
+                .deleteProperty(FWD_TX_REMOTE_IDS_PROP)
+                .update();
+            stockAccount.pushTrash(previousStateTx);
+        }
+        await stockAccount.cleanTrash();
+
+        const resetTransactions = await this.listTransactions(
+            stockBook,
+            `account:'${stockAccount.getName()}' after:${forwardDate}`
+        );
+        await new ResetRealizedResultsService().executeSync(
+            context,
+            stockAccount,
+            false,
+            resetTransactions
+        );
+
+        const newForward = await this.forwardDateForAccount(context, forwardDate, true);
+        const newForwardMsg = newForward.getMessage().replaceAll(`"`, '').replace(`Done! `, '');
+        const doneMsg = `Done! ${forwardedTransactions.length} fixed and ${newForwardMsg}`;
+        return new Summary().done(doneMsg);
     }
 
     private async forwardDateForAccount(
@@ -327,6 +401,53 @@ export class ForwardDateService {
             .to(toAccount)
             .setDate(closingDate)
             .setDescription(`${quantity.times(-1)} units forwarded to ${forwardDate}`);
+    }
+
+    private isUserBookOwner(stockBook: Book): boolean {
+        return stockBook.getPermission() == Permission.OWNER;
+    }
+
+    private isCollectionUnlocked(stockBook: Book): boolean {
+        const books = stockBook.getCollection()!.getBooks();
+        for (const book of books) {
+            let lockDate = book.getLockDate();
+            if (lockDate && lockDate !== '1900-00-00') {
+                return false;
+            }
+            let closingDate = book.getClosingDate();
+            if (closingDate && closingDate !== '1900-00-00') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async getForwardedTransactionPreviousState(
+        stockBook: Book,
+        stockAccount: StockAccount,
+        transaction: Transaction,
+        forwardDate: string
+    ): Promise<Transaction> {
+        const previousStateId = transaction.getProperty(FWD_LOG_PROP);
+        if (!previousStateId) {
+            return transaction;
+        }
+        const previousStateTx = await optionalLookup(() =>
+            stockBook.getTransaction(previousStateId)
+        );
+        if (!previousStateTx) {
+            return transaction;
+        }
+        if (previousStateTx.getDateValue()! <= +forwardDate.replaceAll('-', '')) {
+            return previousStateTx;
+        }
+        stockAccount.pushTrash(previousStateTx);
+        return this.getForwardedTransactionPreviousState(
+            stockBook,
+            stockAccount,
+            previousStateTx,
+            forwardDate
+        );
     }
 
     private async tryOpenQuantityFromLiquidationTx(

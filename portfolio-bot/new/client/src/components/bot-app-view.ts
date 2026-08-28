@@ -91,6 +91,7 @@ export class BotAppView extends LitElement {
                 return html`
                     <forward-date
                         .context=${this.forwardDateContext}
+                        .date=${this.initialDate}
                         .permissionError=${permissionError}
                         @service-change=${this.handleServiceChange}
                     ></forward-date>
@@ -99,6 +100,7 @@ export class BotAppView extends LitElement {
             return html`
                 <realized-results
                     .context=${this.realizedResultsContext}
+                    .date=${this.initialDate}
                     .permissionError=${permissionError}
                     @service-change=${this.handleServiceChange}
                 ></realized-results>

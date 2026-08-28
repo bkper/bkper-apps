@@ -38,16 +38,23 @@ describe('Realized results view', () => {
         const view = new RealizedResultsView();
         const context = createContext();
         view.context = context;
+        view.date = '2026-03-10';
 
         const result = render.call(view);
+        const markup = result.strings.join('');
 
-        expect(result.strings.join('')).toContain('<service-switcher');
-        expect(result.strings.join('')).toContain('<account-list');
+        expect(markup).toContain('<service-switcher');
+        expect(markup).toContain('<account-list');
+        expect(markup).toContain('<wa-input');
+        expect(markup).toContain('type="date"');
+        expect(markup).toContain('Reset');
+        expect(markup).toContain('Calculate');
         expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
         expect(result.values[1]).toBe(true);
         expect(result.values[2]).toBe(context.accounts);
         expect(result.values[3]).toBeUndefined();
         expect(result.values[4]).toBe(context.selectedGroup);
+        expect(result.values).toContain('2026-03-10');
     });
 
     it('hides service switching without a usable selected context', () => {

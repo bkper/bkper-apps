@@ -6,6 +6,7 @@ import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
+import { realizedResultsCSS } from './realized-results-css.js';
 
 @customElement('realized-results')
 export class RealizedResultsView extends LitElement {
@@ -15,7 +16,10 @@ export class RealizedResultsView extends LitElement {
     @property({ attribute: false })
     permissionError?: AppError;
 
-    static styles = [sharedCSS];
+    @property()
+    date = '';
+
+    static styles = [sharedCSS, realizedResultsCSS];
 
     render(): TemplateResult {
         const context = this.context;
@@ -31,7 +35,22 @@ export class RealizedResultsView extends LitElement {
                     .selectedAccount=${context?.selectedAccount}
                     .selectedGroup=${context?.selectedGroup}
                 ></account-list>
-                ${this.renderPermissionError()}
+                <wa-input
+                    class="date-input"
+                    type="date"
+                    label="Date"
+                    .value=${this.date}
+                    size="s"
+                ></wa-input>
+                <div class="actions">
+                    ${this.renderPermissionError()}
+                    <div class="action-buttons">
+                        <wa-button appearance="outlined" size="s" type="button">Reset</wa-button>
+                        <wa-button variant="brand" appearance="accent" size="s" type="button">
+                            Calculate
+                        </wa-button>
+                    </div>
+                </div>
             </div>
         `;
     }

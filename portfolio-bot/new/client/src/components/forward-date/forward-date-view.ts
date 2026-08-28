@@ -6,6 +6,7 @@ import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
+import { forwardDateCSS } from './forward-date-css.js';
 
 @customElement('forward-date')
 export class ForwardDateView extends LitElement {
@@ -15,7 +16,10 @@ export class ForwardDateView extends LitElement {
     @property({ attribute: false })
     permissionError?: AppError;
 
-    static styles = [sharedCSS];
+    @property()
+    date = '';
+
+    static styles = [sharedCSS, forwardDateCSS];
 
     render(): TemplateResult {
         const context = this.context;
@@ -31,7 +35,21 @@ export class ForwardDateView extends LitElement {
                     .selectedAccount=${context?.selectedAccount}
                     .selectedGroup=${context?.selectedGroup}
                 ></account-list>
-                ${this.renderPermissionError()}
+                <wa-input
+                    class="date-input"
+                    type="date"
+                    label="Date"
+                    .value=${this.date}
+                    size="s"
+                ></wa-input>
+                <div class="actions">
+                    ${this.renderPermissionError()}
+                    <div class="action-buttons">
+                        <wa-button variant="brand" appearance="accent" size="s" type="button">
+                            Run
+                        </wa-button>
+                    </div>
+                </div>
             </div>
         `;
     }

@@ -99,6 +99,7 @@ describe('Bot app view', () => {
             fullResetEnabled: false,
         };
         view.portfolioBook = portfolioBook;
+        view.initialDate = '2026-03-10';
         view.realizedResultsContext = context;
         view.hasViewerPermission = true;
         view.hasEditorPermission = true;
@@ -108,7 +109,8 @@ describe('Bot app view', () => {
 
         expect(result.strings.join('')).toContain('<realized-results');
         expect(result.values[0]).toBe(context);
-        expect(result.values[1]).toBeUndefined();
+        expect(result.values[1]).toBe('2026-03-10');
+        expect(result.values[2]).toBeUndefined();
     });
 
     it('renders Forward Date after handling a service change', () => {
@@ -123,6 +125,7 @@ describe('Bot app view', () => {
             accounts: [],
         };
         view.portfolioBook = portfolioBook;
+        view.initialDate = '2026-03-10';
         view.forwardDateContext = context;
         view.hasViewerPermission = true;
         view.hasEditorPermission = true;
@@ -139,7 +142,8 @@ describe('Bot app view', () => {
         expect(view.activeService).toBe(PortfolioService.FORWARD_DATE);
         expect(result.strings.join('')).toContain('<forward-date');
         expect(result.values[0]).toBe(context);
-        expect(result.values[1]).toBeUndefined();
+        expect(result.values[1]).toBe('2026-03-10');
+        expect(result.values[2]).toBeUndefined();
     });
 
     it('renders an edit-permission error without hiding the ready context', () => {
@@ -156,7 +160,7 @@ describe('Bot app view', () => {
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<realized-results');
-        expect(result.values[1]).toBe(view.error);
+        expect(result.values[2]).toBe(view.error);
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

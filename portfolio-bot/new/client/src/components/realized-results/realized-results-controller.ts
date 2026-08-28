@@ -2,7 +2,12 @@ import type { Account } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { botApiService } from '../../services/bot-api-service.js';
 import { botService } from '../../services/bot-service.js';
-import { AccountOperationStatus, type AccountOperationResult, type AppError } from '../../types.js';
+import {
+    AccountOperationStatus,
+    type AccountOperationResult,
+    type AppError,
+    type RealizedResultsContext,
+} from '../../types.js';
 import type { RealizedResultsView } from './realized-results-view.js';
 
 export class RealizedResultsController implements ReactiveController {
@@ -32,37 +37,11 @@ export class RealizedResultsController implements ReactiveController {
         const date = this.view.date;
         const performMtm = this.view.performMtm;
 
-        this.view.executing = true;
-        this.clearResults();
-
-        try {
-            const hasPendingTasks = await botService.hasPendingTasks(context.portfolioBook);
-            if (hasPendingTasks) {
-                this.view.operationError = this.createOperationError(
-                    'Cannot start operation: Portfolio Book has pending tasks.'
-                );
-                return;
-            }
-
-            const results = new Map<string, AccountOperationResult>();
-            for (const account of context.accounts) {
-                const accountId = account.getId();
-                if (accountId) {
-                    results.set(accountId, { status: AccountOperationStatus.WAITING });
-                }
-            }
-            this.view.results = results;
-
-            for (const account of context.accounts) {
-                await this.calculateAccount(portfolioBookId, account, date, performMtm);
-            }
-        } catch (error: unknown) {
-            this.view.operationError = this.createOperationError(
-                this.formatError(error, 'Calculate could not be started. Please try again.')
-            );
-        } finally {
-            this.view.executing = false;
-        }
+        return this.runAccountOperation(
+            context,
+            account => this.calculateAccount(portfolioBookId, account, date, performMtm),
+            'Calculate could not be started. Please try again.'
+        );
     }
 
     async runReset(): Promise<void> {
@@ -79,6 +58,23 @@ export class RealizedResultsController implements ReactiveController {
 
         const portfolioBookId = context.portfolioBook.getId();
 
+        return this.runAccountOperation(
+            context,
+            account => this.resetAccount(portfolioBookId, account),
+            'Reset could not be started. Please try again.'
+        );
+    }
+
+    clearResults(): void {
+        this.view.results = new Map();
+        this.view.operationError = undefined;
+    }
+
+    private async runAccountOperation(
+        context: RealizedResultsContext,
+        executeAccount: (account: Account) => Promise<void>,
+        startErrorFallback: string
+    ): Promise<void> {
         this.view.executing = true;
         this.clearResults();
 
@@ -91,30 +87,18 @@ export class RealizedResultsController implements ReactiveController {
                 return;
             }
 
-            const results = new Map<string, AccountOperationResult>();
-            for (const account of context.accounts) {
-                const accountId = account.getId();
-                if (accountId) {
-                    results.set(accountId, { status: AccountOperationStatus.WAITING });
-                }
-            }
-            this.view.results = results;
+            this.initializeWaitingResults(context.accounts);
 
             for (const account of context.accounts) {
-                await this.resetAccount(portfolioBookId, account);
+                await executeAccount(account);
             }
         } catch (error: unknown) {
             this.view.operationError = this.createOperationError(
-                this.formatError(error, 'Reset could not be started. Please try again.')
+                this.formatError(error, startErrorFallback)
             );
         } finally {
             this.view.executing = false;
         }
-    }
-
-    clearResults(): void {
-        this.view.results = new Map();
-        this.view.operationError = undefined;
     }
 
     private async calculateAccount(
@@ -165,6 +149,17 @@ export class RealizedResultsController implements ReactiveController {
                 error: this.formatError(error, 'Reset could not be completed. Please try again.'),
             });
         }
+    }
+
+    private initializeWaitingResults(accounts: Account[]): void {
+        const results = new Map<string, AccountOperationResult>();
+        for (const account of accounts) {
+            const accountId = account.getId();
+            if (accountId) {
+                results.set(accountId, { status: AccountOperationStatus.WAITING });
+            }
+        }
+        this.view.results = results;
     }
 
     private setResult(accountId: string, result: AccountOperationResult): void {

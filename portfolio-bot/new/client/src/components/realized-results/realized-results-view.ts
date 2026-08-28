@@ -47,63 +47,63 @@ export class RealizedResultsView extends LitElement {
         const context = this.context;
         return html`
             <div class="realized-results">
+                <!-- Service switcher -->
                 <service-switcher
                     .service=${PortfolioService.REALIZED_RESULTS}
                     .showMenu=${Utils.canSwitchServices(context)}
                     .disabled=${this.isServiceSwitcherDisabled()}
                     instructions="Review the accounts below before running an operation."
                 ></service-switcher>
+
+                <!-- Account list -->
                 <account-list
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}
                     .selectedGroup=${context?.selectedGroup}
                     .results=${this.results}
                 ></account-list>
-                <wa-input
-                    class="date-input"
-                    type="date"
-                    label="Date"
-                    .value=${this.date}
-                    ?disabled=${this.isDateInputDisabled()}
-                    size="s"
-                    @input=${this.handleDateInputted}
-                ></wa-input>
-                <div class="mtm-container">
-                    <wa-checkbox
-                        .checked=${this.performMtm}
-                        ?disabled=${this.isPerformMtmCheckboxDisabled()}
-                        size="s"
-                        @change=${this.handlePerformMtmChanged}
-                    >
-                        Perform MTM valuations
-                    </wa-checkbox>
-                </div>
+
+                <!-- Date input -->
+                ${this.renderDateInput()}
+                <!-- Mtm checkbox -->
+                <div class="mtm-container">${this.renderMtmCheckbox()}</div>
+
+                <!-- Buttons -->
                 <div class="actions">
                     ${this.renderPermissionError()} ${this.renderOperationError()}
                     <div class="action-buttons">
-                        ${this.renderFullResetButton()}
-                        <wa-button
-                            appearance="outlined"
-                            size="s"
-                            type="button"
-                            ?disabled=${this.isResetButtonDisabled()}
-                            @click=${this.handleResetClicked}
-                        >
-                            Reset
-                        </wa-button>
-                        <wa-button
-                            variant="brand"
-                            appearance="accent"
-                            size="s"
-                            type="button"
-                            ?disabled=${this.isCalculateButtonDisabled()}
-                            @click=${this.handleCalculateClicked}
-                        >
-                            Calculate
-                        </wa-button>
+                        ${this.renderFullResetButton()} ${this.renderResetButton()}
+                        ${this.renderCalculateButton()}
                     </div>
                 </div>
             </div>
+        `;
+    }
+
+    private renderDateInput(): TemplateResult {
+        return html`
+            <wa-input
+                class="date-input"
+                type="date"
+                label="Date"
+                .value=${this.date}
+                ?disabled=${this.isDateInputDisabled()}
+                size="s"
+                @input=${this.handleDateInputted}
+            ></wa-input>
+        `;
+    }
+
+    private renderMtmCheckbox(): TemplateResult {
+        return html`
+            <wa-checkbox
+                .checked=${this.performMtm}
+                ?disabled=${this.isPerformMtmCheckboxDisabled()}
+                size="s"
+                @change=${this.handlePerformMtmChanged}
+            >
+                Perform MTM valuations
+            </wa-checkbox>
         `;
     }
 
@@ -121,6 +121,35 @@ export class RealizedResultsView extends LitElement {
                 @click=${this.handleFullResetClicked}
             >
                 Full Reset
+            </wa-button>
+        `;
+    }
+
+    private renderResetButton(): TemplateResult {
+        return html`
+            <wa-button
+                appearance="outlined"
+                size="s"
+                type="button"
+                ?disabled=${this.isResetButtonDisabled()}
+                @click=${this.handleResetClicked}
+            >
+                Reset
+            </wa-button>
+        `;
+    }
+
+    private renderCalculateButton(): TemplateResult {
+        return html`
+            <wa-button
+                variant="brand"
+                appearance="accent"
+                size="s"
+                type="button"
+                ?disabled=${this.isCalculateButtonDisabled()}
+                @click=${this.handleCalculateClicked}
+            >
+                Calculate
             </wa-button>
         `;
     }
@@ -143,43 +172,40 @@ export class RealizedResultsView extends LitElement {
         return html`<app-error .error=${error}></app-error>`;
     }
 
-    private isServiceSwitcherDisabled(): boolean {
+    private isExecuting(): boolean {
         return this.executing;
+    }
+
+    private isServiceSwitcherDisabled(): boolean {
+        return this.isExecuting();
     }
 
     private isDateInputDisabled(): boolean {
-        return this.executing;
+        return this.isExecuting();
     }
 
     private isPerformMtmCheckboxDisabled(): boolean {
-        return this.executing;
+        return this.isExecuting();
+    }
+
+    private shouldDisableButton(): boolean {
+        return (
+            this.isExecuting() ||
+            this.permissionError !== undefined ||
+            !this.context?.accounts.length
+        );
     }
 
     private isResetButtonDisabled(): boolean {
-        return (
-            this.executing ||
-            this.permissionError !== undefined ||
-            !this.context?.accounts.length ||
-            this.context.resetEnabled !== true
-        );
+        return this.shouldDisableButton() || this.context?.resetEnabled !== true;
     }
 
     private isFullResetButtonDisabled(): boolean {
-        return (
-            this.executing ||
-            this.permissionError !== undefined ||
-            !this.context?.accounts.length ||
-            this.context.fullResetEnabled !== true
-        );
+        return this.shouldDisableButton() || this.context?.fullResetEnabled !== true;
     }
 
     private isCalculateButtonDisabled(): boolean {
-        return (
-            this.executing ||
-            this.permissionError !== undefined ||
-            !this.context?.accounts.length ||
-            !this.date
-        );
+        return this.shouldDisableButton() || !this.date;
     }
 
     private handleDateInputted(event: Event): void {

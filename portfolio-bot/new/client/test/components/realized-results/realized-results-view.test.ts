@@ -72,6 +72,29 @@ function isTemplateResult(value: unknown): value is TemplateResult {
     return typeof value === 'object' && value !== null && 'strings' in value;
 }
 
+function getTemplateMarkup(result: TemplateResult): string {
+    let markup = '';
+    for (let i = 0; i < result.strings.length; i++) {
+        markup += result.strings[i];
+        const value = result.values[i];
+        if (isTemplateResult(value)) {
+            markup += getTemplateMarkup(value);
+        }
+    }
+    return markup;
+}
+
+function getTemplateValues(result: TemplateResult): unknown[] {
+    const values: unknown[] = [];
+    for (const value of result.values) {
+        values.push(value);
+        if (isTemplateResult(value)) {
+            values.push(...getTemplateValues(value));
+        }
+    }
+    return values;
+}
+
 function createCheckboxEvent(checked: boolean): Event {
     return { currentTarget: { checked } as WaCheckbox } as unknown as Event;
 }
@@ -106,7 +129,8 @@ describe('Realized results view', () => {
         view.date = '2026-03-10';
 
         const result = render.call(view);
-        const markup = result.strings.join('');
+        const markup = getTemplateMarkup(result);
+        const values = getTemplateValues(result);
 
         expect(markup).toContain('<service-switcher');
         expect(markup).toContain('<account-list');
@@ -118,12 +142,12 @@ describe('Realized results view', () => {
         expect(markup.indexOf('<wa-checkbox')).toBeLessThan(
             markup.indexOf('<div class="actions">')
         );
-        const fullResetButtonIndex = result.values.findIndex(
+        const fullResetButtonIndex = values.findIndex(
             value => isTemplateResult(value) && value.strings.join('').includes('Full Reset')
         );
         expect(fullResetButtonIndex).not.toBe(-1);
-        expect(fullResetButtonIndex).toBeLessThan(result.values.indexOf(handleResetClicked));
-        const fullResetButton = result.values[fullResetButtonIndex];
+        expect(fullResetButtonIndex).toBeLessThan(values.indexOf(handleResetClicked));
+        const fullResetButton = values[fullResetButtonIndex];
         expect(isTemplateResult(fullResetButton)).toBe(true);
         if (isTemplateResult(fullResetButton)) {
             expect(fullResetButton.strings.join('')).toContain('variant="danger"');
@@ -137,7 +161,7 @@ describe('Realized results view', () => {
         expect(result.values[3]).toBe(context.accounts);
         expect(result.values[4]).toBeUndefined();
         expect(result.values[5]).toBe(context.selectedGroup);
-        expect(result.values).toContain('2026-03-10');
+        expect(values).toContain('2026-03-10');
     });
 
     it('does not render Full Reset when it is unavailable', () => {
@@ -157,10 +181,11 @@ describe('Realized results view', () => {
 
         handlePerformMtmChanged.call(view, createCheckboxEvent(true));
         const result = render.call(view);
+        const values = getTemplateValues(result);
 
         expect(view.performMtm).toBe(true);
-        expect(result.values).toContain(true);
-        expect(result.values).toContain(handlePerformMtmChanged);
+        expect(values).toContain(true);
+        expect(values).toContain(handlePerformMtmChanged);
     });
 
     it('clears stale results when inputs change and delegates Calculate to its controller', () => {
@@ -195,6 +220,7 @@ describe('Realized results view', () => {
         handleResetClicked.call(view);
         handleCalculateClicked.call(view);
         const result = render.call(view);
+        const values = getTemplateValues(result);
 
         expect(view.date).toBe('2026-04-15');
         expect(view.performMtm).toBe(true);
@@ -202,9 +228,9 @@ describe('Realized results view', () => {
         expect(runFullReset).toHaveBeenCalledTimes(1);
         expect(runReset).toHaveBeenCalledTimes(1);
         expect(runCalculate).toHaveBeenCalledTimes(1);
-        expect(result.values).toContain(handleDateInputted);
-        expect(result.values).toContain(handleResetClicked);
-        expect(result.values).toContain(handleCalculateClicked);
+        expect(values).toContain(handleDateInputted);
+        expect(values).toContain(handleResetClicked);
+        expect(values).toContain(handleCalculateClicked);
     });
 
     it('blocks controls while executing and disables unavailable Reset', () => {

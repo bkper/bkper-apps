@@ -21,15 +21,24 @@ export class RealizedResultsController implements ReactiveController {
     hostConnected(): void {}
     hostDisconnected(): void {}
 
-    async runCalculate(): Promise<void> {
+    private validateContext(): RealizedResultsContext | null {
         const context = this.view.context;
-        if (
-            !context ||
-            context.accounts.length === 0 ||
-            this.view.executing ||
-            this.view.permissionError !== undefined ||
-            !this.view.date
-        ) {
+        if (!context || context.accounts.length === 0) {
+            return null;
+        }
+        return context;
+    }
+
+    private shouldDisableExecution(): boolean {
+        if (this.view.executing || this.view.permissionError !== undefined) {
+            return true;
+        }
+        return false;
+    }
+
+    async runCalculate(): Promise<void> {
+        const context = this.validateContext();
+        if (!context || this.shouldDisableExecution() || !this.view.date) {
             return;
         }
 
@@ -45,14 +54,8 @@ export class RealizedResultsController implements ReactiveController {
     }
 
     async runReset(): Promise<void> {
-        const context = this.view.context;
-        if (
-            !context ||
-            context.accounts.length === 0 ||
-            this.view.executing ||
-            this.view.permissionError !== undefined ||
-            !context.resetEnabled
-        ) {
+        const context = this.validateContext();
+        if (!context || this.shouldDisableExecution() || !context.resetEnabled) {
             return;
         }
 
@@ -66,14 +69,8 @@ export class RealizedResultsController implements ReactiveController {
     }
 
     async runFullReset(): Promise<void> {
-        const context = this.view.context;
-        if (
-            !context ||
-            context.accounts.length === 0 ||
-            this.view.executing ||
-            this.view.permissionError !== undefined ||
-            !context.fullResetEnabled
-        ) {
+        const context = this.validateContext();
+        if (!context || this.shouldDisableExecution() || !context.fullResetEnabled) {
             return;
         }
 

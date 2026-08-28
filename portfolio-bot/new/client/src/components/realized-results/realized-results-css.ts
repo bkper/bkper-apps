@@ -10,6 +10,10 @@ export const realizedResultsCSS = css`
         width: min(100%, 16rem);
     }
 
+    .mtm-container {
+        margin-top: var(--bkper-spacing-small);
+    }
+
     .actions {
         display: flex;
         flex-direction: column;

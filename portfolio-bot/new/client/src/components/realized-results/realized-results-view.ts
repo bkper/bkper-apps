@@ -1,4 +1,5 @@
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
+import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { PortfolioService, type AppError, type RealizedResultsContext } from '../../types.js';
@@ -19,6 +20,9 @@ export class RealizedResultsView extends LitElement {
 
     @property()
     date = '';
+
+    @state()
+    performMtm = false;
 
     @state()
     executing = false;
@@ -49,6 +53,16 @@ export class RealizedResultsView extends LitElement {
                     size="s"
                     @input=${this.handleDateInputted}
                 ></wa-input>
+                <div class="mtm-container">
+                    <wa-checkbox
+                        .checked=${this.performMtm}
+                        ?disabled=${this.isPerformMtmCheckboxDisabled()}
+                        size="s"
+                        @change=${this.handlePerformMtmChanged}
+                    >
+                        Perform MTM valuations
+                    </wa-checkbox>
+                </div>
                 <div class="actions">
                     ${this.renderPermissionError()}
                     <div class="action-buttons">
@@ -92,6 +106,10 @@ export class RealizedResultsView extends LitElement {
         return this.executing;
     }
 
+    private isPerformMtmCheckboxDisabled(): boolean {
+        return this.executing;
+    }
+
     private isResetButtonDisabled(): boolean {
         return (
             this.executing ||
@@ -116,6 +134,14 @@ export class RealizedResultsView extends LitElement {
         }
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
+    }
+
+    private handlePerformMtmChanged(event: Event): void {
+        if (this.isPerformMtmCheckboxDisabled()) {
+            return;
+        }
+        const checkbox = event.currentTarget as WaCheckbox;
+        this.performMtm = checkbox.checked;
     }
 
     private handleResetClicked(): void {

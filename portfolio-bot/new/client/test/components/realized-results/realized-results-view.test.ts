@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
@@ -16,6 +17,10 @@ const renderPermissionError = Reflect.get(
     RealizedResultsView.prototype,
     'renderPermissionError'
 ) as (this: RealizedResultsView) => TemplateResult;
+const handlePerformMtmChanged = Reflect.get(
+    RealizedResultsView.prototype,
+    'handlePerformMtmChanged'
+) as (this: RealizedResultsView, event: Event) => void;
 const handleDateInputted = Reflect.get(RealizedResultsView.prototype, 'handleDateInputted') as (
     this: RealizedResultsView,
     event: Event
@@ -31,6 +36,10 @@ const isServiceSwitcherDisabled = Reflect.get(
     RealizedResultsView.prototype,
     'isServiceSwitcherDisabled'
 ) as (this: RealizedResultsView) => boolean;
+const isPerformMtmCheckboxDisabled = Reflect.get(
+    RealizedResultsView.prototype,
+    'isPerformMtmCheckboxDisabled'
+) as (this: RealizedResultsView) => boolean;
 const isDateInputDisabled = Reflect.get(RealizedResultsView.prototype, 'isDateInputDisabled') as (
     this: RealizedResultsView
 ) => boolean;
@@ -42,6 +51,10 @@ const isCalculateButtonDisabled = Reflect.get(
     RealizedResultsView.prototype,
     'isCalculateButtonDisabled'
 ) as (this: RealizedResultsView) => boolean;
+
+function createCheckboxEvent(checked: boolean): Event {
+    return { currentTarget: { checked } as WaCheckbox } as unknown as Event;
+}
 
 function createInputEvent(value: string): Event {
     return { currentTarget: { value } as WaInput } as unknown as Event;
@@ -76,8 +89,14 @@ describe('Realized results view', () => {
 
         expect(markup).toContain('<service-switcher');
         expect(markup).toContain('<account-list');
+        expect(markup).toContain('<wa-checkbox');
+        expect(markup).toContain('Perform MTM valuations');
         expect(markup).toContain('<wa-input');
         expect(markup).toContain('type="date"');
+        expect(markup.indexOf('<wa-input')).toBeLessThan(markup.indexOf('<wa-checkbox'));
+        expect(markup.indexOf('<wa-checkbox')).toBeLessThan(
+            markup.indexOf('<div class="actions">')
+        );
         expect(markup).toContain('Reset');
         expect(markup).toContain('Calculate');
         expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
@@ -87,6 +106,19 @@ describe('Realized results view', () => {
         expect(result.values[4]).toBeUndefined();
         expect(result.values[5]).toBe(context.selectedGroup);
         expect(result.values).toContain('2026-03-10');
+    });
+
+    it('defaults MTM valuations to false and updates them from checkbox changes', () => {
+        const view = new RealizedResultsView();
+
+        expect(view.performMtm).toBe(false);
+
+        handlePerformMtmChanged.call(view, createCheckboxEvent(true));
+        const result = render.call(view);
+
+        expect(view.performMtm).toBe(true);
+        expect(result.values).toContain(true);
+        expect(result.values).toContain(handlePerformMtmChanged);
     });
 
     it('updates the date and wires both action click boundaries', () => {
@@ -109,6 +141,7 @@ describe('Realized results view', () => {
         view.date = '2026-03-10';
 
         expect(isServiceSwitcherDisabled.call(view)).toBe(false);
+        expect(isPerformMtmCheckboxDisabled.call(view)).toBe(false);
         expect(isDateInputDisabled.call(view)).toBe(false);
         expect(isResetButtonDisabled.call(view)).toBe(false);
         expect(isCalculateButtonDisabled.call(view)).toBe(false);
@@ -118,9 +151,12 @@ describe('Realized results view', () => {
         expect(isCalculateButtonDisabled.call(view)).toBe(false);
 
         view.executing = true;
+        handlePerformMtmChanged.call(view, createCheckboxEvent(true));
         handleDateInputted.call(view, createInputEvent('2026-05-20'));
+        expect(view.performMtm).toBe(false);
         expect(view.date).toBe('2026-03-10');
         expect(isServiceSwitcherDisabled.call(view)).toBe(true);
+        expect(isPerformMtmCheckboxDisabled.call(view)).toBe(true);
         expect(isDateInputDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(true);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–14 complete — Chunk 15 not started.**
+**Chunks 1–14 complete — Chunk 15 in progress.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, existing Calculate helper behavior, complete `processSale` parity, Calculate entry orchestration, and the wired Calculate API facade with the shared operation response and locked no-write translation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Chunk 14 has established the Forward service structure, ported its remaining constants, `StockAccount` behavior, and `BotService` dependencies, completed regular Forward Date parity, ported lower-forward-date repair with its separate immediate and sequential Reset behavior, completed top-level Forward Date validation and branch parity, and wired the Forward API facade and route through the shared operation response. Mutation-control and retry UX remains with the operation client in Chunk 15. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, existing Calculate helper behavior, complete `processSale` parity, Calculate entry orchestration, and the wired Calculate API facade with the shared operation response and locked no-write translation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Chunk 14 has established the Forward service structure, ported its remaining constants, `StockAccount` behavior, and `BotService` dependencies, completed regular Forward Date parity, ported lower-forward-date repair with its separate immediate and sequential Reset behavior, completed top-level Forward Date validation and branch parity, and wired the Forward API facade and route through the shared operation response. Chunk 15 is in progress: the target client now exposes Realized Results and Forward Date controls, and Calculate is wired end to end through a dedicated controller with the action-time pending-task guard, current date and MTM intent, sequential Account execution, and per-Account progress and outcomes. Reset, Full Reset, Forward Date execution, deferred request batching, and final browser acceptance remain. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -907,15 +907,24 @@ Subchunk 5 evidence:
 
 ### Chunk 15 — Port and modernize the menu client
 
-**Status: Not started.**
+**Status: In progress.**
 
-- Replace GAS templates and `google.script.run` with Lit and the authenticated generated API client, including shared successful operation-message handling.
-- Implement Calculate, Reset, Full Reset, and Forward Date workflows.
-- Preserve the legacy action-time pending-task guard: after an operation click, check the Portfolio Book backlog once before the first Account request, and abort the complete batch without mutation when pending tasks exist.
-- Preserve selected resources, inputs, operation intent, progress, and accounting results.
-- Deliver explicit validation, permission, warning, error, and completed-mutation states.
-- Adopt a responsive, accessible, theme-aware, production-quality Bkper UI.
-- Complete browser verification.
+Completed progress:
+
+- Added responsive, theme-aware Realized Results and Forward Date views with Account scope, date controls, permission-aware operation controls, execution-disabled inputs, and service switching.
+- Exposed the legacy Calculate MTM option through a Web Awesome checkbox and retained its current value as typed Calculate intent.
+- Wired Calculate end to end through a dedicated Lit reactive controller and the authenticated generated API client.
+- Preserved the legacy action-time guard by checking the Portfolio Book backlog once after the click and before the first Account mutation; pending tasks abort the complete run with a top-level error.
+- Calculate now executes sequentially for the selected Accounts without mutation retries, preserves Account order, continues after individual failures, and surfaces waiting, completed, and error outcomes beside each Account.
+- Calculate outcomes clear when the date or MTM intent changes, and controls are re-enabled only after every Account reaches a terminal outcome.
+
+Remaining work:
+
+- Wire Reset, Full Reset, and Forward Date through dedicated controllers and the authenticated generated API client.
+- Apply the action-time pending-task guard and per-Account progress and outcome presentation to each remaining workflow.
+- Preserve each remaining workflow's selected resources, inputs, operation intent, warnings, permissions, and accounting outcomes.
+- Add deferred Account request batching only after its execution behavior is explicitly accepted; current Calculate execution remains sequential.
+- Complete responsive, accessible, light and dark theme browser verification for the complete menu behavior matrix.
 
 **Gate:** The client behavior matrix passes and the target UI is accepted for production use.
 

@@ -14,6 +14,10 @@ import {
 const render = Reflect.get(RealizedResultsView.prototype, 'render') as (
     this: RealizedResultsView
 ) => TemplateResult;
+const renderFullResetButton = Reflect.get(
+    RealizedResultsView.prototype,
+    'renderFullResetButton'
+) as (this: RealizedResultsView) => TemplateResult;
 const renderPermissionError = Reflect.get(
     RealizedResultsView.prototype,
     'renderPermissionError'
@@ -29,6 +33,10 @@ const handleDateInputted = Reflect.get(RealizedResultsView.prototype, 'handleDat
     this: RealizedResultsView,
     event: Event
 ) => void;
+const handleFullResetClicked = Reflect.get(
+    RealizedResultsView.prototype,
+    'handleFullResetClicked'
+) as (this: RealizedResultsView) => void;
 const handleResetClicked = Reflect.get(RealizedResultsView.prototype, 'handleResetClicked') as (
     this: RealizedResultsView
 ) => void;
@@ -47,6 +55,10 @@ const isPerformMtmCheckboxDisabled = Reflect.get(
 const isDateInputDisabled = Reflect.get(RealizedResultsView.prototype, 'isDateInputDisabled') as (
     this: RealizedResultsView
 ) => boolean;
+const isFullResetButtonDisabled = Reflect.get(
+    RealizedResultsView.prototype,
+    'isFullResetButtonDisabled'
+) as (this: RealizedResultsView) => boolean;
 const isResetButtonDisabled = Reflect.get(
     RealizedResultsView.prototype,
     'isResetButtonDisabled'
@@ -55,6 +67,10 @@ const isCalculateButtonDisabled = Reflect.get(
     RealizedResultsView.prototype,
     'isCalculateButtonDisabled'
 ) as (this: RealizedResultsView) => boolean;
+
+function isTemplateResult(value: unknown): value is TemplateResult {
+    return typeof value === 'object' && value !== null && 'strings' in value;
+}
 
 function createCheckboxEvent(checked: boolean): Event {
     return { currentTarget: { checked } as WaCheckbox } as unknown as Event;
@@ -85,6 +101,7 @@ describe('Realized results view', () => {
     it('renders the current introduction and delegates the Account scope', () => {
         const view = new RealizedResultsView();
         const context = createContext();
+        context.fullResetEnabled = true;
         view.context = context;
         view.date = '2026-03-10';
 
@@ -101,6 +118,17 @@ describe('Realized results view', () => {
         expect(markup.indexOf('<wa-checkbox')).toBeLessThan(
             markup.indexOf('<div class="actions">')
         );
+        const fullResetButtonIndex = result.values.findIndex(
+            value => isTemplateResult(value) && value.strings.join('').includes('Full Reset')
+        );
+        expect(fullResetButtonIndex).not.toBe(-1);
+        expect(fullResetButtonIndex).toBeLessThan(result.values.indexOf(handleResetClicked));
+        const fullResetButton = result.values[fullResetButtonIndex];
+        expect(isTemplateResult(fullResetButton)).toBe(true);
+        if (isTemplateResult(fullResetButton)) {
+            expect(fullResetButton.strings.join('')).toContain('variant="danger"');
+            expect(fullResetButton.values).toContain(handleFullResetClicked);
+        }
         expect(markup).toContain('Reset');
         expect(markup).toContain('Calculate');
         expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
@@ -110,6 +138,16 @@ describe('Realized results view', () => {
         expect(result.values[4]).toBeUndefined();
         expect(result.values[5]).toBe(context.selectedGroup);
         expect(result.values).toContain('2026-03-10');
+    });
+
+    it('does not render Full Reset when it is unavailable', () => {
+        const view = new RealizedResultsView();
+        view.context = createContext();
+
+        const result = renderFullResetButton.call(view);
+
+        expect(result.strings.join('')).toBe('');
+        expect(result.values).not.toContain(handleFullResetClicked);
     });
 
     it('defaults MTM valuations to false and updates them from checkbox changes', () => {
@@ -133,22 +171,27 @@ describe('Realized results view', () => {
             status: AccountOperationStatus.COMPLETE,
             message: 'Calculated',
         });
+        view.context.fullResetEnabled = true;
         const controller = Reflect.get(view, 'controller') as {
             clearResults: () => void;
             runCalculate: () => Promise<void>;
             runReset: () => Promise<void>;
+            runFullReset: () => Promise<void>;
         };
         const clearResults = mock(() => {
             view.results = new Map();
         });
         const runCalculate = mock(async () => undefined);
         const runReset = mock(async () => undefined);
+        const runFullReset = mock(async () => undefined);
         controller.clearResults = clearResults;
         controller.runCalculate = runCalculate;
         controller.runReset = runReset;
+        controller.runFullReset = runFullReset;
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
         handlePerformMtmChanged.call(view, createCheckboxEvent(true));
+        handleFullResetClicked.call(view);
         handleResetClicked.call(view);
         handleCalculateClicked.call(view);
         const result = render.call(view);
@@ -156,6 +199,7 @@ describe('Realized results view', () => {
         expect(view.date).toBe('2026-04-15');
         expect(view.performMtm).toBe(true);
         expect(clearResults).toHaveBeenCalledTimes(2);
+        expect(runFullReset).toHaveBeenCalledTimes(1);
         expect(runReset).toHaveBeenCalledTimes(1);
         expect(runCalculate).toHaveBeenCalledTimes(1);
         expect(result.values).toContain(handleDateInputted);
@@ -172,8 +216,12 @@ describe('Realized results view', () => {
         expect(isServiceSwitcherDisabled.call(view)).toBe(false);
         expect(isPerformMtmCheckboxDisabled.call(view)).toBe(false);
         expect(isDateInputDisabled.call(view)).toBe(false);
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(false);
         expect(isCalculateButtonDisabled.call(view)).toBe(false);
+
+        context.fullResetEnabled = true;
+        expect(isFullResetButtonDisabled.call(view)).toBe(false);
 
         context.resetEnabled = false;
         expect(isResetButtonDisabled.call(view)).toBe(true);
@@ -187,6 +235,7 @@ describe('Realized results view', () => {
         expect(isServiceSwitcherDisabled.call(view)).toBe(true);
         expect(isPerformMtmCheckboxDisabled.call(view)).toBe(true);
         expect(isDateInputDisabled.call(view)).toBe(true);
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(true);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
         expect(render.call(view).values).toContain(true);
@@ -197,6 +246,8 @@ describe('Realized results view', () => {
         view.context = createContext();
         view.date = '';
 
+        view.context.fullResetEnabled = true;
+        expect(isFullResetButtonDisabled.call(view)).toBe(false);
         expect(isResetButtonDisabled.call(view)).toBe(false);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
 
@@ -204,11 +255,13 @@ describe('Realized results view', () => {
             type: 'error',
             message: { before: 'Editor permission is required.' },
         };
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(true);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
 
         view.permissionError = undefined;
         view.context.accounts = [];
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(true);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
     });

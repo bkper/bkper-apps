@@ -81,6 +81,7 @@ export class RealizedResultsView extends LitElement {
                 <div class="actions">
                     ${this.renderPermissionError()} ${this.renderOperationError()}
                     <div class="action-buttons">
+                        ${this.renderFullResetButton()}
                         <wa-button
                             appearance="outlined"
                             size="s"
@@ -103,6 +104,24 @@ export class RealizedResultsView extends LitElement {
                     </div>
                 </div>
             </div>
+        `;
+    }
+
+    private renderFullResetButton(): TemplateResult {
+        if (!this.context?.fullResetEnabled) {
+            return html``;
+        }
+        return html`
+            <wa-button
+                variant="danger"
+                appearance="outlined"
+                size="s"
+                type="button"
+                ?disabled=${this.isFullResetButtonDisabled()}
+                @click=${this.handleFullResetClicked}
+            >
+                Full Reset
+            </wa-button>
         `;
     }
 
@@ -145,6 +164,15 @@ export class RealizedResultsView extends LitElement {
         );
     }
 
+    private isFullResetButtonDisabled(): boolean {
+        return (
+            this.executing ||
+            this.permissionError !== undefined ||
+            !this.context?.accounts.length ||
+            this.context.fullResetEnabled !== true
+        );
+    }
+
     private isCalculateButtonDisabled(): boolean {
         return (
             this.executing ||
@@ -177,6 +205,13 @@ export class RealizedResultsView extends LitElement {
             return;
         }
         this.controller.runReset();
+    }
+
+    private handleFullResetClicked(): void {
+        if (this.isFullResetButtonDisabled()) {
+            return;
+        }
+        this.controller.runFullReset();
     }
 
     private handleCalculateClicked(): void {

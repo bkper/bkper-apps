@@ -60,8 +60,29 @@ export class RealizedResultsController implements ReactiveController {
 
         return this.runAccountOperation(
             context,
-            account => this.resetAccount(portfolioBookId, account),
+            account => this.resetAccount(portfolioBookId, account, false),
             'Reset could not be started. Please try again.'
+        );
+    }
+
+    async runFullReset(): Promise<void> {
+        const context = this.view.context;
+        if (
+            !context ||
+            context.accounts.length === 0 ||
+            this.view.executing ||
+            this.view.permissionError !== undefined ||
+            !context.fullResetEnabled
+        ) {
+            return;
+        }
+
+        const portfolioBookId = context.portfolioBook.getId();
+
+        return this.runAccountOperation(
+            context,
+            account => this.resetAccount(portfolioBookId, account, true),
+            'Full Reset could not be started. Please try again.'
         );
     }
 
@@ -132,21 +153,31 @@ export class RealizedResultsController implements ReactiveController {
         }
     }
 
-    private async resetAccount(portfolioBookId: string, portfolioAccount: Account): Promise<void> {
+    private async resetAccount(
+        portfolioBookId: string,
+        portfolioAccount: Account,
+        full: boolean
+    ): Promise<void> {
         const portfolioAccountId = portfolioAccount.getId();
         if (!portfolioAccountId) {
             return;
         }
         try {
-            const response = await botApiService.resetAccount(portfolioBookId, portfolioAccountId);
+            const response = full
+                ? await botApiService.fullResetAccount(portfolioBookId, portfolioAccountId)
+                : await botApiService.resetAccount(portfolioBookId, portfolioAccountId);
             this.setResult(portfolioAccountId, {
                 status: AccountOperationStatus.COMPLETE,
                 message: response.message,
             });
         } catch (error: unknown) {
+            const operation = full ? 'Full Reset' : 'Reset';
             this.setResult(portfolioAccountId, {
                 status: AccountOperationStatus.ERROR,
-                error: this.formatError(error, 'Reset could not be completed. Please try again.'),
+                error: this.formatError(
+                    error,
+                    `${operation} could not be completed. Please try again.`
+                ),
             });
         }
     }

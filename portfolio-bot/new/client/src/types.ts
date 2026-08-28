@@ -46,6 +46,26 @@ export interface AccountOperationContext {
     accounts: Account[];
 }
 
+/** The execution status of an Account operation. */
+export enum AccountOperationStatus {
+    /** The Account is waiting for its operation to finish. */
+    WAITING = 'WAITING',
+    /** The Account operation completed successfully. */
+    COMPLETE = 'COMPLETE',
+    /** The Account operation failed. */
+    ERROR = 'ERROR',
+}
+
+/** The client result of an operation executed for one Account. */
+export interface AccountOperationResult {
+    /** The current operation status. */
+    status: AccountOperationStatus;
+    /** The successful operation commentary, when available. */
+    message?: string;
+    /** The final operation error, when available. */
+    error?: string;
+}
+
 /** The resolved context for realized-result operations. */
 export interface RealizedResultsContext extends AccountOperationContext {
     /** Whether the Reset operation is enabled. */

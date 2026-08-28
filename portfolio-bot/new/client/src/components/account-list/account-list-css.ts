@@ -26,6 +26,32 @@ export const accountListCSS = css`
         align-items: center;
     }
 
+    .account-result {
+        display: inline-flex;
+        min-width: 0;
+        gap: var(--bkper-spacing-2x-small);
+        align-items: center;
+    }
+
+    .account-result wa-spinner {
+        font-size: var(--bkper-font-size-medium);
+        --track-width: 0.125em;
+    }
+
+    .account-result wa-icon {
+        flex-shrink: 0;
+        font-size: 18px;
+    }
+
+    .account-result.complete wa-icon {
+        color: var(--bkper-color-success);
+    }
+
+    .account-result.error wa-icon,
+    .account-result.error {
+        color: var(--bkper-color-danger);
+    }
+
     .account-type {
         display: inline-block;
         width: var(--bkper-spacing-x-small);

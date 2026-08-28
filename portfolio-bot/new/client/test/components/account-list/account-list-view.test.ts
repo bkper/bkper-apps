@@ -2,9 +2,14 @@ import { describe, expect, it } from 'bun:test';
 import { Account, AccountType, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { AccountListView } from '../../../src/components/account-list/account-list-view.js';
+import { AccountOperationStatus } from '../../../src/types.js';
 
 const render = Reflect.get(AccountListView.prototype, 'render') as (
     this: AccountListView
+) => TemplateResult;
+const renderAccountResult = Reflect.get(AccountListView.prototype, 'renderAccountResult') as (
+    this: AccountListView,
+    account: Account
 ) => TemplateResult;
 
 function collectRenderedText(value: unknown): string[] {
@@ -75,6 +80,33 @@ describe('Account list view', () => {
         expect(renderedText).toContain('Accounts from selected group: Technology');
         expect(renderedText).toContain('Alphabet');
         expect(renderedText).toContain('Apple');
+    });
+
+    it('renders waiting, successful, and failed operation results after their Accounts', () => {
+        const book = new Book({ id: 'portfolio-book' });
+        const waitingAccount = new Account(book, { id: 'waiting', name: 'Waiting' });
+        const completeAccount = new Account(book, { id: 'complete', name: 'Complete' });
+        const errorAccount = new Account(book, { id: 'error', name: 'Error' });
+        const view = new AccountListView();
+        view.results = new Map([
+            ['waiting', { status: AccountOperationStatus.WAITING }],
+            [
+                'complete',
+                { status: AccountOperationStatus.COMPLETE, message: 'Calculation complete.' },
+            ],
+            ['error', { status: AccountOperationStatus.ERROR, error: 'Calculation failed.' }],
+        ]);
+
+        const waiting = renderAccountResult.call(view, waitingAccount);
+        const complete = renderAccountResult.call(view, completeAccount);
+        const error = renderAccountResult.call(view, errorAccount);
+
+        expect(waiting.strings.join('')).toContain('<wa-spinner>');
+        expect(complete.strings.join('')).toContain('<wa-icon');
+        expect(complete.values).toContain('Calculation complete.');
+        expect(error.strings.join('')).toContain('role="alert"');
+        expect(error.strings.join('')).toContain('<wa-icon');
+        expect(error.values).toContain('Calculation failed.');
     });
 
     it('renders the pending-calculation scope and an explicit empty state', () => {

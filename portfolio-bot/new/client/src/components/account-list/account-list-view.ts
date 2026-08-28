@@ -1,6 +1,7 @@
 import type { Account, Group } from 'bkper-js';
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { AccountOperationStatus, type AccountOperationResult } from '../../types.js';
 import { accountListCSS } from './account-list-css.js';
 import { sharedCSS } from '../shared-css.js';
 
@@ -14,6 +15,9 @@ export class AccountListView extends LitElement {
 
     @property({ attribute: false })
     selectedGroup?: Group;
+
+    @property({ attribute: false })
+    results = new Map<string, AccountOperationResult>();
 
     static styles = [sharedCSS, accountListCSS];
 
@@ -52,6 +56,39 @@ export class AccountListView extends LitElement {
             <div class="account" role="listitem">
                 ${this.renderAccountType(account)}
                 <span>${name}</span>
+                ${this.renderAccountResult(account)}
+            </div>
+        `;
+    }
+
+    private renderAccountResult(account: Account): TemplateResult {
+        const accountId = account.getId();
+        const result = accountId ? this.results.get(accountId) : undefined;
+        if (!result) {
+            return html``;
+        }
+        if (result.status === AccountOperationStatus.WAITING) {
+            const name = account.getName() ?? accountId;
+            return html`
+                <div class="account-result waiting" role="status" aria-label="Calculating ${name}">
+                    <wa-spinner></wa-spinner>
+                </div>
+            `;
+        }
+        if (result.status === AccountOperationStatus.ERROR) {
+            const error = result.error ?? '';
+            return html`
+                <div class="account-result error" role="alert">
+                    <wa-icon name="cancel" label="Error"></wa-icon>
+                    <span>${error}</span>
+                </div>
+            `;
+        }
+        const message = result.message ?? '';
+        return html`
+            <div class="account-result complete" role="status">
+                <wa-icon name="check_circle" label="Done"></wa-icon>
+                <span>${message}</span>
             </div>
         `;
     }

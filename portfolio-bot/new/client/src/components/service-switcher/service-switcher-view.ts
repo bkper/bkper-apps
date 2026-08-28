@@ -27,6 +27,9 @@ export class ServiceSwitcherView extends LitElement {
     @property({ type: Boolean })
     showMenu = true;
 
+    @property({ type: Boolean })
+    disabled = false;
+
     static styles = [sharedCSS, serviceSwitcherCSS];
 
     render(): TemplateResult {
@@ -52,6 +55,7 @@ export class ServiceSwitcherView extends LitElement {
                     variant="neutral"
                     appearance="plain"
                     size="s"
+                    ?disabled=${this.disabled}
                 >
                     <wa-icon name="keyboard_arrow_down" label="Switch service"></wa-icon>
                 </wa-button>
@@ -70,6 +74,9 @@ export class ServiceSwitcherView extends LitElement {
     }
 
     private handleSelect(event: WaSelectEvent): void {
+        if (this.disabled) {
+            return;
+        }
         const item = event.detail.item as WaDropdownItem;
         const service = SERVICE_OPTIONS.find(option => option.value === item.value)?.value;
         if (!service || service === this.service) {

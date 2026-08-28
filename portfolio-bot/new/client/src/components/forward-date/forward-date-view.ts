@@ -1,5 +1,6 @@
+import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { PortfolioService, type AppError, type ForwardDateContext } from '../../types.js';
 import { Utils } from '../../utils.js';
 import '../account-list/account-list-view.js';
@@ -19,6 +20,9 @@ export class ForwardDateView extends LitElement {
     @property()
     date = '';
 
+    @state()
+    executing = false;
+
     static styles = [sharedCSS, forwardDateCSS];
 
     render(): TemplateResult {
@@ -28,6 +32,7 @@ export class ForwardDateView extends LitElement {
                 <service-switcher
                     .service=${PortfolioService.FORWARD_DATE}
                     .showMenu=${Utils.canSwitchServices(context)}
+                    .disabled=${this.isServiceSwitcherDisabled()}
                     instructions="Review the accounts below before setting a forward date."
                 ></service-switcher>
                 <account-list
@@ -40,12 +45,21 @@ export class ForwardDateView extends LitElement {
                     type="date"
                     label="Date"
                     .value=${this.date}
+                    ?disabled=${this.isDateInputDisabled()}
                     size="s"
+                    @input=${this.handleDateInputted}
                 ></wa-input>
                 <div class="actions">
                     ${this.renderPermissionError()}
                     <div class="action-buttons">
-                        <wa-button variant="brand" appearance="accent" size="s" type="button">
+                        <wa-button
+                            variant="brand"
+                            appearance="accent"
+                            size="s"
+                            type="button"
+                            ?disabled=${this.isRunButtonDisabled()}
+                            @click=${this.handleRunClicked}
+                        >
                             Run
                         </wa-button>
                     </div>
@@ -59,6 +73,35 @@ export class ForwardDateView extends LitElement {
             return html``;
         }
         return html`<app-error .error=${this.permissionError}></app-error>`;
+    }
+
+    private isServiceSwitcherDisabled(): boolean {
+        return this.executing;
+    }
+
+    private isDateInputDisabled(): boolean {
+        return this.executing;
+    }
+
+    private isRunButtonDisabled(): boolean {
+        return (
+            this.executing ||
+            this.permissionError !== undefined ||
+            !this.context?.accounts.length ||
+            !this.date
+        );
+    }
+
+    private handleDateInputted(event: Event): void {
+        if (this.isDateInputDisabled()) {
+            return;
+        }
+        const input = event.currentTarget as WaInput;
+        this.date = input.value ?? '';
+    }
+
+    private handleRunClicked(): void {
+        // TODO: implement
     }
 }
 

@@ -117,6 +117,20 @@ describe('Service switcher view', () => {
         expect(receivedEvent?.composed).toBe(true);
     });
 
+    it('disables switching while an operation is executing', () => {
+        const view = new ServiceSwitcherView();
+        view.disabled = true;
+        let dispatchCount = 0;
+        view.addEventListener('service-change', () => dispatchCount++);
+
+        const result = render.call(view);
+        handleSelect.call(view, createSelectEvent(PortfolioService.FORWARD_DATE));
+
+        const dropdown = result.values.find(isTemplateResult);
+        expect(dropdown?.values).toContain(true);
+        expect(dispatchCount).toBe(0);
+    });
+
     it('does nothing when the active service is selected', () => {
         const view = new ServiceSwitcherView();
         let dispatchCount = 0;

@@ -87,23 +87,21 @@ export class BotAppView extends LitElement {
         }
         if (this.portfolioBook) {
             const permissionError = this.hasEditorPermission ? undefined : this.error;
-            if (this.activeService === PortfolioService.FORWARD_DATE) {
-                return html`
-                    <forward-date
-                        .context=${this.forwardDateContext}
-                        .date=${this.initialDate}
-                        .permissionError=${permissionError}
-                        @service-change=${this.handleServiceChange}
-                    ></forward-date>
-                `;
-            }
             return html`
                 <realized-results
                     .context=${this.realizedResultsContext}
                     .date=${this.initialDate}
                     .permissionError=${permissionError}
+                    ?hidden=${this.activeService !== PortfolioService.REALIZED_RESULTS}
                     @service-change=${this.handleServiceChange}
                 ></realized-results>
+                <forward-date
+                    .context=${this.forwardDateContext}
+                    .date=${this.initialDate}
+                    .permissionError=${permissionError}
+                    ?hidden=${this.activeService !== PortfolioService.FORWARD_DATE}
+                    @service-change=${this.handleServiceChange}
+                ></forward-date>
             `;
         }
         return html``;

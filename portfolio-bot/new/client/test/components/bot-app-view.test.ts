@@ -107,10 +107,14 @@ describe('Bot app view', () => {
 
         const result = renderBodyContent.call(view);
 
-        expect(result.strings.join('')).toContain('<realized-results');
+        const markup = result.strings.join('');
+        expect(markup).toContain('<realized-results');
+        expect(markup).toContain('<forward-date');
         expect(result.values[0]).toBe(context);
         expect(result.values[1]).toBe('2026-03-10');
         expect(result.values[2]).toBeUndefined();
+        expect(result.values[3]).toBe(false);
+        expect(result.values[8]).toBe(true);
     });
 
     it('renders Forward Date after handling a service change', () => {
@@ -139,11 +143,15 @@ describe('Bot app view', () => {
         );
         const result = renderBodyContent.call(view);
 
+        const markup = result.strings.join('');
         expect(view.activeService).toBe(PortfolioService.FORWARD_DATE);
-        expect(result.strings.join('')).toContain('<forward-date');
-        expect(result.values[0]).toBe(context);
-        expect(result.values[1]).toBe('2026-03-10');
-        expect(result.values[2]).toBeUndefined();
+        expect(markup).toContain('<realized-results');
+        expect(markup).toContain('<forward-date');
+        expect(result.values[3]).toBe(true);
+        expect(result.values[5]).toBe(context);
+        expect(result.values[6]).toBe('2026-03-10');
+        expect(result.values[7]).toBeUndefined();
+        expect(result.values[8]).toBe(false);
     });
 
     it('renders an edit-permission error without hiding the ready context', () => {

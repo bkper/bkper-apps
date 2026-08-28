@@ -136,22 +136,27 @@ describe('Realized results view', () => {
         const controller = Reflect.get(view, 'controller') as {
             clearResults: () => void;
             runCalculate: () => Promise<void>;
+            runReset: () => Promise<void>;
         };
         const clearResults = mock(() => {
             view.results = new Map();
         });
         const runCalculate = mock(async () => undefined);
+        const runReset = mock(async () => undefined);
         controller.clearResults = clearResults;
         controller.runCalculate = runCalculate;
+        controller.runReset = runReset;
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
         handlePerformMtmChanged.call(view, createCheckboxEvent(true));
+        handleResetClicked.call(view);
         handleCalculateClicked.call(view);
         const result = render.call(view);
 
         expect(view.date).toBe('2026-04-15');
         expect(view.performMtm).toBe(true);
         expect(clearResults).toHaveBeenCalledTimes(2);
+        expect(runReset).toHaveBeenCalledTimes(1);
         expect(runCalculate).toHaveBeenCalledTimes(1);
         expect(result.values).toContain(handleDateInputted);
         expect(result.values).toContain(handleResetClicked);

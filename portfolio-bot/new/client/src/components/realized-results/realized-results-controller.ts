@@ -65,6 +65,53 @@ export class RealizedResultsController implements ReactiveController {
         }
     }
 
+    async runReset(): Promise<void> {
+        const context = this.view.context;
+        if (
+            !context ||
+            context.accounts.length === 0 ||
+            this.view.executing ||
+            this.view.permissionError !== undefined ||
+            !context.resetEnabled
+        ) {
+            return;
+        }
+
+        const portfolioBookId = context.portfolioBook.getId();
+
+        this.view.executing = true;
+        this.clearResults();
+
+        try {
+            const hasPendingTasks = await botService.hasPendingTasks(context.portfolioBook);
+            if (hasPendingTasks) {
+                this.view.operationError = this.createOperationError(
+                    'Cannot start operation: Portfolio Book has pending tasks.'
+                );
+                return;
+            }
+
+            const results = new Map<string, AccountOperationResult>();
+            for (const account of context.accounts) {
+                const accountId = account.getId();
+                if (accountId) {
+                    results.set(accountId, { status: AccountOperationStatus.WAITING });
+                }
+            }
+            this.view.results = results;
+
+            for (const account of context.accounts) {
+                await this.resetAccount(portfolioBookId, account);
+            }
+        } catch (error: unknown) {
+            this.view.operationError = this.createOperationError(
+                this.formatError(error, 'Reset could not be started. Please try again.')
+            );
+        } finally {
+            this.view.executing = false;
+        }
+    }
+
     clearResults(): void {
         this.view.results = new Map();
         this.view.operationError = undefined;
@@ -97,6 +144,25 @@ export class RealizedResultsController implements ReactiveController {
                     error,
                     'Calculation could not be completed. Please try again.'
                 ),
+            });
+        }
+    }
+
+    private async resetAccount(portfolioBookId: string, portfolioAccount: Account): Promise<void> {
+        const portfolioAccountId = portfolioAccount.getId();
+        if (!portfolioAccountId) {
+            return;
+        }
+        try {
+            const response = await botApiService.resetAccount(portfolioBookId, portfolioAccountId);
+            this.setResult(portfolioAccountId, {
+                status: AccountOperationStatus.COMPLETE,
+                message: response.message,
+            });
+        } catch (error: unknown) {
+            this.setResult(portfolioAccountId, {
+                status: AccountOperationStatus.ERROR,
+                error: this.formatError(error, 'Reset could not be completed. Please try again.'),
             });
         }
     }

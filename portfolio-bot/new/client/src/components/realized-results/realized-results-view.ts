@@ -173,7 +173,10 @@ export class RealizedResultsView extends LitElement {
     }
 
     private handleResetClicked(): void {
-        // TODO: implement
+        if (this.isResetButtonDisabled()) {
+            return;
+        }
+        this.controller.runReset();
     }
 
     private handleCalculateClicked(): void {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { RealizedResultsView } from '../../../src/components/realized-results/realized-results-view.js';
@@ -15,6 +16,36 @@ const renderPermissionError = Reflect.get(
     RealizedResultsView.prototype,
     'renderPermissionError'
 ) as (this: RealizedResultsView) => TemplateResult;
+const handleDateInputted = Reflect.get(RealizedResultsView.prototype, 'handleDateInputted') as (
+    this: RealizedResultsView,
+    event: Event
+) => void;
+const handleResetClicked = Reflect.get(RealizedResultsView.prototype, 'handleResetClicked') as (
+    this: RealizedResultsView
+) => void;
+const handleCalculateClicked = Reflect.get(
+    RealizedResultsView.prototype,
+    'handleCalculateClicked'
+) as (this: RealizedResultsView) => void;
+const isServiceSwitcherDisabled = Reflect.get(
+    RealizedResultsView.prototype,
+    'isServiceSwitcherDisabled'
+) as (this: RealizedResultsView) => boolean;
+const isDateInputDisabled = Reflect.get(RealizedResultsView.prototype, 'isDateInputDisabled') as (
+    this: RealizedResultsView
+) => boolean;
+const isResetButtonDisabled = Reflect.get(
+    RealizedResultsView.prototype,
+    'isResetButtonDisabled'
+) as (this: RealizedResultsView) => boolean;
+const isCalculateButtonDisabled = Reflect.get(
+    RealizedResultsView.prototype,
+    'isCalculateButtonDisabled'
+) as (this: RealizedResultsView) => boolean;
+
+function createInputEvent(value: string): Event {
+    return { currentTarget: { value } as WaInput } as unknown as Event;
+}
 
 function createContext(): RealizedResultsContext {
     const portfolioBook = new Book({ id: 'portfolio-book', name: 'Portfolio Book' });
@@ -51,10 +82,70 @@ describe('Realized results view', () => {
         expect(markup).toContain('Calculate');
         expect(result.values[0]).toBe(PortfolioService.REALIZED_RESULTS);
         expect(result.values[1]).toBe(true);
-        expect(result.values[2]).toBe(context.accounts);
-        expect(result.values[3]).toBeUndefined();
-        expect(result.values[4]).toBe(context.selectedGroup);
+        expect(result.values[2]).toBe(false);
+        expect(result.values[3]).toBe(context.accounts);
+        expect(result.values[4]).toBeUndefined();
+        expect(result.values[5]).toBe(context.selectedGroup);
         expect(result.values).toContain('2026-03-10');
+    });
+
+    it('updates the date and wires both action click boundaries', () => {
+        const view = new RealizedResultsView();
+        view.context = createContext();
+
+        handleDateInputted.call(view, createInputEvent('2026-04-15'));
+        const result = render.call(view);
+
+        expect(view.date).toBe('2026-04-15');
+        expect(result.values).toContain(handleDateInputted);
+        expect(result.values).toContain(handleResetClicked);
+        expect(result.values).toContain(handleCalculateClicked);
+    });
+
+    it('blocks controls while executing and disables unavailable Reset', () => {
+        const view = new RealizedResultsView();
+        const context = createContext();
+        view.context = context;
+        view.date = '2026-03-10';
+
+        expect(isServiceSwitcherDisabled.call(view)).toBe(false);
+        expect(isDateInputDisabled.call(view)).toBe(false);
+        expect(isResetButtonDisabled.call(view)).toBe(false);
+        expect(isCalculateButtonDisabled.call(view)).toBe(false);
+
+        context.resetEnabled = false;
+        expect(isResetButtonDisabled.call(view)).toBe(true);
+        expect(isCalculateButtonDisabled.call(view)).toBe(false);
+
+        view.executing = true;
+        handleDateInputted.call(view, createInputEvent('2026-05-20'));
+        expect(view.date).toBe('2026-03-10');
+        expect(isServiceSwitcherDisabled.call(view)).toBe(true);
+        expect(isDateInputDisabled.call(view)).toBe(true);
+        expect(isResetButtonDisabled.call(view)).toBe(true);
+        expect(isCalculateButtonDisabled.call(view)).toBe(true);
+        expect(render.call(view).values).toContain(true);
+    });
+
+    it('blocks actions without permission, Accounts, or a calculation date', () => {
+        const view = new RealizedResultsView();
+        view.context = createContext();
+        view.date = '';
+
+        expect(isResetButtonDisabled.call(view)).toBe(false);
+        expect(isCalculateButtonDisabled.call(view)).toBe(true);
+
+        view.permissionError = {
+            type: 'error',
+            message: { before: 'Editor permission is required.' },
+        };
+        expect(isResetButtonDisabled.call(view)).toBe(true);
+        expect(isCalculateButtonDisabled.call(view)).toBe(true);
+
+        view.permissionError = undefined;
+        view.context.accounts = [];
+        expect(isResetButtonDisabled.call(view)).toBe(true);
+        expect(isCalculateButtonDisabled.call(view)).toBe(true);
     });
 
     it('hides service switching without a usable selected context', () => {

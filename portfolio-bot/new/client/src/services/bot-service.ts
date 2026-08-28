@@ -38,6 +38,12 @@ class BotService {
         return true;
     }
 
+    async hasPendingTasks(book: Book): Promise<boolean> {
+        const backlog = await book.getBacklog();
+        const count = backlog.getCount();
+        return count !== undefined && count > 0;
+    }
+
     getBooksExcCodesUserCanEdit(book: Book): Set<string> {
         const excCodes = new Set<string>();
         const collection = book.getCollection();

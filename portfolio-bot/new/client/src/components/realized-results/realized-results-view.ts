@@ -2,16 +2,24 @@ import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js'
 import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { PortfolioService, type AppError, type RealizedResultsContext } from '../../types.js';
+import {
+    PortfolioService,
+    type AccountOperationResult,
+    type AppError,
+    type RealizedResultsContext,
+} from '../../types.js';
 import { Utils } from '../../utils.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
+import { RealizedResultsController } from './realized-results-controller.js';
 import { realizedResultsCSS } from './realized-results-css.js';
 
 @customElement('realized-results')
 export class RealizedResultsView extends LitElement {
+    private readonly controller = new RealizedResultsController(this);
+
     @property({ attribute: false })
     context?: RealizedResultsContext;
 
@@ -26,6 +34,12 @@ export class RealizedResultsView extends LitElement {
 
     @state()
     executing = false;
+
+    @state()
+    operationError?: AppError;
+
+    @state()
+    results = new Map<string, AccountOperationResult>();
 
     static styles = [sharedCSS, realizedResultsCSS];
 
@@ -43,6 +57,7 @@ export class RealizedResultsView extends LitElement {
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}
                     .selectedGroup=${context?.selectedGroup}
+                    .results=${this.results}
                 ></account-list>
                 <wa-input
                     class="date-input"
@@ -64,7 +79,7 @@ export class RealizedResultsView extends LitElement {
                     </wa-checkbox>
                 </div>
                 <div class="actions">
-                    ${this.renderPermissionError()}
+                    ${this.renderPermissionError()} ${this.renderOperationError()}
                     <div class="action-buttons">
                         <wa-button
                             appearance="outlined"
@@ -95,7 +110,18 @@ export class RealizedResultsView extends LitElement {
         if (!this.permissionError) {
             return html``;
         }
-        return html`<app-error .error=${this.permissionError}></app-error>`;
+        return this.renderError(this.permissionError);
+    }
+
+    private renderOperationError(): TemplateResult {
+        if (!this.operationError) {
+            return html``;
+        }
+        return this.renderError(this.operationError);
+    }
+
+    private renderError(error: AppError): TemplateResult {
+        return html`<app-error .error=${error}></app-error>`;
     }
 
     private isServiceSwitcherDisabled(): boolean {
@@ -134,6 +160,7 @@ export class RealizedResultsView extends LitElement {
         }
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
+        this.controller.clearResults();
     }
 
     private handlePerformMtmChanged(event: Event): void {
@@ -142,6 +169,7 @@ export class RealizedResultsView extends LitElement {
         }
         const checkbox = event.currentTarget as WaCheckbox;
         this.performMtm = checkbox.checked;
+        this.controller.clearResults();
     }
 
     private handleResetClicked(): void {
@@ -149,7 +177,10 @@ export class RealizedResultsView extends LitElement {
     }
 
     private handleCalculateClicked(): void {
-        // TODO: implement
+        if (this.isCalculateButtonDisabled()) {
+            return;
+        }
+        this.controller.runCalculate();
     }
 }
 

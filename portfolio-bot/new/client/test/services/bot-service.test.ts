@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Book, Permission } from 'bkper-js';
+import { Backlog, Book, Permission } from 'bkper-js';
 import { botService } from '../../src/services/bot-service.js';
 
 function createSourceBook(extra: Partial<bkper.Book> = {}): Book {
@@ -58,6 +58,19 @@ describe('legacy menu bot service', () => {
         expect(botService.areAllCollectionBooksOpenAndUnlocked(unlockedBook)).toBe(true);
         expect(botService.areAllCollectionBooksOpenAndUnlocked(lockedBook)).toBe(false);
         expect(botService.areAllCollectionBooksOpenAndUnlocked(closedBook)).toBe(false);
+    });
+
+    it('reports whether the Portfolio Book has pending tasks', async () => {
+        const portfolioBook = createSourceBook({ id: 'portfolio-book', fractionDigits: 0 });
+
+        portfolioBook.getBacklog = async () => new Backlog({ count: 2 });
+        expect(await botService.hasPendingTasks(portfolioBook)).toBe(true);
+
+        portfolioBook.getBacklog = async () => new Backlog({ count: 0 });
+        expect(await botService.hasPendingTasks(portfolioBook)).toBe(false);
+
+        portfolioBook.getBacklog = async () => new Backlog({});
+        expect(await botService.hasPendingTasks(portfolioBook)).toBe(false);
     });
 
     it('resolves editable currencies with legacy precedence', () => {

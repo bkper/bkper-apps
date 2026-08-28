@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { RealizedResultsView } from '../../../src/components/realized-results/realized-results-view.js';
 import {
+    AccountOperationStatus,
     PortfolioService,
     type AppError,
     type RealizedResultsContext,
@@ -17,6 +18,9 @@ const renderPermissionError = Reflect.get(
     RealizedResultsView.prototype,
     'renderPermissionError'
 ) as (this: RealizedResultsView) => TemplateResult;
+const renderOperationError = Reflect.get(RealizedResultsView.prototype, 'renderOperationError') as (
+    this: RealizedResultsView
+) => TemplateResult;
 const handlePerformMtmChanged = Reflect.get(
     RealizedResultsView.prototype,
     'handlePerformMtmChanged'
@@ -121,14 +125,34 @@ describe('Realized results view', () => {
         expect(result.values).toContain(handlePerformMtmChanged);
     });
 
-    it('updates the date and wires both action click boundaries', () => {
+    it('clears stale results when inputs change and delegates Calculate to its controller', () => {
         const view = new RealizedResultsView();
         view.context = createContext();
+        view.date = '2026-03-10';
+        view.results.set('alphabet', {
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Calculated',
+        });
+        const controller = Reflect.get(view, 'controller') as {
+            clearResults: () => void;
+            runCalculate: () => Promise<void>;
+        };
+        const clearResults = mock(() => {
+            view.results = new Map();
+        });
+        const runCalculate = mock(async () => undefined);
+        controller.clearResults = clearResults;
+        controller.runCalculate = runCalculate;
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
+        handlePerformMtmChanged.call(view, createCheckboxEvent(true));
+        handleCalculateClicked.call(view);
         const result = render.call(view);
 
         expect(view.date).toBe('2026-04-15');
+        expect(view.performMtm).toBe(true);
+        expect(clearResults).toHaveBeenCalledTimes(2);
+        expect(runCalculate).toHaveBeenCalledTimes(1);
         expect(result.values).toContain(handleDateInputted);
         expect(result.values).toContain(handleResetClicked);
         expect(result.values).toContain(handleCalculateClicked);
@@ -216,9 +240,23 @@ describe('Realized results view', () => {
         expect(errorResult.values[0]).toBe(permissionError);
     });
 
-    it('does not render a permission error when none is supplied', () => {
-        const result = renderPermissionError.call(new RealizedResultsView());
+    it('renders an operation error in the same actions area as permission errors', () => {
+        const view = new RealizedResultsView();
+        view.operationError = {
+            type: 'error',
+            message: { before: 'Cannot start operation: Portfolio Book has pending tasks.' },
+        };
 
-        expect(result.strings.join('')).toBe('');
+        const result = renderOperationError.call(view);
+
+        expect(result.strings.join('')).toContain('<app-error');
+        expect(result.values[0]).toBe(view.operationError);
+    });
+
+    it('does not render absent permission or operation errors', () => {
+        const view = new RealizedResultsView();
+
+        expect(renderPermissionError.call(view).strings.join('')).toBe('');
+        expect(renderOperationError.call(view).strings.join('')).toBe('');
     });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { runRequestsInBatches } from '../../src/services/request-batch.js';
+import { runRequestsWithConcurrency } from '../../src/services/request-batch.js';
 
 interface Deferred {
     promise: Promise<void>;
@@ -14,49 +14,67 @@ function createDeferred(): Deferred {
     return { promise, resolve };
 }
 
-describe('request batching', () => {
-    it('runs batches of five sequentially and preserves input order', async () => {
-        const batchGates = [createDeferred(), createDeferred(), createDeferred()];
-        const batchStarted = [createDeferred(), createDeferred(), createDeferred()];
-        const items = Array.from({ length: 11 }, (_, index) => index + 1);
+describe('request concurrency', () => {
+    it('starts the next request when one of five active requests settles', async () => {
+        const items = Array.from({ length: 7 }, (_, index) => index + 1);
+        const gates = items.map(() => createDeferred());
+        const startedSignals = items.map(() => createDeferred());
         const started: number[] = [];
+        let active = 0;
+        let maximumActive = 0;
 
-        const resultsPromise = runRequestsInBatches(items, async item => {
+        const resultsPromise = runRequestsWithConcurrency(items, async item => {
             started.push(item);
-            const batchIndex = Math.floor((item - 1) / 5);
-            batchStarted[batchIndex].resolve();
-            await batchGates[batchIndex].promise;
+            active++;
+            maximumActive = Math.max(maximumActive, active);
+            startedSignals[item - 1].resolve();
+            await gates[item - 1].promise;
+            active--;
             return item * 10;
         });
 
-        await batchStarted[0].promise;
+        await Promise.all(startedSignals.slice(0, 5).map(signal => signal.promise));
         expect(started).toEqual([1, 2, 3, 4, 5]);
 
-        batchGates[0].resolve();
-        await batchStarted[1].promise;
-        expect(started).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        gates[2].resolve();
+        await startedSignals[5].promise;
+        expect(started).toEqual([1, 2, 3, 4, 5, 6]);
 
-        batchGates[1].resolve();
-        await batchStarted[2].promise;
+        gates[5].resolve();
+        await startedSignals[6].promise;
         expect(started).toEqual(items);
+        expect(maximumActive).toBe(5);
 
-        batchGates[2].resolve();
-        expect(await resultsPromise).toEqual(items.map(item => item * 10));
+        for (const gate of gates) {
+            gate.resolve();
+        }
+
+        expect(await resultsPromise).toEqual(
+            items.map(item => ({ item, status: 'fulfilled', value: item * 10 }))
+        );
     });
 
-    it('rejects a failed batch without starting later requests', async () => {
+    it('records a request error against its item and continues processing', async () => {
         const requestError = new Error('Request failed');
+        const items = [1, 2, 3, 4, 5, 6];
         const started: number[] = [];
 
-        const resultsPromise = runRequestsInBatches([1, 2, 3, 4, 5, 6], async item => {
+        const results = await runRequestsWithConcurrency(items, async item => {
             started.push(item);
             if (item === 2) {
                 throw requestError;
             }
-            return item;
+            return item * 10;
         });
 
-        await expect(resultsPromise).rejects.toBe(requestError);
-        expect(started).toEqual([1, 2, 3, 4, 5]);
+        expect(started).toEqual(items);
+        expect(results).toEqual([
+            { item: 1, status: 'fulfilled', value: 10 },
+            { item: 2, status: 'rejected', reason: requestError },
+            { item: 3, status: 'fulfilled', value: 30 },
+            { item: 4, status: 'fulfilled', value: 40 },
+            { item: 5, status: 'fulfilled', value: 50 },
+            { item: 6, status: 'fulfilled', value: 60 },
+        ]);
     });
 });

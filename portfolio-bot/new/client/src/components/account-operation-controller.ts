@@ -72,7 +72,18 @@ export abstract class AccountOperationController<
             this.initializeWaitingResults(context.accounts);
 
             if (concurrent) {
-                await runRequestsWithConcurrency(context.accounts, executeAccount);
+                const outcomes = await runRequestsWithConcurrency(context.accounts, executeAccount);
+                for (const outcome of outcomes) {
+                    if (outcome.status === 'rejected') {
+                        const accountId = outcome.item.getId();
+                        if (accountId) {
+                            this.setResult(accountId, {
+                                status: AccountOperationStatus.ERROR,
+                                error: this.formatError(outcome.reason, startErrorFallback),
+                            });
+                        }
+                    }
+                }
             } else {
                 for (const account of context.accounts) {
                     await executeAccount(account);

@@ -37,6 +37,10 @@ const handleFullResetClicked = Reflect.get(
     RealizedResultsView.prototype,
     'handleFullResetClicked'
 ) as (this: RealizedResultsView) => void;
+const handleFullResetConfirmed = Reflect.get(
+    RealizedResultsView.prototype,
+    'handleFullResetConfirmed'
+) as (this: RealizedResultsView) => void;
 const handleResetClicked = Reflect.get(RealizedResultsView.prototype, 'handleResetClicked') as (
     this: RealizedResultsView
 ) => void;
@@ -136,6 +140,7 @@ describe('Realized results view', () => {
         expect(markup).toContain('<account-list');
         expect(markup).toContain('<wa-checkbox');
         expect(markup).toContain('Perform MTM valuations');
+        expect(markup).toContain('<confirmation-dialog');
         expect(markup).toContain('<wa-input');
         expect(markup).toContain('type="date"');
         expect(markup.indexOf('<wa-input')).toBeLessThan(markup.indexOf('<wa-checkbox'));
@@ -188,7 +193,7 @@ describe('Realized results view', () => {
         expect(values).toContain(handlePerformMtmChanged);
     });
 
-    it('clears stale results when inputs change and delegates Calculate to its controller', () => {
+    it('clears stale results and delegates actions through the required boundaries', () => {
         const view = new RealizedResultsView();
         view.context = createContext();
         view.date = '2026-03-10';
@@ -209,14 +214,21 @@ describe('Realized results view', () => {
         const runCalculate = mock(async () => undefined);
         const runReset = mock(async () => undefined);
         const runFullReset = mock(async () => undefined);
+        const showConfirmation = mock(() => undefined);
         controller.clearResults = clearResults;
         controller.runCalculate = runCalculate;
         controller.runReset = runReset;
         controller.runFullReset = runFullReset;
+        Object.defineProperty(view, 'fullResetConfirmationDialog', {
+            value: { show: showConfirmation },
+        });
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
         handlePerformMtmChanged.call(view, createCheckboxEvent(true));
         handleFullResetClicked.call(view);
+        expect(showConfirmation).toHaveBeenCalledTimes(1);
+        expect(runFullReset).not.toHaveBeenCalled();
+        handleFullResetConfirmed.call(view);
         handleResetClicked.call(view);
         handleCalculateClicked.call(view);
         const result = render.call(view);
@@ -229,6 +241,7 @@ describe('Realized results view', () => {
         expect(runReset).toHaveBeenCalledTimes(1);
         expect(runCalculate).toHaveBeenCalledTimes(1);
         expect(values).toContain(handleDateInputted);
+        expect(values).toContain(handleFullResetConfirmed);
         expect(values).toContain(handleResetClicked);
         expect(values).toContain(handleCalculateClicked);
     });

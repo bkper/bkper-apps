@@ -1,7 +1,7 @@
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property, query, state } from 'lit/decorators.js';
 import {
     PortfolioService,
     type AccountOperationResult,
@@ -9,8 +9,10 @@ import {
     type RealizedResultsContext,
 } from '../../types.js';
 import { Utils } from '../../utils.js';
+import type { ConfirmationDialogView } from '../confirmation-dialog/confirmation-dialog-view.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
+import '../confirmation-dialog/confirmation-dialog-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 import { RealizedResultsController } from './realized-results-controller.js';
@@ -40,6 +42,9 @@ export class RealizedResultsView extends LitElement {
 
     @state()
     results = new Map<string, AccountOperationResult>();
+
+    @query('confirmation-dialog')
+    private fullResetConfirmationDialog?: ConfirmationDialogView;
 
     static styles = [sharedCSS, realizedResultsCSS];
 
@@ -76,6 +81,9 @@ export class RealizedResultsView extends LitElement {
                         ${this.renderCalculateButton()}
                     </div>
                 </div>
+
+                <!-- Full Reset confirmation -->
+                ${this.renderFullResetConfirmationDialog()}
             </div>
         `;
     }
@@ -122,6 +130,23 @@ export class RealizedResultsView extends LitElement {
             >
                 Full Reset
             </wa-button>
+        `;
+    }
+
+    private renderFullResetConfirmationDialog(): TemplateResult {
+        const context = this.context;
+        if (!context?.fullResetEnabled) {
+            return html``;
+        }
+        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${context.accounts.length} accounts. This operation cannot be undone.`;
+        return html`
+            <confirmation-dialog
+                .headerLabel=${'Confirm Full Reset'}
+                .message=${confirmationText}
+                .actionLabel=${'Full Reset'}
+                .confirmationPhrase=${'FULL RESET'}
+                @confirmed=${this.handleFullResetConfirmed}
+            ></confirmation-dialog>
         `;
     }
 
@@ -234,6 +259,13 @@ export class RealizedResultsView extends LitElement {
     }
 
     private handleFullResetClicked(): void {
+        if (this.isFullResetButtonDisabled()) {
+            return;
+        }
+        this.fullResetConfirmationDialog?.show();
+    }
+
+    private handleFullResetConfirmed(): void {
         if (this.isFullResetButtonDisabled()) {
             return;
         }

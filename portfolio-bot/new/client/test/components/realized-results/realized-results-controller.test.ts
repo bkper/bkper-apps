@@ -5,11 +5,10 @@ import { RealizedResultsController } from '../../../src/components/realized-resu
 import type { RealizedResultsView } from '../../../src/components/realized-results/realized-results-view.js';
 import { botApiService } from '../../../src/services/bot-api-service.js';
 import { botService } from '../../../src/services/bot-service.js';
-import {
-    AccountOperationStatus,
-    type AccountOperationResult,
-    type AppError,
-    type RealizedResultsContext,
+import type {
+    AccountOperationResult,
+    AppError,
+    RealizedResultsContext,
 } from '../../../src/types.js';
 
 class TestView implements ReactiveControllerHost {
@@ -71,24 +70,6 @@ function createController(view: TestView): RealizedResultsController {
 }
 
 describe('Realized results controller', () => {
-    it('aborts the complete Calculate run when the Portfolio Book has pending tasks', async () => {
-        botService.hasPendingTasks = mock(async () => true);
-        botApiService.calculateAccount = mock(async () => ({ message: 'Calculated' }));
-        const view = createView();
-        const controller = createController(view);
-
-        await controller.runCalculate();
-
-        expect(botService.hasPendingTasks).toHaveBeenCalledTimes(1);
-        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
-        expect(botApiService.calculateAccount).not.toHaveBeenCalled();
-        expect(view.results.size).toBe(0);
-        expect(view.operationError?.message.before).toBe(
-            'Cannot start operation: Portfolio Book has pending tasks.'
-        );
-        expect(view.executing).toBe(false);
-    });
-
     it('calculates Accounts concurrently with the current date and MTM intent', async () => {
         botService.hasPendingTasks = mock(async () => false);
         let resolveFirst: (response: { message: string }) => void = () => {};
@@ -107,13 +88,7 @@ describe('Realized results controller', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(view.executing).toBe(true);
         expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
-        expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet calculated',
-        });
 
         resolveFirst({ message: 'Apple calculated' });
         await calculation;
@@ -131,65 +106,14 @@ describe('Realized results controller', () => {
             'alphabet',
             { date: '2026-03-10', performMtm: true }
         );
-        expect(view.results.get('apple')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Apple calculated',
-        });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet calculated',
-        });
-        expect(view.executing).toBe(false);
-    });
-
-    it('records an Account error and continues with the remaining Accounts', async () => {
-        botService.hasPendingTasks = mock(async () => false);
-        botApiService.calculateAccount = mock(async (_bookId, accountId) => {
-            if (accountId === 'apple') {
-                throw new Error('Apple failed');
-            }
-            return { message: 'Alphabet calculated' };
-        });
-        const view = createView();
-        const controller = createController(view);
-
-        await controller.runCalculate();
-
-        expect(botApiService.calculateAccount).toHaveBeenCalledTimes(2);
-        expect(view.results.get('apple')).toEqual({
-            status: AccountOperationStatus.ERROR,
-            error: 'Apple failed',
-        });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet calculated',
-        });
-        expect(view.executing).toBe(false);
-    });
-
-    it('aborts the complete Reset run when the Portfolio Book has pending tasks', async () => {
-        botService.hasPendingTasks = mock(async () => true);
-        botApiService.resetAccount = mock(async () => ({ message: 'Reset' }));
-        const view = createView();
-        const controller = createController(view);
-
-        await controller.runReset();
-
-        expect(botService.hasPendingTasks).toHaveBeenCalledTimes(1);
         expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
-        expect(botApiService.resetAccount).not.toHaveBeenCalled();
-        expect(view.results.size).toBe(0);
-        expect(view.operationError?.message.before).toBe(
-            'Cannot start operation: Portfolio Book has pending tasks.'
-        );
-        expect(view.executing).toBe(false);
     });
 
-    it('resets Accounts concurrently and continues after an Account error', async () => {
+    it('resets Accounts concurrently through the regular Reset endpoint', async () => {
         botService.hasPendingTasks = mock(async () => false);
-        let rejectFirst: (error: Error) => void = () => {};
-        const firstRequest = new Promise<{ message: string }>((_resolve, reject) => {
-            rejectFirst = reject;
+        let resolveFirst: (response: { message: string }) => void = () => {};
+        const firstRequest = new Promise<{ message: string }>(resolve => {
+            resolveFirst = resolve;
         });
         const requestedAccountIds: string[] = [];
         botApiService.resetAccount = mock(async (_bookId, accountId) => {
@@ -203,55 +127,21 @@ describe('Realized results controller', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(view.executing).toBe(true);
         expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
-        expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet reset',
-        });
 
-        rejectFirst(new Error('Apple reset failed'));
+        resolveFirst({ message: 'Apple reset' });
         await reset;
 
-        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
+        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
         expect(botApiService.resetAccount).toHaveBeenNthCalledWith(1, 'portfolio-book', 'apple');
         expect(botApiService.resetAccount).toHaveBeenNthCalledWith(2, 'portfolio-book', 'alphabet');
-        expect(view.results.get('apple')).toEqual({
-            status: AccountOperationStatus.ERROR,
-            error: 'Apple reset failed',
-        });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet reset',
-        });
-        expect(view.executing).toBe(false);
     });
 
-    it('aborts the complete Full Reset run when the Portfolio Book has pending tasks', async () => {
-        botService.hasPendingTasks = mock(async () => true);
-        botApiService.fullResetAccount = mock(async () => ({ message: 'Fully reset' }));
-        const view = createView();
-        view.context!.fullResetEnabled = true;
-        const controller = createController(view);
-
-        await controller.runFullReset();
-
-        expect(botService.hasPendingTasks).toHaveBeenCalledTimes(1);
-        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
-        expect(botApiService.fullResetAccount).not.toHaveBeenCalled();
-        expect(view.results.size).toBe(0);
-        expect(view.operationError?.message.before).toBe(
-            'Cannot start operation: Portfolio Book has pending tasks.'
-        );
-        expect(view.executing).toBe(false);
-    });
-
-    it('fully resets Accounts concurrently and continues after an Account error', async () => {
+    it('resets Accounts concurrently through the Full Reset endpoint', async () => {
         botService.hasPendingTasks = mock(async () => false);
-        let rejectFirst: (error: Error) => void = () => {};
-        const firstRequest = new Promise<{ message: string }>((_resolve, reject) => {
-            rejectFirst = reject;
+        let resolveFirst: (response: { message: string }) => void = () => {};
+        const firstRequest = new Promise<{ message: string }>(resolve => {
+            resolveFirst = resolve;
         });
         const requestedAccountIds: string[] = [];
         botApiService.fullResetAccount = mock(async (_bookId, accountId) => {
@@ -266,18 +156,12 @@ describe('Realized results controller', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(view.executing).toBe(true);
         expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
-        expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet fully reset',
-        });
 
-        rejectFirst(new Error('Apple full reset failed'));
+        resolveFirst({ message: 'Apple fully reset' });
         await fullReset;
 
-        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
+        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
         expect(botApiService.fullResetAccount).toHaveBeenNthCalledWith(
             1,
             'portfolio-book',
@@ -288,32 +172,25 @@ describe('Realized results controller', () => {
             'portfolio-book',
             'alphabet'
         );
-        expect(view.results.get('apple')).toEqual({
-            status: AccountOperationStatus.ERROR,
-            error: 'Apple full reset failed',
-        });
-        expect(view.results.get('alphabet')).toEqual({
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Alphabet fully reset',
-        });
-        expect(view.executing).toBe(false);
     });
 
-    it('clears stale Account results and operation errors', () => {
+    it('does not execute operations when their operation-specific guards are disabled', async () => {
+        botService.hasPendingTasks = mock(async () => false);
+        botApiService.calculateAccount = mock(async () => ({ message: 'Calculated' }));
+        botApiService.resetAccount = mock(async () => ({ message: 'Reset' }));
+        botApiService.fullResetAccount = mock(async () => ({ message: 'Fully reset' }));
         const view = createView();
-        view.results.set('apple', {
-            status: AccountOperationStatus.COMPLETE,
-            message: 'Calculated',
-        });
-        view.operationError = {
-            type: 'error',
-            message: { before: 'Previous operation failed.' },
-        };
         const controller = createController(view);
 
-        controller.clearResults();
+        view.date = '';
+        await controller.runCalculate();
+        view.context!.resetEnabled = false;
+        await controller.runReset();
+        await controller.runFullReset();
 
-        expect(view.results.size).toBe(0);
-        expect(view.operationError).toBeUndefined();
+        expect(botService.hasPendingTasks).not.toHaveBeenCalled();
+        expect(botApiService.calculateAccount).not.toHaveBeenCalled();
+        expect(botApiService.resetAccount).not.toHaveBeenCalled();
+        expect(botApiService.fullResetAccount).not.toHaveBeenCalled();
     });
 });

@@ -80,7 +80,7 @@ export class ForwardDateView extends LitElement {
     }
 
     private isDateInputDisabled(): boolean {
-        return this.executing;
+        return this.executing || !this.context?.accounts.length;
     }
 
     private isRunButtonDisabled(): boolean {

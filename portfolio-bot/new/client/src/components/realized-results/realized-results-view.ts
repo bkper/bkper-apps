@@ -206,11 +206,11 @@ export class RealizedResultsView extends LitElement {
     }
 
     private isDateInputDisabled(): boolean {
-        return this.isExecuting();
+        return this.isExecuting() || !this.context?.accounts.length;
     }
 
     private isPerformMtmCheckboxDisabled(): boolean {
-        return this.isExecuting();
+        return this.isExecuting() || !this.context?.accounts.length;
     }
 
     private shouldDisableButton(): boolean {

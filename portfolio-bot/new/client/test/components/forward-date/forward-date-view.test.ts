@@ -115,7 +115,11 @@ describe('Forward Date view', () => {
 
         view.permissionError = undefined;
         view.context.accounts = [];
+        expect(isDateInputDisabled.call(view)).toBe(true);
         expect(isRunButtonDisabled.call(view)).toBe(true);
+
+        handleDateInputted.call(view, createInputEvent('2026-05-20'));
+        expect(view.date).toBe('2026-03-10');
 
         view.context.accounts = [new Account(portfolioBook, { id: 'apple' })];
         view.date = '';

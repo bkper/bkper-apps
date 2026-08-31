@@ -181,6 +181,7 @@ describe('Realized results view', () => {
 
     it('defaults MTM valuations to false and updates them from checkbox changes', () => {
         const view = new RealizedResultsView();
+        view.context = createContext();
 
         expect(view.performMtm).toBe(false);
 
@@ -300,9 +301,17 @@ describe('Realized results view', () => {
 
         view.permissionError = undefined;
         view.context.accounts = [];
+        view.date = '2026-03-10';
+        expect(isPerformMtmCheckboxDisabled.call(view)).toBe(true);
+        expect(isDateInputDisabled.call(view)).toBe(true);
         expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isResetButtonDisabled.call(view)).toBe(true);
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
+
+        handlePerformMtmChanged.call(view, createCheckboxEvent(true));
+        handleDateInputted.call(view, createInputEvent('2026-05-20'));
+        expect(view.performMtm).toBe(false);
+        expect(view.date).toBe('2026-03-10');
     });
 
     it('hides service switching without a usable selected context', () => {

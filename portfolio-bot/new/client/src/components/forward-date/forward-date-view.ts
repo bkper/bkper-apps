@@ -1,7 +1,12 @@
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { PortfolioService, type AppError, type ForwardDateContext } from '../../types.js';
+import {
+    PortfolioService,
+    type AccountOperationResult,
+    type AppError,
+    type ForwardDateContext,
+} from '../../types.js';
 import { Utils } from '../../utils.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
@@ -29,6 +34,9 @@ export class ForwardDateView extends LitElement {
     @state()
     operationError?: AppError;
 
+    @state()
+    results = new Map<string, AccountOperationResult>();
+
     static styles = [sharedCSS, forwardDateCSS];
 
     render(): TemplateResult {
@@ -48,6 +56,7 @@ export class ForwardDateView extends LitElement {
                     .accounts=${context?.accounts ?? []}
                     .selectedAccount=${context?.selectedAccount}
                     .selectedGroup=${context?.selectedGroup}
+                    .results=${this.results}
                 ></account-list>
 
                 <!-- Date input -->
@@ -126,7 +135,7 @@ export class ForwardDateView extends LitElement {
         }
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
-        this.controller.clearOperationError();
+        this.controller.clearResults();
     }
 
     private handleRunClicked(): void {

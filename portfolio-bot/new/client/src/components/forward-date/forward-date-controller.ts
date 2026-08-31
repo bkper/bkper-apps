@@ -1,7 +1,13 @@
 import type { Account } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import { botApiService } from '../../services/bot-api-service.js';
-import type { AppError, ForwardDateContext } from '../../types.js';
+import { botService } from '../../services/bot-service.js';
+import {
+    AccountOperationStatus,
+    type AccountOperationResult,
+    type AppError,
+    type ForwardDateContext,
+} from '../../types.js';
 import type { ForwardDateView } from './forward-date-view.js';
 
 export class ForwardDateController implements ReactiveController {
@@ -36,16 +42,43 @@ export class ForwardDateController implements ReactiveController {
         const portfolioBookId = context.portfolioBook.getId();
         const date = this.view.date;
 
+        return this.runAccountOperation(
+            context,
+            account => this.forwardAccount(portfolioBookId, account, date),
+            'Forward Date could not be started. Please try again.'
+        );
+    }
+
+    clearResults(): void {
+        this.view.results = new Map();
+        this.view.operationError = undefined;
+    }
+
+    private async runAccountOperation(
+        context: ForwardDateContext,
+        executeAccount: (account: Account) => Promise<void>,
+        startErrorFallback: string
+    ): Promise<void> {
         this.view.executing = true;
-        this.clearOperationError();
+        this.clearResults();
 
         try {
+            const hasPendingTasks = await botService.hasPendingTasks(context.portfolioBook);
+            if (hasPendingTasks) {
+                this.view.operationError = this.createOperationError(
+                    'Cannot start operation: Portfolio Book has pending tasks.'
+                );
+                return;
+            }
+
+            this.initializeWaitingResults(context.accounts);
+
             for (const account of context.accounts) {
-                await this.forwardAccount(portfolioBookId, account, date);
+                await executeAccount(account);
             }
         } catch (error: unknown) {
             this.view.operationError = this.createOperationError(
-                this.formatError(error, 'Forward Date could not be completed. Please try again.')
+                this.formatError(error, startErrorFallback)
             );
         } finally {
             this.view.executing = false;
@@ -61,7 +94,42 @@ export class ForwardDateController implements ReactiveController {
         if (!portfolioAccountId) {
             return;
         }
-        await botApiService.forwardAccount(portfolioBookId, portfolioAccountId, { date });
+        try {
+            const response = await botApiService.forwardAccount(
+                portfolioBookId,
+                portfolioAccountId,
+                { date }
+            );
+            this.setResult(portfolioAccountId, {
+                status: AccountOperationStatus.COMPLETE,
+                message: response.message,
+            });
+        } catch (error: unknown) {
+            this.setResult(portfolioAccountId, {
+                status: AccountOperationStatus.ERROR,
+                error: this.formatError(
+                    error,
+                    'Forward Date could not be completed. Please try again.'
+                ),
+            });
+        }
+    }
+
+    private initializeWaitingResults(accounts: Account[]): void {
+        const results = new Map<string, AccountOperationResult>();
+        for (const account of accounts) {
+            const accountId = account.getId();
+            if (accountId) {
+                results.set(accountId, { status: AccountOperationStatus.WAITING });
+            }
+        }
+        this.view.results = results;
+    }
+
+    private setResult(accountId: string, result: AccountOperationResult): void {
+        const results = new Map(this.view.results);
+        results.set(accountId, result);
+        this.view.results = results;
     }
 
     private createOperationError(message: string): AppError {
@@ -69,10 +137,6 @@ export class ForwardDateController implements ReactiveController {
             type: 'error',
             message: { before: message },
         };
-    }
-
-    clearOperationError(): void {
-        this.view.operationError = undefined;
     }
 
     private formatError(error: unknown, fallback: string): string {

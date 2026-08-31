@@ -3,7 +3,12 @@ import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js'
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
 import { ForwardDateView } from '../../../src/components/forward-date/forward-date-view.js';
-import { PortfolioService, type AppError, type ForwardDateContext } from '../../../src/types.js';
+import {
+    AccountOperationStatus,
+    PortfolioService,
+    type AppError,
+    type ForwardDateContext,
+} from '../../../src/types.js';
 
 const render = Reflect.get(ForwardDateView.prototype, 'render') as (
     this: ForwardDateView
@@ -54,6 +59,10 @@ describe('Forward Date view', () => {
         const view = new ForwardDateView();
         view.context = context;
         view.date = '2026-03-10';
+        view.results.set('apple', {
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Forwarded',
+        });
 
         const result = render.call(view);
         const markup = result.strings.join('');
@@ -69,10 +78,11 @@ describe('Forward Date view', () => {
         expect(result.values[3]).toBe(context.accounts);
         expect(result.values[4]).toBe(context.selectedAccount);
         expect(result.values[5]).toBe(context.selectedGroup);
+        expect(result.values[6]).toBe(view.results);
         expect(result.values).toContain('2026-03-10');
     });
 
-    it('clears a stale error when the date changes and delegates Run to the controller', () => {
+    it('clears stale results when the date changes and delegates Run to the controller', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const view = new ForwardDateView();
         view.context = {
@@ -80,14 +90,15 @@ describe('Forward Date view', () => {
             accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
         };
         const controller = Reflect.get(view, 'controller') as {
-            clearOperationError: () => void;
+            clearResults: () => void;
             runForward: () => Promise<void>;
         };
-        const clearOperationError = mock(() => {
+        const clearResults = mock(() => {
+            view.results = new Map();
             view.operationError = undefined;
         });
         const runForward = mock(async () => undefined);
-        controller.clearOperationError = clearOperationError;
+        controller.clearResults = clearResults;
         controller.runForward = runForward;
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
@@ -95,7 +106,7 @@ describe('Forward Date view', () => {
         const result = render.call(view);
 
         expect(view.date).toBe('2026-04-15');
-        expect(clearOperationError).toHaveBeenCalledTimes(1);
+        expect(clearResults).toHaveBeenCalledTimes(1);
         expect(runForward).toHaveBeenCalledTimes(1);
         expect(result.values).toContain(handleDateInputted);
         expect(result.values).toContain(handleRunClicked);

@@ -138,7 +138,8 @@ export class RealizedResultsView extends LitElement {
         if (!context?.fullResetEnabled) {
             return html``;
         }
-        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${context.accounts.length} accounts. This operation cannot be undone.`;
+        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
+        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${accountLabel}. This operation cannot be undone.`;
         return html`
             <confirmation-dialog
                 .headerLabel=${'Confirm Full Reset'}

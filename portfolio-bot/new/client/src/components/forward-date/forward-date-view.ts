@@ -1,6 +1,6 @@
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property, query, state } from 'lit/decorators.js';
 import {
     PortfolioService,
     type AccountOperationResult,
@@ -8,8 +8,10 @@ import {
     type ForwardDateContext,
 } from '../../types.js';
 import { Utils } from '../../utils.js';
+import type { ConfirmationDialogView } from '../confirmation-dialog/confirmation-dialog-view.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
+import '../confirmation-dialog/confirmation-dialog-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 import { ForwardDateController } from './forward-date-controller.js';
@@ -36,6 +38,9 @@ export class ForwardDateView extends LitElement {
 
     @state()
     results = new Map<string, AccountOperationResult>();
+
+    @query('confirmation-dialog')
+    private forwardConfirmationDialog?: ConfirmationDialogView;
 
     static styles = [sharedCSS, forwardDateCSS];
 
@@ -86,7 +91,27 @@ export class ForwardDateView extends LitElement {
                         </wa-button>
                     </div>
                 </div>
+
+                <!-- Forward Date confirmation -->
+                ${this.renderForwardConfirmationDialog()}
             </div>
+        `;
+    }
+
+    private renderForwardConfirmationDialog(): TemplateResult {
+        const context = this.context;
+        if (!context?.accounts.length || !this.date) {
+            return html``;
+        }
+        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
+        const confirmationText = `Set Forward Date to ${this.date} for ${accountLabel}?`;
+        return html`
+            <confirmation-dialog
+                .headerLabel=${'Confirm Forward Date'}
+                .message=${confirmationText}
+                .actionLabel=${'Run'}
+                @confirmed=${this.handleForwardConfirmed}
+            ></confirmation-dialog>
         `;
     }
 
@@ -139,6 +164,13 @@ export class ForwardDateView extends LitElement {
     }
 
     private handleRunClicked(): void {
+        if (this.isRunButtonDisabled()) {
+            return;
+        }
+        this.forwardConfirmationDialog?.show();
+    }
+
+    private handleForwardConfirmed(): void {
         if (this.isRunButtonDisabled()) {
             return;
         }

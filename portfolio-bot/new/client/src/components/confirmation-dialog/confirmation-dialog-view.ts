@@ -67,7 +67,7 @@ export class ConfirmationDialogView extends LitElement {
                 <wa-button
                     slot="footer"
                     variant=${this.confirmationPhrase ? 'danger' : 'brand'}
-                    appearance="outlined"
+                    appearance=${this.confirmationPhrase ? 'outlined' : 'accent'}
                     size="s"
                     type="button"
                     ?disabled=${this.isActionDisabled()}

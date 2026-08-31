@@ -13,6 +13,10 @@ import {
 const render = Reflect.get(ForwardDateView.prototype, 'render') as (
     this: ForwardDateView
 ) => TemplateResult;
+const renderForwardConfirmationDialog = Reflect.get(
+    ForwardDateView.prototype,
+    'renderForwardConfirmationDialog'
+) as (this: ForwardDateView) => TemplateResult;
 const renderPermissionError = Reflect.get(ForwardDateView.prototype, 'renderPermissionError') as (
     this: ForwardDateView
 ) => TemplateResult;
@@ -24,6 +28,9 @@ const handleDateInputted = Reflect.get(ForwardDateView.prototype, 'handleDateInp
     event: Event
 ) => void;
 const handleRunClicked = Reflect.get(ForwardDateView.prototype, 'handleRunClicked') as (
+    this: ForwardDateView
+) => void;
+const handleForwardConfirmed = Reflect.get(ForwardDateView.prototype, 'handleForwardConfirmed') as (
     this: ForwardDateView
 ) => void;
 const isServiceSwitcherDisabled = Reflect.get(
@@ -80,9 +87,14 @@ describe('Forward Date view', () => {
         expect(result.values[5]).toBe(context.selectedGroup);
         expect(result.values[6]).toBe(view.results);
         expect(result.values).toContain('2026-03-10');
+
+        const confirmation = renderForwardConfirmationDialog.call(view);
+        expect(confirmation.strings.join('')).toContain('<confirmation-dialog');
+        expect(confirmation.strings.join('')).not.toContain('confirmationPhrase');
+        expect(confirmation.values).toContain(handleForwardConfirmed);
     });
 
-    it('clears stale results when the date changes and delegates Run to the controller', () => {
+    it('clears stale results and confirms Run before delegating to the controller', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const view = new ForwardDateView();
         view.context = {
@@ -98,18 +110,46 @@ describe('Forward Date view', () => {
             view.operationError = undefined;
         });
         const runForward = mock(async () => undefined);
+        const showConfirmation = mock(() => undefined);
         controller.clearResults = clearResults;
         controller.runForward = runForward;
+        Object.defineProperty(view, 'forwardConfirmationDialog', {
+            value: { show: showConfirmation },
+        });
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
         handleRunClicked.call(view);
+        expect(showConfirmation).toHaveBeenCalledTimes(1);
+        expect(runForward).not.toHaveBeenCalled();
+        handleForwardConfirmed.call(view);
         const result = render.call(view);
 
         expect(view.date).toBe('2026-04-15');
         expect(clearResults).toHaveBeenCalledTimes(1);
         expect(runForward).toHaveBeenCalledTimes(1);
+
+        view.executing = true;
+        handleForwardConfirmed.call(view);
+        expect(runForward).toHaveBeenCalledTimes(1);
+
         expect(result.values).toContain(handleDateInputted);
         expect(result.values).toContain(handleRunClicked);
+    });
+
+    it('does not render confirmation without an available date and Account scope', () => {
+        const portfolioBook = new Book({ id: 'portfolio-book' });
+        const view = new ForwardDateView();
+        view.context = {
+            portfolioBook,
+            accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
+        };
+
+        expect(renderForwardConfirmationDialog.call(view).strings.join('')).toBe('');
+
+        view.date = '2026-03-10';
+        view.context.accounts = [];
+
+        expect(renderForwardConfirmationDialog.call(view).strings.join('')).toBe('');
     });
 
     it('blocks controls while executing or when the operation is unavailable', () => {

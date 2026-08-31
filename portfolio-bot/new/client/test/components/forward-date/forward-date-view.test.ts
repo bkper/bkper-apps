@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { Account, Book, Group } from 'bkper-js';
 import type { TemplateResult } from 'lit';
@@ -9,6 +9,9 @@ const render = Reflect.get(ForwardDateView.prototype, 'render') as (
     this: ForwardDateView
 ) => TemplateResult;
 const renderPermissionError = Reflect.get(ForwardDateView.prototype, 'renderPermissionError') as (
+    this: ForwardDateView
+) => TemplateResult;
+const renderOperationError = Reflect.get(ForwardDateView.prototype, 'renderOperationError') as (
     this: ForwardDateView
 ) => TemplateResult;
 const handleDateInputted = Reflect.get(ForwardDateView.prototype, 'handleDateInputted') as (
@@ -69,18 +72,31 @@ describe('Forward Date view', () => {
         expect(result.values).toContain('2026-03-10');
     });
 
-    it('updates the date and wires the Run click boundary', () => {
+    it('clears a stale error when the date changes and delegates Run to the controller', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const view = new ForwardDateView();
         view.context = {
             portfolioBook,
             accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
         };
+        const controller = Reflect.get(view, 'controller') as {
+            clearOperationError: () => void;
+            runForward: () => Promise<void>;
+        };
+        const clearOperationError = mock(() => {
+            view.operationError = undefined;
+        });
+        const runForward = mock(async () => undefined);
+        controller.clearOperationError = clearOperationError;
+        controller.runForward = runForward;
 
         handleDateInputted.call(view, createInputEvent('2026-04-15'));
+        handleRunClicked.call(view);
         const result = render.call(view);
 
         expect(view.date).toBe('2026-04-15');
+        expect(clearOperationError).toHaveBeenCalledTimes(1);
+        expect(runForward).toHaveBeenCalledTimes(1);
         expect(result.values).toContain(handleDateInputted);
         expect(result.values).toContain(handleRunClicked);
     });
@@ -154,9 +170,23 @@ describe('Forward Date view', () => {
         expect(errorResult.values[0]).toBe(permissionError);
     });
 
-    it('does not render a permission error when none is supplied', () => {
-        const result = renderPermissionError.call(new ForwardDateView());
+    it('renders an operation error in the actions area', () => {
+        const view = new ForwardDateView();
+        view.operationError = {
+            type: 'error',
+            message: { before: 'Forward Date failed.' },
+        };
 
-        expect(result.strings.join('')).toBe('');
+        const result = renderOperationError.call(view);
+
+        expect(result.strings.join('')).toContain('<app-error');
+        expect(result.values[0]).toBe(view.operationError);
+    });
+
+    it('does not render absent permission or operation errors', () => {
+        const view = new ForwardDateView();
+
+        expect(renderPermissionError.call(view).strings.join('')).toBe('');
+        expect(renderOperationError.call(view).strings.join('')).toBe('');
     });
 });

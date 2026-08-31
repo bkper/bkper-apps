@@ -30,10 +30,7 @@ export class RealizedResultsController implements ReactiveController {
     }
 
     private shouldDisableExecution(): boolean {
-        if (this.view.executing || this.view.permissionError !== undefined) {
-            return true;
-        }
-        return false;
+        return this.view.executing || this.view.permissionError !== undefined;
     }
 
     async runCalculate(): Promise<void> {

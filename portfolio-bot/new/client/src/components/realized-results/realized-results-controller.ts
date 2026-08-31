@@ -21,7 +21,8 @@ export class RealizedResultsController extends AccountOperationController<
         return this.runAccountOperation(
             context,
             account => this.calculateAccount(portfolioBookId, account, date, performMtm),
-            'Calculate could not be started. Please try again.'
+            'Calculate could not be started. Please try again.',
+            true
         );
     }
 
@@ -36,7 +37,8 @@ export class RealizedResultsController extends AccountOperationController<
         return this.runAccountOperation(
             context,
             account => this.resetAccount(portfolioBookId, account, false),
-            'Reset could not be started. Please try again.'
+            'Reset could not be started. Please try again.',
+            true
         );
     }
 
@@ -51,7 +53,8 @@ export class RealizedResultsController extends AccountOperationController<
         return this.runAccountOperation(
             context,
             account => this.resetAccount(portfolioBookId, account, true),
-            'Full Reset could not be started. Please try again.'
+            'Full Reset could not be started. Please try again.',
+            true
         );
     }
 

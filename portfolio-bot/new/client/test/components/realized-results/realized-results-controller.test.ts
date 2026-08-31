@@ -89,7 +89,7 @@ describe('Realized results controller', () => {
         expect(view.executing).toBe(false);
     });
 
-    it('calculates Accounts sequentially with the current date and MTM intent', async () => {
+    it('calculates Accounts concurrently with the current date and MTM intent', async () => {
         botService.hasPendingTasks = mock(async () => false);
         let resolveFirst: (response: { message: string }) => void = () => {};
         const firstRequest = new Promise<{ message: string }>(resolve => {
@@ -108,9 +108,12 @@ describe('Realized results controller', () => {
         await Promise.resolve();
 
         expect(view.executing).toBe(true);
-        expect(requestedAccountIds).toEqual(['apple']);
+        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
         expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({ status: AccountOperationStatus.WAITING });
+        expect(view.results.get('alphabet')).toEqual({
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Alphabet calculated',
+        });
 
         resolveFirst({ message: 'Apple calculated' });
         await calculation;
@@ -182,7 +185,7 @@ describe('Realized results controller', () => {
         expect(view.executing).toBe(false);
     });
 
-    it('resets Accounts sequentially and continues after an Account error', async () => {
+    it('resets Accounts concurrently and continues after an Account error', async () => {
         botService.hasPendingTasks = mock(async () => false);
         let rejectFirst: (error: Error) => void = () => {};
         const firstRequest = new Promise<{ message: string }>((_resolve, reject) => {
@@ -201,9 +204,12 @@ describe('Realized results controller', () => {
         await Promise.resolve();
 
         expect(view.executing).toBe(true);
-        expect(requestedAccountIds).toEqual(['apple']);
+        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
         expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({ status: AccountOperationStatus.WAITING });
+        expect(view.results.get('alphabet')).toEqual({
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Alphabet reset',
+        });
 
         rejectFirst(new Error('Apple reset failed'));
         await reset;
@@ -241,7 +247,7 @@ describe('Realized results controller', () => {
         expect(view.executing).toBe(false);
     });
 
-    it('fully resets Accounts sequentially and continues after an Account error', async () => {
+    it('fully resets Accounts concurrently and continues after an Account error', async () => {
         botService.hasPendingTasks = mock(async () => false);
         let rejectFirst: (error: Error) => void = () => {};
         const firstRequest = new Promise<{ message: string }>((_resolve, reject) => {
@@ -261,9 +267,12 @@ describe('Realized results controller', () => {
         await Promise.resolve();
 
         expect(view.executing).toBe(true);
-        expect(requestedAccountIds).toEqual(['apple']);
+        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
         expect(view.results.get('apple')).toEqual({ status: AccountOperationStatus.WAITING });
-        expect(view.results.get('alphabet')).toEqual({ status: AccountOperationStatus.WAITING });
+        expect(view.results.get('alphabet')).toEqual({
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Alphabet fully reset',
+        });
 
         rejectFirst(new Error('Apple full reset failed'));
         await fullReset;

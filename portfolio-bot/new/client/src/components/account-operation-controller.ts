@@ -2,6 +2,7 @@ import type { Account } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type { OperationResponse } from '../api/generated/types.js';
 import { botService } from '../services/bot-service.js';
+import { runRequestsWithConcurrency } from '../services/request-batch.js';
 import {
     AccountOperationStatus,
     type AccountOperationContext,
@@ -53,7 +54,8 @@ export abstract class AccountOperationController<
     protected async runAccountOperation(
         context: Context,
         executeAccount: (account: Account) => Promise<void>,
-        startErrorFallback: string
+        startErrorFallback: string,
+        concurrent = false
     ): Promise<void> {
         this.view.executing = true;
         this.clearResults();
@@ -69,8 +71,12 @@ export abstract class AccountOperationController<
 
             this.initializeWaitingResults(context.accounts);
 
-            for (const account of context.accounts) {
-                await executeAccount(account);
+            if (concurrent) {
+                await runRequestsWithConcurrency(context.accounts, executeAccount);
+            } else {
+                for (const account of context.accounts) {
+                    await executeAccount(account);
+                }
             }
         } catch (error: unknown) {
             this.view.operationError = this.createOperationError(

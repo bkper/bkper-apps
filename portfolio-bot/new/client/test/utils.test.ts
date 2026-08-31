@@ -101,7 +101,7 @@ describe('Utils', () => {
         expect(await Utils.isEligiblePortfolioAccount(missingExchange)).toBe(false);
     });
 
-    it('allows service switching only for a selected context with eligible Accounts', () => {
+    it('allows service switching for a selected context even without eligible Accounts', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const account = new Account(portfolioBook, { id: 'instrument' });
         const group = new Group(portfolioBook, { id: 'instruments' });
@@ -122,7 +122,7 @@ describe('Utils', () => {
 
         expect(Utils.canSwitchServices()).toBe(false);
         expect(Utils.canSwitchServices(pendingContext)).toBe(false);
-        expect(Utils.canSwitchServices(emptySelectedContext)).toBe(false);
+        expect(Utils.canSwitchServices(emptySelectedContext)).toBe(true);
         expect(Utils.canSwitchServices(selectedContext)).toBe(true);
     });
 

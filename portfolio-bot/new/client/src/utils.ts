@@ -107,12 +107,11 @@ export class Utils {
      * Tells whether the current Account context can navigate between services.
      *
      * @param context - The resolved Account operation context.
-     * @returns `true` when a selected Account or Group has eligible Accounts.
+     * @returns `true` when an Account or Group is selected, including an empty eligible set.
      */
     static canSwitchServices(context?: AccountOperationContext): boolean {
         return (
             context !== undefined &&
-            context.accounts.length > 0 &&
             (context.selectedAccount !== undefined || context.selectedGroup !== undefined)
         );
     }

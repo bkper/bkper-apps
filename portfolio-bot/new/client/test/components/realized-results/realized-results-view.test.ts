@@ -314,7 +314,7 @@ describe('Realized results view', () => {
         expect(view.date).toBe('2026-03-10');
     });
 
-    it('hides service switching without a usable selected context', () => {
+    it('keeps service switching available for an empty selected context', () => {
         const pendingContext = createContext();
         pendingContext.selectedGroup = undefined;
         const emptyGroupContext = createContext();
@@ -326,7 +326,7 @@ describe('Realized results view', () => {
         emptyGroupView.context = emptyGroupContext;
 
         expect(render.call(pendingView).values[1]).toBe(false);
-        expect(render.call(emptyGroupView).values[1]).toBe(false);
+        expect(render.call(emptyGroupView).values[1]).toBe(true);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

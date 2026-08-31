@@ -126,7 +126,7 @@ describe('Forward Date view', () => {
         expect(isRunButtonDisabled.call(view)).toBe(true);
     });
 
-    it('hides service switching when the selected context has no eligible Accounts', () => {
+    it('keeps service switching available when the selected context has no eligible Accounts', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const view = new ForwardDateView();
         view.context = {
@@ -135,7 +135,7 @@ describe('Forward Date view', () => {
             selectedGroup: new Group(portfolioBook, { id: 'empty-group' }),
         };
 
-        expect(render.call(view).values[1]).toBe(false);
+        expect(render.call(view).values[1]).toBe(true);
     });
 
     it('renders the supplied permission error without hiding the Account scope', () => {

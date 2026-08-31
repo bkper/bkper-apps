@@ -100,6 +100,24 @@ describe('Confirmation dialog', () => {
         expect(dialog.open).toBe(false);
     });
 
+    it('dispatches a standard confirmation only once per opening', () => {
+        const view = new ConfirmationDialogView();
+        attachDialog(view);
+        view.show();
+        let confirmations = 0;
+        view.addEventListener('confirmed', () => confirmations++);
+
+        handleActionClicked.call(view);
+        handleActionClicked.call(view);
+
+        expect(confirmations).toBe(1);
+
+        view.show();
+        handleActionClicked.call(view);
+
+        expect(confirmations).toBe(2);
+    });
+
     it('exposes hide and clears typed confirmation after the dialog closes', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);

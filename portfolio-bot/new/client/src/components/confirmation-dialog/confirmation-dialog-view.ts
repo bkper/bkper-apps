@@ -22,6 +22,9 @@ export class ConfirmationDialogView extends LitElement {
     @state()
     private confirmationInput = '';
 
+    @state()
+    private confirmationDispatched = false;
+
     @query('wa-dialog')
     private dialog?: WaDialog;
 
@@ -29,6 +32,7 @@ export class ConfirmationDialogView extends LitElement {
 
     show(): void {
         this.confirmationInput = '';
+        this.confirmationDispatched = false;
         if (this.dialog) {
             this.dialog.open = true;
         }
@@ -102,8 +106,9 @@ export class ConfirmationDialogView extends LitElement {
 
     private isActionDisabled(): boolean {
         return (
-            this.confirmationPhrase !== '' &&
-            this.confirmationInput.trim() !== this.confirmationPhrase
+            this.confirmationDispatched ||
+            (this.confirmationPhrase !== '' &&
+                this.confirmationInput.trim() !== this.confirmationPhrase)
         );
     }
 
@@ -111,6 +116,7 @@ export class ConfirmationDialogView extends LitElement {
         if (this.isActionDisabled()) {
             return;
         }
+        this.confirmationDispatched = true;
         this.hide();
         this.dispatchEvent(
             new CustomEvent('confirmed', {

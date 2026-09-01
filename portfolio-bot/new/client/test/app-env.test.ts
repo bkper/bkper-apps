@@ -40,6 +40,19 @@ describe('App environment', () => {
         expect(appEnv.getSearchParam('missing')).toBeNull();
     });
 
+    it('ignores unresolved Bkper menu expressions', () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://stock-bot.bkper.app/?bookId=book-id&accountId=${account.id}&groupId=${group.id}',
+            },
+        });
+
+        expect(appEnv.getSearchParam('bookId')).toBe('book-id');
+        expect(appEnv.getSearchParam('accountId')).toBeNull();
+        expect(appEnv.getSearchParam('groupId')).toBeNull();
+    });
+
     it('detects when the app is embedded in an iframe', () => {
         Object.defineProperty(self, 'top', {
             configurable: true,

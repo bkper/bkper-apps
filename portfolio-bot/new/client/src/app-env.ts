@@ -1,5 +1,7 @@
 import { APP_ID } from './constants';
 
+const BKPER_MENU_EXPRESSION = /^\$\{[^{}]+\}$/;
+
 class AppEnv {
     getBkperApiKey(): string {
         return import.meta.env.BKPER_API_KEY!;
@@ -10,7 +12,8 @@ class AppEnv {
     }
 
     getSearchParam(name: string): string | null {
-        return new URL(self.location.href).searchParams.get(name);
+        const value = new URL(self.location.href).searchParams.get(name);
+        return value && BKPER_MENU_EXPRESSION.test(value) ? null : value;
     }
 
     isEmbedded(): boolean {

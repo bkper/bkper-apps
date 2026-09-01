@@ -18,6 +18,10 @@ afterEach(() => {
 });
 
 describe('App environment', () => {
+    it('provides the trusted Bkper origin', () => {
+        expect(appEnv.getBkperOrigin()).toBe('https://bkper.app');
+    });
+
     it('builds the main Book transactions URL', () => {
         expect(appEnv.getBookUrl('book-id')).toBe('https://bkper.app/books/book-id/transactions');
     });
@@ -38,6 +42,12 @@ describe('App environment', () => {
 
         expect(appEnv.getSearchParam('bookId')).toBe('book-id');
         expect(appEnv.getSearchParam('missing')).toBeNull();
+    });
+
+    it('reads a search parameter from a supplied App URL', () => {
+        const url = new URL('https://stock-bot.bkper.app/?bookId=next-book');
+
+        expect(appEnv.getSearchParam('bookId', url)).toBe('next-book');
     });
 
     it('ignores unresolved Bkper menu expressions', () => {

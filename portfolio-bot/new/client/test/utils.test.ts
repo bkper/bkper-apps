@@ -3,6 +3,16 @@ import { Account, AccountType, Book, Group, Permission } from 'bkper-js';
 import type { AccountOperationContext } from '../src/types.js';
 import { Utils } from '../src/utils.js';
 
+function createMessage(
+    data: unknown,
+    origin = 'https://bkper.app',
+    source: unknown = self
+): MessageEvent<unknown> {
+    const event = new MessageEvent<unknown>('message', { data, origin });
+    Object.defineProperty(event, 'source', { value: source });
+    return event;
+}
+
 describe('Utils', () => {
     it('uses explicit view, edit, and owner permission checks', () => {
         const cases = [
@@ -124,6 +134,27 @@ describe('Utils', () => {
         expect(Utils.canSwitchServices(pendingContext)).toBe(false);
         expect(Utils.canSwitchServices(emptySelectedContext)).toBe(true);
         expect(Utils.canSwitchServices(selectedContext)).toBe(true);
+    });
+
+    it('accepts only trusted Bkper App URL change messages', () => {
+        const url = 'https://stock-bot.bkper.app/?bookId=book-id';
+        const validMessage = { type: 'bkper:app-url-changed', url };
+        const invalidEvents = [
+            createMessage(validMessage, 'https://example.com'),
+            createMessage(validMessage, 'https://bkper.app', null),
+            createMessage(null),
+            createMessage('message'),
+            createMessage({}),
+            createMessage({ type: 'other', url }),
+            createMessage({ type: 'bkper:app-url-changed', url: 42 }),
+        ];
+
+        expect(
+            Utils.isTrustedAppUrlChangeEvent(createMessage(validMessage), self, 'https://bkper.app')
+        ).toBe(true);
+        for (const event of invalidEvents) {
+            expect(Utils.isTrustedAppUrlChangeEvent(event, self, 'https://bkper.app')).toBe(false);
+        }
     });
 
     it('returns the calendar date in the Book timezone', () => {

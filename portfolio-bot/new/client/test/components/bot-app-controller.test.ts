@@ -52,17 +52,36 @@ const originalLoadBook = bkperService.loadBook;
 const originalLoadInstalledApp = bkperService.loadInstalledApp;
 const originalListAccountsPendingCalculation = botApiService.listAccountsPendingCalculation;
 const originalGetStockBook = botService.getStockBook;
+const originalHistory = Object.getOwnPropertyDescriptor(self, 'history');
 const originalLocation = Object.getOwnPropertyDescriptor(self, 'location');
+const originalParent = Object.getOwnPropertyDescriptor(self, 'parent');
 const originalTop = Object.getOwnPropertyDescriptor(self, 'top');
+let replaceState: ReturnType<typeof mock>;
 
 beforeEach(() => {
     Object.defineProperty(self, 'location', {
         configurable: true,
         value: { href: 'https://stock-bot.bkper.app/?bookId=book-id' },
     });
+    Object.defineProperty(self, 'parent', {
+        configurable: true,
+        value: self,
+    });
     Object.defineProperty(self, 'top', {
         configurable: true,
         value: self,
+    });
+    replaceState = mock((_state: unknown, _unused: string, url?: string | URL | null) => {
+        if (url) {
+            Object.defineProperty(self, 'location', {
+                configurable: true,
+                value: { href: new URL(url.toString(), self.location.href).href },
+            });
+        }
+    });
+    Object.defineProperty(self, 'history', {
+        configurable: true,
+        value: { state: null, replaceState },
     });
     authService.init = async () => {
         authService.accessToken = 'access-token';
@@ -89,10 +108,20 @@ afterEach(() => {
     bkperService.loadInstalledApp = originalLoadInstalledApp;
     botApiService.listAccountsPendingCalculation = originalListAccountsPendingCalculation;
     botService.getStockBook = originalGetStockBook;
+    if (originalHistory) {
+        Object.defineProperty(self, 'history', originalHistory);
+    } else {
+        Reflect.deleteProperty(self, 'history');
+    }
     if (originalLocation) {
         Object.defineProperty(self, 'location', originalLocation);
     } else {
         Reflect.deleteProperty(self, 'location');
+    }
+    if (originalParent) {
+        Object.defineProperty(self, 'parent', originalParent);
+    } else {
+        Reflect.deleteProperty(self, 'parent');
     }
     if (originalTop) {
         Object.defineProperty(self, 'top', originalTop);
@@ -103,6 +132,29 @@ afterEach(() => {
 
 function createController(view: TestView): BotAppController {
     return new BotAppController(view as unknown as BotAppView);
+}
+
+function createMessage(
+    data: unknown,
+    origin = 'https://bkper.app',
+    source: unknown = self
+): MessageEvent<unknown> {
+    const event = new MessageEvent<unknown>('message', { data, origin });
+    Object.defineProperty(event, 'source', { value: source });
+    return event;
+}
+
+function createUrlChange(url: string, origin = 'https://bkper.app'): MessageEvent<unknown> {
+    return createMessage({ type: 'bkper:app-url-changed', url }, origin);
+}
+
+function handleMessage(controller: BotAppController, event: MessageEvent<unknown>): Promise<void> {
+    const handler = Reflect.get(controller, 'handleMessage') as
+        ((event: MessageEvent<unknown>) => Promise<void>) | undefined;
+    if (!handler) {
+        throw new Error('Message handler is not registered.');
+    }
+    return handler(event);
 }
 
 const loadAccount = Reflect.get(BotAppController.prototype, 'loadAccount') as (
@@ -1003,12 +1055,127 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
-    it('starts initialization when the view connects', () => {
+    it('reloads context from a trusted App URL change', async () => {
+        bkperService.loadBook = mock(
+            async bookId =>
+                new Book({
+                    id: bookId,
+                    timeZone: 'UTC',
+                    permission: Permission.EDITOR,
+                })
+        );
+        const view = new TestView();
+        view.appState = BotAppState.READY;
+        const controller = createController(view);
+        const nextUrl = 'https://stock-bot.bkper.app/?bookId=next-book';
+
+        await handleMessage(controller, createUrlChange(nextUrl));
+
+        expect(replaceState).toHaveBeenCalledTimes(1);
+        expect(self.location.href).toBe(nextUrl);
+        expect(view.portfolioBook?.getId()).toBe('next-book');
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('ignores App URL changes while executing', async () => {
+        const view = new TestView();
+        view.appState = BotAppState.EXECUTING;
+        const controller = createController(view);
+
+        await handleMessage(
+            controller,
+            createUrlChange('https://stock-bot.bkper.app/?bookId=ignored-book')
+        );
+
+        expect(replaceState).not.toHaveBeenCalled();
+        expect(bkperService.loadBook).not.toHaveBeenCalled();
+        expect(view.appState).toBe(BotAppState.EXECUTING);
+    });
+
+    it('ignores malformed and untrusted App URL changes', async () => {
+        const view = new TestView();
+        view.appState = BotAppState.READY;
+        const controller = createController(view);
+        const events = [
+            createUrlChange('https://stock-bot.bkper.app/?bookId=book-id', 'https://example.com'),
+            createMessage({ type: 'bkper:app-url-changed', url: 'not a URL' }),
+            createUrlChange('https://example.com/?bookId=book-id'),
+            createMessage({ type: 'other', url: self.location.href }),
+            createMessage(
+                { type: 'bkper:app-url-changed', url: self.location.href },
+                'https://bkper.app',
+                null
+            ),
+        ];
+
+        for (const event of events) {
+            await handleMessage(controller, event);
+        }
+
+        expect(replaceState).not.toHaveBeenCalled();
+        expect(bkperService.loadBook).not.toHaveBeenCalled();
+    });
+
+    it('keeps only the newest context when reloads overlap', async () => {
+        let resolveFirst: (book: Book) => void = () => {};
+        const firstBook = new Promise<Book>(resolve => {
+            resolveFirst = resolve;
+        });
+        bkperService.loadBook = mock(async bookId => {
+            if (bookId === 'first-book') {
+                return firstBook;
+            }
+            return new Book({
+                id: bookId,
+                timeZone: 'UTC',
+                permission: Permission.EDITOR,
+            });
+        });
+        const view = new TestView();
+        view.appState = BotAppState.READY;
+        const controller = createController(view);
+
+        const firstReload = handleMessage(
+            controller,
+            createUrlChange('https://stock-bot.bkper.app/?bookId=first-book')
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        const secondReload = handleMessage(
+            controller,
+            createUrlChange('https://stock-bot.bkper.app/?bookId=second-book')
+        );
+
+        await secondReload;
+        resolveFirst(
+            new Book({
+                id: 'first-book',
+                timeZone: 'UTC',
+                permission: Permission.EDITOR,
+            })
+        );
+        await firstReload;
+
+        expect(view.portfolioBook?.getId()).toBe('second-book');
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('listens for App URL changes only while connected', async () => {
         const controller = createController(new TestView());
         controller.initialize = mock(async () => {});
+        const initBookContext = mock(async () => {});
+        Reflect.set(controller, 'initBookContext', initBookContext);
 
         controller.hostConnected();
+        self.dispatchEvent(createUrlChange('https://stock-bot.bkper.app/?bookId=connected-book'));
+        await Promise.resolve();
+        controller.hostDisconnected();
+        self.dispatchEvent(
+            createUrlChange('https://stock-bot.bkper.app/?bookId=disconnected-book')
+        );
+        await Promise.resolve();
 
         expect(controller.initialize).toHaveBeenCalledTimes(1);
+        expect(initBookContext).toHaveBeenCalledTimes(1);
     });
 });

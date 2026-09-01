@@ -1,5 +1,6 @@
 import { APP_ID } from './constants';
 
+const BKPER_ORIGIN = 'https://bkper.app';
 const BKPER_MENU_EXPRESSION = /^\$\{[^{}]+\}$/;
 
 class AppEnv {
@@ -11,8 +12,8 @@ class AppEnv {
         return this.isLocal() ? self.location.origin : undefined;
     }
 
-    getSearchParam(name: string): string | null {
-        const value = new URL(self.location.href).searchParams.get(name);
+    getSearchParam(name: string, url: string | URL = self.location.href): string | null {
+        const value = new URL(url).searchParams.get(name);
         return value && BKPER_MENU_EXPRESSION.test(value) ? null : value;
     }
 
@@ -33,6 +34,10 @@ class AppEnv {
 
     isOffline(): boolean {
         return !this.isOnline();
+    }
+
+    getBkperOrigin(): string {
+        return BKPER_ORIGIN;
     }
 
     getBookUrl(id: string): string {

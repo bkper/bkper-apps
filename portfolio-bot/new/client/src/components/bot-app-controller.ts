@@ -21,56 +21,97 @@ import { BotAppErrors } from './bot-app-errors.js';
 export class BotAppController implements ReactiveController {
     private readonly view: BotAppView;
 
+    private contextVersion = 0;
+
     constructor(view: BotAppView) {
         this.view = view;
         this.view.addController(this);
     }
 
     hostConnected(): void {
+        self.addEventListener('message', this.handleMessage);
         this.initialize();
+    }
+
+    hostDisconnected(): void {
+        self.removeEventListener('message', this.handleMessage);
+    }
+
+    private isCurrent(contextVersion: number): boolean {
+        return contextVersion === this.contextVersion;
     }
 
     async initialize(): Promise<void> {
         this.view.embedded = appEnv.isEmbedded();
-        await Promise.all([this.initApp(), this.initBookContext()]);
+        const url = new URL(self.location.href);
+        const contextVersion = ++this.contextVersion;
+        await Promise.all([this.initApp(), this.initBookContext(url, contextVersion)]);
     }
+
+    private readonly handleMessage = async (event: MessageEvent<unknown>): Promise<void> => {
+        // Ignore context changes while an operation owns the UI so its per-Account results remain visible.
+        if (this.view.appState === BotAppState.EXECUTING) {
+            return;
+        }
+
+        if (!Utils.isTrustedAppUrlChangeEvent(event, self.parent, appEnv.getBkperOrigin())) {
+            return;
+        }
+
+        let url: URL;
+        try {
+            url = new URL(event.data.url);
+        } catch {
+            return;
+        }
+        if (url.origin !== new URL(self.location.href).origin) {
+            return;
+        }
+
+        self.history.replaceState(self.history.state, '', url);
+        const contextVersion = ++this.contextVersion;
+        await this.initBookContext(url, contextVersion);
+    };
 
     private async initApp(): Promise<void> {
         this.view.app = await bkperService.loadApp();
     }
 
-    private async initBookContext(): Promise<void> {
+    private async initBookContext(url: URL, contextVersion: number): Promise<void> {
         this.resetStates();
 
         await authService.init();
-        if (!authService.accessToken) {
+        if (!this.isCurrent(contextVersion) || !authService.accessToken) {
             return;
         }
 
-        const book = await this.initBook();
+        const book = await this.initBook(url, contextVersion);
         if (!book) {
             return;
         }
 
-        const installedInBook = await this.initInstalledApp(book);
-        if (!installedInBook) {
+        const installedInBook = await this.initInstalledApp(book, contextVersion);
+        if (!this.isCurrent(contextVersion) || !installedInBook) {
             return;
         }
 
-        const portfolioBook = await this.initPortfolioBook(book);
+        const portfolioBook = await this.initPortfolioBook(book, contextVersion);
         if (!portfolioBook) {
             return;
         }
 
         if (portfolioBook.getId() !== book.getId()) {
-            const installedInPortfolioBook = await this.initInstalledApp(portfolioBook);
+            const installedInPortfolioBook = await this.initInstalledApp(
+                portfolioBook,
+                contextVersion
+            );
             if (!installedInPortfolioBook) {
                 return;
             }
         }
 
-        const context = await this.loadContext(book, portfolioBook);
-        if (context === null) {
+        const context = await this.loadContext(book, portfolioBook, url, contextVersion);
+        if (!this.isCurrent(contextVersion) || context === null) {
             return;
         }
         this.view.appState = BotAppState.READY;
@@ -89,8 +130,8 @@ export class BotAppController implements ReactiveController {
         this.view.validationError = '';
     }
 
-    private async initBook(): Promise<Book | undefined> {
-        const bookId = appEnv.getSearchParam('bookId');
+    private async initBook(url: URL, contextVersion: number): Promise<Book | undefined> {
+        const bookId = appEnv.getSearchParam('bookId', url);
         if (!bookId) {
             this.view.error = this.bookNotSpecified();
             this.view.appState = BotAppState.ERROR;
@@ -101,6 +142,9 @@ export class BotAppController implements ReactiveController {
         try {
             book = await bkperService.loadBook(bookId, true);
         } catch (error: unknown) {
+            if (!this.isCurrent(contextVersion)) {
+                return undefined;
+            }
             if (isBookAccessRequiredError(error)) {
                 this.view.error = this.bookAccessRequired(bookId);
             } else {
@@ -109,6 +153,10 @@ export class BotAppController implements ReactiveController {
                     : this.bookLoadFailed();
             }
             this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
+
+        if (!this.isCurrent(contextVersion)) {
             return undefined;
         }
 
@@ -124,7 +172,7 @@ export class BotAppController implements ReactiveController {
         return book;
     }
 
-    private async initPortfolioBook(book: Book): Promise<Book | undefined> {
+    private async initPortfolioBook(book: Book, contextVersion: number): Promise<Book | undefined> {
         let portfolioBook = botService.getStockBook(book);
         if (!portfolioBook) {
             this.view.error = this.portfolioBookNotFoundInCollection();
@@ -139,6 +187,9 @@ export class BotAppController implements ReactiveController {
                     ? book
                     : await bkperService.loadBook(portfolioBookId, true);
         } catch (error: unknown) {
+            if (!this.isCurrent(contextVersion)) {
+                return undefined;
+            }
             if (isBookAccessRequiredError(error)) {
                 this.view.error = this.bookAccessRequired(portfolioBookId, true);
             } else {
@@ -147,6 +198,10 @@ export class BotAppController implements ReactiveController {
                     : this.bookLoadFailed(true);
             }
             this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
+
+        if (!this.isCurrent(contextVersion)) {
             return undefined;
         }
 
@@ -165,7 +220,7 @@ export class BotAppController implements ReactiveController {
         return portfolioBook;
     }
 
-    private async initInstalledApp(book: Book): Promise<boolean> {
+    private async initInstalledApp(book: Book, contextVersion: number): Promise<boolean> {
         try {
             const installedApp = await bkperService.loadInstalledApp(book, APP_ID);
             if (installedApp) {
@@ -174,20 +229,30 @@ export class BotAppController implements ReactiveController {
         } catch {
             // Missing installations and verification failures share the same recovery path.
         }
+        if (!this.isCurrent(contextVersion)) {
+            return false;
+        }
         this.view.error = this.appInstallationNotVerified(book.getId());
         this.view.appState = BotAppState.ERROR;
         return false;
     }
 
-    private async loadContext(book: Book, portfolioBook: Book): Promise<void | null> {
+    private async loadContext(
+        book: Book,
+        portfolioBook: Book,
+        url: URL,
+        contextVersion: number
+    ): Promise<void | null> {
         // Account context takes precedence over Group context when both are selected.
-        const account = await this.loadAccount(book, portfolioBook);
+        const account = await this.loadAccount(book, portfolioBook, url, contextVersion);
         if (account === null) {
             return null;
         }
 
         // Resolve Group context only when no Account was selected.
-        const group = account ? undefined : await this.loadGroup(book, portfolioBook);
+        const group = account
+            ? undefined
+            : await this.loadGroup(book, portfolioBook, url, contextVersion);
         if (group === null) {
             return null;
         }
@@ -198,7 +263,8 @@ export class BotAppController implements ReactiveController {
         if (account) {
             await this.addEligiblePortfolioAccount(accounts, account);
         } else if (group) {
-            for (const groupAccount of await group.getAccounts()) {
+            const groupAccounts = await group.getAccounts();
+            for (const groupAccount of groupAccounts) {
                 await this.addEligiblePortfolioAccount(accounts, groupAccount);
             }
         } else {
@@ -214,6 +280,9 @@ export class BotAppController implements ReactiveController {
         }
 
         const accountsExcCodes = await Utils.getExchangeCodes(accounts);
+        if (!this.isCurrent(contextVersion)) {
+            return null;
+        }
 
         const editableExcCodes = botService.getBooksExcCodesUserCanEdit(portfolioBook);
         const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
@@ -266,9 +335,11 @@ export class BotAppController implements ReactiveController {
 
     private async loadAccount(
         book: Book,
-        portfolioBook: Book
+        portfolioBook: Book,
+        url = new URL(self.location.href),
+        contextVersion = this.contextVersion
     ): Promise<Account | null | undefined> {
-        const accountId = appEnv.getSearchParam('accountId');
+        const accountId = appEnv.getSearchParam('accountId', url);
         if (!accountId) {
             return undefined;
         }
@@ -276,7 +347,10 @@ export class BotAppController implements ReactiveController {
         let account = new Account(book, { id: accountId });
         let bookName = book.getName() ?? book.getId();
 
-        const fail = (error: AppError): null => {
+        const fail = (error: AppError): null | undefined => {
+            if (!this.isCurrent(contextVersion)) {
+                return undefined;
+            }
             this.view.error = error;
             this.view.appState = BotAppState.ERROR;
             return null;
@@ -302,8 +376,13 @@ export class BotAppController implements ReactiveController {
         }
     }
 
-    private async loadGroup(book: Book, portfolioBook: Book): Promise<Group | null | undefined> {
-        const groupId = appEnv.getSearchParam('groupId');
+    private async loadGroup(
+        book: Book,
+        portfolioBook: Book,
+        url = new URL(self.location.href),
+        contextVersion = this.contextVersion
+    ): Promise<Group | null | undefined> {
+        const groupId = appEnv.getSearchParam('groupId', url);
         if (!groupId) {
             return undefined;
         }
@@ -311,7 +390,10 @@ export class BotAppController implements ReactiveController {
         let group = new Group(book, { id: groupId });
         let bookName = book.getName() ?? book.getId();
 
-        const fail = (error: AppError): null => {
+        const fail = (error: AppError): null | undefined => {
+            if (!this.isCurrent(contextVersion)) {
+                return undefined;
+            }
             this.view.error = error;
             this.view.appState = BotAppState.ERROR;
             return null;

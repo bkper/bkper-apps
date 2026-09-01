@@ -117,6 +117,32 @@ export class Utils {
     }
 
     /**
+     * Tells whether a browser message is a trusted Bkper App URL change.
+     *
+     * @param event - The untrusted browser message to validate.
+     * @param parent - The trusted parent window expected to send the message.
+     * @param origin - The trusted parent origin expected to send the message.
+     * @returns `true` when the sender and App URL change payload are valid.
+     */
+    static isTrustedAppUrlChangeEvent(
+        event: MessageEvent<unknown>,
+        parent: WindowProxy,
+        origin: string
+    ): event is MessageEvent<{ type: 'bkper:app-url-changed'; url: string }> {
+        const message = event.data;
+        return (
+            event.source === parent &&
+            event.origin === origin &&
+            typeof message === 'object' &&
+            message !== null &&
+            'type' in message &&
+            message.type === 'bkper:app-url-changed' &&
+            'url' in message &&
+            typeof message.url === 'string'
+        );
+    }
+
+    /**
      * Formats a date as an ISO calendar date in the specified timezone.
      *
      * @param date - The instant to format.

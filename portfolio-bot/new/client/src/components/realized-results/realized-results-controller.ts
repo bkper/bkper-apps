@@ -36,24 +36,8 @@ export class RealizedResultsController extends AccountOperationController<
 
         return this.runAccountOperation(
             context,
-            account => this.resetAccount(portfolioBookId, account, false),
+            account => this.resetAccount(portfolioBookId, account),
             'Reset could not be started. Please try again.',
-            true
-        );
-    }
-
-    async runFullReset(): Promise<void> {
-        const context = this.validateContext();
-        if (!context || this.shouldDisableExecution() || !context.fullResetEnabled) {
-            return;
-        }
-
-        const portfolioBookId = context.portfolioBook.getId();
-
-        return this.runAccountOperation(
-            context,
-            account => this.resetAccount(portfolioBookId, account, true),
-            'Full Reset could not be started. Please try again.',
             true
         );
     }
@@ -72,19 +56,11 @@ export class RealizedResultsController extends AccountOperationController<
         );
     }
 
-    private async resetAccount(
-        portfolioBookId: string,
-        portfolioAccount: Account,
-        full: boolean
-    ): Promise<void> {
-        const operation = full ? 'Full Reset' : 'Reset';
+    private async resetAccount(portfolioBookId: string, portfolioAccount: Account): Promise<void> {
         return this.executeAccountOperation(
             portfolioAccount,
-            accountId =>
-                full
-                    ? botApiService.fullResetAccount(portfolioBookId, accountId)
-                    : botApiService.resetAccount(portfolioBookId, accountId),
-            `${operation} could not be completed. Please try again.`
+            accountId => botApiService.resetAccount(portfolioBookId, accountId),
+            'Reset could not be completed. Please try again.'
         );
     }
 }

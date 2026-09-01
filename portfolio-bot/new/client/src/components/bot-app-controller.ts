@@ -8,7 +8,12 @@ import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
 import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AccountOperationContext, AppError, RealizedResultsContext } from './../types.js';
+import type {
+    AccountOperationContext,
+    AppError,
+    ForwardDateContext,
+    RealizedResultsContext,
+} from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
 
@@ -241,11 +246,14 @@ export class BotAppController implements ReactiveController {
         const realizedResultsContext: RealizedResultsContext = {
             ...accountContext,
             resetEnabled,
+        };
+        const forwardDateContext: ForwardDateContext = {
+            ...accountContext,
             fullResetEnabled,
         };
 
         this.view.realizedResultsContext = realizedResultsContext;
-        this.view.forwardDateContext = accountContext;
+        this.view.forwardDateContext = forwardDateContext;
     }
 
     private getMissingExcCodes(

@@ -39,7 +39,10 @@ export class ForwardDateView extends LitElement {
     @state()
     results = new Map<string, AccountOperationResult>();
 
-    @query('confirmation-dialog')
+    @query('.full-reset-confirmation')
+    private fullResetConfirmationDialog?: ConfirmationDialogView;
+
+    @query('.forward-confirmation')
     private forwardConfirmationDialog?: ConfirmationDialogView;
 
     static styles = [sharedCSS, forwardDateCSS];
@@ -79,22 +82,66 @@ export class ForwardDateView extends LitElement {
                 <div class="actions">
                     ${this.renderPermissionError()} ${this.renderOperationError()}
                     <div class="action-buttons">
-                        <wa-button
-                            variant="brand"
-                            appearance="accent"
-                            size="s"
-                            type="button"
-                            ?disabled=${this.isRunButtonDisabled()}
-                            @click=${this.handleRunClicked}
-                        >
-                            Run
-                        </wa-button>
+                        ${this.renderFullResetButton()} ${this.renderForwardButton()}
                     </div>
                 </div>
 
-                <!-- Forward Date confirmation -->
+                <!-- Confirmations -->
+                ${this.renderFullResetConfirmationDialog()}
                 ${this.renderForwardConfirmationDialog()}
             </div>
+        `;
+    }
+
+    private renderFullResetButton(): TemplateResult {
+        if (!this.context?.fullResetEnabled) {
+            return html``;
+        }
+        return html`
+            <wa-button
+                variant="danger"
+                appearance="outlined"
+                size="s"
+                type="button"
+                ?disabled=${this.isFullResetButtonDisabled()}
+                @click=${this.handleFullResetClicked}
+            >
+                Full Reset
+            </wa-button>
+        `;
+    }
+
+    private renderForwardButton(): TemplateResult {
+        return html`
+            <wa-button
+                variant="brand"
+                appearance="accent"
+                size="s"
+                type="button"
+                ?disabled=${this.isRunButtonDisabled()}
+                @click=${this.handleRunClicked}
+            >
+                Forward
+            </wa-button>
+        `;
+    }
+
+    private renderFullResetConfirmationDialog(): TemplateResult {
+        const context = this.context;
+        if (!context?.fullResetEnabled) {
+            return html``;
+        }
+        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
+        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${accountLabel}. This operation cannot be undone.`;
+        return html`
+            <confirmation-dialog
+                class="full-reset-confirmation"
+                .headerLabel=${'Confirm Full Reset'}
+                .message=${confirmationText}
+                .actionLabel=${'Full Reset'}
+                .confirmationPhrase=${'FULL RESET'}
+                @confirmed=${this.handleFullResetConfirmed}
+            ></confirmation-dialog>
         `;
     }
 
@@ -107,9 +154,10 @@ export class ForwardDateView extends LitElement {
         const confirmationText = `Set Forward Date to ${this.date} for ${accountLabel}?`;
         return html`
             <confirmation-dialog
+                class="forward-confirmation"
                 .headerLabel=${'Confirm Forward Date'}
                 .message=${confirmationText}
-                .actionLabel=${'Run'}
+                .actionLabel=${'Forward'}
                 @confirmed=${this.handleForwardConfirmed}
             ></confirmation-dialog>
         `;
@@ -145,13 +193,20 @@ export class ForwardDateView extends LitElement {
         return this.isExecuting() || !this.context?.accounts.length;
     }
 
-    private isRunButtonDisabled(): boolean {
+    private shouldDisableButton(): boolean {
         return (
             this.isExecuting() ||
             this.permissionError !== undefined ||
-            !this.context?.accounts.length ||
-            !this.date
+            !this.context?.accounts.length
         );
+    }
+
+    private isFullResetButtonDisabled(): boolean {
+        return this.shouldDisableButton() || this.context?.fullResetEnabled !== true;
+    }
+
+    private isRunButtonDisabled(): boolean {
+        return this.shouldDisableButton() || !this.date;
     }
 
     private handleDateInputted(event: Event): void {
@@ -161,6 +216,20 @@ export class ForwardDateView extends LitElement {
         const input = event.currentTarget as WaInput;
         this.date = input.value ?? '';
         this.controller.clearResults();
+    }
+
+    private handleFullResetClicked(): void {
+        if (this.isFullResetButtonDisabled()) {
+            return;
+        }
+        this.fullResetConfirmationDialog?.show();
+    }
+
+    private handleFullResetConfirmed(): void {
+        if (this.isFullResetButtonDisabled()) {
+            return;
+        }
+        this.controller.runFullReset();
     }
 
     private handleRunClicked(): void {

@@ -17,6 +17,16 @@ const renderForwardConfirmationDialog = Reflect.get(
     ForwardDateView.prototype,
     'renderForwardConfirmationDialog'
 ) as (this: ForwardDateView) => TemplateResult;
+const renderFullResetButton = Reflect.get(ForwardDateView.prototype, 'renderFullResetButton') as (
+    this: ForwardDateView
+) => TemplateResult;
+const renderForwardButton = Reflect.get(ForwardDateView.prototype, 'renderForwardButton') as (
+    this: ForwardDateView
+) => TemplateResult;
+const renderFullResetConfirmationDialog = Reflect.get(
+    ForwardDateView.prototype,
+    'renderFullResetConfirmationDialog'
+) as (this: ForwardDateView) => TemplateResult;
 const renderPermissionError = Reflect.get(ForwardDateView.prototype, 'renderPermissionError') as (
     this: ForwardDateView
 ) => TemplateResult;
@@ -33,6 +43,13 @@ const handleRunClicked = Reflect.get(ForwardDateView.prototype, 'handleRunClicke
 const handleForwardConfirmed = Reflect.get(ForwardDateView.prototype, 'handleForwardConfirmed') as (
     this: ForwardDateView
 ) => void;
+const handleFullResetClicked = Reflect.get(ForwardDateView.prototype, 'handleFullResetClicked') as (
+    this: ForwardDateView
+) => void;
+const handleFullResetConfirmed = Reflect.get(
+    ForwardDateView.prototype,
+    'handleFullResetConfirmed'
+) as (this: ForwardDateView) => void;
 const isServiceSwitcherDisabled = Reflect.get(
     ForwardDateView.prototype,
     'isServiceSwitcherDisabled'
@@ -40,6 +57,10 @@ const isServiceSwitcherDisabled = Reflect.get(
 const isDateInputDisabled = Reflect.get(ForwardDateView.prototype, 'isDateInputDisabled') as (
     this: ForwardDateView
 ) => boolean;
+const isFullResetButtonDisabled = Reflect.get(
+    ForwardDateView.prototype,
+    'isFullResetButtonDisabled'
+) as (this: ForwardDateView) => boolean;
 const isRunButtonDisabled = Reflect.get(ForwardDateView.prototype, 'isRunButtonDisabled') as (
     this: ForwardDateView
 ) => boolean;
@@ -62,6 +83,7 @@ describe('Forward Date view', () => {
             accounts,
             selectedAccount,
             selectedGroup,
+            fullResetEnabled: false,
         };
         const view = new ForwardDateView();
         view.context = context;
@@ -73,12 +95,13 @@ describe('Forward Date view', () => {
 
         const result = render.call(view);
         const markup = result.strings.join('');
+        const forwardButton = renderForwardButton.call(view);
 
         expect(markup).toContain('<service-switcher');
         expect(markup).toContain('<account-list');
         expect(markup).toContain('<wa-input');
         expect(markup).toContain('type="date"');
-        expect(markup).toContain('Run');
+        expect(forwardButton.values).toContain(handleRunClicked);
         expect(result.values[0]).toBe(PortfolioService.FORWARD_DATE);
         expect(result.values[1]).toBe(true);
         expect(result.values[2]).toBe(false);
@@ -94,12 +117,46 @@ describe('Forward Date view', () => {
         expect(confirmation.values).toContain(handleForwardConfirmed);
     });
 
-    it('clears stale results and confirms Run before delegating to the controller', () => {
+    it('renders and confirms Full Reset in the Forward Date view', () => {
         const portfolioBook = new Book({ id: 'portfolio-book' });
         const view = new ForwardDateView();
         view.context = {
             portfolioBook,
             accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
+            fullResetEnabled: true,
+        };
+        const controller = Reflect.get(view, 'controller') as {
+            runFullReset: () => Promise<void>;
+        };
+        const runFullReset = mock(async () => undefined);
+        const showConfirmation = mock(() => undefined);
+        controller.runFullReset = runFullReset;
+        Object.defineProperty(view, 'fullResetConfirmationDialog', {
+            value: { show: showConfirmation },
+        });
+
+        const button = renderFullResetButton.call(view);
+        const confirmation = renderFullResetConfirmationDialog.call(view);
+        handleFullResetClicked.call(view);
+        expect(showConfirmation).toHaveBeenCalledTimes(1);
+        expect(runFullReset).not.toHaveBeenCalled();
+        handleFullResetConfirmed.call(view);
+
+        expect(button.strings.join('')).toContain('variant="danger"');
+        expect(button.values).toContain(handleFullResetClicked);
+        expect(confirmation.strings.join('')).toContain('<confirmation-dialog');
+        expect(confirmation.values).toContain('FULL RESET');
+        expect(confirmation.values).toContain(handleFullResetConfirmed);
+        expect(runFullReset).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears stale results and confirms Forward before delegating to the controller', () => {
+        const portfolioBook = new Book({ id: 'portfolio-book' });
+        const view = new ForwardDateView();
+        view.context = {
+            portfolioBook,
+            accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
+            fullResetEnabled: false,
         };
         const controller = Reflect.get(view, 'controller') as {
             clearResults: () => void;
@@ -133,7 +190,7 @@ describe('Forward Date view', () => {
         expect(runForward).toHaveBeenCalledTimes(1);
 
         expect(result.values).toContain(handleDateInputted);
-        expect(result.values).toContain(handleRunClicked);
+        expect(renderForwardButton.call(view).values).toContain(handleRunClicked);
     });
 
     it('does not render confirmation without an available date and Account scope', () => {
@@ -142,6 +199,7 @@ describe('Forward Date view', () => {
         view.context = {
             portfolioBook,
             accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
+            fullResetEnabled: false,
         };
 
         expect(renderForwardConfirmationDialog.call(view).strings.join('')).toBe('');
@@ -158,18 +216,24 @@ describe('Forward Date view', () => {
         view.context = {
             portfolioBook,
             accounts: [new Account(portfolioBook, { id: 'apple', name: 'Apple' })],
+            fullResetEnabled: false,
         };
         view.date = '2026-03-10';
 
         expect(isServiceSwitcherDisabled.call(view)).toBe(false);
         expect(isDateInputDisabled.call(view)).toBe(false);
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isRunButtonDisabled.call(view)).toBe(false);
+
+        view.context.fullResetEnabled = true;
+        expect(isFullResetButtonDisabled.call(view)).toBe(false);
 
         view.executing = true;
         handleDateInputted.call(view, createInputEvent('2026-05-20'));
         expect(view.date).toBe('2026-03-10');
         expect(isServiceSwitcherDisabled.call(view)).toBe(true);
         expect(isDateInputDisabled.call(view)).toBe(true);
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isRunButtonDisabled.call(view)).toBe(true);
         expect(render.call(view).values).toContain(true);
 
@@ -178,11 +242,13 @@ describe('Forward Date view', () => {
             type: 'error',
             message: { before: 'Editor permission is required.' },
         };
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isRunButtonDisabled.call(view)).toBe(true);
 
         view.permissionError = undefined;
         view.context.accounts = [];
         expect(isDateInputDisabled.call(view)).toBe(true);
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
         expect(isRunButtonDisabled.call(view)).toBe(true);
 
         handleDateInputted.call(view, createInputEvent('2026-05-20'));
@@ -200,6 +266,7 @@ describe('Forward Date view', () => {
             portfolioBook,
             accounts: [],
             selectedGroup: new Group(portfolioBook, { id: 'empty-group' }),
+            fullResetEnabled: false,
         };
 
         expect(render.call(view).values[1]).toBe(true);

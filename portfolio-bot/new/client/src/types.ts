@@ -70,9 +70,10 @@ export interface AccountOperationResult {
 export interface RealizedResultsContext extends AccountOperationContext {
     /** Whether the Reset operation is enabled. */
     resetEnabled: boolean;
-    /** Whether the Full Reset operation is enabled. */
-    fullResetEnabled: boolean;
 }
 
 /** The resolved context for Forward Date operations. */
-export type ForwardDateContext = AccountOperationContext;
+export interface ForwardDateContext extends AccountOperationContext {
+    /** Whether the Full Reset operation is enabled. */
+    fullResetEnabled: boolean;
+}

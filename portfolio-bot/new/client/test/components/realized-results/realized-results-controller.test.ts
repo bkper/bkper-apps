@@ -39,13 +39,11 @@ class TestView implements ReactiveControllerHost {
 const originalHasPendingTasks = botService.hasPendingTasks;
 const originalCalculateAccount = botApiService.calculateAccount;
 const originalResetAccount = botApiService.resetAccount;
-const originalFullResetAccount = botApiService.fullResetAccount;
 
 afterEach(() => {
     botService.hasPendingTasks = originalHasPendingTasks;
     botApiService.calculateAccount = originalCalculateAccount;
     botApiService.resetAccount = originalResetAccount;
-    botApiService.fullResetAccount = originalFullResetAccount;
 });
 
 function createView(): TestView {
@@ -58,7 +56,6 @@ function createView(): TestView {
             new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
         ],
         resetEnabled: true,
-        fullResetEnabled: false,
     };
     view.date = '2026-03-10';
     view.performMtm = true;
@@ -137,48 +134,10 @@ describe('Realized results controller', () => {
         expect(botApiService.resetAccount).toHaveBeenNthCalledWith(2, 'portfolio-book', 'alphabet');
     });
 
-    it('resets Accounts concurrently through the Full Reset endpoint', async () => {
-        botService.hasPendingTasks = mock(async () => false);
-        let resolveFirst: (response: { message: string }) => void = () => {};
-        const firstRequest = new Promise<{ message: string }>(resolve => {
-            resolveFirst = resolve;
-        });
-        const requestedAccountIds: string[] = [];
-        botApiService.fullResetAccount = mock(async (_bookId, accountId) => {
-            requestedAccountIds.push(accountId);
-            return accountId === 'apple' ? firstRequest : { message: 'Alphabet fully reset' };
-        });
-        const view = createView();
-        view.context!.fullResetEnabled = true;
-        const controller = createController(view);
-
-        const fullReset = controller.runFullReset();
-        await Promise.resolve();
-        await Promise.resolve();
-
-        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
-
-        resolveFirst({ message: 'Apple fully reset' });
-        await fullReset;
-
-        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
-        expect(botApiService.fullResetAccount).toHaveBeenNthCalledWith(
-            1,
-            'portfolio-book',
-            'apple'
-        );
-        expect(botApiService.fullResetAccount).toHaveBeenNthCalledWith(
-            2,
-            'portfolio-book',
-            'alphabet'
-        );
-    });
-
     it('does not execute operations when their operation-specific guards are disabled', async () => {
         botService.hasPendingTasks = mock(async () => false);
         botApiService.calculateAccount = mock(async () => ({ message: 'Calculated' }));
         botApiService.resetAccount = mock(async () => ({ message: 'Reset' }));
-        botApiService.fullResetAccount = mock(async () => ({ message: 'Fully reset' }));
         const view = createView();
         const controller = createController(view);
 
@@ -186,11 +145,9 @@ describe('Realized results controller', () => {
         await controller.runCalculate();
         view.context!.resetEnabled = false;
         await controller.runReset();
-        await controller.runFullReset();
 
         expect(botService.hasPendingTasks).not.toHaveBeenCalled();
         expect(botApiService.calculateAccount).not.toHaveBeenCalled();
         expect(botApiService.resetAccount).not.toHaveBeenCalled();
-        expect(botApiService.fullResetAccount).not.toHaveBeenCalled();
     });
 });

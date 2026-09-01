@@ -33,10 +33,12 @@ class TestView implements ReactiveControllerHost {
 
 const originalHasPendingTasks = botService.hasPendingTasks;
 const originalForwardAccount = botApiService.forwardAccount;
+const originalFullResetAccount = botApiService.fullResetAccount;
 
 afterEach(() => {
     botService.hasPendingTasks = originalHasPendingTasks;
     botApiService.forwardAccount = originalForwardAccount;
+    botApiService.fullResetAccount = originalFullResetAccount;
 });
 
 function createView(): TestView {
@@ -48,6 +50,7 @@ function createView(): TestView {
             new Account(portfolioBook, { id: 'apple', name: 'Apple' }),
             new Account(portfolioBook, { id: 'alphabet', name: 'Alphabet' }),
         ],
+        fullResetEnabled: false,
     };
     view.date = '2026-03-10';
     return view;
@@ -93,16 +96,56 @@ describe('Forward Date controller', () => {
         );
     });
 
-    it('does not execute without a date', async () => {
+    it('fully resets Accounts concurrently', async () => {
+        botService.hasPendingTasks = mock(async () => false);
+        let resolveFirst: (response: { message: string }) => void = () => {};
+        const firstRequest = new Promise<{ message: string }>(resolve => {
+            resolveFirst = resolve;
+        });
+        const requestedAccountIds: string[] = [];
+        botApiService.fullResetAccount = mock(async (_bookId, accountId) => {
+            requestedAccountIds.push(accountId);
+            return accountId === 'apple' ? firstRequest : { message: 'Alphabet fully reset' };
+        });
+        const view = createView();
+        view.context!.fullResetEnabled = true;
+        const controller = createController(view);
+
+        const fullReset = controller.runFullReset();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(requestedAccountIds).toEqual(['apple', 'alphabet']);
+
+        resolveFirst({ message: 'Apple fully reset' });
+        await fullReset;
+
+        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.portfolioBook);
+        expect(botApiService.fullResetAccount).toHaveBeenNthCalledWith(
+            1,
+            'portfolio-book',
+            'apple'
+        );
+        expect(botApiService.fullResetAccount).toHaveBeenNthCalledWith(
+            2,
+            'portfolio-book',
+            'alphabet'
+        );
+    });
+
+    it('does not execute without a date or when Full Reset is unavailable', async () => {
         botService.hasPendingTasks = mock(async () => false);
         botApiService.forwardAccount = mock(async () => ({ message: 'Forwarded' }));
+        botApiService.fullResetAccount = mock(async () => ({ message: 'Fully reset' }));
         const view = createView();
         view.date = '';
         const controller = createController(view);
 
         await controller.runForward();
+        await controller.runFullReset();
 
         expect(botService.hasPendingTasks).not.toHaveBeenCalled();
         expect(botApiService.forwardAccount).not.toHaveBeenCalled();
+        expect(botApiService.fullResetAccount).not.toHaveBeenCalled();
     });
 });

@@ -96,7 +96,6 @@ describe('Bot app view', () => {
             portfolioBook,
             accounts: [],
             resetEnabled: true,
-            fullResetEnabled: false,
         };
         view.portfolioBook = portfolioBook;
         view.initialDate = '2026-03-10';
@@ -127,6 +126,7 @@ describe('Bot app view', () => {
         const context = {
             portfolioBook,
             accounts: [],
+            fullResetEnabled: false,
         };
         view.portfolioBook = portfolioBook;
         view.initialDate = '2026-03-10';

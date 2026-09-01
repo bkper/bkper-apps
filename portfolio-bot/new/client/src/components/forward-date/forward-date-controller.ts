@@ -24,6 +24,22 @@ export class ForwardDateController extends AccountOperationController<
         );
     }
 
+    async runFullReset(): Promise<void> {
+        const context = this.validateContext();
+        if (!context || this.shouldDisableExecution() || !context.fullResetEnabled) {
+            return;
+        }
+
+        const portfolioBookId = context.portfolioBook.getId();
+
+        return this.runAccountOperation(
+            context,
+            account => this.fullResetAccount(portfolioBookId, account),
+            'Full Reset could not be started. Please try again.',
+            true
+        );
+    }
+
     private async forwardAccount(
         portfolioBookId: string,
         portfolioAccount: Account,
@@ -33,6 +49,17 @@ export class ForwardDateController extends AccountOperationController<
             portfolioAccount,
             accountId => botApiService.forwardAccount(portfolioBookId, accountId, { date }),
             'Forward Date could not be completed. Please try again.'
+        );
+    }
+
+    private async fullResetAccount(
+        portfolioBookId: string,
+        portfolioAccount: Account
+    ): Promise<void> {
+        return this.executeAccountOperation(
+            portfolioAccount,
+            accountId => botApiService.fullResetAccount(portfolioBookId, accountId),
+            'Full Reset could not be completed. Please try again.'
         );
     }
 }

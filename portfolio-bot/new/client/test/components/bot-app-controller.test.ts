@@ -252,7 +252,7 @@ describe('Bot app controller', () => {
             'portfolio-account',
         ]);
         expect(view.realizedResultsContext?.resetEnabled).toBe(true);
-        expect(view.realizedResultsContext?.fullResetEnabled).toBe(false);
+        expect(view.forwardDateContext?.fullResetEnabled).toBe(false);
         expect(view.forwardDateContext?.portfolioBook).toBe(portfolioBook);
         expect(view.forwardDateContext?.selectedAccount?.getId()).toBe('portfolio-account');
         expect(view.forwardDateContext?.selectedGroup).toBeUndefined();
@@ -312,7 +312,7 @@ describe('Bot app controller', () => {
 
         await createController(view).initialize();
 
-        expect(view.realizedResultsContext?.fullResetEnabled).toBe(true);
+        expect(view.forwardDateContext?.fullResetEnabled).toBe(true);
     });
 
     it('preserves scoped legacy edit-permission availability', async () => {
@@ -621,7 +621,7 @@ describe('Bot app controller', () => {
             'apple',
         ]);
         expect(view.realizedResultsContext?.resetEnabled).toBe(false);
-        expect(view.realizedResultsContext?.fullResetEnabled).toBe(false);
+        expect(view.forwardDateContext?.fullResetEnabled).toBe(false);
         expect(botApiService.listAccountsPendingCalculation).toHaveBeenCalledTimes(1);
     });
 

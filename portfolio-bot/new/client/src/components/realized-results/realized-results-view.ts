@@ -1,7 +1,7 @@
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import {
     PortfolioService,
     type AccountOperationResult,
@@ -9,10 +9,8 @@ import {
     type RealizedResultsContext,
 } from '../../types.js';
 import { Utils } from '../../utils.js';
-import type { ConfirmationDialogView } from '../confirmation-dialog/confirmation-dialog-view.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
-import '../confirmation-dialog/confirmation-dialog-view.js';
 import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 import { RealizedResultsController } from './realized-results-controller.js';
@@ -42,9 +40,6 @@ export class RealizedResultsView extends LitElement {
 
     @state()
     results = new Map<string, AccountOperationResult>();
-
-    @query('confirmation-dialog')
-    private fullResetConfirmationDialog?: ConfirmationDialogView;
 
     static styles = [sharedCSS, realizedResultsCSS];
 
@@ -77,13 +72,9 @@ export class RealizedResultsView extends LitElement {
                 <div class="actions">
                     ${this.renderPermissionError()} ${this.renderOperationError()}
                     <div class="action-buttons">
-                        ${this.renderFullResetButton()} ${this.renderResetButton()}
-                        ${this.renderCalculateButton()}
+                        ${this.renderResetButton()} ${this.renderCalculateButton()}
                     </div>
                 </div>
-
-                <!-- Full Reset confirmation -->
-                ${this.renderFullResetConfirmationDialog()}
             </div>
         `;
     }
@@ -112,42 +103,6 @@ export class RealizedResultsView extends LitElement {
             >
                 Perform MTM valuations
             </wa-checkbox>
-        `;
-    }
-
-    private renderFullResetButton(): TemplateResult {
-        if (!this.context?.fullResetEnabled) {
-            return html``;
-        }
-        return html`
-            <wa-button
-                variant="danger"
-                appearance="outlined"
-                size="s"
-                type="button"
-                ?disabled=${this.isFullResetButtonDisabled()}
-                @click=${this.handleFullResetClicked}
-            >
-                Full Reset
-            </wa-button>
-        `;
-    }
-
-    private renderFullResetConfirmationDialog(): TemplateResult {
-        const context = this.context;
-        if (!context?.fullResetEnabled) {
-            return html``;
-        }
-        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
-        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${accountLabel}. This operation cannot be undone.`;
-        return html`
-            <confirmation-dialog
-                .headerLabel=${'Confirm Full Reset'}
-                .message=${confirmationText}
-                .actionLabel=${'Full Reset'}
-                .confirmationPhrase=${'FULL RESET'}
-                @confirmed=${this.handleFullResetConfirmed}
-            ></confirmation-dialog>
         `;
     }
 
@@ -226,10 +181,6 @@ export class RealizedResultsView extends LitElement {
         return this.shouldDisableButton() || this.context?.resetEnabled !== true;
     }
 
-    private isFullResetButtonDisabled(): boolean {
-        return this.shouldDisableButton() || this.context?.fullResetEnabled !== true;
-    }
-
     private isCalculateButtonDisabled(): boolean {
         return this.shouldDisableButton() || !this.date;
     }
@@ -257,20 +208,6 @@ export class RealizedResultsView extends LitElement {
             return;
         }
         this.controller.runReset();
-    }
-
-    private handleFullResetClicked(): void {
-        if (this.isFullResetButtonDisabled()) {
-            return;
-        }
-        this.fullResetConfirmationDialog?.show();
-    }
-
-    private handleFullResetConfirmed(): void {
-        if (this.isFullResetButtonDisabled()) {
-            return;
-        }
-        this.controller.runFullReset();
     }
 
     private handleCalculateClicked(): void {

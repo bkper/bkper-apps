@@ -1,23 +1,30 @@
 import type WaDialog from '@awesome.me/webawesome/dist/components/dialog/dialog.js';
 import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { LitElement, type TemplateResult, html } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { customElement, query, state } from 'lit/decorators.js';
 import { confirmationDialogCSS } from './confirmation-dialog-css.js';
 import { sharedCSS } from '../shared-css.js';
 
+export interface ConfirmationDialogOptions {
+    headerLabel: string;
+    message: string;
+    actionLabel: string;
+    confirmationPhrase?: string;
+}
+
 @customElement('confirmation-dialog')
 export class ConfirmationDialogView extends LitElement {
-    @property()
-    headerLabel = '';
+    @state()
+    private headerLabel = '';
 
-    @property()
-    message = '';
+    @state()
+    private message = '';
 
-    @property()
-    actionLabel = '';
+    @state()
+    private actionLabel = '';
 
-    @property()
-    confirmationPhrase = '';
+    @state()
+    private confirmationPhrase = '';
 
     @state()
     private confirmationInput = '';
@@ -30,7 +37,11 @@ export class ConfirmationDialogView extends LitElement {
 
     static styles = [sharedCSS, confirmationDialogCSS];
 
-    show(): void {
+    show(options: ConfirmationDialogOptions): void {
+        this.headerLabel = options.headerLabel;
+        this.message = options.message;
+        this.actionLabel = options.actionLabel;
+        this.confirmationPhrase = options.confirmationPhrase ?? '';
         this.confirmationInput = '';
         this.confirmationDispatched = false;
         if (this.dialog) {

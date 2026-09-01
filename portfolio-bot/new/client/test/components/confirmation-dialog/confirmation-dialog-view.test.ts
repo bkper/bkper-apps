@@ -47,11 +47,11 @@ describe('Confirmation dialog', () => {
     it('renders and opens a standard confirmation without requiring typed input', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);
-        view.headerLabel = 'Confirm operation';
-        view.message = 'Review this operation.';
-        view.actionLabel = 'Continue';
-
-        view.show();
+        view.show({
+            headerLabel: 'Confirm operation',
+            message: 'Review this operation.',
+            actionLabel: 'Continue',
+        });
         const result = render.call(view);
         const markup = collectTemplateStrings(result);
 
@@ -66,8 +66,12 @@ describe('Confirmation dialog', () => {
     it('requires the exact trimmed phrase and uses a danger action', () => {
         const view = new ConfirmationDialogView();
         attachDialog(view);
-        view.confirmationPhrase = 'FULL RESET';
-        view.show();
+        view.show({
+            headerLabel: 'Confirm Full Reset',
+            message: 'This operation cannot be undone.',
+            actionLabel: 'Full Reset',
+            confirmationPhrase: 'FULL RESET',
+        });
 
         const initialResult = render.call(view);
         expect(collectTemplateStrings(initialResult)).toContain('<wa-input');
@@ -84,8 +88,12 @@ describe('Confirmation dialog', () => {
     it('dispatches confirmed and hides only after its guard passes', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);
-        view.confirmationPhrase = 'FULL RESET';
-        view.show();
+        view.show({
+            headerLabel: 'Confirm Full Reset',
+            message: 'This operation cannot be undone.',
+            actionLabel: 'Full Reset',
+            confirmationPhrase: 'FULL RESET',
+        });
         let confirmations = 0;
         view.addEventListener('confirmed', () => confirmations++);
 
@@ -103,7 +111,11 @@ describe('Confirmation dialog', () => {
     it('dispatches a standard confirmation only once per opening', () => {
         const view = new ConfirmationDialogView();
         attachDialog(view);
-        view.show();
+        view.show({
+            headerLabel: 'Confirm operation',
+            message: 'Review this operation.',
+            actionLabel: 'Continue',
+        });
         let confirmations = 0;
         view.addEventListener('confirmed', () => confirmations++);
 
@@ -112,26 +124,39 @@ describe('Confirmation dialog', () => {
 
         expect(confirmations).toBe(1);
 
-        view.show();
+        view.show({
+            headerLabel: 'Confirm operation',
+            message: 'Review this operation.',
+            actionLabel: 'Continue',
+        });
         handleActionClicked.call(view);
 
         expect(confirmations).toBe(2);
     });
 
-    it('exposes hide and clears typed confirmation after the dialog closes', () => {
+    it('reconfigures and clears typed confirmation between openings', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);
-        view.confirmationPhrase = 'FULL RESET';
-        view.show();
+        view.show({
+            headerLabel: 'Confirm Full Reset',
+            message: 'This operation cannot be undone.',
+            actionLabel: 'Full Reset',
+            confirmationPhrase: 'FULL RESET',
+        });
         handleConfirmationInputted.call(view, createInputEvent('FULL RESET'));
 
         view.hide();
         expect(dialog.open).toBe(false);
 
         handleDialogAfterHide.call(view);
-        view.show();
+        view.show({
+            headerLabel: 'Confirm Forward Date',
+            message: 'Set the Forward Date?',
+            actionLabel: 'Forward',
+        });
 
         expect(dialog.open).toBe(true);
-        expect(render.call(view).values).toContain(true);
+        expect(collectTemplateStrings(render.call(view))).not.toContain('<wa-input');
+        expect(render.call(view).values).toContain(false);
     });
 });

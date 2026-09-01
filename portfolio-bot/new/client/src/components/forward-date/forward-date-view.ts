@@ -8,7 +8,10 @@ import {
     type ForwardDateContext,
 } from '../../types.js';
 import { Utils } from '../../utils.js';
-import type { ConfirmationDialogView } from '../confirmation-dialog/confirmation-dialog-view.js';
+import type {
+    ConfirmationDialogOptions,
+    ConfirmationDialogView,
+} from '../confirmation-dialog/confirmation-dialog-view.js';
 import '../account-list/account-list-view.js';
 import '../app-error/app-error-view.js';
 import '../confirmation-dialog/confirmation-dialog-view.js';
@@ -16,6 +19,11 @@ import '../service-switcher/service-switcher-view.js';
 import { sharedCSS } from '../shared-css.js';
 import { ForwardDateController } from './forward-date-controller.js';
 import { forwardDateCSS } from './forward-date-css.js';
+
+enum ConfirmationAction {
+    FORWARD = 'forward',
+    FULL_RESET = 'full-reset',
+}
 
 @customElement('forward-date')
 export class ForwardDateView extends LitElement {
@@ -39,11 +47,10 @@ export class ForwardDateView extends LitElement {
     @state()
     results = new Map<string, AccountOperationResult>();
 
-    @query('.full-reset-confirmation')
-    private fullResetConfirmationDialog?: ConfirmationDialogView;
+    @query('.confirmation-dialog')
+    private confirmationDialog?: ConfirmationDialogView;
 
-    @query('.forward-confirmation')
-    private forwardConfirmationDialog?: ConfirmationDialogView;
+    private pendingConfirmation?: ConfirmationAction;
 
     static styles = [sharedCSS, forwardDateCSS];
 
@@ -86,9 +93,11 @@ export class ForwardDateView extends LitElement {
                     </div>
                 </div>
 
-                <!-- Confirmations -->
-                ${this.renderFullResetConfirmationDialog()}
-                ${this.renderForwardConfirmationDialog()}
+                <!-- Confirmation -->
+                <confirmation-dialog
+                    class="confirmation-dialog"
+                    @confirmed=${this.handleConfirmedEvent}
+                ></confirmation-dialog>
             </div>
         `;
     }
@@ -118,48 +127,11 @@ export class ForwardDateView extends LitElement {
                 appearance="accent"
                 size="s"
                 type="button"
-                ?disabled=${this.isRunButtonDisabled()}
+                ?disabled=${this.isForwardButtonDisabled()}
                 @click=${this.handleRunClicked}
             >
                 Forward
             </wa-button>
-        `;
-    }
-
-    private renderFullResetConfirmationDialog(): TemplateResult {
-        const context = this.context;
-        if (!context?.fullResetEnabled) {
-            return html``;
-        }
-        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
-        const confirmationText = `Full Reset will remove ALL realized results and forward states for ${accountLabel}. This operation cannot be undone.`;
-        return html`
-            <confirmation-dialog
-                class="full-reset-confirmation"
-                .headerLabel=${'Confirm Full Reset'}
-                .message=${confirmationText}
-                .actionLabel=${'Full Reset'}
-                .confirmationPhrase=${'FULL RESET'}
-                @confirmed=${this.handleFullResetConfirmed}
-            ></confirmation-dialog>
-        `;
-    }
-
-    private renderForwardConfirmationDialog(): TemplateResult {
-        const context = this.context;
-        if (!context?.accounts.length || !this.date) {
-            return html``;
-        }
-        const accountLabel = `${context.accounts.length} ${context.accounts.length === 1 ? 'account' : 'accounts'}`;
-        const confirmationText = `Set Forward Date to ${this.date} for ${accountLabel}?`;
-        return html`
-            <confirmation-dialog
-                class="forward-confirmation"
-                .headerLabel=${'Confirm Forward Date'}
-                .message=${confirmationText}
-                .actionLabel=${'Forward'}
-                @confirmed=${this.handleForwardConfirmed}
-            ></confirmation-dialog>
         `;
     }
 
@@ -205,7 +177,7 @@ export class ForwardDateView extends LitElement {
         return this.shouldDisableButton() || this.context?.fullResetEnabled !== true;
     }
 
-    private isRunButtonDisabled(): boolean {
+    private isForwardButtonDisabled(): boolean {
         return this.shouldDisableButton() || !this.date;
     }
 
@@ -222,25 +194,57 @@ export class ForwardDateView extends LitElement {
         if (this.isFullResetButtonDisabled()) {
             return;
         }
-        this.fullResetConfirmationDialog?.show();
+        this.showConfirmation(ConfirmationAction.FULL_RESET, {
+            headerLabel: 'Confirm Full Reset',
+            message: `Full Reset will remove ALL realized results and forward states for ${this.getAccountLabel()}. This operation cannot be undone.`,
+            actionLabel: 'Full Reset',
+            confirmationPhrase: 'FULL RESET',
+        });
     }
 
-    private handleFullResetConfirmed(): void {
+    private handleRunClicked(): void {
+        if (this.isForwardButtonDisabled()) {
+            return;
+        }
+        this.showConfirmation(ConfirmationAction.FORWARD, {
+            headerLabel: 'Confirm Forward Date',
+            message: `Set Forward Date to ${this.date} for ${this.getAccountLabel()}?`,
+            actionLabel: 'Forward',
+        });
+    }
+
+    private getAccountLabel(): string {
+        const accountCount = this.context?.accounts.length ?? 0;
+        return `${accountCount} ${accountCount === 1 ? 'account' : 'accounts'}`;
+    }
+
+    private showConfirmation(action: ConfirmationAction, options: ConfirmationDialogOptions): void {
+        if (!this.confirmationDialog) {
+            return;
+        }
+        this.pendingConfirmation = action;
+        this.confirmationDialog.show(options);
+    }
+
+    private handleConfirmedEvent(): void {
+        const action = this.pendingConfirmation;
+        this.pendingConfirmation = undefined;
+        if (action === ConfirmationAction.FULL_RESET) {
+            this.runFullReset();
+        } else if (action === ConfirmationAction.FORWARD) {
+            this.runForward();
+        }
+    }
+
+    private runFullReset(): void {
         if (this.isFullResetButtonDisabled()) {
             return;
         }
         this.controller.runFullReset();
     }
 
-    private handleRunClicked(): void {
-        if (this.isRunButtonDisabled()) {
-            return;
-        }
-        this.forwardConfirmationDialog?.show();
-    }
-
-    private handleForwardConfirmed(): void {
-        if (this.isRunButtonDisabled()) {
+    private runForward(): void {
+        if (this.isForwardButtonDisabled()) {
             return;
         }
         this.controller.runForward();

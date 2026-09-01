@@ -1000,13 +1000,12 @@ Completed local evidence:
 
 - Accepted and characterized the active-operation boundary: a trusted context change received while an Account operation is executing is ignored completely. It does not change browser history or UI, queue a context, or replay after completion.
 - Implemented Bkper's embedded `bkper:app-url-changed` contract with explicit parent-source, trusted Bkper-origin, message-shape, and target-App-origin validation. Trusted idle changes update browser history and reload context without a full iframe refresh; overlapping reloads retain only the newest context.
-- Added focused deterministic coverage for trusted Book changes, malformed and untrusted messages, overlapping reloads, connected-listener lifetime, and the active-operation boundary. Existing context-loader coverage continues to protect Account, Group, query-driven, and stale-state behavior.
-- Repeated the complete local gate with 146 client tests and 187 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+- Added focused deterministic coverage for trusted Book, Account, Group, and query changes; malformed and untrusted messages; overlapping reloads; stale-state cleanup; connected-listener lifetime; and the active-operation boundary.
+- Repeated the complete local gate with 149 client tests and 187 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+- Rebuilt the clean committed candidate and deployed it to preview without syncing or changing metadata. Read-only verification confirmed the revised preview deployment, the five-path OpenAPI contract, the expected unauthenticated API rejection, the authenticated root redirect, and unchanged production menu and event routing.
 
 Remaining work:
 
-- Complete focused message-driven Account, Group, and query context coverage before preview deployment.
-- Build and deploy the revised preview through separate reviewed commands before interactive validation. Production menu and event routing remain unchanged.
 - Open the installed preview from a real Bkper Book and exercise live, read-only query, Account, Group, and Book selection changes. Confirm that the visible scope follows the parent context and that stale resources cannot be submitted.
 - Exercise context, permissions, validation, and final client interactions.
 - Exercise long, partial, and short FIFO scenarios across all calculation models on isolated synthetic Books only.

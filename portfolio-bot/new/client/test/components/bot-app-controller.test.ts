@@ -1077,6 +1077,57 @@ describe('Bot app controller', () => {
         expect(view.appState).toBe(BotAppState.READY);
     });
 
+    it('reloads Account, Group, and query contexts from trusted App URL changes', async () => {
+        const book = new Book({
+            id: 'book-id',
+            timeZone: 'UTC',
+            fractionDigits: 0,
+            permission: Permission.EDITOR,
+            groups: [
+                { id: 'technology', name: 'Technology' },
+                { id: 'exchange', properties: { stock_exc_code: 'USD' } },
+            ],
+            accounts: [
+                {
+                    id: 'apple',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'technology' }, { id: 'exchange' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async () => book);
+        botApiService.listAccountsPendingCalculation = mock(async () => ({ ids: ['apple'] }));
+        const view = new TestView();
+        view.appState = BotAppState.READY;
+        const controller = createController(view);
+
+        await handleMessage(
+            controller,
+            createUrlChange('https://stock-bot.bkper.app/?bookId=book-id&accountId=apple')
+        );
+        expect(view.realizedResultsContext?.selectedAccount?.getId()).toBe('apple');
+        expect(view.realizedResultsContext?.selectedGroup).toBeUndefined();
+
+        await handleMessage(
+            controller,
+            createUrlChange('https://stock-bot.bkper.app/?bookId=book-id&groupId=technology')
+        );
+        expect(view.realizedResultsContext?.selectedAccount).toBeUndefined();
+        expect(view.realizedResultsContext?.selectedGroup?.getId()).toBe('technology');
+
+        const queryUrl = 'https://stock-bot.bkper.app/?bookId=book-id&query=account%3AApple';
+        await handleMessage(controller, createUrlChange(queryUrl));
+        expect(self.location.href).toBe(queryUrl);
+        expect(view.realizedResultsContext?.selectedAccount).toBeUndefined();
+        expect(view.realizedResultsContext?.selectedGroup).toBeUndefined();
+        expect(view.realizedResultsContext?.accounts.map(account => account.getId())).toEqual([
+            'apple',
+        ]);
+        expect(view.realizedResultsContext?.resetEnabled).toBe(false);
+    });
+
     it('ignores App URL changes while executing', async () => {
         const view = new TestView();
         view.appState = BotAppState.EXECUTING;

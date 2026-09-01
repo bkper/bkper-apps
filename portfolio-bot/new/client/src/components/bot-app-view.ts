@@ -6,13 +6,15 @@ import './app-error/app-error-view.js';
 import './forward-date/forward-date-view.js';
 import './realized-results/realized-results-view.js';
 import {
+    BotAppState,
     PortfolioService,
     type AppError,
+    type ExecutionChangeEvent,
     type ForwardDateContext,
     type RealizedResultsContext,
     type ServiceChangeEvent,
 } from '../types.js';
-import { BotAppController, BotAppState } from './bot-app-controller.js';
+import { BotAppController } from './bot-app-controller.js';
 import { botAppCSS } from './bot-app-css.js';
 import { sharedCSS } from './shared-css.js';
 
@@ -64,7 +66,9 @@ export class BotAppView extends LitElement {
     render(): TemplateResult {
         return html`
             ${this.renderHeader()}
-            <div class="body">${this.renderBodyContent()}</div>
+            <div class="body" @execution-changed=${this.handleExecutionChange}>
+                ${this.renderBodyContent()}
+            </div>
         `;
     }
 
@@ -109,6 +113,13 @@ export class BotAppView extends LitElement {
 
     private renderAppError(): TemplateResult {
         return html`<app-error .error=${this.error}></app-error>`;
+    }
+
+    private handleExecutionChange(event: ExecutionChangeEvent): void {
+        const appState = event.detail.executing ? BotAppState.EXECUTING : BotAppState.READY;
+        if (appState !== this.appState) {
+            this.appState = appState;
+        }
     }
 
     private handleServiceChange(event: ServiceChangeEvent): void {

@@ -13,7 +13,7 @@ import {
     type AppError,
 } from '../../src/types.js';
 
-class TestView implements AccountOperationViewHost<AccountOperationContext> {
+class TestView extends EventTarget implements AccountOperationViewHost<AccountOperationContext> {
     context?: AccountOperationContext;
     permissionError?: AppError;
     operationError?: AppError;
@@ -87,6 +87,30 @@ function createView(): TestView {
 }
 
 describe('Account operation controller', () => {
+    it('announces execution from preflight through completion', async () => {
+        let resolvePendingTasks: (pending: boolean) => void = () => {};
+        botService.hasPendingTasks = mock(
+            async () =>
+                new Promise<boolean>(resolve => {
+                    resolvePendingTasks = resolve;
+                })
+        );
+        const view = createView();
+        const controller = new TestController(view);
+        const changes: boolean[] = [];
+        view.addEventListener('execution-changed', event => {
+            changes.push((event as CustomEvent<{ executing: boolean }>).detail.executing);
+        });
+
+        const operation = controller.run();
+
+        expect(changes).toEqual([true]);
+        resolvePendingTasks(false);
+        await operation;
+
+        expect(changes).toEqual([true, false]);
+    });
+
     it('aborts before Account requests when the Portfolio Book has pending tasks', async () => {
         botService.hasPendingTasks = mock(async () => true);
         const view = createView();

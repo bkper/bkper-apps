@@ -14,14 +14,9 @@ import type {
     ForwardDateContext,
     RealizedResultsContext,
 } from './../types.js';
+import { BotAppState } from './../types.js';
 import type { BotAppView } from './bot-app-view.js';
 import { BotAppErrors } from './bot-app-errors.js';
-
-export enum BotAppState {
-    LOADING = 'LOADING',
-    READY = 'READY',
-    ERROR = 'ERROR',
-}
 
 export class BotAppController implements ReactiveController {
     private readonly view: BotAppView;

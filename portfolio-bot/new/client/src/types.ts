@@ -1,5 +1,17 @@
 import type { Account, Book, Group } from 'bkper-js';
 
+/** The current application state. */
+export enum BotAppState {
+    /** The application is loading its context. */
+    LOADING = 'LOADING',
+    /** The application is ready for an operation. */
+    READY = 'READY',
+    /** The application is executing an operation. */
+    EXECUTING = 'EXECUTING',
+    /** The application context could not be loaded. */
+    ERROR = 'ERROR',
+}
+
 /** A Portfolio Bot service available in the client. */
 export enum PortfolioService {
     /** Realized-result calculation and reset operations. */
@@ -16,6 +28,15 @@ export interface ServiceChangeDetail {
 
 /** A service selection event dispatched by the service switcher. */
 export type ServiceChangeEvent = CustomEvent<ServiceChangeDetail>;
+
+/** The execution state carried by an execution-change event. */
+export interface ExecutionChangeDetail {
+    /** Whether an Account operation is executing. */
+    executing: boolean;
+}
+
+/** An execution state event dispatched by an operation component. */
+export type ExecutionChangeEvent = CustomEvent<ExecutionChangeDetail>;
 
 /** An application error shown to the user. */
 export interface AppError {

@@ -8,11 +8,11 @@ import {
     type AccountOperationContext,
     type AccountOperationResult,
     type AppError,
+    type ExecutionChangeDetail,
 } from '../types.js';
 
-export interface AccountOperationViewHost<
-    Context extends AccountOperationContext,
-> extends ReactiveControllerHost {
+export interface AccountOperationViewHost<Context extends AccountOperationContext>
+    extends ReactiveControllerHost, EventTarget {
     context?: Context;
     permissionError?: AppError;
     operationError?: AppError;
@@ -57,7 +57,7 @@ export abstract class AccountOperationController<
         startErrorFallback: string,
         concurrent = false
     ): Promise<void> {
-        this.view.executing = true;
+        this.setExecuting(true);
         this.clearResults();
 
         try {
@@ -94,7 +94,7 @@ export abstract class AccountOperationController<
                 this.formatError(error, startErrorFallback)
             );
         } finally {
-            this.view.executing = false;
+            this.setExecuting(false);
         }
     }
 
@@ -119,6 +119,17 @@ export abstract class AccountOperationController<
                 error: this.formatError(error, errorFallback),
             });
         }
+    }
+
+    private setExecuting(executing: boolean): void {
+        this.view.executing = executing;
+        this.view.dispatchEvent(
+            new CustomEvent<ExecutionChangeDetail>('execution-changed', {
+                detail: { executing },
+                bubbles: true,
+                composed: true,
+            })
+        );
     }
 
     private initializeWaitingResults(accounts: Account[]): void {

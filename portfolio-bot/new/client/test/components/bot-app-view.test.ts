@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 import { App, Book, Permission } from 'bkper-js';
 import type { TemplateResult } from 'lit';
-import { BotAppState } from '../../src/components/bot-app-controller.js';
 import { BotAppView } from '../../src/components/bot-app-view.js';
-import { PortfolioService, type AppError, type ServiceChangeEvent } from '../../src/types.js';
+import {
+    BotAppState,
+    PortfolioService,
+    type AppError,
+    type ServiceChangeEvent,
+} from '../../src/types.js';
 
 const renderHeader = Reflect.get(BotAppView.prototype, 'renderHeader') as (
     this: BotAppView
@@ -14,6 +18,10 @@ const renderBodyContent = Reflect.get(BotAppView.prototype, 'renderBodyContent')
 const handleServiceChange = Reflect.get(BotAppView.prototype, 'handleServiceChange') as (
     this: BotAppView,
     event: ServiceChangeEvent
+) => void;
+const handleExecutionChange = Reflect.get(BotAppView.prototype, 'handleExecutionChange') as (
+    this: BotAppView,
+    event: CustomEvent<{ executing: boolean }>
 ) => void;
 
 describe('Bot app view', () => {
@@ -44,6 +52,25 @@ describe('Bot app view', () => {
         const result = renderHeader.call(view);
 
         expect(result.strings.join('')).toBe('');
+    });
+
+    it('mirrors child execution state at the app boundary', () => {
+        const view = new BotAppView();
+
+        handleExecutionChange.call(
+            view,
+            new CustomEvent('execution-changed', { detail: { executing: true } })
+        );
+
+        expect(view.appState).toBe(BotAppState.EXECUTING);
+        expect(view.render().strings.join('')).toContain('@execution-changed=');
+
+        handleExecutionChange.call(
+            view,
+            new CustomEvent('execution-changed', { detail: { executing: false } })
+        );
+
+        expect(view.appState).toBe(BotAppState.READY);
     });
 
     it('renders loading progress while the app initializes', () => {

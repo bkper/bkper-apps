@@ -11,7 +11,7 @@ import type {
     RealizedResultsContext,
 } from '../../../src/types.js';
 
-class TestView implements ReactiveControllerHost {
+class TestView extends EventTarget implements ReactiveControllerHost {
     context?: RealizedResultsContext;
     permissionError?: AppError;
     operationError?: AppError;

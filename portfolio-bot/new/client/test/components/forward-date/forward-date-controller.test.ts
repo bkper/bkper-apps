@@ -7,7 +7,7 @@ import { botApiService } from '../../../src/services/bot-api-service.js';
 import { botService } from '../../../src/services/bot-service.js';
 import type { AccountOperationResult, AppError, ForwardDateContext } from '../../../src/types.js';
 
-class TestView implements ReactiveControllerHost {
+class TestView extends EventTarget implements ReactiveControllerHost {
     context?: ForwardDateContext;
     permissionError?: AppError;
     operationError?: AppError;

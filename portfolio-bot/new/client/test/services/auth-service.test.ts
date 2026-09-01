@@ -8,6 +8,7 @@ const assign = mock((_url: string | URL) => {});
 
 beforeEach(() => {
     Reflect.set(authService, 'bkperAuthClient', undefined);
+    Reflect.set(authService, 'initialization', undefined);
     authService.accessToken = undefined;
     assign.mockClear();
     Object.defineProperty(self, 'location', {
@@ -76,6 +77,35 @@ describe('auth service', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(authService.accessToken).toBe('refreshed-token');
+    });
+
+    it('shares in-progress initialization between callers', async () => {
+        setOnline(true);
+        let resolveFetch: (response: Response) => void = () => {};
+        const fetchResponse = new Promise<Response>(resolve => {
+            resolveFetch = resolve;
+        });
+        const fetchMock = Object.assign(
+            mock(async () => fetchResponse),
+            {
+                preconnect: originalFetch.preconnect,
+            }
+        );
+        globalThis.fetch = fetchMock;
+        let secondCompleted = false;
+
+        const firstInitialization = authService.init();
+        const secondInitialization = authService.init().then(() => {
+            secondCompleted = true;
+        });
+        await Promise.resolve();
+        const secondCompletedBeforeResponse = secondCompleted;
+        resolveFetch(Response.json({ accessToken: 'access-token' }));
+        await Promise.all([firstInitialization, secondInitialization]);
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(secondCompletedBeforeResponse).toBe(false);
+        expect(authService.accessToken).toBe('access-token');
     });
 
     it('starts login when no authenticated session exists', async () => {

@@ -4,13 +4,18 @@ import { appEnv } from '../app-env.js';
 class AuthService {
     private bkperAuthClient?: BkperAuth;
 
+    private initialization?: Promise<void>;
+
     accessToken: string | undefined;
 
     async init(): Promise<void> {
-        if (appEnv.isOffline() || this.bkperAuthClient) {
+        if (appEnv.isOffline()) {
             return;
         }
-        return this.initBkperAuthClient();
+        if (!this.initialization) {
+            this.initialization = this.initBkperAuthClient();
+        }
+        await this.initialization;
     }
 
     async refresh(): Promise<void> {

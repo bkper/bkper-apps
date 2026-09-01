@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunks 1–14 complete — Chunk 15 in progress.**
+**Chunks 1–15 complete — Chunk 16 next.**
 
-The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, existing Calculate helper behavior, complete `processSale` parity, Calculate entry orchestration, and the wired Calculate API facade with the shared operation response and locked no-write translation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Chunk 14 has established the Forward service structure, ported its remaining constants, `StockAccount` behavior, and `BotService` dependencies, completed regular Forward Date parity, ported lower-forward-date repair with its separate immediate and sequential Reset behavior, completed top-level Forward Date validation and branch parity, and wired the Forward API facade and route through the shared operation response. Chunk 15 is in progress: the target client now exposes Realized Results and Forward Date controls, and Calculate, regular Reset, Full Reset, and Forward Date are wired end to end through dedicated controllers with the action-time pending-task guard, sequential Account execution, and per-Account progress and outcomes. Calculate preserves the current date and MTM intent, and Forward Date preserves the current date. Calculate, regular Reset, and Full Reset use bounded sliding concurrency of five Account requests, preserving ordered outcomes and continuing after individual Account failures without mutation retries; Forward Date remains sequential. Full Reset and Forward Date require explicit confirmation before execution. Final browser acceptance remains. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
+The production baseline is recorded, the event-routing drift has been explicitly resolved in favor of the current `EventHandlerGroupDeleted` behavior, the unchanged legacy projects are isolated under `legacy/`, and the full-stack Cloudflare skeleton, deterministic event dispatcher, shared event orchestration, common resolution boundaries, posted order processing, checked quantity mirroring, transaction lifecycle behavior, resource synchronization, and typed menu API contract are established under `new/`. The Chunk 8 event matrix is complete with no unexplained event-side difference; the target SDK's Account–Group resolution, retry policy, and structured error behavior remain accepted. The target API exposes one read-only pending-calculation Account query and four Account-level operation routes with shared `200 OK` `{ message: string }` success responses. Chunk 10 has ported the legacy pending-calculation Account query, Book, Account, and Group context, authoritative Portfolio Book default date, structured Portfolio Book failures, originating and Portfolio Book view and installation checks, stale-state reset, Financial Book edit availability, and Full Reset view availability. Chunk 11 protects the pending-calculation API, resolves every mutation stub's Portfolio, Financial, and Base Book context, preflights edit permission and Portfolio Bot installation across that context, and enforces the Full Reset owner and unlocked-Collection boundary. Chunk 12 has completed regular and Full Reset parity, the shared operation-response contract, and both Reset operation routes with preflight and lock-failure translation. Chunk 13 has established the Calculate support types, `StockAccount` behavior, required `BotService` boundaries, ordered mutation processor, existing Calculate helper behavior, complete `processSale` parity, Calculate entry orchestration, and the wired Calculate API facade with the shared operation response and locked no-write translation. Reset and Full Reset now precede Calculate in Chunks 12 and 13 because the legacy Calculate rebuild branch invokes regular Reset and returns. Chunk 14 has established the Forward service structure, ported its remaining constants, `StockAccount` behavior, and `BotService` dependencies, completed regular Forward Date parity, ported lower-forward-date repair with its separate immediate and sequential Reset behavior, completed top-level Forward Date validation and branch parity, and wired the Forward API facade and route through the shared operation response. Chunk 15 is complete: the target client exposes Realized Results and Forward Date controls, and Calculate, regular Reset, Full Reset, and Forward Date are wired end to end through dedicated controllers with the action-time pending-task guard and per-Account progress and outcomes. Calculate preserves the current date and MTM intent, and Forward Date preserves the current date. Calculate, regular Reset, and Full Reset use bounded sliding concurrency of five Account requests, preserving ordered outcomes and continuing after individual Account failures without mutation retries; Forward Date remains sequential. Full Reset and Forward Date require explicit confirmation before execution. Non-mutating browser acceptance passed in managed Chromium across narrow, configured sidebar, and expanded widths; light and dark themes; standalone and embedded rendering; Account, Group, and pending-calculation scopes; confirmations; waiting, success, and error states; keyboard focus; and WCAG A and AA checks. The embedded client does not yet consume Bkper's trusted `bkper:app-url-changed` message, so a sidebar can retain stale Book, Account, or Group context after the parent Book view changes. That preview-only behavior is explicitly deferred to Chunk 19, after the preview deployment can be opened from a real Bkper Book and exercised through live, read-only query and selection changes. Dependency advisories were triaged as unreachable tooling-only findings, so no override or dependency churn was introduced. Production routing remains unchanged.
 
 The Google Cloud Function remains production-authoritative for events. The Google Apps Script web app remains production-authoritative for the Portfolio Bot menu.
 
@@ -343,6 +343,7 @@ Each behavior chunk follows this workflow:
 
 - Authentication and login-required behavior use `@bkper/web-auth`.
 - URL context produces the accepted Book, Account, and Group scope.
+- After preview deployment, trusted `bkper:app-url-changed` messages refresh Book, Account, and Group scope while malformed, cross-origin, wrong-source, and wrong-App-origin messages are ignored. The safe boundary for a context change received during an active operation must be decided and characterized before implementation. This preview-only behavior is deferred to Chunk 19.
 - Calculate, Reset, Full Reset, and Forward Date expose the accepted inputs and availability.
 - Busy state prevents duplicate submission.
 - Per-Account progress, results, warnings, and errors remain explicit.
@@ -907,7 +908,7 @@ Subchunk 5 evidence:
 
 ### Chunk 15 — Port and modernize the menu client
 
-**Status: In progress.**
+**Status: Complete.**
 
 Completed progress:
 
@@ -926,12 +927,15 @@ Completed progress:
 - Reused the shared confirmation dialog for Forward Date, presenting the selected date and Account count without a typed-phrase guard and entering the existing operation lifecycle only after confirmation and a repeated availability check.
 - Replaced fixed Account-request batches with bounded sliding concurrency of five so each settled request releases capacity for the next ordered Account. Outcomes remain associated with their Accounts, individual failures do not block waiting Accounts, Calculate, regular Reset, and Full Reset use the shared scheduler, and Forward Date retains sequential execution.
 
-Remaining work:
+Final acceptance evidence:
 
-- Preserve the remaining workflow's selected resources, inputs, operation intent, warnings, permissions, and accounting outcomes.
-- Complete responsive, accessible, light and dark theme browser verification for the complete menu behavior matrix.
+- Preserved the workflow's selected resources, inputs, operation intent, warnings, permissions, and accounting outcomes through the completed controllers and deterministic client coverage.
+- Completed non-mutating managed-Chromium verification at narrow, configured sidebar, and expanded widths in light and dark themes, including standalone and embedded rendering, Account, Group, and pending-calculation scopes, confirmations, waiting, successful, and failed Account outcomes, keyboard focus, and horizontal-overflow checks.
+- WCAG A and AA browser audits reported no violations in the verified states. All Account-operation POST routes were intercepted with deterministic responses or failures; browser acceptance performed no Book mutation.
+- Verified the complete local gate with 137 client tests and 185 server tests, strict typechecks, production client and Worker builds, formatting, and generated-file drift checks.
+- Confirmed that live embedded Bkper context updates are not yet implemented. This requires the installed preview context and is explicitly deferred to Chunk 19 rather than approximated in standalone localhost acceptance.
 
-**Gate:** The client behavior matrix passes and the target UI is accepted for production use.
+**Gate:** The local client behavior matrix passes and the target UI is accepted for preview use. Live embedded context transitions remain a separate Chunk 19 gate before production menu cutover.
 
 ### Chunk 16 — Full-stack behavior, dependency, and runtime audit
 
@@ -966,17 +970,22 @@ Remaining work:
 
 **Gate:** No duplicate, missing, reversed, partial, or imbalanced posted movement is found.
 
-### Chunk 19 — Preview menu and operation validation
+### Chunk 19 — Preview live-context implementation and menu and operation validation
 
 **Status: Not started.**
 
+- Before implementation, decide and characterize the safe behavior when a trusted context change arrives while an Account operation is active. An in-flight operation must never silently switch resources or become eligible for an unsafe retry.
+- Implement Bkper's embedded `bkper:app-url-changed` contract with explicit parent-source, trusted Bkper-origin, message-shape, and target-App-origin validation; update browser history and reload the accepted Book, Account, and Group scope without a full iframe reload.
+- Add focused deterministic tests for accepted Account, Group, query-driven, and Book context changes; malformed and untrusted messages; stale-state cleanup; and the agreed active-operation boundary.
+- Build and deploy the revised preview through separate reviewed commands before interactive validation. Production menu and event routing remain unchanged.
+- Open the installed preview from a real Bkper Book and exercise live, read-only query, Account, Group, and Book selection changes. Confirm that the visible scope follows the parent context and that stale resources cannot be submitted.
 - Exercise context, permissions, validation, and final client interactions.
-- Exercise long, partial, and short FIFO scenarios across all calculation models.
-- Exercise realized, FX, MTM, Reset, Full Reset, regular Forward Date, and lower-date repair.
+- Exercise long, partial, and short FIFO scenarios across all calculation models on isolated synthetic Books only.
+- Exercise realized, FX, MTM, Reset, Full Reset, regular Forward Date, and lower-date repair on isolated synthetic Books only.
 - Exercise locked, closed, missing-rate, and denied-permission paths.
-- Verify canonical lifecycle state, relationships, direction, amounts, and exact per-Book zero sum.
+- Verify canonical lifecycle state, relationships, direction, amounts, and exact per-Book zero sum. Context-selection checks against a production Book remain read-only; any operation write requires a separate synthetic-Book plan and explicit approval.
 
-**Gate:** The target workflows and accounting outcomes are accepted with documented API and UI differences.
+**Gate:** Trusted preview context transitions cannot leave a stale actionable scope, and the target workflows and accounting outcomes are accepted with documented API and UI differences.
 
 ### Chunk 20 — Final drift audit and production deployment
 

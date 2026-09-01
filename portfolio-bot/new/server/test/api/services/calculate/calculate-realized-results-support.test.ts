@@ -482,4 +482,68 @@ describe('legacy Calculate support behavior', () => {
         expect(created[0]?.getProperty('open_quantity')).toBe('10');
         expect(created.every(transaction => transaction.isChecked())).toBe(true);
     });
+
+    test('selects aggregate and exchange-specific regular and historical support Accounts', async () => {
+        const service = new CalculateRealizedResultsSupport();
+        const portfolioBook = createBook({ id: 'portfolio' });
+        const financialBook = createBook({
+            id: 'financial',
+            accounts: [
+                { id: 'unrealized', name: 'Instrument Unrealized', type: AccountType.ASSET },
+                {
+                    id: 'unrealized-hist',
+                    name: 'Instrument Unrealized Hist',
+                    type: AccountType.ASSET,
+                },
+            ],
+        });
+        const baseBook = createBook({
+            id: 'base',
+            accounts: [
+                {
+                    id: 'aggregate-unrealized',
+                    name: 'Instrument Unrealized',
+                    type: AccountType.ASSET,
+                },
+                {
+                    id: 'exchange-unrealized',
+                    name: 'Instrument Unrealized EXC',
+                    type: AccountType.ASSET,
+                },
+                {
+                    id: 'aggregate-unrealized-hist',
+                    name: 'Instrument Unrealized Hist',
+                    type: AccountType.ASSET,
+                },
+                {
+                    id: 'exchange-unrealized-hist',
+                    name: 'Instrument Unrealized Hist EXC',
+                    type: AccountType.ASSET,
+                },
+            ],
+        });
+        await useEmbeddedAccounts(financialBook);
+        await useEmbeddedAccounts(baseBook);
+        const stockAccount = new StockAccount(
+            new Account(portfolioBook, { id: 'instrument', name: 'Instrument' })
+        );
+
+        const accounts = await Promise.all([
+            service.getUnrealizedAccount(financialBook, stockAccount),
+            service.getUnrealizedHistAccount(financialBook, stockAccount),
+            service.getUnrealizedFxBaseAccount(baseBook, stockAccount, 'true'),
+            service.getUnrealizedFxBaseAccount(baseBook, stockAccount, undefined),
+            service.getUnrealizedFxHistBaseAccount(baseBook, stockAccount, 'true'),
+            service.getUnrealizedFxHistBaseAccount(baseBook, stockAccount, undefined),
+        ]);
+
+        expect(accounts.map(account => account.getName())).toEqual([
+            'Instrument Unrealized',
+            'Instrument Unrealized Hist',
+            'Instrument Unrealized',
+            'Instrument Unrealized EXC',
+            'Instrument Unrealized Hist',
+            'Instrument Unrealized Hist EXC',
+        ]);
+    });
 });

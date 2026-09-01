@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { AccountType, Bkper, Book } from 'bkper-js';
+import { AccountType, Bkper, Book, Transaction } from 'bkper-js';
 import { EventHandlerTransactionDeleted } from '../../../src/events/handlers/EventHandlerTransactionDeleted.js';
 import { InterceptorOrderProcessorDeleteFinancial } from '../../../src/events/interceptors/InterceptorOrderProcessorDeleteFinancial.js';
 import { InterceptorOrderProcessorDeleteInstruments } from '../../../src/events/interceptors/InterceptorOrderProcessorDeleteInstruments.js';
@@ -45,6 +45,25 @@ function createHandler(book: Book): EventHandlerTransactionDeleted {
     );
 }
 
+class ConnectedDeletionHandler extends EventHandlerTransactionDeleted {
+    runConnectedDeletion(
+        stockBook: Book,
+        stockTransaction: Transaction,
+        operations: string[]
+    ): Promise<string> {
+        this.botService.flagStockAccountForRebuildIfNeeded = async () => {
+            operations.push('rebuild');
+        };
+        return this.connectedTransactionFound(
+            stockBook,
+            stockBook,
+            createTransaction(),
+            stockTransaction,
+            'USD'
+        );
+    }
+}
+
 describe('legacy deleted transaction behavior', () => {
     test('selects the Portfolio or Financial deletion interceptor from the event Book', async () => {
         const calls: string[] = [];
@@ -77,5 +96,44 @@ describe('legacy deleted transaction behavior', () => {
         expect(calls).toEqual(['portfolio', 'financial']);
         expect(portfolioResult).toEqual({ result: 'portfolio-deleted' });
         expect(financialResult).toEqual({ result: 'financial-deleted' });
+    });
+
+    test('awaits uncheck, rebuild flagging, and trash for a connected fallback movement', async () => {
+        const stockBook = new Book({
+            id: 'portfolio',
+            name: 'Portfolio',
+            fractionDigits: 0,
+            decimalSeparator: 'DOT',
+            datePattern: 'yyyy-MM-dd',
+            timeZone: 'UTC',
+        });
+        const stockTransaction = new Transaction(stockBook, {
+            ...createTransaction(),
+            checked: true,
+        });
+        const operations: string[] = [];
+        stockTransaction.uncheck = async () => {
+            operations.push('uncheck');
+            stockTransaction.setChecked(false);
+            return stockTransaction;
+        };
+        stockTransaction.trash = async () => {
+            operations.push('trash');
+            return stockTransaction;
+        };
+        stockTransaction.getCreditAccountName = async () => 'Origin';
+        stockTransaction.getDebitAccountName = async () => 'Destination';
+        const handler = new ConnectedDeletionHandler(
+            new AppContext(new Bkper(), { ASSETS: { fetch } })
+        );
+
+        const response = await handler.runConnectedDeletion(
+            stockBook,
+            stockTransaction,
+            operations
+        );
+
+        expect(operations).toEqual(['uncheck', 'rebuild', 'trash']);
+        expect(response).toContain('DELETED:');
     });
 });

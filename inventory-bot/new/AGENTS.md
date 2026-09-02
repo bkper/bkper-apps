@@ -4,8 +4,8 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunk 1 is complete. The production baseline and accepted source-over-deployment COGS deletion hardening are recorded in `../ROADMAP.md`.
-- Chunk 2 is in progress. Establish only the runnable, non-mutating full-stack skeleton under `new/`.
+- Chunks 1 and 2 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, and non-mutating Cloudflare skeleton are recorded in `../ROADMAP.md`.
+- Chunk 3 is next. Port event ingress, dispatch, and common resolution boundaries without adding business mutations.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.

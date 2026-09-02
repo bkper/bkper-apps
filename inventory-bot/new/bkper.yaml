@@ -18,29 +18,29 @@ menuPopupHeight: 600
 webhookUrl: https://us-central1-inventory-bot-405017.cloudfunctions.net/prodGen2
 apiVersion: v5
 events:
-  - TRANSACTION_CHECKED
-  - TRANSACTION_UNCHECKED
-  - TRANSACTION_POSTED
-  - TRANSACTION_DELETED
+    - TRANSACTION_CHECKED
+    - TRANSACTION_UNCHECKED
+    - TRANSACTION_POSTED
+    - TRANSACTION_DELETED
 propertiesSchema:
-  book:
-    keys:
-      - inventory_book
-      - exc_code
-  transaction:
-    keys:
-      - good
-      - quantity
-      - purchase_code
-      - purchase_invoice
-      - sale_invoice
-      - credit_note
-      - order
-  group:
-    keys:
-      - exc_code
+    book:
+        keys:
+            - inventory_book
+            - exc_code
+    transaction:
+        keys:
+            - good
+            - quantity
+            - purchase_code
+            - purchase_invoice
+            - sale_invoice
+            - credit_note
+            - order
+    group:
+        keys:
+            - exc_code
 deployment:
-  server: server/src/index.ts
-  client: client
-  secrets: []
-  compatibility_date: '2026-01-28'
+    server: server/src/index.ts
+    client: client
+    secrets: []
+    compatibility_date: '2026-01-28'

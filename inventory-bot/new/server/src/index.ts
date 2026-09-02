@@ -4,6 +4,7 @@ import { BkperError } from 'bkper-js';
 import type { Env } from '../../env.js';
 import { apiError } from './api/errors.js';
 import { registerApiRoutes } from './api/routes.js';
+import { ApiErrorSchema } from './api/schemas.js';
 import { registerEventRoutes } from './events/routes.js';
 
 export type AppEnv = { Bindings: Env };
@@ -40,6 +41,8 @@ export function createApp(): OpenAPIHono<AppEnv> {
         console.error(error);
         return c.text('Internal Server Error', 500);
     });
+
+    app.openAPIRegistry.register('ApiError', ApiErrorSchema);
 
     registerEventRoutes(app);
     registerApiRoutes(app);

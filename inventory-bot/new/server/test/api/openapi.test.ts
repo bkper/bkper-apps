@@ -3,6 +3,9 @@ import { createApp } from '../../src/index.js';
 
 interface OpenApiDocument {
     info: { title: string; version: string };
+    components: {
+        schemas: Record<string, unknown>;
+    };
     paths: Record<string, unknown>;
 }
 
@@ -13,6 +16,7 @@ describe('Inventory Bot OpenAPI skeleton', () => {
 
         expect(response.status).toBe(200);
         expect(spec.info).toEqual({ title: 'Inventory Bot API', version: '1.0.0' });
+        expect(spec.components.schemas).toHaveProperty('ApiError');
         expect(spec.paths).toEqual({});
     });
 });

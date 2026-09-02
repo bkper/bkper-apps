@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 1 complete — production baseline captured and the abandoned target removed.**
+**Chunk 2 complete — the clean, non-mutating full-stack Cloudflare skeleton is established.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The earlier Cloudflare attempt under `new/` has been removed rather than retained as a migration baseline. Chunk 2 creates the clean target implementation.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now provides the deterministic client, Worker, generated-contract, and verification foundations for subsequent behavior chunks.
 
 ## Purpose of this document
 
@@ -472,22 +472,26 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 2 — Create the full-stack Cloudflare skeleton
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Establish a minimal, deterministic Platform application with no Inventory Bot business mutations.
 
-**Steps:**
+**Completed:**
 
-- Create root, client, and server package boundaries from the current Bkper app architecture.
-- Add strict TypeScript, Bun workspaces, exact dependency pins, formatting, generated environment types, OpenAPI generation, generated client types, and a committed lockfile.
-- Add static client delivery, JSON `/api/v1/*` not-found behavior, `/openapi.json`, and `/events` in one Hono Worker.
-- Add non-mutating stubs for all four subscribed events and for the future Account-level Calculate and Reset operations.
-- Add the Lit, Vite, Web Awesome, Bkper design, and web-auth foundation with an immediate app shell.
-- Configure Vite `5175` and Worker `8796`.
-- Preserve production GAS and GCP routes while pointing only reviewed development routes toward preview when deployment work is later approved.
-- Remove template demo behavior and standalone health endpoints.
+- Created clean root, client, and server package boundaries from the current Bkper app architecture.
+- Added strict TypeScript, Bun workspaces, exact dependency pins, formatting, generated environment types, OpenAPI generation, generated client types, and a committed lockfile.
+- Added static client delivery, structured JSON `/api/v1/*` not-found behavior, `/openapi.json`, and `/events` in one Hono Worker.
+- Kept `/events` as a body-agnostic, non-mutating no-op until event dispatch is introduced in Chunk 3.
+- Kept the OpenAPI operation surface empty until the Account-level Calculate and Reset routes are defined in Chunk 7.
+- Added the Lit, Vite, Web Awesome, Bkper design, `bkper-js`, and web-auth foundations with an immediate loading shell, structured states, typed service boundaries, and non-mutating operation components.
+- Added deterministic client coverage for environment, authentication, HTTP, Book access, trusted embedded URL messages, application state, Account scope rendering, errors, permissions, and sequential operation orchestration.
+- Configured Vite `5175` and Worker `8796` explicitly.
+- Preserved the production GAS menu and GCP webhook routes without changing development or production routing.
+- Removed template demo behavior and standalone health endpoints.
+- Passed generated-contract checks, strict client and server typechecks, 94 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** The complete local check passes with no app sync, deployment, routing change, credential use, or Book write.
+**Gate:** Passed. The complete local check succeeds with no Inventory Bot business mutation or remote operation.
 
 ### Chunk 3 — Port event ingress, dispatch, and common resolution boundaries
 

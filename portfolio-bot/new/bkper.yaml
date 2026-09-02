@@ -16,7 +16,7 @@ menuUrl: https://script.google.com/macros/s/AKfycbwtsLZgfLUKpXPSQzDjjGMgJEkvwXN5
 menuUrlDev: https://stock-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuPopupWidth: 600
 menuPopupHeight: 600
-webhookUrl: https://us-central1-bkper-stock-bot.cloudfunctions.net/prodGen2
+webhookUrl: https://stock-bot.bkper.app/events
 webhookUrlDev: https://stock-bot-preview.bkper.app/events
 apiVersion: v5
 events:

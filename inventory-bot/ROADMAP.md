@@ -2,9 +2,9 @@
 
 ## Status
 
-**Planning complete — no migration chunks started.**
+**Chunk 1 complete — production baseline captured and the abandoned target removed.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The earlier Cloudflare attempt under `new/` is not a migration baseline and will be replaced with a clean target implementation.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The earlier Cloudflare attempt under `new/` has been removed rather than retained as a migration baseline. Chunk 2 creates the clean target implementation.
 
 ## Purpose of this document
 
@@ -154,7 +154,7 @@ Inventory Bot coordinates one Inventory Book and one or more Financial Books in 
 
 ## Architecture
 
-### Current layout
+### Baseline layout before Chunk 1
 
 ```text
 inventory-bot/
@@ -168,6 +168,22 @@ inventory-bot/
 ├── new/              # abandoned earlier migration attempt; non-authoritative
 └── ROADMAP.md
 ```
+
+### Layout after Chunk 1
+
+```text
+inventory-bot/
+├── legacy/
+│   ├── events/       # preserved event source candidate
+│   ├── menu/         # preserved menu source candidate
+│   ├── bkper.yaml
+│   └── package.json
+├── ROADMAP.md
+├── README.md
+└── LICENSE
+```
+
+No target directory remains after baseline capture. Chunk 2 creates a clean `new/` application without inheriting files, dependencies, configuration, or guidance from the abandoned attempt.
 
 ### Temporary migration layout
 
@@ -411,34 +427,48 @@ While GCP and GAS remain production-authoritative, every production patch must b
 
 Drift audits occur before preview routing, production deployment, each production cutover, and repository consolidation.
 
-### Migration patch ledger
+### Chunk 1 baseline evidence
 
-No migration baseline has been captured yet. Chunk 1 initializes this table from verified evidence.
+- Persisted app identity, access policy, production and development menu routes, menu dimensions, production webhook route, all four event subscriptions, API version, and property schema match the preserved legacy configuration. Production routing remains on GAS and GCP.
+- The active event deployment uses the declared Gen 2 Node.js 22 runtime, `doPost` entry point, 256 MiB memory, 360-second timeout, and ten-instance limit. Its effective request concurrency is one.
+- The immutable GCF source archive and deployed runtime image contain the same package, lockfile, and all thirty generated JavaScript and source-map artifacts. The deployed build resolved Node.js 22.21.1, Yarn, TypeScript 4.9.5, `bkper-js` 2.18.0, `@bkper/bkper-api-types` 5.32.0, and Functions Framework 2.1.1.
+- A frozen build of the current checked-in event source against the deployed lockfile passes all six deterministic tests. Twenty-two of its twenty-eight generated JavaScript and source-map artifacts match production byte-for-byte.
+- The six differing common artifacts are `constants.js`, `InterceptorOrderProcessorDeleteFinancial.js`, `index.js`, and their source maps. Production also contains `EventHandlerTransactionUpdated.js` and its source map, which current source removed.
+- The current tested COGS deletion hardening is explicitly accepted over the older deployed behavior. It recognizes current `#COGS`, legacy `#cost_of_sale`, and `quantity_sold` signals only for Inventory Bot Transactions with remote ids. This is an accepted source-over-deployment correction, not a parity claim.
+- The deployed ingress requires its configured API key, while current source allows the provider to be absent. Platform authentication replaces both runtime-specific forms in Chunk 3; this difference does not authorize a domain behavior change.
+- The deployed artifact contains `TRANSACTION_UPDATED` dispatch code, but the persisted app has no such subscription and current source intentionally removed the handler. The migration retains only the four persisted subscriptions and does not invent update behavior.
+- The tracked event `package-lock.json` predates the deployed package declarations, and the tracked project omits the `yarn.lock` that its build copies. A normal install therefore resolves newer dependencies; the recovered immutable deployed lockfile remains the event dependency baseline.
+- The production GAS menu is deployment version 17, release 2.3.0. Its manifest, static HTML, and all thirteen generated JavaScript bodies reproduce byte-for-byte from the preserved source using TypeScript 4.9.5. The manifest uses Bkper Apps Script library version 201.
+- The GAS server build passes its four deterministic helper tests, and the client build regenerates the accepted production HTML. These tests do not constitute FIFO, Reset, authorization, or end-to-end accounting coverage.
+- Shared documentation and licensing now live at the Inventory Bot root. The abandoned target was removed completely, leaving no inherited target implementation.
+- Secret values, deployment and infrastructure identifiers, source-object identifiers, image identifiers, personal names, and raw command output are intentionally excluded from this roadmap.
+
+### Migration patch ledger
 
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| GCF COGS deletion detection | Current source hardens generated COGS recognition over the older deployed `#cost_of_sale`-only behavior | Retained `InterceptorOrderProcessorDeleteFinancial` tests for `#COGS`, legacy marker, and `quantity_sold` | Explicitly accepted baseline; port with deletion behavior in Chunk 5 |
 
 ## Migration chunks
 
 ### Chunk 1 — Capture the production baseline and establish a clean parallel layout
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Establish exactly what is running in production before replacing the abandoned target or porting behavior.
 
-**Steps:**
+**Completed:**
 
-- Confirm persisted app identity, production and development routes, event subscriptions, API version, access policy, menu expressions, dimensions, and property schema.
-- Capture the active GCP runtime, entry point, resource settings, immutable source artifact, dependency lock, and build relationship to `legacy/events/`.
-- Capture the active GAS deployment version, manifest, static assets, Bkper library version, generated JavaScript, and relationship to `legacy/menu/`.
-- Run and record the legacy projects' available deterministic tests, typechecks, and builds without overstating their coverage.
-- Record source-versus-deployment drift, accepted production patches, inherited issues, and unresolved evidence.
-- Preserve the production-authoritative legacy source unchanged for direct comparison.
-- Remove the earlier `new/` attempt from the migration baseline and establish an empty, isolated target boundary.
-- Move shared public documentation and licensing to the Inventory Bot root where needed without changing production behavior.
+- Confirmed persisted app identity, production and development routes, event subscriptions, API version, access policy, menu expressions, dimensions, and property schema.
+- Captured the active GCP runtime, entry point, resource settings, immutable source artifact, dependency lock, runtime image, and build relationship to `legacy/events/`.
+- Captured the active GAS deployment version, manifest, static asset, Bkper library version, generated JavaScript, and exact relationship to `legacy/menu/`.
+- Ran the available deterministic tests and builds and recorded their limited coverage.
+- Recorded source-versus-deployment drift and explicitly accepted the tested COGS deletion hardening.
+- Preserved the legacy event and menu source for direct comparison.
+- Removed the abandoned `new/` implementation completely; Chunk 2 will create the clean target.
+- Moved shared public documentation and licensing to the Inventory Bot root without changing production behavior.
 
-**Gate:** Both production surfaces are reproducible or their exact evidence gaps are recorded; production routing remains unchanged; the clean target contains no inherited implementation from the abandoned attempt.
+**Gate:** Both production surfaces are reproducible, production routing remains unchanged, and no inherited target implementation remains.
 
 ### Chunk 2 — Create the full-stack Cloudflare skeleton
 

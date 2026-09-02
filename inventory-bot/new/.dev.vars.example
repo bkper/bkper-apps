@@ -1,3 +1,0 @@
-# .dev.vars.example
-# Copy this file to .dev.vars if local-only secrets are added later.
-# The Inventory Bot platform app currently uses Bkper platform outbound auth and does not require local secrets.

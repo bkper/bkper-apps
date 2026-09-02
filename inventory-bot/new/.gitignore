@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.wrangler/
+.mf/
+.dev.vars
+.env
+.DS_Store
+yarn-error.log
+.history
+yarn.lock
+!bun.lock

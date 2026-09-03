@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 6 complete — the event-side migration is frozen with an explicit parity, cross-event safety, dependency, artifact, and drift audit.**
+**Chunk 7 complete — the typed public Account-level Calculate and Reset API contract is established with non-mutating service stubs.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Chunk 7 is next: define the typed public Account-level Calculate and Reset API contract with non-mutating service stubs.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its public API now exposes the generated Calculate and Reset contract without performing menu accounting mutations. Chunk 8 is next: port client context, operation scope, and authorization boundaries while keeping both operation services non-mutating.
 
 ## Purpose of this document
 
@@ -591,22 +591,25 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 7 — Define the typed public menu API contract
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Establish the reusable Account-level API boundary without implementing accounting mutations.
 
-**Steps:**
+**Completed:**
 
-- Define versioned Calculate and Reset Account-level routes.
-- Define concrete request validation, shared `{ message: string }` success responses, and structured errors.
-- Define the Inventory Book path resource, item Account resource, and corresponding Financial Book operation context.
-- Define explicit permission and installation requirements for every mutation target.
-- Keep Account and Group menu selection and generic read-only context on direct authenticated Bkper client reads.
-- Add thin routes backed by non-mutating service stubs.
-- Publish OpenAPI and generate the client contract.
-- Add focused route, schema, error, and OpenAPI tests.
+- Defined exactly two versioned Account-level routes for Calculate and Reset.
+- Required Calculate to receive an explicit ISO calendar date as `{ date: "YYYY-MM-DD" }`; Reset has no request body.
+- Defined the path Book as the Inventory Book, the path Account as its item Account, and the corresponding Financial Book as part of the later authoritative operation context.
+- Retained explicit `EDITOR` or `OWNER` permission and Inventory Bot installation requirements for the Inventory and Financial Books each operation may mutate; enforcement remains in Chunk 8.
+- Kept Account and Group menu selection and generic read-only context outside the public operation API.
+- Added thin Hono routes that create request-scoped Platform SDK contexts and delegate to non-mutating Calculate and Reset service stubs.
+- Standardized successful operations on `200 OK` `{ message: string }` and errors on the shared structured envelope with documented `400`, `401`, `403`, and `500` responses.
+- Published both operations in OpenAPI and generated the retained client contract types.
+- Added focused route, validation, response, error-surface, and OpenAPI tests.
+- Passed strict client and server typechecks, 147 unit tests, production client and Worker builds, formatting, and generated-contract drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** API and generated-contract tests protect the intended public surface while every operation remains non-mutating.
+**Gate:** Passed. API and generated-contract tests protect the intended public surface while every operation remains non-mutating.
 
 ### Chunk 8 — Port client context, operation scope, and authorization boundaries
 

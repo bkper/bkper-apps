@@ -4,8 +4,8 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1 through 6 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, common event ingress and resolution boundaries, checked purchase, sale, and credit-note quantity behavior, transaction lifecycle cleanup, and event parity audit are recorded in `../ROADMAP.md`.
-- Chunk 7 is next. Define the typed public Account-level Calculate and Reset API contract with non-mutating service stubs.
+- Chunks 1 through 7 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, common event ingress and resolution boundaries, checked purchase, sale, and credit-note quantity behavior, transaction lifecycle cleanup, event parity audit, and typed public Account-level Calculate and Reset API contract are recorded in `../ROADMAP.md`.
+- Chunk 8 is next. Port client context, operation scope, and authorization boundaries while keeping Calculate and Reset non-mutating.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.

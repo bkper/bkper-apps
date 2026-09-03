@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 2 complete — the clean, non-mutating full-stack Cloudflare skeleton is established.**
+**Chunk 3 complete — event ingress, dispatch, and common resolution boundaries are established without business mutations.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now provides the deterministic client, Worker, generated-contract, and verification foundations for subsequent behavior chunks.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts and preserves the accepted common Book, Account, Group, quantity, exchange-code, transaction-matching, response, error, and logging behavior needed by subsequent event behavior chunks.
 
 ## Purpose of this document
 
@@ -495,21 +495,22 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 3 — Port event ingress, dispatch, and common resolution boundaries
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Reproduce event transport and shared selection behavior before adding event-side mutations.
 
-**Steps:**
+**Completed:**
 
-- Add typed event results and one explicit handler boundary for each subscribed event.
-- Reproduce the four-event dispatch, unknown-event no-op, response normalization, errors, logging, and handler construction.
-- Create one request-scoped `Bkper` and app context for each delivery.
-- Move authentication to the Platform boundary and remove legacy token, API-key, and agent-header handling.
-- Port common Inventory and Financial Book selection, exchange-code selection, Account and Group resolution, quantity parsing, transaction matching, Account queries, Book links, and purchase and sale predicates.
-- Audit legacy and target SDK lookup, caching, Amount, error, and retry behavior at every used common boundary.
-- Keep all business handlers non-mutating until their behavior chunks.
+- Added typed event results and one explicit non-mutating handler boundary for each of the four subscribed events.
+- Reproduced the four-event dispatch, unknown-event no-op, response normalization, stack-array ingress errors, shared-handler errors, warning extraction, logging, and handler construction.
+- Created one request-scoped `Bkper` and app context for each delivery without OAuth-token, API-key, or agent-id providers.
+- Ported common Inventory and Financial Book selection, exchange-code selection, Account and Group resolution, quantity parsing, remote-id matching, first-match behavior, Account queries, Book links, and purchase and sale predicates without redesigning their implementation.
+- Preserved embedded event Book construction and Collection iteration order from the production-authoritative source.
+- Adapted only optional Account lookup behavior: current `bkper-js` `404` errors are converted to the `undefined` result returned by the legacy SDK at that boundary; other errors continue to propagate.
+- Added deterministic coverage for dispatch, request isolation, Platform authentication assumptions, response behavior, common orchestration, SDK models and payloads, first-match semantics, Amount parsing, lookup failures, aliases, and handler no-write behavior.
+- Confirmed that the target event module contains no Account or Transaction mutation call.
 
-**Gate:** Every subscribed event reaches the intended non-mutating handler, and common resource resolution has no unexplained legacy-to-target difference.
+**Gate:** Passed. Every subscribed event reaches the intended non-mutating handler, and common resource resolution has no unexplained legacy-to-target difference.
 
 ### Chunk 4 — Port checked purchase, sale, and credit-note quantity behavior
 

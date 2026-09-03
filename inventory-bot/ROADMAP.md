@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 5 complete — posting prevention, unchecking, deletion, and linked cleanup are ported with deterministic lifecycle safeguards.**
+**Chunk 6 complete — the event-side migration is frozen with an explicit parity, cross-event safety, dependency, artifact, and drift audit.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts, preserves the accepted common resolution behavior, reproduces the checked-transaction path that creates complete quantity movements in the Inventory Book, and preserves the source lifecycle selection, rebuild, and cleanup behavior. Chunk 6 is next: complete the event parity and drift audit before beginning menu accounting work.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Chunk 7 is next: define the typed public Account-level Calculate and Reset API contract with non-mutating service stubs.
 
 ## Purpose of this document
 
@@ -455,6 +455,7 @@ Drift audits occur before preview routing, production deployment, each productio
 | --- | --- | --- |
 | Financial sale deletion classification | The source requires the deleted Transaction's destination Account to be `INCOMING`; the standard accepted sale direction has the `INCOMING` Account as origin, so that shape remains a no-op at this classifier | Preserve and test the source behavior during migration; any classifier correction is separate post-migration work |
 | Inventory purchase and sale deletion classification | The source selects an item Account only when the destination is `INCOMING` or the origin is `OUTGOING`; the generated `Buy >> item` and `item >> Sell` movements do not satisfy those checks and remain no-ops at this classifier | Preserve and test the source behavior during migration; any classifier correction is separate post-migration work |
+| Inventory Bot-authored Inventory posting | Posting prevention does not inspect the event agent; if Bkper delivers an app-authored quantity mirror's `TRANSACTION_POSTED` follow-up to the same app, the source handler selects cleanup of that mirror | Preserve and test source selection during migration; establish actual same-app delivery behavior in isolated preview Books before event cutover, and treat any exemption as a separate behavior change |
 
 ## Migration chunks
 
@@ -568,21 +569,25 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 6 — Complete the event parity and drift audit
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Freeze the event-side migration before beginning menu accounting work.
 
-**Steps:**
+**Completed:**
 
-- Execute the complete deterministic event matrix.
-- Compare every target event handler and service with the production-authoritative legacy source.
-- Build explicit subscribed-event and cross-event safety matrices linking legacy source, target source, and deterministic evidence.
-- Classify every observed difference as parity, accepted target-runtime adaptation, inherited issue, production patch, or unresolved blocker.
-- Audit movement completeness, direction, amount, state, remote ids, duplicates, cleanup, and loop prevention.
-- Audit exact dependency resolution, generated artifacts, Worker bundle contents, and metadata.
-- Reconcile the migration patch ledger.
+- Executed the complete deterministic event matrix and linked every subscribed event, shared resolution boundary, movement path, lifecycle path, and no-write path to its production-authoritative source and target evidence.
+- Compared every target event handler, interceptor, service, dispatcher, shared constant, and request boundary with the current legacy source.
+- Built and reviewed subscribed-event, shared-resolution, movement, lifecycle, and cross-event safety matrices against the deterministic evidence summarized in this roadmap.
+- Classified the Platform ingress and authentication boundary, request isolation, current-SDK optional `404` behavior, strict typing, and awaited Worker mutations as accepted target-runtime adaptations.
+- Reconciled the production patch ledger and confirmed that no later legacy event behavior patch remains to port.
+- Retained and tested the inherited deletion classifiers without silently changing their business behavior.
+- Characterized the inherited lack of an app-agent exemption in Inventory Book posting prevention and made same-app follow-up delivery a required isolated preview validation item before event cutover.
+- Audited exact direct dependency pins, generated environment bindings, Worker bundle source contents, subscriptions, metadata, and the absence of application credential-header reads, secrets, and storage bindings.
+- Confirmed byte-identical output across consecutive production client and Worker builds.
+- Passed a frozen install, generated-contract checks, strict client and server typechecks, 143 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** No unexplained event-side difference remains, and every created or changed posted movement preserves the zero-sum invariant.
+**Gate:** Passed locally. No unexplained event-side difference remains, every posted target movement is complete with the accepted direction and amount, and lifecycle cleanup creates no replacement or incomplete movement.
 
 ### Chunk 7 — Define the typed public menu API contract
 

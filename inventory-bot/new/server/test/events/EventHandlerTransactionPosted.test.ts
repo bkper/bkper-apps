@@ -105,6 +105,24 @@ describe('legacy transaction posted handler', () => {
         expect(operations).toEqual(['query:transaction-1', 'uncheck', 'trash']);
     });
 
+    test('preserves the inherited posting prevention for Inventory Bot activity', async () => {
+        let queries = 0;
+        Book.prototype.listTransactions = async function () {
+            queries += 1;
+            return new TransactionList(this, { items: [] });
+        };
+
+        const result = await new EventHandlerTransactionPosted(createContext()).handleEvent({
+            ...createEvent(),
+            agent: { id: 'inventory-bot' },
+        });
+
+        expect(result).toEqual({
+            warning: "You can't post directly in the Inventory book. Transaction deleted.",
+        });
+        expect(queries).toBe(1);
+    });
+
     test('preserves direct posting warning and no-op boundaries', async () => {
         let queries = 0;
         Book.prototype.listTransactions = async function () {

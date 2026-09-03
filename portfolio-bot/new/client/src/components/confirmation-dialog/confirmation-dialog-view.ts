@@ -1,5 +1,5 @@
+import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import type WaDialog from '@awesome.me/webawesome/dist/components/dialog/dialog.js';
-import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 import { LitElement, type TemplateResult, html } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import { confirmationDialogCSS } from './confirmation-dialog-css.js';
@@ -9,7 +9,7 @@ export interface ConfirmationDialogOptions {
     headerLabel: string;
     message: string;
     actionLabel: string;
-    confirmationPhrase?: string;
+    confirmationLabel?: string;
 }
 
 @customElement('confirmation-dialog')
@@ -24,10 +24,10 @@ export class ConfirmationDialogView extends LitElement {
     private actionLabel = '';
 
     @state()
-    private confirmationPhrase = '';
+    private confirmationLabel = '';
 
     @state()
-    private confirmationInput = '';
+    private confirmationChecked = false;
 
     @state()
     private confirmationDispatched = false;
@@ -41,8 +41,8 @@ export class ConfirmationDialogView extends LitElement {
         this.headerLabel = options.headerLabel;
         this.message = options.message;
         this.actionLabel = options.actionLabel;
-        this.confirmationPhrase = options.confirmationPhrase ?? '';
-        this.confirmationInput = '';
+        this.confirmationLabel = options.confirmationLabel ?? '';
+        this.confirmationChecked = false;
         this.confirmationDispatched = false;
         if (this.dialog) {
             this.dialog.open = true;
@@ -64,7 +64,7 @@ export class ConfirmationDialogView extends LitElement {
             >
                 <div class="content">
                     <p>${this.message}</p>
-                    ${this.renderConfirmationInput()}
+                    ${this.renderConfirmationCheckbox()}
                 </div>
                 <wa-button
                     slot="footer"
@@ -77,8 +77,8 @@ export class ConfirmationDialogView extends LitElement {
                 </wa-button>
                 <wa-button
                     slot="footer"
-                    variant=${this.confirmationPhrase ? 'danger' : 'brand'}
-                    appearance=${this.confirmationPhrase ? 'outlined' : 'accent'}
+                    variant=${this.confirmationLabel ? 'danger' : 'brand'}
+                    appearance=${this.confirmationLabel ? 'outlined' : 'accent'}
                     size="s"
                     type="button"
                     ?disabled=${this.isActionDisabled()}
@@ -91,35 +91,33 @@ export class ConfirmationDialogView extends LitElement {
     }
 
     private handleDialogAfterHide(): void {
-        this.confirmationInput = '';
+        this.confirmationChecked = false;
     }
 
-    private renderConfirmationInput(): TemplateResult {
-        if (!this.confirmationPhrase) {
+    private renderConfirmationCheckbox(): TemplateResult {
+        if (!this.confirmationLabel) {
             return html``;
         }
-        const label = `Type "${this.confirmationPhrase}" to continue`;
         return html`
-            <wa-input
-                label=${label}
-                .value=${this.confirmationInput}
-                autocomplete="off"
+            <wa-checkbox
+                .checked=${this.confirmationChecked}
                 size="s"
-                @input=${this.handleConfirmationInputted}
-            ></wa-input>
+                @change=${this.handleConfirmationChanged}
+            >
+                ${this.confirmationLabel}
+            </wa-checkbox>
         `;
     }
 
-    private handleConfirmationInputted(event: Event): void {
-        const input = event.currentTarget as WaInput;
-        this.confirmationInput = input.value ?? '';
+    private handleConfirmationChanged(event: Event): void {
+        const checkbox = event.currentTarget as WaCheckbox;
+        this.confirmationChecked = checkbox.checked;
     }
 
     private isActionDisabled(): boolean {
         return (
             this.confirmationDispatched ||
-            (this.confirmationPhrase !== '' &&
-                this.confirmationInput.trim() !== this.confirmationPhrase)
+            (this.confirmationLabel !== '' && !this.confirmationChecked)
         );
     }
 

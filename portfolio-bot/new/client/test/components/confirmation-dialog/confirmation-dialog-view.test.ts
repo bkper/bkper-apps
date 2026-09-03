@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'bun:test';
-import type WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
+import type WaCheckbox from '@awesome.me/webawesome/dist/components/checkbox/checkbox.js';
 import type { TemplateResult } from 'lit';
 import { ConfirmationDialogView } from '../../../src/components/confirmation-dialog/confirmation-dialog-view.js';
 
 const render = Reflect.get(ConfirmationDialogView.prototype, 'render') as (
     this: ConfirmationDialogView
 ) => TemplateResult;
-const handleConfirmationInputted = Reflect.get(
+const handleConfirmationChanged = Reflect.get(
     ConfirmationDialogView.prototype,
-    'handleConfirmationInputted'
+    'handleConfirmationChanged'
 ) as (this: ConfirmationDialogView, event: Event) => void;
 const handleActionClicked = Reflect.get(
     ConfirmationDialogView.prototype,
@@ -29,14 +29,16 @@ function attachDialog(view: ConfirmationDialogView): DialogState {
     return dialog;
 }
 
-function createInputEvent(value: string): Event {
-    return { currentTarget: { value } as WaInput } as unknown as Event;
+function createChangeEvent(checked: boolean): Event {
+    return { currentTarget: { checked } as WaCheckbox } as unknown as Event;
 }
 
 function collectTemplateStrings(result: TemplateResult): string {
     let strings = result.strings.join('');
     for (const value of result.values) {
-        if (typeof value === 'object' && value !== null && 'strings' in value) {
+        if (typeof value === 'string') {
+            strings += value;
+        } else if (typeof value === 'object' && value !== null && 'strings' in value) {
             strings += collectTemplateStrings(value as TemplateResult);
         }
     }
@@ -44,7 +46,7 @@ function collectTemplateStrings(result: TemplateResult): string {
 }
 
 describe('Confirmation dialog', () => {
-    it('renders and opens a standard confirmation without requiring typed input', () => {
+    it('renders and opens a standard confirmation without requiring acknowledgement', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);
         view.show({
@@ -58,30 +60,31 @@ describe('Confirmation dialog', () => {
         expect(dialog.open).toBe(true);
         expect(markup).toContain('<wa-dialog');
         expect(markup).toContain('light-dismiss');
-        expect(markup).not.toContain('<wa-input');
+        expect(markup).not.toContain('<wa-checkbox');
         expect(result.values).toContain('brand');
         expect(result.values).toContain(false);
     });
 
-    it('requires the exact trimmed phrase and uses a danger action', () => {
+    it('requires a checked acknowledgement checkbox and uses a danger action', () => {
         const view = new ConfirmationDialogView();
         attachDialog(view);
         view.show({
             headerLabel: 'Confirm Full Reset',
             message: 'This operation cannot be undone.',
             actionLabel: 'Full Reset',
-            confirmationPhrase: 'FULL RESET',
+            confirmationLabel: 'I understand',
         });
 
         const initialResult = render.call(view);
-        expect(collectTemplateStrings(initialResult)).toContain('<wa-input');
+        expect(collectTemplateStrings(initialResult)).toContain('<wa-checkbox');
+        expect(collectTemplateStrings(initialResult)).toContain('I understand');
         expect(initialResult.values).toContain('danger');
         expect(initialResult.values).toContain(true);
 
-        handleConfirmationInputted.call(view, createInputEvent(' full reset '));
+        handleConfirmationChanged.call(view, createChangeEvent(false));
         expect(render.call(view).values).toContain(true);
 
-        handleConfirmationInputted.call(view, createInputEvent(' FULL RESET '));
+        handleConfirmationChanged.call(view, createChangeEvent(true));
         expect(render.call(view).values).toContain(false);
     });
 
@@ -92,7 +95,7 @@ describe('Confirmation dialog', () => {
             headerLabel: 'Confirm Full Reset',
             message: 'This operation cannot be undone.',
             actionLabel: 'Full Reset',
-            confirmationPhrase: 'FULL RESET',
+            confirmationLabel: 'I understand',
         });
         let confirmations = 0;
         view.addEventListener('confirmed', () => confirmations++);
@@ -101,7 +104,7 @@ describe('Confirmation dialog', () => {
         expect(confirmations).toBe(0);
         expect(dialog.open).toBe(true);
 
-        handleConfirmationInputted.call(view, createInputEvent('FULL RESET'));
+        handleConfirmationChanged.call(view, createChangeEvent(true));
         handleActionClicked.call(view);
 
         expect(confirmations).toBe(1);
@@ -134,16 +137,16 @@ describe('Confirmation dialog', () => {
         expect(confirmations).toBe(2);
     });
 
-    it('reconfigures and clears typed confirmation between openings', () => {
+    it('reconfigures and clears acknowledgement between openings', () => {
         const view = new ConfirmationDialogView();
         const dialog = attachDialog(view);
         view.show({
             headerLabel: 'Confirm Full Reset',
             message: 'This operation cannot be undone.',
             actionLabel: 'Full Reset',
-            confirmationPhrase: 'FULL RESET',
+            confirmationLabel: 'I understand',
         });
-        handleConfirmationInputted.call(view, createInputEvent('FULL RESET'));
+        handleConfirmationChanged.call(view, createChangeEvent(true));
 
         view.hide();
         expect(dialog.open).toBe(false);
@@ -156,7 +159,7 @@ describe('Confirmation dialog', () => {
         });
 
         expect(dialog.open).toBe(true);
-        expect(collectTemplateStrings(render.call(view))).not.toContain('<wa-input');
+        expect(collectTemplateStrings(render.call(view))).not.toContain('<wa-checkbox');
         expect(render.call(view).values).toContain(false);
     });
 });

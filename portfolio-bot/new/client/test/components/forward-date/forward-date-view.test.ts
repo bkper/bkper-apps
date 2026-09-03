@@ -129,7 +129,7 @@ describe('Forward Date view', () => {
             message:
                 'Full Reset will remove ALL realized results and forward states for 1 account. This operation cannot be undone.',
             actionLabel: 'Full Reset',
-            confirmationPhrase: 'FULL RESET',
+            confirmationLabel: 'I understand and want to proceed',
         });
         expect(runFullReset).not.toHaveBeenCalled();
         handleConfirmedEvent.call(view);

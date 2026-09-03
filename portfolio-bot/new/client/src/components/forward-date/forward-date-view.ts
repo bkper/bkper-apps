@@ -198,7 +198,7 @@ export class ForwardDateView extends LitElement {
             headerLabel: 'Confirm Full Reset',
             message: `Full Reset will remove ALL realized results and forward states for ${this.getAccountLabel()}. This operation cannot be undone.`,
             actionLabel: 'Full Reset',
-            confirmationPhrase: 'FULL RESET',
+            confirmationLabel: 'I understand and want to proceed',
         });
     }
 

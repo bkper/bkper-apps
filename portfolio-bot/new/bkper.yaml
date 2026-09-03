@@ -12,7 +12,7 @@ repoPrivate: false
 deprecated: false
 developers: victordrumondmaltadesouza
 users: '*@brain.uy'
-menuUrl: https://script.google.com/macros/s/AKfycbwtsLZgfLUKpXPSQzDjjGMgJEkvwXN5CklmeCHtpEPpXDK66g/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuUrl: https://stock-bot.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuUrlDev: https://stock-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuPopupWidth: 600
 menuPopupHeight: 600

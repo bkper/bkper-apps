@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 4 complete — checked purchase, sale, and quantity-bearing credit-note movements are ported with deterministic zero-sum safeguards.**
+**Chunk 5 complete — posting prevention, unchecking, deletion, and linked cleanup are ported with deterministic lifecycle safeguards.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts, preserves the accepted common resolution behavior, and reproduces the checked-transaction path that creates complete quantity movements in the Inventory Book. The remaining posting, unchecking, deletion, and linked-cleanup handlers stay non-mutating until Chunk 5.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts, preserves the accepted common resolution behavior, reproduces the checked-transaction path that creates complete quantity movements in the Inventory Book, and preserves the source lifecycle selection, rebuild, and cleanup behavior. Chunk 6 is next: complete the event parity and drift audit before beginning menu accounting work.
 
 ## Purpose of this document
 
@@ -447,7 +447,14 @@ Drift audits occur before preview routing, production deployment, each productio
 
 | Surface | Behavior changed | Target test | Port status |
 | --- | --- | --- | --- |
-| GCF COGS deletion detection | Current source hardens generated COGS recognition over the older deployed `#cost_of_sale`-only behavior | Retained `InterceptorOrderProcessorDeleteFinancial` tests for `#COGS`, legacy marker, and `quantity_sold` | Explicitly accepted baseline; port with deletion behavior in Chunk 5 |
+| GCF COGS deletion detection | Current source hardens generated COGS recognition over the older deployed `#cost_of_sale`-only behavior | Retained `InterceptorOrderProcessorDeleteFinancial` tests for `#COGS`, legacy marker, and `quantity_sold` | Ported with deletion behavior in Chunk 5 |
+
+### Deferred inherited behavior ledger
+
+| Surface | Inherited source behavior | Migration treatment |
+| --- | --- | --- |
+| Financial sale deletion classification | The source requires the deleted Transaction's destination Account to be `INCOMING`; the standard accepted sale direction has the `INCOMING` Account as origin, so that shape remains a no-op at this classifier | Preserve and test the source behavior during migration; any classifier correction is separate post-migration work |
+| Inventory purchase and sale deletion classification | The source selects an item Account only when the destination is `INCOMING` or the origin is `OUTGOING`; the generated `Buy >> item` and `item >> Sell` movements do not satisfy those checks and remain no-ops at this classifier | Preserve and test the source behavior during migration; any classifier correction is separate post-migration work |
 
 ## Migration chunks
 
@@ -537,21 +544,27 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 5 — Port posting, unchecking, deletion, and linked cleanup
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Complete the transaction lifecycle behavior covered by the remaining event subscriptions.
 
-**Steps:**
+**Completed:**
 
-- Port direct Inventory Book posting prevention, including accepted uncheck, trash, warning, and no-op behavior.
-- Port manual Inventory Book uncheck rebuild behavior and app-agent loop prevention.
-- Port Financial Book deletion classification for purchases, sales, additional costs, credit notes, and generated COGS.
-- Port remote Inventory movement deletion, split purchase cascade cleanup, linked COGS cleanup, and rebuild decisions.
-- Port Inventory Book deletion behavior for root purchases, split purchases, sales, and linked Financial COGS.
-- Preserve lookup order, checked-state handling, trash order, response order, and missing-resource no-ops.
-- Ensure required cleanup finishes before the Worker responds and characterize partial-failure boundaries.
+- Ported direct Inventory Book posting prevention with the accepted lookup, checked-state uncheck, trash, warning, and no-op behavior.
+- Reused the checked-path rebuild interceptor for manual Inventory Book unchecking, preserving app-agent loop prevention and awaited Account updates.
+- Ported Financial Book deletion classification for purchases, sales, additional costs, credit notes, and generated COGS.
+- Ported remote Inventory movement deletion, split purchase cascade cleanup, linked COGS cleanup, rebuild decisions, result formatting, and first-match behavior.
+- Ported Inventory Book deletion classification and linked Financial COGS cleanup without changing inherited source predicates.
+- Retained the accepted current-source COGS deletion hardening for `#COGS`, legacy `#cost_of_sale`, and `quantity_sold`, including Inventory Bot agent and remote-id requirements.
+- Preserved lookup, uncheck, trash, rebuild, and response order; sequential cleanup stops at the first failure exactly as the source does.
+- Adapted only optional Account lookups: current `bkper-js` `404` errors become the absence returned by the legacy SDK, while other failures propagate.
+- Awaited required uncheck, trash, Account update, and linked cleanup work before returning from the Worker handler.
+- Characterized and retained the inherited Financial and Inventory deletion classifier no-ops in the deferred behavior ledger rather than silently correcting business logic.
+- Added deterministic lifecycle coverage that forbids Account creation and Transaction posting during deletion, verifies exact movement removal and rebuild order, protects missing-resource no-ops, and records the partial-failure boundary.
+- Passed strict client and server typechecks, 142 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** No unexplained difference remains in lifecycle selection, movement state, linked cleanup, rebuild state, mutation order, or responses.
+**Gate:** Passed deterministically. No unexplained target-to-source difference remains in lifecycle selection, movement state, linked cleanup, rebuild state, mutation order, or responses; deletion creates no replacement or incomplete movement.
 
 ### Chunk 6 — Complete the event parity and drift audit
 

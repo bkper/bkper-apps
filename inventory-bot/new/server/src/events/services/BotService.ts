@@ -4,6 +4,7 @@ import {
     COGS_CALC_DATE_PROP,
     EXC_CODE_PROP,
     INVENTORY_BOOK_PROP,
+    NEEDS_REBUILD_PROP,
     QUANTITY_PROP,
 } from '../../shared/constants.js';
 
@@ -129,6 +130,51 @@ export class BotService {
         return book
             ? `<a href='https://app.bkper.com/b/#transactions:bookId=${book.getId()}'>${book.getName()}</a>`
             : undefined;
+    }
+
+    async uncheckAndTrash(transaction: Transaction): Promise<Transaction> {
+        if (transaction.isChecked()) {
+            transaction = await transaction.uncheck();
+        }
+        transaction = await transaction.trash();
+        return transaction;
+    }
+
+    async flagInventoryAccountForRebuildIfNeeded(
+        financialBook: Book,
+        inventoryTransaction: Transaction
+    ): Promise<string | undefined> {
+        const inventoryAccount = await this.getGoodAccount(inventoryTransaction);
+        if (inventoryAccount) {
+            const lastTransactionDate = this.getCOGSCalculationDateValue(inventoryAccount);
+            if (
+                lastTransactionDate != null &&
+                inventoryTransaction.getDateValue() != undefined &&
+                inventoryTransaction.getDateValue()! <= +lastTransactionDate
+            ) {
+                await inventoryAccount.setProperty(NEEDS_REBUILD_PROP, 'TRUE').update();
+                const inventoryBook = this.getInventoryBook(financialBook);
+                return this.buildBookAnchor(inventoryBook)
+                    ? `${this.buildBookAnchor(inventoryBook)}: Flagging account for rebuild`
+                    : 'Flagging account for rebuild';
+            }
+        }
+        return undefined;
+    }
+
+    async flagInventoryAccountForRebuild(
+        financialBook: Book,
+        inventoryTransaction: Transaction
+    ): Promise<string | undefined> {
+        const inventoryAccount = await this.getGoodAccount(inventoryTransaction);
+        if (inventoryAccount) {
+            await inventoryAccount.setProperty(NEEDS_REBUILD_PROP, 'TRUE').update();
+            const inventoryBook = this.getInventoryBook(financialBook);
+            return this.buildBookAnchor(inventoryBook)
+                ? `${this.buildBookAnchor(inventoryBook)}: Flagging account for rebuild`
+                : 'Flagging account for rebuild';
+        }
+        return undefined;
     }
 
     getCOGSCalculationDateValue(account: Account): number | null {

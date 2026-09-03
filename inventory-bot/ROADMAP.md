@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 3 complete — event ingress, dispatch, and common resolution boundaries are established without business mutations.**
+**Chunk 4 complete — checked purchase, sale, and quantity-bearing credit-note movements are ported with deterministic zero-sum safeguards.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts and preserves the accepted common Book, Account, Group, quantity, exchange-code, transaction-matching, response, error, and logging behavior needed by subsequent event behavior chunks.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` now routes all four subscribed events through request-isolated Platform SDK contexts, preserves the accepted common resolution behavior, and reproduces the checked-transaction path that creates complete quantity movements in the Inventory Book. The remaining posting, unchecking, deletion, and linked-cleanup handlers stay non-mutating until Chunk 5.
 
 ## Purpose of this document
 
@@ -514,22 +514,26 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 4 — Port checked purchase, sale, and credit-note quantity behavior
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Migrate the event path that creates quantity movements in the Inventory Book.
 
-**Steps:**
+**Completed:**
 
-- Port duplicate remote-id lookup and accepted existing-mirror responses.
-- Port purchase recognition, item Account and direct Group synchronization, `Buy` Account creation, and `Buy >> item` quantity movements.
-- Port sale recognition, item Account lookup or creation, `Sell` Account creation, and `item >> Sell` quantity movements.
-- Port quantity-bearing credit-note recognition and its accepted reverse quantity movement.
-- Preserve accepted dates, quantities, descriptions, properties, exchange codes, order values, source values, and remote ids.
-- Port historical-date rebuild flag behavior and loop prevention.
-- Characterize missing, zero, unsupported, mismatched, duplicate, and replay paths.
-- Await every mutation required to complete before the Worker response.
+- Ported duplicate remote-id lookup, first-match behavior, and accepted existing-mirror responses without creating another movement.
+- Ported purchase recognition, item Account and direct Group synchronization, `Buy` Account creation, and complete `Buy >> item` quantity movements.
+- Ported sale recognition, item Account lookup or creation, `Sell` Account creation, and complete `item >> Sell` quantity movements.
+- Ported quantity-bearing credit-note recognition and its accepted reverse `item >> Buy` quantity movement.
+- Preserved accepted dates, quantities, descriptions, properties, exchange codes, order values, source values, remote ids, branch order, resource lookup order, mutation order, and response commentary.
+- Ported historical-date rebuild flags, direct checked Inventory movement interception, and Inventory Bot agent loop prevention.
+- Characterized missing, zero, incomplete, unsupported, mismatched, duplicate, and replay paths as non-balance-affecting.
+- Adapted optional Account and Group lookups only by converting current `bkper-js` `404` errors to the `undefined` result used by the legacy SDK; other failures still propagate.
+- Awaited required Account, Group, Transaction, and rebuild mutations before returning the Worker response.
+- Added deterministic checked-event coverage for exact resource payloads, complete movement direction, account synchronization, mutation ordering, idempotency, rebuild warnings, loop prevention, and no-write paths.
+- Passed strict client and server typechecks, 129 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Zero-sum gate:** Every posted quantity mirror is one complete movement with the accepted direction, and unresolved behavior creates no balance-affecting movement.
+**Zero-sum gate:** Passed deterministically. Every posted quantity mirror is one complete movement with the accepted direction, and unresolved behavior creates no balance-affecting movement.
 
 ### Chunk 5 — Port posting, unchecking, deletion, and linked cleanup
 

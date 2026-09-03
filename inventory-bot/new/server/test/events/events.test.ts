@@ -146,7 +146,7 @@ describe('legacy event dispatcher', () => {
         expect(await response.text()).toBe(JSON.stringify({ result: false }, null, 4));
     });
 
-    test('keeps every subscribed business handler non-mutating in Chunk 3', async () => {
+    test('keeps draft checked events and the remaining subscribed handlers non-mutating', async () => {
         for (const routingCase of ROUTING_CASES) {
             const response = await createApp().request(
                 '/events',

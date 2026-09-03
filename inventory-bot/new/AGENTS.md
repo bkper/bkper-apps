@@ -4,12 +4,12 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1 through 3 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, non-mutating Cloudflare skeleton, and common event ingress and resolution boundaries are recorded in `../ROADMAP.md`.
-- Chunk 4 is next. Port checked purchase, sale, and credit-note quantity behavior while preserving the established movement semantics and zero-sum invariant.
+- Chunks 1 through 4 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, common event ingress and resolution boundaries, and checked purchase, sale, and credit-note quantity behavior are recorded in `../ROADMAP.md`.
+- Chunk 5 is next. Port posting, unchecking, deletion, and linked cleanup while preserving the established movement semantics, mutation order, rebuild behavior, and zero-sum invariant.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
-- Keep Calculate and Reset non-mutating. During Chunk 4, introduce business mutations only in the checked-transaction path; keep the other subscribed event handlers non-mutating until Chunk 5.
+- Keep Calculate and Reset non-mutating. The checked-transaction path is the only implemented event mutation boundary; during Chunk 5, introduce business mutations only for the established posting, unchecking, deletion, and linked-cleanup behavior.
 - Do not inherit Portfolio Bot domain behavior, routes, event subscriptions, operation policies, or UI workflows.
 - Protect Bkper's zero-sum invariant above all else. Every posted Transaction must remain one complete movement with one amount from an origin Account to a destination Account.
 - Tests must never write to live Books.

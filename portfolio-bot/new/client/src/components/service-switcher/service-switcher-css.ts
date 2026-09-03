@@ -12,12 +12,6 @@ export const serviceSwitcherCSS = css`
         font-size: var(--bkper-font-size-large);
     }
 
-    p {
-        margin: 0;
-        margin-top: var(--bkper-spacing-x-small);
-        color: var(--bkper-color-grey-high);
-    }
-
     wa-dropdown-item.selected {
         cursor: default;
     }

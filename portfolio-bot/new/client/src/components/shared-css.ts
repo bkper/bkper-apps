@@ -16,6 +16,16 @@ export const sharedCSS = css`
         font-family: var(--bkper-font-family-code);
     }
 
+    .intro p {
+        margin: 0;
+        margin-top: var(--bkper-spacing-x-small);
+        color: var(--bkper-color-grey-high);
+    }
+
+    .intro p span {
+        font-weight: var(--bkper-font-weight-bold);
+    }
+
     wa-dropdown-item > wa-icon {
         font-size: 16px;
     }

@@ -52,8 +52,16 @@ export class RealizedResultsView extends LitElement {
                     .service=${PortfolioService.REALIZED_RESULTS}
                     .showMenu=${Utils.canSwitchServices(context)}
                     .disabled=${this.isServiceSwitcherDisabled()}
-                    instructions="Choose a date and review the accounts below. Then, click Calculate to compute realized results, or Reset to undo already calculated results."
                 ></service-switcher>
+
+                <!-- Intro -->
+                <div class="intro">
+                    <p>Choose a date and review the accounts below.</p>
+                    <p>
+                        Then, click <span>Calculate</span> to compute realized results, or
+                        <span>Reset</span> to undo already calculated results.
+                    </p>
+                </div>
 
                 <!-- Account list -->
                 <account-list

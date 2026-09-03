@@ -79,16 +79,15 @@ describe('Service switcher view', () => {
         expect(markup).not.toContain('<wa-icon');
     });
 
-    it('updates the heading for the active service and retains its instructions', () => {
+    it('updates the heading for the active service without rendering instructions', () => {
         const realizedResults = new ServiceSwitcherView();
         const realizedResultsRender = render.call(realizedResults);
         const forwardDate = new ServiceSwitcherView();
         forwardDate.service = PortfolioService.FORWARD_DATE;
-        forwardDate.instructions = 'Forward instructions';
         const forwardDateRender = render.call(forwardDate);
 
         expect(realizedResultsRender.values[0]).not.toBe(forwardDateRender.values[0]);
-        expect(forwardDateRender.values).toContain(forwardDate.instructions);
+        expect(forwardDateRender.strings.join('')).not.toContain('<p>');
     });
 
     it('marks only the active service item for the default cursor', () => {

@@ -21,9 +21,6 @@ export class ServiceSwitcherView extends LitElement {
     @property({ attribute: false })
     service: PortfolioService = PortfolioService.REALIZED_RESULTS;
 
-    @property()
-    instructions = '';
-
     @property({ type: Boolean })
     showMenu = true;
 
@@ -39,7 +36,6 @@ export class ServiceSwitcherView extends LitElement {
                 <h2>${heading}</h2>
                 ${this.renderDropdown()}
             </div>
-            <p>${this.instructions}</p>
         `;
     }
 

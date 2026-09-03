@@ -63,8 +63,17 @@ export class ForwardDateView extends LitElement {
                     .service=${PortfolioService.FORWARD_DATE}
                     .showMenu=${Utils.canSwitchServices(context)}
                     .disabled=${this.isServiceSwitcherDisabled()}
-                    instructions="Choose a date and review the accounts below. Then, click Forward to move open trades to that date at the current price, or Full Reset to remove all results and forward states."
                 ></service-switcher>
+
+                <!-- Intro -->
+                <div class="intro">
+                    <p>Choose a date and review the accounts below.</p>
+                    <p>
+                        Then, click <span>Forward</span> to move open trades to that date at the
+                        current price, or <span>Full Reset</span> to remove all results and forward
+                        states.
+                    </p>
+                </div>
 
                 <!-- Account list -->
                 <account-list

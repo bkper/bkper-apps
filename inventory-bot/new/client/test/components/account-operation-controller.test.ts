@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Account, Book } from 'bkper-js';
 import type { ReactiveController } from 'lit';
 import {
     AccountOperationController,
     type AccountOperationViewHost,
 } from '../../src/components/account-operation-controller.js';
+import { botService } from '../../src/services/bot-service.js';
 import {
     AccountOperationStatus,
     type AccountOperationContext,
@@ -37,6 +38,17 @@ class TestView extends EventTarget implements AccountOperationViewHost<AccountOp
 
 class TestController extends AccountOperationController<AccountOperationContext, TestView> {
     execute: (account: Account) => Promise<void> = async () => {};
+    request: (accountId: string) => Promise<{ message: string }> = async accountId => ({
+        message: `${accountId} completed`,
+    });
+
+    async executeOne(account: Account): Promise<void> {
+        return this.executeAccountOperation(
+            account,
+            accountId => this.request(accountId),
+            'Account operation failed.'
+        );
+    }
 
     async run(): Promise<void> {
         const context = this.validateContext();
@@ -50,6 +62,16 @@ class TestController extends AccountOperationController<AccountOperationContext,
         );
     }
 }
+
+const originalHasPendingTasks = botService.hasPendingTasks;
+
+beforeEach(() => {
+    botService.hasPendingTasks = mock(async () => false);
+});
+
+afterEach(() => {
+    botService.hasPendingTasks = originalHasPendingTasks;
+});
 
 function createView(): TestView {
     const inventoryBook = new Book({ id: 'inventory-book' });
@@ -98,6 +120,48 @@ describe('Account operation controller', () => {
         expect(requestedAccountIds).toEqual(['apple', 'banana']);
         expect(changes).toEqual([true, false]);
         expect(view.executing).toBe(false);
+    });
+
+    it('checks the Inventory Book backlog once and aborts the whole sequence when work is pending', async () => {
+        botService.hasPendingTasks = mock(async () => true);
+        const view = createView();
+        const controller = new TestController(view);
+        controller.execute = mock(async () => {});
+
+        await controller.run();
+
+        expect(botService.hasPendingTasks).toHaveBeenCalledTimes(1);
+        expect(botService.hasPendingTasks).toHaveBeenCalledWith(view.context?.inventoryBook);
+        expect(controller.execute).not.toHaveBeenCalled();
+        expect(view.results.size).toBe(0);
+        expect(view.operationError?.message.before).toBe(
+            'Cannot start operation: Inventory Book has pending tasks.'
+        );
+    });
+
+    it('continues after an individual Account request fails and records each outcome', async () => {
+        const view = createView();
+        const controller = new TestController(view);
+        controller.request = mock(async accountId => {
+            if (accountId === 'apple') {
+                throw new Error('Apple failed');
+            }
+            return { message: 'Banana completed' };
+        });
+        controller.execute = account => controller.executeOne(account);
+
+        await controller.run();
+
+        expect(controller.request).toHaveBeenCalledTimes(2);
+        expect(view.results.get('apple')).toEqual({
+            status: AccountOperationStatus.ERROR,
+            error: 'Apple failed',
+        });
+        expect(view.results.get('banana')).toEqual({
+            status: AccountOperationStatus.COMPLETE,
+            message: 'Banana completed',
+        });
+        expect(view.operationError).toBeUndefined();
     });
 
     it('reports an operation-level failure and restores the idle state', async () => {

@@ -3,15 +3,14 @@ import type { ReactiveController } from 'lit';
 import { appEnv } from './../app-env.js';
 import { APP_ID } from './../constants.js';
 import { isBookAccessRequiredError, isNotFoundError } from './../errors.js';
-import { Utils } from './../utils.js';
 import { authService } from './../services/auth-service.js';
 import { bkperService } from './../services/bkper-service.js';
-import { botApiService } from './../services/bot-api-service.js';
 import { botService } from './../services/bot-service.js';
-import type { AccountOperationContext, AppError, CostOfGoodsSoldContext } from './../types.js';
+import type { AppError, CostOfGoodsSoldContext } from './../types.js';
 import { BotAppState } from './../types.js';
-import type { BotAppView } from './bot-app-view.js';
+import { Utils } from './../utils.js';
 import { BotAppErrors } from './bot-app-errors.js';
+import type { BotAppView } from './bot-app-view.js';
 
 export class BotAppController implements ReactiveController {
     private readonly view: BotAppView;
@@ -40,7 +39,7 @@ export class BotAppController implements ReactiveController {
         this.view.embedded = appEnv.isEmbedded();
         const url = new URL(self.location.href);
         const contextVersion = ++this.contextVersion;
-        // await Promise.all([this.initApp(), this.initBookContext(url, contextVersion)]);
+        await Promise.all([this.initApp(), this.initBookContext(url, contextVersion)]);
     }
 
     private readonly handleMessage = async (event: MessageEvent<unknown>): Promise<void> => {
@@ -65,52 +64,52 @@ export class BotAppController implements ReactiveController {
 
         self.history.replaceState(self.history.state, '', url);
         const contextVersion = ++this.contextVersion;
-        // await this.initBookContext(url, contextVersion);
+        await this.initBookContext(url, contextVersion);
     };
 
     private async initApp(): Promise<void> {
         this.view.app = await bkperService.loadApp();
     }
 
-    // private async initBookContext(url: URL, contextVersion: number): Promise<void> {
-    //     this.resetStates();
+    private async initBookContext(url: URL, contextVersion: number): Promise<void> {
+        this.resetStates();
 
-    //     await authService.init();
-    //     if (!this.isCurrent(contextVersion) || !authService.accessToken) {
-    //         return;
-    //     }
+        await authService.init();
+        if (!this.isCurrent(contextVersion) || !authService.accessToken) {
+            return;
+        }
 
-    //     const book = await this.initBook(url, contextVersion);
-    //     if (!book) {
-    //         return;
-    //     }
+        const book = await this.initBook(url, contextVersion);
+        if (!book) {
+            return;
+        }
 
-    //     const installedInBook = await this.initInstalledApp(book, contextVersion);
-    //     if (!this.isCurrent(contextVersion) || !installedInBook) {
-    //         return;
-    //     }
+        const installedInBook = await this.initInstalledApp(book, contextVersion);
+        if (!this.isCurrent(contextVersion) || !installedInBook) {
+            return;
+        }
 
-    //     const inventoryBook = await this.initInventoryBook(book, contextVersion);
-    //     if (!inventoryBook) {
-    //         return;
-    //     }
+        const inventoryBook = await this.initInventoryBook(book, contextVersion);
+        if (!inventoryBook) {
+            return;
+        }
 
-    //     if (inventoryBook.getId() !== book.getId()) {
-    //         const installedInInventoryBook = await this.initInstalledApp(
-    //             inventoryBook,
-    //             contextVersion
-    //         );
-    //         if (!installedInInventoryBook) {
-    //             return;
-    //         }
-    //     }
+        if (inventoryBook.getId() !== book.getId()) {
+            const installedInInventoryBook = await this.initInstalledApp(
+                inventoryBook,
+                contextVersion
+            );
+            if (!installedInInventoryBook) {
+                return;
+            }
+        }
 
-    //     const context = await this.loadContext(book, inventoryBook, url, contextVersion);
-    //     if (!this.isCurrent(contextVersion) || context === null) {
-    //         return;
-    //     }
-    //     this.view.appState = BotAppState.READY;
-    // }
+        const context = await this.loadContext(book, inventoryBook, url, contextVersion);
+        if (!this.isCurrent(contextVersion) || context === null) {
+            return;
+        }
+        this.view.appState = BotAppState.READY;
+    }
 
     private resetStates(): void {
         this.view.appState = BotAppState.LOADING;
@@ -166,53 +165,53 @@ export class BotAppController implements ReactiveController {
         return book;
     }
 
-    // private async initInventoryBook(book: Book, contextVersion: number): Promise<Book | undefined> {
-    //     let inventoryBook = botService.getInventoryBook(book);
-    //     if (!inventoryBook) {
-    //         this.view.error = this.inventoryBookNotFoundInCollection();
-    //         this.view.appState = BotAppState.ERROR;
-    //         return undefined;
-    //     }
+    private async initInventoryBook(book: Book, contextVersion: number): Promise<Book | undefined> {
+        let inventoryBook = botService.getInventoryBook(book);
+        if (!inventoryBook) {
+            this.view.error = this.inventoryBookNotFoundInCollection();
+            this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
 
-    //     const inventoryBookId = inventoryBook.getId();
-    //     try {
-    //         inventoryBook =
-    //             inventoryBookId == book.getId()
-    //                 ? book
-    //                 : await bkperService.loadBook(inventoryBookId, true);
-    //     } catch (error: unknown) {
-    //         if (!this.isCurrent(contextVersion)) {
-    //             return undefined;
-    //         }
-    //         if (isBookAccessRequiredError(error)) {
-    //             this.view.error = this.bookAccessRequired(inventoryBookId, true);
-    //         } else {
-    //             this.view.error = isNotFoundError(error)
-    //                 ? this.bookNotFound(true)
-    //                 : this.bookLoadFailed(true);
-    //         }
-    //         this.view.appState = BotAppState.ERROR;
-    //         return undefined;
-    //     }
+        const inventoryBookId = inventoryBook.getId();
+        try {
+            inventoryBook =
+                inventoryBookId === book.getId()
+                    ? book
+                    : await bkperService.loadBook(inventoryBookId, true);
+        } catch (error: unknown) {
+            if (!this.isCurrent(contextVersion)) {
+                return undefined;
+            }
+            if (isBookAccessRequiredError(error)) {
+                this.view.error = this.bookAccessRequired(inventoryBookId, true);
+            } else {
+                this.view.error = isNotFoundError(error)
+                    ? this.bookNotFound(true)
+                    : this.bookLoadFailed(true);
+            }
+            this.view.appState = BotAppState.ERROR;
+            return undefined;
+        }
 
-    //     if (!this.isCurrent(contextVersion)) {
-    //         return undefined;
-    //     }
+        if (!this.isCurrent(contextVersion)) {
+            return undefined;
+        }
 
-    //     this.view.initialDate = this.getInitialDate(inventoryBook);
-    //     this.view.inventoryBook = inventoryBook;
+        this.view.initialDate = this.getInitialDate(inventoryBook);
+        this.view.inventoryBook = inventoryBook;
 
-    //     const canView = Utils.canViewBook(inventoryBook);
-    //     this.view.hasViewerPermission = canView;
+        const canView = Utils.canViewBook(inventoryBook);
+        this.view.hasViewerPermission = canView;
 
-    //     if (!canView) {
-    //         this.view.error = this.insufficientViewPermission(inventoryBook, true);
-    //         this.view.appState = BotAppState.READY;
-    //         return undefined;
-    //     }
+        if (!canView) {
+            this.view.error = this.insufficientViewPermission(inventoryBook, true);
+            this.view.appState = BotAppState.READY;
+            return undefined;
+        }
 
-    //     return inventoryBook;
-    // }
+        return inventoryBook;
+    }
 
     private async initInstalledApp(book: Book, contextVersion: number): Promise<boolean> {
         try {
@@ -231,101 +230,83 @@ export class BotAppController implements ReactiveController {
         return false;
     }
 
-    // private async loadContext(
-    //     book: Book,
-    //     inventoryBook: Book,
-    //     url: URL,
-    //     contextVersion: number
-    // ): Promise<void | null> {
-    //     // Account context takes precedence over Group context when both are selected.
-    //     const account = await this.loadAccount(book, inventoryBook, url, contextVersion);
-    //     if (account === null) {
-    //         return null;
-    //     }
+    private async loadContext(
+        book: Book,
+        inventoryBook: Book,
+        url: URL,
+        contextVersion: number
+    ): Promise<void | null> {
+        // Account context takes precedence over Group context when both are selected.
+        const account = await this.loadAccount(book, inventoryBook, url, contextVersion);
+        if (account === null) {
+            return null;
+        }
 
-    //     // Resolve Group context only when no Account was selected.
-    //     const group = account
-    //         ? undefined
-    //         : await this.loadGroup(book, inventoryBook, url, contextVersion);
-    //     if (group === null) {
-    //         return null;
-    //     }
+        // Resolve Group context only when no Account was selected.
+        const group = account
+            ? undefined
+            : await this.loadGroup(book, inventoryBook, url, contextVersion);
+        if (group === null) {
+            return null;
+        }
 
-    //     let resetEnabled = true;
-    //     const accounts: Account[] = [];
+        const accounts: Account[] = [];
+        if (account) {
+            await this.addEligibleInventoryAccount(accounts, account);
+        } else if (group) {
+            const groupAccounts = await group.getAccounts();
+            for (const groupAccount of groupAccounts) {
+                await this.addEligibleInventoryAccount(accounts, groupAccount);
+            }
+        } else {
+            const allAccounts = await inventoryBook.getAccounts();
+            for (const inventoryAccount of allAccounts) {
+                await this.addEligibleInventoryAccount(accounts, inventoryAccount);
+            }
+        }
 
-    //     if (account) {
-    //         await this.addEligibleInventoryAccount(accounts, account);
-    //     } else if (group) {
-    //         const groupAccounts = await group.getAccounts();
-    //         for (const groupAccount of groupAccounts) {
-    //             await this.addEligibleInventoryAccount(accounts, groupAccount);
-    //         }
-    //     } else {
-    //         const pendingAccounts = await botApiService.listAccountsPendingCalculation(
-    //             inventoryBook.getId()
-    //         );
-    //         for (const pendingAccountId of pendingAccounts.ids) {
-    //             const inventoryAccount = await inventoryBook.getAccount(pendingAccountId);
-    //             await this.addEligibleInventoryAccount(accounts, inventoryAccount);
-    //         }
-    //         // Disable reset operation when displaying all uncalculated accounts
-    //         resetEnabled = false;
-    //     }
+        const accountsExcCodes = await Utils.getExchangeCodes(accounts);
+        if (!this.isCurrent(contextVersion)) {
+            return null;
+        }
 
-    //     const accountsExcCodes = await Utils.getExchangeCodes(accounts);
-    //     if (!this.isCurrent(contextVersion)) {
-    //         return null;
-    //     }
+        const editableExcCodes = botService.getEditableFinancialBookExchangeCodes(
+            inventoryBook,
+            accountsExcCodes
+        );
+        const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
 
-    //     const editableExcCodes = botService.getBooksExcCodesUserCanEdit(inventoryBook);
-    //     const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
+        this.view.hasEditorPermission = missingExcCodes.length === 0;
+        if (!this.view.hasEditorPermission) {
+            this.view.error = BotAppErrors.insufficientEditPermission(missingExcCodes);
+        }
 
-    //     this.view.hasEditorPermission = missingExcCodes.length == 0;
-    //     if (!this.view.hasEditorPermission) {
-    //         this.view.error = BotAppErrors.insufficientEditPermission(missingExcCodes);
-    //     }
+        // Sort accounts alphabetically
+        accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
 
-    //     // Sort accounts alphabetically
-    //     accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
+        const cogsContext: CostOfGoodsSoldContext = {
+            inventoryBook,
+            selectedAccount: account,
+            selectedGroup: group,
+            accounts,
+            resetEnabled: true,
+        };
 
-    //     const hasSelectedContext = account != null || group != null;
-    //     const fullResetEnabled =
-    //         hasSelectedContext &&
-    //         Utils.isBookOwner(inventoryBook) &&
-    //         botService.areAllCollectionBooksOpenAndUnlocked(book);
+        this.view.cogsContext = cogsContext;
+    }
 
-    //     const accountContext: AccountOperationContext = {
-    //         inventoryBook: inventoryBook,
-    //         selectedAccount: account,
-    //         selectedGroup: group,
-    //         accounts,
-    //     };
-    //     const cogsContext: CostOfGoodsSoldContext = {
-    //         ...accountContext,
-    //         resetEnabled,
-    //     };
-    //     const forwardDateContext: ForwardDateContext = {
-    //         ...accountContext,
-    //         fullResetEnabled,
-    //     };
-
-    //     this.view.cogsContext = cogsContext;
-    //     this.view.forwardDateContext = forwardDateContext;
-    // }
-
-    // private getMissingExcCodes(
-    //     accountExcCodes: Set<string>,
-    //     editableExcCodes: Set<string>
-    // ): string[] {
-    //     const missingExcCodes: string[] = [];
-    //     for (const accountExcCode of accountExcCodes) {
-    //         if (!editableExcCodes.has(accountExcCode)) {
-    //             missingExcCodes.push(accountExcCode);
-    //         }
-    //     }
-    //     return missingExcCodes;
-    // }
+    private getMissingExcCodes(
+        accountExcCodes: Set<string>,
+        editableExcCodes: Set<string>
+    ): string[] {
+        const missingExcCodes: string[] = [];
+        for (const accountExcCode of accountExcCodes) {
+            if (!editableExcCodes.has(accountExcCode)) {
+                missingExcCodes.push(accountExcCode);
+            }
+        }
+        return missingExcCodes;
+    }
 
     private async loadAccount(
         book: Book,
@@ -413,18 +394,18 @@ export class BotAppController implements ReactiveController {
         }
     }
 
-    // private async addEligibleInventoryAccount(
-    //     accounts: Account[],
-    //     account: Account | undefined
-    // ): Promise<void> {
-    //     if (!account) {
-    //         return;
-    //     }
-    //     const isEligible = await Utils.isEligibleInventoryAccount(account);
-    //     if (isEligible) {
-    //         accounts.push(account);
-    //     }
-    // }
+    private async addEligibleInventoryAccount(
+        accounts: Account[],
+        account: Account | undefined
+    ): Promise<void> {
+        if (!account) {
+            return;
+        }
+        const isEligible = await Utils.isEligibleInventoryAccount(account);
+        if (isEligible) {
+            accounts.push(account);
+        }
+    }
 
     private getInitialDate(book: Book): string {
         const timeZone = book.getTimeZone();

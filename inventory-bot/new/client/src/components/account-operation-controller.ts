@@ -1,6 +1,7 @@
 import type { Account } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
-// import type { OperationResponse } from '../api/generated/types.js';
+import type { OperationResponse } from '../api/generated/types.js';
+import { botService } from '../services/bot-service.js';
 import {
     AccountOperationStatus,
     type AccountOperationContext,
@@ -58,13 +59,13 @@ export abstract class AccountOperationController<
         this.clearResults();
 
         try {
-            // const hasPendingTasks = await botService.hasPendingTasks(context.inventoryBook);
-            // if (hasPendingTasks) {
-            //     this.view.operationError = this.createOperationError(
-            //         'Cannot start operation: Inventory Book has pending tasks.'
-            //     );
-            //     return;
-            // }
+            const hasPendingTasks = await botService.hasPendingTasks(context.inventoryBook);
+            if (hasPendingTasks) {
+                this.view.operationError = this.createOperationError(
+                    'Cannot start operation: Inventory Book has pending tasks.'
+                );
+                return;
+            }
 
             this.initializeWaitingResults(context.accounts);
 
@@ -80,28 +81,28 @@ export abstract class AccountOperationController<
         }
     }
 
-    // protected async executeAccountOperation(
-    //     inventoryAccount: Account,
-    //     execute: (accountId: string) => Promise<OperationResponse>,
-    //     errorFallback: string
-    // ): Promise<void> {
-    //     const inventoryAccountId = inventoryAccount.getId();
-    //     if (!inventoryAccountId) {
-    //         return;
-    //     }
-    //     try {
-    //         const response = await execute(inventoryAccountId);
-    //         this.setResult(inventoryAccountId, {
-    //             status: AccountOperationStatus.COMPLETE,
-    //             message: response.message,
-    //         });
-    //     } catch (error: unknown) {
-    //         this.setResult(inventoryAccountId, {
-    //             status: AccountOperationStatus.ERROR,
-    //             error: this.formatError(error, errorFallback),
-    //         });
-    //     }
-    // }
+    protected async executeAccountOperation(
+        inventoryAccount: Account,
+        execute: (accountId: string) => Promise<OperationResponse>,
+        errorFallback: string
+    ): Promise<void> {
+        const inventoryAccountId = inventoryAccount.getId();
+        if (!inventoryAccountId) {
+            return;
+        }
+        try {
+            const response = await execute(inventoryAccountId);
+            this.setResult(inventoryAccountId, {
+                status: AccountOperationStatus.COMPLETE,
+                message: response.message,
+            });
+        } catch (error: unknown) {
+            this.setResult(inventoryAccountId, {
+                status: AccountOperationStatus.ERROR,
+                error: this.formatError(error, errorFallback),
+            });
+        }
+    }
 
     private setExecuting(executing: boolean): void {
         this.view.executing = executing;

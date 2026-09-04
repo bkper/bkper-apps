@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { Account, App, Book, Group } from 'bkper-js';
+import { Account, AccountType, App, Book, Group, Permission } from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { BotAppController } from '../../src/components/bot-app-controller.js';
 import type { BotAppView } from '../../src/components/bot-app-view.js';
+import { authService } from '../../src/services/auth-service.js';
+import { bkperService } from '../../src/services/bkper-service.js';
+import { botService } from '../../src/services/bot-service.js';
 import { BotAppState, type AppError, type CostOfGoodsSoldContext } from '../../src/types.js';
 
 class TestView implements ReactiveControllerHost {
@@ -34,6 +37,11 @@ class TestView implements ReactiveControllerHost {
     requestUpdate(): void {}
 }
 
+const originalAuthInit = authService.init;
+const originalLoadApp = bkperService.loadApp;
+const originalLoadBook = bkperService.loadBook;
+const originalLoadInstalledApp = bkperService.loadInstalledApp;
+const originalGetInventoryBook = botService.getInventoryBook;
 const originalHistory = Object.getOwnPropertyDescriptor(self, 'history');
 const originalLocation = Object.getOwnPropertyDescriptor(self, 'location');
 const originalParent = Object.getOwnPropertyDescriptor(self, 'parent');
@@ -65,9 +73,34 @@ beforeEach(() => {
         configurable: true,
         value: { state: null, replaceState },
     });
+    authService.init = async () => {
+        authService.accessToken = 'access-token';
+    };
+    bkperService.loadApp = mock(async () => new App({ id: 'inventory-bot' }));
+    bkperService.loadBook = mock(
+        async () =>
+            new Book({
+                id: 'book-id',
+                timeZone: 'UTC',
+                permission: Permission.EDITOR,
+                collection: {
+                    books: [{ id: 'book-id', fractionDigits: 0 }],
+                },
+                accounts: [],
+                groups: [],
+            })
+    );
+    bkperService.loadInstalledApp = mock(async () => new App({ id: 'inventory-bot' }));
+    botService.getInventoryBook = mock(book => book);
 });
 
 afterEach(() => {
+    authService.init = originalAuthInit;
+    authService.accessToken = undefined;
+    bkperService.loadApp = originalLoadApp;
+    bkperService.loadBook = originalLoadBook;
+    bkperService.loadInstalledApp = originalLoadInstalledApp;
+    botService.getInventoryBook = originalGetInventoryBook;
     restoreProperty('history', originalHistory);
     restoreProperty('location', originalLocation);
     restoreProperty('parent', originalParent);
@@ -131,6 +164,383 @@ describe('Bot app controller', () => {
         const embeddedView = new TestView();
         await createController(embeddedView).initialize();
         expect(embeddedView.embedded).toBe(true);
+    });
+
+    it('loads App metadata but not Book context when authentication has no session', async () => {
+        authService.init = async () => {};
+        authService.accessToken = undefined;
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.app?.getId()).toBe('inventory-bot');
+        expect(bkperService.loadBook).not.toHaveBeenCalled();
+        expect(view.appState).toBe(BotAppState.LOADING);
+    });
+
+    it('authenticates and verifies installation in the originating and resolved Inventory Books', async () => {
+        const originatingBook = new Book({
+            id: 'financial-book',
+            permission: Permission.VIEWER,
+            collection: {
+                books: [
+                    { id: 'financial-book', fractionDigits: 2 },
+                    { id: 'inventory-book', fractionDigits: 0 },
+                ],
+            },
+        });
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.VIEWER,
+            collection: {
+                books: [
+                    { id: 'financial-book', fractionDigits: 2 },
+                    { id: 'inventory-book', fractionDigits: 0 },
+                ],
+            },
+            accounts: [],
+            groups: [],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? originatingBook : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://inventory-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(1, 'financial-book', true);
+        expect(bkperService.loadBook).toHaveBeenNthCalledWith(2, 'inventory-book', true);
+        expect(bkperService.loadInstalledApp).toHaveBeenNthCalledWith(
+            1,
+            originatingBook,
+            'inventory-bot'
+        );
+        expect(bkperService.loadInstalledApp).toHaveBeenNthCalledWith(
+            2,
+            inventoryBook,
+            'inventory-bot'
+        );
+        expect(view.inventoryBook).toBe(inventoryBook);
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('blocks context when either required Book installation is missing', async () => {
+        const originatingBook = new Book({
+            id: 'financial-book',
+            permission: Permission.VIEWER,
+        });
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            permission: Permission.VIEWER,
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? originatingBook : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        bkperService.loadInstalledApp = mock(async book =>
+            book.getId() === 'financial-book' ? new App({ id: 'inventory-bot' }) : null
+        );
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://inventory-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.error?.title).toBe('Inventory Bot installation could not be verified.');
+        expect(view.appState).toBe(BotAppState.ERROR);
+        expect(view.cogsContext).toBeUndefined();
+    });
+
+    it('requires view permission on the resolved Inventory Book', async () => {
+        const originatingBook = new Book({
+            id: 'financial-book',
+            permission: Permission.VIEWER,
+        });
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.RECORDER,
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? originatingBook : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://inventory-bot.bkper.app/?bookId=financial-book' },
+        });
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.inventoryBook).toBe(inventoryBook);
+        expect(view.hasViewerPermission).toBe(false);
+        expect(view.error?.title).toBe('Insufficient Inventory Book permission.');
+        expect(view.cogsContext).toBeUndefined();
+    });
+
+    it('gives selected Account scope precedence and includes a permanent Liability Account', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://inventory-bot.bkper.app/?bookId=financial-book&accountId=source-account&groupId=source-group',
+            },
+        });
+        const originatingBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+            accounts: [{ id: 'source-account', name: 'Apple' }],
+            groups: [{ id: 'source-group', name: 'Products' }],
+        });
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.VIEWER,
+            collection: {
+                books: [
+                    {
+                        id: 'usd-book',
+                        fractionDigits: 2,
+                        permission: Permission.EDITOR,
+                        properties: { exc_code: 'USD' },
+                    },
+                    { id: 'inventory-book', fractionDigits: 0 },
+                ],
+            },
+            groups: [
+                { id: 'source-group', name: 'Products' },
+                { id: 'exchange-group', properties: { exc_code: 'USD' } },
+            ],
+            accounts: [
+                {
+                    id: 'inventory-account',
+                    name: 'Apple',
+                    type: AccountType.LIABILITY,
+                    permanent: true,
+                    archived: true,
+                    groups: [{ id: 'source-group' }, { id: 'exchange-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? originatingBook : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.cogsContext?.selectedAccount?.getId()).toBe('inventory-account');
+        expect(view.cogsContext?.selectedGroup).toBeUndefined();
+        expect(view.cogsContext?.accounts.map(account => account.getId())).toEqual([
+            'inventory-account',
+        ]);
+        expect(view.cogsContext?.resetEnabled).toBe(true);
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('excludes a directly selected non-permanent Account from the operation scope', async () => {
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://inventory-bot.bkper.app/?bookId=financial-book&accountId=source-account',
+            },
+        });
+        const originatingBook = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+            accounts: [{ id: 'source-account', name: 'Sales' }],
+        });
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.VIEWER,
+            accounts: [
+                {
+                    id: 'inventory-account',
+                    name: 'Sales',
+                    type: AccountType.INCOMING,
+                    permanent: false,
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? originatingBook : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.cogsContext?.selectedAccount?.getId()).toBe('inventory-account');
+        expect(view.cogsContext?.accounts).toEqual([]);
+        expect(view.appState).toBe(BotAppState.READY);
+    });
+
+    it('filters Group and whole-Book scopes to permanent Accounts with exchange codes and sorts by name', async () => {
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.VIEWER,
+            collection: {
+                books: [
+                    {
+                        id: 'usd-book',
+                        fractionDigits: 2,
+                        permission: Permission.OWNER,
+                        properties: { exc_code: 'USD' },
+                    },
+                    { id: 'inventory-book', fractionDigits: 0 },
+                ],
+            },
+            groups: [
+                { id: 'products', name: 'Products' },
+                { id: 'exchange-group', properties: { exc_code: 'USD' } },
+            ],
+            accounts: [
+                {
+                    id: 'banana',
+                    name: 'Banana',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    archived: true,
+                    groups: [{ id: 'products' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'apple',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'products' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'inventory-payable',
+                    name: 'Inventory Payable',
+                    type: AccountType.LIABILITY,
+                    permanent: true,
+                    groups: [{ id: 'products' }, { id: 'exchange-group' }],
+                },
+                {
+                    id: 'missing-exchange',
+                    name: 'Missing Exchange',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'products' }],
+                },
+                {
+                    id: 'sales',
+                    name: 'Sales',
+                    type: AccountType.INCOMING,
+                    permanent: false,
+                    groups: [{ id: 'products' }],
+                },
+            ],
+        });
+        const groupOrigin = new Book({
+            id: 'financial-book',
+            permission: Permission.EDITOR,
+            groups: [{ id: 'source-products', name: 'Products' }],
+        });
+        bkperService.loadBook = mock(async bookId =>
+            bookId === 'financial-book' ? groupOrigin : inventoryBook
+        );
+        botService.getInventoryBook = mock(() => new Book({ id: 'inventory-book' }));
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://inventory-bot.bkper.app/?bookId=financial-book&groupId=source-products',
+            },
+        });
+        const groupView = new TestView();
+
+        await createController(groupView).initialize();
+
+        expect(groupView.cogsContext?.accounts.map(account => account.getId())).toEqual([
+            'apple',
+            'banana',
+            'inventory-payable',
+        ]);
+        expect(groupView.cogsContext?.selectedGroup?.getId()).toBe('products');
+
+        Object.defineProperty(self, 'location', {
+            configurable: true,
+            value: { href: 'https://inventory-bot.bkper.app/?bookId=inventory-book' },
+        });
+        bkperService.loadBook = mock(async () => inventoryBook);
+        botService.getInventoryBook = mock(book => book);
+        const wholeBookView = new TestView();
+
+        await createController(wholeBookView).initialize();
+
+        expect(wholeBookView.cogsContext?.accounts.map(account => account.getId())).toEqual([
+            'apple',
+            'banana',
+            'inventory-payable',
+        ]);
+        expect(wholeBookView.cogsContext?.resetEnabled).toBe(true);
+    });
+
+    it('reports Financial Book edit availability for the visible Account scope', async () => {
+        const inventoryBook = new Book({
+            id: 'inventory-book',
+            timeZone: 'UTC',
+            permission: Permission.VIEWER,
+            collection: {
+                books: [
+                    {
+                        id: 'usd-book',
+                        fractionDigits: 2,
+                        permission: Permission.EDITOR,
+                        properties: { exc_code: 'USD' },
+                    },
+                    {
+                        id: 'eur-book',
+                        fractionDigits: 2,
+                        permission: Permission.VIEWER,
+                        properties: { exc_code: 'EUR' },
+                    },
+                    { id: 'inventory-book', fractionDigits: 0 },
+                ],
+            },
+            groups: [
+                { id: 'usd-group', properties: { exc_code: 'USD' } },
+                { id: 'eur-group', properties: { exc_code: 'EUR' } },
+            ],
+            accounts: [
+                {
+                    id: 'apple',
+                    name: 'Apple',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'usd-group' }],
+                },
+                {
+                    id: 'banana',
+                    name: 'Banana',
+                    type: AccountType.ASSET,
+                    permanent: true,
+                    groups: [{ id: 'eur-group' }],
+                },
+            ],
+        });
+        bkperService.loadBook = mock(async () => inventoryBook);
+        botService.getInventoryBook = mock(book => book);
+        const view = new TestView();
+
+        await createController(view).initialize();
+
+        expect(view.hasEditorPermission).toBe(false);
+        expect(view.error?.message.before).toContain('EUR');
+        expect(view.error?.message.before).not.toContain('USD');
+        expect(view.appState).toBe(BotAppState.READY);
     });
 
     it('accepts only trusted same-origin App URL changes while idle', async () => {

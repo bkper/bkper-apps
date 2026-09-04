@@ -1,4 +1,5 @@
 import type { Account } from 'bkper-js';
+import { botApiService } from '../../services/bot-api-service.js';
 import type { CostOfGoodsSoldContext } from '../../types.js';
 import { AccountOperationController } from '../account-operation-controller.js';
 import type { CostOfGoodsSoldView } from './cost-of-goods-sold-view.js';
@@ -43,18 +44,18 @@ export class CostOfGoodsSoldController extends AccountOperationController<
         inventoryAccount: Account,
         date: string
     ): Promise<void> {
-        // return this.executeAccountOperation(
-        //     inventoryAccount,
-        //     accountId => botApiService.calculateAccount(inventoryBookId, accountId, { date }),
-        //     'Calculation could not be completed. Please try again.'
-        // );
+        return this.executeAccountOperation(
+            inventoryAccount,
+            accountId => botApiService.calculateAccount(inventoryBookId, accountId, { date }),
+            'Calculation could not be completed. Please try again.'
+        );
     }
 
     private async resetAccount(inventoryBookId: string, inventoryAccount: Account): Promise<void> {
-        // return this.executeAccountOperation(
-        //     inventoryAccount,
-        //     accountId => botApiService.resetAccount(inventoryBookId, accountId),
-        //     'Reset could not be completed. Please try again.'
-        // );
+        return this.executeAccountOperation(
+            inventoryAccount,
+            accountId => botApiService.resetAccount(inventoryBookId, accountId),
+            'Reset could not be completed. Please try again.'
+        );
     }
 }

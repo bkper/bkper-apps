@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 7 complete — the typed public Account-level Calculate and Reset API contract is established with non-mutating service stubs.**
+**Chunk 8 complete — client context, visible operation scope, and server authorization boundaries are established while Calculate and Reset remain non-mutating.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its public API now exposes the generated Calculate and Reset contract without performing menu accounting mutations. Chunk 8 is next: port client context, operation scope, and authorization boundaries while keeping both operation services non-mutating.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client now resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, while each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking a non-mutating stub. Chunk 9 is next: port Account-level Reset.
 
 ## Purpose of this document
 
@@ -613,23 +613,29 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 8 — Port client context, operation scope, and authorization boundaries
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Resolve the exact visible Account scope and establish complete pre-mutation security without implementing Calculate or Reset.
 
-**Steps:**
+**Completed:**
 
-- Port originating Book, Inventory Book, selected Account, and selected Group resolution through authenticated browser-side `bkper-js`.
-- Port eligible item Account selection, Account-over-Group precedence, whole-Book fallback, and deterministic alphabetical ordering.
-- Make the rendered Account list the single client operation scope for Calculate and Reset.
-- Port Financial Book resolution for every visible item Account.
-- Add view, edit, installation, pending-task, lock, closing, missing-resource, and unsupported-context states.
-- Check complete-scope availability before starting an Account sequence.
-- Add shared server operation-context resolution for Inventory Book, item Account, and Financial Book.
-- Enforce `EDITOR` or `OWNER` permission and Inventory Bot installation on every mutation target before invoking the still-non-mutating operation stub.
-- Keep Bkper Core authoritative after preflight.
+- Activated authentication and trusted URL-driven context initialization while preserving immediate loading, standalone, embedded, and stale-context behavior.
+- Loaded the originating Book and required view permission and Inventory Bot installation before resolving operation context.
+- Reproduced the single-pass legacy Inventory Book scan exactly: the first Collection Book with `inventory_book` or zero fraction digits wins, including the inherited earlier-zero-fraction precedence bug.
+- Loaded the resolved Inventory Book with its complete chart and separately required view permission and Inventory Bot installation.
+- Mapped selected Accounts and Groups into the Inventory Book by name, retained Account-over-Group precedence, and used the whole Inventory Book when neither was selected.
+- Applied one client-side Account eligibility chain consistently to selected-Account, selected-Group, and whole-Book scopes: Accounts must be permanent and assigned to a Group with a non-empty `exc_code`; archived Accounts remain eligible, and the resulting visible list is sorted alphabetically.
+- Made that one rendered Account list the Calculate and Reset sequence for every scope, including whole-Book Reset.
+- Resolved Account exchange codes and Financial Books with legacy menu aliases, first-match behavior, and zero-fraction Financial Book rejection.
+- Checked edit availability only for Financial Books associated with visible Accounts and added no client-side Financial Book installation, lock, or closing preflight.
+- Checked the Inventory Book backlog exactly once at the start of Calculate or Reset, aborted the complete sequence when pending work existed, and retained sequential Account requests with per-Account failure continuation and no mutation retry.
+- Added shared server resolution for the Inventory Book, requested Account, Account exchange code, and matching Financial Book, returning `400` when the Account was non-permanent or required operation context was incomplete.
+- Required `EDITOR` or `OWNER` permission and Inventory Bot installation separately on both Inventory and Financial Books before invoking either non-mutating operation stub.
+- Added deterministic client and server tests covering legacy selection bugs, visible scope, authorization denials, structured API calls, backlog behavior, and non-mutating stubs without live Book access.
+- Passed generated-contract checks, strict client and server typechecks, 171 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** Deterministic fixtures produce the accepted visible Account list, and denied Account-level requests perform no Account or Transaction mutation.
+**Gate:** Passed. Deterministic fixtures produce the accepted shared visible Account list, denied Account-level requests never reach an operation stub, and Calculate and Reset remain non-mutating.
 
 ### Chunk 9 — Port Reset
 

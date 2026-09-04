@@ -10,7 +10,7 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/portfolio-bot
 repoPrivate: false
 deprecated: false
-developers: victordrumondmaltadesouza
+developers: '*@bkper.com'
 users: '*@brain.uy'
 menuUrl: https://stock-bot.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuUrlDev: https://stock-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}

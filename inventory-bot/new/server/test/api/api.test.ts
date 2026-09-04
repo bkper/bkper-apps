@@ -42,6 +42,8 @@ describe('typed Inventory Bot API', () => {
     });
 
     test('returns the shared operation response when non-mutating stubs complete', async () => {
+        CalculateService.execute = mock(async () => ({ message: '' }));
+        ResetService.execute = mock(async () => ({ message: '' }));
         const requests: Array<[string, RequestInit]> = [
             [
                 '/api/v1/books/inventory-book/accounts/item-account/calculate',

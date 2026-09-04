@@ -100,6 +100,9 @@ describe('Cost of goods sold view', () => {
         const markup = getTemplateMarkup(result);
         const values = getTemplateValues(result);
 
+        expect(markup).toContain('<div class="intro">');
+        expect(markup).toContain('<h2>');
+        expect(markup).toContain('<p>');
         expect(markup).toContain('<account-list');
         expect(markup).toContain('<wa-input');
         expect(markup).toContain('type="date"');

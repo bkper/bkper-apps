@@ -40,6 +40,16 @@ export class CostOfGoodsSoldView extends LitElement {
         const context = this.context;
         return html`
             <div class="cost-of-goods-sold">
+                <!-- Intro -->
+                <div class="intro">
+                    <h2>Cost of Goods Sold</h2>
+                    <p>Choose a date and review the accounts below.</p>
+                    <p>
+                        Then, click <span>Calculate</span> to calculate cost of goods sold using
+                        FIFO, or <span>Reset</span> to undo already calculated results.
+                    </p>
+                </div>
+
                 <!-- Account list -->
                 <account-list
                     .accounts=${context?.accounts ?? []}

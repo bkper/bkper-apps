@@ -2,6 +2,6 @@
   "name": "bkper-apps",
   "private": true,
   "scripts": {
-    "ports": "devpod ssh bkper -L 3002 -L 3005 -L 5174 -L 5175 -L 5176 -L 5177 -L 5178 -L 5179 -L 8788 -L 8789 -L 8790 -L 8793 -L 8794 -L 8795 -L 8796 -L 8797"
+    "ports": "devpod ssh bkper -L 3005 -L 5174 -L 5175 -L 5176 -L 5177 -L 5178 -L 5179 -L 8788 -L 8789 -L 8790 -L 8793 -L 8794 -L 8795 -L 8796 -L 8797"
   }
 }

@@ -11,7 +11,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
 | Inventory Bot (legacy) | Apps Script + GCP Cloud Functions | `inventory-bot/legacy/` |
 | Inventory Bot (new) | Platform app (Vite + Cloudflare Workers) | `inventory-bot/new/` |
-| Portfolio Bot | Apps Script + GCP Cloud Functions (production; Cloudflare migration) | `portfolio-bot/` |
+| Portfolio Bot | Platform app (Vite + Cloudflare Workers) | `portfolio-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 
@@ -30,7 +30,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
 | tax-bot | — | `8794` | Event-only production Worker configured in `package.json` |
 | merge-duplicates | `5178` | `8795` | Sidebar app for human-reviewed duplicate transaction merges |
-| portfolio-bot/new | `5179` | `8797` | Full-stack migration target; production remains on legacy GAS and GCP |
+| portfolio-bot | `5179` | `8797` | Full-stack production app |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
 
@@ -40,17 +40,15 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 
 | App | functions-framework port | Notes |
 | --- | --- | --- |
-| portfolio-bot/legacy/gcf | `3002` | Configured in `portfolio-bot/legacy/gcf/package.json` |
 | inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
 
-**Next available:** `3003`.
+**Next available:** `3002`.
 
 ### Apps Script components
 
 Apps Script components do not run local dev servers and do not need port assignments:
 
 - `inventory-bot/legacy/menu/`
-- `portfolio-bot/legacy/gas/`
 
 ## Adding a new app
 

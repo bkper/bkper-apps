@@ -1,4 +1,5 @@
-import { Permission, type Book } from 'bkper-js';
+import { AccountType, Permission, type Account, type Book } from 'bkper-js';
+import { EXC_CODE_PROP } from './constants.js';
 
 /** Book permissions that allow the current user to view Book data. */
 export const VIEW_PERMISSIONS: readonly Permission[] = [
@@ -41,6 +42,63 @@ export class Utils {
      */
     static isBookOwner(book: Book): boolean {
         return book.getPermission() === Permission.OWNER;
+    }
+
+    /**
+     * Gets the first Inventory exchange code configured on an eligible Account.
+     *
+     * @param account - The Account whose Groups should be inspected.
+     * @returns The configured exchange code, or `null` when the Account is not eligible.
+     */
+    static async getExchangeCode(account: Account): Promise<string | null> {
+        const type = account.getType();
+        if (type === AccountType.INCOMING || type === AccountType.OUTGOING) {
+            return null;
+        }
+        for (const group of await account.getGroups()) {
+            const exchangeCode = group.getProperty(EXC_CODE_PROP);
+            if (exchangeCode != null && exchangeCode.trim() !== '') {
+                return exchangeCode;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the unique Inventory exchange codes configured on the supplied Accounts.
+     *
+     * Accounts without an eligible exchange code are omitted. Exchange codes retain
+     * the order in which they are first found.
+     *
+     * @param accounts - The Accounts whose exchange codes should be collected.
+     * @returns The unique configured exchange codes in first-found order.
+     */
+    static async getExchangeCodes(accounts: Account[]): Promise<Set<string>> {
+        const exchangeCodes = new Set<string>();
+        for (const account of accounts) {
+            const exchangeCode = await Utils.getExchangeCode(account);
+            if (exchangeCode) {
+                exchangeCodes.add(exchangeCode);
+            }
+        }
+        return exchangeCodes;
+    }
+
+    /**
+     * Tells whether an Account is eligible for Inventory Bot item context.
+     *
+     * An eligible Inventory Account is permanent and assigned to at least one Group with a
+     * non-empty `exc_code` property.
+     *
+     * @param account - The Inventory Book Account to evaluate.
+     * @returns `true` when the Account is an eligible Inventory item; otherwise, `false`.
+     */
+    static async isEligibleInventoryAccount(account: Account): Promise<boolean> {
+        if (!account.isPermanent()) {
+            return false;
+        }
+        const excCode = await Utils.getExchangeCode(account);
+        return excCode !== null;
     }
 
     /**

@@ -8,3 +8,6 @@ export const APP_LOGO_URL_DARK =
 
 export const APP_WEBSITE_URL = 'https://bkper.com/apps/inventory-bot';
 export const APP_REPOSITORY_URL = 'https://github.com/bkper/bkper-apps/tree/main/inventory-bot';
+
+export const EXC_CODE_PROP = 'exc_code';
+export const INVENTORY_BOOK_PROP = 'inventory_book';

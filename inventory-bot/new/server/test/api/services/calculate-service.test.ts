@@ -80,7 +80,7 @@ test('loads the complete Financial Book and delegates to Calculate after authori
     ]);
 });
 
-test('translates the locked calculation outcome to the structured API error', async () => {
+test('translates every failed calculation outcome to a structured 400 error', async () => {
     const inventoryBook = createInventoryBook();
     const financialBook = new Book({
         id: 'financial-book',
@@ -89,18 +89,35 @@ test('translates the locked calculation outcome to the structured API error', as
     Book.prototype.getApps = async () => [new App({ id: 'inventory-bot' })];
     const bkper = new Bkper();
     bkper.getBook = async bookId => (bookId === 'inventory-book' ? inventoryBook : financialBook);
-    CalculateCostOfSalesService.prototype.execute = async () =>
-        new Summary('item-account').lockError();
+    const cases: Array<{ summary: Summary; message: string }> = [
+        {
+            summary: new Summary('item-account').salequantityError(),
+            message: 'Cannot proceed: sales quantity is greater than quantity purchased',
+        },
+        {
+            summary: new Summary('item-account').creditNoteQuantityError('credit-1'),
+            message:
+                'Cannot proceed: credit note quantity is greater than purchased quantity. Credit note: credit-1',
+        },
+        {
+            summary: new Summary('item-account').lockError(),
+            message: 'Cannot proceed: collection has locked/closed book(s)',
+        },
+    ];
 
-    await expect(
-        CalculateService.execute(
-            new AppContext(bkper, { ASSETS: { fetch } }),
-            'inventory-book',
-            'item-account',
-            { date: '2026-09-02' }
-        )
-    ).rejects.toMatchObject({
-        status: 400,
-        message: 'Cannot proceed: collection has locked/closed book(s)',
-    });
+    for (const testCase of cases) {
+        CalculateCostOfSalesService.prototype.execute = async () => testCase.summary;
+
+        await expect(
+            CalculateService.execute(
+                new AppContext(bkper, { ASSETS: { fetch } }),
+                'inventory-book',
+                'item-account',
+                { date: '2026-09-02' }
+            )
+        ).rejects.toMatchObject({
+            status: 400,
+            message: testCase.message,
+        });
+    }
 });

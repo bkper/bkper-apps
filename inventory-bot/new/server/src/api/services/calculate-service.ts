@@ -26,7 +26,12 @@ export class CalculateService extends OperationService {
             request.date
         );
 
-        if (summary.getState() === SummaryState.LOCKED) {
+        const state = summary.getState();
+        if (
+            state === SummaryState.LOCKED ||
+            state === SummaryState.SALE_QUANTITY_ERROR ||
+            state === SummaryState.CREDIT_NOTE_QUANTITY_ERROR
+        ) {
             throw new HTTPException(400, { message: summary.getResult() });
         }
         return { message: summary.getResult() };

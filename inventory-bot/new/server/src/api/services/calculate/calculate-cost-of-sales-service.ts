@@ -46,9 +46,7 @@ export class CalculateCostOfSalesService {
 
         // Skip
         if (financialBook == null) {
-            return summary.setResult(
-                `Cannot proceed: financial book not found for good account ${goodAccount.getName()}`
-            );
+            return summary;
         }
         financialBook = context.financialBook;
 

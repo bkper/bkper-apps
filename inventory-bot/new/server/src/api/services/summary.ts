@@ -1,6 +1,5 @@
 export enum SummaryState {
     EMPTY = 'empty',
-    OUTCOME = 'outcome',
     DONE = 'done',
     REBUILD = 'rebuild',
     RESETTING = 'resetting',
@@ -29,12 +28,6 @@ export class Summary {
 
     getState(): SummaryState {
         return this.state;
-    }
-
-    setResult(result: string): this {
-        this.state = SummaryState.OUTCOME;
-        this.result = result;
-        return this;
     }
 
     done(message?: string): this {

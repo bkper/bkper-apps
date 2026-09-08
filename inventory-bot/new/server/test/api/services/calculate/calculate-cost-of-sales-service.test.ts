@@ -166,6 +166,22 @@ function amount(transaction: Transaction): string | undefined {
 }
 
 describe('legacy Account-level Calculate Cost of Sales behavior', () => {
+    test('returns the untouched summary when the defensive Financial Book lookup is empty', async () => {
+        const fixture = createFixture();
+        fixture.inventoryBook.payload.collection = {
+            books: [{ id: 'inventory-book', fractionDigits: 0 }],
+        };
+        fixture.inventoryBook.listTransactions = async () => {
+            throw new Error('Transaction loading must not start');
+        };
+
+        const result = await new CalculateCostOfSalesService().execute(fixture.context);
+
+        expect(result.getState()).toBe(SummaryState.EMPTY);
+        expect(result.getResult()).toBe('Nothing to calculate');
+        expect(fixture.phases).toEqual([]);
+    });
+
     test('loads all pages and preserves multiple-lot FIFO, partial splitting, logs, and movement order', async () => {
         const fixture = createFixture();
         const purchase1 = createMovement(

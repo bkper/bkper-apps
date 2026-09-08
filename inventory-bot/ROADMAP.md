@@ -676,7 +676,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - Preserved rebuild Reset-and-return and Account calculation-date behavior.
 - Created accepted `item >> Cost of goods sold` monetary movements with their established properties and relationships.
 - Wired Calculate through the authorized Account-level API facade only after deterministic accounting coverage passed.
-- Passed generated-contract checks, strict client and server typechecks, 205 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Passed generated-contract checks, strict client and server typechecks, 206 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
 - Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
 **Zero-sum gate:** Passed deterministically. Generated COGS movements retain their accepted amount and direction, unresolved behavior remains non-balance-affecting, locked paths create no Transaction movement, and both Books remain independently balanced.

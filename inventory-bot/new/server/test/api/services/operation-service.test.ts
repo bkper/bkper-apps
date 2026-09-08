@@ -2,6 +2,7 @@ import { afterEach, expect, mock, test } from 'bun:test';
 import { Account, AccountType, App, Bkper, BkperError, Book, Permission } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { CalculateService } from '../../../src/api/services/calculate-service.js';
+import { CalculateCostOfSalesService } from '../../../src/api/services/calculate/calculate-cost-of-sales-service.js';
 import {
     type OperationContext,
     OperationService,
@@ -235,12 +236,12 @@ test('requires edit permission and Inventory Bot installation on both operation 
     }
 });
 
-const originalCalculateRun = Reflect.get(CalculateService, 'run');
+const originalCalculateExecute = CalculateCostOfSalesService.prototype.execute;
 const originalResetExecute = ResetCostOfSalesService.prototype.execute;
 const originalGetApps = Book.prototype.getApps;
 
 afterEach(() => {
-    Reflect.set(CalculateService, 'run', originalCalculateRun);
+    CalculateCostOfSalesService.prototype.execute = originalCalculateExecute;
     ResetCostOfSalesService.prototype.execute = originalResetExecute;
     Book.prototype.getApps = originalGetApps;
 });
@@ -251,9 +252,9 @@ test('Calculate and Reset begin their operations only after complete authorizati
     const bkper = new Bkper();
     bkper.getBook = async () => inventoryBook;
     const context = createAppContext(bkper);
-    const calculateRun = mock(async () => ({ message: 'Calculate stub' }));
-    const resetExecute = mock(async () => new Summary('item-account').setResult('Reset stub'));
-    Reflect.set(CalculateService, 'run', calculateRun);
+    const calculateExecute = mock(async () => new Summary('item-account').done('Calculate stub'));
+    const resetExecute = mock(async () => new Summary('item-account').done('Reset stub'));
+    CalculateCostOfSalesService.prototype.execute = calculateExecute;
     ResetCostOfSalesService.prototype.execute = resetExecute;
 
     await expect(
@@ -264,7 +265,7 @@ test('Calculate and Reset begin their operations only after complete authorizati
     await expect(ResetService.execute(context, 'inventory-book', 'item-account')).resolves.toEqual({
         message: 'Reset stub',
     });
-    expect(calculateRun).toHaveBeenCalledTimes(1);
+    expect(calculateExecute).toHaveBeenCalledTimes(1);
     expect(resetExecute).toHaveBeenCalledTimes(1);
 
     inventoryBook.payload.permission = Permission.VIEWER;
@@ -276,6 +277,6 @@ test('Calculate and Reset begin their operations only after complete authorizati
     await expect(
         ResetService.execute(context, 'inventory-book', 'item-account')
     ).rejects.toMatchObject({ status: 403 });
-    expect(calculateRun).toHaveBeenCalledTimes(1);
+    expect(calculateExecute).toHaveBeenCalledTimes(1);
     expect(resetExecute).toHaveBeenCalledTimes(1);
 });

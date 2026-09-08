@@ -2,19 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { Summary, SummaryState } from '../../../src/api/services/summary.js';
 
 describe('legacy Inventory Summary', () => {
-    test('preserves Account identity, default result, fluent results, and JSON formatting', () => {
+    test('preserves Account identity, default result, done results, and JSON formatting', () => {
         const summary = new Summary('item-account');
 
         expect(summary.getAccountId()).toBe('item-account');
         expect(summary.getResult()).toBe('Nothing to calculate');
         expect(summary.getState()).toBe(SummaryState.EMPTY);
-        expect(summary.setResult('Custom').getResult()).toBe('Custom');
-        expect(summary.getState()).toBe(SummaryState.OUTCOME);
         expect(summary.done('Done explicitly').getResult()).toBe('Done explicitly');
         expect(summary.getState()).toBe(SummaryState.DONE);
-        expect(summary.setResult('Result').done().getResult()).toBe('Done! "Result"');
-        expect(summary.getState()).toBe(SummaryState.DONE);
-        expect(summary.json().getResult()).toBe('"Done! \\"Result\\""');
+        expect(summary.json().getResult()).toBe('"Done explicitly"');
         expect(summary.getState()).toBe(SummaryState.DONE);
     });
 

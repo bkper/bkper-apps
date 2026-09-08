@@ -28,13 +28,13 @@ export class Summary {
 
     rebuild(): this {
         this.state = SummaryState.REBUILD;
-        this.message = 'Account needs rebuild: reseting async...';
+        this.message = 'Account needs rebuild: resetting async...';
         return this;
     }
 
     resetingAsync(): this {
         this.state = SummaryState.RESETTING;
-        this.message = 'Reseting async...';
+        this.message = 'Resetting async...';
         return this;
     }
 

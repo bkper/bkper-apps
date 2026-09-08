@@ -13,9 +13,9 @@ describe('operation Summary', () => {
             [
                 new Summary().rebuild(),
                 SummaryState.REBUILD,
-                'Account needs rebuild: reseting async...',
+                'Account needs rebuild: resetting async...',
             ],
-            [new Summary().resetingAsync(), SummaryState.RESETTING, 'Reseting async...'],
+            [new Summary().resetingAsync(), SummaryState.RESETTING, 'Resetting async...'],
             [new Summary().calculatingAsync(), SummaryState.CALCULATING, 'Calculating async...'],
             [
                 new Summary().lockError(),

@@ -92,7 +92,7 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.execute(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toEqual({ message: 'Reseting async...' });
+        ).resolves.toEqual({ message: 'Resetting async...' });
         await expect(
             ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
         ).rejects.toMatchObject({ status: 403 });
@@ -122,7 +122,7 @@ describe('Reset service operations', () => {
 
         await expect(
             ResetService.executeFull(context, 'portfolio-book', 'instrument-account')
-        ).resolves.toEqual({ message: 'Reseting async...' });
+        ).resolves.toEqual({ message: 'Resetting async...' });
     });
 
     test('does not load Financial or Base Book charts', async () => {
@@ -151,8 +151,8 @@ describe('Reset service operations', () => {
             'instrument-account'
         );
 
-        expect(resetResponse).toEqual({ message: 'Reseting async...' });
-        expect(fullResetResponse).toEqual({ message: 'Reseting async...' });
+        expect(resetResponse).toEqual({ message: 'Resetting async...' });
+        expect(fullResetResponse).toEqual({ message: 'Resetting async...' });
 
         expect(resetCalls).toEqual([
             {

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 11 complete — The migrated menu client delivers the accepted Inventory scope and Account-level Calculate and Reset workflow.**
+**Chunk 12 complete — The full-stack behavior, dependency, and runtime audit passed locally, and the reproducible candidate is ready for separately approved preview deployment and routing.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 12 is next: complete the full-stack behavior, dependency, and runtime audit.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 13 is next: deploy the frozen candidate to preview and establish development routing readiness through separately approved remote operations.
 
 ## Purpose of this document
 
@@ -145,7 +145,7 @@ Inventory Bot coordinates one Inventory Book and one or more Financial Books in 
 - Replace synchronous `bkper-gs` with asynchronous `bkper-js` deliberately, preserving mutation order where accounting behavior depends on it.
 - Expose Calculate and Reset as Account-level operations because the legacy server already processes one Account at a time.
 - Execute the visible Account list sequentially.
-- Continue to later Accounts after an individual Account failure, but never retry a mutation automatically. Mark uncertain outcomes explicitly.
+- Continue to later Accounts after an individual Account failure, but never retry a mutation automatically.
 - Abort before the Account sequence for global context, authentication, authorization, installation, or pending-task failures.
 - Use the same rendered Account scope for Calculate and Reset. This is an explicitly accepted workflow correction, not a silent parity claim.
 - Reset does not require an additional confirmation dialog.
@@ -396,10 +396,9 @@ Each behavior chunk follows this workflow:
 - Calculate and Reset operate on exactly the rendered Account list.
 - Account requests execute sequentially in visible order.
 - Busy state prevents duplicate submission.
-- Per-Account waiting, success, domain outcome, failure, uncertain outcome, and not-attempted states remain explicit.
+- Per-Account waiting, success commentary, and failure presentation remain explicit.
 - An individual Account failure does not prevent later Accounts from running.
 - Mutation requests are never retried automatically.
-- A known accepted mutation is not presented as safe to retry because later rendering failed.
 - The client works in embedded and standalone contexts, configured sidebar and expanded widths, light and dark themes, and supported browsers.
 - Tests protect behavior and contracts rather than static wording or pixel snapshots.
 - Browser verification confirms the target visually and interactively.
@@ -707,22 +706,25 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 12 — Complete the full-stack behavior, dependency, and runtime audit
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Freeze a locally reproducible candidate before any preview deployment or routing.
 
-**Steps:**
+**Completed:**
 
-- Install from the frozen lockfile and run the complete generated-contract, typecheck, test, build, format, and drift gate.
-- Reconcile all four event routes and event behavior with the production-authoritative GCP source.
-- Reconcile context, Calculate, Reset, summaries, operation ordering, and client orchestration with the production-authoritative GAS source and accepted target decisions.
-- Confirm every mutation route validates input, resolves complete context, authorizes every target, verifies installation, and completes preflight before its first write.
-- Confirm Account execution is sequential, later Accounts continue after isolated failures, and mutations are never retried automatically.
-- Audit asynchronous completion, pagination, SDK compatibility, errors, retries, dependencies, bundle contents, and metadata.
-- Rebuild from clean output and compare generated deployment artifacts for reproducibility.
-- Reconcile the production patch and accepted-deviation ledgers.
+- Removed installed dependencies and build output, reinstalled from the frozen Bun lockfile, and passed the complete generated-contract, strict client and server typecheck, test, production build, format, and generated-file drift gate.
+- Passed all 206 deterministic tests covering the client, public API, Calculate, Reset, all four subscribed event routes, SDK compatibility, and the zero-sum movement safeguards.
+- Reconciled the target event dispatcher, shared resolution, checked quantity movements, posting prevention, unchecking, deletion, linked cleanup, responses, and mutation order side by side with the production-authoritative GCP source.
+- Confirmed that no legacy event source changed after the completed event parity audit and that the accepted current-source COGS deletion hardening remains the only production patch ledger entry.
+- Reconciled Inventory context selection, visible Account scope, FIFO Calculate, Reset, summaries, processor phase ordering, client orchestration, and accepted target workflow differences with the production-authoritative GAS source.
+- Confirmed that both Account-level mutation routes validate their path and request input, resolve the Inventory Account and corresponding Financial Book, require edit permission and Inventory Bot installation on both Books, and finish those checks before invoking accounting behavior.
+- Confirmed that client Account requests execute sequentially in visible order, continue after an individual Account failure, prevent duplicate submission, and never retry POST mutations automatically.
+- Audited awaited mutation completion, complete cursor pagination in Calculate and Reset, current `bkper-js` compatibility adaptations, error boundaries, dependency pins, lockfile integrity, Worker and client bundle contents, and app metadata.
+- Confirmed that application server source creates request-scoped Platform SDK contexts without credential providers, declares no secrets or storage services, and leaves production menu and webhook routing unchanged on GAS and GCP.
+- Rebuilt the client and Worker twice from clean output and produced byte-identical files and hashes across both builds.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** Event parity is explained, menu accounting coverage is complete, target differences are documented, and the candidate is reproducible.
+**Gate:** Passed locally. Event parity is explained, menu accounting coverage is complete, accepted target differences remain documented, and the candidate is reproducible.
 
 ### Chunk 13 — Deploy to preview and establish routing readiness
 
@@ -817,7 +819,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - Monitor requests, responses, authentication, runtime, dependencies, and customer-impact reports during the accepted stabilization window.
 - Use deterministic and preview evidence for accounting correctness; HTTP success alone is not movement proof.
 - Keep the production menu on GAS and the unchanged GCP handler available for immediate routing rollback.
-- Reconcile any event whose mutation outcome is uncertain before replaying or retrying it.
+- Reconcile any event whose authoritative mutation result cannot be established before replaying or retrying it.
 
 **Rollback triggers:** suspected zero-sum or data-loss issue, reversed or partial quantity movement, duplicate mirroring, missing linked cleanup, sustained authentication failure, material error or runtime growth, or missing production behavior.
 
@@ -837,7 +839,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - Confirm authentication, context, visible Account scope, permissions, installation, operation availability, and API protection.
 - Monitor client failures, API outcomes, runtime, authentication, and customer-impact reports during the accepted stabilization window.
 - Do not initiate customer Book writes solely for monitoring.
-- Treat uncertain mutation outcomes as requiring authoritative review before retry.
+- When a mutation result cannot be established authoritatively, review Book state before retrying.
 
 **Rollback triggers:** suspected zero-sum or data-loss issue, incorrect quantity or COGS movement, wrong Account scope, failed Reset restoration, sustained authentication or API failure, unacceptable runtime, material errors, or unusable workflow.
 

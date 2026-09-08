@@ -80,7 +80,7 @@ describe('Reset API service', () => {
             'item-account'
         );
 
-        expect(response).toEqual({ message: 'Reseted' });
+        expect(response).toEqual({ message: 'Resetting...' });
         expect(resetCalls).toEqual([
             {
                 inventoryBookId: 'inventory-book',
@@ -101,7 +101,7 @@ describe('Reset API service', () => {
         expect(resetCalls).toEqual([]);
     });
 
-    test('translates the legacy locked no-write result to a structured request error', async () => {
+    test('translates only the legacy locked no-write result to a structured request error', async () => {
         resetResult = new Summary('item-account').lockError();
 
         await expect(
@@ -109,6 +109,13 @@ describe('Reset API service', () => {
         ).rejects.toMatchObject({
             status: 400,
             message: 'Cannot proceed: collection has locked/closed book(s)',
+        });
+
+        resetResult = new Summary('item-account').salequantityError();
+        await expect(
+            ResetService.execute(createAppContext(), 'inventory-book', 'item-account')
+        ).resolves.toEqual({
+            message: 'Cannot proceed: sales quantity is greater than quantity purchased',
         });
     });
 });

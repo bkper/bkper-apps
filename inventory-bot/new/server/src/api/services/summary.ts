@@ -1,7 +1,19 @@
+export enum SummaryState {
+    EMPTY = 'empty',
+    OUTCOME = 'outcome',
+    DONE = 'done',
+    REBUILD = 'rebuild',
+    RESETTING = 'resetting',
+    CALCULATING = 'calculating',
+    LOCKED = 'locked',
+    SALE_QUANTITY_ERROR = 'sale_quantity_error',
+    CREDIT_NOTE_QUANTITY_ERROR = 'credit_note_quantity_error',
+}
+
 export class Summary {
     private readonly accountId: string;
+    private state = SummaryState.EMPTY;
     private result = 'Nothing to calculate';
-    private error = false;
 
     constructor(accountId: string) {
         this.accountId = accountId;
@@ -15,16 +27,18 @@ export class Summary {
         return this.result;
     }
 
-    hasError(): boolean {
-        return this.error;
+    getState(): SummaryState {
+        return this.state;
     }
 
     setResult(result: string): this {
+        this.state = SummaryState.OUTCOME;
         this.result = result;
         return this;
     }
 
     done(message?: string): this {
+        this.state = SummaryState.DONE;
         if (message) {
             this.result = message;
             return this;
@@ -34,34 +48,37 @@ export class Summary {
     }
 
     rebuild(): this {
-        this.result = 'Account needs rebuild: reseting...';
+        this.state = SummaryState.REBUILD;
+        this.result = 'Account needs rebuild: resetting...';
         return this;
     }
 
     resetingAsync(): this {
-        this.result = 'Reseted';
+        this.state = SummaryState.RESETTING;
+        this.result = 'Resetting...';
         return this;
     }
 
     calculatingAsync(): this {
-        this.result = 'Calculated';
+        this.state = SummaryState.CALCULATING;
+        this.result = 'Calculating...';
         return this;
     }
 
     lockError(): this {
-        this.error = true;
+        this.state = SummaryState.LOCKED;
         this.result = 'Cannot proceed: collection has locked/closed book(s)';
         return this;
     }
 
     salequantityError(): this {
-        this.error = true;
+        this.state = SummaryState.SALE_QUANTITY_ERROR;
         this.result = 'Cannot proceed: sales quantity is greater than quantity purchased';
         return this;
     }
 
     creditNoteQuantityError(creditNote: string): this {
-        this.error = true;
+        this.state = SummaryState.CREDIT_NOTE_QUANTITY_ERROR;
         this.result = `Cannot proceed: credit note quantity is greater than purchased quantity. Credit note: ${creditNote}`;
         return this;
     }

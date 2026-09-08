@@ -645,16 +645,16 @@ Drift audits occur before preview routing, production deployment, each productio
 
 **Completed:**
 
-- Ported the legacy `GoodAccount`, `Summary`, Account query, and Reset-specific constants without introducing a replacement domain model.
+- Ported the legacy `GoodAccount`, `Summary`, Account query, and Reset-specific constants without introducing a replacement domain model; typed Summary states replace the unused GAS-only error flag so API facades can distinguish locked failures from successful domain outcomes.
 - Organized the existing legacy Reset service and processor under `api/services/reset/`, following the accepted Platform boundary while retaining their Inventory Bot class responsibilities and method flow.
 - Ported the three legacy Transaction maps, id-based deduplication, locked-Transaction detection, and exact Financial-trash, Inventory-update, and Inventory-trash phase order.
 - Replaced GAS iterators with complete cursor pagination while preserving source iteration order and the first linked COGS match selected by Reset.
 - Preserved Inventory Bot agent filtering, checked-state clearing, sale property cleanup, split purchase trashing, parent quantity and cost restoration, liquidation and additional-cost cleanup, and credit-note state behavior.
 - Preserved the lock gate before every Book and Account write and updated Account calculation and rebuild state only after all Transaction phases completed successfully.
 - Explicitly awaited asynchronous batch and Account mutations so required Cloudflare work finishes before the request returns; a failed phase prevents later phases and the Account update from starting.
-- Wired Reset through the existing authorized Account-level API facade, translating the legacy locked result to the structured `400` error while returning the legacy operation commentary on success.
+- Wired Reset through the existing authorized Account-level API facade, translating the legacy locked result to the structured `400` error while returning accurate asynchronous operation commentary on success.
 - Added deterministic support, processor, service, facade, pagination, movement-endpoint, first-match, authorization, locked-path, and failure-boundary coverage without network access or live Book writes.
-- Passed generated-contract checks, strict client and server typechecks, 188 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Passed generated-contract checks, strict client and server typechecks, 187 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
 - Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
 **Zero-sum gate:** Passed deterministically. Reset creates no movement, preserves the endpoints of restored source movements, removes only the accepted generated and split movements, and performs no Book or Account mutation when preflight or lock requirements fail.

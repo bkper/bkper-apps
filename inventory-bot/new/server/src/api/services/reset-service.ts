@@ -3,6 +3,7 @@ import type { AppContext } from '../../shared/app-context.js';
 import type { OperationResponse } from '../schemas.js';
 import { OperationService } from './operation-service.js';
 import { ResetCostOfSalesService } from './reset/reset-cost-of-sales-service.js';
+import { SummaryState } from './summary.js';
 
 export class ResetService extends OperationService {
     static async execute(
@@ -14,7 +15,7 @@ export class ResetService extends OperationService {
         await this.validateContext(operationContext);
 
         const summary = await new ResetCostOfSalesService().execute(operationContext);
-        if (summary.hasError()) {
+        if (summary.getState() === SummaryState.LOCKED) {
             throw new HTTPException(400, { message: summary.getResult() });
         }
         return { message: summary.getResult() };

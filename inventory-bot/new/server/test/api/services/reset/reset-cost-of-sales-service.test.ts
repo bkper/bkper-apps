@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { Account, AccountType, Book, Transaction, TransactionList, type Amount } from 'bkper-js';
 import type { OperationContext } from '../../../../src/api/services/operation-service.js';
 import { ResetCostOfSalesService } from '../../../../src/api/services/reset/reset-cost-of-sales-service.js';
-import { Summary } from '../../../../src/api/services/summary.js';
+import { Summary, SummaryState } from '../../../../src/api/services/summary.js';
 
 interface Fixture {
     context: OperationContext;
@@ -144,8 +144,8 @@ describe('legacy Account-level Reset Cost of Sales behavior', () => {
 
         expect(result).toBeInstanceOf(Summary);
         expect(result.getAccountId()).toBe('item-account');
-        expect(result.getResult()).toBe('Reseted');
-        expect(result.hasError()).toBe(false);
+        expect(result.getResult()).toBe('Resetting...');
+        expect(result.getState()).toBe(SummaryState.RESETTING);
         expect(sourceRequests).toEqual([
             { query: "account:'Apple'", cursor: undefined },
             { query: "account:'Apple'", cursor: 'source-page-2' },
@@ -212,7 +212,7 @@ describe('legacy Account-level Reset Cost of Sales behavior', () => {
 
         const result = await new ResetCostOfSalesService().execute(fixture.context);
 
-        expect(result.hasError()).toBe(true);
+        expect(result.getState()).toBe(SummaryState.LOCKED);
         expect(result.getResult()).toBe('Cannot proceed: collection has locked/closed book(s)');
         expect(fixture.account.getProperty('needs_rebuild')).toBe('TRUE');
         expect(fixture.account.getProperty('cogs_calc_date')).toBe('2026-03-05');

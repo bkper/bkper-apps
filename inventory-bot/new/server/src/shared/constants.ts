@@ -29,5 +29,6 @@ export const TOTAL_COST_PROP = 'total_cost';
 export const TOTAL_CREDITS_PROP = 'credits';
 
 // Accounts
+export const COGS_ACCOUNT = 'Cost of goods sold';
 export const GOOD_SELL_ACCOUNT_NAME = 'Sell';
 export const GOOD_BUY_ACCOUNT_NAME = 'Buy';

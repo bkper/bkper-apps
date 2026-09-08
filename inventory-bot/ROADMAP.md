@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 10 complete — Account-level Calculate preserves the accepted legacy FIFO COGS behavior and authorized operation boundary.**
+**Chunk 11 complete — The migrated menu client delivers the accepted Inventory scope and Account-level Calculate and Reset workflow.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books; Reset and Calculate now invoke their ported accounting behavior. Chunk 11 is next: port and modernize the menu client.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 12 is next: complete the full-stack behavior, dependency, and runtime audit.
 
 ## Purpose of this document
 
@@ -683,27 +683,27 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 11 — Port and modernize the menu client
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Replace the GAS UI and bulk RPC with a production-quality client consuming the typed Account-level API.
 
-**Steps:**
+**Completed:**
 
-- Build an immediate app shell, authentication states, context header, visible Account list, operation controls, and help affordances.
-- Use Web Awesome components and Bkper design tokens.
-- Wire Calculate and Reset through dedicated controllers and the generated authenticated API client.
-- Check Inventory Book pending tasks once at action time before the first Account request.
-- Execute Accounts sequentially in visible order.
-- Continue after individual Account failures while never retrying a mutation automatically.
-- Show waiting, running, completed, domain outcome, failed, uncertain, and not-attempted states per Account.
-- Keep controls disabled during an active sequence and prevent duplicate submission.
-- Use the same visible Account list for Calculate and Reset.
-- Do not add a Reset confirmation dialog.
-- Handle trusted embedded Book URL changes without leaving stale actionable context.
-- Support standalone and embedded rendering, configured sidebar and expanded widths, keyboard use, accessibility, and light and dark themes.
-- Visually verify the completed client once after implementation.
+- Reused the established migrated Portfolio Bot client structure while retaining Inventory Bot context, scope, sequential execution, and domain behavior.
+- Delivered the immediate Lit app shell, authentication flow, standalone context header and help, visible Account list, operation controls, loading and error presentation, and embedded rendering.
+- Used Web Awesome components and Bkper design tokens with responsive light and dark theme support.
+- Wired Calculate and Reset through dedicated controllers and the generated typed contract boundary with authenticated requests.
+- Checked Inventory Book pending tasks exactly once at action time before the first Account request.
+- Executed Accounts sequentially in visible order, continued after individual Account failures, and retained per-Account waiting, success commentary, and error presentation.
+- Prevented automatic mutation retries, duplicate submission, input changes, and context changes while an active sequence owns the UI.
+- Used the same visible Account list for Calculate and Reset and retained Reset without a confirmation dialog.
+- Accepted trusted embedded Book URL changes while idle and intentionally ignored them while an operation owns the established Account sequence and its results.
+- Preserved standalone and embedded layouts at the configured 600-pixel menu size and expanded width.
+- Completed local visual inspection of ready and executing states, Account outcomes, controls, and responsive overflow in standalone and embedded light and dark presentations without a live Book write.
+- Passed generated-contract checks, strict client and server typechecks, 206 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Gate:** The client behavior matrix passes, the intended workflow is usable in Bkper context, and no UI path silently changes operation scope or retries a mutation.
+**Gate:** Passed locally. The client behavior matrix is protected, the accepted workflow is present, operation scope remains stable during execution, and no mutation request is retried automatically.
 
 ### Chunk 12 — Complete the full-stack behavior, dependency, and runtime audit
 

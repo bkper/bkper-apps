@@ -4,12 +4,12 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1 through 9 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, and Account-level Reset are recorded in `../ROADMAP.md`.
-- Chunk 10 is next. Port Account-level Calculate while preserving the established authorization and Reset boundaries.
+- Chunks 1 through 10 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, Account-level Reset, and Account-level Calculate are recorded in `../ROADMAP.md`.
+- Chunk 11 is next. Port and modernize the menu client against the established typed operation API.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
-- Keep Calculate non-mutating until Chunk 10. Account-level Reset mutations are limited to the ported legacy cleanup and restoration behavior, and event mutations remain limited to the established checked, posting, unchecking, deletion, and linked-cleanup behavior.
+- Account-level Calculate and Reset mutations are limited to the ported legacy accounting behavior, and event mutations remain limited to the established checked, posting, unchecking, deletion, and linked-cleanup behavior.
 - Do not inherit Portfolio Bot domain behavior, routes, event subscriptions, operation policies, or UI workflows.
 - Protect Bkper's zero-sum invariant above all else. Every posted Transaction must remain one complete movement with one amount from an origin Account to a destination Account.
 - Tests must never write to live Books.

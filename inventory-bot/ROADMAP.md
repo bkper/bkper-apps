@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 9 complete — Account-level Reset preserves the accepted legacy cleanup and restoration behavior while Calculate remains non-mutating.**
+**Chunk 10 complete — Account-level Calculate preserves the accepted legacy FIFO COGS behavior and authorized operation boundary.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books; Reset now invokes the ported accounting behavior, while Calculate still invokes a non-mutating stub. Chunk 10 is next: port Account-level Calculate.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books; Reset and Calculate now invoke their ported accounting behavior. Chunk 11 is next: port and modernize the menu client.
 
 ## Purpose of this document
 
@@ -134,7 +134,9 @@ Inventory Bot coordinates one Inventory Book and one or more Financial Books in 
 
 ### Menu, API, and client rules
 
-- Preserve accounting outcomes, selected resources, operation ordering, and essential workflows—not GAS source structure.
+- Preserve accounting outcomes, selected resources, operation ordering, and essential workflows—not GAS application structure.
+- Preserve the legacy accounting logic blocks with near-total code parity except where SDK or runtime differences require adaptation.
+- Follow the migrated Portfolio Bot API for target folder, class, and method organization without importing its domain behavior.
 - Treat `/api/v1/*` as a new reusable public API, not a `google.script.run` compatibility transport.
 - Keep API routes thin and move accounting behavior into server services.
 - Use explicit schemas, authorization, structured errors, OpenAPI, and generated client types.
@@ -661,26 +663,23 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 10 — Port Calculate
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Migrate Account-level FIFO COGS calculation without redesigning its accounting behavior.
 
-**Steps:**
+**Completed:**
 
-- Port Calculate support types, Account state behavior, date handling, transaction queries, posted purchase, sale, and credit-note recognition, and result summaries.
-- Port FIFO comparison by date, explicit order, and creation order.
-- Port the Calculate mutation processor with generated ids, deduplication, locked-Transaction detection, and ordered Inventory-create, Inventory-update, and Financial-create phases.
-- Port Account-level orchestration, including default calculation date, rebuild Reset-and-return, Financial Book resolution, complete transaction loading, unchecked filtering, quantity totals, and failure outcomes.
-- Port quantity-bearing credit-note processing before sales.
-- Port complete-lot and partial-lot FIFO behavior, purchase splitting, parent ids, checked state, purchase logs, and liquidation logs.
-- Port additional-cost and credit-amount lookup and cost allocation.
-- Port total-cost and per-unit cost arithmetic with accepted precision.
-- Port COGS Account lookup or creation and complete `item >> Cost of goods sold` monetary movements.
-- Preserve remote ids, sale references, quantity properties, descriptions, checked state, and operation phase order.
-- Keep parity behavior unwired until the complete deterministic FIFO matrix passes.
-- Wire Calculate through the authorized API facade and shared operation response without adding mutation receipts.
+- Preserved near-total parity in the accounting logic blocks while adapting required asynchronous SDK, pagination, date, UUID, module, and strict TypeScript boundaries.
+- Organized Calculate consistently with the migrated Portfolio Bot API while retaining Inventory Bot domain behavior.
+- Ported purchase, sale, and credit-note recognition, FIFO precedence, quantity validation, complete and partial lots, splits, logs, additional costs, credit amounts, and accepted arithmetic.
+- Ported ordered Inventory-create, Inventory-update, and Financial-create phases with deduplication, lock detection, awaited completion, and failure ordering.
+- Preserved rebuild Reset-and-return and Account calculation-date behavior.
+- Created accepted `item >> Cost of goods sold` monetary movements with their established properties and relationships.
+- Wired Calculate through the authorized Account-level API facade only after deterministic accounting coverage passed.
+- Passed generated-contract checks, strict client and server typechecks, 205 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Zero-sum gate:** Every generated COGS result is a complete movement with the accepted amount and direction; failed preflight and locked paths perform no accounting mutation.
+**Zero-sum gate:** Passed deterministically. Generated COGS movements retain their accepted amount and direction, unresolved behavior remains non-balance-affecting, locked paths create no Transaction movement, and both Books remain independently balanced.
 
 ### Chunk 11 — Port and modernize the menu client
 

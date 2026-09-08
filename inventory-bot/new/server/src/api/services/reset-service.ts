@@ -1,6 +1,8 @@
+import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../../shared/app-context.js';
 import type { OperationResponse } from '../schemas.js';
-import { type OperationContext, OperationService } from './operation-service.js';
+import { OperationService } from './operation-service.js';
+import { ResetCostOfSalesService } from './reset/reset-cost-of-sales-service.js';
 
 export class ResetService extends OperationService {
     static async execute(
@@ -10,11 +12,11 @@ export class ResetService extends OperationService {
     ): Promise<OperationResponse> {
         const operationContext = await this.resolveContext(context, bookId, accountId);
         await this.validateContext(operationContext);
-        return this.run(operationContext);
-    }
 
-    /** Non-mutating placeholder retained until Reset accounting is ported. */
-    protected static async run(_context: OperationContext): Promise<OperationResponse> {
-        return { message: '' };
+        const summary = await new ResetCostOfSalesService().execute(operationContext);
+        if (summary.hasError()) {
+            throw new HTTPException(400, { message: summary.getResult() });
+        }
+        return { message: summary.getResult() };
     }
 }

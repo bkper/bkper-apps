@@ -4,12 +4,12 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1 through 8 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, and server authorization boundaries are recorded in `../ROADMAP.md`.
-- Chunk 9 is next. Port Account-level Reset before Calculate while preserving the established authorization boundary.
+- Chunks 1 through 9 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, and Account-level Reset are recorded in `../ROADMAP.md`.
+- Chunk 10 is next. Port Account-level Calculate while preserving the established authorization and Reset boundaries.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.
-- Keep Calculate and Reset non-mutating. Event mutations are limited to the established checked, posting, unchecking, deletion, and linked-cleanup behavior until later roadmap chunks explicitly expand the scope.
+- Keep Calculate non-mutating until Chunk 10. Account-level Reset mutations are limited to the ported legacy cleanup and restoration behavior, and event mutations remain limited to the established checked, posting, unchecking, deletion, and linked-cleanup behavior.
 - Do not inherit Portfolio Bot domain behavior, routes, event subscriptions, operation policies, or UI workflows.
 - Protect Bkper's zero-sum invariant above all else. Every posted Transaction must remain one complete movement with one amount from an origin Account to a destination Account.
 - Tests must never write to live Books.

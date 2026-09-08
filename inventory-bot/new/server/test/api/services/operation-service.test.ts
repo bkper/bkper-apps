@@ -7,6 +7,8 @@ import {
     OperationService,
 } from '../../../src/api/services/operation-service.js';
 import { ResetService } from '../../../src/api/services/reset-service.js';
+import { ResetCostOfSalesService } from '../../../src/api/services/reset/reset-cost-of-sales-service.js';
+import { Summary } from '../../../src/api/services/summary.js';
 
 class TestOperationService extends OperationService {
     static validateContextForTest(context: OperationContext): Promise<void> {
@@ -234,25 +236,25 @@ test('requires edit permission and Inventory Bot installation on both operation 
 });
 
 const originalCalculateRun = Reflect.get(CalculateService, 'run');
-const originalResetRun = Reflect.get(ResetService, 'run');
+const originalResetExecute = ResetCostOfSalesService.prototype.execute;
 const originalGetApps = Book.prototype.getApps;
 
 afterEach(() => {
     Reflect.set(CalculateService, 'run', originalCalculateRun);
-    Reflect.set(ResetService, 'run', originalResetRun);
+    ResetCostOfSalesService.prototype.execute = originalResetExecute;
     Book.prototype.getApps = originalGetApps;
 });
 
-test('Calculate and Reset invoke their non-mutating stubs only after complete authorization', async () => {
+test('Calculate and Reset begin their operations only after complete authorization', async () => {
     const inventoryBook = createInventoryBook();
     Book.prototype.getApps = async () => [new App({ id: 'inventory-bot' })];
     const bkper = new Bkper();
     bkper.getBook = async () => inventoryBook;
     const context = createAppContext(bkper);
     const calculateRun = mock(async () => ({ message: 'Calculate stub' }));
-    const resetRun = mock(async () => ({ message: 'Reset stub' }));
+    const resetExecute = mock(async () => new Summary('item-account').setResult('Reset stub'));
     Reflect.set(CalculateService, 'run', calculateRun);
-    Reflect.set(ResetService, 'run', resetRun);
+    ResetCostOfSalesService.prototype.execute = resetExecute;
 
     await expect(
         CalculateService.execute(context, 'inventory-book', 'item-account', {
@@ -263,7 +265,7 @@ test('Calculate and Reset invoke their non-mutating stubs only after complete au
         message: 'Reset stub',
     });
     expect(calculateRun).toHaveBeenCalledTimes(1);
-    expect(resetRun).toHaveBeenCalledTimes(1);
+    expect(resetExecute).toHaveBeenCalledTimes(1);
 
     inventoryBook.payload.permission = Permission.VIEWER;
     await expect(
@@ -275,5 +277,5 @@ test('Calculate and Reset invoke their non-mutating stubs only after complete au
         ResetService.execute(context, 'inventory-book', 'item-account')
     ).rejects.toMatchObject({ status: 403 });
     expect(calculateRun).toHaveBeenCalledTimes(1);
-    expect(resetRun).toHaveBeenCalledTimes(1);
+    expect(resetExecute).toHaveBeenCalledTimes(1);
 });

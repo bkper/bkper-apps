@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 8 complete — client context, visible operation scope, and server authorization boundaries are established while Calculate and Reset remain non-mutating.**
+**Chunk 9 complete — Account-level Reset preserves the accepted legacy cleanup and restoration behavior while Calculate remains non-mutating.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client now resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, while each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking a non-mutating stub. Chunk 9 is next: port Account-level Reset.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books; Reset now invokes the ported accounting behavior, while Calculate still invokes a non-mutating stub. Chunk 10 is next: port Account-level Calculate.
 
 ## Purpose of this document
 
@@ -639,24 +639,25 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 9 — Port Reset
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Migrate Account-level Reset before Calculate because Calculate can invoke Reset when rebuild is required.
 
-**Steps:**
+**Completed:**
 
-- Port Reset support constants, Account state behavior, transaction queries, purchase and sale recognition, and result summaries.
-- Port the Reset mutation processor with its established maps, deduplication, locked-Transaction detection, and ordered Financial-trash, Inventory-update, and Inventory-trash phases.
-- Port complete Account transaction loading and accepted source iteration order.
-- Port linked COGS lookup and cleanup.
-- Port sale property cleanup and checked-state restoration.
-- Port split purchase trashing and parent quantity, cost, and property restoration.
-- Port credit-note state restoration.
-- Preserve locked-path no-write behavior and update Account calculation and rebuild state only after successful Transaction phases.
-- Keep parity behavior unwired until deterministic Account-level coverage passes.
-- Wire Reset through the authorized API facade and shared operation response without adding mutation receipts.
+- Ported the legacy `GoodAccount`, `Summary`, Account query, and Reset-specific constants without introducing a replacement domain model.
+- Organized the existing legacy Reset service and processor under `api/services/reset/`, following the accepted Platform boundary while retaining their Inventory Bot class responsibilities and method flow.
+- Ported the three legacy Transaction maps, id-based deduplication, locked-Transaction detection, and exact Financial-trash, Inventory-update, and Inventory-trash phase order.
+- Replaced GAS iterators with complete cursor pagination while preserving source iteration order and the first linked COGS match selected by Reset.
+- Preserved Inventory Bot agent filtering, checked-state clearing, sale property cleanup, split purchase trashing, parent quantity and cost restoration, liquidation and additional-cost cleanup, and credit-note state behavior.
+- Preserved the lock gate before every Book and Account write and updated Account calculation and rebuild state only after all Transaction phases completed successfully.
+- Explicitly awaited asynchronous batch and Account mutations so required Cloudflare work finishes before the request returns; a failed phase prevents later phases and the Account update from starting.
+- Wired Reset through the existing authorized Account-level API facade, translating the legacy locked result to the structured `400` error while returning the legacy operation commentary on success.
+- Added deterministic support, processor, service, facade, pagination, movement-endpoint, first-match, authorization, locked-path, and failure-boundary coverage without network access or live Book writes.
+- Passed generated-contract checks, strict client and server typechecks, 188 unit tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Performed no app sync, deployment, installation, event replay, routing change, credential use, Book write, or legacy infrastructure mutation.
 
-**Zero-sum gate:** Reset leaves no unintended active generated movement, restores accepted FIFO source state, and performs no mutation when preflight or lock requirements fail.
+**Zero-sum gate:** Passed deterministically. Reset creates no movement, preserves the endpoints of restored source movements, removes only the accepted generated and split movements, and performs no Book or Account mutation when preflight or lock requirements fail.
 
 ### Chunk 10 — Port Calculate
 
@@ -666,7 +667,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 **Steps:**
 
-- Port Calculate support types, Account state behavior, date handling, transaction queries, and result summaries.
+- Port Calculate support types, Account state behavior, date handling, transaction queries, posted purchase, sale, and credit-note recognition, and result summaries.
 - Port FIFO comparison by date, explicit order, and creation order.
 - Port the Calculate mutation processor with generated ids, deduplication, locked-Transaction detection, and ordered Inventory-create, Inventory-update, and Financial-create phases.
 - Port Account-level orchestration, including default calculation date, rebuild Reset-and-return, Financial Book resolution, complete transaction loading, unchecked filtering, quantity totals, and failure outcomes.

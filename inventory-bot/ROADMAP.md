@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 16 in progress — The final deployed-code drift audit and clean local gate pass. Repeated clean-output builds reproduce the accepted candidate byte-for-byte. Dependency advisories are scoped below; production deployment and post-deployment verification remain pending separate approval.**
+**Chunk 16 complete — The accepted production Worker is deployed. OpenAPI, API/event authentication boundaries, and observed request logs are verified, and a human confirmed the signed-in production client loads. Production routing remains on GCP/GAS. Chunk 17 is next.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 has completed the final drift audit and clean local verification. Production runtime deployment remains a separately approved next step, without changing production routing.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is complete: the final drift audit, clean local verification, production runtime deployment, and accepted runtime checks passed, including human confirmation that the signed-in production client loads. Chunk 17 is next: separately approve the production webhook-only cutover and stabilize events while retaining the GAS menu and GCP rollback target.
 
 ## Purpose of this document
 
@@ -826,7 +826,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 16 — Complete the final drift audit and deploy production runtime
 
-**Status: In progress — drift audit and clean local verification complete; production deployment and runtime verification pending.**
+**Status: Complete.**
 
 **Objective:** Deploy the accepted Worker without changing production menu or event routing.
 
@@ -842,7 +842,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - Rebuilt the client and Worker again after removing only generated output. Both clean-output builds are byte-identical to each other and to the previously accepted candidate. The frozen lockfile is unchanged.
 - Verified installed direct dependencies match every exact pin. The Worker source map matches current application source and contains no legacy or test modules. The generated public contract remains exactly the two Account-level Calculate and Reset operations. No secret or storage service was introduced.
 - Reviewed the dependency advisory scope below without upgrading dependencies or silently treating a nonzero audit result as clean.
-- Performed no app sync, deployment, installation, event replay, Book write, production routing change, or legacy infrastructure mutation.
+- The audit and local preparation performed no app sync, deployment, installation, event replay, Book write, production routing change, or legacy infrastructure mutation. The subsequent production runtime deployment is recorded separately below.
 
 **Dependency advisory scope:**
 
@@ -859,12 +859,19 @@ Drift audits occur before preview routing, production deployment, each productio
 
 Tooling advisories remain follow-up work rather than being dismissed as harmless. Reassess this scope before exposing affected tools to untrusted inputs or changing the runtime, request parsing, or build workflow. Dependency upgrades require their own compatibility review and deterministic gate.
 
-**Remaining — separately approved production operation:**
+**Production runtime deployment and verification:**
 
-- Review and deploy the accepted committed Worker while production routes remain on GCP and GAS. Local readiness does not authorize an app sync or deployment.
-- Verify production runtime availability, OpenAPI, API protection, authenticated client boundary, assets, and logs without a deliberate Book mutation.
+- Pushed the committed audit documentation to the existing upstream and deployed the unchanged accepted bundle using the target's pinned CLI with `bkper app deploy`. The deployment uploaded the Worker and three client assets; production deployment status confirms runtime availability. No app metadata sync was run.
+- Confirmed production `/openapi.json` returns `200` and matches the locally generated document exactly, including only the two Account-level mutation operations.
+- Confirmed an unauthenticated GET to an API operation path is rejected with `401` for a missing bearer token, and an unauthenticated GET to `/events` is rejected with `401` for missing event authentication.
+- Confirmed an authenticated GET to an operation path reaches the Worker and returns its expected structured `404`, because the operation accepts POST only. The probe used placeholder paths and invoked no accounting operation or Book mutation.
+- Confirmed unauthenticated client and asset requests redirect to login. A human then confirmed that the production client loads while signed in, completing the remaining client and asset delivery smoke check. This is human-reported page-load evidence, not an automated browser run or a remote byte-for-byte asset comparison.
+- Production request logs confirm successful OpenAPI reads and the expected authenticated GET `404`; the inspected post-deployment error-log window contains no entries. This narrow observation is not event or menu stabilization evidence.
+- Re-read app metadata and confirmed production menu/webhook routing remains on GAS/GCP and development routes remain on preview. No Book write, event replay, installation change, or legacy infrastructure change occurred.
 
-**Gate:** Local readiness passed; Chunk 16 is not complete until production deployment and runtime verification pass. Deployment must change runtime availability only; GCP and GAS remain production-authoritative.
+**Verification scope:** The signed-in page-load confirmation completes the production runtime smoke check. It does not establish production Calculate/Reset outcomes or repeat the accepted preview accounting and visual workflow validation.
+
+**Gate:** Passed for the accepted verification scope. The production Worker is deployed and runtime checks, including the human-confirmed signed-in client load, are complete. GCP and GAS remain production-authoritative. Chunk 17 is next; neither production cutover is authorized by this deployment.
 
 ### Chunk 17 — Cut over the production webhook and stabilize events
 

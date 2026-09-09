@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 15 complete — Calculate, Reset, operation scope, failure continuation, responsive themes, and lock/closing protection are validated in isolated Books. The complete local gate passes, and the documented live-coverage limits are accepted. Chunk 16 is next.**
+**Chunk 16 in progress — The final deployed-code drift audit and clean local gate pass. Repeated clean-output builds reproduce the accepted candidate byte-for-byte. Dependency advisories are scoped below; production deployment and post-deployment verification remain pending separate approval.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is next: complete the final drift audit and deploy the production runtime through separate approval, without changing production routing.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 has completed the final drift audit and clean local verification. Production runtime deployment remains a separately approved next step, without changing production routing.
 
 ## Purpose of this document
 
@@ -437,7 +437,7 @@ Drift audits occur before preview routing, production deployment, each productio
 - The six differing common artifacts are `constants.js`, `InterceptorOrderProcessorDeleteFinancial.js`, `index.js`, and their source maps. Production also contains `EventHandlerTransactionUpdated.js` and its source map, which current source removed.
 - The current tested COGS deletion hardening is explicitly accepted over the older deployed behavior. It recognizes current `#COGS`, legacy `#cost_of_sale`, and `quantity_sold` signals only for Inventory Bot Transactions with remote ids. This is an accepted source-over-deployment correction, not a parity claim.
 - The deployed ingress requires its configured API key, while current source allows the provider to be absent. Platform authentication replaces both runtime-specific forms in Chunk 3; this difference does not authorize a domain behavior change.
-- The deployed artifact contains `TRANSACTION_UPDATED` dispatch code, but the persisted app has no such subscription and current source intentionally removed the handler. The migration retains only the four persisted subscriptions and does not invent update behavior.
+- The deployed runtime image contains an unused `EventHandlerTransactionUpdated` class and source map, but no import or `TRANSACTION_UPDATED` dispatch branch. The persisted app has no such subscription and current source removed the unused handler. The migration retains only the four persisted subscriptions and does not invent update behavior. The final drift audit corrected the earlier description of this leftover artifact as active dispatch code.
 - The tracked event `package-lock.json` predates the deployed package declarations, and the tracked project omits the `yarn.lock` that its build copies. A normal install therefore resolves newer dependencies; the recovered immutable deployed lockfile remains the event dependency baseline.
 - The production GAS menu is deployment version 17, release 2.3.0. Its manifest, static HTML, and all thirteen generated JavaScript bodies reproduce byte-for-byte from the preserved source using TypeScript 4.9.5. The manifest uses Bkper Apps Script library version 201.
 - The GAS server build passes its four deterministic helper tests, and the client build regenerates the accepted production HTML. These tests do not constitute FIFO, Reset, authorization, or end-to-end accounting coverage.
@@ -826,21 +826,45 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 16 — Complete the final drift audit and deploy production runtime
 
-**Status: Not started.**
+**Status: In progress — drift audit and clean local verification complete; production deployment and runtime verification pending.**
 
 **Objective:** Deploy the accepted Worker without changing production menu or event routing.
 
-**Steps:**
+**Completed locally and through read-only deployment inspection:**
 
-- Repeat the GCP and GAS source and deployed-artifact audits.
-- Reconcile every production patch and accepted deviation.
-- Remove dependencies and build output, reinstall from the frozen lockfile, and pass the complete local gate.
-- Reproduce generated deployment artifacts from clean builds.
-- Review exact dependency pins, advisories, bundle contents, configuration, and generated contracts.
-- Deploy the accepted Worker to production through a separately approved operation while production routes remain on GCP and GAS.
+- Confirmed that preserved GCP and GAS source is unchanged since baseline capture, and target application code, tests, dependency pins, and generated contracts are unchanged since the completed full-stack audit. No additional production behavior patch remains to port.
+- Confirmed the active GCP runtime, entry point, memory, timeout, instance limit, and request concurrency still match the baseline. Direct source-archive access was unavailable, so the audit read the exact image digest referenced by the active Cloud Run revision instead. Verified the image manifest and all layer hashes and inspected its deployed workspace without extracting files to disk or changing access permissions.
+- Reproduced the GCP comparison in memory with TypeScript 4.9.5: twenty-two of twenty-eight current-source JavaScript and source-map artifacts match the running image byte-for-byte. The six differences remain the documented COGS deletion hardening and API-key boundary differences. The two production-only artifacts are the unused updated-event class and its source map, not an active dispatch path.
+- Confirmed the deployed event package declaration matches preserved source, and its lockfile and installed runtime packages retain the baseline `bkper-js` 2.18.0, API types 5.32.0, and Functions Framework 2.1.1. The deployed lockfile retains TypeScript 4.9.5.
+- Confirmed production GAS version 17, release 2.3.0, and Bkper library version 201. The editable GAS project matches that deployed version. All thirteen JavaScript bodies reproduce byte-for-byte in memory using the accepted TypeScript settings and compiler header; the manifest and static HTML also match exactly.
+- Reconfirmed persisted app metadata against the target configuration, including production GAS/GCP routing, preview-only development routes, four subscriptions, property schema, dimensions, and controlled developer access. No production routing change occurred.
+- Removed target dependencies and build output, reinstalled with `bun install --frozen-lockfile`, and passed `bun run check`: generated contracts, strict client/server typechecks, all 206 deterministic unit tests, client and Worker production builds, formatting, and generated-file drift checks.
+- Rebuilt the client and Worker again after removing only generated output. Both clean-output builds are byte-identical to each other and to the previously accepted candidate. The frozen lockfile is unchanged.
+- Verified installed direct dependencies match every exact pin. The Worker source map matches current application source and contains no legacy or test modules. The generated public contract remains exactly the two Account-level Calculate and Reset operations. No secret or storage service was introduced.
+- Reviewed the dependency advisory scope below without upgrading dependencies or silently treating a nonzero audit result as clean.
+- Performed no app sync, deployment, installation, event replay, Book write, production routing change, or legacy infrastructure mutation.
+
+**Dependency advisory scope:**
+
+`bun audit --json` reports thirteen advisories across six packages and exits nonzero. The retained prior report contained eight; the additional findings are three Hono advisories, one JS-YAML advisory, and one sharp advisory. Exact frozen pins are retained for this migration with the following scoped assessment, not a claim that the dependency graph is vulnerability-free:
+
+| Dependency | Findings | Applicability to the accepted candidate |
+| --- | --- | --- |
+| `hono` 4.13.0 | Three moderate: `GHSA-gqvv-2mrq-wpjv`, `GHSA-g6gw-c38x-mqfc`, `GHSA-crvj-82cr-hjcx` | The app does not use `toSSG()` or enable dot-notation `parseBody()`. The query-fragment advisory explicitly excludes Cloudflare Workers because that runtime normalizes the request target. These affected behaviors are not applicable to the accepted app; upstream fixes are available in 4.13.5. |
+| `esbuild` 0.27.7 | One low: `GHSA-g7r4-m6w7-qqqr` | Build tooling; the advisory concerns its development server on Windows. It is not part of the deployed Worker. |
+| `js-yaml` 4.3.0 | Two high: `GHSA-5p4m-2wfm-xmqj`, `GHSA-2883-xcg3-v3hh` | OpenAPI generation tooling through Redocly; not part of the deployed Worker. The retained generator consumes the app-owned OpenAPI document, not user-supplied YAML. |
+| `nanoid` 3.3.17 | One high: `GHSA-2v37-7h3g-55p8` | The affected version is a PostCSS build dependency, not part of the deployed Worker. The separate Web Awesome dependency resolves to nanoid 5.1.16, outside the reported affected range. |
+| `sharp` 0.35.2 | One high: `GHSA-rgj7-g3m4-5g8c` | Miniflare development tooling; not part of the deployed Worker. |
+| `undici` 7.28.0 | One high and four moderate: `GHSA-4cwx-7wf7-3272`, `GHSA-8xcm-r25x-g524`, `GHSA-m8rv-5g2x-5cg5`, `GHSA-jr45-8vmc-qm54`, `GHSA-v3r7-h72x-cjcm` | Miniflare development tooling; not part of the deployed Worker, which uses the Cloudflare runtime's fetch implementation. |
+
+Tooling advisories remain follow-up work rather than being dismissed as harmless. Reassess this scope before exposing affected tools to untrusted inputs or changing the runtime, request parsing, or build workflow. Dependency upgrades require their own compatibility review and deterministic gate.
+
+**Remaining — separately approved production operation:**
+
+- Review and deploy the accepted committed Worker while production routes remain on GCP and GAS. Local readiness does not authorize an app sync or deployment.
 - Verify production runtime availability, OpenAPI, API protection, authenticated client boundary, assets, and logs without a deliberate Book mutation.
 
-**Gate:** Deployment changes runtime availability only; GCP and GAS remain production-authoritative.
+**Gate:** Local readiness passed; Chunk 16 is not complete until production deployment and runtime verification pass. Deployment must change runtime availability only; GCP and GAS remain production-authoritative.
 
 ### Chunk 17 — Cut over the production webhook and stabilize events
 

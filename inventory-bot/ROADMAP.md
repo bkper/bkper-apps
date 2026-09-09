@@ -4,11 +4,11 @@
 
 **Chunk 16 complete — The accepted production Worker is deployed. OpenAPI, API/event authentication boundaries, and observed request logs are verified, and a human confirmed the signed-in production client loads. Production routing remains on GCP/GAS. Chunk 17 is next.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is complete: the final drift audit, clean local verification, production runtime deployment, and accepted runtime checks passed, including human confirmation that the signed-in production client loads. Chunk 17 is next: separately approve the production webhook-only cutover and stabilize events while retaining the GAS menu and GCP rollback target.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is complete: the final drift audit, clean local verification, production runtime deployment, and accepted runtime checks passed, including human confirmation that the signed-in production client loads. Chunk 17 is next: approve one combined production webhook and menu cutover, observe both surfaces in parallel for one hour and then twenty-three additional hours, and assess both together at twenty-four hours total. GCP and GAS remain available for immediate rollback. Repository consolidation follows in Chunk 18.
 
 ## Purpose of this document
 
-Inventory Bot will follow the full-stack migration process established by Portfolio Bot: capture the production baseline, migrate events and the menu into one Bkper Platform application, validate the Cloudflare target in parallel, cut over the webhook and menu independently, stabilize both surfaces, and consolidate the accepted target at the project root.
+Inventory Bot follows the full-stack migration foundations established by Portfolio Bot: capture the production baseline, migrate events and the menu into one Bkper Platform application, and validate the Cloudflare target in parallel. The production rollout combines the webhook and menu cutovers in one chunk, observes both surfaces concurrently for a shared twenty-four-hour window (one hour followed by twenty-three additional hours), and then consolidates the accepted target at the project root.
 
 This roadmap describes migration objectives, implementation chunks, dependencies, verification gates, rollout controls, and completion criteria. Implementation-specific legacy discrepancies will be characterized when their behavior area is reached; they do not need to be resolved in advance to define the migration.
 
@@ -45,7 +45,7 @@ The menu migration preserves accepted accounting outcomes and essential workflow
 9. **The rendered eligible Account list is the operation scope.** Calculate and Reset operate on the same visible Account list for selected-Account, selected-Group, and whole-Book contexts.
 10. **Tests never write to live Books.** Deterministic tests intercept SDK, network, API, browser, clock, and UUID boundaries.
 11. **Deployment and routing remain separate.** A deployed Worker does not imply that production events or the menu route to it.
-12. **Webhook and menu cutovers remain independent.** Each has its own validation, stabilization, and rollback decision.
+12. **Webhook and menu cut over together and stabilize in parallel.** One combined rollout has a shared twenty-four-hour observation window: an initial one-hour checkpoint followed by twenty-three additional hours. Both surfaces are assessed for completion together; GCP and GAS remain independently available as immediate rollback targets.
 13. **Remote mutations require explicit approval.** App sync, deploy, installation, event replay, routing changes, canaries, and Book writes are reviewed separately immediately before execution.
 14. **Do not claim full parity.** Completion means accepted domain behavior coverage, documented target differences, and successful rollout evidence.
 
@@ -873,51 +873,42 @@ Tooling advisories remain follow-up work rather than being dismissed as harmless
 
 **Gate:** Passed for the accepted verification scope. The production Worker is deployed and runtime checks, including the human-confirmed signed-in client load, are complete. GCP and GAS remain production-authoritative. Chunk 17 is next; neither production cutover is authorized by this deployment.
 
-### Chunk 17 — Cut over the production webhook and stabilize events
+### Chunk 17 — Cut over events and the menu together and observe both for 24 hours
 
 **Status: Not started.**
 
-**Objective:** Make Cloudflare production-authoritative for events while keeping the GAS menu and GCP rollback target unchanged.
+**Objective:** Make Cloudflare production-authoritative for events and the menu in one combined cutover, then observe both surfaces in parallel for one shared twenty-four-hour period. This replaces the two sequential rollout chunks; it is not two twenty-four-hour cycles.
 
-**Steps:**
+**Combined cutover:**
 
-- Review the exact webhook-only metadata change and obtain explicit approval.
-- Change only the production webhook route to Cloudflare.
-- Confirm persisted routing and production event ingress.
-- Monitor requests, responses, authentication, runtime, dependencies, and customer-impact reports during the accepted stabilization window.
-- Use deterministic and preview evidence for accounting correctness; HTTP success alone is not movement proof.
-- Keep the production menu on GAS and the unchanged GCP handler available for immediate routing rollback.
-- Reconcile any event whose authoritative mutation result cannot be established before replaying or retrying it.
+- Repeat the source drift audit and review one metadata change containing both production `webhookUrl` and `menuUrl`, preserving menu context expressions and all unrelated configuration.
+- Review the exact sync command and retained GCP/GAS rollback routes, and obtain explicit approval before changing production routing. Updating this roadmap does not authorize that operation.
+- Switch both production routes to the already deployed Cloudflare application in the same reviewed metadata sync. Do not wait for event stabilization before moving the menu.
+- Confirm both persisted routes, production event ingress, and client/API availability, including authentication, context, visible Account scope, permissions, installation, operation availability, and API protection.
+- Establish one shared observation start when both production routes are confirmed on Cloudflare. Keep the unchanged GCP handler and GAS menu deployment available throughout the rollout.
 
-**Rollback triggers:** suspected zero-sum or data-loss issue, reversed or partial quantity movement, duplicate mirroring, missing linked cleanup, sustained authentication failure, material error or runtime growth, or missing production behavior.
+**Parallel observation — 1 hour + 23 hours = 24 hours total:**
 
-**Gate:** Cloudflare remains production-authoritative for events through the accepted stabilization period with no rollback trigger.
+1. **First hour:** Observe events and the menu/API concurrently. Review event requests and responses, client failures, API outcomes, authentication, runtime, dependencies, and customer-impact reports. At the one-hour checkpoint, assess both surfaces together; a successful checkpoint continues the same rollout rather than completing either surface.
+2. **Next twenty-three hours:** Continue observing both surfaces in parallel using the same signals. This is twenty-three additional hours, not another twenty-four-hour window and not a separate menu observation cycle.
+3. **At twenty-four hours total:** Review observability evidence for the entire shared window, including the one-hour checkpoint, actual traffic, failures, and any coverage gaps. Mark the event and menu rollout complete together only when that evidence supports successful operation and no rollback condition remains.
 
-### Chunk 18 — Cut over the production menu and stabilize the full stack
+**Safety throughout both observation phases:**
 
-**Status: Not started.**
+- Immediately initiate the rollback procedure when a trigger is detected; do not wait for the one-hour or twenty-four-hour checkpoint. Review the exact rollback change and obtain explicit approval before executing its remote sync.
+- Use the retained GCP and GAS routes for the affected surface or both surfaces when the failure is shared or its scope is uncertain. A rollback prevents completion of the current combined rollout; a later cutover requires a reviewed restart of the shared observation window.
+- Use deterministic and preview evidence for accounting correctness. HTTP success or an empty error log alone is not proof of correct resource movements, and unobserved behavior must not be reported as exercised.
+- Do not initiate customer Book writes solely for monitoring. Reconcile authoritative Book state before replaying an event or retrying an operation whose mutation outcome is uncertain; never retry mutations automatically.
 
-**Objective:** Make the Cloudflare client and API production-authoritative after event stabilization.
+**Rollback triggers:** suspected zero-sum or data-loss issue, reversed, incorrect, or partial quantity or COGS movement, duplicate mirroring, missing linked cleanup, wrong Account scope, failed Reset restoration, sustained authentication or API failure, unacceptable runtime, material errors, missing production behavior, or unusable workflow.
 
-**Steps:**
+**Gate:** Both production surfaces remain on Cloudflare through the shared twenty-four-hour observation window, with the one-hour checkpoint and twenty-three-hour continuation assessed from observability evidence and no rollback condition remaining. Event and menu rollout completion is recorded together; repository consolidation follows in Chunk 18.
 
-- Review the exact menu-only metadata change and obtain explicit approval.
-- Change only the production menu route to Cloudflare.
-- Keep Cloudflare authoritative for events and GAS available for menu rollback.
-- Confirm authentication, context, visible Account scope, permissions, installation, operation availability, and API protection.
-- Monitor client failures, API outcomes, runtime, authentication, and customer-impact reports during the accepted stabilization window.
-- Do not initiate customer Book writes solely for monitoring.
-- When a mutation result cannot be established authoritatively, review Book state before retrying.
-
-**Rollback triggers:** suspected zero-sum or data-loss issue, incorrect quantity or COGS movement, wrong Account scope, failed Reset restoration, sustained authentication or API failure, unacceptable runtime, material errors, or unusable workflow.
-
-**Gate:** Cloudflare remains production-authoritative for both events and the menu through the accepted stabilization period.
-
-### Chunk 19 — Consolidate the repository and defer legacy retirement
+### Chunk 18 — Consolidate the repository and defer legacy retirement
 
 **Status: Not started.**
 
-**Objective:** Make the accepted Cloudflare application the only active working-tree implementation without changing remote state.
+**Objective:** After Chunk 17 completes the combined twenty-four-hour rollout, make the accepted Cloudflare application the only active working-tree implementation without changing remote state.
 
 **Steps:**
 
@@ -934,6 +925,8 @@ Tooling advisories remain follow-up work rather than being dismissed as harmless
 **Gate:** Cloudflare is the only active implementation in the project root, and consolidation changes no application behavior or remote state.
 
 ## Rollback strategy
+
+During the combined rollout, a trigger on either surface requires immediate action rather than waiting for an observation checkpoint. Apply the relevant procedure below to the affected surface; when the failure is shared or its scope is uncertain, restore both legacy routes in one reviewed rollback change. Exact remote sync commands still require explicit approval before execution. Retaining separate rollback targets does not introduce separate stabilization windows or permit marking one surface complete before the shared twenty-four-hour gate.
 
 ### Event rollback
 
@@ -968,7 +961,7 @@ After repository consolidation, rebuilding either legacy deployment requires rec
 - Cloudflare handles production Inventory Bot events.
 - All four subscribed behaviors have deterministic parity coverage.
 - Quantity movement direction, amount, state, relationships, lifecycle, idempotency, and zero-sum checks pass.
-- Preview, cutover, and event stabilization gates pass.
+- Preview verification and the combined event/menu cutover pass, including the shared one-hour checkpoint and twenty-three additional hours of parallel observation. Event rollout completion is recorded together with menu rollout completion at the twenty-four-hour gate.
 
 ### Full-stack migration complete
 
@@ -978,7 +971,7 @@ After repository consolidation, rebuilding either legacy deployment requires rec
 - Account operations execute sequentially, continue after individual failure, and are never retried automatically.
 - Accepted API, runtime, workflow, and UI differences are documented instead of mislabeled as full parity.
 - Client visual and interactive verification passes.
-- Preview, menu cutover, and full-stack stabilization gates pass.
+- Preview verification and the combined event/menu cutover pass, with both surfaces accepted together after the same twenty-four-hour observation window; there is no second menu-only stabilization cycle.
 - The Cloudflare application occupies the Inventory Bot root.
 - GCP and GAS remain available as independent routing rollback targets.
 

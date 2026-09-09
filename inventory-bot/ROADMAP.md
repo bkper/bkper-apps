@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 12 complete — The full-stack behavior, dependency, and runtime audit passed locally, and the reproducible candidate is ready for separately approved preview deployment and routing.**
+**Chunk 13 complete — The frozen candidate is deployed to preview, development menu and event routing reach it, and the isolated preview environment is ready for controlled behavior validation.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 13 is next: deploy the frozen candidate to preview and establish development routing readiness through separately approved remote operations.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 14 is next: validate preview event behavior and authoritative zero-sum outcomes in the isolated Books.
 
 ## Purpose of this document
 
@@ -728,22 +728,24 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 13 — Deploy to preview and establish routing readiness
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Make the frozen candidate available for controlled validation without changing production authority.
 
-**Steps:**
+**Completed:**
 
-- Rebuild from a clean frozen install and pass the complete local gate.
-- Review the exact metadata and deployment diff.
-- Narrow developer access when needed so only controlled activity reaches development event routing.
-- Deploy the accepted candidate to preview through separately approved operations.
-- Route the development menu and development events independently to preview while production remains on GAS and GCP.
-- Establish an isolated Collection with one Inventory Book and representative Financial Books.
-- Install the required apps only through separately approved operations.
-- Verify authentication, static assets, OpenAPI, API protection, read-only context, event ingress, no-op behavior, and logs without creating an accounting movement.
+- Removed installed dependencies and build output, reinstalled from the frozen lockfile, and passed generated-contract checks, strict client and server typechecks, all 206 deterministic tests, production client and Worker builds, formatting, and generated-file drift checks.
+- Reviewed the metadata change, temporarily restricted developer access to the controlled tester, and pointed only the development menu and development webhook at preview.
+- Deployed the accepted committed candidate to the preview environment without deploying a production Platform runtime or changing production routing.
+- Established a private isolated Collection with one explicitly marked Inventory Book and one USD Financial Book; both Books began empty and independently configured for their resource roles.
+- Installed Inventory Bot on both isolated Books through separately approved operations.
+- Verified preview static delivery and authentication redirection, the exact two-operation OpenAPI surface, API and event-ingress protection, authenticated read-only menu context, and preview request logs.
+- Created and immediately trashed one incomplete draft with no amount or Accounts to exercise subscribed deletion ingress without creating an accounting movement.
+- Confirmed from the authoritative event payload and preview runtime log that the draft deletion reached the preview `/events` handler and completed successfully as a no-op.
+- Confirmed that the Financial Book balance report remained empty and the Inventory Book remained untouched.
+- Confirmed persisted production menu and webhook routing remained on GAS and GCP.
 
-**Gate:** Both preview surfaces are reachable and protected while production remains entirely on GCP and GAS.
+**Gate:** Passed. Both preview surfaces are reachable and protected, development routing reaches preview, no test movement was created, and production remains entirely authoritative on GCP and GAS.
 
 ### Chunk 14 — Validate preview event behavior
 

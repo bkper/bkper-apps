@@ -11,11 +11,11 @@ repoUrl: https://github.com/bkper/bkper-apps/tree/main/inventory-bot
 repoPrivate: false
 deprecated: false
 developers: victordrumondmaltadesouza
-menuUrl: https://script.google.com/macros/s/AKfycbzQEzvupNCQbCDHkN_jLgRoraB1ROZ5gX1W1VQ129Kh3wKvWxA6VmDt7qwy09LGwFBY/exec?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
+menuUrl: https://inventory-bot.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuUrlDev: https://inventory-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuPopupWidth: 600
 menuPopupHeight: 600
-webhookUrl: https://us-central1-inventory-bot-405017.cloudfunctions.net/prodGen2
+webhookUrl: https://inventory-bot.bkper.app/events
 webhookUrlDev: https://inventory-bot-preview.bkper.app/events
 apiVersion: v5
 events:

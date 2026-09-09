@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 14 complete — Preview quantity mirroring, no-write boundaries, idempotency, posting prevention, rebuild behavior, Financial deletion cleanup, and split cleanup are validated against authoritative isolated Book state.**
+**Chunk 15 complete — Calculate, Reset, operation scope, failure continuation, responsive themes, and lock/closing protection are validated in isolated Books. The complete local gate passes, and the documented live-coverage limits are accepted. Chunk 16 is next.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is next: validate the preview menu, Calculate, Reset, and live context.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is next: complete the final drift audit and deploy the production runtime through separate approval, without changing production routing.
 
 ## Purpose of this document
 
@@ -774,7 +774,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 15 — Validate preview menu, Calculate, Reset, and live context
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Accept the complete user workflow and resulting accounting behavior before production deployment.
 
@@ -793,7 +793,36 @@ Drift audits occur before preview routing, production deployment, each productio
 - Confirm every active movement is complete, linked resources are unique, and every participating Book remains zero-sum.
 - Complete visual and interactive acceptance in configured Bkper contexts and themes.
 
-**Gate:** Target workflows, FIFO outcomes, Reset outcomes, operation scope, failure behavior, and embedded context are accepted with no unexplained accounting difference.
+**Original gate:** Target workflows, FIFO outcomes, Reset outcomes, operation scope, failure behavior, and embedded context are accepted with no unexplained accounting difference.
+
+**Validated live:**
+
+- A human operated the installed preview client; authoritative CLI reads and exact decimal per-Account movement aggregation established accounting outcomes independently of UI commentary. No browser automation was used.
+- Authenticated whole-Book, selected-Account, and selected-Group views resolved the expected eligible Inventory Accounts. Financial Book Account and Group selections mapped to their Inventory counterparts by name.
+- Idle embedded context changes replaced the visible scope without reopening the app. Selecting an ineligible flow Account removed eligible rows and disabled operations; selecting a Financial Account without an Inventory counterpart replaced the prior scope with an explicit error. Returning to a valid Account restored the actionable view.
+- Embedded light/dark presentations and standalone wide/narrow layouts were inspected. Opening standalone retained the selected Group and Account order. Standalone picked up the shared theme preference after reload; live cross-tab theme synchronization is not claimed.
+- Calculate on an Account marked for rebuild ran Reset and returned without generating COGS. Canonical reads confirmed cleared rebuild/calculation properties and preserved source movements.
+- Partial-lot Calculate produced the accepted parent remainder, checked purchase split, checked sale, purchase/liquidation logs, calculation date, and uniquely linked Financial COGS. Reset unchecked and trashed the split and COGS, restored the original purchase quantity/cost and sale properties, and cleared Account state.
+- One fixture had different purchase invoice and purchase code values. The inherited additional-cost predicate therefore included the original purchase again. The target outcome matched the inspected legacy predicate; neither code nor this fixture was changed to introduce a business-rule correction. Subsequent fixtures used matching original purchase invoice/code values to isolate their intended scenarios. This is legacy-behavior evidence, not an endorsement of the accounting interpretation.
+- A two-Account Group executed an intentionally insufficient-stock Account before a valid FIFO Account. The first returned the accepted structured quantity failure without changing its Inventory movements or calculation state; the second completed. Preview logs showed one request per Account in visible order, with no retry observed.
+- The valid Account consumed two complete purchase lots against two sales in explicit same-date order, despite reversed creation order. Exact COGS, purchase/liquidation relationships, checked state, and calculation date matched expectations; no purchase split was required.
+- Group Reset processed the same two visible Accounts in the same order, cleared generated COGS and calculation properties, and restored unchecked Inventory state. The separately scoped partial-lot Account remained untouched by both Group operations.
+- A separate Account combined a quantity-bearing supplier return, an additional cost, an amount-only credit, and a partial sale. Only the purchase, quantity return, and sale produced quantity mirrors. Calculate allocated the adjusted cost deterministically, created distinct return and sale splits, and retained unique parent, credit, sale, and COGS relationships. Reset unchecked and trashed both splits and COGS, restored original purchase quantity/cost, restored return/sale properties and unchecked state, and cleared calculation state.
+- Temporary Inventory Book lock and closing dates independently blocked Calculate and Reset with the accepted error. Canonically sorted Transaction-payload hashes matched before and after each blocked operation in both Books; the requested Account's calculation/rebuild properties remained empty.
+- Both temporary dates were cleared using the SDK clear-date sentinel. Canonical Book reads confirmed no effective lock or closing date remained on either isolated Book.
+- Final state contains eleven intentional active Inventory movements and seventeen intentional active Financial movements, no active generated COGS or split, no incomplete or zero active movement, unique remote relationships, and a zero aggregate in each Book. The intentional insufficient-stock fixture remains present; zero-sum does not imply sufficient stock.
+- Passed `bun run check`: generated contracts, strict client/server typechecks, all 206 unit tests, client and Worker production builds, formatting, and generated-file drift checks. Deterministic tests made no live Book writes.
+- Production routing remained on GAS and GCP. This validation introduced no application business-logic change, deployment, production Book write, event replay, or production routing change.
+
+**Accepted coverage limits — not exercised live, not completion blockers:**
+
+- Permission-denial sessions and missing-installation denials in the installed preview. Successful Owner access does not establish denial behavior. Existing deterministic coverage remains in `server/test/api/authorization.test.ts`, `server/test/api/services/operation-service.test.ts`, and `client/test/components/bot-app-controller.test.ts`.
+- Deliberately pending Inventory backlog at action time. The whole-sequence abort remains covered by `client/test/components/account-operation-controller.test.ts`.
+- Context changes during an active operation, duplicate submission attempts while busy, adversarial/malformed embedded messages, and stale asynchronous context races. Retained controller, view, and trusted-message tests cover the implemented safeguards where asserted; the observed idle context transitions are not evidence for every concurrent or adversarial case.
+- Exhaustive unsupported/missing-resource combinations, permission levels, Financial Book lock/closing combinations, and a supported-browser matrix. The exercised missing counterpart, ineligible Account, and Inventory lock/closing cases do not establish every combination.
+- Whole-Book mutation scope with multiple eligible Accounts. Whole-Book rendering, selected-Account mutations, and multi-Account Group mutations were exercised; whole-Book mutation orchestration remains supported by deterministic scope/controller evidence rather than a separate live run.
+
+**Gate:** Passed for the accepted validation scope. The local gate and listed live scenarios passed; the documented limits are explicitly accepted without further manual testing as a condition of Chunk 15 completion. Unexercised live checks are retained as coverage notes, not represented as successful live tests. Chunk 16 may begin; production deployment and routing changes still require their own separate approvals.
 
 ### Chunk 16 — Complete the final drift audit and deploy production runtime
 

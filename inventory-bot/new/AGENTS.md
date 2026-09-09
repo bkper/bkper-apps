@@ -5,7 +5,9 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 ## Current scope
 
 - Chunks 1 through 14 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, Account-level Reset, Account-level Calculate, migrated menu client, completed full-stack behavior, dependency, and runtime audit, established preview deployment and development routing, and authoritative isolated-Book event validation are recorded in `../ROADMAP.md`.
-- Chunk 15 is next. Validate the installed preview menu, Calculate, Reset, and live context only through separately approved Book and API mutations.
+- Chunk 15 is complete for the accepted validation scope. Calculate/Reset accounting scenarios, selected and Group scope, failure continuation, idle context changes, responsive themes, and Inventory lock/closing protection passed authoritative isolated-Book checks. All 206 unit tests and the complete local gate passed. See `../ROADMAP.md` for evidence and accepted live-coverage limits; unexercised live checks are coverage notes, not completion blockers.
+- Chunk 16 is next: final drift audit and separately approved production runtime deployment, with production routing unchanged.
+- Manual UI review is complete for the exercised contexts; do not request more screenshots or initiate further Book/API mutations unless separately requested and approved. Any continuation must distinguish deterministic coverage from live evidence. Production deployment and routing remain separate, unapproved operations.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.

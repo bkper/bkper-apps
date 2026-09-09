@@ -4,8 +4,8 @@ This directory contains the isolated full-stack Cloudflare migration target for 
 
 ## Current scope
 
-- Chunks 1 through 13 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, Account-level Reset, Account-level Calculate, migrated menu client, completed full-stack behavior, dependency, and runtime audit, and established preview deployment and development routing are recorded in `../ROADMAP.md`.
-- Chunk 14 is next. Validate event-side quantity and lifecycle behavior in the isolated preview Books only through separately approved Book mutations.
+- Chunks 1 through 14 are complete. The production baseline, accepted source-over-deployment COGS deletion hardening, Cloudflare skeleton, event behavior and parity audit, typed Account-level API contract, authenticated client context and visible operation scope, server authorization boundaries, Account-level Reset, Account-level Calculate, migrated menu client, completed full-stack behavior, dependency, and runtime audit, established preview deployment and development routing, and authoritative isolated-Book event validation are recorded in `../ROADMAP.md`.
+- Chunk 15 is next. Validate the installed preview menu, Calculate, Reset, and live context only through separately approved Book and API mutations.
 - The legacy GCP event handler under `../legacy/events/` remains production-authoritative for events.
 - The legacy Google Apps Script web app under `../legacy/menu/` remains production-authoritative for the menu.
 - One Cloudflare Worker will serve the bundled client, authenticated `/api/v1/*` routes, `/events`, and `/openapi.json`.

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 13 complete — The frozen candidate is deployed to preview, development menu and event routing reach it, and the isolated preview environment is ready for controlled behavior validation.**
+**Chunk 14 complete — Preview quantity mirroring, no-write boundaries, idempotency, posting prevention, rebuild behavior, Financial deletion cleanup, and split cleanup are validated against authoritative isolated Book state.**
 
-The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Chunk 14 is next: validate preview event behavior and authoritative zero-sum outcomes in the isolated Books.
+The current Google Cloud Function remains production-authoritative for events, and the current Google Apps Script web app remains production-authoritative for the Inventory Bot menu. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is next: validate the preview menu, Calculate, Reset, and live context.
 
 ## Purpose of this document
 
@@ -749,22 +749,28 @@ Drift audits occur before preview routing, production deployment, each productio
 
 ### Chunk 14 — Validate preview event behavior
 
-**Status: Not started.**
+**Status: Complete.**
 
 **Objective:** Prove event-side quantity and lifecycle behavior against authoritative Book state in isolated Books.
 
-**Steps:**
+**Completed:**
 
-- Exercise eligible purchase, sale, and quantity-bearing credit-note mirroring.
-- Exercise missing quantity, zero quantity, unsupported input, mismatched exchange, duplicate delivery, and app-agent loop prevention.
-- Exercise direct Inventory Book posting prevention and manual uncheck rebuild behavior.
-- Exercise Financial and Inventory deletion paths, split cleanup, linked COGS cleanup, and rebuild flags.
-- Verify created resources through canonical re-reads rather than event responses alone.
-- Assert exact movement direction, amount, state, properties, remote ids, uniqueness, and linked cleanup.
-- Deterministically aggregate movement effects and confirm each Book remains zero-sum.
-- Re-run the complete local gate after any accepted preview correction.
+- Exercised eligible purchase, sale, and quantity-bearing credit-note checks and canonically verified the accepted `Buy >> item`, `item >> Sell`, and `item >> Buy` quantity movements.
+- Verified exact dates, amounts, states, properties, copied Account and Group metadata, remote-id relationships, and one active mirror per accepted Financial source.
+- Confirmed missing quantity, zero quantity, unsupported input, and mismatched exchange code created no Inventory movement or leaked resource.
+- Replayed an eligible checked event and confirmed the existing mirror was returned without creating a duplicate.
+- Confirmed app-authored Inventory posting activity was not routed back to the same preview handler and did not remove or duplicate accepted mirrors.
+- Verified direct Inventory posting prevention trashed the user-authored movement, emitted the accepted warning, and created no replacement.
+- Verified user-authored Inventory check and uncheck activity restored `needs_rebuild: TRUE` without changing movement endpoints or counts.
+- Verified Financial purchase deletion removed its linked Inventory mirror and restored rebuild state at the established calculation boundary.
+- Verified Financial root deletion removed its root Inventory mirror and unchecked and trashed a checked split child in the accepted order.
+- Exercised Inventory deletion with a linked checked Financial COGS fixture and confirmed a pre-existing legacy classifier no-op against the live deletion payload shape. The surviving fixture was manually reconciled, the production route was not exercised, and the inherited issue is deferred in `BUGS.md` rather than changed during migration.
+- Re-read authoritative resources after every scenario and used exact decimal movement aggregation rather than event responses as final accounting evidence.
+- Finished with six intentional active Financial movements, two uniquely linked active Inventory movements, no active orphaned COGS, no incomplete or zero active movement, and a zero aggregate in each Book.
+- Re-ran the complete local gate: generated contracts, strict client and server typechecks, all 206 deterministic tests, production client and Worker builds, formatting, and generated-file drift checks passed.
+- Kept production menu and webhook routing unchanged on GAS and GCP and performed no production Book mutation.
 
-**Gate:** No duplicate, missing, reversed, partial, orphaned, or imbalanced active movement is found.
+**Gate:** Passed for the accepted migration scope. No duplicate, missing, reversed, partial, orphaned, or imbalanced active movement remains; the reproduced inherited deletion bug is explained, reconciled, and separately deferred.
 
 ### Chunk 15 — Validate preview menu, Calculate, Reset, and live context
 

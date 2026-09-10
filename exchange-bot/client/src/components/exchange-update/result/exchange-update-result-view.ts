@@ -20,19 +20,28 @@ export class ExchangeUpdateResultView extends LitElement {
             <div class="container">
                 <wa-icon name="check_circle" label="Done"></wa-icon>
                 <span>Done!</span>
-                <button
-                    id="result-trigger"
-                    class="trigger focusable"
-                    type="button"
-                    @mouseenter=${this.openResult}
-                    @click=${this.handleTriggerClicked}
-                >
-                    Result
-                </button>
-                <wa-popover class="popover" for="result-trigger" placement="bottom-start">
-                    <div class="content">${this.renderSummary()}</div>
-                </wa-popover>
+                ${this.renderResult()}
             </div>
+        `;
+    }
+
+    private renderResult(): TemplateResult {
+        if (!this.summary) {
+            return html``;
+        }
+        return html`
+            <button
+                id="result-trigger"
+                class="trigger focusable"
+                type="button"
+                @mouseenter=${this.openResult}
+                @click=${this.handleTriggerClicked}
+            >
+                Result
+            </button>
+            <wa-popover class="popover" for="result-trigger" placement="bottom-start">
+                <div class="content">${this.renderSummary()}</div>
+            </wa-popover>
         `;
     }
 

@@ -10,6 +10,7 @@ import { ExchangeUpdateController } from '../../../src/components/exchange-updat
 import type { ExchangeUpdateView } from '../../../src/components/exchange-update/exchange-update-view.js';
 import { BotApiError, botApiService } from '../../../src/services/bot-api-service.js';
 import { bkperService } from '../../../src/services/bkper-service.js';
+import { Utils } from '../../../src/utils.js';
 
 class TestView implements ReactiveControllerHost {
     book?: Book;
@@ -49,6 +50,7 @@ class TestView implements ReactiveControllerHost {
 const originalLoadRates = botApiService.loadExchangeRates;
 const originalPerformExchangeUpdate = botApiService.performExchangeUpdate;
 const originalLoadBook = bkperService.loadBook;
+const originalSummarize = Utils.summarizeExchangeUpdate;
 const originalSetTimeout = globalThis.setTimeout;
 const originalClearTimeout = globalThis.clearTimeout;
 
@@ -56,6 +58,7 @@ afterEach(() => {
     botApiService.loadExchangeRates = originalLoadRates;
     botApiService.performExchangeUpdate = originalPerformExchangeUpdate;
     bkperService.loadBook = originalLoadBook;
+    Utils.summarizeExchangeUpdate = originalSummarize;
     globalThis.setTimeout = originalSetTimeout;
     globalThis.clearTimeout = originalClearTimeout;
 });
@@ -242,6 +245,62 @@ describe('Exchange update controller', () => {
             summary: { 'New Exchange': '4,20' },
         });
     });
+
+    it.each(['reload', 'summary', 'formatting'])(
+        'keeps an accepted update successful without resubmitting after a %s failure',
+        async stage => {
+            const target = createExchangeBotBook('usd-book', 'USD', true, [
+                { id: 'cash-exchange', name: 'Cash EXC' },
+            ]);
+            const audit = mock(() => undefined);
+            target.book.audit = audit;
+            botApiService.performExchangeUpdate = mock(async bookId =>
+                createExchangeUpdateApiResult(
+                    bookId === 'usd-book'
+                        ? [
+                              {
+                                  amount: '1',
+                                  description: '#exchange_loss',
+                                  debitAccount: { id: 'cash-exchange' },
+                              },
+                          ]
+                        : []
+                )
+            );
+            bkperService.loadBook = mock(async () => {
+                if (stage === 'reload') {
+                    throw new Error('Book reload failed');
+                }
+                return target.book;
+            });
+            Utils.summarizeExchangeUpdate = async transactions => {
+                if (stage === 'summary' && transactions.length > 0) {
+                    throw new Error('Summary failed');
+                }
+                return originalSummarize(transactions);
+            };
+            if (stage === 'formatting') {
+                target.book.formatValue = () => {
+                    throw new Error('Formatting failed');
+                };
+            }
+            const view = new TestView();
+            view.books = [target, createExchangeBotBook('eur-book', 'EUR', true)];
+            view.exchangeRates = { base: 'USD', date: '2026-08-06', rates: { EUR: 0.8 } };
+
+            await createController(view).runExchangeUpdate();
+
+            expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(2);
+            expect(audit).toHaveBeenCalledTimes(1);
+            expect(bkperService.loadBook).toHaveBeenCalledTimes(1);
+            expect(view.results.get('usd-book')).toEqual({
+                status: 'COMPLETE',
+                summary: undefined,
+            });
+            expect(view.results.get('eur-book')).toEqual({ status: 'COMPLETE', summary: {} });
+            expect(view.executing).toBe(false);
+        }
+    );
 
     it('retries only the failed Book', async () => {
         const requestedBookIds: string[] = [];

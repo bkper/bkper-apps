@@ -1,6 +1,9 @@
 import { Transaction } from 'bkper-js';
 import type { ReactiveController } from 'lit';
-import type { ExchangeRates } from '../../api/generated/types.js';
+import type {
+    ExchangeRates,
+    ExchangeUpdateResult as ExchangeUpdateApiResult,
+} from '../../api/generated/types.js';
 import { BotApiError, botApiService } from './../../services/bot-api-service.js';
 import { bkperService } from './../../services/bkper-service.js';
 import { Utils } from './../../utils.js';
@@ -141,22 +144,9 @@ export class ExchangeUpdateController implements ReactiveController {
         const bookId = book.book.getId();
 
         while (true) {
+            let result: ExchangeUpdateApiResult;
             try {
-                const result = await botApiService.performExchangeUpdate(bookId, exchangeRates);
-                if (result.createdTransactions.length > 0) {
-                    // Preserve the legacy menu audit after accepted movements.
-                    book.book.audit();
-                    // Resolve accounts for created transactions only after a mutating update.
-                    book.book = await bkperService.loadBook(bookId, true);
-                }
-                this.setExchangeUpdateResult(bookId, {
-                    status: ExchangeUpdateStatus.COMPLETE,
-                    summary: await this.summarizeExchangeUpdateResult(
-                        book,
-                        result.createdTransactions
-                    ),
-                });
-                return;
+                result = await botApiService.performExchangeUpdate(bookId, exchangeRates);
             } catch (error: unknown) {
                 const message = this.formatError(
                     error,
@@ -176,7 +166,31 @@ export class ExchangeUpdateController implements ReactiveController {
                     retryCount,
                     retryLimit: this.maxRetryCount,
                 });
+                continue;
             }
+
+            // The update was accepted. Post-update failures must never resubmit it.
+            try {
+                if (result.createdTransactions.length > 0) {
+                    // Preserve the legacy menu audit after accepted movements.
+                    book.book.audit();
+                    // Resolve accounts for created transactions only after a mutating update.
+                    book.book = await bkperService.loadBook(bookId, true);
+                }
+                this.setExchangeUpdateResult(bookId, {
+                    status: ExchangeUpdateStatus.COMPLETE,
+                    summary: await this.summarizeExchangeUpdateResult(
+                        book,
+                        result.createdTransactions
+                    ),
+                });
+            } catch {
+                this.setExchangeUpdateResult(bookId, {
+                    status: ExchangeUpdateStatus.COMPLETE,
+                    summary: undefined,
+                });
+            }
+            return;
         }
     }
 

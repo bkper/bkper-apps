@@ -19,11 +19,12 @@ const renderSummary = Reflect.get(
 describe('Exchange update result view', () => {
     it('opens the result from hover or direct activation, but not keyboard focus', () => {
         const view = new ExchangeUpdateResultView();
+        view.summary = { 'Cash Exchange': '1,00' };
         const show = mock(async () => undefined);
         const stopImmediatePropagation = mock(() => undefined);
         Object.defineProperty(view, 'resultPopover', { value: { show } });
 
-        const result = view.render();
+        const result = view.render().values[0] as TemplateResult;
         expect(result.values.filter(value => value === openResult)).toHaveLength(1);
 
         openResult.call(view);
@@ -51,11 +52,24 @@ describe('Exchange update result view', () => {
         ]);
     });
 
-    it('renders an empty state when the summary has no entries', () => {
+    it('omits result actions when the summary is undefined', () => {
         const view = new ExchangeUpdateResultView();
+        view.summary = undefined;
 
+        const result = view.render().values[0] as TemplateResult;
+
+        expect(result.values).toEqual([]);
+        expect(result.strings.join('')).toBe('');
+    });
+
+    it('keeps the Result action and empty state when the summary has no entries', () => {
+        const view = new ExchangeUpdateResultView();
+        view.summary = {};
+
+        const resultAction = view.render().values[0] as TemplateResult;
         const result = renderSummary.call(view);
 
+        expect(resultAction.strings.join('')).toContain('<button');
         expect(result.strings.join('')).not.toContain('<dl');
     });
 });

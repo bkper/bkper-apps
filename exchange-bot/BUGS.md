@@ -27,34 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Post-mutation summary failures are reported as operation failures
-
-**Status:** Deferred until after migration stabilization.
-
-### Current legacy behavior
-
-The GAS `updateGainLoss` operation creates transactions and then builds its summary within the same server call. If summary construction fails after transaction creation, the client receives a failure and enters its retry flow even though some or all mutations may already have succeeded.
-
-The migration target preserves one broad failure boundary around the Exchange Update POST and client-side summary construction. A summary or formatting error after a successful POST is therefore presented as an Exchange Update failure.
-
-### Problem
-
-Once a mutation has been accepted, reporting it as failed can encourage the user or retry flow to submit it again. Repeating an Exchange Update from the same pre-update context can create duplicate adjustment movements. Presentation failures must not obscure a known successful mutation outcome.
-
-### Intended fix
-
-Track mutation outcome separately from summary and presentation outcome. Once the API confirms a successful Exchange Update, retain a successful operation state even if its summary cannot be produced. Report summary failures as non-mutating warnings without offering mutation retry as the remedy.
-
-### Acceptance criteria
-
-- A failed POST remains an Exchange Update failure.
-- A successful POST remains successful even when summary construction or formatting fails.
-- Summary failures display a clear non-mutating warning.
-- Summary failures never automatically retry or recommend rerunning the accepted mutation.
-- Per-Book mutation and summary outcomes remain independent.
-- Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
-
-## 3. Edited rates retain results from the previous Exchange Update
+## 2. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -78,7 +51,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 4. Connected-Book discovery and chart loading perform redundant sequential requests
+## 3. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -114,7 +87,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 5. Exchange Update retries lack delay and structured error classification
+## 4. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -140,7 +113,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 6. Client-triggered post-update Book audits may be unnecessary
+## 5. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

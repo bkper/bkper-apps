@@ -161,7 +161,7 @@ export class BotAppController implements ReactiveController {
             this.view.hasEditorPermission = true;
         }
 
-        // Pending-task validation applies only to Books visible to the User.
+        // Pending-task and event-error validation apply only to Books visible to the User.
         const visibleBooks = Array.from(books).filter(Utils.canViewBook);
         return new Set(visibleBooks);
     }
@@ -191,7 +191,7 @@ export class BotAppController implements ReactiveController {
                 this.view.warnings = [...warnings];
             }
 
-            const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(book);
+            const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(books);
             if (eventErrorsExcCodes.size > 0) {
                 warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
                 this.view.warnings = [...warnings];
@@ -225,15 +225,9 @@ export class BotAppController implements ReactiveController {
         return excCodes;
     }
 
-    private async mapEventErrorsExcCodes(book: Book): Promise<Set<string>> {
+    private async mapEventErrorsExcCodes(books: Set<Book>): Promise<Set<string>> {
         const excCodes = new Set<string>();
-        const collection = book.getCollection();
-        const collectionBooks = (collection?.getBooks() ?? []).filter(
-            b => Utils.getExcCode(b) && Utils.canViewBook(b)
-        );
-        const booksWithEventErrors = await botService.getBooksWithEventErrors(
-            new Set(collectionBooks)
-        );
+        const booksWithEventErrors = await botService.getBooksWithEventErrors(books);
         for (const book of booksWithEventErrors) {
             const excCode = Utils.getExcCode(book);
             if (excCode) {

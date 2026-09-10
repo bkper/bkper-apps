@@ -388,7 +388,7 @@ describe('Bot app controller', () => {
         expect(view.warnings).toEqual([]);
     });
 
-    it('checks event errors only in Collection Books', async () => {
+    it('checks event errors in visible connected Books and the selected Book', async () => {
         const selectedBook = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -424,18 +424,59 @@ describe('Bot app controller', () => {
             authService.accessToken = 'access-token';
         };
         bkperService.loadBook = async () => selectedBook;
-        botService.getConnectedBooks = async () => new Set([legacyConnectedBook]);
+        const hiddenConnectedBook = new Book({
+            id: 'hidden-connected-book',
+            permission: Permission.RECORDER,
+            properties: { exc_code: 'GBP' },
+        });
+        const collectionBooks = selectedBook.getCollection()!.getBooks();
+        botService.getConnectedBooks = mock(
+            async () =>
+                new Set([
+                    legacyConnectedBook,
+                    hiddenConnectedBook,
+                    ...collectionBooks.filter(book => book.getId() === 'collection-book'),
+                ])
+        );
         let checkedBookIds: string[] = [];
         botService.getBooksWithEventErrors = async books => {
             checkedBookIds = Array.from(books, book => book.getId());
-            return new Set<Book>();
+            return books;
         };
         const view = new TestView();
         const controller = createController(view);
 
         await controller.initialize();
 
-        expect(checkedBookIds).toEqual(['book-id', 'collection-book']);
+        expect(checkedBookIds).toEqual(['legacy-connected-book', 'collection-book', 'book-id']);
+        expect(view.warnings).toEqual(['Books with errors: EUR, BRL, USD']);
+
+        await controller.retryValidations();
+
+        expect(checkedBookIds).toEqual(['legacy-connected-book', 'collection-book', 'book-id']);
+        expect(botService.getConnectedBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports event errors in the selected Book without a Collection', async () => {
+        const book = new Book({
+            id: 'book-id',
+            timeZone: 'UTC',
+            permission: Permission.EDITOR,
+            properties: { exc_code: 'USD' },
+        });
+        authService.init = async () => {
+            authService.accessToken = 'access-token';
+        };
+        bkperService.loadBook = async () => book;
+        botService.getBooksWithEventErrors = mock(async books => books);
+        const view = new TestView();
+        const controller = createController(view);
+
+        await controller.initialize();
+
+        expect(botService.getBooksWithEventErrors).toHaveBeenCalledWith(new Set([book]));
+        expect(view.warnings).toEqual(['Books with errors: USD']);
+        expect(view.hasEditorPermission).toBe(true);
     });
 
     it('keeps the UI available to a viewer but prevents Exchange Update', async () => {

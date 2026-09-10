@@ -2,40 +2,13 @@
 
 This document tracks known Exchange Bot bugs that are intentionally preserved during the Cloudflare migration to maintain production parity. Address these fixes as soon as the migration is stabilized, each with dedicated tests and review.
 
-## 1. Event-error validation excludes connected Books outside the Collection
+## 1. Validation warnings cannot identify Books without an exchange code
 
 **Status:** Deferred until after migration stabilization.
 
 ### Current legacy behavior
 
-The menu checks event errors only in Books returned by the selected Book's Collection. It does not check:
-
-- Books connected through legacy Book properties but outside the Collection; or
-- the selected Book when it does not belong to a Collection.
-
-### Problem
-
-Exchange Bot can operate on the selected Book and Books connected through both Collection membership and legacy properties. Errors in part of that connected context can therefore go unreported by the menu validation.
-
-### Intended fix
-
-Check event errors across the selected Book and every connected Book, including legacy-property connections outside the Collection.
-
-### Acceptance criteria
-
-- Collection Books with event errors remain reported.
-- Connected Books outside the Collection are also reported.
-- A selected Book outside a Collection is checked.
-- Missing-permission and pending-task warnings retain their existing precedence over event-error warnings.
-- Deterministic client tests cover each validation scope without accessing live Books.
-
-## 2. Validation warnings cannot identify Books without an exchange code
-
-**Status:** Deferred until after migration stabilization.
-
-### Current legacy behavior
-
-Pending-task validation can surface Books that have no exchange code, but its warning contains a blank Book identifier. If event-error validation is expanded as described in bug 1, event-error warnings can encounter the same problem.
+Pending-task validation can surface Books that have no exchange code, but its warning contains a blank Book identifier. Event-error validation also checks these Books, but currently omits them from warnings when no exchange code is available.
 
 ### Problem
 
@@ -54,7 +27,7 @@ Keep validation scopes independent from exchange-code configuration. When an exc
 - Existing warning precedence remains unchanged.
 - Deterministic client tests cover each fallback without accessing live Books.
 
-## 3. Editable exchange rates accept non-numeric text
+## 2. Editable exchange rates accept non-numeric text
 
 **Status:** Deferred until after migration stabilization.
 
@@ -79,7 +52,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 4. Connected Books are not deduplicated by Book id
+## 3. Connected Books are not deduplicated by Book id
 
 **Status:** Fixed in the client; server API deduplication remains deferred until after migration stabilization.
 
@@ -107,7 +80,7 @@ Retain the client rule and apply the same Book-id deduplication to the server AP
 - Exchange update processes each connected Book id once.
 - Deterministic client and server tests cover duplicate configuration sources without accessing live Books.
 
-## 5. Client conflates blocking errors with non-blocking warnings
+## 4. Client conflates blocking errors with non-blocking warnings
 
 **Status:** Partially resolved; remaining operation-stage classifications are deferred until after migration stabilization.
 
@@ -142,7 +115,7 @@ After migration stabilization, define explicit client states for blocking valida
 - Message presentation is separate from action-availability logic.
 - Deterministic client tests cover presentation, action availability, and request boundaries for each classification without accessing live Books.
 
-## 6. Post-mutation summary failures are reported as operation failures
+## 5. Post-mutation summary failures are reported as operation failures
 
 **Status:** Deferred until after migration stabilization.
 
@@ -169,7 +142,7 @@ Track mutation outcome separately from summary and presentation outcome. Once th
 - Per-Book mutation and summary outcomes remain independent.
 - Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
 
-## 7. Edited rates retain results from the previous Exchange Update
+## 6. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -193,7 +166,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 8. Connected-Book discovery and chart loading perform redundant sequential requests
+## 7. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -228,7 +201,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 9. Exchange Update retries lack delay and structured error classification
+## 8. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -254,7 +227,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 10. Client-triggered post-update Book audits may be unnecessary
+## 9. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

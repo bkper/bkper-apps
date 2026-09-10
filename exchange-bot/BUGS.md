@@ -27,35 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Connected Books are not deduplicated by Book id
-
-**Status:** Fixed in the client; server API deduplication remains deferred until after migration stabilization.
-
-### Current migration behavior
-
-The client deduplicates connected Books by `book.getId()`, reuses eligible embedded Collection Books, and preserves legacy-first discovery order. Duplicate deprecated ids are loaded once, and each connected Book id is returned once.
-
-The server API still accumulates connected Books in a `Set<Book>`. Because JavaScript Sets compare objects by identity, separate server-side `Book` instances with the same id can remain duplicated when configured through deprecated properties and Collection membership.
-
-### Remaining problem
-
-The client-side duplicate validation, UI entry, and duplicate target-request risks are fixed. The server exchange-update service can still process the same connected Book more than once using the same preloaded balances report, which can create duplicate exchange-adjustment movements.
-
-### Intended fix
-
-Retain the client rule and apply the same Book-id deduplication to the server API while preserving first-discovery order.
-
-### Acceptance criteria
-
-- A Book configured through multiple deprecated properties is returned once.
-- A Book configured through both deprecated properties and Collection membership is returned once.
-- First-discovery order remains deterministic.
-- Context validation runs once per Book id.
-- The client submits each eligible target Book id once per Exchange Update run.
-- Exchange update processes each connected Book id once.
-- Deterministic client and server tests cover duplicate configuration sources without accessing live Books.
-
-## 3. Client conflates blocking errors with non-blocking warnings
+## 2. Client conflates blocking errors with non-blocking warnings
 
 **Status:** Partially resolved; remaining operation-stage classifications are deferred until after migration stabilization.
 
@@ -90,7 +62,7 @@ After migration stabilization, define explicit client states for blocking valida
 - Message presentation is separate from action-availability logic.
 - Deterministic client tests cover presentation, action availability, and request boundaries for each classification without accessing live Books.
 
-## 4. Post-mutation summary failures are reported as operation failures
+## 3. Post-mutation summary failures are reported as operation failures
 
 **Status:** Deferred until after migration stabilization.
 
@@ -117,7 +89,7 @@ Track mutation outcome separately from summary and presentation outcome. Once th
 - Per-Book mutation and summary outcomes remain independent.
 - Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
 
-## 5. Edited rates retain results from the previous Exchange Update
+## 4. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -141,7 +113,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 6. Connected-Book discovery and chart loading perform redundant sequential requests
+## 5. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -168,6 +140,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 ### Acceptance criteria
 
 - Server callers explicitly choose whether connected Books require lean metadata or complete Accounts and Groups.
+- Empty legacy Book IDs are ignored, matching client discovery behavior, and generate no Book-loading requests.
 - Exchange-rate loading does not fetch complete charts.
 - Exchange Update does not fetch a connected chart when no target Accounts match its currency code.
 - A matching deprecated-property Book is not loaded once lean and again with its complete chart.
@@ -176,7 +149,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 7. Exchange Update retries lack delay and structured error classification
+## 6. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -202,7 +175,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 8. Client-triggered post-update Book audits may be unnecessary
+## 7. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

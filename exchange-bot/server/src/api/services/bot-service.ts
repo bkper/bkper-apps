@@ -31,16 +31,27 @@ export class BotService {
         };
     }
 
+    /**
+     * Gets connected Books from legacy properties followed by Collection membership,
+     * deduplicating by Book ID and retaining the first discovered instance.
+     *
+     * @param book - The Book whose connections should be resolved.
+     * @returns Connected Books in first-discovery order, with each Book ID included once.
+     */
     async getConnectedBooks(book: Book): Promise<Set<Book>> {
-        if (book.getVisibleProperties() == null) {
+        const properties = book.getVisibleProperties();
+        if (properties == null) {
             return new Set<Book>();
         }
-        const books = new Set<Book>();
+
+        const books = new Map<string, Book>();
+        const legacyBookIds = new Set<string>();
 
         // deprecated
-        for (const key in book.getVisibleProperties()) {
+        for (const key in properties) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
-                books.add(await this.context.bkper.getBook(book.getVisibleProperties()[key]));
+                const connectedBookId = properties[key];
+                legacyBookIds.add(connectedBookId);
             }
         }
 
@@ -50,8 +61,15 @@ export class BotService {
             const bookIds = excBooks.split(/[ ,]+/);
             for (const connectedBookId of bookIds) {
                 if (connectedBookId != null && connectedBookId.trim().length > 10) {
-                    books.add(await this.context.bkper.getBook(connectedBookId));
+                    legacyBookIds.add(connectedBookId);
                 }
+            }
+        }
+
+        for (const legacyBookId of legacyBookIds) {
+            const connectedBook = await this.context.bkper.getBook(legacyBookId);
+            if (!books.has(connectedBook.getId())) {
+                books.set(connectedBook.getId(), connectedBook);
             }
         }
 
@@ -60,14 +78,15 @@ export class BotService {
             for (const collectionBook of collectionBooks) {
                 if (
                     collectionBook.getId() != book.getId() &&
-                    this.getBaseCode(collectionBook) != null
+                    this.getBaseCode(collectionBook) != null &&
+                    !books.has(collectionBook.getId())
                 ) {
-                    books.add(collectionBook);
+                    books.set(collectionBook.getId(), collectionBook);
                 }
             }
         }
 
-        return books;
+        return new Set(books.values());
     }
 
     getBaseCode(book: Book): string | undefined {

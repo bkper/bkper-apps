@@ -216,11 +216,11 @@ describe('legacy menu Exchange Update', () => {
         expect(audits).toBe(0);
     });
 
-    test('returns accepted gain and loss movements in connected-Book order', async () => {
+    test('creates gain and loss movements once per connected Book in discovery order', async () => {
         const book = createBook(
             'usd-book',
             'USD',
-            {},
+            { exc_eur_book: 'eur-book', exc_duplicate_book: 'eur-book' },
             {
                 collection: {
                     books: [
@@ -305,8 +305,15 @@ describe('legacy menu Exchange Update', () => {
             );
         };
 
+        const context = createContext(book);
+        const getBook = context.bkper.getBook.bind(context.bkper);
+        context.bkper.getBook = async (id, includeAccounts) => {
+            const loadedBook = await getBook(id, includeAccounts);
+            return includeAccounts ? loadedBook : new Book(loadedBook.json());
+        };
+
         const result = await ExchangeUpdateService.update(
-            createContext(book),
+            context,
             'usd-book',
             rates({ EUR: '0.5', BRL: '0.25' })
         );

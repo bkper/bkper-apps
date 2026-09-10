@@ -4,8 +4,10 @@ import { initBkperAPI } from '../src/api-init.js';
 import { authService } from '../src/services/auth-service.js';
 
 const originalRefresh = authService.refresh;
+const originalConfig = new Bkper().getConfig();
 
 afterEach(() => {
+    Bkper.setConfig(originalConfig);
     authService.accessToken = undefined;
     authService.refresh = originalRefresh;
 });

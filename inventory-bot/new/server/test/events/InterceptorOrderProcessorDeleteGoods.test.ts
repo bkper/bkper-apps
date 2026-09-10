@@ -216,7 +216,7 @@ describe('legacy Inventory Book deletion behavior', () => {
         expect(operations).toEqual(['uncheck:financial-cogs', 'trash:financial-cogs']);
         expect(result).toEqual({
             result: [
-                "<a href='https://app.bkper.com/b/#transactions:bookId=financial'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Cost of goods sold financial-cogs",
+                "<a href='https://bkper.app/books/financial/transactions'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Cost of goods sold financial-cogs",
             ],
         });
     });

@@ -157,9 +157,10 @@ describe('legacy event bot service', () => {
         });
 
         expect(service.getBookExcCode(createBook('alias', { exchange_code: 'EUR' }))).toBe('EUR');
-        expect(service.buildBookAnchor(createBook('book id'))).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=book id'>book id</a>"
+        expect(service.buildBookAnchor(createBook('book id/?#'))).toBe(
+            "<a href='https://bkper.app/books/book%20id%2F%3F%23/transactions'>book id/?#</a>"
         );
+        expect(service.buildBookAnchor()).toBeUndefined();
         expect(service.getCOGSCalculationDateValue(account)).toBe(20250304);
         expect(service.getCOGSCalculationDateValue(new Account(createBook('book')))).toBeNull();
         expect(service.getAccountQuery("Good's", '2025-02-01', '2025-01-01')).toBe(

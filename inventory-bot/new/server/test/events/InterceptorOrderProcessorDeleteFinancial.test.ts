@@ -236,10 +236,10 @@ describe('legacy Financial Book deletion behavior', () => {
             'update-account:T-shirts',
         ]);
         expect(result.result).toEqual([
-            "<a href='https://app.bkper.com/b/#transactions:bookId=financial'>Financial</a>: DELETED: 2024-01-02 10 Buy T-shirts inventory-purchase",
-            "<a href='https://app.bkper.com/b/#transactions:bookId=financial'>Financial</a>: DELETED: 2024-01-02 4 Buy T-shirts inventory-split",
-            "<a href='https://app.bkper.com/b/#transactions:bookId=financial'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Cost of goods sold financial-cogs",
-            "<a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: Flagging account for rebuild",
+            "<a href='https://bkper.app/books/financial/transactions'>Financial</a>: DELETED: 2024-01-02 10 Buy T-shirts inventory-purchase",
+            "<a href='https://bkper.app/books/financial/transactions'>Financial</a>: DELETED: 2024-01-02 4 Buy T-shirts inventory-split",
+            "<a href='https://bkper.app/books/financial/transactions'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Cost of goods sold financial-cogs",
+            "<a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: Flagging account for rebuild",
         ]);
     });
 
@@ -275,8 +275,8 @@ describe('legacy Financial Book deletion behavior', () => {
             'update-account:T-shirts',
         ]);
         expect(result.result).toEqual([
-            "<a href='https://app.bkper.com/b/#transactions:bookId=financial'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Sell inventory-sale",
-            "<a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: Flagging account for rebuild",
+            "<a href='https://bkper.app/books/financial/transactions'>Financial</a>: DELETED: 2024-01-02 10 T-shirts Sell inventory-sale",
+            "<a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: Flagging account for rebuild",
         ]);
     });
 
@@ -414,7 +414,7 @@ describe('legacy Financial Book deletion behavior', () => {
             );
 
             expect(result.result).toEqual([
-                "<a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: Flagging account for rebuild",
+                "<a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: Flagging account for rebuild",
             ]);
         }
 

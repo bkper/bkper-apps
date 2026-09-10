@@ -128,7 +128,7 @@ export class BotService {
 
     buildBookAnchor(book?: Book): string | undefined {
         return book
-            ? `<a href='https://app.bkper.com/b/#transactions:bookId=${book.getId()}'>${book.getName()}</a>`
+            ? `<a href='https://bkper.app/books/${encodeURIComponent(book.getId())}/transactions'>${book.getName()}</a>`
             : undefined;
     }
 

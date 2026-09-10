@@ -461,7 +461,7 @@ describe('legacy checked Inventory quantity mirroring', () => {
         );
         expect(result).toEqual({
             result: [
-                "BUY: <a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: 2024-01-02 10 Buy Shirts Shirt purchase",
+                "BUY: <a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: 2024-01-02 10 Buy Shirts Shirt purchase",
             ],
         });
     });
@@ -498,7 +498,7 @@ describe('legacy checked Inventory quantity mirroring', () => {
         );
         expect(result).toEqual({
             result: [
-                "SELL: <a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: 2024-01-03 3 Shirts Shirts Shirt sale",
+                "SELL: <a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: 2024-01-03 3 Shirts Shirts Shirt sale",
             ],
         });
     });
@@ -531,7 +531,7 @@ describe('legacy checked Inventory quantity mirroring', () => {
         );
         expect(result).toEqual({
             result: [
-                "CREDIT: <a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: 2024-01-04 2 Shirts Shirts Shirt credit note",
+                "CREDIT: <a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: 2024-01-04 2 Shirts Shirts Shirt credit note",
             ],
         });
     });
@@ -558,7 +558,7 @@ describe('legacy checked Inventory quantity mirroring', () => {
 
         expect(result).toEqual({
             result: [
-                "FOUND: <a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a> 2024-01-02 10 Buy Shirts Shirt purchase",
+                "FOUND: <a href='https://bkper.app/books/inventory/transactions'>Inventory</a> 2024-01-02 10 Buy Shirts Shirt purchase",
             ],
         });
         expect(boundary.createdAccounts).toEqual([]);
@@ -637,7 +637,7 @@ describe('legacy checked Inventory quantity mirroring', () => {
         ]);
         expect(result).toEqual({
             result: [
-                "SELL: <a href='https://app.bkper.com/b/#transactions:bookId=inventory'>Inventory</a>: 2024-01-02 3 Shirts Shirts Shirt sale",
+                "SELL: <a href='https://bkper.app/books/inventory/transactions'>Inventory</a>: 2024-01-02 3 Shirts Shirts Shirt sale",
             ],
             warning:
                 'WARNING: Transaction date is before the last COGS calculation date. Flagging account Shirts for rebuild',

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Chunk 17 complete — Production events and the menu route to Cloudflare, and the shared twenty-four-hour rollout is accepted with no rollback signal in the retrieved evidence. Unobserved production Calculate/Reset traffic is an accepted coverage limit, not a completion blocker. Chunk 18 repository consolidation is next; GCP and GAS remain available for rollback.**
+**Chunk 18 complete — The accepted Cloudflare application is consolidated at the Inventory Bot root with unchanged application behavior and byte-identical rebuilt artifacts. The combined twenty-four-hour production rollout is accepted with its documented coverage limits. Developer-access restoration and legacy infrastructure retirement remain separate follow-up operations; GCP and GAS remain available for rollback.**
 
-The deployed Cloudflare application is now production-authoritative for events and the Inventory Bot menu; the unchanged Google Cloud Function and Google Apps Script deployment remain rollback targets. The clean target under `new/` routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is complete: the final drift audit, clean local verification, production runtime deployment, and accepted runtime checks passed, including human confirmation that the signed-in production client loads. Chunk 17 is complete: the combined production webhook and menu cutover, shared one-hour checkpoint, and subsequent twenty-four-hour assessment are accepted together. The cumulative read-only review through 2026-09-10 19:40:45 UTC found 244 event requests with `200` and `ok` outcomes and no logged warnings or errors. No production Calculate/Reset traffic was observed; that coverage limit is accepted without waiting for customer activity or initiating monitoring mutations. HTTP outcomes do not establish accounting correctness; the retained deterministic and accepted preview evidence remains the accounting basis. The intervening response-link-only deployment does not restart the shared observation window. The later review was retrospective, not unattended continuous monitoring. GCP and GAS remain available for immediate rollback. Repository consolidation follows in Chunk 18.
+The deployed Cloudflare application is now production-authoritative for events and the Inventory Bot menu; the unchanged Google Cloud Function and Google Apps Script deployment remain rollback targets. The consolidated application at the project root routes all four subscribed events through request-isolated Platform SDK contexts, creates only complete accepted quantity movements, preserves lifecycle selection and cleanup behavior, and has no unexplained source-to-target event difference. Its authenticated client resolves the accepted Inventory context and one shared visible Account scope for Calculate and Reset, invokes the authorized Account-level API sequentially, preserves operation-owned UI context, continues after individual Account failures, and never retries a mutation automatically. Each Account-level API request authoritatively resolves and authorizes its Inventory and Financial Books before invoking the ported accounting behavior. Isolated preview validation also exposed a pre-existing Inventory deletion classifier bug that can skip linked Financial COGS cleanup; the fixture was reconciled and the inherited issue is deferred in `BUGS.md` rather than fixed during migration. Chunk 15 is complete for the accepted validation scope; its evidence and accepted live-coverage limits are recorded below. Chunk 16 is complete: the final drift audit, clean local verification, production runtime deployment, and accepted runtime checks passed, including human confirmation that the signed-in production client loads. Chunk 17 is complete: the combined production webhook and menu cutover, shared one-hour checkpoint, and subsequent twenty-four-hour assessment are accepted together. The cumulative read-only review through 2026-09-10 19:40:45 UTC found 244 event requests with `200` and `ok` outcomes and no logged warnings or errors. No production Calculate/Reset traffic was observed; that coverage limit is accepted without waiting for customer activity or initiating monitoring mutations. HTTP outcomes do not establish accounting correctness; the retained deterministic and accepted preview evidence remains the accounting basis. The intervening response-link-only deployment does not restart the shared observation window. The later review was retrospective, not unattended continuous monitoring. GCP and GAS remain available for immediate rollback. Chunk 18 is complete: the Cloudflare application is the only active working-tree implementation, and all 206 tests, the full local gate, and pre/post-move artifact comparisons passed. No remote state changed during consolidation; normal developer-access restoration remains separately approved follow-up work.
 
 ## Purpose of this document
 
@@ -50,6 +50,8 @@ The menu migration preserves accepted accounting outcomes and essential workflow
 14. **Do not claim full parity.** Completion means accepted domain behavior coverage, documented target differences, and successful rollout evidence.
 
 ## Authoritative legacy surfaces
+
+This section records the historical migration baseline. The `legacy/` paths below are recoverable from Git history, not active working-tree projects after Chunk 18. The retained deployed GCP and GAS runtimes remain rollback targets; Cloudflare is now production-authoritative.
 
 ### GCP event handler
 
@@ -209,21 +211,24 @@ inventory-bot/
 └── LICENSE
 ```
 
-Production `menuUrl` and `webhookUrl` remain on GAS and GCP while development URLs can move independently to Cloudflare preview. Only the clean target project is used for Platform build and deployment operations.
+During the temporary migration layout, production `menuUrl` and `webhookUrl` remained on GAS and GCP while development URLs could move independently to Cloudflare preview. Only the clean target project was used for Platform build and deployment operations. Chunk 17 moved both production routes to Cloudflare.
 
-### Intended final layout
+### Final layout after Chunk 18
 
 ```text
 inventory-bot/
 ├── AGENTS.md
+├── BUGS.md
 ├── ROADMAP.md
 ├── README.md
 ├── LICENSE
 ├── bkper.yaml
 ├── bun.lock
+├── bunfig.toml
 ├── env.d.ts
 ├── package.json
 ├── tsconfig.json
+├── scripts/
 ├── client/
 │   ├── package.json
 │   ├── vite.config.ts
@@ -928,23 +933,24 @@ Tooling advisories remain follow-up work rather than being dismissed as harmless
 
 ### Chunk 18 — Consolidate the repository and defer legacy retirement
 
-**Status: Not started.**
+**Status: Complete for the local consolidation scope.**
 
 **Objective:** After Chunk 17 completes the combined twenty-four-hour rollout, make the accepted Cloudflare application the only active working-tree implementation without changing remote state.
 
-**Steps:**
+**Completed:**
 
-- Move the accepted Cloudflare project from `new/` to the Inventory Bot root.
-- Remove inactive legacy working-tree source and obsolete local GCP and GAS tooling.
-- Update workspace instructions, scripts, port documentation, and forwarding.
-- Restore normal developer access after controlled migration routing is complete.
-- Verify source, tests, lockfile, configuration, generated contracts, assets, and Worker bundle through the move.
-- Compare retained target files before and after relocation.
-- Run the complete local gate from the final root layout.
-- Preserve legacy source in Git history and deployed runtimes as independent routing rollback targets.
-- Perform no deployment, routing change, Book write, event replay, or legacy infrastructure deletion as part of consolidation.
+- Ran the complete local gate before relocation: all 206 deterministic unit tests, strict typechecks, generated contracts, production client and Worker builds, formatting, and generated-file drift checks passed.
+- Captured SHA-256 manifests for all 134 tracked target files and all five build artifacts, plus the generated OpenAPI document, before moving the application from `new/` to the Inventory Bot root. The immediate post-move comparison matched every file byte-for-byte.
+- Verified all 53 tracked legacy files matched their committed Git versions before removing the legacy working-tree source, dependency/build output, obsolete Functions Framework/tunnel tooling, and GAS/clasp tooling. No unpreserved legacy source was deleted; it remains recoverable from Git history.
+- Updated project and workspace instructions, development documentation, the active app path, and port forwarding. Removed the inactive legacy `3005` forward; client `5175` and Worker `8796` are unchanged. Clarified the README's accepted shared visible Account scope without changing its implementation.
+- Removed target dependencies and build output at the final root, reinstalled with `bun install --frozen-lockfile`, and passed `bun run check` again with all 206 tests, strict typechecks, generated contracts, production builds, formatting, and generated-file drift checks.
+- Compared the final application source, tests, package scripts, lockfile, app configuration, and generated types directly against the pre-move SHA-256 manifest. All remain byte-identical; only the relocated project guidance was subsequently updated for the final layout. The separate direct comparison protects generated files while the moved paths are not yet tracked at their new locations.
+- The generated OpenAPI document and all five rebuilt artifacts—client HTML, CSS, JavaScript, Worker JavaScript, and Worker source map—match the pre-move outputs byte-for-byte. No runtime adaptation, business-logic change, dependency upgrade, or UI change was needed.
+- Preserved the deployed GCP and GAS runtimes as independent routing rollback targets. Performed no app sync, deployment, access change, installation change, Book write, event replay, development-server startup, or legacy infrastructure mutation.
 
-**Gate:** Cloudflare is the only active implementation in the project root, and consolidation changes no application behavior or remote state.
+**Separate follow-up — developer access:** The earlier plan included restoring normal developer access. That changes remote metadata and is intentionally excluded from this local-only consolidation. The existing controlled developer configuration remains unchanged in `bkper.yaml`; restoration requires a separately reviewed metadata change and explicit sync approval. It does not block completion of the local consolidation.
+
+**Gate:** Passed. Cloudflare is the only active working-tree implementation at the project root, the complete local gate and artifact comparisons pass, and consolidation changes no application behavior or remote state. Legacy infrastructure retirement remains separately planned and approved.
 
 ## Rollback strategy
 

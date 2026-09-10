@@ -9,8 +9,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Bkper CSV App | Platform app (Vite + Cloudflare Workers) | `bkper-csv-app/` |
 | Exchange Bot | Platform app (Vite + Cloudflare Workers) | `exchange-bot/` |
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
-| Inventory Bot (legacy) | Apps Script + GCP Cloud Functions | `inventory-bot/legacy/` |
-| Inventory Bot (new) | Platform app (Vite + Cloudflare Workers) | `inventory-bot/new/` |
+| Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |
 | Portfolio Bot | Platform app (Vite + Cloudflare Workers) | `portfolio-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
@@ -24,7 +23,7 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | App | Vite client | bkper server | Notes |
 | --- | --- | --- | --- |
 | files-preview-app | `5174` | `8788` | Configured in `vite.config.ts` and `package.json` |
-| inventory-bot/new | `5175` | `8796` | Assigned for the new Inventory Bot platform app |
+| inventory-bot | `5175` | `8796` | Full-stack production app |
 | bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
 | subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
@@ -38,17 +37,13 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 
 ### GCP Cloud Functions bots
 
-| App | functions-framework port | Notes |
-| --- | --- | --- |
-| inventory-bot/legacy/events | `3005` | Configured in `inventory-bot/legacy/events/package.json` |
+No active local GCP bot projects remain. Inventory Bot's deployed GCP runtime is retained for rollback, but its legacy source and local tooling are recoverable from Git history rather than the working tree. Port `3005` is no longer forwarded.
 
 **Next available:** `3002`.
 
 ### Apps Script components
 
-Apps Script components do not run local dev servers and do not need port assignments:
-
-- `inventory-bot/legacy/menu/`
+No active local Apps Script components remain. Inventory Bot's deployed GAS menu is retained for rollback; its source and local tooling are recoverable from Git history.
 
 ## Adding a new app
 

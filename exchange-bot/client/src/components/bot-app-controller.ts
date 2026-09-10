@@ -185,15 +185,15 @@ export class BotAppController implements ReactiveController {
                 this.view.warnings = [...warnings];
             }
 
-            const pendingTasksExcCodes = await this.mapPendingTasksExcCodes(books);
-            if (pendingTasksExcCodes.size > 0) {
-                warnings.push(this.buildWarning('Books with pending tasks:', pendingTasksExcCodes));
+            const pendingTaskIds = await this.mapPendingTaskBookIds(books);
+            if (pendingTaskIds.size > 0) {
+                warnings.push(this.buildWarning('Books with pending tasks:', pendingTaskIds));
                 this.view.warnings = [...warnings];
             }
 
-            const eventErrorsExcCodes = await this.mapEventErrorsExcCodes(books);
-            if (eventErrorsExcCodes.size > 0) {
-                warnings.push(this.buildWarning('Books with errors:', eventErrorsExcCodes));
+            const eventErrorIds = await this.mapEventErrorBookIds(books);
+            if (eventErrorIds.size > 0) {
+                warnings.push(this.buildWarning('Books with errors:', eventErrorIds));
                 this.view.warnings = [...warnings];
             }
         } catch {
@@ -216,25 +216,22 @@ export class BotAppController implements ReactiveController {
         };
     }
 
-    private async mapPendingTasksExcCodes(collectionBooks: Set<Book>): Promise<Set<string>> {
-        const excCodes = new Set<string>();
-        const booksWithPendingTasks = await botService.getBooksWithPendingTasks(collectionBooks);
+    private async mapPendingTaskBookIds(books: Set<Book>): Promise<Set<string>> {
+        const identifiers = new Set<string>();
+        const booksWithPendingTasks = await botService.getBooksWithPendingTasks(books);
         for (const book of booksWithPendingTasks) {
-            excCodes.add(Utils.getExcCode(book) ?? '');
+            identifiers.add(Utils.getBookIdentifier(book));
         }
-        return excCodes;
+        return identifiers;
     }
 
-    private async mapEventErrorsExcCodes(books: Set<Book>): Promise<Set<string>> {
-        const excCodes = new Set<string>();
+    private async mapEventErrorBookIds(books: Set<Book>): Promise<Set<string>> {
+        const identifiers = new Set<string>();
         const booksWithEventErrors = await botService.getBooksWithEventErrors(books);
         for (const book of booksWithEventErrors) {
-            const excCode = Utils.getExcCode(book);
-            if (excCode) {
-                excCodes.add(excCode);
-            }
+            identifiers.add(Utils.getBookIdentifier(book));
         }
-        return excCodes;
+        return identifiers;
     }
 
     private async mapMissingExcCodes(book: Book): Promise<Set<string>> {
@@ -249,8 +246,7 @@ export class BotAppController implements ReactiveController {
         return missingExcCodes;
     }
 
-    private buildWarning(prefix: string, excCodes: Set<string>): string {
-        const codesArray = Array.from(excCodes);
-        return `${prefix} ${codesArray.join(', ')}`;
+    private buildWarning(prefix: string, identifiers: Set<string>): string {
+        return `${prefix} ${Array.from(identifiers).join(', ')}`;
     }
 }

@@ -25,6 +25,17 @@ export class Utils {
     }
 
     /**
+     * Gets a Book identifier for validation warnings, preferring its exchange code,
+     * then its name, and finally its ID.
+     *
+     * @param book - The Book to identify in a validation warning.
+     * @returns The first non-blank exchange code or Book name, or the Book ID as a fallback.
+     */
+    static getBookIdentifier(book: Book): string {
+        return this.getExcCode(book)?.trim() || book.getName()?.trim() || book.getId();
+    }
+
+    /**
      * Tells whether a Book is configured as an Exchange Bot base Book.
      *
      * @param book - The Book whose base configuration should be checked.

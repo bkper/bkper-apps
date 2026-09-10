@@ -562,7 +562,7 @@ describe('Bot app controller', () => {
         expect(view.error?.message.before).toContain('EDITOR or OWNER');
     });
 
-    it('preserves pending-task validation for unconfigured legacy connections', async () => {
+    it('uses code, name and ID consistently in pending-task and event-error warnings', async () => {
         const book = new Book({
             id: 'book-id',
             name: 'USD Book',
@@ -570,22 +570,34 @@ describe('Bot app controller', () => {
             permission: Permission.EDITOR,
             properties: { exc_code: 'USD' },
         });
-        const legacyConnectedBook = new Book({
-            id: 'legacy-connected-book',
+        const namedConnectedBook = new Book({
+            id: 'named-connected-book',
+            name: 'Legacy Book',
+            permission: Permission.EDITOR,
+        });
+        const unnamedConnectedBook = new Book({
+            id: 'unnamed-connected-book',
             permission: Permission.EDITOR,
         });
         authService.init = async () => {
             authService.accessToken = 'access-token';
         };
         bkperService.loadBook = async () => book;
-        botService.getConnectedBooks = async () => new Set([legacyConnectedBook]);
-        botService.getBooksWithPendingTasks = async () => new Set([legacyConnectedBook]);
+        botService.getConnectedBooks = async () =>
+            new Set([namedConnectedBook, unnamedConnectedBook]);
+        botService.getBooksWithPendingTasks = async books => books;
+        botService.getBooksWithEventErrors = async books => books;
         const view = new TestView();
         const controller = createController(view);
 
         await controller.initialize();
 
-        expect(view.warnings[0]).toContain('pending tasks');
+        expect(view.warnings).toEqual([
+            'Books with pending tasks: Legacy Book, unnamed-connected-book, USD',
+            'Books with errors: Legacy Book, unnamed-connected-book, USD',
+        ]);
+        expect(view.hasEditorPermission).toBe(true);
+        expect(view.validationError).toBe('');
     });
 
     it('deduplicates pending-task exchange codes', async () => {

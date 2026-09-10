@@ -38,6 +38,28 @@ describe('Utils', () => {
         expect(Utils.hasBaseBookInCollection(book)).toBe(true);
     });
 
+    const bookIdentifierCases: {
+        properties: Record<string, string>;
+        name: string | undefined;
+        expected: string;
+    }[] = [
+        { properties: { exc_code: 'USD' }, name: 'US Book', expected: 'USD' },
+        { properties: { exchange_code: 'BRL' }, name: 'Brazil Book', expected: 'BRL' },
+        { properties: {}, name: 'Unconfigured Book', expected: 'Unconfigured Book' },
+        { properties: {}, name: undefined, expected: 'book-id' },
+        { properties: { exc_code: '' }, name: '', expected: 'book-id' },
+        { properties: { exc_code: ' ' }, name: ' ', expected: 'book-id' },
+    ];
+
+    it.each(bookIdentifierCases)(
+        'identifies a Book as $expected',
+        ({ properties, name, expected }) => {
+            const book = new Book({ id: 'book-id', properties, name });
+
+            expect(Utils.getBookIdentifier(book)).toBe(expected);
+        }
+    );
+
     it('uses explicit view and edit permission allowlists', () => {
         const cases = [
             { permission: Permission.OWNER, canView: true, canEdit: true },

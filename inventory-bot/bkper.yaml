@@ -10,7 +10,7 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/inventory-bot
 repoPrivate: false
 deprecated: false
-developers: victordrumondmaltadesouza
+developers: '*@bkper.com'
 menuUrl: https://inventory-bot.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuUrlDev: https://inventory-bot-preview.bkper.app?bookId=${book.id}&accountId=${account.id}&groupId=${group.id}
 menuPopupWidth: 600

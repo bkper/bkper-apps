@@ -27,42 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Client conflates blocking errors with non-blocking warnings
-
-**Status:** Partially resolved; remaining operation-stage classifications are deferred until after migration stabilization.
-
-### Current legacy behavior
-
-The GAS client uses the same error-oriented state and presentation for conditions with different effects on Exchange Update:
-
-- Missing EDITOR or OWNER permission on the selected Book is blocking. The view returns early and omits the Exchange Update action.
-- Missing permission on configured connected Books, pending bot tasks, and bot event errors populate their warning or error message, but the action remains available because its availability depends only on `hasEditorPermission`.
-- Rate-loading, per-Book update, audit, retry, and window-closing failures also share the same error panel even though they occur at different workflow stages and do not all have the same operational effect.
-
-### Problem
-
-State names and presentation imply that all reported conditions are errors and therefore blocking, while some only display a message and allow Exchange Update to proceed. Users cannot reliably distinguish an advisory warning from a condition that prevents or terminates an operation. The shared model also makes it easy for the migrated client to accidentally disable a valid action or allow an action that should be blocked.
-
-### Migration target follow-up
-
-The target now treats missing connected Books, pending bot tasks, and bot errors as independent non-blocking context warnings. All simultaneous warnings are displayed in deterministic order, while blocking Book authorization remains in the permission-error state. Background validation failures have a separate retryable state that preserves completed warnings and does not disable Exchange Update. Operation-stage failures still require the broader classification described below.
-
-### Intended fix
-
-After migration stabilization, define explicit client states for blocking validation errors, non-blocking warnings, and operation failures. Classify each existing condition deliberately and make action availability follow that classification rather than the panel or property used to display its message.
-
-### Acceptance criteria
-
-- Every initialization validation and operation failure has an explicit severity and blocking effect.
-- Missing edit permission on the selected Book remains blocking.
-- The intended behavior of missing connected-Book permission, pending tasks, and bot event errors is decided explicitly before changing their current behavior.
-- Blocking conditions prevent Exchange Update requests from starting.
-- Non-blocking warnings remain visible without being presented as blocking errors.
-- Rate-loading, per-Book update, retry, and audit failures use states appropriate to their workflow stage.
-- Message presentation is separate from action-availability logic.
-- Deterministic client tests cover presentation, action availability, and request boundaries for each classification without accessing live Books.
-
-## 3. Post-mutation summary failures are reported as operation failures
+## 2. Post-mutation summary failures are reported as operation failures
 
 **Status:** Deferred until after migration stabilization.
 
@@ -89,7 +54,7 @@ Track mutation outcome separately from summary and presentation outcome. Once th
 - Per-Book mutation and summary outcomes remain independent.
 - Deterministic client tests cover successful summaries, failed POSTs, and post-success summary failures without accessing live Books.
 
-## 4. Edited rates retain results from the previous Exchange Update
+## 3. Edited rates retain results from the previous Exchange Update
 
 **Status:** Deferred until after migration stabilization.
 
@@ -113,7 +78,7 @@ Invalidate prior results whenever a user edits an exchange rate, without trigger
 - Clearing stale presentation state performs no API mutation.
 - Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
 
-## 5. Connected-Book discovery and chart loading perform redundant sequential requests
+## 4. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -149,7 +114,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 6. Exchange Update retries lack delay and structured error classification
+## 5. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -175,7 +140,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 7. Client-triggered post-update Book audits may be unnecessary
+## 6. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

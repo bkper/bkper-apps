@@ -95,7 +95,7 @@ describe('legacy Book synchronization behavior', () => {
             'other-portfolio:completed',
         ]);
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=base'>Base</a>:  exc_historical: true"
+            "<a href='https://bkper.app/books/base/transactions'>Base</a>:  exc_historical: true"
         );
     });
 

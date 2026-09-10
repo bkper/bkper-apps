@@ -357,7 +357,7 @@ describe('legacy checked quantity mirroring', () => {
         );
         expect(result).toEqual({
             result: [
-                "BUY: <a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
+                "BUY: <a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
             ],
         });
     });
@@ -407,7 +407,7 @@ describe('legacy checked quantity mirroring', () => {
             })
         );
         expect(result.result).toEqual([
-            "SELL: <a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: 2024-01-02 10 ACME Sell ACME trade",
+            "SELL: <a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: 2024-01-02 10 ACME Sell ACME trade",
         ]);
     });
 
@@ -434,7 +434,7 @@ describe('legacy checked quantity mirroring', () => {
 
         expect(result).toEqual({
             result: [
-                "FOUND: <a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
+                "FOUND: <a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
             ],
         });
         expect(boundary.createdAccounts).toEqual([]);
@@ -488,7 +488,7 @@ describe('legacy checked quantity mirroring', () => {
         ]);
         expect(boundary.postedTransactions).toEqual([]);
         expect(result.result).toEqual([
-            "FOUND: <a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
+            "FOUND: <a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: 2024-01-02 10 Buy ACME ACME trade",
         ]);
     });
 

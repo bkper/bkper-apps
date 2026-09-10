@@ -62,7 +62,7 @@ describe('legacy Group deletion synchronization', () => {
 
         expect(removedGroups).toEqual([portfolioGroup]);
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: GROUP NASDAQ DELETED"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: GROUP NASDAQ DELETED"
         );
     });
 
@@ -84,7 +84,7 @@ describe('legacy Group deletion synchronization', () => {
 
         expect(removals).toBe(0);
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: GROUP NASDAQ NOT Found"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: GROUP NASDAQ NOT Found"
         );
     });
 });

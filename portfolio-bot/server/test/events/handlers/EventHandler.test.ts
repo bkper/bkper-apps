@@ -156,7 +156,7 @@ describe('legacy shared event orchestration', () => {
         expect(handler.calls).toEqual([]);
     });
 
-    test('preserves exchange matching and legacy Book anchors', () => {
+    test('preserves exchange matching and builds PWA Book anchors', () => {
         const { handler } = createHandler(createBook('event-book'));
 
         expect(handler.match(undefined, 'USD')).toBe(false);
@@ -164,8 +164,8 @@ describe('legacy shared event orchestration', () => {
         expect(handler.match('USD', 'EUR')).toBe(false);
         expect(handler.match(' USD ', 'USD')).toBe(true);
         expect(handler.match('USD', undefined)).toBe(true);
-        expect(handler.anchor(createBook('book id'))).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=book id'>book id</a>"
+        expect(handler.anchor(createBook('book id/?#'))).toBe(
+            "<a href='https://bkper.app/books/book%20id%2F%3F%23/transactions'>book id/?#</a>"
         );
     });
 });

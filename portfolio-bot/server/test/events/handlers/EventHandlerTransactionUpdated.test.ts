@@ -298,7 +298,7 @@ describe('legacy updated transaction behavior', () => {
         expect(updatedMirror.debitAccount?.name).toBeTruthy();
         expect(accountUpdates.map(account => account.id)).toEqual([fixture.stockAccount.getId()!]);
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: EDITED: 2024-01-02 10 Buy ACME New description"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: EDITED: 2024-01-02 10 Buy ACME New description"
         );
     });
 

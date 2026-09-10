@@ -86,8 +86,8 @@ describe('legacy Account deletion synchronization', () => {
         expect(removedAccounts).toHaveLength(1);
         expect(removedAccounts[0].hasTransactionPosted()).toBe(false);
         expect(responses).toEqual([
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME DELETED",
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME DELETED",
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: ACCOUNT ACME DELETED",
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: ACCOUNT ACME DELETED",
         ]);
     });
 
@@ -129,7 +129,7 @@ describe('legacy Account deletion synchronization', () => {
         expect(lookups).toEqual(['ACME']);
         expect(mutations).toEqual([]);
         expect(missingResult).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME NOT Found"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: ACCOUNT ACME NOT Found"
         );
         expect(unmatchedResult).toBeNull();
     });

@@ -81,7 +81,7 @@ describe('legacy Group create and update synchronization', () => {
         expect(createdGroups[0].getProperty('internal_')).toBeUndefined();
         expect(createdGroups[0].getParent()).toBeUndefined();
         expect(createResult).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: GROUP NASDAQ CREATED"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: GROUP NASDAQ CREATED"
         );
 
         existingGroup = new Group(portfolioBook, {
@@ -106,7 +106,7 @@ describe('legacy Group create and update synchronization', () => {
         expect(existingGroup.getProperty('internal_')).toBeUndefined();
         expect(existingGroup.getParent()).toBeUndefined();
         expect(updateResult).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: GROUP New Market UPDATED"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: GROUP New Market UPDATED"
         );
     });
 });

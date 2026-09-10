@@ -106,7 +106,7 @@ describe('legacy Account create and update synchronization', () => {
             groups: [{ name: 'NASDAQ' }],
         });
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT ACME CREATED"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: ACCOUNT ACME CREATED"
         );
     });
 
@@ -154,7 +154,7 @@ describe('legacy Account create and update synchronization', () => {
             groups: [{ id: portfolioGroup.getId() }],
         });
         expect(result).toBe(
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: ACCOUNT New ACME UPDATED"
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: ACCOUNT New ACME UPDATED"
         );
     });
 });

@@ -139,7 +139,7 @@ describe('legacy restored transaction behavior', () => {
         expect(fixture.queries).toEqual(['remoteId:financial-trade is:trashed']);
         expect(restoredTransactionIds).toEqual(['portfolio-mirror']);
         expect(result.result).toEqual([
-            "<a href='https://app.bkper.com/b/#transactions:bookId=portfolio'>Portfolio</a>: RESTORED: 2024-01-02 10 Buy ACME Restored trade",
+            "<a href='https://bkper.app/books/portfolio/transactions'>Portfolio</a>: RESTORED: 2024-01-02 10 Buy ACME Restored trade",
         ]);
     });
 

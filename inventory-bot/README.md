@@ -2,6 +2,15 @@
 
 The Inventory Bot tracks inventory quantities and calculates cost of goods sold (COGS) using FIFO. It bridges your Financial Book(s) (which track money) with a dedicated Inventory Book (which tracks quantities), so your profit calculations reflect what items actually cost.
 
+## How to use
+
+1. Create your Financial Books and one Inventory Book in the same collection.
+2. Install the Inventory Bot on every participating book.
+3. Configure your books and item groups following [Configuration](#configuration).
+4. Follow the [Purchase](#purchase) or [Sale](#sale) instructions to record a transaction.
+5. Check the transaction. The bot records the quantity in the Inventory Book.
+6. Follow [Calculating cost of sales](#calculating-cost-of-sales) to calculate your results.
+
 ## How it works
 
 The bot operates across one shared Inventory Book and one or more Financial Books in the same [Collection](https://bkper.com/docs/guides/using-bkper/books):
@@ -105,7 +114,7 @@ Notes:
 
 ## Calculating cost of sales
 
-Open the Inventory Bot menu (**More** > **Inventory Bot**) and click **Calculate**. The bot matches sales to purchases using FIFO (First-In, First-Out) — the oldest stock is consumed first. Calculation can run from the current context: a selected account, a selected group, or the whole Inventory Book.
+Open **More > Inventory Bot**, choose a date, review the accounts, and click **Calculate**. The bot matches sales to purchases using FIFO (First-In, First-Out) — the oldest stock is consumed first. Calculation can run from the current context: a selected account, a selected group, or the whole Inventory Book.
 
 The calculation processes only **unchecked** Inventory Book transactions. As FIFO runs, the bot automatically checks the purchase and sale lines it consumes, so manually checked Inventory Book transactions are skipped by later FIFO runs until you **Reset**.
 
@@ -364,6 +373,49 @@ Notes:
 Additional troubleshooting:
 - If an unexpected inventory item appears after a sale, verify the `good` property spelling. A typo can create a new bare `Asset` account automatically in the Inventory Book.
 - If you need to reverse the effect of an unchecked or edited Financial Book transaction, use **Reset** and **Calculate** after correcting the source transaction history.
+
+</details>
+
+## API access
+
+<details>
+<summary><strong>Endpoints and examples</strong></summary>
+
+Authenticated clients can use the same Calculate and Reset workflows through the public API.
+
+```text
+Production: https://inventory-bot.bkper.app
+Preview:    https://inventory-bot-preview.bkper.app
+OpenAPI:    https://inventory-bot.bkper.app/openapi.json
+```
+
+All requests require a Bkper OAuth bearer token. Use the Inventory Book's ID for `bookId` and the item account's ID in that book for `accountId`. Each request operates on one account.
+
+Review the account and calculation date, and run the operation only after explicit confirmation. Calculate and Reset write directly to the Inventory and Financial Books. There is no API dry-run step.
+
+| Operation | Route | Effect |
+|---|---|---|
+| Calculate | `POST /api/v1/books/{bookId}/accounts/{accountId}/calculate` | Matches purchases and sales using FIFO and records cost of goods sold |
+| Reset | `POST /api/v1/books/{bookId}/accounts/{accountId}/reset` | Clears previous cost-of-sales calculations |
+
+Both operations require **EDITOR** or **OWNER** permission and the bot installed on the Inventory Book and the related Financial Book.
+
+After a person explicitly confirms the account and date, calculate its cost of sales:
+
+```bash
+# Run `bkper auth login` first if needed
+TOKEN="$(bkper auth token)"
+
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-03-15"}' \
+  "https://inventory-bot.bkper.app/api/v1/books/<inventory-book-id>/accounts/<account-id>/calculate"
+```
+
+Calculate requires a JSON body with `date` in `YYYY-MM-DD` format. Reset requires no request body.
+
+Successful requests return `200 OK` with an operation `message`. Review the resulting records in Bkper. See the [OpenAPI specification](https://inventory-bot.bkper.app/openapi.json) for complete request and response schemas.
 
 </details>
 

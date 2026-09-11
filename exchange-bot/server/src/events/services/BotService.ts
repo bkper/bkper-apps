@@ -1,5 +1,6 @@
 import { Amount, Book } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import {
     EXC_AMOUNT_PROP,
     EXC_BASE_PROP,
@@ -77,7 +78,12 @@ export class BotService {
         //deprecated
         for (const key in bookVisibleProperties) {
             if (key.startsWith('exc') && key.endsWith('_book')) {
-                books.push(await this.context.bkper.getBook(bookVisibleProperties[key]));
+                const connectedBook = await optionalLookup(() =>
+                    this.context.bkper.getBook(bookVisibleProperties[key])
+                );
+                if (connectedBook) {
+                    books.push(connectedBook);
+                }
             }
         }
 
@@ -87,7 +93,12 @@ export class BotService {
             const bookIds = excBooks.split(/[ ,]+/);
             for (const bookId of bookIds) {
                 if (bookId != null && bookId.trim().length > 10) {
-                    books.push(await this.context.bkper.getBook(bookId));
+                    const connectedBook = await optionalLookup(() =>
+                        this.context.bkper.getBook(bookId)
+                    );
+                    if (connectedBook) {
+                        books.push(connectedBook);
+                    }
                 }
             }
         }

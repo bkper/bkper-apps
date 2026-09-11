@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Bkper, Book } from 'bkper-js';
+import { Bkper, BkperError, Book } from 'bkper-js';
 import { BotService } from '../../../src/api/services/bot-service.js';
 import { AppContext } from '../../../src/shared/app-context.js';
 
@@ -69,6 +69,47 @@ describe('legacy menu bot service', () => {
         expect(books[2]).toBe(loadedBooks[0]);
         expect(books[3]).toBe(loadedBooks[1]);
         expect(books[4]).toBe(collectionBooks[1]);
+    });
+
+    test('skips missing legacy Books and continues to valid legacy and Collection Books', async () => {
+        const book = new Book({
+            id: 'selected-book',
+            properties: {
+                exc_usd_book: 'missing-legacy-book',
+                exc_books: 'USD Consolidado legacy-usd-book',
+            },
+            collection: {
+                books: [{ id: 'collection-brl', properties: { exc_code: 'BRL' } }],
+            },
+        });
+        const loadedIds: string[] = [];
+        const bkper = new Bkper();
+        bkper.getBook = async id => {
+            loadedIds.push(id);
+            if (id !== 'legacy-usd-book') {
+                throw new BkperError(404, `Book NOT found! ID: ${id}`);
+            }
+            return new Book({ id, properties: { exc_code: 'USD' } });
+        };
+
+        const books = Array.from(await createService(bkper).getConnectedBooks(book));
+
+        expect(loadedIds).toEqual(['missing-legacy-book', 'Consolidado', 'legacy-usd-book']);
+        expect(books.map(connectedBook => connectedBook.getId())).toEqual([
+            'legacy-usd-book',
+            'collection-brl',
+        ]);
+    });
+
+    test('propagates non-404 errors from legacy Book lookups', async () => {
+        const error = new BkperError(403, 'Permission denied');
+        const bkper = new Bkper();
+        bkper.getBook = async () => {
+            throw error;
+        };
+        const book = new Book({ properties: { exc_books: 'legacy-usd-book' } });
+
+        await expect(createService(bkper).getConnectedBooks(book)).rejects.toBe(error);
     });
 
     test('ignores empty and whitespace-only legacy IDs without fetching Books', async () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { Bkper, Book } from 'bkper-js';
+import { Bkper, BkperError, Book } from 'bkper-js';
 import { AppContext } from '../../../src/shared/app-context.js';
 import { BotService } from '../../../src/events/services/BotService.js';
 
@@ -103,6 +103,55 @@ describe('legacy event bot service', () => {
             'collection-brl',
         ]);
     });
+
+    test('skips missing legacy Books and continues to valid legacy and Collection Books', async () => {
+        const bkper = new Bkper();
+        const loadedIds: string[] = [];
+        bkper.getBook = async id => {
+            loadedIds.push(id);
+            if (id !== 'legacy-usd-book') {
+                throw new BkperError(404, `Book NOT found! ID: ${id}`);
+            }
+            return createBook(id, { exc_code: 'USD' });
+        };
+        const book = createBook(
+            'event-book',
+            {
+                exc_usd_book: 'missing-legacy-book',
+                exc_books: 'USD Consolidado legacy-usd-book',
+                exc_code: 'EUR',
+            },
+            {
+                collection: {
+                    books: [{ id: 'collection-brl', properties: { exc_code: 'BRL' } }],
+                },
+            }
+        );
+
+        const books = await new BotService(createContext(bkper)).getConnectedBooks(book);
+
+        expect(loadedIds).toEqual(['missing-legacy-book', 'Consolidado', 'legacy-usd-book']);
+        expect(books.map(connectedBook => connectedBook.getId())).toEqual([
+            'legacy-usd-book',
+            'collection-brl',
+        ]);
+    });
+
+    test.each(['exc_usd_book', 'exc_books'])(
+        'propagates non-404 errors from %s Book lookups',
+        async key => {
+            const error = new BkperError(403, 'Permission denied');
+            const bkper = new Bkper();
+            bkper.getBook = async () => {
+                throw error;
+            };
+            const book = createBook('event-book', { [key]: 'legacy-usd-book' });
+
+            await expect(new BotService(createContext(bkper)).getConnectedBooks(book)).rejects.toBe(
+                error
+            );
+        }
+    );
 
     test('preserves base-Book and currency-code rules', () => {
         const service = new BotService(createContext());

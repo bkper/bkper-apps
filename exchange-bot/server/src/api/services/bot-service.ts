@@ -1,5 +1,6 @@
 import type { Book } from 'bkper-js';
 import type { AppContext } from '../../shared/app-context.js';
+import { optionalLookup } from '../../shared/optional-lookup.js';
 import { EXC_CODE_PROP, EXC_HISTORICAL_PROP, EXC_RATES_URL_PROP } from '../../shared/constants.js';
 
 interface RatesEndpointConfig {
@@ -62,8 +63,10 @@ export class BotService {
         const loadedBooksById = new Map<string, Book>();
         for (const id of legacyBookIds) {
             if (!collectionBooksById.has(id)) {
-                const loadedBook = await this.context.bkper.getBook(id);
-                loadedBooksById.set(loadedBook.getId(), loadedBook);
+                const loadedBook = await optionalLookup(() => this.context.bkper.getBook(id));
+                if (loadedBook) {
+                    loadedBooksById.set(loadedBook.getId(), loadedBook);
+                }
             }
         }
 

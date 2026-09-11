@@ -27,43 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Connected-Book discovery and chart loading perform redundant sequential requests
-
-**Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
-
-### Current client behavior
-
-The selected Book loads once with its complete Account chart because startup always reads its configured currency Groups. Eligible Collection Books reuse their embedded payloads. Deprecated connection ids are deduplicated, Collection matches reuse the embedded Book, and only unique legacy-only Books generate lean requests. Those requests run in ordered batches of five, and connected Books remain deduplicated by id in legacy-first order.
-
-After connected-Book discovery and permission checks, the client enters `READY`; Exchange Update renders and rate loading can begin. Missing-currency, pending-task, and event-error validations then run as sequential categories. Per-Book backlog and event requests use ordered batches of five. Progress and completed warnings remain visible, and a validation failure can be retried from a clean validation state without reloading Books.
-
-A failure during blocking connected-Book discovery still occurs before `READY` and remains outside the validation retry boundary.
-
-### Remaining server behavior
-
-Exchange Update loads the target Book with its complete chart once. For each connected Book, it first checks the target chart for matching Accounts. Only when matches exist does it load that connected Book with its complete chart before calculating and creating movements.
-
-Server `bkper-js` 2.42.0 resolves embedded Account Group ids and cached Groups with no Accounts through the complete Book chart. This fixes the 2.19.0 cache amplification that issued per-Account or empty-Group requests. A matching Book discovered through a deprecated property can still require both a lean discovery request and a later complete-chart request. The service continues to avoid loading a connected chart when no target Accounts match.
-
-### Remaining optimization
-
-Evolve the server menu API `BotService.getConnectedBooks` boundary to support caller-selected Book completeness, including an opt-in complete-chart mode. Resolve independent Book loads through bounded concurrency while preserving deterministic result and mutation order. Allow Exchange Update to hydrate only connected Books whose currency codes have matching target Accounts, avoiding both redundant lean/full requests and unnecessary chart loads.
-
-Keep rate loading on lean Book metadata. Do not change transaction construction, batch order, audit behavior, or movement direction and amount.
-
-### Acceptance criteria
-
-- Server callers explicitly choose whether connected Books require lean metadata or complete Accounts and Groups.
-- Empty legacy Book IDs are ignored, matching client discovery behavior, and generate no Book-loading requests.
-- Exchange-rate loading does not fetch complete charts.
-- Exchange Update does not fetch a connected chart when no target Accounts match its currency code.
-- A matching deprecated-property Book is not loaded once lean and again with its complete chart.
-- Independent read-only Book loads use explicit bounded concurrency and deterministic result order.
-- Connected-Book transaction batches retain their established mutation order.
-- Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
-- Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
-
-## 3. Exchange Update retries lack delay and structured error classification
+## 2. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -89,7 +53,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 4. Client-triggered post-update Book audits may be unnecessary
+## 3. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

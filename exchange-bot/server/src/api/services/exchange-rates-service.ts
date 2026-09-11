@@ -18,7 +18,7 @@ export class ExchangeRatesService {
         const connectedBooks = await botService.getConnectedBooks(book);
         connectedBooks.add(book);
         const codes = Array.from(connectedBooks, connectedBook =>
-            botService.getBaseCode(connectedBook)
+            botService.getExcCode(connectedBook)
         );
 
         for (const rate in exchangeRates.rates) {

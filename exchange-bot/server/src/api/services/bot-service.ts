@@ -33,63 +33,84 @@ export class BotService {
 
     /**
      * Gets connected Books from legacy properties followed by Collection membership,
-     * deduplicating by Book ID and retaining the first discovered instance.
+     * deduplicating by Book ID and reusing eligible Collection Books.
      *
      * @param book - The Book whose connections should be resolved.
      * @returns Connected Books in first-discovery order, with each Book ID included once.
      */
     async getConnectedBooks(book: Book): Promise<Set<Book>> {
-        const properties = book.getVisibleProperties();
-        if (properties == null) {
+        if (book.getVisibleProperties() == null) {
             return new Set<Book>();
         }
 
-        const books = new Map<string, Book>();
-        const legacyBookIds = new Set<string>();
+        // Connected books in the Collection
+        const collectionBooks = book.getCollection()?.getBooks() ?? [];
+        const collectionBooksById = new Map<string, Book>();
 
-        // deprecated
-        for (const key in properties) {
-            if (key.startsWith('exc') && key.endsWith('_book')) {
-                const connectedBookId = properties[key];
-                legacyBookIds.add(connectedBookId);
+        for (const collectionBook of collectionBooks) {
+            if (
+                collectionBook.getId() != book.getId() &&
+                this.getExcCode(collectionBook) != null &&
+                !collectionBooksById.has(collectionBook.getId())
+            ) {
+                collectionBooksById.set(collectionBook.getId(), collectionBook);
             }
         }
 
+        // Connected books by deprecated methods
+        const legacyBookIds = this.getLegacyConnectedBookIds(book);
+        const loadedBooksById = new Map<string, Book>();
+        for (const id of legacyBookIds) {
+            if (!collectionBooksById.has(id)) {
+                const loadedBook = await this.context.bkper.getBook(id);
+                loadedBooksById.set(loadedBook.getId(), loadedBook);
+            }
+        }
+
+        const connectedBooks = new Set<Book>();
+
+        // Add legacy first to preserve behavior
+        for (const legacyBookId of legacyBookIds) {
+            const legacyBook =
+                collectionBooksById.get(legacyBookId) ?? loadedBooksById.get(legacyBookId);
+            if (legacyBook) {
+                connectedBooks.add(legacyBook);
+            }
+        }
+
+        // Add Collection books after
+        for (const collectionBook of collectionBooksById.values()) {
+            connectedBooks.add(collectionBook);
+        }
+
+        return connectedBooks;
+    }
+
+    private getLegacyConnectedBookIds(book: Book): Set<string> {
+        const legacyBookIds = new Set<string>();
+        // deprecated
+        for (const key in book.getVisibleProperties()) {
+            if (key.startsWith('exc') && key.endsWith('_book')) {
+                const bookId = book.getVisibleProperties()[key];
+                if (bookId && bookId.trim() != '') {
+                    legacyBookIds.add(bookId);
+                }
+            }
+        }
         // deprecated
         const excBooks = book.getProperty('exc_books');
         if (excBooks != null && excBooks.trim() != '') {
             const bookIds = excBooks.split(/[ ,]+/);
-            for (const connectedBookId of bookIds) {
-                if (connectedBookId != null && connectedBookId.trim().length > 10) {
-                    legacyBookIds.add(connectedBookId);
+            for (const bookId of bookIds) {
+                if (bookId != null && bookId.trim().length > 10) {
+                    legacyBookIds.add(bookId);
                 }
             }
         }
-
-        for (const legacyBookId of legacyBookIds) {
-            const connectedBook = await this.context.bkper.getBook(legacyBookId);
-            if (!books.has(connectedBook.getId())) {
-                books.set(connectedBook.getId(), connectedBook);
-            }
-        }
-
-        const collectionBooks = book.getCollection()?.getBooks();
-        if (collectionBooks) {
-            for (const collectionBook of collectionBooks) {
-                if (
-                    collectionBook.getId() != book.getId() &&
-                    this.getBaseCode(collectionBook) != null &&
-                    !books.has(collectionBook.getId())
-                ) {
-                    books.set(collectionBook.getId(), collectionBook);
-                }
-            }
-        }
-
-        return new Set(books.values());
+        return legacyBookIds;
     }
 
-    getBaseCode(book: Book): string | undefined {
+    getExcCode(book: Book): string | undefined {
         return book.getProperty(EXC_CODE_PROP, 'exchange_code');
     }
 

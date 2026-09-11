@@ -33,8 +33,10 @@ export class ExchangeUpdateService {
         await requireAppInstallation(book);
 
         const botService = new BotService(context);
+
         const connectedBooks = await botService.getConnectedBooks(book);
-        const baseCode = botService.getBaseCode(book);
+
+        const excCode = botService.getExcCode(book);
         const bookClosingDate = book.getClosingDate();
         const historical = botService.isHistorical(book);
         const date = botService.parseDateParam(exchangeRates.date);
@@ -47,7 +49,7 @@ export class ExchangeUpdateService {
         const createdAccounts: bkper.Account[] = [];
 
         for (let connectedBook of connectedBooks) {
-            const connectedCode = botService.getBaseCode(connectedBook);
+            const connectedCode = botService.getExcCode(connectedBook);
             const accounts = await getMatchingAccounts(book, connectedCode!);
             if (accounts.size === 0) {
                 continue;
@@ -86,7 +88,7 @@ export class ExchangeUpdateService {
                     expectedBalance = ExchangeService.convert(
                         connectedAccountBalanceOnDate,
                         connectedCode!,
-                        baseCode!,
+                        excCode!,
                         exchangeRates
                     );
                 } catch (error: unknown) {

@@ -195,6 +195,8 @@ describe('Exchange update view', () => {
             rates: { ZERO: 0 },
         };
 
+        view.results.set('usd-book', { status: ExchangeUpdateStatus.WAITING });
+
         handleDateInputted.call(view, {
             currentTarget: { value: '2026-08-06' },
         } as unknown as Event);
@@ -204,9 +206,10 @@ describe('Exchange update view', () => {
 
         expect(view.date).toBe('2026-08-05');
         expect(view.exchangeRates.rates.ZERO).toBe(0);
+        expect(view.results.get('usd-book')).toEqual({ status: ExchangeUpdateStatus.WAITING });
     });
 
-    it('updates a zero exchange rate while controls are enabled', () => {
+    it('updates a zero exchange rate and clears all previous results while controls are enabled', () => {
         const view = new ExchangeUpdateView();
         view.date = '2026-08-05';
         view.exchangeRates = {
@@ -214,11 +217,22 @@ describe('Exchange update view', () => {
             date: view.date,
             rates: { ZERO: 0 },
         };
+        view.results.set('usd-book', {
+            status: ExchangeUpdateStatus.COMPLETE,
+            summary: {},
+        });
+        view.results.set('zero-book', {
+            status: ExchangeUpdateStatus.ERROR,
+            error: 'Previous update failed',
+        });
+        const previousResults = view.results;
 
         handleRateChanged.call(view, 'ZERO', {
             currentTarget: { value: '1.25' },
         } as unknown as Event);
 
         expect(view.exchangeRates.rates.ZERO).toBe('1.25');
+        expect(view.results.size).toBe(0);
+        expect(view.results).not.toBe(previousResults);
     });
 });

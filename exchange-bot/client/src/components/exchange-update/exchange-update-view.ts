@@ -216,6 +216,7 @@ export class ExchangeUpdateView extends LitElement {
         const input = event.currentTarget as WaInput;
         if (code in this.exchangeRates.rates) {
             this.exchangeRates.rates[code] = input.value ?? '';
+            this.results = new Map();
         }
     }
 }

@@ -27,31 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Edited rates retain results from the previous Exchange Update
-
-**Status:** Deferred until after migration stabilization.
-
-### Current legacy behavior
-
-Successfully loading rates for another date rebuilds the GAS rates panel and clears previous results. The migration target also clears results after the latest rate-loading request succeeds. However, manually editing a displayed exchange rate does not clear a previous Exchange Update result in either implementation.
-
-### Problem
-
-A completed result can remain visible beside a rate value that has changed since that result was produced. This can make an edited, unprocessed rate appear to have already completed successfully.
-
-### Intended fix
-
-Invalidate prior results whenever a user edits an exchange rate, without triggering a mutation or silently reverting the edited value.
-
-### Acceptance criteria
-
-- A successful rate reload clears results from the previous date.
-- Editing any rate clears or explicitly marks previous results as stale.
-- Rate edits remain local until the user starts Exchange Update.
-- Clearing stale presentation state performs no API mutation.
-- Deterministic client tests cover successful date reloads and manual rate edits without accessing live Books.
-
-## 3. Connected-Book discovery and chart loading perform redundant sequential requests
+## 2. Connected-Book discovery and chart loading perform redundant sequential requests
 
 **Status:** Client startup optimization complete; server Exchange Update chart-loading optimization remains deferred. The separate SDK cache-amplification issue is fixed by the server's `bkper-js` 2.42.0 compatibility migration.
 
@@ -87,7 +63,7 @@ Keep rate loading on lean Book metadata. Do not change transaction construction,
 - Deterministic tests assert request count, requested Book completeness, skipped charts, result order, and mutation order without accessing live Books.
 - Representative runtime measurements confirm the optimization without relying on timing assertions in unit tests.
 
-## 4. Exchange Update retries lack delay and structured error classification
+## 3. Exchange Update retries lack delay and structured error classification
 
 **Status:** Deferred retry-policy improvement.
 
@@ -113,7 +89,7 @@ Preserve independent per-Book retry state while introducing structured error cla
 - Per-Book retry progress remains visible during each delay and request.
 - Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
 
-## 5. Client-triggered post-update Book audits may be unnecessary
+## 4. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

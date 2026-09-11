@@ -27,33 +27,7 @@ Validate edited rates in the client without silently sanitizing or changing user
 - Server-side validation continues to reject invalid rate payloads.
 - Deterministic client tests cover valid, invalid, and corrected values.
 
-## 2. Exchange Update retries lack delay and structured error classification
-
-**Status:** Deferred retry-policy improvement.
-
-### Current migration behavior
-
-A failed Exchange Update retries only its own Book up to five times. Retries start immediately for every error except one whose message contains the established `not found in` text. The client API currently exposes plain error messages rather than the structured HTTP status and response metadata needed for a more selective policy.
-
-### Problem
-
-Immediate retries can repeat temporary rate-limit or infrastructure failures without giving the dependency time to recover. Message-only classification also cannot reliably distinguish retryable transport failures from permanent business failures or honor a server-provided `Retry-After` value.
-
-### Intended improvement
-
-Preserve independent per-Book retry state while introducing structured error classification. Retry only explicitly accepted transient failures and apply a bounded delay policy, preferring valid server-provided retry timing and otherwise using an explicitly chosen backoff schedule.
-
-### Acceptance criteria
-
-- Successful and in-flight Books remain untouched when another Book retries.
-- Retryable and non-retryable failures are classified from structured error data rather than message text where the API boundary provides it.
-- A valid `Retry-After` value is honored within an explicit maximum delay.
-- Transient failures without server timing use a documented bounded delay schedule.
-- Permanent failures stop immediately with the final per-Book error.
-- Per-Book retry progress remains visible during each delay and request.
-- Deterministic client tests cover classification, retry limits, and delay selection without live API access or wall-clock timing.
-
-## 3. Client-triggered post-update Book audits may be unnecessary
+## 2. Client-triggered post-update Book audits may be unnecessary
 
 **Status:** Preserved conditionally for migration validation; removal review deferred until after stabilization.
 

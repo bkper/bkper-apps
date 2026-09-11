@@ -166,6 +166,10 @@ export class ExchangeUpdateController implements ReactiveController {
                     retryCount,
                     retryLimit: this.maxRetryCount,
                 });
+
+                // Wait 1, 2, 4, 8, then 16 seconds before the five retries.
+                const delayMs = 1000 * 2 ** (retryCount - 1);
+                await new Promise<void>(resolve => setTimeout(resolve, delayMs));
                 continue;
             }
 

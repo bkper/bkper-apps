@@ -67,6 +67,19 @@ function createController(view: TestView): ExchangeUpdateController {
     return new ExchangeUpdateController(view as unknown as ExchangeUpdateView);
 }
 
+function mockRetryDelays(): number[] {
+    const delays: number[] = [];
+    globalThis.setTimeout = ((handler: TimerHandler, timeout?: number) => {
+        delays.push(timeout ?? 0);
+        if (typeof handler !== 'function') {
+            throw new Error('Expected a timer callback');
+        }
+        handler();
+        return delays.length as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout;
+    return delays;
+}
+
 function createExchangeBotBook(
     id: string,
     excCode: string,
@@ -303,6 +316,7 @@ describe('Exchange update controller', () => {
     );
 
     it('retries only the failed Book', async () => {
+        const delays = mockRetryDelays();
         const requestedBookIds: string[] = [];
         let eurAttempts = 0;
         botApiService.performExchangeUpdate = mock(async bookId => {
@@ -327,6 +341,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
+        expect(delays).toEqual([1000]);
         expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',
@@ -339,7 +354,8 @@ describe('Exchange update controller', () => {
         expect(view.executing).toBe(false);
     });
 
-    it('keeps independent retry counts for parallel failures', async () => {
+    it('keeps independent retry counts and delays for parallel failures', async () => {
+        const delays = mockRetryDelays();
         const attempts = new Map<string, number>();
         botApiService.performExchangeUpdate = mock(async bookId => {
             const attempt = (attempts.get(bookId) ?? 0) + 1;
@@ -365,6 +381,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
+        expect(delays).toEqual([1000, 1000, 2000]);
         expect(attempts).toEqual(
             new Map([
                 ['usd-book', 2],
@@ -375,7 +392,7 @@ describe('Exchange update controller', () => {
         expect(view.results.get('eur-book')?.status).toBe('COMPLETE');
     });
 
-    it('shows retry progress without resubmitting another in-flight Book', async () => {
+    it('waits before retrying and shows progress without resubmitting another in-flight Book', async () => {
         const requestedBookIds: string[] = [];
         let eurAttempts = 0;
         let resolveUsdUpdate: (transactions: bkper.Transaction[]) => void = () => {};
@@ -386,6 +403,21 @@ describe('Exchange update controller', () => {
         const retryStarted = new Promise<void>(resolve => {
             resolveRetryStarted = resolve;
         });
+        let resolveDelayScheduled: () => void = () => {};
+        const delayScheduled = new Promise<void>(resolve => {
+            resolveDelayScheduled = resolve;
+        });
+        let finishDelay: () => void = () => {};
+        const delays: number[] = [];
+        globalThis.setTimeout = ((handler: TimerHandler, timeout?: number) => {
+            delays.push(timeout ?? 0);
+            if (typeof handler !== 'function') {
+                throw new Error('Expected a timer callback');
+            }
+            finishDelay = () => handler();
+            resolveDelayScheduled();
+            return 1 as unknown as ReturnType<typeof setTimeout>;
+        }) as unknown as typeof setTimeout;
         let resolveRetry: (transactions: bkper.Transaction[]) => void = () => {};
         const retryRequest = new Promise<bkper.Transaction[]>(resolve => {
             resolveRetry = resolve;
@@ -415,15 +447,21 @@ describe('Exchange update controller', () => {
         const controller = createController(view);
 
         const update = controller.runExchangeUpdate();
-        await retryStarted;
+        await Promise.race([delayScheduled, retryStarted]);
 
-        expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
+        expect(delays).toEqual([1000]);
+        expect(requestedBookIds).toEqual(['usd-book', 'eur-book']);
+        expect(view.executing).toBe(true);
         expect(view.results.get('usd-book')).toEqual({ status: 'WAITING' });
         expect(view.results.get('eur-book')).toEqual({
             status: 'RETRYING',
             retryCount: 1,
             retryLimit: 5,
         });
+
+        finishDelay();
+        await retryStarted;
+        expect(requestedBookIds).toEqual(['usd-book', 'eur-book', 'eur-book']);
 
         resolveUsdUpdate([]);
         resolveRetry([]);
@@ -434,7 +472,8 @@ describe('Exchange update controller', () => {
         });
     });
 
-    it('stops after five retries and exposes the final error', async () => {
+    it('backs off for five retries and exposes the final error', async () => {
+        const delays = mockRetryDelays();
         botApiService.performExchangeUpdate = mock(async () => {
             throw new Error('Update failed');
         });
@@ -450,6 +489,7 @@ describe('Exchange update controller', () => {
 
         await controller.runExchangeUpdate();
 
+        expect(delays).toEqual([1000, 2000, 4000, 8000, 16000]);
         expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(6);
         expect(view.results.get('usd-book')).toEqual({
             status: 'ERROR',
@@ -459,6 +499,7 @@ describe('Exchange update controller', () => {
     });
 
     it('does not retry a permission failure', async () => {
+        const delays = mockRetryDelays();
         botApiService.performExchangeUpdate = mock(async () => {
             throw new BotApiError('Insufficient Book permission', 403);
         });
@@ -478,9 +519,11 @@ describe('Exchange update controller', () => {
             status: 'ERROR',
             error: 'Insufficient Book permission',
         });
+        expect(delays).toEqual([]);
     });
 
     it('does not retry an error containing the legacy non-retryable text', async () => {
+        const delays = mockRetryDelays();
         botApiService.performExchangeUpdate = mock(async () => {
             throw new Error('Account not found in USD book');
         });
@@ -501,9 +544,11 @@ describe('Exchange update controller', () => {
             status: 'ERROR',
             error: 'Account not found in USD book',
         });
+        expect(delays).toEqual([]);
     });
 
-    it('starts each user-initiated run with a fresh retry count', async () => {
+    it('starts each user-initiated run with a fresh retry count and delay', async () => {
+        const delays = mockRetryDelays();
         let attempts = 0;
         botApiService.performExchangeUpdate = mock(async () => {
             attempts++;
@@ -525,6 +570,7 @@ describe('Exchange update controller', () => {
         await controller.runExchangeUpdate();
         await controller.runExchangeUpdate();
 
+        expect(delays).toEqual([1000, 1000]);
         expect(botApiService.performExchangeUpdate).toHaveBeenCalledTimes(4);
         expect(view.results.get('usd-book')).toEqual({
             status: 'COMPLETE',

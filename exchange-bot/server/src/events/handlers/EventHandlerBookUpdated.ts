@@ -43,8 +43,6 @@ export class EventHandlerBookUpdated extends EventHandler {
                 response += ` closing date: ${baseBook.getClosingDate()}`;
             }
 
-            console.log(baseBook.getPeriodStartMonth());
-
             if (baseBook.getPeriodStartMonth() != connectedBook.getPeriodStartMonth()) {
                 connectedBook.setPeriodStartMonth(baseBook.getPeriodStartMonth()!);
                 response += ` period start month: ${baseBook.getPeriodStartMonth()}`;

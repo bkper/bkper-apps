@@ -4,6 +4,15 @@ The Portfolio Bot tracks investment portfolios by splitting trade orders on Fina
 
 It works well for stocks and other traded instruments, and it can also split explicit `interest` amounts on trades, which is useful for bond-style dirty/clean price workflows. Broader coupon schedules, accrual calendars, tax logic, reconciliation flows, and report generation remain external to this bot.
 
+## How to use
+
+1. Create your Financial Books and one Portfolio Book in the same collection.
+2. Install the Portfolio Bot on every participating book.
+3. Configure your books, groups, and accounts following [Configuration](#configuration).
+4. Post an order following the [Purchase](#purchase) or [Sale](#sale) instructions.
+5. Check the resulting instrument trade. The bot records the quantity in the Portfolio Book.
+6. Follow [Realized gain/loss](#realized-gainloss) to calculate your results.
+
 ## How it works
 
 The bot operates across one shared Portfolio Book and one or more Financial Books in the same [Collection](https://bkper.com/docs/guides/using-bkper/books):
@@ -199,7 +208,7 @@ For instruments with an explicit interest leg, the associated interest accounts 
 
 #### Optional auto-MTM during calculation
 
-In the Portfolio Book menu, **Calculate** offers a **Perform `#mtm` valuations?** checkbox.
+In the Portfolio Book menu, the **Realized Results** view offers a **Perform MTM valuations** checkbox.
 
 When enabled, the bot may create supporting bot-generated entries such as:
 
@@ -210,7 +219,7 @@ These help align processed lots and clear residual interest balances during the 
 
 ### Realized gain/loss
 
-At sale, unrealized gains/losses become realized. The bot creates `... Realized` and `... Realized Hist` accounts as **Incoming**, because they represent recognized period activity. Open the Portfolio Book and select **More > Portfolio Bot**. Choose the account(s), set the date, and click **Calculate**.
+At sale, unrealized gains/losses become realized. The bot creates `... Realized` and `... Realized Hist` accounts as **Incoming**, because they represent recognized period activity. Open the Portfolio Book and select **More > Portfolio Bot**. In **Realized Results**, review the account(s), set the date, and click **Calculate**.
 
 The bot then:
 
@@ -296,7 +305,7 @@ If these overrides are omitted, the bot falls back to the trade values already s
 
 For **Fair only** or **Both** calculation models, open positions must be carried forward to the next period by setting a forward date in the Portfolio Book. This is not needed for historical-only books, where a period closes naturally when an instrument is fully liquidated.
 
-Open the Portfolio Book, select the account(s), choose **More > Portfolio Bot**, set the date, and click **Set Forward Date**. The bot then:
+Open the Portfolio Book, select the account(s), and choose **More > Portfolio Bot**. Switch to **Forward Date**, set the date, click **Forward**, and confirm. The bot then:
 
 1. copies each unchecked Portfolio Book transaction as a forward log entry
 2. updates the original transaction's date, order, forward price, and forward exchange-rate properties
@@ -554,6 +563,60 @@ Explore the template books to see the Portfolio Bot in action:
 - [Portfolio Book](https://app.bkper.com/b/#transactions:bookId=agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4Jja2KcJDA)
 
 > To use the template, make a copy, place the books in a collection, and install the Portfolio Bot on all books.
+
+## API access
+
+<details>
+<summary><strong>Endpoints and examples</strong></summary>
+
+Authenticated clients can use the same Portfolio Bot workflows through the public API.
+
+```text
+Production: https://stock-bot.bkper.app
+Preview:    https://stock-bot-preview.bkper.app
+OpenAPI:    https://stock-bot.bkper.app/openapi.json
+```
+
+All requests require a Bkper OAuth bearer token. Use the Portfolio Book's ID for `bookId` and the instrument account's ID in that book for `accountId`. Each write request operates on one account.
+
+Review the account, date, and options, and run the operation only after explicit confirmation. Calculate, Reset, Full Reset, and Forward write directly to the connected books. There is no API dry-run step.
+
+| Operation | Route | Effect |
+|---|---|---|
+| List accounts pending calculation | `GET /api/v1/books/{bookId}/accounts/pending-calculation` | Returns account IDs without changing the books |
+| Calculate | `POST /api/v1/books/{bookId}/accounts/{accountId}/calculate` | Calculates FIFO realized results, optionally including MTM valuations |
+| Reset | `POST /api/v1/books/{bookId}/accounts/{accountId}/reset` | Reverts results while keeping the forward baseline |
+| Full Reset | `POST /api/v1/books/{bookId}/accounts/{accountId}/full-reset` | Reverts results and removes forward state |
+| Forward | `POST /api/v1/books/{bookId}/accounts/{accountId}/forward` | Carries open positions to the requested date |
+
+Minimal read-only example:
+
+```bash
+# Run `bkper auth login` first if needed
+TOKEN="$(bkper auth token)"
+
+curl \
+  -H "Authorization: Bearer ${TOKEN}" \
+  "https://stock-bot.bkper.app/api/v1/books/<portfolio-book-id>/accounts/pending-calculation"
+```
+
+Listing accounts requires view permission and the bot installed on the Portfolio Book. The response contains `ids`.
+
+After a person explicitly confirms the account and date, calculate its realized results without MTM valuations:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-03-15","performMtm":false}' \
+  "https://stock-bot.bkper.app/api/v1/books/<portfolio-book-id>/accounts/<account-id>/calculate"
+```
+
+Write operations require **EDITOR** or **OWNER** permission and the bot installed in the Portfolio and related Financial and Base Books. Follow the [operational constraints](#operational-constraints); Full Reset and lowering a forward date also require **OWNER** permission on the Portfolio Book and an unlocked, open collection.
+
+Successful write requests return `200 OK` with a `message`, not a financial report or a list of created transactions. Review the resulting records in Bkper. See the [OpenAPI specification](https://stock-bot.bkper.app/openapi.json) for complete request and response schemas.
+
+</details>
 
 ## Learn more
 

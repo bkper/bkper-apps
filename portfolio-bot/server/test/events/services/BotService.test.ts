@@ -90,43 +90,90 @@ describe('legacy event bot service', () => {
         expect(service.getStockBook(createBook('standalone'))).toBeNull();
     });
 
-    test('reloads the first matching Financial Book with a nonzero fraction count', async () => {
-        const bkper = new Bkper();
-        const loadedIds: string[] = [];
-        bkper.getBook = async id => {
-            loadedIds.push(id);
-            return createBook(id, { exc_code: 'USD' });
-        };
-        const service = createService(bkper);
-        const portfolioBook = createBook(
-            'portfolio',
-            { stock_book: 'true' },
-            {
-                fractionDigits: 0,
-                collection: {
-                    books: [
-                        { id: 'portfolio', fractionDigits: 0, properties: { exc_code: 'USD' } },
-                        { id: 'eur', fractionDigits: 2, properties: { exc_code: 'EUR' } },
-                        { id: 'usd', fractionDigits: 2, properties: { exc_code: 'USD' } },
-                    ],
-                },
-            }
-        );
+    test.each([0, 2])(
+        'reloads the first matching Financial Book with %i fraction digits',
+        async fractionDigits => {
+            const bkper = new Bkper();
+            const loadedIds: string[] = [];
+            bkper.getBook = async id => {
+                loadedIds.push(id);
+                return createBook(id);
+            };
+            const service = createService(bkper);
+            const portfolioBook = createBook(
+                'portfolio',
+                { stock_book: 'true' },
+                {
+                    fractionDigits: 0,
+                    collection: {
+                        books: [
+                            {
+                                id: 'portfolio',
+                                fractionDigits: 0,
+                                properties: { stock_book: 'true' },
+                            },
+                            { id: 'eur', fractionDigits: 0, properties: { exchange_code: 'EUR' } },
+                            { id: 'jpy-first', fractionDigits, properties: { exc_code: 'JPY' } },
+                            { id: 'jpy-later', fractionDigits: 2, properties: { exc_code: 'JPY' } },
+                        ],
+                    },
+                }
+            );
 
-        const result = await service.getFinancialBook(portfolioBook, 'USD');
+            const result = await service.getFinancialBook(portfolioBook, 'JPY');
 
-        expect(result?.getId()).toBe('usd');
-        expect(loadedIds).toEqual(['usd']);
-        expect(await service.getFinancialBook(createBook('standalone'), 'USD')).toBeNull();
+            expect(result?.getId()).toBe('jpy-first');
+            expect(loadedIds).toEqual(['jpy-first']);
+            expect((await service.getFinancialBook(portfolioBook, 'EUR'))?.getId()).toBe('eur');
+            expect(await service.getFinancialBook(portfolioBook, 'GBP')).toBeNull();
+            expect(await service.getFinancialBook(createBook('standalone'), 'JPY')).toBeNull();
+            expect(loadedIds).toEqual(['jpy-first', 'eur']);
 
-        const requiredLookupError = new BkperError(404, 'Financial Book not found', 'notFound');
-        bkper.getBook = async () => {
-            throw requiredLookupError;
-        };
-        await expect(service.getFinancialBook(portfolioBook, 'USD')).rejects.toBe(
-            requiredLookupError
-        );
-    });
+            const requiredLookupError = new BkperError(404, 'Financial Book not found', 'notFound');
+            bkper.getBook = async () => {
+                throw requiredLookupError;
+            };
+            await expect(service.getFinancialBook(portfolioBook, 'JPY')).rejects.toBe(
+                requiredLookupError
+            );
+        }
+    );
+
+    test.each([undefined, '', ' \t '])(
+        'does not load a Financial Book for missing or blank currency %j',
+        async excCode => {
+            const bkper = new Bkper();
+            const loadedIds: string[] = [];
+            bkper.getBook = async id => {
+                loadedIds.push(id);
+                return createBook(id);
+            };
+            const portfolioBook = createBook(
+                'portfolio',
+                { stock_book: 'true' },
+                {
+                    collection: {
+                        books: [
+                            {
+                                id: 'portfolio',
+                                fractionDigits: 0,
+                                properties: { stock_book: 'true' },
+                            },
+                            {
+                                id: 'blank',
+                                fractionDigits: 2,
+                                properties: { exc_code: excCode ?? '' },
+                            },
+                            { id: 'jpy', fractionDigits: 0, properties: { exc_code: 'JPY' } },
+                        ],
+                    },
+                }
+            );
+
+            expect(await createService(bkper).getFinancialBook(portfolioBook, excCode)).toBeNull();
+            expect(loadedIds).toEqual([]);
+        }
+    );
 
     test('resolves exchange codes from eligible Account Groups in order', async () => {
         const book = createBook(

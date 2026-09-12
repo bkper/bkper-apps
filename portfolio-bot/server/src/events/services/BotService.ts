@@ -88,6 +88,9 @@ export class BotService {
     }
 
     async getFinancialBook(book: Book, excCode?: string): Promise<Book | null> {
+        if (!excCode?.trim()) {
+            return null;
+        }
         const collection = book.getCollection();
         if (collection == null) {
             return null;
@@ -95,8 +98,7 @@ export class BotService {
         const connectedBooks = collection.getBooks();
         for (const connectedBook of connectedBooks) {
             const excCodeConnectedBook = this.getExcCode(connectedBook);
-            const fractionDigits = connectedBook.getFractionDigits();
-            if (fractionDigits != 0 && excCode == excCodeConnectedBook) {
+            if (excCode == excCodeConnectedBook) {
                 return this.context.bkper.getBook(connectedBook.getId());
             }
         }

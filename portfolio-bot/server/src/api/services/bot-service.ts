@@ -46,15 +46,15 @@ export class BotService {
     }
 
     getFinancialBook(book: Book, excCode?: string | null): Book | null {
+        if (!excCode?.trim()) {
+            return null;
+        }
         const collection = book.getCollection();
         if (!collection) {
             return null;
         }
         for (const connectedBook of collection.getBooks()) {
-            if (
-                connectedBook.getFractionDigits() != 0 &&
-                this.getExcCode(connectedBook) == excCode
-            ) {
+            if (this.getExcCode(connectedBook) == excCode) {
                 return connectedBook;
             }
         }

@@ -258,6 +258,66 @@ describe('legacy Portfolio movement deletion behavior', () => {
         expect(resourceLoads).toBe(0);
     });
 
+    test('does not load a Financial Book or clean up Transactions when instrument currency is missing', async () => {
+        const portfolioBook = new Book({
+            id: 'portfolio',
+            name: 'Portfolio',
+            fractionDigits: 0,
+            properties: { stock_book: 'true' },
+            collection: {
+                books: [
+                    { id: 'portfolio', fractionDigits: 0, properties: { stock_book: 'true' } },
+                    { id: 'jpy', fractionDigits: 0, properties: { exc_code: 'JPY' } },
+                ],
+            },
+        });
+        const instrument = new Account(portfolioBook, {
+            id: 'instrument',
+            name: 'ACME',
+            type: AccountType.ASSET,
+            permanent: true,
+        });
+        instrument.getGroups = async () => [];
+        const sell = new Account(portfolioBook, {
+            id: 'sell',
+            name: 'Sell',
+            type: AccountType.OUTGOING,
+            permanent: false,
+        });
+        portfolioBook.getAccount = async id => (id === instrument.getId() ? instrument : sell);
+        const sale = createTransaction('sale', instrument, sell);
+        portfolioBook.getTransaction = async () => new Transaction(portfolioBook, sale);
+        portfolioBook.listTransactions = async query => {
+            queries.push(query ?? '');
+            return new TransactionList(portfolioBook, { items: [sale] });
+        };
+        const uncheckedIds: string[] = [];
+        Transaction.prototype.uncheck = async function () {
+            uncheckedIds.push(this.getId()!);
+            return this;
+        };
+        const loadedIds: string[] = [];
+        const bkper = new Bkper();
+        bkper.getBook = async id => {
+            loadedIds.push(id);
+            return portfolioBook;
+        };
+        const interceptor = new InterceptorOrderProcessorDeleteInstruments(
+            new AppContext(bkper, { ASSETS: { fetch } })
+        );
+
+        const result = await interceptor.intercept(portfolioBook, {
+            type: 'TRANSACTION_DELETED',
+            data: { object: { transaction: sale } },
+        });
+
+        expect(loadedIds).toEqual([]);
+        expect(queries).toEqual([]);
+        expect(uncheckedIds).toEqual([]);
+        expect(trashedTransactionIds).toEqual([]);
+        expect(result).toEqual({ result: 'DELETED: 2024-01-02 10 ACME Sell sale' });
+    });
+
     test('returns the inherited deletion response when no Financial exchange matches', async () => {
         const portfolioBook = new Book({ id: 'portfolio', name: 'Portfolio' });
         const instrument = new Account(portfolioBook, {

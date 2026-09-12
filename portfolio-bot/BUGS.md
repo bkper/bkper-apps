@@ -4,7 +4,7 @@ This document tracks known Portfolio Bot bugs and architectural improvements tha
 
 ## 1. Fraction digits are incorrectly used as Book-role metadata
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Partially addressed. Financial Book resolution no longer filters by fraction digits; Portfolio Book selection remains deferred to the second change.
 
 ### Current legacy behavior
 
@@ -13,7 +13,7 @@ Portfolio Bot uses a Book's fraction digits in two role-selection paths:
 - `getStockBook()` treats the first Book with zero fraction digits as the Portfolio Book fallback.
 - `getFinancialBook()` rejects every Book with zero fraction digits, even when its configured exchange code matches the requested currency.
 
-The migrated implementations preserve these conditions for parity with the legacy GAS and GCF behavior.
+The migrated implementations initially preserved these conditions for parity with the legacy GAS and GCF behavior. Financial Book resolution now selects the first matching exchange code, including the legacy `exchange_code` alias, regardless of fraction digits in both event and menu/API paths. Missing or blank requested exchange codes resolve to no Financial Book. Deterministic tests cover zero-fraction Financial Books, Collection order, missing matches, the client's editable-currency check, and missing-currency deletion with no Financial Book reload, cleanup queries, or Transaction writes. Portfolio Book selection is unchanged.
 
 ### Problem
 

@@ -138,6 +138,45 @@ describe('legacy menu bot service', () => {
         expect(service.getBaseBook(createPortfolioBook())).toBeNull();
     });
 
+    test.each([0, 2])(
+        'selects the first matching Financial Book with %i fraction digits',
+        fractionDigits => {
+            const service = createService();
+            const portfolioBook = createPortfolioBook({
+                collection: {
+                    books: [
+                        { id: 'portfolio', fractionDigits: 0, properties: { stock_book: 'true' } },
+                        { id: 'eur', fractionDigits: 0, properties: { exchange_code: 'EUR' } },
+                        { id: 'jpy-first', fractionDigits, properties: { exc_code: 'JPY' } },
+                        { id: 'jpy-later', fractionDigits: 2, properties: { exc_code: 'JPY' } },
+                    ],
+                },
+            });
+
+            expect(service.getFinancialBook(portfolioBook, 'JPY')?.getId()).toBe('jpy-first');
+            expect(service.getFinancialBook(portfolioBook, 'EUR')?.getId()).toBe('eur');
+            expect(service.getFinancialBook(portfolioBook, 'GBP')).toBeNull();
+            expect(service.getFinancialBook(createPortfolioBook(), 'JPY')).toBeNull();
+        }
+    );
+
+    test.each([undefined, null, '', ' \t '])(
+        'does not resolve a Financial Book for missing or blank currency %j',
+        excCode => {
+            const portfolioBook = createPortfolioBook({
+                collection: {
+                    books: [
+                        { id: 'portfolio', fractionDigits: 0, properties: { stock_book: 'true' } },
+                        { id: 'blank', fractionDigits: 2, properties: { exc_code: excCode ?? '' } },
+                        { id: 'jpy', fractionDigits: 0, properties: { exc_code: 'JPY' } },
+                    ],
+                },
+            });
+
+            expect(createService().getFinancialBook(portfolioBook, excCode)).toBeNull();
+        }
+    );
+
     test('builds the Reset Account query in legacy clause order', () => {
         const service = createService();
         const book = createPortfolioBook();

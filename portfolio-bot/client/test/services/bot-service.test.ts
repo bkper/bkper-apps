@@ -107,12 +107,18 @@ describe('legacy menu bot service', () => {
                         permission: Permission.OWNER,
                         properties: { exc_code: 'QTY' },
                     },
+                    {
+                        id: 'jpy-book',
+                        fractionDigits: 0,
+                        permission: Permission.EDITOR,
+                        properties: { exc_code: 'JPY' },
+                    },
                 ],
             },
         });
 
         expect(botService.getBooksExcCodesUserCanEdit(selectedBook)).toEqual(
-            new Set(['USD', 'EUR', 'QTY'])
+            new Set(['USD', 'EUR', 'QTY', 'JPY'])
         );
     });
 });

@@ -186,7 +186,7 @@ describe('Bot app view', () => {
         view.portfolioBook = new Book({ id: 'book-id', permission: Permission.VIEWER });
         view.hasViewerPermission = true;
         view.hasEditorPermission = false;
-        view.error = {
+        view.permissionError = {
             type: 'error',
             message: { before: 'User needs EDITOR or OWNER permission in BRL books' },
         };
@@ -195,7 +195,9 @@ describe('Bot app view', () => {
         const result = renderBodyContent.call(view);
 
         expect(result.strings.join('')).toContain('<realized-results');
-        expect(result.values[2]).toBe(view.error);
+        expect(result.values[2]).toBe(view.permissionError);
+        expect(result.values[7]).toBe(view.permissionError);
+        expect(view.error).toBeUndefined();
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

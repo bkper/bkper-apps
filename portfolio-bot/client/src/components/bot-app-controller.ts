@@ -121,6 +121,7 @@ export class BotAppController implements ReactiveController {
         this.view.appState = BotAppState.LOADING;
         this.view.portfolioBook = undefined;
         this.view.error = undefined;
+        this.view.permissionError = undefined;
         this.view.initialDate = '';
         this.view.realizedResultsContext = undefined;
         this.view.forwardDateContext = undefined;
@@ -289,7 +290,7 @@ export class BotAppController implements ReactiveController {
 
         this.view.hasEditorPermission = missingExcCodes.length == 0;
         if (!this.view.hasEditorPermission) {
-            this.view.error = BotAppErrors.insufficientEditPermission(missingExcCodes);
+            this.view.permissionError = BotAppErrors.insufficientEditPermission(missingExcCodes);
         }
 
         // Sort accounts alphabetically

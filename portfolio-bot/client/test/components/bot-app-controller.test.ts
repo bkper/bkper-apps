@@ -21,6 +21,7 @@ class TestView implements ReactiveControllerHost {
     portfolioBook?: Book;
     initialDate = '';
     error?: AppError;
+    permissionError?: AppError;
     embedded = false;
     realizedResultsContext?: RealizedResultsContext;
     forwardDateContext?: ForwardDateContext;
@@ -448,8 +449,9 @@ describe('Bot app controller', () => {
         await createController(view).initialize();
 
         expect(view.hasEditorPermission).toBe(false);
-        expect(view.error?.message.before).not.toContain('BRL');
-        expect(view.error?.message.before).toContain('EUR');
+        expect(view.permissionError?.message.before).not.toContain('BRL');
+        expect(view.permissionError?.message.before).toContain('EUR');
+        expect(view.error).toBeUndefined();
         expect(view.appState).toBe(BotAppState.READY);
     });
 
@@ -1032,6 +1034,7 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
         expect(view.portfolioBook?.getId()).toBe('book-id');
+        view.permissionError = BotAppErrors.insufficientEditPermission(['EUR']);
 
         Object.defineProperty(self, 'location', {
             configurable: true,
@@ -1043,6 +1046,7 @@ describe('Bot app controller', () => {
         expect(view.realizedResultsContext).toBeUndefined();
         expect(view.forwardDateContext).toBeUndefined();
         expect(view.error).toEqual(BotAppErrors.bookNotSpecified());
+        expect(view.permissionError).toBeUndefined();
 
         Object.defineProperty(self, 'location', {
             configurable: true,

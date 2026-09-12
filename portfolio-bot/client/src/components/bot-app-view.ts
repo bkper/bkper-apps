@@ -38,6 +38,9 @@ export class BotAppView extends LitElement {
     error?: AppError;
 
     @state()
+    permissionError?: AppError;
+
+    @state()
     initialDate = '';
 
     @state()
@@ -90,19 +93,18 @@ export class BotAppView extends LitElement {
             return this.renderAppError();
         }
         if (this.portfolioBook) {
-            const permissionError = this.hasEditorPermission ? undefined : this.error;
             return html`
                 <realized-results
                     .context=${this.realizedResultsContext}
                     .date=${this.initialDate}
-                    .permissionError=${permissionError}
+                    .permissionError=${this.permissionError}
                     ?hidden=${this.activeService !== PortfolioService.REALIZED_RESULTS}
                     @service-change=${this.handleServiceChange}
                 ></realized-results>
                 <forward-date
                     .context=${this.forwardDateContext}
                     .date=${this.initialDate}
-                    .permissionError=${permissionError}
+                    .permissionError=${this.permissionError}
                     ?hidden=${this.activeService !== PortfolioService.FORWARD_DATE}
                     @service-change=${this.handleServiceChange}
                 ></forward-date>

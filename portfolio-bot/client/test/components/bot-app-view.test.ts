@@ -128,7 +128,6 @@ describe('Bot app view', () => {
         view.initialDate = '2026-03-10';
         view.realizedResultsContext = context;
         view.hasViewerPermission = true;
-        view.hasEditorPermission = true;
         view.appState = BotAppState.READY;
 
         const result = renderBodyContent.call(view);
@@ -139,8 +138,9 @@ describe('Bot app view', () => {
         expect(result.values[0]).toBe(context);
         expect(result.values[1]).toBe('2026-03-10');
         expect(result.values[2]).toBeUndefined();
-        expect(result.values[3]).toBe(false);
-        expect(result.values[8]).toBe(true);
+        expect(result.values[3]).toBeUndefined();
+        expect(result.values[4]).toBe(false);
+        expect(result.values[10]).toBe(true);
     });
 
     it('renders Forward Date after handling a service change', () => {
@@ -159,7 +159,6 @@ describe('Bot app view', () => {
         view.initialDate = '2026-03-10';
         view.forwardDateContext = context;
         view.hasViewerPermission = true;
-        view.hasEditorPermission = true;
         view.appState = BotAppState.READY;
 
         handleServiceChange.call(
@@ -174,18 +173,19 @@ describe('Bot app view', () => {
         expect(view.activeService).toBe(PortfolioService.FORWARD_DATE);
         expect(markup).toContain('<realized-results');
         expect(markup).toContain('<forward-date');
-        expect(result.values[3]).toBe(true);
-        expect(result.values[5]).toBe(context);
-        expect(result.values[6]).toBe('2026-03-10');
-        expect(result.values[7]).toBeUndefined();
-        expect(result.values[8]).toBe(false);
+        expect(result.values[4]).toBe(true);
+        expect(result.values[6]).toBe(context);
+        expect(result.values[7]).toBe('2026-03-10');
+        expect(result.values[8]).toBeUndefined();
+        expect(result.values[9]).toBeUndefined();
+        expect(result.values[10]).toBe(false);
     });
 
-    it('renders an edit-permission error without hiding the ready context', () => {
+    it('passes permission and resolution errors separately without hiding the ready context', () => {
         const view = new BotAppView();
         view.portfolioBook = new Book({ id: 'book-id', permission: Permission.VIEWER });
         view.hasViewerPermission = true;
-        view.hasEditorPermission = false;
+        view.bookResolutionError = { type: 'error', message: { before: 'Missing JPY Book.' } };
         view.permissionError = {
             type: 'error',
             message: { before: 'User needs EDITOR or OWNER permission in BRL books' },
@@ -196,8 +196,17 @@ describe('Bot app view', () => {
 
         expect(result.strings.join('')).toContain('<realized-results');
         expect(result.values[2]).toBe(view.permissionError);
-        expect(result.values[7]).toBe(view.permissionError);
+        expect(result.values[8]).toBe(view.permissionError);
+        expect(result.values[3]).toBe(view.bookResolutionError);
+        expect(result.values[9]).toBe(view.bookResolutionError);
         expect(view.error).toBeUndefined();
+
+        view.permissionError = undefined;
+        const resolutionOnly = renderBodyContent.call(view);
+        expect(resolutionOnly.values[2]).toBeUndefined();
+        expect(resolutionOnly.values[8]).toBeUndefined();
+        expect(resolutionOnly.values[3]).toBe(view.bookResolutionError);
+        expect(resolutionOnly.values[9]).toBe(view.bookResolutionError);
     });
 
     it('renders non-error content for a ready, viewable Book', () => {

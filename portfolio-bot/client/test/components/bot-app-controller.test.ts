@@ -22,11 +22,11 @@ class TestView implements ReactiveControllerHost {
     initialDate = '';
     error?: AppError;
     permissionError?: AppError;
+    bookResolutionError?: AppError;
     embedded = false;
     realizedResultsContext?: RealizedResultsContext;
     forwardDateContext?: ForwardDateContext;
     hasViewerPermission = false;
-    hasEditorPermission = false;
     warnings: string[] = [];
     validating = false;
     validationError = '';
@@ -373,7 +373,7 @@ describe('Bot app controller', () => {
         expect(view.forwardDateContext?.fullResetEnabled).toBe(true);
     });
 
-    it('preserves scoped legacy edit-permission availability', async () => {
+    it('separates scoped permission and Book-resolution failures and clears them on reload', async () => {
         const portfolioBook = new Book({
             id: 'portfolio-book',
             fractionDigits: 0,
@@ -441,18 +441,28 @@ describe('Bot app controller', () => {
             ],
         });
         bkperService.loadBook = mock(async () => portfolioBook);
-        botApiService.listAccountsPendingCalculation = mock(async () => ({
-            ids: ['usd-account', 'brl-account', 'eur-account'],
-        }));
         const view = new TestView();
+        const controller = createController(view);
+        for (const scope of [
+            { ids: ['brl-account', 'eur-account'], permission: true, missing: true },
+            { ids: ['eur-account'], permission: false, missing: true },
+            { ids: ['brl-account'], permission: true, missing: false },
+            { ids: ['usd-account'], permission: false, missing: false },
+        ]) {
+            botApiService.listAccountsPendingCalculation = mock(async () => ({ ids: scope.ids }));
+            await controller.initialize();
 
-        await createController(view).initialize();
-
-        expect(view.hasEditorPermission).toBe(false);
-        expect(view.permissionError?.message.before).not.toContain('BRL');
-        expect(view.permissionError?.message.before).toContain('EUR');
-        expect(view.error).toBeUndefined();
-        expect(view.appState).toBe(BotAppState.READY);
+            expect(view.permissionError).toEqual(
+                scope.permission
+                    ? BotAppErrors.insufficientEditPermission([new Book({ name: 'BRL Book' })])
+                    : undefined
+            );
+            expect(view.bookResolutionError).toEqual(
+                scope.missing ? BotAppErrors.missingFinancialBooks(['EUR']) : undefined
+            );
+            expect(view.error).toBeUndefined();
+            expect(view.appState).toBe(BotAppState.READY);
+        }
     });
 
     it('stops Account context loading when the mapped Portfolio Account is missing', async () => {
@@ -1034,7 +1044,9 @@ describe('Bot app controller', () => {
 
         await controller.initialize();
         expect(view.portfolioBook?.getId()).toBe('book-id');
-        view.permissionError = BotAppErrors.insufficientEditPermission(['EUR']);
+        view.permissionError = BotAppErrors.insufficientEditPermission([
+            new Book({ properties: { exc_code: 'EUR' } }),
+        ]);
 
         Object.defineProperty(self, 'location', {
             configurable: true,

@@ -35,6 +35,9 @@ export class ForwardDateView extends LitElement {
     @property({ attribute: false })
     permissionError?: AppError;
 
+    @property({ attribute: false })
+    bookResolutionError?: AppError;
+
     @property()
     date = '';
 
@@ -96,7 +99,8 @@ export class ForwardDateView extends LitElement {
 
                 <!-- Buttons -->
                 <div class="actions">
-                    ${this.renderPermissionError()} ${this.renderOperationError()}
+                    ${this.renderPermissionError()} ${this.renderBookResolutionError()}
+                    ${this.renderOperationError()}
                     <div class="action-buttons">
                         ${this.renderFullResetButton()} ${this.renderForwardButton()}
                     </div>
@@ -151,6 +155,13 @@ export class ForwardDateView extends LitElement {
         return this.renderError(this.permissionError);
     }
 
+    private renderBookResolutionError(): TemplateResult {
+        if (!this.bookResolutionError) {
+            return html``;
+        }
+        return this.renderError(this.bookResolutionError);
+    }
+
     private renderOperationError(): TemplateResult {
         if (!this.operationError) {
             return html``;
@@ -178,6 +189,7 @@ export class ForwardDateView extends LitElement {
         return (
             this.isExecuting() ||
             this.permissionError !== undefined ||
+            this.bookResolutionError !== undefined ||
             !this.context?.accounts.length
         );
     }

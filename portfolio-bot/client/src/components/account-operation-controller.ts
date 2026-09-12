@@ -15,6 +15,7 @@ export interface AccountOperationViewHost<Context extends AccountOperationContex
     extends ReactiveControllerHost, EventTarget {
     context?: Context;
     permissionError?: AppError;
+    bookResolutionError?: AppError;
     operationError?: AppError;
     executing: boolean;
     results: Map<string, AccountOperationResult>;
@@ -43,7 +44,11 @@ export abstract class AccountOperationController<
     }
 
     protected shouldDisableExecution(): boolean {
-        return this.view.executing || this.view.permissionError !== undefined;
+        return (
+            this.view.executing ||
+            this.view.permissionError !== undefined ||
+            this.view.bookResolutionError !== undefined
+        );
     }
 
     clearResults(): void {

@@ -1,6 +1,5 @@
 import type { Book } from 'bkper-js';
 import { EXC_CODE_PROP, STOCK_BOOK_PROP } from '../constants.js';
-import { Utils } from '../utils.js';
 
 class BotService {
     getStockBook(book: Book): Book | null {
@@ -46,19 +45,20 @@ class BotService {
         return count !== undefined && count > 0;
     }
 
-    getBooksExcCodesUserCanEdit(book: Book): Set<string> {
-        const excCodes = new Set<string>();
+    getFinancialBook(book: Book, excCode: string): Book | null {
+        if (!excCode.trim()) {
+            return null;
+        }
         const collection = book.getCollection();
         if (!collection) {
-            return excCodes;
+            return null;
         }
         for (const connectedBook of collection.getBooks()) {
-            const bookExcCode = this.getExcCode(connectedBook);
-            if (bookExcCode && Utils.canEditBook(connectedBook)) {
-                excCodes.add(bookExcCode);
+            if (this.getExcCode(connectedBook) === excCode) {
+                return connectedBook;
             }
         }
-        return excCodes;
+        return null;
     }
 
     private getExcCode(book: Book): string | undefined {

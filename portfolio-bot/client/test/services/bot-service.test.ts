@@ -93,7 +93,7 @@ describe('legacy menu bot service', () => {
         expect(await botService.hasPendingTasks(portfolioBook)).toBe(false);
     });
 
-    it('resolves editable currencies with legacy precedence', () => {
+    it('resolves the first Financial Book by currency, not precision or permission', () => {
         const selectedBook = createSourceBook({
             collection: {
                 books: [
@@ -137,8 +137,11 @@ describe('legacy menu bot service', () => {
             },
         });
 
-        expect(botService.getBooksExcCodesUserCanEdit(selectedBook)).toEqual(
-            new Set(['USD', 'EUR', 'QTY', 'JPY'])
-        );
+        expect(botService.getFinancialBook(selectedBook, 'EUR')?.getId()).toBe('first-eur-book');
+        expect(botService.getFinancialBook(selectedBook, 'BRL')?.getId()).toBe('brl-base-book');
+        expect(botService.getFinancialBook(selectedBook, 'JPY')?.getId()).toBe('jpy-book');
+        expect(botService.getFinancialBook(selectedBook, 'GBP')).toBeNull();
+        expect(botService.getFinancialBook(selectedBook, '')).toBeNull();
+        expect(botService.getFinancialBook(createSourceBook(), 'USD')).toBeNull();
     });
 });

@@ -22,6 +22,10 @@ const renderForwardButton = Reflect.get(ForwardDateView.prototype, 'renderForwar
 const renderPermissionError = Reflect.get(ForwardDateView.prototype, 'renderPermissionError') as (
     this: ForwardDateView
 ) => TemplateResult;
+const renderBookResolutionError = Reflect.get(
+    ForwardDateView.prototype,
+    'renderBookResolutionError'
+) as (this: ForwardDateView) => TemplateResult;
 const renderOperationError = Reflect.get(ForwardDateView.prototype, 'renderOperationError') as (
     this: ForwardDateView
 ) => TemplateResult;
@@ -230,6 +234,11 @@ describe('Forward Date view', () => {
         expect(isForwardButtonDisabled.call(view)).toBe(true);
 
         view.permissionError = undefined;
+        view.bookResolutionError = { type: 'error', message: { before: 'Missing JPY Book.' } };
+        expect(isFullResetButtonDisabled.call(view)).toBe(true);
+        expect(isForwardButtonDisabled.call(view)).toBe(true);
+
+        view.bookResolutionError = undefined;
         view.context.accounts = [];
         expect(isDateInputDisabled.call(view)).toBe(true);
         expect(isFullResetButtonDisabled.call(view)).toBe(true);
@@ -263,6 +272,7 @@ describe('Forward Date view', () => {
             message: { before: 'Editor permission is required.' },
         };
         view.permissionError = permissionError;
+        view.bookResolutionError = { type: 'error', message: { before: 'Missing JPY Book.' } };
 
         const result = render.call(view);
         const errorResult = renderPermissionError.call(view);
@@ -270,6 +280,7 @@ describe('Forward Date view', () => {
         expect(result.strings.join('')).toContain('<account-list');
         expect(errorResult.strings.join('')).toContain('<app-error');
         expect(errorResult.values[0]).toBe(permissionError);
+        expect(renderBookResolutionError.call(view).values[0]).toBe(view.bookResolutionError);
     });
 
     it('renders an operation error in the actions area', () => {
@@ -290,5 +301,6 @@ describe('Forward Date view', () => {
 
         expect(renderPermissionError.call(view).strings.join('')).toBe('');
         expect(renderOperationError.call(view).strings.join('')).toBe('');
+        expect(renderBookResolutionError.call(view).strings.join('')).toBe('');
     });
 });

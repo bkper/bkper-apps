@@ -122,11 +122,11 @@ export class BotAppController implements ReactiveController {
         this.view.portfolioBook = undefined;
         this.view.error = undefined;
         this.view.permissionError = undefined;
+        this.view.bookResolutionError = undefined;
         this.view.initialDate = '';
         this.view.realizedResultsContext = undefined;
         this.view.forwardDateContext = undefined;
         this.view.hasViewerPermission = false;
-        this.view.hasEditorPermission = false;
         this.view.validating = false;
         this.view.validationError = '';
     }
@@ -285,13 +285,25 @@ export class BotAppController implements ReactiveController {
             return null;
         }
 
-        const editableExcCodes = botService.getBooksExcCodesUserCanEdit(portfolioBook);
-        const missingExcCodes = this.getMissingExcCodes(accountsExcCodes, editableExcCodes);
-
-        this.view.hasEditorPermission = missingExcCodes.length == 0;
-        if (!this.view.hasEditorPermission) {
-            this.view.permissionError = BotAppErrors.insufficientEditPermission(missingExcCodes);
+        const missingExcCodes: string[] = [];
+        const nonEditableBooks: Book[] = [];
+        for (const excCode of accountsExcCodes) {
+            const financialBook = botService.getFinancialBook(portfolioBook, excCode);
+            if (!financialBook) {
+                missingExcCodes.push(excCode);
+            } else if (!Utils.canEditBook(financialBook)) {
+                nonEditableBooks.push(financialBook);
+            }
         }
+
+        this.view.permissionError =
+            nonEditableBooks.length > 0
+                ? BotAppErrors.insufficientEditPermission(nonEditableBooks)
+                : undefined;
+        this.view.bookResolutionError =
+            missingExcCodes.length > 0
+                ? BotAppErrors.missingFinancialBooks(missingExcCodes)
+                : undefined;
 
         // Sort accounts alphabetically
         accounts.sort((a1, a2) => (a1.getName() ?? '').localeCompare(a2.getName() ?? ''));
@@ -319,19 +331,6 @@ export class BotAppController implements ReactiveController {
 
         this.view.realizedResultsContext = realizedResultsContext;
         this.view.forwardDateContext = forwardDateContext;
-    }
-
-    private getMissingExcCodes(
-        accountExcCodes: Set<string>,
-        editableExcCodes: Set<string>
-    ): string[] {
-        const missingExcCodes: string[] = [];
-        for (const accountExcCode of accountExcCodes) {
-            if (!editableExcCodes.has(accountExcCode)) {
-                missingExcCodes.push(accountExcCode);
-            }
-        }
-        return missingExcCodes;
     }
 
     private async loadAccount(

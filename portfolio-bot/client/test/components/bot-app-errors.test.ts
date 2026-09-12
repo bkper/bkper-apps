@@ -92,11 +92,28 @@ describe('Bot app errors', () => {
         });
     });
 
+    it('identifies unresolved Financial Books by required currency', () => {
+        const error = BotAppErrors.missingFinancialBooks(['EUR', 'JPY']);
+
+        expect(error.type).toBe('error');
+        expect(error.message.before).toContain('EUR');
+        expect(error.message.before).toContain('JPY');
+    });
+
     it('identifies Books missing edit permission', () => {
-        const error = BotAppErrors.insufficientEditPermission(['Brazil Book', 'EUR']);
+        const error = BotAppErrors.insufficientEditPermission([
+            new Book({ id: 'named-book', name: 'Brazil Book', properties: { exc_code: 'BRL' } }),
+            new Book({ id: 'code-book', name: ' ', properties: { exc_code: 'EUR' } }),
+            new Book({ id: 'alias-book', properties: { exchange_code: 'JPY' } }),
+            new Book({ id: 'id-only-book' }),
+        ]);
 
         expect(error.type).toBe('error');
         expect(error.message.before).toContain('Brazil Book');
         expect(error.message.before).toContain('EUR');
+        expect(error.message.before).toContain('JPY');
+        expect(error.message.before).toContain('id-only-book');
+        expect(error.message.before).not.toContain('named-book');
+        expect(error.message.before).not.toContain('code-book');
     });
 });

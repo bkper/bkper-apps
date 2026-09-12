@@ -41,6 +41,9 @@ export class BotAppView extends LitElement {
     permissionError?: AppError;
 
     @state()
+    bookResolutionError?: AppError;
+
+    @state()
     initialDate = '';
 
     @state()
@@ -54,9 +57,6 @@ export class BotAppView extends LitElement {
 
     @state()
     hasViewerPermission = false;
-
-    @state()
-    hasEditorPermission = false;
 
     @state()
     validating = false;
@@ -98,6 +98,7 @@ export class BotAppView extends LitElement {
                     .context=${this.realizedResultsContext}
                     .date=${this.initialDate}
                     .permissionError=${this.permissionError}
+                    .bookResolutionError=${this.bookResolutionError}
                     ?hidden=${this.activeService !== PortfolioService.REALIZED_RESULTS}
                     @service-change=${this.handleServiceChange}
                 ></realized-results>
@@ -105,6 +106,7 @@ export class BotAppView extends LitElement {
                     .context=${this.forwardDateContext}
                     .date=${this.initialDate}
                     .permissionError=${this.permissionError}
+                    .bookResolutionError=${this.bookResolutionError}
                     ?hidden=${this.activeService !== PortfolioService.FORWARD_DATE}
                     @service-change=${this.handleServiceChange}
                 ></forward-date>

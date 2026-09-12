@@ -1,5 +1,6 @@
 import { Account, Group, type Book, type Permission } from 'bkper-js';
 import { appEnv } from '../app-env.js';
+import { EXC_CODE_PROP } from '../constants.js';
 import type { AppError } from '../types.js';
 import { VIEW_PERMISSIONS } from '../utils.js';
 
@@ -158,16 +159,36 @@ export const BotAppErrors = {
     /**
      * Creates an error identifying Books without edit permission.
      *
-     * @param bookIdentifiers - The identifiers of the Books that the User cannot edit.
+     * @param books - The Books that the User cannot edit.
      * @returns The structured edit-permission error.
      */
-    insufficientEditPermission(bookIdentifiers: string[]): AppError {
+    insufficientEditPermission(books: Book[]): AppError {
+        const bookIdentifiers = books.map(
+            book =>
+                book.getName()?.trim() ||
+                book.getProperty(EXC_CODE_PROP, 'exchange_code')?.trim() ||
+                book.getId()
+        );
         const prefix = 'User needs EDITOR or OWNER permission in the following books:';
-        const suffix = bookIdentifiers.length > 1 ? 'books' : 'book';
         return {
             type: 'error',
             message: {
-                before: `${prefix} ${bookIdentifiers.join(', ')} ${suffix}`,
+                before: `${prefix} ${bookIdentifiers.join(', ')}.`,
+            },
+        };
+    },
+
+    /**
+     * Creates an error for required currencies without a visible Financial Book.
+     *
+     * @param excCodes - The required exchange codes without a matching visible Financial Book.
+     * @returns The structured Financial Book resolution error.
+     */
+    missingFinancialBooks(excCodes: string[]): AppError {
+        return {
+            type: 'error',
+            message: {
+                before: `No visible Financial Book in this Collection matches: ${excCodes.join(', ')}.`,
             },
         };
     },

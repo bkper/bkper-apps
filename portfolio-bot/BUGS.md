@@ -43,9 +43,9 @@ Use explicit Book properties as the authoritative role metadata:
 
 ## 2. Edit-permission errors identify Financial Books only by exchange code
 
-**Status:** Deferred until after migration stabilization.
+**Status:** Implemented in source with deterministic client tests.
 
-### Current legacy behavior
+### Original legacy behavior
 
 Portfolio Bot compares the exchange codes required by the selected Accounts with the exchange codes of Collection Books the user can edit. When a required code is unavailable, the menu reports only that exchange code.
 
@@ -54,7 +54,7 @@ This behavior does not distinguish between:
 - a Financial Book that exists but the user cannot edit; and
 - a required exchange code with no matching visible Financial Book.
 
-The migrated client preserves this code-only message for parity with the legacy GAS menu.
+The client now resolves the first matching Financial Book before checking edit permission, following the server's exchange-code and Collection-order rules. Existing inaccessible Books are identified by name, exchange code, or id through `permissionError`; missing Books are reported by currency through `bookResolutionError`. Both errors block operation buttons and controller execution, reset on context changes, and remain separate from app-loading errors. Server-side authorization is unchanged.
 
 ### Problem
 

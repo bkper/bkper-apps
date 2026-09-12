@@ -18,6 +18,10 @@ const renderPermissionError = Reflect.get(
     RealizedResultsView.prototype,
     'renderPermissionError'
 ) as (this: RealizedResultsView) => TemplateResult;
+const renderBookResolutionError = Reflect.get(
+    RealizedResultsView.prototype,
+    'renderBookResolutionError'
+) as (this: RealizedResultsView) => TemplateResult;
 const renderOperationError = Reflect.get(RealizedResultsView.prototype, 'renderOperationError') as (
     this: RealizedResultsView
 ) => TemplateResult;
@@ -238,6 +242,12 @@ describe('Realized results view', () => {
         expect(isCalculateButtonDisabled.call(view)).toBe(true);
 
         view.permissionError = undefined;
+        view.date = '2026-03-10';
+        view.bookResolutionError = { type: 'error', message: { before: 'Missing JPY Book.' } };
+        expect(isResetButtonDisabled.call(view)).toBe(true);
+        expect(isCalculateButtonDisabled.call(view)).toBe(true);
+
+        view.bookResolutionError = undefined;
         view.context.accounts = [];
         view.date = '2026-03-10';
         expect(isPerformMtmCheckboxDisabled.call(view)).toBe(true);
@@ -274,6 +284,7 @@ describe('Realized results view', () => {
         };
         view.context = createContext();
         view.permissionError = permissionError;
+        view.bookResolutionError = { type: 'error', message: { before: 'Missing JPY Book.' } };
 
         const result = render.call(view);
         const errorResult = renderPermissionError.call(view);
@@ -281,6 +292,7 @@ describe('Realized results view', () => {
         expect(result.strings.join('')).toContain('<account-list');
         expect(errorResult.strings.join('')).toContain('<app-error');
         expect(errorResult.values[0]).toBe(permissionError);
+        expect(renderBookResolutionError.call(view).values[0]).toBe(view.bookResolutionError);
     });
 
     it('renders an operation error in the same actions area as permission errors', () => {
@@ -301,5 +313,6 @@ describe('Realized results view', () => {
 
         expect(renderPermissionError.call(view).strings.join('')).toBe('');
         expect(renderOperationError.call(view).strings.join('')).toBe('');
+        expect(renderBookResolutionError.call(view).strings.join('')).toBe('');
     });
 });

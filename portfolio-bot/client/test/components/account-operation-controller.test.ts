@@ -16,6 +16,7 @@ import {
 class TestView extends EventTarget implements AccountOperationViewHost<AccountOperationContext> {
     context?: AccountOperationContext;
     permissionError?: AppError;
+    bookResolutionError?: AppError;
     operationError?: AppError;
     executing = false;
     results = new Map<string, AccountOperationResult>();
@@ -199,7 +200,14 @@ describe('Account operation controller', () => {
             message: { before: 'Editor permission is required.' },
         };
         await controller.run();
+        view.bookResolutionError = {
+            type: 'error',
+            message: { before: 'No Financial Book for JPY.' },
+        };
+        await controller.run();
         view.permissionError = undefined;
+        await controller.run();
+        view.bookResolutionError = undefined;
         view.executing = true;
         await controller.run();
         view.executing = false;

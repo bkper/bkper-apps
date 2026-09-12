@@ -67,27 +67,52 @@ describe('legacy event bot service', () => {
         expect(service.getBaseBook(createBook('standalone'))).toBeNull();
     });
 
-    test('selects the first Portfolio Book using legacy collection order', () => {
-        const service = createService();
-        const eventBook = createBook(
-            'event',
-            {},
-            {
-                collection: {
-                    books: [
-                        { id: 'zero-first', fractionDigits: 0, properties: {} },
-                        {
-                            id: 'explicit-later',
-                            fractionDigits: 2,
-                            properties: { stock_book: 'true' },
-                        },
-                    ],
-                },
+    test.each([false, true])(
+        'prefers the explicit Portfolio Book (explicit first: %j)',
+        explicitFirst => {
+            const service = createService();
+            const books: bkper.Book[] = [
+                { id: 'jpy', fractionDigits: 0, properties: { exc_code: 'JPY' } },
+                { id: 'portfolio', fractionDigits: 2, properties: { stock_book: 'true' } },
+            ];
+            if (explicitFirst) {
+                books.reverse();
             }
-        );
+            const collection: bkper.Collection = { books };
+            const eventBook = createBook('event', {}, { collection });
 
-        expect(service.getStockBook(eventBook)?.getId()).toBe('zero-first');
+            expect(service.getStockBook(eventBook)?.getId()).toBe('portfolio');
+            for (const payload of books) {
+                expect(service.isStockBook(new Book({ ...payload, collection }))).toBe(
+                    payload.id === 'portfolio'
+                );
+            }
+        }
+    );
+
+    test('uses only the first zero-fraction fallback when no Portfolio Book is configured', () => {
+        const service = createService();
+        const books: bkper.Book[] = [
+            { id: 'financial', fractionDigits: 2 },
+            { id: 'first', fractionDigits: 0 },
+            { id: 'second', fractionDigits: 0 },
+        ];
+        const collection: bkper.Collection = { books };
+
+        expect(service.getStockBook(createBook('event', {}, { collection }))?.getId()).toBe(
+            'first'
+        );
+        for (const payload of books) {
+            expect(service.isStockBook(new Book({ ...payload, collection }))).toBe(
+                payload.id === 'first'
+            );
+        }
         expect(service.getStockBook(createBook('standalone'))).toBeNull();
+        for (const candidates of [[], [{ id: 'financial', fractionDigits: 2 }]]) {
+            const eventBook = createBook('event', {}, { collection: { books: candidates } });
+            expect(service.getStockBook(eventBook)).toBeNull();
+            expect(service.isStockBook(eventBook)).toBe(false);
+        }
     });
 
     test.each([0, 2])(

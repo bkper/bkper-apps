@@ -13,6 +13,8 @@ class BotService {
             if (connectedBook.getProperty(STOCK_BOOK_PROP)) {
                 return connectedBook;
             }
+        }
+        for (const connectedBook of connectedBooks) {
             const fractionDigits = connectedBook.getFractionDigits();
             if (fractionDigits == 0) {
                 return connectedBook;

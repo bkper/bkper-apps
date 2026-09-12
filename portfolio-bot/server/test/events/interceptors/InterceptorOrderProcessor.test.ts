@@ -62,16 +62,17 @@ function getAccountMap(bookId: string): Map<string, Account> {
 
 function createBook(
     properties: Record<string, string> = {},
-    portfolioProperties: Record<string, string> = { stock_book: 'true' }
+    portfolioProperties: Record<string, string> = { stock_book: 'true' },
+    fractionDigits = 2
 ): Book {
     const book = new Book({
         id: 'financial',
         name: 'Financial',
-        fractionDigits: 2,
+        fractionDigits,
         properties,
         collection: {
             books: [
-                { id: 'financial', name: 'Financial', fractionDigits: 2, properties },
+                { id: 'financial', name: 'Financial', fractionDigits, properties },
                 {
                     id: 'portfolio',
                     name: 'Portfolio',
@@ -225,76 +226,80 @@ describe('legacy posted order processing', () => {
         expect(boundary.postedTransactions).toEqual([]);
     });
 
-    test('splits a purchase into complete fee, interest, and instrument movements', async () => {
-        const book = createBook(
-            {},
-            {
-                stock_book: 'true',
-                stock_historical: 'true',
-                stock_fair: 'true',
-            }
-        );
-        const result = await createHandler(book).handleEvent(
-            createEvent(
-                createTransaction(
-                    {},
-                    {
-                        cost_base: '206',
-                        cost_hist: '1007',
-                        cost_hist_base: '2014',
-                    }
-                )
-            )
-        );
-
-        expect(boundary.createdAccounts.map(account => account.json())).toEqual([
-            expect.objectContaining({ name: 'Broker Fees', type: AccountType.OUTGOING }),
-            expect.objectContaining({ name: 'ACME Interest', type: AccountType.ASSET }),
-            expect.objectContaining({ name: 'ACME', type: AccountType.ASSET }),
-        ]);
-        expect(boundary.postedTransactions).toHaveLength(3);
-        boundary.postedTransactions.forEach(expectCompleteMovement);
-
-        expect(transactionByRemoteId('fees_order-1')).toEqual(
-            expect.objectContaining({
-                amount: '5',
-                date: '2024-01-02',
-                description: 'ACME trade',
-                creditAccount: expect.objectContaining({ name: 'Broker' }),
-                debitAccount: expect.objectContaining({ name: 'Broker Fees' }),
-            })
-        );
-        expect(transactionByRemoteId('interest_order-1')).toEqual(
-            expect.objectContaining({
-                amount: '2',
-                creditAccount: expect.objectContaining({ name: 'Broker' }),
-                debitAccount: expect.objectContaining({ name: 'ACME Interest' }),
-            })
-        );
-        expect(transactionByRemoteId('instrument_order-1')).toEqual(
-            expect.objectContaining({
-                amount: '103',
-                creditAccount: expect.objectContaining({ name: 'Broker' }),
-                debitAccount: expect.objectContaining({ name: 'ACME' }),
-                properties: {
-                    quantity: '10',
-                    price: '10.3',
-                    order: '2',
-                    settlement_date: '2024-01-05',
-                    fees: '5',
-                    interest: '2',
-                    trade_exc_rate: '2',
-                    price_hist: '100',
-                    trade_exc_rate_hist: '2',
+    test.each([0, 2])(
+        'splits a purchase into complete movements in a Financial Book with %i fraction digits',
+        async fractionDigits => {
+            const book = createBook(
+                { exc_code: 'JPY' },
+                {
+                    stock_book: 'true',
+                    stock_historical: 'true',
+                    stock_fair: 'true',
                 },
-            })
-        );
-        expect(result.result).toEqual([
-            '2024-01-02 5 Broker Broker Fees ACME trade',
-            '2024-01-02 2 Broker ACME Interest ACME trade',
-            '2024-01-02 103 Broker ACME ACME trade',
-        ]);
-    });
+                fractionDigits
+            );
+            const result = await createHandler(book).handleEvent(
+                createEvent(
+                    createTransaction(
+                        {},
+                        {
+                            cost_base: '206',
+                            cost_hist: '1007',
+                            cost_hist_base: '2014',
+                        }
+                    )
+                )
+            );
+
+            expect(boundary.createdAccounts.map(account => account.json())).toEqual([
+                expect.objectContaining({ name: 'Broker Fees', type: AccountType.OUTGOING }),
+                expect.objectContaining({ name: 'ACME Interest', type: AccountType.ASSET }),
+                expect.objectContaining({ name: 'ACME', type: AccountType.ASSET }),
+            ]);
+            expect(boundary.postedTransactions).toHaveLength(3);
+            boundary.postedTransactions.forEach(expectCompleteMovement);
+
+            expect(transactionByRemoteId('fees_order-1')).toEqual(
+                expect.objectContaining({
+                    amount: '5',
+                    date: '2024-01-02',
+                    description: 'ACME trade',
+                    creditAccount: expect.objectContaining({ name: 'Broker' }),
+                    debitAccount: expect.objectContaining({ name: 'Broker Fees' }),
+                })
+            );
+            expect(transactionByRemoteId('interest_order-1')).toEqual(
+                expect.objectContaining({
+                    amount: '2',
+                    creditAccount: expect.objectContaining({ name: 'Broker' }),
+                    debitAccount: expect.objectContaining({ name: 'ACME Interest' }),
+                })
+            );
+            expect(transactionByRemoteId('instrument_order-1')).toEqual(
+                expect.objectContaining({
+                    amount: '103',
+                    creditAccount: expect.objectContaining({ name: 'Broker' }),
+                    debitAccount: expect.objectContaining({ name: 'ACME' }),
+                    properties: {
+                        quantity: '10',
+                        price: '10.3',
+                        order: '2',
+                        settlement_date: '2024-01-05',
+                        fees: '5',
+                        interest: '2',
+                        trade_exc_rate: '2',
+                        price_hist: '100',
+                        trade_exc_rate_hist: '2',
+                    },
+                })
+            );
+            expect(result.result).toEqual([
+                '2024-01-02 5 Broker Broker Fees ACME trade',
+                '2024-01-02 2 Broker ACME Interest ACME trade',
+                '2024-01-02 103 Broker ACME ACME trade',
+            ]);
+        }
+    );
 
     test('preserves sale directions and omits historical properties outside the combined model', async () => {
         const book = createBook({}, { stock_book: 'true', stock_fair: 'true' });

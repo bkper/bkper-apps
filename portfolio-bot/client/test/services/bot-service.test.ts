@@ -12,23 +12,43 @@ function createSourceBook(extra: Partial<bkper.Book> = {}): Book {
 }
 
 describe('legacy menu bot service', () => {
-    it('selects the first Portfolio Book using the legacy collection order', () => {
+    it.each([false, true])(
+        'prefers the explicit Portfolio Book (explicit first: %j)',
+        explicitFirst => {
+            const books: bkper.Book[] = [
+                { id: 'jpy', fractionDigits: 0, properties: { exc_code: 'JPY' } },
+                { id: 'portfolio', fractionDigits: 2, properties: { stock_book: 'true' } },
+            ];
+            if (explicitFirst) {
+                books.reverse();
+            }
+            const selectedBook = createSourceBook({ collection: { books } });
+
+            expect(botService.getStockBook(selectedBook)?.getId()).toBe('portfolio');
+        }
+    );
+
+    it('uses the first zero-fraction fallback only when no Portfolio Book is configured', () => {
         const selectedBook = createSourceBook({
             collection: {
                 books: [
-                    { id: 'financial-book', fractionDigits: 2 },
-                    { id: 'fraction-fallback', fractionDigits: 0 },
-                    {
-                        id: 'explicit-stock-book',
-                        fractionDigits: 2,
-                        properties: { stock_book: 'true' },
-                    },
+                    { id: 'financial', fractionDigits: 2 },
+                    { id: 'first', fractionDigits: 0 },
+                    { id: 'second', fractionDigits: 0 },
                 ],
             },
         });
 
-        expect(botService.getStockBook(selectedBook)?.getId()).toBe('fraction-fallback');
+        expect(botService.getStockBook(selectedBook)?.getId()).toBe('first');
         expect(botService.getStockBook(createSourceBook())).toBeNull();
+        expect(botService.getStockBook(createSourceBook({ collection: { books: [] } }))).toBeNull();
+        expect(
+            botService.getStockBook(
+                createSourceBook({
+                    collection: { books: [{ id: 'financial', fractionDigits: 2 }] },
+                })
+            )
+        ).toBeNull();
     });
 
     it('reports the Collection unlocked only when every lock and closing date is empty', () => {

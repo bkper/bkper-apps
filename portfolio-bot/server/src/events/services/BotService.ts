@@ -21,13 +21,15 @@ export class BotService {
     }
 
     isStockBook(book: Book): boolean {
+        // Honor a newly set flag while Book updates clear other Portfolio flags.
         if (book.getProperty(STOCK_BOOK_PROP)) {
             return true;
         }
-        if (book.getFractionDigits() == 0) {
-            return true;
+        if (book.getCollection()) {
+            const stockBook = this.getStockBook(book);
+            return stockBook != null && stockBook.getId() === book.getId();
         }
-        return false;
+        return book.getFractionDigits() == 0;
     }
 
     getBaseBook(book: Book): Book | null {
@@ -59,6 +61,8 @@ export class BotService {
             if (connectedBook.getProperty(STOCK_BOOK_PROP)) {
                 return connectedBook;
             }
+        }
+        for (const connectedBook of connectedBooks) {
             const fractionDigits = connectedBook.getFractionDigits();
             if (fractionDigits == 0) {
                 return connectedBook;

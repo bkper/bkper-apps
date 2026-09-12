@@ -65,38 +65,44 @@ class ConnectedDeletionHandler extends EventHandlerTransactionDeleted {
 }
 
 describe('legacy deleted transaction behavior', () => {
-    test('selects the Portfolio or Financial deletion interceptor from the event Book', async () => {
-        const calls: string[] = [];
-        InterceptorOrderProcessorDeleteInstruments.prototype.intercept = async () => {
-            calls.push('portfolio');
-            return { result: 'portfolio-deleted' };
-        };
-        InterceptorOrderProcessorDeleteFinancial.prototype.intercept = async () => {
-            calls.push('financial');
-            return { result: 'financial-deleted' };
-        };
-        const portfolioBook = new Book({
-            id: 'portfolio',
-            fractionDigits: 0,
-            properties: { stock_book: 'true' },
-        });
-        const financialBook = new Book({
-            id: 'financial',
-            fractionDigits: 2,
-            properties: { exc_code: 'USD' },
-        });
+    test.each([0, 2])(
+        'routes deletion from a Financial Book with %i fraction digits',
+        async fractionDigits => {
+            const calls: string[] = [];
+            InterceptorOrderProcessorDeleteInstruments.prototype.intercept = async () => {
+                calls.push('portfolio');
+                return { result: 'portfolio-deleted' };
+            };
+            InterceptorOrderProcessorDeleteFinancial.prototype.intercept = async () => {
+                calls.push('financial');
+                return { result: 'financial-deleted' };
+            };
+            const financialPayload: bkper.Book = {
+                id: 'financial',
+                fractionDigits,
+                properties: { exc_code: 'JPY' },
+            };
+            const portfolioPayload: bkper.Book = {
+                id: 'portfolio',
+                fractionDigits: 2,
+                properties: { stock_book: 'true' },
+            };
+            const collection: bkper.Collection = { books: [financialPayload, portfolioPayload] };
+            const portfolioBook = new Book({ ...portfolioPayload, collection });
+            const financialBook = new Book({ ...financialPayload, collection });
 
-        const portfolioResult = await createHandler(portfolioBook).handleEvent(
-            createEvent(portfolioBook)
-        );
-        const financialResult = await createHandler(financialBook).handleEvent(
-            createEvent(financialBook)
-        );
+            const portfolioResult = await createHandler(portfolioBook).handleEvent(
+                createEvent(portfolioBook)
+            );
+            const financialResult = await createHandler(financialBook).handleEvent(
+                createEvent(financialBook)
+            );
 
-        expect(calls).toEqual(['portfolio', 'financial']);
-        expect(portfolioResult).toEqual({ result: 'portfolio-deleted' });
-        expect(financialResult).toEqual({ result: 'financial-deleted' });
-    });
+            expect(calls).toEqual(['portfolio', 'financial']);
+            expect(portfolioResult).toEqual({ result: 'portfolio-deleted' });
+            expect(financialResult).toEqual({ result: 'financial-deleted' });
+        }
+    );
 
     test('awaits uncheck, rebuild flagging, and trash for a connected fallback movement', async () => {
         const stockBook = new Book({

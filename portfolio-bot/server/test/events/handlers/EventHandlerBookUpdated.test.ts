@@ -31,73 +31,85 @@ function createEvent(book: Book): bkper.Event {
 }
 
 describe('legacy Book synchronization behavior', () => {
-    test('copies the historical property and awaits clearing other Portfolio Book flags', async () => {
-        const [baseBook, portfolioBook, otherBook] = createBooks([
-            {
-                id: 'base',
-                name: 'Base',
-                fractionDigits: 2,
-                properties: { exc_base: 'true', exc_code: 'USD', exc_historical: 'false' },
-            },
-            {
-                id: 'portfolio',
-                name: 'Portfolio',
-                fractionDigits: 0,
-                properties: { stock_book: 'true', stock_historical: 'true' },
-            },
-            {
-                id: 'other-portfolio',
-                name: 'Other Portfolio',
-                fractionDigits: 0,
-                properties: { stock_book: 'true' },
-            },
-        ]);
-        const updatedBookIds: string[] = [];
-        let otherUpdateStarted = false;
-        let releaseOtherUpdate = (): void => undefined;
-        const otherUpdateReleased = new Promise<void>(resolve => {
-            releaseOtherUpdate = resolve;
-        });
-        baseBook.update = async (): Promise<Book> => {
-            updatedBookIds.push(baseBook.getId());
-            return baseBook;
-        };
-        otherBook.update = async (): Promise<Book> => {
-            otherUpdateStarted = true;
-            updatedBookIds.push(`${otherBook.getId()}:started`);
-            await otherUpdateReleased;
-            updatedBookIds.push(`${otherBook.getId()}:completed`);
-            return otherBook;
-        };
-
-        let handlingSettled = false;
-        const handling = createHandler()
-            .processConnectedBook(portfolioBook, portfolioBook, createEvent(portfolioBook))
-            .then(result => {
-                handlingSettled = true;
-                return result;
+    test.each([false, true])(
+        'copies the historical property and clears other Portfolio flags (old flag first: %j)',
+        async oldFlagFirst => {
+            const [baseBook, portfolioBook, otherBook] = createBooks([
+                {
+                    id: 'base',
+                    name: 'Base',
+                    fractionDigits: 2,
+                    properties: { exc_base: 'true', exc_code: 'USD', exc_historical: 'false' },
+                },
+                {
+                    id: 'portfolio',
+                    name: 'Portfolio',
+                    fractionDigits: 0,
+                    properties: { stock_book: 'true', stock_historical: 'true' },
+                },
+                {
+                    id: 'other-portfolio',
+                    name: 'Other Portfolio',
+                    fractionDigits: 0,
+                    properties: { stock_book: 'true' },
+                },
+            ]);
+            if (oldFlagFirst) {
+                for (const book of [baseBook, portfolioBook, otherBook]) {
+                    book.getCollection()!.getBooks = () => [baseBook, otherBook, portfolioBook];
+                }
+            }
+            const updatedBookIds: string[] = [];
+            let otherUpdateStarted = false;
+            let releaseOtherUpdate = (): void => undefined;
+            const otherUpdateReleased = new Promise<void>(resolve => {
+                releaseOtherUpdate = resolve;
             });
-        for (let attempt = 0; attempt < 20 && !otherUpdateStarted && !handlingSettled; attempt++) {
-            await Promise.resolve();
-        }
-        const startedBeforeRelease = otherUpdateStarted;
-        const settledBeforeRelease = handlingSettled;
-        releaseOtherUpdate();
-        const result = await handling;
+            baseBook.update = async (): Promise<Book> => {
+                updatedBookIds.push(baseBook.getId());
+                return baseBook;
+            };
+            otherBook.update = async (): Promise<Book> => {
+                otherUpdateStarted = true;
+                updatedBookIds.push(`${otherBook.getId()}:started`);
+                await otherUpdateReleased;
+                updatedBookIds.push(`${otherBook.getId()}:completed`);
+                return otherBook;
+            };
 
-        expect(startedBeforeRelease).toBe(true);
-        expect(settledBeforeRelease).toBe(false);
-        expect(otherBook.getProperty('stock_book')).toBeUndefined();
-        expect(baseBook.getProperty('exc_historical')).toBe('true');
-        expect(updatedBookIds).toEqual([
-            'other-portfolio:started',
-            'base',
-            'other-portfolio:completed',
-        ]);
-        expect(result).toBe(
-            "<a href='https://bkper.app/books/base/transactions'>Base</a>:  exc_historical: true"
-        );
-    });
+            let handlingSettled = false;
+            const handling = createHandler()
+                .processConnectedBook(portfolioBook, portfolioBook, createEvent(portfolioBook))
+                .then(result => {
+                    handlingSettled = true;
+                    return result;
+                });
+            for (
+                let attempt = 0;
+                attempt < 20 && !otherUpdateStarted && !handlingSettled;
+                attempt++
+            ) {
+                await Promise.resolve();
+            }
+            const startedBeforeRelease = otherUpdateStarted;
+            const settledBeforeRelease = handlingSettled;
+            releaseOtherUpdate();
+            const result = await handling;
+
+            expect(startedBeforeRelease).toBe(true);
+            expect(settledBeforeRelease).toBe(false);
+            expect(otherBook.getProperty('stock_book')).toBeUndefined();
+            expect(baseBook.getProperty('exc_historical')).toBe('true');
+            expect(updatedBookIds).toEqual([
+                'other-portfolio:started',
+                'base',
+                'other-portfolio:completed',
+            ]);
+            expect(result).toBe(
+                "<a href='https://bkper.app/books/base/transactions'>Base</a>:  exc_historical: true"
+            );
+        }
+    );
 
     test('waits for every launched Book update before propagating a failure', async () => {
         const [baseBook, portfolioBook, failingBook, pendingBook] = createBooks([

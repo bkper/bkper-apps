@@ -4,16 +4,16 @@ This document tracks known Portfolio Bot bugs and architectural improvements tha
 
 ## 1. Fraction digits are incorrectly used as Book-role metadata
 
-**Status:** Partially addressed. Financial Book resolution no longer filters by fraction digits; Portfolio Book selection remains deferred to the second change.
+**Status:** Implemented in source with deterministic tests. The zero-fraction Portfolio fallback remains for Collections without an explicit Portfolio Book.
 
-### Current legacy behavior
+### Original legacy behavior
 
-Portfolio Bot uses a Book's fraction digits in two role-selection paths:
+Portfolio Bot used a Book's fraction digits in two role-selection paths:
 
 - `getStockBook()` treats the first Book with zero fraction digits as the Portfolio Book fallback.
 - `getFinancialBook()` rejects every Book with zero fraction digits, even when its configured exchange code matches the requested currency.
 
-The migrated implementations initially preserved these conditions for parity with the legacy GAS and GCF behavior. Financial Book resolution now selects the first matching exchange code, including the legacy `exchange_code` alias, regardless of fraction digits in both event and menu/API paths. Missing or blank requested exchange codes resolve to no Financial Book. Deterministic tests cover zero-fraction Financial Books, Collection order, missing matches, the client's editable-currency check, and missing-currency deletion with no Financial Book reload, cleanup queries, or Transaction writes. Portfolio Book selection is unchanged.
+The migrated implementations initially preserved these conditions for parity with the legacy GAS and GCF behavior. Financial Book resolution now selects the first matching exchange code, including the legacy `exchange_code` alias, regardless of fraction digits in both event and menu/API paths. Missing or blank requested exchange codes resolve to no Financial Book. Deterministic tests cover zero-fraction Financial Books, Collection order, missing matches, the client's editable-currency check, and missing-currency deletion with no Financial Book reload, cleanup queries, or Transaction writes. Portfolio Book lookup now searches the entire Collection for `stock_book` before falling back to the first zero-fraction Book, with the same selection order in the client and events. Event classification uses that selected Book for unflagged Collection Books, so other zero-fraction Books are not treated as Portfolio Books. Explicit flags remain authoritative during Book reassignment while old flags are cleared; standalone-Book classification is unchanged. Tests cover explicit-first and explicit-last Collection order, fallback and missing candidates, posting and deletion routing, and Book flag reassignment.
 
 ### Problem
 

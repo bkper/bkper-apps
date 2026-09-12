@@ -1,6 +1,6 @@
 # Portfolio Bot
 
-This directory contains the active full-stack Portfolio Bot Bkper Platform application. Follow [`ROADMAP.md`](./ROADMAP.md) for migration history, parity evidence, rollout records, and deferred legacy retirement. Track accepted post-migration issues in [`BUGS.md`](./BUGS.md).
+This directory contains the active full-stack Portfolio Bot Bkper Platform application.
 
 The previous Google Cloud Function and Google Apps Script source remains recoverable from Git history. Their unchanged deployed runtimes remain available as independent routing rollback targets. Do not modify or delete them without separate explicit approval.
 

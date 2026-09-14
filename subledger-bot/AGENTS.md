@@ -1,6 +1,6 @@
 # Subledger Bot
 
-This directory is the production Cloudflare Worker for the published `subledger-bot` app. Follow [`ROADMAP.md`](./ROADMAP.md) for migration history, parity evidence, rollback records, and deferred GCP retirement.
+This directory is the production Cloudflare Worker for the published `subledger-bot` app.
 
 The unchanged GCP deployment remains available only as a routing rollback target. Its source was removed from the active working tree after cutover and remains recoverable from Git history. Do not delete or modify the retained deployment without separate explicit approval.
 

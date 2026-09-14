@@ -114,7 +114,7 @@ Expected authentication-boundary noise causes successful requests to appear warn
 
 ### Intended fix
 
-Remove the expected warning at the SDK or platform boundary without configuring a legacy inbound token provider and without suppressing genuine authentication, permission, network, retry, or server failures. Treat any SDK upgrade as the separate compatibility work required by the migration roadmap.
+Remove the expected warning at the SDK or platform boundary without configuring a legacy inbound token provider and without suppressing genuine authentication, permission, network, retry, or server failures. Treat any SDK upgrade as separate compatibility work.
 
 ### Acceptance criteria
 

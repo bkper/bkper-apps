@@ -1,38 +1,8 @@
 # Deferred Bug Fixes
 
-This document tracks known Tax Bot bugs that are intentionally preserved during the Cloudflare migration to maintain production parity. Address them only after migration stabilization, each with dedicated deterministic tests and preview review.
+This document tracks open Tax Bot bugs identified during the Cloudflare migration. Address them with dedicated deterministic tests and preview review.
 
-## 1. Posted-result messages can contain an undefined date
-
-**Status:** Open; confirmed in production stabilization logs.
-
-### Current legacy behavior
-
-After batch creation, Tax Bot builds each informational result from the returned Transaction's `getDateFormatted()` value. The batch API can omit the optional `dateFormatted` field even though the canonical stored Transaction has the correct date. In that case, the response is rendered in this form:
-
-```text
-POSTED: undefined 0.10 #tax_canary Example
-```
-
-The legacy and Cloudflare handlers use the same response expression, and `bkper-js` 2.18.0 and 2.19.0 use identical batch-creation and `getDateFormatted()` implementations. The migration therefore preserves this behavior.
-
-### Problem
-
-The generated movement is correct, but the activity response is confusing and appears to report missing Transaction data. Users cannot rely on the response text as a clear summary of the created entry.
-
-### Intended fix
-
-Produce a stable Book-formatted date when `dateFormatted` is absent, using an already available canonical date value or another deterministic fallback. Do not add a mutation, change batch ordering, or alter the generated Transaction to repair presentation text.
-
-### Acceptance criteria
-
-- A returned `dateFormatted` value remains unchanged.
-- A missing `dateFormatted` value produces the correct date in the Book's configured pattern.
-- The fallback does not create, update, post, check, or trash any additional Transaction.
-- Batch ordering, amounts, movement direction, remote ids, descriptions, and result ordering remain unchanged.
-- Deterministic tests cover present and missing formatted-date fields without network access or live Books.
-
-## 2. Numeric source-description text can be removed from generated descriptions
+## 1. Numeric source-description text can be removed from generated descriptions
 
 **Status:** Open; preserved during migration and not revalidated in production stabilization.
 
@@ -72,7 +42,7 @@ Preserve substituted description text without allowing its numeric tokens to be 
 - Amount, direction, state, remote id, property handling, idempotency, and the zero-sum invariant remain unchanged.
 - Deterministic tests cover numeric descriptions, non-numeric descriptions, and unresolved Accounts without network access or live Books.
 
-## 3. Generated tax Transaction properties are emitted to runtime logs
+## 2. Generated tax Transaction properties are emitted to runtime logs
 
 **Status:** Open; inherited production behavior confirmed during stabilization.
 
@@ -98,7 +68,7 @@ Remove property-value logging. If operational evidence is still needed, emit onl
 - The source Transaction remains unchanged.
 - Deterministic tests verify the privacy boundary without credentials, network access, or live Books.
 
-## 4. Provider-free SDK calls produce high-volume warning noise
+## 3. Provider-free SDK calls produce high-volume warning noise
 
 **Status:** Open; Cloudflare production behavior confirmed during stabilization.
 

@@ -102,9 +102,10 @@ export default class EventHandlerTransactionPosted extends EventHandler {
         if (transactions.length > 0) {
             transactions = await book.batchCreateTransactions(transactions);
             if (transactions.length > 0) {
+                const sourceDate = transaction.date!;
                 return transactions.map(
                     transaction =>
-                        `POSTED: ${transaction.getDateFormatted()} ${book.formatValue(transaction.getAmount())} ${transaction.getDescription()}`
+                        `POSTED: ${this.getDateFormatted(book, transaction, sourceDate)} ${book.formatValue(transaction.getAmount())} ${transaction.getDescription()}`
                 );
             } else {
                 return false;
@@ -112,6 +113,20 @@ export default class EventHandlerTransactionPosted extends EventHandler {
         } else {
             return false;
         }
+    }
+
+    private getDateFormatted(book: Book, transaction: Transaction, sourceDate: string): string {
+        const dateFormatted = transaction.getDateFormatted();
+        if (dateFormatted) {
+            return dateFormatted;
+        }
+        const date = transaction.getDate();
+        if (date) {
+            const parsedDate = book.parseDate(date);
+            return book.formatDate(parsedDate);
+        }
+        const parsedSourceDate = book.parseDate(sourceDate);
+        return book.formatDate(parsedSourceDate);
     }
 
     protected async getFullTaxRate_(

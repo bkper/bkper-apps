@@ -879,6 +879,54 @@ describe('legacy posted and restored creation', () => {
         expect(transaction).toEqual(sourceBefore);
     });
 
+    test('formats the ISO date with the Book pattern when dateFormatted is absent', async () => {
+        const origin = createAccount('origin', {
+            tax_excluded_rate: '10',
+            tax_description: 'Origin Tax >> Tax Payable',
+        });
+        const transaction = createTransaction({ creditAccount: origin });
+        const event = createEvent(transaction);
+        event.book = createBook({ datePattern: 'dd/MM/yyyy', timeZone: 'UTC' }).json();
+        interceptBatchCreation(request =>
+            request.items.map(item => ({
+                ...item,
+                id: 'tax-1',
+                date: '2024-02-20',
+                posted: true,
+                creditAccount: { id: 'tax-origin-1' },
+                debitAccount: { id: 'tax-destination-1' },
+            }))
+        );
+
+        const result = await createNetworkHandler().handleEvent(event);
+
+        expect(result).toEqual(['POSTED: 20/02/2024 10.00 Origin Tax >> Tax Payable']);
+    });
+
+    test('uses the source date when the batch response omits both date fields', async () => {
+        const origin = createAccount('origin', {
+            tax_excluded_rate: '10',
+            tax_description: 'Origin Tax >> Tax Payable',
+        });
+        const transaction = createTransaction({ creditAccount: origin });
+        const event = createEvent(transaction);
+        event.book = createBook({ datePattern: 'dd/MM/yyyy', timeZone: 'UTC' }).json();
+        interceptBatchCreation(request =>
+            request.items.map(item => ({
+                ...item,
+                id: 'tax-1',
+                date: undefined,
+                posted: true,
+                creditAccount: { id: 'tax-origin-1' },
+                debitAccount: { id: 'tax-destination-1' },
+            }))
+        );
+
+        const result = await createNetworkHandler().handleEvent(event);
+
+        expect(result).toEqual(['POSTED: 15/01/2024 10.00 Origin Tax >> Tax Payable']);
+    });
+
     test('returns false when batch creation returns no Transactions', async () => {
         const origin = createAccount('origin', {
             tax_excluded_rate: '10',

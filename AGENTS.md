@@ -10,7 +10,6 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Exchange Bot | Platform app (Vite + Cloudflare Workers) | `exchange-bot/` |
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
 | Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |
-| Portfolio Bot | Platform app (Vite + Cloudflare Workers) | `portfolio-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 
@@ -29,11 +28,10 @@ All local dev servers should use **explicitly assigned ports** to avoid conflict
 | exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
 | tax-bot | — | `8794` | Event-only production Worker configured in `package.json` |
 | merge-duplicates | `5178` | `8795` | Sidebar app for human-reviewed duplicate transaction merges |
-| portfolio-bot | `5179` | `8797` | Full-stack production app |
 
 > **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
 
-**Next available:** Vite client `5180`, bkper server `8798`.
+**Next available:** Vite client `5179`, bkper server `8797`.
 
 ### GCP Cloud Functions bots
 

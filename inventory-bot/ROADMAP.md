@@ -8,7 +8,7 @@ The deployed Cloudflare application is now production-authoritative for events a
 
 ## Purpose of this document
 
-Inventory Bot follows the full-stack migration foundations established by Portfolio Bot: capture the production baseline, migrate events and the menu into one Bkper Platform application, and validate the Cloudflare target in parallel. The production rollout combines the webhook and menu cutovers in one chunk, observes both surfaces concurrently for a shared twenty-four-hour window (one hour followed by twenty-three additional hours), and then consolidates the accepted target at the project root.
+Inventory Bot follows the established full-stack migration approach: capture the production baseline, migrate events and the menu into one Bkper Platform application, and validate the Cloudflare target in parallel. The production rollout combines the webhook and menu cutovers in one chunk, observes both surfaces concurrently for a shared twenty-four-hour window (one hour followed by twenty-three additional hours), and then consolidates the accepted target at the project root.
 
 This roadmap describes migration objectives, implementation chunks, dependencies, verification gates, rollout controls, and completion criteria. Implementation-specific legacy discrepancies will be characterized when their behavior area is reached; they do not need to be resolved in advance to define the migration.
 
@@ -138,7 +138,7 @@ Inventory Bot coordinates one Inventory Book and one or more Financial Books in 
 
 - Preserve accounting outcomes, selected resources, operation ordering, and essential workflows—not GAS application structure.
 - Preserve the legacy accounting logic blocks with near-total code parity except where SDK or runtime differences require adaptation.
-- Follow the migrated Portfolio Bot API for target folder, class, and method organization without importing its domain behavior.
+- Follow the established platform-app API conventions for target folder, class, and method organization without importing unrelated domain behavior.
 - Treat `/api/v1/*` as a new reusable public API, not a `google.script.run` compatibility transport.
 - Keep API routes thin and move accounting behavior into server services.
 - Use explicit schemas, authorization, structured errors, OpenAPI, and generated client types.
@@ -674,7 +674,7 @@ Drift audits occur before preview routing, production deployment, each productio
 **Completed:**
 
 - Preserved near-total parity in the accounting logic blocks while adapting required asynchronous SDK, pagination, date, UUID, module, and strict TypeScript boundaries.
-- Organized Calculate consistently with the migrated Portfolio Bot API while retaining Inventory Bot domain behavior.
+- Organized Calculate consistently with the established platform-app API conventions while retaining Inventory Bot domain behavior.
 - Ported purchase, sale, and credit-note recognition, FIFO precedence, quantity validation, complete and partial lots, splits, logs, additional costs, credit amounts, and accepted arithmetic.
 - Ported ordered Inventory-create, Inventory-update, and Financial-create phases with deduplication, lock detection, awaited completion, and failure ordering.
 - Preserved rebuild Reset-and-return and Account calculation-date behavior.
@@ -693,7 +693,7 @@ Drift audits occur before preview routing, production deployment, each productio
 
 **Completed:**
 
-- Reused the established migrated Portfolio Bot client structure while retaining Inventory Bot context, scope, sequential execution, and domain behavior.
+- Reused the established platform-app client structure while retaining Inventory Bot context, scope, sequential execution, and domain behavior.
 - Delivered the immediate Lit app shell, authentication flow, standalone context header and help, visible Account list, operation controls, loading and error presentation, and embedded rendering.
 - Used Web Awesome components and Bkper design tokens with responsive light and dark theme support.
 - Wired Calculate and Reset through dedicated controllers and the generated typed contract boundary with authenticated requests.

@@ -34,7 +34,7 @@ This directory is the active full-stack Cloudflare application for Inventory Bot
 - The same rendered eligible Account list defines Calculate and Reset scope for Account, Group, and whole-Book contexts. Execute sequentially, continue after individual Account failures, prevent duplicate submission, retain operation-owned UI context, and never retry mutations automatically. Reset has no additional confirmation dialog.
 - Each Account-level API request authoritatively resolves its Inventory Account and Financial Book and requires `EDITOR` or `OWNER` permission and Inventory Bot installation on both Books before invoking accounting behavior. Client controls are not an authorization boundary.
 - Server code uses request-scoped Platform SDK contexts without OAuth, API-key, or agent-id providers. Never read or forward credential headers in application code.
-- Do not inherit Portfolio Bot domain behavior or redesign accounting logic during maintenance without a separately accepted change.
+- Do not inherit domain behavior from other apps or redesign accounting logic during maintenance without a separately accepted change.
 - Tests must never write to live Books. Retain deterministic SDK, network, API, browser, clock, and UUID boundaries.
 
 ## Local development

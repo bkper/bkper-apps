@@ -1,4 +1,5 @@
 export const APP_ID = 'inventory-bot';
+export const EXCHANGE_BOT_AGENT_ID = 'exchange-bot';
 
 // Code parameters
 export const ADDITIONAL_COSTS_CREDITS_QUERY_RANGE = 2; // in months

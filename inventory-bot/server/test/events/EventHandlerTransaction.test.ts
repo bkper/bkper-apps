@@ -135,6 +135,36 @@ describe('legacy transaction event resolution', () => {
         expect(handler.calls).toEqual([]);
     });
 
+    test('fails closed before matching remote id when the item exchange code is missing', async () => {
+        const handler = createHandler();
+        const financialBook = createBook('financial', { exc_code: 'USD' });
+        financialBook.getAccount = async () => {
+            throw new BkperError(404, 'Account not found', 'notFound');
+        };
+        handler.setExchangeCodeResolver(async () => undefined);
+        let queries = 0;
+        const inventoryBook = createBook('inventory', { inventory_book: 'true' });
+        inventoryBookList(inventoryBook, () => {
+            queries += 1;
+            return undefined;
+        });
+
+        const result = await handler.run(
+            financialBook,
+            inventoryBook,
+            createEvent({
+                id: 'financial-1',
+                posted: true,
+                debitAccount: { name: 'Untagged Good', type: AccountType.ASSET },
+                properties: {},
+            })
+        );
+
+        expect(result).toBeUndefined();
+        expect(queries).toBe(0);
+        expect(handler.calls).toEqual([]);
+    });
+
     test('falls back to the debit Account exchange code when the good Account is absent', async () => {
         const handler = createHandler();
         const financialBook = createBook('financial', { exc_code: 'USD' });
@@ -173,6 +203,7 @@ describe('legacy transaction event resolution', () => {
     test('uses the legacy remote-id query and chooses the found boundary', async () => {
         const handler = createHandler();
         const financialBook = createBook('financial', { exc_code: 'USD' });
+        handler.setExchangeCodeResolver(async () => 'USD');
         const inventoryBook = createBook('inventory', { inventory_book: 'true' });
         const connected = new Transaction(inventoryBook, { id: 'inventory-1', posted: true });
         const later = new Transaction(inventoryBook, { id: 'inventory-2', posted: true });
@@ -187,7 +218,12 @@ describe('legacy transaction event resolution', () => {
         const result = await handler.run(
             financialBook,
             inventoryBook,
-            createEvent({ id: 'financial-1', posted: true })
+            createEvent({
+                id: 'financial-1',
+                posted: true,
+                debitAccount: { name: 'Tagged Good', type: AccountType.ASSET },
+                properties: {},
+            })
         );
 
         expect(result).toBe('found');

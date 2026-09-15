@@ -50,7 +50,7 @@ export abstract class EventHandlerTransaction extends EventHandler {
             financialTransaction,
             financialBook
         );
-        if (goodExcCode && excCode && !this.matchGoodExchange(goodExcCode, excCode)) {
+        if (!this.matchGoodExchange(goodExcCode, excCode)) {
             return undefined;
         }
 

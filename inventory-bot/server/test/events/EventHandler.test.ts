@@ -45,7 +45,7 @@ class RecordingEventHandler extends EventHandler {
         return this.response;
     }
 
-    match(goodExcCode: string, excCode: string): boolean {
+    match(goodExcCode?: string, excCode?: string): boolean {
         return this.matchGoodExchange(goodExcCode, excCode);
     }
 }
@@ -187,11 +187,14 @@ describe('legacy shared event orchestration', () => {
         expect(handler.calls).toEqual([]);
     });
 
-    test('preserves exchange matching semantics', () => {
+    test('requires matching non-blank item and Financial Book exchange codes', () => {
         const handler = createHandler();
 
+        expect(handler.match(undefined, 'USD')).toBe(false);
+        expect(handler.match(' ', 'USD')).toBe(false);
+        expect(handler.match('USD', undefined)).toBe(false);
+        expect(handler.match('USD', ' ')).toBe(false);
         expect(handler.match('USD', 'EUR')).toBe(false);
-        expect(handler.match(' USD ', 'USD')).toBe(true);
-        expect(handler.match('', '')).toBe(true);
+        expect(handler.match(' USD ', ' USD ')).toBe(true);
     });
 });

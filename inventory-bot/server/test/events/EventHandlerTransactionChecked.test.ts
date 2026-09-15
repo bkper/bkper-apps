@@ -225,7 +225,10 @@ function registerGroup(
     return group;
 }
 
-function createFinancialBook(properties: Record<string, string> = { exc_code: 'USD' }): Book {
+function createFinancialBook(
+    properties: Record<string, string> = { exc_code: 'USD' },
+    connectedFinancialBooks: bkper.Book[] = []
+): Book {
     return new Book({
         id: 'financial',
         name: 'Financial',
@@ -239,6 +242,7 @@ function createFinancialBook(properties: Record<string, string> = { exc_code: 'U
                     fractionDigits: 2,
                     properties,
                 },
+                ...connectedFinancialBooks,
                 {
                     id: 'inventory',
                     name: 'Inventory',
@@ -250,7 +254,7 @@ function createFinancialBook(properties: Record<string, string> = { exc_code: 'U
     });
 }
 
-function createFinancialAccount(name: string): bkper.Account {
+function createFinancialAccount(name: string, excCode = 'USD'): bkper.Account {
     return {
         id: `financial-${name.toLowerCase().replaceAll(' ', '-')}`,
         name,
@@ -263,7 +267,7 @@ function createFinancialAccount(name: string): bkper.Account {
                 name: 'Clothing',
                 hidden: false,
                 parent: { id: 'financial-assets', name: 'Assets' },
-                properties: { exc_code: 'USD', aisle: '2', internal_: 'preserved' },
+                properties: { exc_code: excCode, aisle: '2', internal_: 'preserved' },
             },
         ],
     };
@@ -567,6 +571,65 @@ describe('legacy checked Inventory quantity mirroring', () => {
         expect(boundary.postedTransactions).toEqual([]);
     });
 
+    test('ignores an automatic Exchange Bot valuation copy before reading or writing Inventory data', async () => {
+        const financialBook = createFinancialBook({ exc_code: 'EUR' });
+        setInventoryTransactions([]);
+        const exchangeCopy = createPurchase({ remoteIds: ['source-transaction'] });
+
+        const result = await new EventHandlerTransactionChecked(createContext()).handleEvent(
+            createEvent(financialBook, exchangeCopy, 'exchange-bot')
+        );
+
+        expect(result).toEqual({ result: false });
+        expect(queriesByBook.get('inventory')).toBeUndefined();
+        expect(boundary.createdAccounts).toEqual([]);
+        expect(boundary.createdGroups).toEqual([]);
+        expect(boundary.updatedAccounts).toEqual([]);
+        expect(boundary.postedTransactions).toEqual([]);
+    });
+
+    test('ignores a user recheck of an Exchange Bot-created valuation copy in another currency', async () => {
+        const financialBook = createFinancialBook({ exc_code: 'EUR' });
+        setInventoryTransactions([]);
+        const exchangeCopy = createPurchase({
+            agentId: 'exchange-bot',
+            remoteIds: ['source-transaction'],
+        });
+
+        const result = await new EventHandlerTransactionChecked(createContext()).handleEvent(
+            createEvent(financialBook, exchangeCopy, 'user')
+        );
+
+        expect(result).toEqual({ result: false });
+        expect(queriesByBook.get('inventory')).toBeUndefined();
+        expect(boundary.createdAccounts).toEqual([]);
+        expect(boundary.createdGroups).toEqual([]);
+        expect(boundary.updatedAccounts).toEqual([]);
+        expect(boundary.postedTransactions).toEqual([]);
+    });
+
+    test('mirrors a matching original from a non-base Financial Book in a base-book collection', async () => {
+        const financialBook = createFinancialBook({ exc_code: 'EUR' }, [
+            {
+                id: 'base-financial',
+                name: 'Base Financial',
+                properties: { exc_base: 'true', exc_code: 'USD' },
+            },
+        ]);
+        const transaction = createPurchase({
+            debitAccount: createFinancialAccount('Shirts', 'EUR'),
+        });
+        setInventoryTransactions([]);
+
+        const result = await new EventHandlerTransactionChecked(createContext()).handleEvent(
+            createEvent(financialBook, transaction)
+        );
+
+        expect(boundary.postedTransactions).toHaveLength(1);
+        expect(boundary.postedTransactions[0]?.properties?.exc_code).toBe('EUR');
+        expect(result.result).toHaveLength(1);
+    });
+
     test('synchronizes an existing purchase item before creating and posting the mirror', async () => {
         const financialBook = createFinancialBook();
         const existing = registerAccount(
@@ -644,7 +707,11 @@ describe('legacy checked Inventory quantity mirroring', () => {
         });
     });
 
-    test('keeps missing, zero, incomplete, unsupported, and mismatched transactions non-balance-affecting', async () => {
+    test('keeps missing, blank, zero, incomplete, unsupported, and mismatched transactions non-balance-affecting', async () => {
+        const untaggedGood = createFinancialAccount('Untagged Good');
+        untaggedGood.groups = [];
+        const blankTaggedGood = createFinancialAccount('Blank Tagged Good');
+        blankTaggedGood.groups = [{ properties: { exc_code: ' ' } }];
         const cases: { book?: Book; transaction: bkper.Transaction }[] = [
             { transaction: createPurchase({ properties: { purchase_invoice: 'PI-1' } }) },
             {
@@ -661,6 +728,20 @@ describe('legacy checked Inventory quantity mirroring', () => {
                 transaction: createPurchase({
                     properties: { quantity: '1' },
                 }),
+            },
+            {
+                transaction: createPurchase({ debitAccount: untaggedGood }),
+            },
+            {
+                transaction: createPurchase({ debitAccount: blankTaggedGood }),
+            },
+            {
+                book: createFinancialBook({}),
+                transaction: createPurchase(),
+            },
+            {
+                book: createFinancialBook({ exc_code: ' ' }),
+                transaction: createPurchase(),
             },
             {
                 book: createFinancialBook({ exc_code: 'EUR' }),

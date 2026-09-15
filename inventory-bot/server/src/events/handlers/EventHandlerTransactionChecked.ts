@@ -3,6 +3,7 @@ import type { AppContext } from '../../shared/app-context.js';
 import {
     CREDIT_NOTE_PROP,
     EXC_CODE_PROP,
+    EXCHANGE_BOT_AGENT_ID,
     GOOD_BUY_ACCOUNT_NAME,
     GOOD_PROP,
     GOOD_PURCHASE_COST_PROP,
@@ -24,6 +25,13 @@ import { EventHandlerTransaction } from './EventHandlerTransaction.js';
 export class EventHandlerTransactionChecked extends EventHandlerTransaction {
     constructor(context: AppContext) {
         super(context);
+    }
+
+    override async handleEvent(event: bkper.Event): Promise<EventResult> {
+        if (event.agent?.id === EXCHANGE_BOT_AGENT_ID) {
+            return { result: false };
+        }
+        return await super.handleEvent(event);
     }
 
     protected override async intercept(eventBook: Book, event: bkper.Event): Promise<EventResult> {

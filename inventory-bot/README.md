@@ -184,7 +184,7 @@ exc_code: USD
 
 Notes:
 - Inventory item accounts should be `Asset` accounts. Book-wide and group-wide **Calculate** and **Reset** operations target `Asset` accounts.
-- If the resolved good/account `exc_code` does not match the current Financial Book `exc_code`, event mirroring is skipped. During calculation, this may surface as `Cannot proceed: financial book not found for good account ...`.
+- If the resolved good/account or current Financial Book `exc_code` is missing, blank, or does not match, event mirroring is skipped. During calculation, this may surface as `Cannot proceed: financial book not found for good account ...`.
 
 </details>
 

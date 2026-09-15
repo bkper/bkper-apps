@@ -71,11 +71,12 @@ export abstract class EventHandler {
         return { result: responses, warning: warningMsg };
     }
 
-    protected matchGoodExchange(goodExcCode: string, excCode: string): boolean {
-        goodExcCode = goodExcCode.trim();
-        if (goodExcCode != excCode) {
+    protected matchGoodExchange(goodExcCode?: string, excCode?: string): boolean {
+        const normalizedGoodExcCode = goodExcCode?.trim();
+        const normalizedExcCode = excCode?.trim();
+        if (!normalizedGoodExcCode || !normalizedExcCode) {
             return false;
         }
-        return true;
+        return normalizedGoodExcCode == normalizedExcCode;
     }
 }

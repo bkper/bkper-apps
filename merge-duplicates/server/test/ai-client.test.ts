@@ -85,7 +85,8 @@ describe('Bkper AI Jev evaluation', () => {
                 criteria: readonly string[];
                 instructions: {
                     transactions: Array<Record<string, unknown>>;
-                    movementTopology: Record<string, boolean>;
+                    accountPath: string;
+                    calendarDaysApart: number;
                 };
             }
         >;
@@ -98,13 +99,9 @@ describe('Bkper AI Jev evaluation', () => {
             toAccount: { name: 'Meals', type: 'OUTGOING' },
         });
         expect(questions.pair_0_1?.instructions.transactions[0]).not.toHaveProperty('id');
-        expect(questions.pair_0_1?.instructions.movementTopology).toEqual({
-            sameFromAccount: true,
-            sameToAccount: true,
-            samePath: true,
-            sharedAcrossOppositeSides: false,
-            sameDescription: false,
-            sameDate: false,
+        expect(questions.pair_0_1?.instructions).toMatchObject({
+            accountPath: 'SAME',
+            calendarDaysApart: 1,
         });
         expect(result).toEqual({
             pairs: [
@@ -117,6 +114,72 @@ describe('Bkper AI Jev evaluation', () => {
             ],
             batchCount: 1,
         });
+    });
+
+    it('describes compatible partial statement paths without treating missing Accounts as conflicts', async () => {
+        const transactions: TransactionFingerprint[] = [
+            {
+                ...pair.first,
+                id: 'complete',
+                amount: '10',
+                description: 'Card payment from bank statement',
+                draft: true,
+            },
+            {
+                ...pair.second,
+                id: 'missing-from',
+                amount: '10',
+                description: 'Payment – Thank you!',
+                fromAccount: null,
+                draft: true,
+            },
+            {
+                ...pair.first,
+                id: 'known-source',
+                amount: '20',
+                description: 'Transfer to card',
+                toAccount: null,
+                draft: true,
+            },
+            {
+                ...pair.second,
+                id: 'known-destination',
+                amount: '20',
+                description: 'Payment received',
+                fromAccount: null,
+                draft: true,
+            },
+            {
+                ...pair.first,
+                id: 'source-a',
+                amount: '30',
+                toAccount: null,
+                draft: true,
+            },
+            {
+                ...pair.second,
+                id: 'source-b',
+                amount: '30',
+                fromAccount: { id: 'different-source', name: 'Other Bank', type: 'ASSET' },
+                toAccount: null,
+                draft: true,
+            },
+        ];
+        let captured: Record<string, unknown> | undefined;
+
+        await analyzeCandidateTransactions(transactions, [], async input => {
+            const request = input instanceof Request ? input : new Request(input);
+            captured = (await request.json()) as Record<string, unknown>;
+            return evaluationResponse(captured, 0);
+        });
+
+        const questions = captured?.questions as Record<
+            string,
+            { instructions: { accountPath: string } }
+        >;
+        expect(questions.pair_0_1?.instructions.accountPath).toBe('COMPATIBLE_PARTIAL');
+        expect(questions.pair_2_3?.instructions.accountPath).toBe('COMPATIBLE_PARTIAL');
+        expect(questions.pair_4_5?.instructions.accountPath).toBe('CONFLICTING');
     });
 
     it('uses the most probable level, resolves ties toward Different, and preserves listing order', async () => {

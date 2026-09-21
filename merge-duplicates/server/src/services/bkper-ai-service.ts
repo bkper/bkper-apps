@@ -12,28 +12,18 @@ const MAX_AI_TEXT_CHARACTERS = 200;
 const MAX_AI_PROPERTY_KEY_CHARACTERS = 30;
 const MAX_AI_PROPERTY_VALUE_CHARACTERS = 256;
 
-const EVALUATION_POLICY = [
-    'Equal amount, dates no more than seven calendar days apart, and candidate eligibility are gates only; they are not duplicate evidence.',
-    'Different merchants, payees, employees, purposes, `toAccount` identities, or business references are evidence of Different movements.',
-    '`movementTopology.sameFromAccount` alone is weak evidence. Purchases from the same card or payments from the same cash Account remain separate movements.',
-    '`movementTopology.sharedAcrossOppositeSides` usually describes consecutive movements, such as a card settlement followed by a merchant purchase, and is evidence of Different movements.',
-    'Draft status permits evaluation despite incomplete Accounts, but it does not weaken conflicting semantic or Account evidence.',
-    'Duplicate evidence requires matching distinctive description details, properties, references, or clearly complementary records of the same transfer.',
-    'When `movementTopology.sameDate` and `movementTopology.samePath` are both true, complementary payment descriptions are compelling duplicate evidence.',
-    'Repeated merchant descriptions when `movementTopology.sameDate` is false are separate recurring movements unless a distinctive reference also matches.',
-    'Use `humanRejectedPairs` as negative evidence only when a prior rejection is closely analogous to the two records in `transactions`.',
-] as const;
-
 const SCORE_LEVELS = [
-    'Different movement: evidence favors distinct movements, or distinctive evidence for the same movement is absent.',
-    'Possible duplicate: the same movement is more likely than a different movement, with meaningful but incomplete corroboration.',
-    'Strong duplicate: distinctive evidence compellingly identifies one and the same real-world movement.',
+    'Different: the records describe distinct movements. Equal amount or nearby dates alone are insufficient.',
+    'Possible: the records likely describe one movement, but meaningful uncertainty remains.',
+    'Strong: compatible Account information, descriptions, or references compellingly identify one movement. Missing Accounts and plausible statement-processing delays do not disqualify it.',
 ] as const;
 
 interface CandidatePair {
     firstIndex: number;
     secondIndex: number;
 }
+
+type AccountPath = 'SAME' | 'COMPATIBLE_PARTIAL' | 'INSUFFICIENT' | 'CONFLICTING';
 
 interface ScoredPair extends CandidatePair {
     score: number;
@@ -235,7 +225,6 @@ function createEvaluationRequest(
     return {
         model: MODEL,
         state: {
-            evaluationPolicy: EVALUATION_POLICY,
             humanRejectedPairs: includeLearning ? learningExamples : [],
         },
         questions: Object.fromEntries(
@@ -251,9 +240,10 @@ function createEvaluationRequest(
                         type: 'score',
                         instructions: {
                             question:
-                                'Do the two records in `transactions` represent one real-world movement? Apply `evaluationPolicy`. Use `movementTopology` as exact facts and `humanRejectedPairs` only when closely analogous.',
+                                'Do the two `transactions` describe duplicate records of one real-world movement? Duplicate imports can have complementary partial Account paths. Treat missing Accounts as unknown and known Account conflicts as negative evidence. Use `accountPath` and `calendarDaysApart` as exact facts, and `humanRejectedPairs` only when closely analogous.',
                             transactions: toAiSnapshots([first, second], includeProperties),
-                            movementTopology: describeMovementTopology(first, second),
+                            accountPath: describeAccountPath(first, second),
+                            calendarDaysApart: calendarDayDistance(first.date, second.date),
                         },
                         criteria: SCORE_LEVELS,
                     },
@@ -386,23 +376,31 @@ function pairId(pair: CandidatePair): string {
     return `pair_${pair.firstIndex}_${pair.secondIndex}`;
 }
 
-function describeMovementTopology(
+function describeAccountPath(
     first: TransactionFingerprint,
     second: TransactionFingerprint
-): Record<string, boolean> {
+): AccountPath {
     const sameFromAccount = sameAccount(first.fromAccount, second.fromAccount);
     const sameToAccount = sameAccount(first.toAccount, second.toAccount);
-    return {
-        sameFromAccount,
-        sameToAccount,
-        samePath: sameFromAccount && sameToAccount,
-        sharedAcrossOppositeSides:
-            sameAccount(first.fromAccount, second.toAccount) ||
-            sameAccount(first.toAccount, second.fromAccount),
-        sameDescription:
-            first.description.trim().toLowerCase() === second.description.trim().toLowerCase(),
-        sameDate: first.date === second.date,
-    };
+    if (sameFromAccount && sameToAccount) return 'SAME';
+
+    const sharedAcrossOppositeSides =
+        sameAccount(first.fromAccount, second.toAccount) ||
+        sameAccount(first.toAccount, second.fromAccount);
+    if (
+        differentKnownAccounts(first.fromAccount, second.fromAccount) ||
+        differentKnownAccounts(first.toAccount, second.toAccount) ||
+        sharedAcrossOppositeSides
+    ) {
+        return 'CONFLICTING';
+    }
+
+    const hasMissingAccount =
+        !first.fromAccount || !first.toAccount || !second.fromAccount || !second.toAccount;
+    const combinedPathIsKnown =
+        Boolean(first.fromAccount || second.fromAccount) &&
+        Boolean(first.toAccount || second.toAccount);
+    return hasMissingAccount && combinedPathIsKnown ? 'COMPATIBLE_PARTIAL' : 'INSUFFICIENT';
 }
 
 function sameAccount(
@@ -410,6 +408,13 @@ function sameAccount(
     second: TransactionFingerprint['fromAccount']
 ): boolean {
     return first !== null && second !== null && first.id === second.id;
+}
+
+function differentKnownAccounts(
+    first: TransactionFingerprint['fromAccount'],
+    second: TransactionFingerprint['fromAccount']
+): boolean {
+    return first !== null && second !== null && first.id !== second.id;
 }
 
 function requestByteLength(body: Record<string, unknown>): number {

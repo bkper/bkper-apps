@@ -119,7 +119,7 @@ describe('Bkper AI Jev evaluation', () => {
         });
     });
 
-    it('uses the most probable level and resolves ties toward Different', async () => {
+    it('uses the most probable level, resolves ties toward Different, and preserves listing order', async () => {
         const transactions = [
             pair.first,
             pair.second,
@@ -160,8 +160,8 @@ describe('Bkper AI Jev evaluation', () => {
         );
 
         expect(result.pairs).toEqual([
-            expect.objectContaining({ firstIndex: 4, secondIndex: 5, strength: 'Strong' }),
             expect.objectContaining({ firstIndex: 2, secondIndex: 3, strength: 'Possible' }),
+            expect.objectContaining({ firstIndex: 4, secondIndex: 5, strength: 'Strong' }),
         ]);
     });
 

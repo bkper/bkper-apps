@@ -352,7 +352,9 @@ function selectNonOverlappingPairs(pairs: readonly ScoredPair[]): ScoredPair[] {
         usedIndexes.add(pair.secondIndex);
         selected.push(pair);
     }
-    return selected;
+    return selected.sort(
+        (left, right) => left.firstIndex - right.firstIndex || left.secondIndex - right.secondIndex
+    );
 }
 
 function explainPair(first: TransactionFingerprint, second: TransactionFingerprint): string {

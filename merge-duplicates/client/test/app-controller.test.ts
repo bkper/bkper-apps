@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { Permission, type Book, type Transaction, type TransactionList } from 'bkper-js';
+import {
+    Permission,
+    type Account,
+    type Book,
+    type Transaction,
+    type TransactionList,
+} from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import type {
     AnalyzeRequest,
@@ -85,10 +91,24 @@ function analysis(suggestions: Suggestion[], skipped = 0): AnalyzeResponse {
     };
 }
 
-function page(items: bkper.Transaction[], cursor?: string): TransactionList {
+function page(
+    items: bkper.Transaction[],
+    accounts: Record<string, bkper.Account> = {}
+): TransactionList {
+    const resolveAccount = (reference: bkper.Account | undefined): Account | undefined => {
+        const resolved = reference?.id ? (accounts[reference.id] ?? reference) : undefined;
+        return resolved ? ({ json: () => resolved } as Account) : undefined;
+    };
     return {
-        getItems: () => items.map(item => ({ json: () => item }) as Transaction),
-        getCursor: () => cursor,
+        getItems: () =>
+            items.map(
+                item =>
+                    ({
+                        json: () => item,
+                        getCreditAccount: async () => resolveAccount(item.creditAccount),
+                        getDebitAccount: async () => resolveAccount(item.debitAccount),
+                    }) as Transaction
+            ),
     } as unknown as TransactionList;
 }
 
@@ -134,50 +154,93 @@ function apiWithAnalyze(analyze: (request: AnalyzeRequest) => Promise<AnalyzeRes
     };
 }
 
-describe('AppController browser-owned pagination and host synchronization', () => {
-    it('lists 200-row pages in the browser and resubmits the complete unique payload set', async () => {
+describe('AppController single-page analysis and host synchronization', () => {
+    it('lists and submits at most two hundred transactions once for the active scope', async () => {
         const analyzeRequests: AnalyzeRequest[] = [];
-        const listCalls: Array<[string | undefined, number | undefined, string | undefined]> = [];
-        const pages = [
-            page([payload('a'), payload('b')], 'next'),
-            page([payload('b'), payload('c'), payload('d')]),
-        ];
+        const listCalls: Array<[string | undefined, number | undefined]> = [];
         const book = {
             getPermission: () => Permission.OWNER,
-            listTransactions: async (query?: string, limit?: number, cursor?: string) => {
-                listCalls.push([query, limit, cursor]);
-                const next = pages.shift();
-                if (!next) throw new Error('Unexpected page');
-                return next;
+            listTransactions: async (query?: string, limit?: number) => {
+                listCalls.push([query, limit]);
+                return page([payload('a'), payload('b')]);
             },
         } as unknown as Book;
         const { controller, login } = setup(
             apiWithAnalyze(async request => {
                 analyzeRequests.push(request);
-                return request.transactions.length === 2
-                    ? analysis([suggestion('a', 'b')], 1)
-                    : analysis([suggestion('b', 'a'), suggestion('c', 'd')], 2);
+                return analysis([suggestion('a', 'b')], 1);
             }),
             async () => book
         );
 
         await login();
-        controller.setSuggestionSelected('a|b', false);
-        await controller.analyzeNext();
 
-        expect(listCalls).toEqual([
-            ['account:Old', 200, undefined],
-            ['account:Old', 200, 'next'],
-        ]);
+        expect(listCalls).toEqual([['account:Old', 200]]);
         expect(analyzeRequests.map(request => request.transactions.map(item => item.id))).toEqual([
             ['a', 'b'],
-            ['a', 'b', 'c', 'd'],
         ]);
-        expect(controller.review.suggestions.map(suggestionKey)).toEqual(['a|b', 'c|d']);
-        expect(controller.review.rejected.map(suggestionKey)).toEqual(['a|b']);
-        expect(controller.state.scanned).toBe(5);
-        expect(controller.state.pages).toBe(2);
-        expect(controller.state.skipped.total).toBe(2);
+        expect(controller.review.suggestions.map(suggestionKey)).toEqual(['a|b']);
+        expect(controller.state.scanned).toBe(2);
+        expect(controller.state.analyzed).toBe(true);
+        expect(controller.state.skipped.total).toBe(1);
+    });
+
+    it('does not inspect pagination cursors after analyzing the first two hundred transactions', async () => {
+        const listedPage = page([payload('first'), payload('second')]);
+        const book = {
+            getPermission: () => Permission.OWNER,
+            listTransactions: async () =>
+                ({
+                    getItems: () => listedPage.getItems(),
+                    getCursor: () => {
+                        throw new Error('Pagination cursor should not be read.');
+                    },
+                }) as unknown as TransactionList,
+        } as unknown as Book;
+        const { controller, login } = setup(
+            apiWithAnalyze(async () => analysis([])),
+            async () => book
+        );
+
+        await login();
+
+        expect(controller.state.error).toBeNull();
+        expect(controller.state.analyzed).toBe(true);
+    });
+
+    it('hydrates Account names and types before submitting listed transactions for analysis', async () => {
+        const analyzeRequests: AnalyzeRequest[] = [];
+        const listed = payload('listed');
+        listed.creditAccount = { id: 'bank' };
+        listed.debitAccount = { id: 'expense' };
+        const book = {
+            getPermission: () => Permission.OWNER,
+            listTransactions: async () =>
+                page([listed], {
+                    bank: { id: 'bank', name: 'Bank', type: 'ASSET' },
+                    expense: { id: 'expense', name: 'Expense', type: 'OUTGOING' },
+                }),
+        } as unknown as Book;
+        const { login } = setup(
+            apiWithAnalyze(async request => {
+                analyzeRequests.push(request);
+                return analysis([]);
+            }),
+            async () => book
+        );
+
+        await login();
+
+        expect(analyzeRequests[0]?.transactions[0]?.creditAccount).toEqual({
+            id: 'bank',
+            name: 'Bank',
+            type: 'ASSET',
+        });
+        expect(analyzeRequests[0]?.transactions[0]?.debitAccount).toEqual({
+            id: 'expense',
+            name: 'Expense',
+            type: 'OUTGOING',
+        });
     });
 
     it('logs browser Book loading, listing, and API analysis durations', async () => {
@@ -206,7 +269,7 @@ describe('AppController browser-owned pagination and host synchronization', () =
             'analysis completed',
             {
                 scanned: 2,
-                cumulativeTransactions: 2,
+                submittedTransactions: 2,
                 suggestions: 0,
                 bookMs: 5,
                 listingMs: 10,
@@ -214,35 +277,6 @@ describe('AppController browser-owned pagination and host synchronization', () =
                 totalMs: 45,
             },
         ]);
-    });
-
-    it('stops browser pagination when the cumulative analyze limit reaches two hundred', async () => {
-        let pageCount = 0;
-        const requestSizes: number[] = [];
-        const book = {
-            getPermission: () => Permission.OWNER,
-            listTransactions: async () => {
-                pageCount += 1;
-                return page(
-                    Array.from({ length: 200 }, (_, index) => payload(`transaction-${index}`)),
-                    'more'
-                );
-            },
-        } as unknown as Book;
-        const { controller, login } = setup(
-            apiWithAnalyze(async request => {
-                requestSizes.push(request.transactions.length);
-                return analysis([]);
-            }),
-            async () => book
-        );
-
-        await login();
-        await controller.analyzeNext();
-
-        expect(requestSizes).toEqual([200]);
-        expect(pageCount).toBe(1);
-        expect(controller.review.cursor).toBeUndefined();
     });
 
     it('rejects Viewers before listing transactions or calling analyze', async () => {
@@ -393,6 +427,6 @@ describe('AppController browser-owned pagination and host synchronization', () =
         expect(queries).toEqual(['account:Old', 'account:New']);
         expect(controller.state.context.query).toBe('account:New');
         expect(controller.review.suggestions.map(suggestionKey)).toEqual(['new-a|new-b']);
-        expect(controller.state.pages).toBe(1);
+        expect(controller.state.analyzed).toBe(true);
     });
 });

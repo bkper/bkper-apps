@@ -78,7 +78,7 @@ describe('merge duplicates app', () => {
         const app = new MergeDuplicatesApp();
         const container = document.createElement('div');
         let updates = 0;
-        app.controller.state.pages = 1;
+        app.controller.state.analyzed = true;
         app.controller.state.contextUpdateAvailable = true;
         app.controller.review.suggestions = [suggestion()];
         app.controller.updateResults = async () => {
@@ -90,6 +90,18 @@ describe('merge duplicates app', () => {
 
         expect(container.querySelector('.pair')).not.toBeNull();
         expect(updates).toBe(1);
+    });
+
+    it('does not expose pagination after the first two hundred transactions are analyzed', () => {
+        const app = new MergeDuplicatesApp();
+        const container = document.createElement('div');
+        app.controller.state.analyzed = true;
+        app.controller.review.suggestions = [suggestion()];
+        Reflect.set(app.controller.review, 'cursor', 'obsolete-cursor');
+
+        render(app.render(), container);
+
+        expect(container.querySelector('.pagination')).toBeNull();
     });
 
     it('renders a missing account as a compact accessible placeholder', () => {

@@ -35,23 +35,14 @@ describe('browser-memory review session', () => {
         const session = new ReviewSession();
         const one = suggestion('b', 'a');
         const removed = suggestion('c', 'd');
-        session.replaceAnalysis(
-            analysis([one, removed]),
-            [transaction('a'), transaction('b')],
-            'next'
-        );
+        session.replaceAnalysis(analysis([one, removed]));
 
         expect(suggestionKey(one)).toBe('a|b');
         expect(session.accepted.map(suggestionKey)).toEqual(['a|b', 'c|d']);
         expect(session.rejected).toEqual([]);
 
         session.setSelected('a|b', false);
-        session.replaceAnalysis(analysis([suggestion('a', 'b'), suggestion('e', 'f')]), [
-            transaction('a'),
-            transaction('b'),
-            transaction('e'),
-            transaction('f'),
-        ]);
+        session.replaceAnalysis(analysis([suggestion('a', 'b'), suggestion('e', 'f')]));
 
         expect(session.suggestions.map(suggestionKey)).toEqual(['a|b', 'e|f']);
         expect(session.accepted.map(suggestionKey)).toEqual(['e|f']);
@@ -83,8 +74,7 @@ describe('browser-memory review session', () => {
                 suggestion('c', 'd'),
                 suggestion('e', 'f'),
                 suggestion('g', 'h'),
-            ]),
-            []
+            ])
         );
         session.setSelected('e|f', false);
         session.setSelected('g|h', false);
@@ -110,8 +100,6 @@ describe('browser-memory review session', () => {
             resourceName: 'Book',
         });
         expect(session.processed).toBe(true);
-        expect(session.cursor).toBeUndefined();
-        expect(session.transactions).toEqual([]);
     });
 
     it('skips learning locally for Post collaborators and keeps the existing notice path', async () => {
@@ -124,7 +112,7 @@ describe('browser-memory review session', () => {
             },
         };
         const session = new ReviewSession();
-        session.replaceAnalysis(analysis([suggestion('a', 'b')]), []);
+        session.replaceAnalysis(analysis([suggestion('a', 'b')]));
         session.setAllSelected(false);
 
         await session.apply(

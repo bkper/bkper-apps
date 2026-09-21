@@ -13,7 +13,7 @@ export interface AppState {
     notice: string | null;
     scanned: number;
     permission: ReviewPermission | null;
-    pages: number;
+    analyzed: boolean;
     skipped: SkippedCounts;
 }
 
@@ -29,7 +29,7 @@ export function createInitialAppState(): AppState {
         notice: null,
         scanned: 0,
         permission: null,
-        pages: 0,
+        analyzed: false,
         skipped: { total: 0, checked: 0, trashed: 0, locked: 0, invalid: 0 },
     };
 }

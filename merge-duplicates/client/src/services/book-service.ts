@@ -10,6 +10,6 @@ export function createBookService(auth: AuthProvider): BookService {
         oauthTokenProvider: async () => auth.getAccessToken(),
     });
     return {
-        getBook: bookId => bkper.getBook(bookId),
+        getBook: bookId => bkper.getBook(bookId, true),
     };
 }

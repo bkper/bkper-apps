@@ -67,8 +67,6 @@ export function suggestionKey(suggestion: Suggestion): string {
 export class ReviewSession {
     suggestions: Suggestion[] = [];
     selectedIds = new Set<string>();
-    transactions: Transaction[] = [];
-    cursor?: string;
     progress: PairProgress[] = [];
     learningResults: LearningProgress[] = [];
     processed = false;
@@ -85,7 +83,7 @@ export class ReviewSession {
         );
     }
 
-    replaceAnalysis(response: AnalyzeResponse, transactions: Transaction[], cursor?: string): void {
+    replaceAnalysis(response: AnalyzeResponse): void {
         const previousIds = new Set(this.suggestions.map(suggestionKey));
         const previousSelections = this.selectedIds;
         this.suggestions = [...response.suggestions];
@@ -97,8 +95,6 @@ export class ReviewSession {
                 })
                 .map(suggestionKey)
         );
-        this.transactions = transactions;
-        this.cursor = cursor;
     }
 
     setSelected(id: string, selected: boolean): void {
@@ -190,8 +186,6 @@ export class ReviewSession {
             }
         }
 
-        this.cursor = undefined;
-        this.transactions = [];
         this.processed = true;
         notify();
     }
@@ -199,8 +193,6 @@ export class ReviewSession {
     reset(): void {
         this.suggestions = [];
         this.selectedIds = new Set();
-        this.transactions = [];
-        this.cursor = undefined;
         this.progress = [];
         this.learningResults = [];
         this.processed = false;

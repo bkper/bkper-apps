@@ -1,4 +1,10 @@
-import { Amount, Permission, type Book } from 'bkper-js';
+import {
+    Amount,
+    Permission,
+    type Account,
+    type Book,
+    type Transaction as BkperTransaction,
+} from 'bkper-js';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { createAppApi, type AppApi, type Transaction } from '../api/app-api';
 import {
@@ -13,8 +19,7 @@ import { createAppUrlSync, type AppUrlSync } from './app-url-sync';
 import { getMenuContext, type CapturedMenuContext } from './menu-context';
 import { ReviewSession, type MenuContext, type ReviewPermission } from './review-session';
 
-const PAGE_SIZE = 200;
-const MAX_ANALYZE_TRANSACTIONS = 200;
+const TRANSACTION_LIMIT = 200;
 
 export interface AppControllerOptions {
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
@@ -87,14 +92,9 @@ export class AppController implements ReactiveController {
         await this.auth.init();
     }
 
-    async analyzeNext(): Promise<void> {
+    private async analyzeCurrentScope(): Promise<void> {
         const context = this.requireCapturedContext();
-        if (
-            !context ||
-            this.state.analyzing ||
-            this.review.transactions.length >= MAX_ANALYZE_TRANSACTIONS
-        )
-            return;
+        if (!context || this.state.analyzing) return;
         const contextVersion = this.contextVersion;
         const startedAt = this.now();
         const abortController = new AbortController();
@@ -111,28 +111,24 @@ export class AppController implements ReactiveController {
             const permission = toReviewPermission(book.getPermission());
             this.setState({ permission });
 
-            const page = await book.listTransactions(context.query, PAGE_SIZE, this.review.cursor);
+            const page = await book.listTransactions(context.query, TRANSACTION_LIMIT);
+            if (contextVersion !== this.contextVersion) return;
+            const transactions = await Promise.all(
+                page.getItems().map(transaction => transactionWithResolvedAccounts(transaction))
+            );
             if (contextVersion !== this.contextVersion) return;
             const listedAt = this.now();
-            const pageTransactions = page.getItems().map(transaction => transaction.json());
-            const cumulativeTransactions = mergeTransactions(
-                this.review.transactions,
-                pageTransactions
-            ).slice(0, MAX_ANALYZE_TRANSACTIONS);
             const response = await this.api.analyze(
-                { bookId: context.bookId, transactions: cumulativeTransactions },
+                { bookId: context.bookId, transactions },
                 abortController.signal
             );
             if (contextVersion !== this.contextVersion) return;
             const analyzedAt = this.now();
 
-            const pageCursor = page.getCursor();
-            const cursor =
-                cumulativeTransactions.length < MAX_ANALYZE_TRANSACTIONS ? pageCursor : undefined;
-            this.review.replaceAnalysis(response, cumulativeTransactions, cursor);
+            this.review.replaceAnalysis(response);
             this.logger.debug('[merge-duplicates:performance]', 'analysis completed', {
-                scanned: pageTransactions.length,
-                cumulativeTransactions: cumulativeTransactions.length,
+                scanned: transactions.length,
+                submittedTransactions: transactions.length,
                 suggestions: response.suggestions.length,
                 bookMs: elapsedMilliseconds(startedAt, bookLoadedAt),
                 listingMs: elapsedMilliseconds(bookLoadedAt, listedAt),
@@ -140,8 +136,8 @@ export class AppController implements ReactiveController {
                 totalMs: elapsedMilliseconds(startedAt, analyzedAt),
             });
             this.setState({
-                scanned: this.state.scanned + pageTransactions.length,
-                pages: this.state.pages + 1,
+                scanned: transactions.length,
+                analyzed: true,
                 skipped: response.skipped,
             });
         } catch (error) {
@@ -219,7 +215,7 @@ export class AppController implements ReactiveController {
         }
         this.reviewEdited = false;
         this.resetReview(this.state.context);
-        await this.analyzeNext();
+        await this.analyzeCurrentScope();
     }
 
     async updateResults(): Promise<void> {
@@ -229,7 +225,7 @@ export class AppController implements ReactiveController {
 
     private async begin(): Promise<void> {
         this.setState({ authenticating: false });
-        await this.analyzeNext();
+        await this.analyzeCurrentScope();
     }
 
     private async handleAppUrlChange(url: URL): Promise<void> {
@@ -276,7 +272,7 @@ export class AppController implements ReactiveController {
             this.setState({ error: 'Open Merge Duplicates from a Bkper Book.' });
             return;
         }
-        if (shouldScan) await this.analyzeNext();
+        if (shouldScan) await this.analyzeCurrentScope();
     }
 
     private async getActiveBook(bookId: string): Promise<Book> {
@@ -296,7 +292,7 @@ export class AppController implements ReactiveController {
             contextUpdateAvailable: false,
             scanned: 0,
             permission: null,
-            pages: 0,
+            analyzed: false,
             skipped: { total: 0, checked: 0, trashed: 0, locked: 0, invalid: 0 },
             notice: null,
             error: null,
@@ -326,17 +322,32 @@ export class AppController implements ReactiveController {
     }
 }
 
-function mergeTransactions(
-    previous: readonly Transaction[],
-    current: readonly Transaction[]
-): Transaction[] {
-    const merged = new Map<string, Transaction>();
-    for (const transaction of [...previous, ...current]) {
-        const id = transaction.id;
-        if (typeof id === 'string' && id.length > 0) merged.set(id, transaction);
-        else merged.set(`missing-${merged.size}`, transaction);
-    }
-    return [...merged.values()];
+async function transactionWithResolvedAccounts(
+    transaction: BkperTransaction
+): Promise<Transaction> {
+    const payload = transaction.json();
+    const [creditAccount, debitAccount] = await Promise.all([
+        payload.creditAccount?.id ? transaction.getCreditAccount() : undefined,
+        payload.debitAccount?.id ? transaction.getDebitAccount() : undefined,
+    ]);
+    return {
+        ...payload,
+        creditAccount: hydrateAccountReference(payload.creditAccount, creditAccount),
+        debitAccount: hydrateAccountReference(payload.debitAccount, debitAccount),
+    };
+}
+
+function hydrateAccountReference(
+    reference: bkper.Account | undefined,
+    resolved: Account | undefined
+): bkper.Account | undefined {
+    if (!reference || !resolved) return reference;
+    const account = resolved.json();
+    return {
+        ...reference,
+        ...(account.name !== undefined ? { name: account.name } : {}),
+        ...(account.type !== undefined ? { type: account.type } : {}),
+    };
 }
 
 function toReviewPermission(permission: Permission): ReviewPermission {

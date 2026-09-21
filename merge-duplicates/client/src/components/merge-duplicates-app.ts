@@ -380,12 +380,10 @@ export class MergeDuplicatesApp extends LitElement {
             font-size: var(--bkper-font-size-small);
         }
 
-        .pagination,
         .empty-review {
             padding: var(--bkper-spacing-medium);
         }
 
-        .pagination wa-button,
         .primary-action {
             width: 100%;
         }
@@ -488,16 +486,16 @@ export class MergeDuplicatesApp extends LitElement {
                     }
                     <div class="screen">
                         ${
-                            state.authenticating && state.pages === 0
+                            state.authenticating && !state.analyzed
                                 ? html`<div class="center" role="status">
                                       <wa-spinner></wa-spinner>
                                   </div>`
                                 : html``
                         }
-                        ${state.analyzing && state.pages === 0 ? this.renderAnalyzing() : html``}
+                        ${state.analyzing && !state.analyzed ? this.renderAnalyzing() : html``}
                         ${state.applying ? this.renderLiveProgress() : html``}
                         ${
-                            state.pages > 0 && !review.processed && !state.applying
+                            state.analyzed && !review.processed && !state.applying
                                 ? this.renderReview()
                                 : html``
                         }
@@ -617,22 +615,6 @@ export class MergeDuplicatesApp extends LitElement {
                                       )}
                                   </div>
                               `
-                    }
-                    ${
-                        review.cursor
-                            ? html`
-                                  <div class="pagination">
-                                      <wa-button
-                                          appearance="outlined"
-                                          ?loading=${state.analyzing}
-                                          ?disabled=${state.applying}
-                                          @click=${() => this.controller.analyzeNext()}
-                                      >
-                                          Look for more
-                                      </wa-button>
-                                  </div>
-                              `
-                            : html``
                     }
                 </div>
                 ${

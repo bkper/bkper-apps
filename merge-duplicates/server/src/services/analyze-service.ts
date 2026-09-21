@@ -5,11 +5,7 @@ import {
     filterEligibleTransactions,
     type SkippedCounts,
 } from './candidate-service';
-import {
-    analyzeCandidateTransactions,
-    BkperAiError,
-    countEvaluationBatches,
-} from './bkper-ai-service';
+import { analyzeCandidateTransactions, BkperAiError } from './bkper-ai-service';
 import { collectApplicableLearningExamples } from './learning-service';
 import { requireAnalyzePermission } from './permission-service';
 
@@ -110,7 +106,7 @@ export async function analyzeTransactions(
             candidateTransactions: candidates.transactions.length,
             candidatePairs: candidates.pairCount,
             learningExamples: learningExamples.length,
-            jevBatches: countEvaluationBatches(candidates.pairCount),
+            jevBatches: analysis.batchCount,
             suggestions: suggestions.length,
             bookMs: elapsedMilliseconds(startedAt, bookLoadedAt),
             candidateMs: elapsedMilliseconds(bookLoadedAt, candidatesReadyAt),

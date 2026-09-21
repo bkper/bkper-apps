@@ -8,8 +8,8 @@ const pair: { first: TransactionFingerprint; second: TransactionFingerprint } = 
         date: '2026-06-10',
         amount: '12.50',
         description: 'Coffee',
-        fromAccount: { id: 'secret-account', name: 'Card' },
-        toAccount: { id: 'secret-category', name: 'Meals' },
+        fromAccount: { id: 'secret-account', name: 'Card', type: 'ASSET' },
+        toAccount: { id: 'secret-category', name: 'Meals', type: 'OUTGOING' },
         properties: { merchant: 'Cafe' },
         draft: false,
     },
@@ -18,8 +18,8 @@ const pair: { first: TransactionFingerprint; second: TransactionFingerprint } = 
         date: '2026-06-11',
         amount: '12.50',
         description: 'CAFE',
-        fromAccount: { id: 'secret-account', name: 'Card' },
-        toAccount: { id: 'secret-category', name: 'Meals' },
+        fromAccount: { id: 'secret-account', name: 'Card', type: 'ASSET' },
+        toAccount: { id: 'secret-category', name: 'Meals', type: 'OUTGOING' },
         properties: {},
         draft: false,
     },
@@ -74,19 +74,38 @@ describe('Bkper AI Jev evaluation', () => {
         expect(captured).toMatchObject({ model: 'jev' });
         const state = captured?.state as {
             humanRejectedPairs: string[];
-            candidateTransactions: Array<Record<string, unknown>>;
+            candidateTransactions?: unknown;
         };
         expect(state.humanRejectedPairs).toEqual(['known false positive']);
-        expect(state.candidateTransactions).toHaveLength(2);
-        expect(state.candidateTransactions[0]).not.toHaveProperty('id');
+        expect(state).not.toHaveProperty('candidateTransactions');
         expect(JSON.stringify(captured)).not.toContain('secret-account');
-        const questions = captured?.questions as Record<string, { criteria: readonly string[] }>;
+        const questions = captured?.questions as Record<
+            string,
+            {
+                criteria: readonly string[];
+                instructions: {
+                    transactions: Array<Record<string, unknown>>;
+                    movementTopology: Record<string, boolean>;
+                };
+            }
+        >;
         expect(Object.keys(questions)).toEqual(['pair_0_1']);
-        expect(questions.pair_0_1?.criteria).toEqual([
-            'Different movement: the records describe different real-world movements, conflict materially, or match a human-rejected false positive.',
-            'Possible duplicate: the records may describe the same real-world movement, but the semantic evidence is not compelling.',
-            'Strong duplicate: the records compellingly describe one and the same real-world movement.',
-        ]);
+        expect(questions.pair_0_1?.criteria).toHaveLength(3);
+        expect(questions.pair_0_1?.criteria.every(item => typeof item === 'string')).toBe(true);
+        expect(questions.pair_0_1?.instructions.transactions).toHaveLength(2);
+        expect(questions.pair_0_1?.instructions.transactions[0]).toMatchObject({
+            fromAccount: { name: 'Card', type: 'ASSET' },
+            toAccount: { name: 'Meals', type: 'OUTGOING' },
+        });
+        expect(questions.pair_0_1?.instructions.transactions[0]).not.toHaveProperty('id');
+        expect(questions.pair_0_1?.instructions.movementTopology).toEqual({
+            sameFromAccount: true,
+            sameToAccount: true,
+            samePath: true,
+            sharedAcrossOppositeSides: false,
+            sameDescription: false,
+            sameDate: false,
+        });
         expect(result).toEqual({
             pairs: [
                 {
@@ -96,27 +115,53 @@ describe('Bkper AI Jev evaluation', () => {
                     explanation: 'Same From Account: Card · 1 day apart',
                 },
             ],
+            batchCount: 1,
         });
     });
 
-    it('maps the three score levels to discard, Possible, and Strong', async () => {
-        const third = { ...pair.second, id: 'secret-c', description: 'Parking' };
-        const result = await analyzeCandidateTransactions(
-            [pair.first, pair.second, third],
-            [],
-            async input => {
-                const request = input instanceof Request ? input : new Request(input);
-                const body = (await request.json()) as Record<string, unknown>;
-                return evaluationResponse(body, {
-                    pair_0_1: 0.49,
-                    pair_0_2: 0.75,
-                    pair_1_2: 1.75,
-                });
-            }
+    it('uses the most probable level and resolves ties toward Different', async () => {
+        const transactions = [
+            pair.first,
+            pair.second,
+            { ...pair.first, id: 'possible-a', amount: '20' },
+            { ...pair.second, id: 'possible-b', amount: '20' },
+            { ...pair.first, id: 'strong-a', amount: '30' },
+            { ...pair.second, id: 'strong-b', amount: '30' },
+            { ...pair.first, id: 'tie-a', amount: '40' },
+            { ...pair.second, id: 'tie-b', amount: '40' },
+        ];
+        const result = await analyzeCandidateTransactions(transactions, [], async () =>
+            Response.json({
+                model: 'jev',
+                answers: {
+                    pair_0_1: {
+                        type: 'score',
+                        score: 0.68,
+                        probabilities: { '0': 0.51, '1': 0.3, '2': 0.19 },
+                    },
+                    pair_2_3: {
+                        type: 'score',
+                        score: 0.4,
+                        probabilities: { '0': 0.2, '1': 0.7, '2': 0.1 },
+                    },
+                    pair_4_5: {
+                        type: 'score',
+                        score: 1.4,
+                        probabilities: { '0': 0.1, '1': 0.2, '2': 0.7 },
+                    },
+                    pair_6_7: {
+                        type: 'score',
+                        score: 0.5,
+                        probabilities: { '0': 0.5, '1': 0.5, '2': 0 },
+                    },
+                },
+                usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 },
+            })
         );
 
         expect(result.pairs).toEqual([
-            expect.objectContaining({ firstIndex: 1, secondIndex: 2, strength: 'Strong' }),
+            expect.objectContaining({ firstIndex: 4, secondIndex: 5, strength: 'Strong' }),
+            expect.objectContaining({ firstIndex: 2, secondIndex: 3, strength: 'Possible' }),
         ]);
     });
 
@@ -146,7 +191,7 @@ describe('Bkper AI Jev evaluation', () => {
         ]);
     });
 
-    it('splits large candidate sets into bounded multi-question requests', async () => {
+    it('packs more than twenty-five questions into one request when they fit', async () => {
         const transactions = Array.from({ length: 15 }, (_, index) => ({
             ...pair.first,
             id: `transaction-${index}`,
@@ -161,8 +206,35 @@ describe('Bkper AI Jev evaluation', () => {
             return evaluationResponse(body, 0);
         });
 
-        expect(questionCounts).toEqual([25, 25, 25, 25, 5]);
+        expect(questionCounts[0]).toBeGreaterThan(25);
+        expect(questionCounts.reduce((total, count) => total + count, 0)).toBe(105);
         expect(result.pairs).toEqual([]);
+        expect(result.batchCount).toBe(questionCounts.length);
+    });
+
+    it('splits questions only when the request-size budget requires it', async () => {
+        const transactions = Array.from({ length: 25 }, (_, index) => ({
+            ...pair.first,
+            id: `transaction-${index}`,
+            description: `Transaction ${index}`,
+        }));
+        const questionCounts: number[] = [];
+        const requestBytes: number[] = [];
+
+        const result = await analyzeCandidateTransactions(transactions, [], async input => {
+            const request = input instanceof Request ? input : new Request(input);
+            const text = await request.text();
+            const body = JSON.parse(text) as Record<string, unknown>;
+            questionCounts.push(Object.keys(body.questions as Record<string, unknown>).length);
+            requestBytes.push(new TextEncoder().encode(text).byteLength);
+            return evaluationResponse(body, 0);
+        });
+
+        expect(questionCounts.length).toBeGreaterThan(1);
+        expect(questionCounts[0]).toBeGreaterThan(25);
+        expect(questionCounts.reduce((total, count) => total + count, 0)).toBe(300);
+        expect(requestBytes.every(bytes => bytes <= 100_000)).toBe(true);
+        expect(result.batchCount).toBe(questionCounts.length);
     });
 
     it('bounds transaction text and omits hidden or oversized properties', async () => {
@@ -191,14 +263,19 @@ describe('Bkper AI Jev evaluation', () => {
             return evaluationResponse(captured, 2);
         });
 
-        const state = captured?.state as {
-            candidateTransactions: Array<{
-                description: string;
-                fromAccount: { name: string };
-                properties: Record<string, string>;
-            }>;
-        };
-        for (const transaction of state.candidateTransactions) {
+        const questions = captured?.questions as Record<
+            string,
+            {
+                instructions: {
+                    transactions: Array<{
+                        description: string;
+                        fromAccount: { name: string };
+                        properties: Record<string, string>;
+                    }>;
+                };
+            }
+        >;
+        for (const transaction of questions.pair_0_1.instructions.transactions) {
             expect(transaction.description).toHaveLength(200);
             expect(transaction.fromAccount.name).toHaveLength(200);
             expect(transaction.properties).toEqual({ reference: 'invoice-123' });

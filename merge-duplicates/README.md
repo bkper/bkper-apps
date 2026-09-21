@@ -49,7 +49,7 @@ A pair must first pass deterministic checks:
 - the dates are no more than seven calendar days apart; and
 - the transactions share an Account on the same side of the movement, or at least one is a draft and both have descriptions that can be compared.
 
-Bkper AI Jev scores every plausible pair as Different, Possible, or Strong. The app discards Different pairs, ranks the remaining scores, and deterministically selects non-overlapping **Strong** and **Possible** suggestions. Checked, trashed, locked, and malformed transactions are not suggested.
+Bkper AI Jev scores every plausible pair as Different, Possible, or Strong. The app uses the most probable level, resolves ties toward Different, discards Different pairs, ranks the remaining scores, and deterministically selects non-overlapping **Strong** and **Possible** suggestions. Checked, trashed, locked, and malformed transactions are not suggested.
 
 ## Human control and learning
 

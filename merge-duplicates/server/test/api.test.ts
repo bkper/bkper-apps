@@ -219,10 +219,12 @@ describe('authenticated workflow routes', () => {
         const aiFetch = async (input: RequestInfo | URL) => {
             const request = input instanceof Request ? input : new Request(input);
             const body = (await request.json()) as {
-                state: { candidateTransactions?: Array<Record<string, unknown>> };
-                questions: Record<string, unknown>;
+                questions: Record<
+                    string,
+                    { instructions: { transactions: Array<Record<string, unknown>> } }
+                >;
             };
-            aiTransactions = body.state.candidateTransactions ?? [];
+            aiTransactions = Object.values(body.questions)[0]?.instructions.transactions ?? [];
             return completedEvaluation(Object.keys(body.questions));
         };
         const app = createApp(contextWithBook(book, aiFetch));

@@ -7,16 +7,27 @@ import { isPlausiblePair, type TransactionFingerprint } from './candidate-servic
 
 const AI_URL = 'https://ai.bkper.app/v1/evaluations';
 const MODEL = 'jev';
-const MAX_QUESTIONS_PER_REQUEST = 25;
 const MAX_REQUEST_BYTES = 100_000;
 const MAX_AI_TEXT_CHARACTERS = 200;
 const MAX_AI_PROPERTY_KEY_CHARACTERS = 30;
 const MAX_AI_PROPERTY_VALUE_CHARACTERS = 256;
 
+const EVALUATION_POLICY = [
+    'Equal amount, dates no more than seven calendar days apart, and candidate eligibility are gates only; they are not duplicate evidence.',
+    'Different merchants, payees, employees, purposes, `toAccount` identities, or business references are evidence of Different movements.',
+    '`movementTopology.sameFromAccount` alone is weak evidence. Purchases from the same card or payments from the same cash Account remain separate movements.',
+    '`movementTopology.sharedAcrossOppositeSides` usually describes consecutive movements, such as a card settlement followed by a merchant purchase, and is evidence of Different movements.',
+    'Draft status permits evaluation despite incomplete Accounts, but it does not weaken conflicting semantic or Account evidence.',
+    'Duplicate evidence requires matching distinctive description details, properties, references, or clearly complementary records of the same transfer.',
+    'When `movementTopology.sameDate` and `movementTopology.samePath` are both true, complementary payment descriptions are compelling duplicate evidence.',
+    'Repeated merchant descriptions when `movementTopology.sameDate` is false are separate recurring movements unless a distinctive reference also matches.',
+    'Use `humanRejectedPairs` as negative evidence only when a prior rejection is closely analogous to the two records in `transactions`.',
+] as const;
+
 const SCORE_LEVELS = [
-    'Different movement: the records describe different real-world movements, conflict materially, or match a human-rejected false positive.',
-    'Possible duplicate: the records may describe the same real-world movement, but the semantic evidence is not compelling.',
-    'Strong duplicate: the records compellingly describe one and the same real-world movement.',
+    'Different movement: evidence favors distinct movements, or distinctive evidence for the same movement is absent.',
+    'Possible duplicate: the same movement is more likely than a different movement, with meaningful but incomplete corroboration.',
+    'Strong duplicate: distinctive evidence compellingly identifies one and the same real-world movement.',
 ] as const;
 
 interface CandidatePair {
@@ -36,6 +47,7 @@ export interface AiSuggestedPair extends CandidatePair {
 
 export interface AiAnalysis {
     pairs: AiSuggestedPair[];
+    batchCount: number;
 }
 
 export class BkperAiError extends Error {
@@ -58,13 +70,13 @@ export async function analyzeCandidateTransactions(
     performanceMonitor: PerformanceMonitor = silentPerformanceMonitor
 ): Promise<AiAnalysis> {
     const candidatePairs = collectCandidatePairs(transactions);
-    if (candidatePairs.length === 0) return { pairs: [] };
+    if (candidatePairs.length === 0) return { pairs: [], batchCount: 0 };
 
+    const batches = planEvaluationBatches(transactions, candidatePairs, learningExamples);
     const scoredPairs: ScoredPair[] = [];
-    const batchCount = countEvaluationBatches(candidatePairs.length);
-    for (let offset = 0; offset < candidatePairs.length; offset += MAX_QUESTIONS_PER_REQUEST) {
-        const batch = candidatePairs.slice(offset, offset + MAX_QUESTIONS_PER_REQUEST);
-        const batchNumber = Math.floor(offset / MAX_QUESTIONS_PER_REQUEST) + 1;
+    const batchCount = batches.length;
+    for (const [batchIndex, batch] of batches.entries()) {
+        const batchNumber = batchIndex + 1;
         const requestBody = buildEvaluationRequest(transactions, batch, learningExamples);
         const requestBytes = requestByteLength(requestBody);
         const startedAt = performanceMonitor.now();
@@ -98,11 +110,8 @@ export async function analyzeCandidateTransactions(
             strength: pair.strength,
             explanation: explainPair(transactions[pair.firstIndex], transactions[pair.secondIndex]),
         })),
+        batchCount,
     };
-}
-
-export function countEvaluationBatches(candidatePairCount: number): number {
-    return Math.ceil(candidatePairCount / MAX_QUESTIONS_PER_REQUEST);
 }
 
 function collectCandidatePairs(transactions: readonly TransactionFingerprint[]): CandidatePair[] {
@@ -121,30 +130,119 @@ function collectCandidatePairs(transactions: readonly TransactionFingerprint[]):
     return pairs;
 }
 
+function planEvaluationBatches(
+    transactions: readonly TransactionFingerprint[],
+    pairs: readonly CandidatePair[],
+    learningExamples: readonly string[]
+): CandidatePair[][] {
+    const batches: CandidatePair[][] = [];
+    let offset = 0;
+
+    while (offset < pairs.length) {
+        let bestEnd = offset + 1;
+        const firstPair = pairs.slice(offset, bestEnd);
+        if (fullContextRequestFits(transactions, firstPair, learningExamples)) {
+            let step = 1;
+            while (bestEnd < pairs.length) {
+                const probeEnd = Math.min(pairs.length, bestEnd + step);
+                const probe = pairs.slice(offset, probeEnd);
+                if (fullContextRequestFits(transactions, probe, learningExamples)) {
+                    bestEnd = probeEnd;
+                    step *= 2;
+                    continue;
+                }
+
+                let low = bestEnd + 1;
+                let high = probeEnd - 1;
+                while (low <= high) {
+                    const middle = Math.floor((low + high) / 2);
+                    const candidate = pairs.slice(offset, middle);
+                    if (fullContextRequestFits(transactions, candidate, learningExamples)) {
+                        bestEnd = middle;
+                        low = middle + 1;
+                    } else {
+                        high = middle - 1;
+                    }
+                }
+                break;
+            }
+        }
+        batches.push(pairs.slice(offset, bestEnd));
+        offset = bestEnd;
+    }
+
+    return batches;
+}
+
+function fullContextRequestFits(
+    transactions: readonly TransactionFingerprint[],
+    pairs: readonly CandidatePair[],
+    learningExamples: readonly string[]
+): boolean {
+    return (
+        requestByteLength(
+            createEvaluationRequest(transactions, pairs, learningExamples, true, true)
+        ) <= MAX_REQUEST_BYTES
+    );
+}
+
 function buildEvaluationRequest(
     transactions: readonly TransactionFingerprint[],
     pairs: readonly CandidatePair[],
     learningExamples: readonly string[]
 ): Record<string, unknown> {
-    const transactionIndexes = [
-        ...new Set(pairs.flatMap(pair => [pair.firstIndex, pair.secondIndex])),
-    ];
-    const localIndexByGlobal = new Map(
-        transactionIndexes.map((globalIndex, localIndex) => [globalIndex, localIndex] as const)
+    const withAllContext = createEvaluationRequest(
+        transactions,
+        pairs,
+        learningExamples,
+        true,
+        true
     );
-    const batchTransactions = transactionIndexes.map(index => transactions[index]);
+    if (requestByteLength(withAllContext) <= MAX_REQUEST_BYTES) return withAllContext;
 
-    const createBody = (includeLearning: boolean, includeProperties: boolean) => ({
+    const withoutLearning = createEvaluationRequest(
+        transactions,
+        pairs,
+        learningExamples,
+        false,
+        true
+    );
+    if (requestByteLength(withoutLearning) <= MAX_REQUEST_BYTES) return withoutLearning;
+
+    const requiredContext = createEvaluationRequest(
+        transactions,
+        pairs,
+        learningExamples,
+        false,
+        false
+    );
+    if (requestByteLength(requiredContext) <= MAX_REQUEST_BYTES) return requiredContext;
+
+    throw new BkperAiError(
+        400,
+        'analysis_input_too_large',
+        'Transaction context is too large to analyze safely.'
+    );
+}
+
+function createEvaluationRequest(
+    transactions: readonly TransactionFingerprint[],
+    pairs: readonly CandidatePair[],
+    learningExamples: readonly string[],
+    includeLearning: boolean,
+    includeProperties: boolean
+): Record<string, unknown> {
+    return {
         model: MODEL,
         state: {
+            evaluationPolicy: EVALUATION_POLICY,
             humanRejectedPairs: includeLearning ? learningExamples : [],
-            candidateTransactions: toAiSnapshots(batchTransactions, includeProperties),
         },
         questions: Object.fromEntries(
             pairs.map(pair => {
-                const first = localIndexByGlobal.get(pair.firstIndex);
-                const second = localIndexByGlobal.get(pair.secondIndex);
-                if (first === undefined || second === undefined) {
+                const first = transactions[pair.firstIndex];
+                const second = transactions[pair.secondIndex];
+                if (!first || !second) {
                     throw new Error('Candidate transaction index was not mapped.');
                 }
                 return [
@@ -153,40 +251,16 @@ function buildEvaluationRequest(
                         type: 'score',
                         instructions: {
                             question:
-                                'How do these two transaction records relate as real-world movements?',
-                            compare: [
-                                `\`candidateTransactions[${first}]\``,
-                                `\`candidateTransactions[${second}]\``,
-                            ],
-                            knownFacts: [
-                                'Their amounts are exactly equal.',
-                                'Their dates are within seven calendar days.',
-                                'They passed the deterministic Account-side or draft-recovery rule.',
-                            ],
-                            rejectedExamples:
-                                'Pairs equivalent to humanRejectedPairs are confirmed false positives.',
+                                'Do the two records in `transactions` represent one real-world movement? Apply `evaluationPolicy`. Use `movementTopology` as exact facts and `humanRejectedPairs` only when closely analogous.',
+                            transactions: toAiSnapshots([first, second], includeProperties),
+                            movementTopology: describeMovementTopology(first, second),
                         },
                         criteria: SCORE_LEVELS,
                     },
                 ];
             })
         ),
-    });
-
-    const withAllContext = createBody(true, true);
-    if (requestByteLength(withAllContext) <= MAX_REQUEST_BYTES) return withAllContext;
-
-    const withoutLearning = createBody(false, true);
-    if (requestByteLength(withoutLearning) <= MAX_REQUEST_BYTES) return withoutLearning;
-
-    const requiredContext = createBody(false, false);
-    if (requestByteLength(requiredContext) <= MAX_REQUEST_BYTES) return requiredContext;
-
-    throw new BkperAiError(
-        400,
-        'analysis_input_too_large',
-        'Transaction context is too large to analyze safely.'
-    );
+    };
 }
 
 async function callEvaluation(body: Record<string, unknown>, fetcher: Fetcher): Promise<unknown> {
@@ -247,12 +321,16 @@ function readBatchScores(value: unknown, pairs: readonly CandidatePair[]): Score
         ) {
             throw invalidResponse();
         }
-        if (answer.score < 0.5) return [];
+        const [different, possible, strong] = readLevelProbabilities(answer.probabilities);
+        if (different >= possible && different >= strong) return [];
         return [
             {
                 ...pair,
                 score: answer.score,
-                strength: answer.score >= 1.5 ? ('Strong' as const) : ('Possible' as const),
+                strength:
+                    strong > different && strong > possible
+                        ? ('Strong' as const)
+                        : ('Possible' as const),
             },
         ];
     });
@@ -306,6 +384,32 @@ function pairId(pair: CandidatePair): string {
     return `pair_${pair.firstIndex}_${pair.secondIndex}`;
 }
 
+function describeMovementTopology(
+    first: TransactionFingerprint,
+    second: TransactionFingerprint
+): Record<string, boolean> {
+    const sameFromAccount = sameAccount(first.fromAccount, second.fromAccount);
+    const sameToAccount = sameAccount(first.toAccount, second.toAccount);
+    return {
+        sameFromAccount,
+        sameToAccount,
+        samePath: sameFromAccount && sameToAccount,
+        sharedAcrossOppositeSides:
+            sameAccount(first.fromAccount, second.toAccount) ||
+            sameAccount(first.toAccount, second.fromAccount),
+        sameDescription:
+            first.description.trim().toLowerCase() === second.description.trim().toLowerCase(),
+        sameDate: first.date === second.date,
+    };
+}
+
+function sameAccount(
+    first: TransactionFingerprint['fromAccount'],
+    second: TransactionFingerprint['fromAccount']
+): boolean {
+    return first !== null && second !== null && first.id === second.id;
+}
+
 function requestByteLength(body: Record<string, unknown>): number {
     return new TextEncoder().encode(JSON.stringify(body)).byteLength;
 }
@@ -322,7 +426,11 @@ function toAiSnapshots(
             reference = accountReferences.size;
             accountReferences.set(account.id, reference);
         }
-        return { reference, name: truncateAiText(account.name) };
+        return {
+            reference,
+            name: truncateAiText(account.name),
+            ...(account.type ? { type: account.type } : {}),
+        };
     };
 
     return transactions.map(transaction => ({
@@ -349,6 +457,25 @@ function toAiProperties(properties: Readonly<Record<string, string>>): Record<st
                 value.length <= MAX_AI_PROPERTY_VALUE_CHARACTERS
         )
     );
+}
+
+function readLevelProbabilities(value: unknown): [number, number, number] {
+    if (!isRecord(value) || Object.keys(value).sort().join(',') !== '0,1,2') {
+        throw invalidResponse();
+    }
+    const probabilities = ['0', '1', '2'].map(key => value[key]);
+    if (
+        probabilities.some(
+            probability =>
+                typeof probability !== 'number' ||
+                !Number.isFinite(probability) ||
+                probability < 0 ||
+                probability > 1
+        )
+    ) {
+        throw invalidResponse();
+    }
+    return probabilities as [number, number, number];
 }
 
 function invalidResponse(): BkperAiError {

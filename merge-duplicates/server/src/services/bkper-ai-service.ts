@@ -1,3 +1,12 @@
+import { createOpenResponses } from '@ai-sdk/open-responses';
+import {
+    APICallError,
+    generateText,
+    NoObjectGeneratedError,
+    NoOutputGeneratedError,
+    Output,
+} from 'ai';
+import { z } from 'zod';
 import { isPlausiblePair, type TransactionFingerprint } from './candidate-service';
 
 export const PROMPT_VERSION = 'merge-duplicates-v6';
@@ -59,129 +68,94 @@ export async function analyzeCandidateTransactions(
     if (transactions.length < 2) return { pairs: [] };
 
     const inputText = buildAiInputText(transactions, learningExamples);
+    const provider = createOpenResponses({
+        name: 'bkper',
+        url: AI_URL,
+        fetch: withBkperAiDefaults(fetcher),
+    });
     const failures: AiAttemptFailure[] = [];
+
     for (const attempt of MODEL_ATTEMPTS) {
-        let response: Response;
         try {
-            response = await fetchWithTimeout(
-                fetcher,
-                buildAiRequest(attempt, transactions, inputText),
-                attempt.timeoutMs
-            );
-        } catch (error) {
-            failures.push({
-                model: attempt.model,
-                status: isAbortError(error) ? 408 : 0,
-                code: isAbortError(error) ? 'provider_timeout' : 'connection_error',
+            const result = await generateText({
+                model: provider(attempt.model),
+                instructions: defaultPrompt(),
+                prompt: inputText,
+                output: Output.object({
+                    name: 'merge_duplicate_global_matching',
+                    schema: analysisSchema(transactions.length),
+                }),
+                reasoning: attempt.reasoningEffort,
+                ...(attempt.temperature === undefined ? {} : { temperature: attempt.temperature }),
+                timeout: attempt.timeoutMs,
+                maxRetries: 0,
+                include: { responseBody: true },
             });
-            continue;
-        }
+            if (!isCompletedResponse(result.response.body)) {
+                throw new InvalidAiOutputError('Bkper AI did not return a complete response.');
+            }
+            return validateAnalysis(result.output, transactions);
+        } catch (error) {
+            if (isInvalidAiOutput(error)) {
+                failures.push({ model: attempt.model, status: 200, code: 'invalid_output' });
+                continue;
+            }
+            if (isTimeoutError(error)) {
+                failures.push({
+                    model: attempt.model,
+                    status: 408,
+                    code: 'provider_timeout',
+                });
+                continue;
+            }
+            if (!APICallError.isInstance(error) || error.statusCode === undefined) {
+                failures.push({
+                    model: attempt.model,
+                    status: 0,
+                    code: 'connection_error',
+                });
+                continue;
+            }
 
-        let payload: unknown;
-        try {
-            payload = await readAiPayload(response);
-        } catch {
+            const upstreamError =
+                readAiError(error.data) ?? readAiErrorResponseBody(error.responseBody);
             const failure = {
                 model: attempt.model,
-                status: response.status,
-                code: 'invalid_response',
+                status: error.statusCode,
+                code: upstreamError?.code ?? 'invalid_response',
             };
             if (!isRetryableFailure(failure)) {
                 throw new BkperAiError(
-                    response.status,
+                    failure.status,
                     failure.code,
-                    `Bkper AI returned an invalid response (${response.status}).`,
+                    upstreamError?.message ??
+                        `Bkper AI returned an invalid response (${failure.status}).`,
                     [...failures, failure]
                 );
             }
             failures.push(failure);
-            continue;
-        }
-
-        if (!response.ok) {
-            const upstreamError = readAiError(payload);
-            const failure = {
-                model: attempt.model,
-                status: response.status,
-                code: upstreamError?.code ?? 'bkper_ai_error',
-            };
-            if (!isRetryableFailure(failure)) {
-                throw new BkperAiError(
-                    response.status,
-                    failure.code,
-                    upstreamError?.message ?? `Bkper AI returned ${response.status}.`,
-                    [...failures, failure]
-                );
-            }
-            failures.push(failure);
-            continue;
-        }
-
-        try {
-            return parseAnalysis(payload, transactions);
-        } catch {
-            failures.push({ model: attempt.model, status: 200, code: 'invalid_output' });
         }
     }
 
     throw new BkperAiError(502, 'ai_providers_failed', formatFailures(failures), failures);
 }
 
-function buildAiRequest(
-    attempt: ModelAttempt,
-    transactions: readonly TransactionFingerprint[],
-    inputText: string
-): Request {
-    return new Request(AI_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-            model: attempt.model,
-            input: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'input_text',
-                            text: inputText,
-                        },
-                    ],
-                },
-            ],
-            instructions: defaultPrompt(),
-            text: {
-                format: {
-                    type: 'json_schema',
-                    name: 'merge_duplicate_global_matching',
-                    schema: responseSchema(transactions.length),
-                    strict: true,
-                },
-            },
-            reasoning: { effort: attempt.reasoningEffort },
-            ...(attempt.temperature === undefined ? {} : { temperature: attempt.temperature }),
-            stream: false,
-            store: false,
-        }),
-    });
-}
-
-async function fetchWithTimeout(
-    fetcher: Fetcher,
-    request: Request,
-    timeoutMs: number
-): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-        return await fetcher(new Request(request, { signal: controller.signal }));
-    } catch (error) {
-        if (controller.signal.aborted) {
-            throw new DOMException('Bkper AI request timed out.', 'AbortError');
+function withBkperAiDefaults(fetcher: Fetcher): Fetcher {
+    return async (input, init) => {
+        if (typeof init?.body !== 'string') {
+            throw new Error('Bkper AI request body was not JSON.');
         }
-        throw error;
-    } finally {
-        clearTimeout(timeout);
-    }
+        const body: unknown = JSON.parse(init.body);
+        if (!isRecord(body)) {
+            throw new Error('Bkper AI request body was not an object.');
+        }
+        return fetcher(
+            new Request(input, {
+                ...init,
+                body: JSON.stringify({ ...body, stream: false, store: false }),
+            })
+        );
+    };
 }
 
 function isRetryableFailure(failure: AiAttemptFailure): boolean {
@@ -196,9 +170,19 @@ function isRetryableFailure(failure: AiAttemptFailure): boolean {
     return failure.status === 408 || failure.status >= 500;
 }
 
-function isAbortError(error: unknown): boolean {
-    return error instanceof Error && error.name === 'AbortError';
+function isTimeoutError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'TimeoutError';
 }
+
+function isInvalidAiOutput(error: unknown): boolean {
+    return (
+        error instanceof InvalidAiOutputError ||
+        NoObjectGeneratedError.isInstance(error) ||
+        NoOutputGeneratedError.isInstance(error)
+    );
+}
+
+class InvalidAiOutputError extends Error {}
 
 function formatFailures(failures: readonly AiAttemptFailure[]): string {
     const attempts = failures
@@ -303,86 +287,47 @@ function toAiProperties(properties: Readonly<Record<string, string>>): Record<st
     );
 }
 
-function responseSchema(transactionCount: number): Record<string, unknown> {
+function analysisSchema(transactionCount: number) {
     const maximumIndex = Math.max(0, transactionCount - 1);
-    return {
-        type: 'object',
-        properties: {
-            pairs: {
-                type: 'array',
-                minItems: 0,
-                maxItems: Math.floor(transactionCount / 2),
-                items: {
-                    type: 'object',
-                    properties: {
-                        firstIndex: { type: 'integer', minimum: 0, maximum: maximumIndex },
-                        secondIndex: { type: 'integer', minimum: 0, maximum: maximumIndex },
-                        strength: { type: 'string', enum: ['Strong', 'Possible'] },
-                        explanation: { type: 'string', maxLength: 180 },
-                    },
-                    required: ['firstIndex', 'secondIndex', 'strength', 'explanation'],
-                    additionalProperties: false,
-                },
-            },
-        },
-        required: ['pairs'],
-        additionalProperties: false,
-    };
+    const pairSchema = z
+        .object({
+            firstIndex: z.number().int().min(0).max(maximumIndex),
+            secondIndex: z.number().int().min(0).max(maximumIndex),
+            strength: z.enum(['Strong', 'Possible']),
+            explanation: z.string().max(180),
+        })
+        .strict();
+    return z
+        .object({
+            pairs: z.array(pairSchema).max(Math.floor(transactionCount / 2)),
+        })
+        .strict();
 }
 
-function parseAnalysis(
-    payload: unknown,
+function validateAnalysis(
+    value: AiAnalysis,
     transactions: readonly TransactionFingerprint[]
 ): AiAnalysis {
-    const outputText = getOutputText(payload);
-    let value: unknown;
-    try {
-        value = JSON.parse(outputText) as unknown;
-    } catch {
-        throw new Error('Bkper AI returned malformed structured output.');
-    }
-    if (!isRecord(value) || !Array.isArray(value.pairs)) {
-        throw new Error('Bkper AI output did not match the required schema.');
-    }
-    if (value.pairs.length > Math.floor(transactions.length / 2)) {
-        throw new Error('Bkper AI returned too many pairs.');
-    }
-
     const usedIndexes = new Set<number>();
     const pairs: AiSuggestedPair[] = [];
     for (const item of value.pairs) {
         if (
-            !isRecord(item) ||
-            typeof item.firstIndex !== 'number' ||
-            !Number.isInteger(item.firstIndex) ||
-            typeof item.secondIndex !== 'number' ||
-            !Number.isInteger(item.secondIndex) ||
-            item.firstIndex < 0 ||
-            item.firstIndex >= transactions.length ||
-            item.secondIndex < 0 ||
-            item.secondIndex >= transactions.length ||
             item.firstIndex === item.secondIndex ||
             usedIndexes.has(item.firstIndex) ||
-            usedIndexes.has(item.secondIndex) ||
-            (item.strength !== 'Strong' && item.strength !== 'Possible') ||
-            typeof item.explanation !== 'string' ||
-            item.explanation.length > 180
+            usedIndexes.has(item.secondIndex)
         ) {
-            throw new Error('Bkper AI output did not match the required schema.');
+            throw new InvalidAiOutputError('Bkper AI returned overlapping pairs.');
         }
         const first = transactions[item.firstIndex];
         const second = transactions[item.secondIndex];
         if (!isPlausiblePair(first, second)) {
-            throw new Error('Bkper AI returned a pair outside deterministic constraints.');
+            throw new InvalidAiOutputError(
+                'Bkper AI returned a pair outside deterministic constraints.'
+            );
         }
         usedIndexes.add(item.firstIndex);
         usedIndexes.add(item.secondIndex);
-        pairs.push({
-            firstIndex: item.firstIndex,
-            secondIndex: item.secondIndex,
-            strength: item.strength,
-            explanation: item.explanation,
-        });
+        pairs.push(item);
     }
     pairs.sort((left, right) => {
         const strength = left.strength === right.strength ? 0 : left.strength === 'Strong' ? -1 : 1;
@@ -393,32 +338,18 @@ function parseAnalysis(
     return { pairs };
 }
 
-function getOutputText(payload: unknown): string {
-    if (!isRecord(payload) || payload.status !== 'completed' || !Array.isArray(payload.output)) {
-        throw new Error('Bkper AI did not return a complete response.');
-    }
-    const texts: string[] = [];
-    for (const item of payload.output) {
-        if (!isRecord(item) || item.type !== 'message' || !Array.isArray(item.content)) continue;
-        for (const part of item.content) {
-            if (isRecord(part) && part.type === 'output_text' && typeof part.text === 'string') {
-                texts.push(part.text);
-            }
-        }
-    }
-    if (texts.length === 0) throw new Error('Bkper AI returned no output text.');
-    return texts.join('');
+function isCompletedResponse(payload: unknown): boolean {
+    return isRecord(payload) && payload.status === 'completed';
 }
 
-async function readAiPayload(response: Response): Promise<unknown> {
-    const body = await response.text();
-    if (body.trim().length === 0) {
-        throw new Error(`Bkper AI returned an empty response (${response.status}).`);
-    }
+function readAiErrorResponseBody(
+    body: string | undefined
+): { code: string; message: string } | undefined {
+    if (!body) return undefined;
     try {
-        return JSON.parse(body) as unknown;
+        return readAiError(JSON.parse(body) as unknown);
     } catch {
-        throw new Error(`Bkper AI returned malformed JSON (${response.status}).`);
+        return undefined;
     }
 }
 

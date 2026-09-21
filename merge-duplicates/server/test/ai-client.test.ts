@@ -77,6 +77,7 @@ describe('Bkper AI structured analysis', () => {
         expect(body.reasoning).toEqual({ effort: 'medium' });
         expect(body.temperature).toBe(0.1);
         expect(body.store).toBe(false);
+        expect(body.stream).toBe(false);
         expect(body.text).toMatchObject({
             format: {
                 type: 'json_schema',

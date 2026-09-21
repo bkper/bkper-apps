@@ -1,12 +1,18 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { Bkper } from 'bkper-js';
 import type { Env } from '../../env.js';
+import {
+    createPerformanceMonitor,
+    silentPerformanceMonitor,
+    type PerformanceMonitor,
+} from './observability';
 
 export class AppContext {
     constructor(
         readonly bkper: Bkper,
         readonly env: Env,
-        readonly aiFetch: typeof fetch = fetch
+        readonly aiFetch: typeof fetch = fetch,
+        readonly performanceMonitor: PerformanceMonitor = silentPerformanceMonitor
     ) {}
 }
 
@@ -19,7 +25,8 @@ export type WorkerContext = Context<AppEnv>;
 export type AppContextFactory = (c: WorkerContext) => AppContext;
 
 export function createAppContext(c: WorkerContext): AppContext {
-    return new AppContext(new Bkper(), c.env);
+    const requestId = c.req.header('cf-ray') ?? crypto.randomUUID();
+    return new AppContext(new Bkper(), c.env, fetch, createPerformanceMonitor(requestId));
 }
 
 export function appContextMiddleware(

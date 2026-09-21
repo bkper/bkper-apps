@@ -92,7 +92,14 @@ function page(items: bkper.Transaction[], cursor?: string): TransactionList {
     } as unknown as TransactionList;
 }
 
-function setup(api: AppApi, getBook: (bookId: string) => Promise<Book>) {
+function setup(
+    api: AppApi,
+    getBook: (bookId: string) => Promise<Book>,
+    options: {
+        logger?: Pick<Console, 'debug' | 'error'>;
+        now?: () => number;
+    } = {}
+) {
     const host = new TestHost();
     const urlSync = new TestUrlSync();
     let authCallbacks: AuthSessionCallbacks = {};
@@ -111,7 +118,8 @@ function setup(api: AppApi, getBook: (bookId: string) => Promise<Book>) {
         },
         createApi: () => api,
         createBookService: () => ({ getBook }),
-        logger: { debug: () => undefined, error: () => undefined },
+        logger: options.logger ?? { debug: () => undefined, error: () => undefined },
+        now: options.now,
     });
 
     controller.hostConnected();
@@ -172,18 +180,51 @@ describe('AppController browser-owned pagination and host synchronization', () =
         expect(controller.state.skipped.total).toBe(2);
     });
 
-    it('stops browser pagination when the cumulative analyze limit reaches one thousand', async () => {
-        let pageIndex = 0;
+    it('logs browser Book loading, listing, and API analysis durations', async () => {
+        const logs: unknown[][] = [];
+        const timestamps = [0, 5, 15, 45];
+        const book = {
+            getPermission: () => Permission.OWNER,
+            listTransactions: async () => page([payload('first'), payload('second')]),
+        } as unknown as Book;
+        const { login } = setup(
+            apiWithAnalyze(async () => analysis([])),
+            async () => book,
+            {
+                logger: {
+                    debug: (...values: unknown[]) => logs.push(values),
+                    error: () => undefined,
+                },
+                now: () => timestamps.shift() ?? 45,
+            }
+        );
+
+        await login();
+
+        expect(logs.at(-1)).toEqual([
+            '[merge-duplicates:performance]',
+            'analysis completed',
+            {
+                scanned: 2,
+                cumulativeTransactions: 2,
+                suggestions: 0,
+                bookMs: 5,
+                listingMs: 10,
+                apiMs: 30,
+                totalMs: 45,
+            },
+        ]);
+    });
+
+    it('stops browser pagination when the cumulative analyze limit reaches two hundred', async () => {
+        let pageCount = 0;
         const requestSizes: number[] = [];
         const book = {
             getPermission: () => Permission.OWNER,
             listTransactions: async () => {
-                const offset = pageIndex * 200;
-                pageIndex += 1;
+                pageCount += 1;
                 return page(
-                    Array.from({ length: 200 }, (_, index) =>
-                        payload(`transaction-${offset + index}`)
-                    ),
+                    Array.from({ length: 200 }, (_, index) => payload(`transaction-${index}`)),
                     'more'
                 );
             },
@@ -197,11 +238,10 @@ describe('AppController browser-owned pagination and host synchronization', () =
         );
 
         await login();
-        for (let index = 1; index < 5; index += 1) await controller.analyzeNext();
         await controller.analyzeNext();
 
-        expect(requestSizes).toEqual([200, 400, 600, 800, 1_000]);
-        expect(pageIndex).toBe(5);
+        expect(requestSizes).toEqual([200]);
+        expect(pageCount).toBe(1);
         expect(controller.review.cursor).toBeUndefined();
     });
 

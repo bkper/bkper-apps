@@ -36,7 +36,7 @@ The two statements describe the same movement: `Checking >> Credit Card`. It is 
 1. Open a Book and set the transaction query you want to review. Selecting an Account or Group narrows the context and makes learning more relevant.
 2. Choose **Merge Duplicates** from the Book menu.
 3. Compare each suggested pair. Suggestions start selected, so **unselect every pair that is not a duplicate**.
-4. Choose **Look for more** to review up to 200 more transactions. The app keeps your decisions for pairs that remain in the results and can scan up to 1,000 transactions.
+4. Review the suggestions found within the first 200 transactions in the active query.
 5. Choose **Apply**, check the selected and unselected totals, and confirm.
 
 Selected pairs are merged one at a time. If one pair fails, the app reports it and continues with the remaining pairs.
@@ -49,7 +49,7 @@ A pair must first pass deterministic checks:
 - the dates are no more than seven calendar days apart; and
 - the transactions share an Account on the same side of the movement, or at least one is a draft and both have descriptions that can be compared.
 
-Bkper AI then compares all plausible alternatives and returns only its strongest non-overlapping pairs, labeled **Strong** or **Possible**. Checked, trashed, locked, and malformed transactions are not suggested.
+Bkper AI Jev scores every plausible pair as Different, Possible, or Strong. The app discards Different pairs, ranks the remaining scores, and deterministically selects non-overlapping **Strong** and **Possible** suggestions. Checked, trashed, locked, and malformed transactions are not suggested.
 
 ## Human control and learning
 
@@ -144,3 +144,28 @@ Learning requires Owner or Editor permission and updates the visible `merge_dupl
 See the [OpenAPI specification](https://merge-duplicates.bkper.app/openapi.json) for complete request and response schemas.
 
 </details>
+
+## Local development and performance logging
+
+Authenticate once, install dependencies, and start the Vite client and local Worker together:
+
+```bash
+bkper auth login
+bun install
+bun run dev
+```
+
+Open the app using the `Open app` URL printed by `bkper app dev`. The local endpoints are:
+
+- Client with hot reload: `http://localhost:5178`
+- Worker and API: `http://localhost:8795`
+- Health check: `http://localhost:8795/health`
+- OpenAPI: `http://localhost:5178/openapi.json`
+
+Browser DevTools reports Book loading, transaction listing, API analysis, and total durations under the `[merge-duplicates:performance]` prefix. The Worker terminal emits JSON performance events for each analysis and Jev batch. These events include only counts, byte sizes, durations, phase names, safe error codes, and a request correlation ID; transaction and Account contents are never logged.
+
+Run the deterministic verification before deployment:
+
+```bash
+bun run check
+```

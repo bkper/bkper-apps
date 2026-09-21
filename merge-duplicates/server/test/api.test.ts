@@ -2,10 +2,15 @@ import { describe, expect, it } from 'bun:test';
 import { Permission, type Bkper, type Book, type Transaction } from 'bkper-js';
 import { AppContext } from '../src/app-context';
 import { createApp } from '../src/index';
+import type { PerformanceMonitor } from '../src/observability';
 
-function contextWithBook(book: Book, aiFetch: typeof fetch = fetch) {
+function contextWithBook(
+    book: Book,
+    aiFetch: typeof fetch = fetch,
+    performanceMonitor?: PerformanceMonitor
+) {
     const bkper = { getBook: async () => book } as unknown as Bkper;
-    return () => new AppContext(bkper, { ASSETS: { fetch } }, aiFetch);
+    return () => new AppContext(bkper, { ASSETS: { fetch } }, aiFetch, performanceMonitor);
 }
 
 function transaction(id: string, overrides: Partial<bkper.Transaction> = {}): bkper.Transaction {
@@ -23,29 +28,20 @@ function transaction(id: string, overrides: Partial<bkper.Transaction> = {}): bk
     };
 }
 
-function completedAnalysis(firstIndex = 0, secondIndex = 1): Response {
+function completedEvaluation(questionIds: readonly string[]): Response {
     return Response.json({
-        status: 'completed',
-        output: [
-            {
-                type: 'message',
-                content: [
-                    {
-                        type: 'output_text',
-                        text: JSON.stringify({
-                            pairs: [
-                                {
-                                    firstIndex,
-                                    secondIndex,
-                                    strength: 'Strong',
-                                    explanation: 'Same movement.',
-                                },
-                            ],
-                        }),
-                    },
-                ],
-            },
-        ],
+        model: 'jev',
+        answers: Object.fromEntries(
+            questionIds.map(id => [
+                id,
+                {
+                    type: 'score',
+                    score: 2,
+                    probabilities: { '0': 0, '1': 0, '2': 1 },
+                },
+            ])
+        ),
+        usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 },
     });
 }
 
@@ -164,6 +160,43 @@ describe('authenticated workflow routes', () => {
         });
     });
 
+    it('preserves evaluation-provider overload details as a gateway error', async () => {
+        const book = {
+            getPermission: () => Permission.OWNER,
+            getLockDate: () => undefined,
+            getClosingDate: () => undefined,
+            getProperty: () => undefined,
+            getAccount: async () => undefined,
+        } as unknown as Book;
+        const app = createApp(
+            contextWithBook(book, async () =>
+                Response.json(
+                    {
+                        error: {
+                            code: 'provider_overloaded',
+                            message: 'Evaluation provider overloaded.',
+                        },
+                    },
+                    { status: 503 }
+                )
+            )
+        );
+
+        const response = await post(app, '/api/v1/analyze', {
+            bookId: 'book',
+            transactions: [transaction('first'), transaction('second')],
+        });
+
+        expect(response.status).toBe(502);
+        expect(await response.json()).toEqual({
+            success: false,
+            error: {
+                code: 'provider_overloaded',
+                message: 'Evaluation provider overloaded.',
+            },
+        });
+    });
+
     it('sends only minimized candidates to AI and maps suggestions to unchanged full payloads', async () => {
         const first = transaction('first', {
             remoteIds: ['private-remote-id'],
@@ -186,13 +219,11 @@ describe('authenticated workflow routes', () => {
         const aiFetch = async (input: RequestInfo | URL) => {
             const request = input instanceof Request ? input : new Request(input);
             const body = (await request.json()) as {
-                input: Array<{ content: Array<{ text: string }> }>;
+                state: { candidateTransactions?: Array<Record<string, unknown>> };
+                questions: Record<string, unknown>;
             };
-            const payload = JSON.parse(body.input[0]?.content[0]?.text ?? '{}') as {
-                candidateTransactions?: Array<Record<string, unknown>>;
-            };
-            aiTransactions = payload.candidateTransactions ?? [];
-            return completedAnalysis();
+            aiTransactions = body.state.candidateTransactions ?? [];
+            return completedEvaluation(Object.keys(body.questions));
         };
         const app = createApp(contextWithBook(book, aiFetch));
 
@@ -214,9 +245,59 @@ describe('authenticated workflow routes', () => {
             {
                 transactions: [first, second],
                 strength: 'Strong',
-                explanation: 'Same movement.',
+                explanation: 'Same From Account: Bank · 1 day apart',
             },
         ]);
+    });
+
+    it('logs payload-free analysis and Jev efficiency metrics', async () => {
+        const events: Array<{ event: string; metrics: Record<string, string | number | boolean> }> =
+            [];
+        const performanceMonitor: PerformanceMonitor = {
+            now: () => performance.now(),
+            log: (event, metrics) => events.push({ event, metrics: { ...metrics } }),
+        };
+        const book = {
+            getPermission: () => Permission.OWNER,
+            getLockDate: () => undefined,
+            getClosingDate: () => undefined,
+            getProperty: () => undefined,
+            getAccount: async () => undefined,
+        } as unknown as Book;
+        const aiFetch = async (input: RequestInfo | URL) => {
+            const request = input instanceof Request ? input : new Request(input);
+            const body = (await request.json()) as { questions: Record<string, unknown> };
+            return completedEvaluation(Object.keys(body.questions));
+        };
+        const app = createApp(contextWithBook(book, aiFetch, performanceMonitor));
+
+        const response = await post(app, '/api/v1/analyze', {
+            bookId: 'book',
+            transactions: [
+                transaction('private-first', { description: 'DO_NOT_LOG_FIRST' }),
+                transaction('private-second', { description: 'DO_NOT_LOG_SECOND' }),
+            ],
+        });
+
+        expect(response.status).toBe(200);
+        expect(events.map(item => item.event)).toEqual([
+            'analysis.started',
+            'jev.batch.completed',
+            'analysis.completed',
+        ]);
+        expect(events[1]?.metrics).toMatchObject({ batch: 1, batches: 1, questions: 1 });
+        expect(events[2]?.metrics).toMatchObject({
+            submittedTransactions: 2,
+            eligibleTransactions: 2,
+            skippedTransactions: 0,
+            candidateTransactions: 2,
+            candidatePairs: 1,
+            learningExamples: 0,
+            jevBatches: 1,
+            suggestions: 1,
+        });
+        expect(JSON.stringify(events)).not.toContain('private-first');
+        expect(JSON.stringify(events)).not.toContain('DO_NOT_LOG_FIRST');
     });
 
     it('passes merge payload overrides directly to the canonical Book operation and returns its full payload', async () => {

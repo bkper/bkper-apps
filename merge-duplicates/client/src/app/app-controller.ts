@@ -14,7 +14,7 @@ import { getMenuContext, type CapturedMenuContext } from './menu-context';
 import { ReviewSession, type MenuContext, type ReviewPermission } from './review-session';
 
 const PAGE_SIZE = 200;
-const MAX_ANALYZE_TRANSACTIONS = 1_000;
+const MAX_ANALYZE_TRANSACTIONS = 200;
 
 export interface AppControllerOptions {
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
@@ -23,6 +23,7 @@ export interface AppControllerOptions {
     getSearch?: () => string;
     createUrlSync?: () => AppUrlSync;
     logger?: Pick<Console, 'debug' | 'error'>;
+    now?: () => number;
 }
 
 export class AppController implements ReactiveController {
@@ -35,6 +36,7 @@ export class AppController implements ReactiveController {
     private readonly getSearch: () => string;
     private readonly urlSync: AppUrlSync;
     private readonly logger: Pick<Console, 'debug' | 'error'>;
+    private readonly now: () => number;
     private pendingUrl?: URL;
     private reviewEdited = false;
     private contextVersion = 0;
@@ -50,6 +52,7 @@ export class AppController implements ReactiveController {
         this.getSearch = options.getSearch ?? (() => window.location.search);
         this.urlSync = (options.createUrlSync ?? createAppUrlSync)();
         this.logger = options.logger ?? console;
+        this.now = options.now ?? (() => performance.now());
         const authFactory = options.createAuthSession ?? createAuthSession;
         this.auth = authFactory({
             onLoginSuccess: () => this.begin(),
@@ -93,22 +96,24 @@ export class AppController implements ReactiveController {
         )
             return;
         const contextVersion = this.contextVersion;
+        const startedAt = this.now();
         const abortController = new AbortController();
         this.activeAnalysis = abortController;
-        this.logger.debug('[merge-duplicates:sync]', 'analysis started', {
+        this.logger.debug('[merge-duplicates:performance]', 'analysis started', {
             contextVersion,
-            query: context.query,
         });
         this.setState({ analyzing: true, error: null, notice: null });
 
         try {
             const book = await this.getActiveBook(context.bookId);
             if (contextVersion !== this.contextVersion) return;
+            const bookLoadedAt = this.now();
             const permission = toReviewPermission(book.getPermission());
             this.setState({ permission });
 
             const page = await book.listTransactions(context.query, PAGE_SIZE, this.review.cursor);
             if (contextVersion !== this.contextVersion) return;
+            const listedAt = this.now();
             const pageTransactions = page.getItems().map(transaction => transaction.json());
             const cumulativeTransactions = mergeTransactions(
                 this.review.transactions,
@@ -119,14 +124,20 @@ export class AppController implements ReactiveController {
                 abortController.signal
             );
             if (contextVersion !== this.contextVersion) return;
+            const analyzedAt = this.now();
 
             const pageCursor = page.getCursor();
             const cursor =
                 cumulativeTransactions.length < MAX_ANALYZE_TRANSACTIONS ? pageCursor : undefined;
             this.review.replaceAnalysis(response, cumulativeTransactions, cursor);
-            this.logger.debug('[merge-duplicates:sync]', 'analysis completed', {
+            this.logger.debug('[merge-duplicates:performance]', 'analysis completed', {
                 scanned: pageTransactions.length,
+                cumulativeTransactions: cumulativeTransactions.length,
                 suggestions: response.suggestions.length,
+                bookMs: elapsedMilliseconds(startedAt, bookLoadedAt),
+                listingMs: elapsedMilliseconds(bookLoadedAt, listedAt),
+                apiMs: elapsedMilliseconds(listedAt, analyzedAt),
+                totalMs: elapsedMilliseconds(startedAt, analyzedAt),
             });
             this.setState({
                 scanned: this.state.scanned + pageTransactions.length,
@@ -339,6 +350,10 @@ function toReviewPermission(permission: Permission): ReviewPermission {
 
 function toErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function elapsedMilliseconds(startedAt: number, completedAt: number): number {
+    return Math.round((completedAt - startedAt) * 100) / 100;
 }
 
 function sameContext(first: CapturedMenuContext, second: CapturedMenuContext): boolean {

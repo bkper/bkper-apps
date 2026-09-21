@@ -149,16 +149,16 @@ Build output:
 
 Merge Duplicates is a Bkper sidebar app for human-reviewed duplicate detection. It never creates a movement itself and never reconstructs merge behavior. Confirmed pairs go through `Book.mergeTransactions`, preserving Core's canonical zero-sum merge operation.
 
-The AI proposes globally selected, non-overlapping pairs from cumulative eligible transaction snapshots. Every proposed pair is independently checked against deterministic amount, date, draft-recovery, and movement-side constraints before it can be shown. Model output cannot initiate writes. Browser memory owns pagination cursors, cumulative full transaction payloads, and accepted/rejected decisions; there is no persisted scan resource.
+Jev scores deterministically eligible transaction pairs as independent typed evaluations. The app ranks those scores globally and selects non-overlapping suggestions in code. Every evaluated pair has already passed deterministic amount, date, draft-recovery, and movement-side constraints. Model output cannot initiate writes. Browser memory owns full transaction payloads and accepted/rejected decisions; there is no persisted scan resource.
 
 ## Workflow
 
 1. Capture the Book transaction query and selected Account/Group context from the menu URL, then reject Viewers before listing transactions.
-2. List 200 transactions in the browser with `Book.listTransactions`, accumulate unique full payloads up to 1,000, and submit the complete cumulative set to `/api/v1/analyze` after every page.
+2. List and submit at most 200 unique full transaction payloads from the browser with `Book.listTransactions` and `/api/v1/analyze`.
 3. On the server, independently enforce permission and exclude checked, trashed, locked, and malformed rows before AI allowance is consumed.
-4. Identify eligible transactions that participate in at least one deterministic possibility: equal amounts, dates within seven calendar days, and either a shared Account on the same movement side or at least one draft with non-empty descriptions on both transactions. This draft recovery rule keeps incorrect Account discovery from suppressing candidates.
-5. Submit each cumulative candidate transaction once in canonical Book order to one strict `gemini-flash` request using prompt `merge-duplicates-v6`, medium reasoning, and low temperature. Send only minimized fields. Ask the AI to compare all alternatives globally and return only its strongest non-overlapping likely pairs. Silently fall back to `gpt-luna` and then `deepseek-flash`, using high reasoning and no temperature, only for retryable provider failures or invalid model output.
-6. Reject the entire model output as invalid unless every proposed pair is non-overlapping and passes deterministic amount, date, Account, and draft-recovery constraints, then rank Strong before Possible and map results back to the original full payloads. Each cumulative analysis replaces prior suggestions while preserving decisions for unchanged sorted transaction-ID keys.
+4. Identify deterministic candidate pairs: equal amounts, dates within seven calendar days, and either a shared Account on the same movement side or at least one draft with non-empty descriptions on both transactions. This draft recovery rule keeps incorrect Account discovery from suppressing candidates.
+5. Submit minimized candidate snapshots to Bkper AI `POST /v1/evaluations` with model `jev`. Ask one three-level Score question per pair and send at most 25 independent questions per request. The levels map to Different, Possible, and Strong. There is no language-model fallback.
+6. Reject incomplete or invalid evaluation responses, discard Different pairs, rank Strong before Possible and then by score, and greedily select non-overlapping pairs with canonical index tie-breakers. Map selected pairs back to the original full payloads and build explanations only from deterministic Account and date facts.
 7. Require final human confirmation, then merge accepted pairs sequentially through ID-only payloads while continuing after failures.
 8. Save rejected pairs in one batch as lines in visible property `merge_duplicate_examples`; retain the newest 50 lines within 90,000 characters on Account, Group, or Book context.
 

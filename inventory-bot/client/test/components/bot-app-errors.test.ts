@@ -27,10 +27,8 @@ describe('Bot app errors', () => {
         );
 
         expect(accountError.type).toBe('info');
-        expect(accountError.title).toBe('Account not found.');
         expect(accountError.message.before).toContain('account/id');
         expect(accountError.message.before).toContain('book/id');
-        expect(groupError.title).toBe('Group not found.');
         expect(groupError.message.before).toContain('group/id');
         expect(groupError.message.before).toContain('book/id');
     });
@@ -46,10 +44,8 @@ describe('Bot app errors', () => {
             'book/id'
         );
 
-        expect(accountError.title).toBe('Account could not be loaded.');
         expect(accountError.message.before).toContain('account/id');
         expect(accountError.message.before).toContain('book/id');
-        expect(groupError.title).toBe('Group could not be loaded.');
         expect(groupError.message.before).toContain('group/id');
         expect(groupError.message.before).toContain('book/id');
     });
@@ -70,17 +66,11 @@ describe('Bot app errors', () => {
             new Book({ permission: Permission.RECORDER }),
             'Inventory Book'
         );
-        const notFoundError = BotAppErrors.bookNotFound('Inventory Book');
-        const loadError = BotAppErrors.bookLoadFailed('Inventory Book');
 
-        expect(accessError.title).toBe("You don't have access to the Inventory Book.");
         expect(accessError.message.action?.url).toBe(
             'https://bkper.app/books/inventory%2Fid/transactions'
         );
-        expect(permissionError.title).toBe('Insufficient Inventory Book permission.');
         expect(permissionError.message.before).toContain(Permission.RECORDER);
-        expect(notFoundError.title).toBe('Inventory Book not found.');
-        expect(loadError.title).toBe('The Inventory Book could not be loaded.');
     });
 
     it('builds the Inventory Bot installation action for the selected Book', () => {

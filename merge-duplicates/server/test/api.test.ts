@@ -30,18 +30,20 @@ function transaction(id: string, overrides: Partial<bkper.Transaction> = {}): bk
 
 function completedEvaluation(questionIds: readonly string[]): Response {
     return Response.json({
-        model: 'jev',
+        model: 'jev-1.13.0',
         answers: Object.fromEntries(
             questionIds.map(id => [
                 id,
                 {
                     type: 'score',
                     score: 2,
+                    legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                    confidence: 1,
                     probabilities: { '0': 0, '1': 0, '2': 1 },
                 },
             ])
         ),
-        usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 },
+        usage: { input_tokens: 100, output_tokens: 10 },
     });
 }
 

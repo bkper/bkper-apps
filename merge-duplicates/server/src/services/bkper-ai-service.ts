@@ -286,7 +286,12 @@ async function callEvaluation(body: Record<string, unknown>, fetcher: Fetcher): 
 }
 
 function readBatchScores(value: unknown, pairs: readonly CandidatePair[]): ScoredPair[] {
-    if (!isRecord(value) || value.model !== MODEL || !isRecord(value.answers)) {
+    if (
+        !isRecord(value) ||
+        typeof value.model !== 'string' ||
+        !/^jev-\d+\.\d+\.\d+$/.test(value.model) ||
+        !isRecord(value.answers)
+    ) {
         throw invalidResponse();
     }
     const answers = value.answers;

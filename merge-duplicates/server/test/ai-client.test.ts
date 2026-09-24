@@ -31,7 +31,7 @@ function evaluationResponse(
 ): Response {
     const questions = request.questions as Record<string, unknown>;
     return Response.json({
-        model: 'jev',
+        model: 'jev-1.13.0',
         answers: Object.fromEntries(
             Object.keys(questions).map(id => {
                 const score = typeof scores === 'number' ? scores : (scores[id] ?? 0);
@@ -41,6 +41,8 @@ function evaluationResponse(
                     {
                         type: 'score',
                         score,
+                        legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                        confidence: 0.8,
                         probabilities: {
                             '0': rounded === 0 ? 1 : 0,
                             '1': rounded === 1 ? 1 : 0,
@@ -50,7 +52,7 @@ function evaluationResponse(
                 ];
             })
         ),
-        usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 },
+        usage: { input_tokens: 100, output_tokens: 10 },
     });
 }
 
@@ -195,30 +197,38 @@ describe('Bkper AI Jev evaluation', () => {
         ];
         const result = await analyzeCandidateTransactions(transactions, [], async () =>
             Response.json({
-                model: 'jev',
+                model: 'jev-1.13.0',
                 answers: {
                     pair_0_1: {
                         type: 'score',
                         score: 0.68,
+                        legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                        confidence: 0.3,
                         probabilities: { '0': 0.51, '1': 0.3, '2': 0.19 },
                     },
                     pair_2_3: {
                         type: 'score',
                         score: 0.4,
+                        legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                        confidence: 0.6,
                         probabilities: { '0': 0.2, '1': 0.7, '2': 0.1 },
                     },
                     pair_4_5: {
                         type: 'score',
                         score: 1.4,
+                        legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                        confidence: 0.4,
                         probabilities: { '0': 0.1, '1': 0.2, '2': 0.7 },
                     },
                     pair_6_7: {
                         type: 'score',
                         score: 0.5,
+                        legend: { '0': 'Different', '1': 'Possible', '2': 'Strong' },
+                        confidence: 0,
                         probabilities: { '0': 0.5, '1': 0.5, '2': 0 },
                     },
                 },
-                usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110 },
+                usage: { input_tokens: 100, output_tokens: 10 },
             })
         );
 
@@ -364,12 +374,26 @@ describe('Bkper AI Jev evaluation', () => {
         expect(calls).toBe(1);
     });
 
+    it('rejects an evaluation from another model family', async () => {
+        const analysis = analyzeCandidateTransactions(
+            [pair.first, pair.second],
+            [],
+            async input => {
+                const request = input instanceof Request ? input : new Request(input);
+                const body = (await request.json()) as Record<string, unknown>;
+                const result = (await evaluationResponse(body).json()) as Record<string, unknown>;
+                return Response.json({ ...result, model: 'other-1.0.0' });
+            }
+        );
+        await expect(analysis).rejects.toMatchObject({ status: 502, code: 'invalid_response' });
+    });
+
     it('rejects incomplete evaluation answers', async () => {
         const analysis = analyzeCandidateTransactions([pair.first, pair.second], [], async () =>
             Response.json({
-                model: 'jev',
+                model: 'jev-1.13.0',
                 answers: {},
-                usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+                usage: { input_tokens: 1, output_tokens: 1 },
             })
         );
 

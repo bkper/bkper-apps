@@ -78,6 +78,22 @@ describe('auth service', () => {
         expect(authService.accessToken).toBe('refreshed-token');
     });
 
+    it('clears the cached token when the session cannot be refreshed', async () => {
+        setOnline(true);
+        globalThis.fetch = Object.assign(
+            mock(async () => Response.json({ accessToken: 'first-token' })),
+            { preconnect: originalFetch.preconnect }
+        );
+        await authService.init();
+        globalThis.fetch = Object.assign(
+            mock(async () => new Response(null, { status: 401 })),
+            { preconnect: originalFetch.preconnect }
+        );
+
+        await expect(authService.refresh()).rejects.toThrow('Authentication required');
+        expect(authService.accessToken).toBeUndefined();
+    });
+
     it('starts login when no authenticated session exists', async () => {
         setOnline(true);
         globalThis.fetch = Object.assign(

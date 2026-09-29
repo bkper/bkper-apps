@@ -14,7 +14,16 @@ class AuthService {
     }
 
     async refresh(): Promise<void> {
-        await this.bkperAuthClient?.refresh();
+        try {
+            await this.bkperAuthClient?.refresh();
+            this.accessToken = this.bkperAuthClient?.getAccessToken();
+            if (!this.accessToken) {
+                throw new Error('Authentication required. Please sign in again.');
+            }
+        } catch (error: unknown) {
+            this.accessToken = undefined;
+            throw error;
+        }
     }
 
     private async initBkperAuthClient(): Promise<void> {

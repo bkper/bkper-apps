@@ -14,7 +14,7 @@ export abstract class HttpAPIRequest<ResponseType> extends HttpRequest<ResponseT
             if (
                 error instanceof HttpError &&
                 error.status === 401 &&
-                this.getMethod() === 'GET' &&
+                (this.getMethod() === 'GET' || isInvalidBearerToken(error.data)) &&
                 !retried
             ) {
                 await authService.refresh();
@@ -23,4 +23,17 @@ export abstract class HttpAPIRequest<ResponseType> extends HttpRequest<ResponseT
             throw error;
         }
     }
+}
+
+function isInvalidBearerToken(data: unknown): boolean {
+    if (typeof data !== 'object' || data === null || !('error' in data)) {
+        return false;
+    }
+    const error = data.error;
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'INVALID_BEARER_TOKEN'
+    );
 }

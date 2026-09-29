@@ -25,10 +25,29 @@ describe('Bkper browser API initialization', () => {
         const config = new Bkper().getConfig();
         expect(await config.oauthTokenProvider?.()).toBe('access-token');
 
+        await config.requestRetryHandler?.(401, new Error('Unauthorized'), 1);
+        await config.requestRetryHandler?.(401, new Error('Unauthorized'), 2);
         await config.requestRetryHandler?.(403, new Error('Forbidden'), 1);
         await config.requestRetryHandler?.(403, new Error('Forbidden'), 2);
         await config.requestRetryHandler?.(500, new Error('Server error'), 1);
 
-        expect(refreshCount).toBe(1);
+        expect(refreshCount).toBe(2);
+    });
+
+    it('preserves a collaborator 401 for the Book-access UI without refreshing', async () => {
+        authService.refresh = async () => {
+            throw new Error('No refresh session');
+        };
+        initBkperAPI();
+
+        const config = new Bkper().getConfig();
+        const response = {
+            error: {
+                code: 401,
+                message: 'The user is not a collaborator on the book',
+            },
+        };
+
+        await expect(config.requestRetryHandler?.(401, response, 1)).resolves.toBeUndefined();
     });
 });

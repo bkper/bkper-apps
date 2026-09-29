@@ -1,11 +1,19 @@
 import { Bkper } from 'bkper-js';
 import { appEnv } from './app-env';
+import { isApiError, isBookAccessRequiredError } from './errors.js';
 import { authService } from './services/auth-service.js';
 
 export function initBkperAPI(): void {
     Bkper.setConfig({
         requestRetryHandler: async (code, message, attempt) => {
-            if (code == 403 && attempt && attempt <= 1) {
+            if (
+                code === 401 &&
+                isApiError(message) &&
+                isBookAccessRequiredError({ status: code, message: message.error.message })
+            ) {
+                return;
+            }
+            if ((code === 401 || code === 403) && attempt === 1) {
                 await authService.refresh();
             }
         },

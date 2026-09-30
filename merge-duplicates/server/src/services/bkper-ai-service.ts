@@ -1,11 +1,22 @@
 import {
+    APIConnectionError,
+    APIError,
+    TypeSafeClient,
+    type JsonValue,
+    type SystemOneRequest,
+} from '@typesafe-ai/sdk';
+import {
     elapsedMilliseconds,
     silentPerformanceMonitor,
     type PerformanceMonitor,
 } from '../observability';
 import { isPlausiblePair, type TransactionFingerprint } from './candidate-service';
 
-const AI_URL = 'https://ai.bkper.app/v1/evaluations';
+// TypeSafe SDK clients call `${baseURL}/v1/systemone`, which Bkper AI serves permanently.
+const AI_BASE_URL = 'https://ai.bkper.app';
+// Bkper Platform outbound replaces this with the current user's token and app attribution,
+// so the Worker never reads or forwards a user credential.
+const PLATFORM_AUTHORIZATION_PLACEHOLDER = 'bkper-platform-outbound';
 const MODEL = 'jev';
 const MAX_REQUEST_BYTES = 100_000;
 const MAX_AI_TEXT_CHARACTERS = 200;
@@ -24,6 +35,8 @@ interface CandidatePair {
 }
 
 type AccountPath = 'SAME' | 'COMPATIBLE_PARTIAL' | 'INSUFFICIENT' | 'CONFLICTING';
+
+type EvaluationRequest = SystemOneRequest & { model: string };
 
 interface ScoredPair extends CandidatePair {
     score: number;
@@ -63,6 +76,7 @@ export async function analyzeCandidateTransactions(
     if (candidatePairs.length === 0) return { pairs: [], batchCount: 0 };
 
     const batches = planEvaluationBatches(transactions, candidatePairs, learningExamples);
+    const client = createAiClient(fetcher);
     const scoredPairs: ScoredPair[] = [];
     const batchCount = batches.length;
     for (const [batchIndex, batch] of batches.entries()) {
@@ -71,7 +85,7 @@ export async function analyzeCandidateTransactions(
         const requestBytes = requestByteLength(requestBody);
         const startedAt = performanceMonitor.now();
         try {
-            const response = await callEvaluation(requestBody, fetcher);
+            const response = await callEvaluation(requestBody, client);
             scoredPairs.push(...readBatchScores(response, batch));
             performanceMonitor.log('jev.batch.completed', {
                 batch: batchNumber,
@@ -180,7 +194,7 @@ function buildEvaluationRequest(
     transactions: readonly TransactionFingerprint[],
     pairs: readonly CandidatePair[],
     learningExamples: readonly string[]
-): Record<string, unknown> {
+): EvaluationRequest {
     const withAllContext = createEvaluationRequest(
         transactions,
         pairs,
@@ -221,11 +235,11 @@ function createEvaluationRequest(
     learningExamples: readonly string[],
     includeLearning: boolean,
     includeProperties: boolean
-): Record<string, unknown> {
+): EvaluationRequest {
     return {
         model: MODEL,
         state: {
-            humanRejectedPairs: includeLearning ? learningExamples : [],
+            humanRejectedPairs: includeLearning ? [...learningExamples] : [],
         },
         questions: Object.fromEntries(
             pairs.map(pair => {
@@ -237,7 +251,7 @@ function createEvaluationRequest(
                 return [
                     pairId(pair),
                     {
-                        type: 'score',
+                        type: 'score' as const,
                         instructions: {
                             question:
                                 'Do the two `transactions` describe duplicate records of one real-world movement? Duplicate imports can have complementary partial Account paths. Treat missing Accounts as unknown and known Account conflicts as negative evidence. Use `accountPath` and `calendarDaysApart` as exact facts, and `humanRejectedPairs` only when closely analogous.',
@@ -253,36 +267,37 @@ function createEvaluationRequest(
     };
 }
 
-async function callEvaluation(body: Record<string, unknown>, fetcher: Fetcher): Promise<unknown> {
-    let response: Response;
-    try {
-        response = await fetcher(
-            new Request(AI_URL, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(body),
-            })
-        );
-    } catch {
-        throw new BkperAiError(502, 'connection_error', 'Bkper AI could not be reached.');
-    }
+function createAiClient(fetcher: Fetcher): TypeSafeClient {
+    return new TypeSafeClient({
+        apiKey: PLATFORM_AUTHORIZATION_PLACEHOLDER,
+        baseURL: AI_BASE_URL,
+        // The SDK invokes fetch as its own method; Workers' fetch rejects a foreign receiver.
+        fetch: (input, init) => fetcher(input, init),
+        logLevel: 'off',
+        // One attempt per batch: a retry could consume AI allowance again.
+        retry: { maxRetries: 0 },
+    });
+}
 
-    let payload: unknown;
+async function callEvaluation(body: EvaluationRequest, client: TypeSafeClient): Promise<unknown> {
     try {
-        payload = await response.json();
-    } catch {
-        throw new BkperAiError(502, 'invalid_response', 'Bkper AI returned an invalid response.');
+        return await client.systemOne(body);
+    } catch (error) {
+        if (error instanceof APIError) {
+            // Plain-text or empty bodies come from outside Bkper AI, such as platform outbound.
+            if (!isRecord(error.body)) throw invalidResponse();
+            const aiError = readAiError(error.body);
+            throw new BkperAiError(
+                error.status === 503 ? 502 : error.status,
+                aiError?.code ?? 'bkper_ai_error',
+                aiError?.message ?? `Bkper AI returned an error (${error.status}).`
+            );
+        }
+        if (error instanceof APIConnectionError) {
+            throw new BkperAiError(502, 'connection_error', 'Bkper AI could not be reached.');
+        }
+        throw error;
     }
-
-    if (!response.ok) {
-        const error = readAiError(payload);
-        throw new BkperAiError(
-            response.status === 503 ? 502 : response.status,
-            error?.code ?? 'bkper_ai_error',
-            error?.message ?? `Bkper AI returned an error (${response.status}).`
-        );
-    }
-    return payload;
 }
 
 function readBatchScores(value: unknown, pairs: readonly CandidatePair[]): ScoredPair[] {
@@ -422,14 +437,14 @@ function differentKnownAccounts(
     return first !== null && second !== null && first.id !== second.id;
 }
 
-function requestByteLength(body: Record<string, unknown>): number {
+function requestByteLength(body: EvaluationRequest): number {
     return new TextEncoder().encode(JSON.stringify(body)).byteLength;
 }
 
 function toAiSnapshots(
     transactions: readonly TransactionFingerprint[],
     includeProperties: boolean
-): Array<Record<string, unknown>> {
+): JsonValue[] {
     const accountReferences = new Map<string, number>();
     const accountSnapshot = (account: TransactionFingerprint['fromAccount']) => {
         if (!account) return null;

@@ -218,8 +218,8 @@ describe('authenticated workflow routes', () => {
             getAccount: async () => undefined,
         } as unknown as Book;
         let aiTransactions: Array<Record<string, unknown>> = [];
-        const aiFetch = async (input: RequestInfo | URL) => {
-            const request = input instanceof Request ? input : new Request(input);
+        const aiFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             const body = (await request.json()) as {
                 questions: Record<
                     string,
@@ -268,8 +268,8 @@ describe('authenticated workflow routes', () => {
             getProperty: () => undefined,
             getAccount: async () => undefined,
         } as unknown as Book;
-        const aiFetch = async (input: RequestInfo | URL) => {
-            const request = input instanceof Request ? input : new Request(input);
+        const aiFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             const body = (await request.json()) as { questions: Record<string, unknown> };
             return completedEvaluation(Object.keys(body.questions));
         };

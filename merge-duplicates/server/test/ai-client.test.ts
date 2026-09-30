@@ -63,16 +63,19 @@ function aiError(status: number, code: string, message = 'Safe upstream message.
 describe('Bkper AI Jev evaluation', () => {
     it('scores candidate pairs with Jev while omitting internal identifiers', async () => {
         let captured: Record<string, unknown> | undefined;
+        let capturedUrl: string | undefined;
         const result = await analyzeCandidateTransactions(
             [pair.first, pair.second],
             ['known false positive'],
-            async input => {
-                const request = input instanceof Request ? input : new Request(input);
+            async (input, init) => {
+                const request = input instanceof Request ? input : new Request(input, init);
+                capturedUrl = request.url;
                 captured = (await request.json()) as Record<string, unknown>;
                 return evaluationResponse(captured, 2);
             }
         );
 
+        expect(capturedUrl).toBe('https://ai.bkper.app/v1/systemone');
         expect(captured).toMatchObject({ model: 'jev' });
         const state = captured?.state as {
             humanRejectedPairs: string[];
@@ -169,8 +172,8 @@ describe('Bkper AI Jev evaluation', () => {
         ];
         let captured: Record<string, unknown> | undefined;
 
-        await analyzeCandidateTransactions(transactions, [], async input => {
-            const request = input instanceof Request ? input : new Request(input);
+        await analyzeCandidateTransactions(transactions, [], async (input, init) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             captured = (await request.json()) as Record<string, unknown>;
             return evaluationResponse(captured, 0);
         });
@@ -244,8 +247,8 @@ describe('Bkper AI Jev evaluation', () => {
         const result = await analyzeCandidateTransactions(
             [pair.first, pair.second, third, fourth],
             [],
-            async input => {
-                const request = input instanceof Request ? input : new Request(input);
+            async (input, init) => {
+                const request = input instanceof Request ? input : new Request(input, init);
                 const body = (await request.json()) as Record<string, unknown>;
                 return evaluationResponse(body, {
                     pair_0_1: 1.95,
@@ -272,8 +275,8 @@ describe('Bkper AI Jev evaluation', () => {
         }));
         const questionCounts: number[] = [];
 
-        const result = await analyzeCandidateTransactions(transactions, [], async input => {
-            const request = input instanceof Request ? input : new Request(input);
+        const result = await analyzeCandidateTransactions(transactions, [], async (input, init) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             const body = (await request.json()) as Record<string, unknown>;
             questionCounts.push(Object.keys(body.questions as Record<string, unknown>).length);
             return evaluationResponse(body, 0);
@@ -294,8 +297,8 @@ describe('Bkper AI Jev evaluation', () => {
         const questionCounts: number[] = [];
         const requestBytes: number[] = [];
 
-        const result = await analyzeCandidateTransactions(transactions, [], async input => {
-            const request = input instanceof Request ? input : new Request(input);
+        const result = await analyzeCandidateTransactions(transactions, [], async (input, init) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             const text = await request.text();
             const body = JSON.parse(text) as Record<string, unknown>;
             questionCounts.push(Object.keys(body.questions as Record<string, unknown>).length);
@@ -330,8 +333,8 @@ describe('Bkper AI Jev evaluation', () => {
         }));
         let captured: Record<string, unknown> | undefined;
 
-        await analyzeCandidateTransactions(transactions, [], async input => {
-            const request = input instanceof Request ? input : new Request(input);
+        await analyzeCandidateTransactions(transactions, [], async (input, init) => {
+            const request = input instanceof Request ? input : new Request(input, init);
             captured = (await request.json()) as Record<string, unknown>;
             return evaluationResponse(captured, 2);
         });
@@ -374,12 +377,68 @@ describe('Bkper AI Jev evaluation', () => {
         expect(calls).toBe(1);
     });
 
+    it('calls fetch without a foreign receiver, as the Workers runtime requires', async () => {
+        async function workersFetch(
+            this: unknown,
+            input: RequestInfo | URL,
+            init?: RequestInit
+        ): Promise<Response> {
+            if (this !== undefined && this !== globalThis) {
+                throw new TypeError('Illegal invocation');
+            }
+            const request = input instanceof Request ? input : new Request(input, init);
+            return evaluationResponse((await request.json()) as Record<string, unknown>, 2);
+        }
+
+        const result = await analyzeCandidateTransactions(
+            [pair.first, pair.second],
+            [],
+            workersFetch
+        );
+
+        expect(result.pairs).toHaveLength(1);
+    });
+
+    it('reports an overloaded Bkper AI as a gateway failure with its error code', async () => {
+        const analysis = analyzeCandidateTransactions([pair.first, pair.second], [], async () =>
+            aiError(503, 'provider_overloaded', 'Provider overloaded.')
+        );
+
+        await expect(analysis).rejects.toMatchObject({
+            status: 502,
+            code: 'provider_overloaded',
+            message: 'Provider overloaded.',
+        });
+    });
+
+    it('reports an unreachable Bkper AI without retrying', async () => {
+        let calls = 0;
+        const analysis = analyzeCandidateTransactions([pair.first, pair.second], [], async () => {
+            calls += 1;
+            throw new TypeError('fetch failed');
+        });
+
+        await expect(analysis).rejects.toMatchObject({ status: 502, code: 'connection_error' });
+        expect(calls).toBe(1);
+    });
+
+    it('treats a plain-text platform authorization failure as an invalid response', async () => {
+        const analysis = analyzeCandidateTransactions(
+            [pair.first, pair.second],
+            [],
+            async () =>
+                new Response('Bkper AI request requires platform authorization', { status: 401 })
+        );
+
+        await expect(analysis).rejects.toMatchObject({ status: 502, code: 'invalid_response' });
+    });
+
     it('rejects an evaluation from another model family', async () => {
         const analysis = analyzeCandidateTransactions(
             [pair.first, pair.second],
             [],
-            async input => {
-                const request = input instanceof Request ? input : new Request(input);
+            async (input, init) => {
+                const request = input instanceof Request ? input : new Request(input, init);
                 const body = (await request.json()) as Record<string, unknown>;
                 const result = (await evaluationResponse(body).json()) as Record<string, unknown>;
                 return Response.json({ ...result, model: 'other-1.0.0' });

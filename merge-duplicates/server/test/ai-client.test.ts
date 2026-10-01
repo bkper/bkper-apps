@@ -57,7 +57,11 @@ function evaluationResponse(
 }
 
 function aiError(status: number, code: string, message = 'Safe upstream message.'): Response {
-    return Response.json({ error: { code, message } }, { status });
+    // `retry-after-ms: 0` keeps SDK retries instant in tests.
+    return Response.json(
+        { error: { code, message } },
+        { status, headers: { 'retry-after-ms': '0' } }
+    );
 }
 
 describe('Bkper AI Jev evaluation', () => {
@@ -359,12 +363,10 @@ describe('Bkper AI Jev evaluation', () => {
     });
 
     it('preserves Bkper AI errors without trying another model', async () => {
-        let calls = 0;
         try {
-            await analyzeCandidateTransactions([pair.first, pair.second], [], async () => {
-                calls += 1;
-                return aiError(429, 'usage_limit_exceeded', 'AI allowance exhausted.');
-            });
+            await analyzeCandidateTransactions([pair.first, pair.second], [], async () =>
+                aiError(429, 'usage_limit_exceeded', 'AI allowance exhausted.')
+            );
             throw new Error('Expected analysis to fail.');
         } catch (error) {
             expect(error).toBeInstanceOf(BkperAiError);
@@ -374,7 +376,23 @@ describe('Bkper AI Jev evaluation', () => {
                 message: 'AI allowance exhausted.',
             });
         }
-        expect(calls).toBe(1);
+    });
+
+    it('retries a transient Bkper AI failure', async () => {
+        let calls = 0;
+        const result = await analyzeCandidateTransactions(
+            [pair.first, pair.second],
+            [],
+            async (input, init) => {
+                calls += 1;
+                if (calls === 1) return aiError(503, 'provider_overloaded');
+                const request = input instanceof Request ? input : new Request(input, init);
+                return evaluationResponse((await request.json()) as Record<string, unknown>, 2);
+            }
+        );
+
+        expect(calls).toBe(2);
+        expect(result.pairs).toHaveLength(1);
     });
 
     it('calls fetch without a foreign receiver, as the Workers runtime requires', async () => {
@@ -411,15 +429,12 @@ describe('Bkper AI Jev evaluation', () => {
         });
     });
 
-    it('reports an unreachable Bkper AI without retrying', async () => {
-        let calls = 0;
+    it('reports an unreachable Bkper AI as a connection error', async () => {
         const analysis = analyzeCandidateTransactions([pair.first, pair.second], [], async () => {
-            calls += 1;
             throw new TypeError('fetch failed');
         });
 
         await expect(analysis).rejects.toMatchObject({ status: 502, code: 'connection_error' });
-        expect(calls).toBe(1);
     });
 
     it('treats a plain-text platform authorization failure as an invalid response', async () => {
@@ -431,34 +446,5 @@ describe('Bkper AI Jev evaluation', () => {
         );
 
         await expect(analysis).rejects.toMatchObject({ status: 502, code: 'invalid_response' });
-    });
-
-    it('rejects an evaluation from another model family', async () => {
-        const analysis = analyzeCandidateTransactions(
-            [pair.first, pair.second],
-            [],
-            async (input, init) => {
-                const request = input instanceof Request ? input : new Request(input, init);
-                const body = (await request.json()) as Record<string, unknown>;
-                const result = (await evaluationResponse(body).json()) as Record<string, unknown>;
-                return Response.json({ ...result, model: 'other-1.0.0' });
-            }
-        );
-        await expect(analysis).rejects.toMatchObject({ status: 502, code: 'invalid_response' });
-    });
-
-    it('rejects incomplete evaluation answers', async () => {
-        const analysis = analyzeCandidateTransactions([pair.first, pair.second], [], async () =>
-            Response.json({
-                model: 'jev-1.13.0',
-                answers: {},
-                usage: { input_tokens: 1, output_tokens: 1 },
-            })
-        );
-
-        await expect(analysis).rejects.toMatchObject({
-            status: 502,
-            code: 'invalid_response',
-        });
     });
 });

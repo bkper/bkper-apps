@@ -3,7 +3,9 @@ import {
     APIError,
     TypeSafeClient,
     type JsonValue,
+    type ScoreQuestion,
     type SystemOneRequest,
+    type SystemOneResult,
 } from '@typesafe-ai/sdk';
 import {
     elapsedMilliseconds,
@@ -36,7 +38,9 @@ interface CandidatePair {
 
 type AccountPath = 'SAME' | 'COMPATIBLE_PARTIAL' | 'INSUFFICIENT' | 'CONFLICTING';
 
-type EvaluationRequest = SystemOneRequest & { model: string };
+type PairQuestions = Record<string, ScoreQuestion<typeof SCORE_LEVELS>>;
+type EvaluationRequest = SystemOneRequest<PairQuestions>;
+type EvaluationResult = SystemOneResult<PairQuestions>;
 
 interface ScoredPair extends CandidatePair {
     score: number;
@@ -237,7 +241,6 @@ function createEvaluationRequest(
     includeProperties: boolean
 ): EvaluationRequest {
     return {
-        model: MODEL,
         state: {
             humanRejectedPairs: includeLearning ? [...learningExamples] : [],
         },
@@ -271,15 +274,16 @@ function createAiClient(fetcher: Fetcher): TypeSafeClient {
     return new TypeSafeClient({
         apiKey: PLATFORM_AUTHORIZATION_PLACEHOLDER,
         baseURL: AI_BASE_URL,
+        defaultModel: MODEL,
         // The SDK invokes fetch as its own method; Workers' fetch rejects a foreign receiver.
         fetch: (input, init) => fetcher(input, init),
-        logLevel: 'off',
-        // One attempt per batch: a retry could consume AI allowance again.
-        retry: { maxRetries: 0 },
     });
 }
 
-async function callEvaluation(body: EvaluationRequest, client: TypeSafeClient): Promise<unknown> {
+async function callEvaluation(
+    body: EvaluationRequest,
+    client: TypeSafeClient
+): Promise<EvaluationResult> {
     try {
         return await client.systemOne(body);
     } catch (error) {
@@ -300,38 +304,11 @@ async function callEvaluation(body: EvaluationRequest, client: TypeSafeClient): 
     }
 }
 
-function readBatchScores(value: unknown, pairs: readonly CandidatePair[]): ScoredPair[] {
-    if (
-        !isRecord(value) ||
-        typeof value.model !== 'string' ||
-        !/^jev-\d+\.\d+\.\d+$/.test(value.model) ||
-        !isRecord(value.answers)
-    ) {
-        throw invalidResponse();
-    }
-    const answers = value.answers;
-    const expectedIds = pairs.map(pairId);
-    const returnedIds = Object.keys(answers);
-    if (
-        returnedIds.length !== expectedIds.length ||
-        expectedIds.some(id => !Object.hasOwn(answers, id))
-    ) {
-        throw invalidResponse();
-    }
-
+// Bkper AI validates every answer against its question before responding.
+function readBatchScores(result: EvaluationResult, pairs: readonly CandidatePair[]): ScoredPair[] {
     return pairs.flatMap(pair => {
-        const answer = answers[pairId(pair)];
-        if (
-            !isRecord(answer) ||
-            answer.type !== 'score' ||
-            typeof answer.score !== 'number' ||
-            !Number.isFinite(answer.score) ||
-            answer.score < 0 ||
-            answer.score > 2
-        ) {
-            throw invalidResponse();
-        }
-        const [different, possible, strong] = readLevelProbabilities(answer.probabilities);
+        const answer = result.answers[pairId(pair)];
+        const { 0: different, 1: possible, 2: strong } = answer.probabilities;
         if (different >= possible && different >= strong) return [];
         return [
             {
@@ -484,25 +461,6 @@ function toAiProperties(properties: Readonly<Record<string, string>>): Record<st
                 value.length <= MAX_AI_PROPERTY_VALUE_CHARACTERS
         )
     );
-}
-
-function readLevelProbabilities(value: unknown): [number, number, number] {
-    if (!isRecord(value) || Object.keys(value).sort().join(',') !== '0,1,2') {
-        throw invalidResponse();
-    }
-    const probabilities = ['0', '1', '2'].map(key => value[key]);
-    if (
-        probabilities.some(
-            probability =>
-                typeof probability !== 'number' ||
-                !Number.isFinite(probability) ||
-                probability < 0 ||
-                probability > 1
-        )
-    ) {
-        throw invalidResponse();
-    }
-    return probabilities as [number, number, number];
 }
 
 function invalidResponse(): BkperAiError {

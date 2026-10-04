@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
+import { Bkper, BkperError } from 'bkper-js';
 import { createApp } from '../src/index.js';
 
 const subscribedEvents = [
@@ -22,6 +23,24 @@ const env = {
 };
 
 describe('Cloudflare skeleton', () => {
+    it.each([401, 403])('preserves Core authentication status %i', async status => {
+        const getBook = spyOn(Bkper.prototype, 'getBook').mockRejectedValue(
+            new BkperError(status, 'Login Required.')
+        );
+        try {
+            const response = await createApp().request(
+                '/api/v1/books/book-1/exchange-rates?date=2026-08-05',
+                {},
+                env
+            );
+
+            expect(response.status).toBe(status);
+            expect(await response.json()).toEqual({ error: { message: 'Login Required.' } });
+        } finally {
+            getBook.mockRestore();
+        }
+    });
+
     it('does not expose a standalone health endpoint', async () => {
         const response = await createApp().request('/health', {}, env);
 

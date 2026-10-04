@@ -9,7 +9,8 @@ export function createBkperClientConfig(auth: AuthProvider): Config {
     return {
         oauthTokenProvider: async () => auth.getAccessToken(),
         requestRetryHandler: async (status, _error, attempt) => {
-            if (status === 403 && attempt === 1) {
+            // Accept legacy login 403 responses during Core's 401 migration.
+            if ((status === 401 || status === 403) && attempt === 1) {
                 await auth.refresh();
             }
         },

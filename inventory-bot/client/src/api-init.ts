@@ -5,7 +5,8 @@ import { authService } from './services/auth-service.js';
 export function initBkperAPI(): void {
     Bkper.setConfig({
         requestRetryHandler: async (code, message, attempt) => {
-            if (code == 403 && attempt && attempt <= 1) {
+            // Accept legacy login 403 responses during Core's 401 migration.
+            if ((code === 401 || code === 403) && attempt === 1) {
                 await authService.refresh();
             }
         },

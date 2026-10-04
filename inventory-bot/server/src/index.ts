@@ -29,8 +29,8 @@ export function createApp(): OpenAPIHono<AppEnv> {
             if (error instanceof HTTPException) {
                 return c.json(apiError(error.message), error.status);
             }
-            if (error instanceof BkperError && error.code === 403) {
-                return c.json(apiError(error.message), 403);
+            if (error instanceof BkperError && (error.code === 401 || error.code === 403)) {
+                return c.json(apiError(error.message), error.code);
             }
             console.error(error);
             return c.json(apiError('An unexpected error occurred'), 500);

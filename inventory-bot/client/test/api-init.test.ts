@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('Bkper browser API initialization', () => {
-    it('provides the singleton auth token and refreshes the session once after a forbidden response', async () => {
+    it('provides the singleton auth token and refreshes only on the first authentication retry', async () => {
         let refreshCount = 0;
         authService.accessToken = 'access-token';
         authService.refresh = async () => {
@@ -25,10 +25,12 @@ describe('Bkper browser API initialization', () => {
         const config = new Bkper().getConfig();
         expect(await config.oauthTokenProvider?.()).toBe('access-token');
 
+        await config.requestRetryHandler?.(401, new Error('Unauthorized'), 1);
+        await config.requestRetryHandler?.(401, new Error('Unauthorized'), 2);
         await config.requestRetryHandler?.(403, new Error('Forbidden'), 1);
         await config.requestRetryHandler?.(403, new Error('Forbidden'), 2);
         await config.requestRetryHandler?.(500, new Error('Server error'), 1);
 
-        expect(refreshCount).toBe(1);
+        expect(refreshCount).toBe(2);
     });
 });

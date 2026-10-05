@@ -10,7 +10,7 @@
         "predev": "bun install",
         "dev": "concurrently \"bun run dev:client\" \"bun run dev:server\"",
         "dev:client": "bun --cwd client dev",
-        "dev:server": "bkper app dev --sp 8795 --cp 5178",
+        "dev:server": "bkper app dev --sp 8806 --cp 5206",
         "agent:skills": "bun scripts/sync-agent-skills.ts",
         "check": "bun run check:agent-guidance && bun run agent:skills && bun run check:generate && bun run check:typecheck && bun run check:test && bun run check:build && bun run check:ui && bun run check:format && bun run check:generated",
         "check:agent-guidance": "bun scripts/check-agent-guidance.ts",

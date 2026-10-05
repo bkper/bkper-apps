@@ -179,8 +179,8 @@ There are no event subscriptions, KV bindings, app secrets, custom prompt overri
 
 ## Local development
 
-- Vite client: `5178`
-- Worker: `8795`
+- Vite client: `5206`
+- Worker: `8806`
 
 ```bash
 bun run dev

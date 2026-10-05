@@ -27,8 +27,8 @@ There are no `/api/*` routes and no event handlers. The client calls Bkper direc
 
 Ports are assigned in `/workspace/bkper-apps/AGENTS.md`:
 
-- Vite client: `5176`
-- Bkper app Worker: `8789`
+- Vite client: `5201`
+- Bkper app Worker: `8801`
 
 ```bash
 bkper auth login

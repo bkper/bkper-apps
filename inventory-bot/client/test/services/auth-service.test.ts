@@ -16,8 +16,8 @@ beforeEach(() => {
         value: {
             assign,
             hostname: 'localhost',
-            href: 'http://localhost:5175/?bookId=book-id',
-            origin: 'http://localhost:5175',
+            href: 'http://localhost:5202/?bookId=book-id',
+            origin: 'http://localhost:5202',
         },
     });
 });
@@ -118,7 +118,7 @@ describe('auth service', () => {
         await authService.init();
 
         expect(assign).toHaveBeenCalledWith(
-            'http://localhost:5175/auth/login?returnUrl=http%3A%2F%2Flocalhost%3A5175%2F%3FbookId%3Dbook-id'
+            'http://localhost:5202/auth/login?returnUrl=http%3A%2F%2Flocalhost%3A5202%2F%3FbookId%3Dbook-id'
         );
     });
 });

@@ -13,8 +13,8 @@ This directory contains the active full-stack Exchange Bot Bkper Platform applic
 
 ## Local development
 
-- Vite client: `5177`
-- Worker: `8793`
+- Vite client: `5204`
+- Worker: `8804`
 
 ```bash
 bun install

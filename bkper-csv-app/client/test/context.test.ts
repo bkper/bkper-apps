@@ -30,13 +30,13 @@ describe('menu context', () => {
                 origin: 'https://bkper.app',
                 data: {
                     type: 'bkper:app-url-changed',
-                    url: 'http://localhost:5176/?bookId=book-456&query=is%3Achecked',
+                    url: 'http://localhost:5201/?bookId=book-456&query=is%3Achecked',
                 },
             },
             {
                 parent,
                 bkperOrigin: 'https://bkper.app',
-                appOrigin: 'http://localhost:5176',
+                appOrigin: 'http://localhost:5201',
             }
         );
 
@@ -49,7 +49,7 @@ describe('menu context', () => {
         const expectedContext = {
             parent,
             bkperOrigin: 'https://bkper.app',
-            appOrigin: 'http://localhost:5176',
+            appOrigin: 'http://localhost:5201',
         };
 
         expect(
@@ -59,7 +59,7 @@ describe('menu context', () => {
                     origin: 'https://bkper.app',
                     data: {
                         type: 'bkper:app-url-changed',
-                        url: 'http://localhost:5176/?bookId=book-456',
+                        url: 'http://localhost:5201/?bookId=book-456',
                     },
                 },
                 expectedContext
@@ -72,7 +72,7 @@ describe('menu context', () => {
                     origin: 'https://evil.example',
                     data: {
                         type: 'bkper:app-url-changed',
-                        url: 'http://localhost:5176/?bookId=book-456',
+                        url: 'http://localhost:5201/?bookId=book-456',
                     },
                 },
                 expectedContext

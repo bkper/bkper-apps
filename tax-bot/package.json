@@ -7,7 +7,7 @@
     "scripts": {
         "clean": "rm -rf node_modules dist server/node_modules server/dist",
         "predev": "bun install --frozen-lockfile",
-        "dev": "bkper app dev --sp 8794",
+        "dev": "bkper app dev --sp 8805",
         "prebuild": "bun install --frozen-lockfile",
         "build": "bkper app build",
         "test": "bun --cwd server test",

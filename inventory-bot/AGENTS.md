@@ -38,8 +38,8 @@ This directory is the active full-stack Cloudflare application for Inventory Bot
 
 ## Local development
 
-- Vite client: `5175`.
-- Worker: `8796`.
+- Vite client: `5202`.
+- Worker: `8802`.
 - Run all commands from this directory, not the former `new/` path.
 
 ```bash

@@ -46,8 +46,8 @@ bun install
 bun run dev
 ```
 
-- Vite client: `http://localhost:5174`
-- Miniflare worker: `http://localhost:8788`
+- Vite client: `http://localhost:5200`
+- Miniflare worker: `http://localhost:8800`
 
 ## Build & Deploy
 

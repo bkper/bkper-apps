@@ -8,9 +8,9 @@
   "scripts": {
     "clean": "bun run --filter \"./packages/**\" clean && rm -rf node_modules dist",
     "predev": "bun install",
-    "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8788\"",
+    "dev": "concurrently \"vite dev\" \"bkper app dev --sp 8800 --cp 5200\"",
     "dev:client": "vite dev",
-    "dev:server": "bkper app dev --web --sp 8788",
+    "dev:server": "bkper app dev --web --sp 8800 --cp 5200",
 
     "prebuild": "bun install",
     "build": "vite build && bkper app build",

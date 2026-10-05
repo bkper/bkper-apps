@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import { createBkperAuthMiddleware } from 'bkper/dev';
 
-const clientPort = 5176;
-const serverPort = 8789;
+const clientPort = 5201;
+const serverPort = 8801;
 
 export default defineConfig({
     root: 'client',

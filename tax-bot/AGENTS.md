@@ -23,7 +23,7 @@ bun install
 bun run dev
 ```
 
-The local Worker uses port `8794`.
+The local Worker uses port `8805`.
 
 ## Verification
 

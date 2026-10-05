@@ -10,7 +10,7 @@
         "predev": "bun install --frozen-lockfile",
         "dev": "concurrently \"bun run dev:client\" \"bun run dev:server\"",
         "dev:client": "bun --cwd client dev",
-        "dev:server": "bkper app dev --sp 8793 --cp 5177",
+        "dev:server": "bkper app dev --sp 8804 --cp 5204",
         "prebuild": "bun install --frozen-lockfile",
         "build": "bun run api && bun run typecheck && bun run build:client && bun run build:server",
         "build:client": "bun --cwd client build",

@@ -9,7 +9,7 @@ export const openApiDocumentConfig = {
     servers: [
         { url: 'https://merge-duplicates.bkper.app', description: 'Production' },
         { url: 'https://merge-duplicates-preview.bkper.app', description: 'Preview' },
-        { url: 'http://localhost:8795', description: 'Local Worker' },
+        { url: 'http://localhost:8806', description: 'Local Worker' },
     ],
     security: [{ bearerAuth: [] }],
 };

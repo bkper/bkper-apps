@@ -157,10 +157,10 @@ bun run dev
 
 Open the app using the `Open app` URL printed by `bkper app dev`. The local endpoints are:
 
-- Client with hot reload: `http://localhost:5178`
-- Worker and API: `http://localhost:8795`
-- Health check: `http://localhost:8795/health`
-- OpenAPI: `http://localhost:5178/openapi.json`
+- Client with hot reload: `http://localhost:5206`
+- Worker and API: `http://localhost:8806`
+- Health check: `http://localhost:8806/health`
+- OpenAPI: `http://localhost:5206/openapi.json`
 
 Browser DevTools reports Book loading, transaction listing, API analysis, and total durations under the `[merge-duplicates:performance]` prefix. The Worker terminal emits JSON performance events for each analysis and Jev batch. These events include only counts, byte sizes, durations, phase names, safe error codes, and a request correlation ID; transaction and Account contents are never logged.
 

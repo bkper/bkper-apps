@@ -15,23 +15,21 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 
 ## Port Allocation
 
-All local dev servers should use **explicitly assigned ports** to avoid conflicts when running in the same devpod workspace. Do not rely on tool defaults — keep each app's local dev configuration aligned with the tables below.
+Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–9649`. Assign distinct ports per app; keep launch commands, proxies and HMR aligned with `strictPort: true`.
 
 ### Platform apps (Vite client + bkper app dev server)
 
-| App | Vite client | bkper server | Notes |
-| --- | --- | --- | --- |
-| files-preview-app | `5174` | `8788` | Configured in `vite.config.ts` and `package.json` |
-| inventory-bot | `5175` | `8796` | Full-stack production app |
-| bkper-csv-app | `5176` | `8789` | Platform replacement for the archived Apps Script CSV app |
-| subledger-bot | — | `8790` | Event-only production Worker configured in `package.json` |
-| exchange-bot | `5177` | `8793` | Full-stack production app; `8791` and `8792` are used elsewhere in the workspace |
-| tax-bot | — | `8794` | Event-only production Worker configured in `package.json` |
-| merge-duplicates | `5178` | `8795` | Sidebar app for human-reviewed duplicate transaction merges |
+| App | Vite client | bkper server |
+| --- | --- | --- |
+| files-preview-app | `5200` | `8800` |
+| bkper-csv-app | `5201` | `8801` |
+| inventory-bot | `5202` | `8802` |
+| subledger-bot | — | `8803` |
+| exchange-bot | `5204` | `8804` |
+| tax-bot | — | `8805` |
+| merge-duplicates | `5206` | `8806` |
 
-> **Avoid default ports.** Vite's default `5173` is intentionally skipped to prevent conflicts when running multiple projects on the host. Always assign an explicit, non-default port.
-
-**Next available:** Vite client `5179`, bkper server `8797`.
+**Next available:** client `5207`, Worker `8807`.
 
 ### GCP Cloud Functions bots
 
@@ -45,11 +43,11 @@ No active local Apps Script components remain. Inventory Bot's deployed GAS menu
 
 ## Adding a new app
 
-1. Choose the next available port in the appropriate category above.
+1. Choose an unused port in this repository's range.
 2. Set the port **explicitly** in the app's config; do not rely on defaults:
    - Platform apps: `server.port` in `vite.config.ts` and `--sp` in `bkper app dev` scripts.
    - GCP bots: `--port` in `functions-framework` scripts.
-3. Update the **Port Allocation** table in this file.
+3. Update the **Port Allocation** table in this file and current app development docs.
 4. Update the root `package.json` `ports` script with the new port(s).
 
 ## Development

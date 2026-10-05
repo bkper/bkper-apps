@@ -41,14 +41,14 @@ describe('app URL synchronization', () => {
             origin: 'http://localhost:8080',
             data: {
                 type: 'bkper:app-url-changed',
-                url: 'http://localhost:8795?bookId=book&query=account%3ABank',
+                url: 'http://localhost:8806?bookId=book&query=account%3ABank',
             },
         });
 
         expect(
             readTrustedAppUrlChange(localMessage, {
                 parent,
-                appOrigin: 'http://localhost:8795',
+                appOrigin: 'http://localhost:8806',
             })?.searchParams.get('query')
         ).toBe('account:Bank');
         expect(readTrustedAppUrlChange(localMessage, trustedContext)).toBeUndefined();

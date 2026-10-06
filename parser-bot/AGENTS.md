@@ -13,16 +13,16 @@ This directory is an inactive, behavior-preserving snapshot of the legacy Bookbo
 - Keep README content public-facing; development information belongs here.
 - Existing technical names and `agent_*` properties stay unchanged.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
-- Phase 1 characterizes current behavior, including SDK draft mutation, instance-scoped caches, best-effort enrichment, and failure fallbacks. Do not silently implement future API or outage policy.
+- Change only what the current phase in `docs/PLAN.md` needs. Do not silently implement future API or outage policy.
 - The eventual Parser Bot consumes Bookbot discovery through its API; duplicated discovery here is only a temporary baseline.
 
 ## Refactoring rules
 
-- This is a refactoring: preserve the code as much as possible. Change only what a stated boundary goal requires.
-- Don't rewrite, fix, rename, reformat, or clean up. Record defects or improvement ideas for a later, separately approved change.
-- When extracting, move code verbatim, keeping names, comments, and order.
-- Keep diffs small, concise, human-readable, and easy to review: one focused step per commit.
-- Add only the characterization tests needed, and keep them short. Existing tests change only mechanically.
+- Goal: split the two apps into isolated business processes with the least code change possible. Current behavior works; don't break it.
+- Don't rewrite, fix, rename, reformat, or clean up. Record defects or ideas for a separate, approved change.
+- Move code verbatim, keeping names, comments, and order.
+- Keep diffs small and easy to review: one focused step per commit.
+- Before changing behavior that tests don't cover, add a short test of the current behavior. Existing tests change only mechanically.
 
 ## Local verification
 
@@ -35,7 +35,7 @@ bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
 
-No new behavioral tests are needed for the snapshot itself: runtime, existing tests, and fixtures are unchanged. For later refactoring, preserve useful tests and add only missing deterministic characterization coverage before changing structure. Build and run tests after implementation.
+No new behavioral tests are needed for the snapshot itself: runtime, existing tests, and fixtures are unchanged. For refactoring, follow the rules above. Run `bun run test` after each step.
 
 The legacy branch scripts under `scripts/` are retained solely for their isolated regression tests. Do not use them to manage this monorepo's branches.
 
@@ -53,7 +53,7 @@ Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving 
 
 ## Source and redistribution
 
-`baseline-manifest.json` records SHA-256 digests of unchanged source snapshot files, including tests and fixtures. It documents the baseline, not a permanent requirement that later refactoring keep those files unchanged.
+`baseline-manifest.json` records SHA-256 digests of the baseline files, including tests and fixtures. Files a phase does not need to change should still match it. List changed files with `jq -r 'to_entries[] | "\(.value)  \(.key)"' baseline-manifest.json | sha256sum -c --quiet`; new files appear only in `git status`.
 
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 

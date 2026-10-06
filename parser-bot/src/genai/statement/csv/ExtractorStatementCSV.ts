@@ -62,7 +62,7 @@ export class ExtractorStatementCSV extends GenAIFile<ExtractedStatement> {
         if (csvTextContent) {
             prompt = prompt || this.getDefaultUserPrompt();
 
-            console.log(`CSV FILE PROMPT:`, prompt);
+            if (!this.readOnly) console.log(`CSV FILE PROMPT:`, prompt);
 
             const contents: StructuredGenerationPart[] = [
                 {

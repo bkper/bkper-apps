@@ -114,12 +114,12 @@ export class FileParserRouter {
     }
 
     private selectExternalTransactionsParser(parserContext: FileParserContext): FileTransactionsParser | undefined {
-        return parserContext.transactionsParserLookup ? new FileParserExternalTransactions(parserContext.transactionsParserLookup) : undefined;
+        return parserContext.transactionsParserLookup ? new FileParserExternalTransactions(parserContext.transactionsParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined) : undefined;
     }
 
     private selectTransactionParser(parserContext: FileParserContext): FileTransactionParser | undefined {
         if (parserContext.transactionParserLookup) {
-            return new FileParserExternalTransaction(parserContext.transactionParserLookup);
+            return new FileParserExternalTransaction(parserContext.transactionParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
         }
 
         return undefined;
@@ -131,7 +131,7 @@ export class FileParserRouter {
 
     private selectFilePropertiesParser(parserContext: FileParserContext): FilePropertiesParser | undefined {
         if (parserContext.fileParserLookup) {
-            return new FileParserExternalFileProperties(parserContext.fileParserLookup);
+            return new FileParserExternalFileProperties(parserContext.fileParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
         }
 
         if (parserContext.filePrompt?.sourceProperty === AGENT_PARSER_FILE_PROPERTY && parserContext.filePrompt.prompt) {

@@ -17,6 +17,7 @@ import {
     AGENT_PARSER_URL_FILE_PROPERTY,
     AGENT_DISCOVERY_EXAMPLES_PROPERTY,
 } from '../constants.js';
+import { LegacyPromptPropertyMigration } from './LegacyPromptPropertyMigration.js';
 
 export type PromptPurpose = 'transaction' | 'transactions' | 'file';
 
@@ -66,12 +67,6 @@ interface StoredPrompt {
     group?: Group;
 }
 
-const PROMPT_PROPERTY_MIGRATIONS = [
-    { target: AGENT_PARSER_TRANSACTION_PROPERTY, legacy: AGENT_PROMPT_TRANSACTION_PROPERTY },
-    { target: AGENT_PARSER_TRANSACTIONS_PROPERTY, legacy: AGENT_PROMPT_TRANSACTIONS_PROPERTY },
-    { target: AGENT_PARSER_FILE_PROPERTY, legacy: AGENT_PROMPT_FILE_PROPERTY },
-] as const;
-
 export class PromptLookupContext {
     readonly account?: Account | undefined;
     readonly group?: Group | undefined;
@@ -81,7 +76,8 @@ export class PromptLookupContext {
         private readonly creditAccount?: AccountCandidate | undefined,
         private readonly debitAccount?: AccountCandidate | undefined,
         private readonly explicitGroup?: Group | undefined,
-        private readonly filenameAccount?: AccountCandidate | undefined
+        private readonly filenameAccount?: AccountCandidate | undefined,
+        private readonly log = true
     ) {
         this.account = directAccount?.account || (!explicitGroup ? filenameAccount?.account : undefined);
         this.group = this.account ? undefined : explicitGroup;
@@ -353,7 +349,7 @@ export class PromptLookupContext {
 
         const bookUrl = book.getProperty(property);
         if (bookUrl) {
-            console.log(`Found ${property} on book: ${book.getName?.() || book.getId?.() || ''}`);
+            if (this.log) console.log(`Found ${property} on book: ${book.getName?.() || book.getId?.() || ''}`);
             const account = this.getParserAccountContext();
             return account ? { url: bookUrl, source: 'book', account } : { url: bookUrl, source: 'book' };
         }
@@ -368,14 +364,14 @@ export class PromptLookupContext {
     private resolveAccountParserUrl(candidate: AccountCandidate, property: string): ExtractorUrlLookupResult | null {
         const accountUrl = candidate.account.getProperty(property);
         if (accountUrl) {
-            console.log(`Found ${property} on account: ${candidate.account.getName()}`);
+            if (this.log) console.log(`Found ${property} on account: ${candidate.account.getName()}`);
             return { url: accountUrl, source: 'account', account: candidate.account };
         }
 
         for (const group of candidate.groups) {
             const groupUrl = group.getProperty(property);
             if (groupUrl) {
-                console.log(`Found ${property} on group: ${group.getName()}`);
+                if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
                 return { url: groupUrl, source: 'group', account: candidate.account, group };
             }
         }
@@ -386,7 +382,7 @@ export class PromptLookupContext {
     private resolveGroupParserUrl(group: Group, property: string): ExtractorUrlLookupResult | null {
         const groupUrl = group.getProperty(property);
         if (groupUrl) {
-            console.log(`Found ${property} on group: ${group.getName()}`);
+            if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
             return { url: groupUrl, source: 'group', group };
         }
         return null;
@@ -424,7 +420,7 @@ export class PromptLookupContext {
         if (!url) {
             return null;
         }
-        console.log(`Found ${property} on account: ${candidate.account.getName()}`);
+        if (this.log) console.log(`Found ${property} on account: ${candidate.account.getName()}`);
         return { url, source: 'account', account: candidate.account };
     }
 
@@ -435,7 +431,7 @@ export class PromptLookupContext {
         for (const group of candidate.groups) {
             const url = group.getProperty(property);
             if (url) {
-                console.log(`Found ${property} on group: ${group.getName()}`);
+                if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
                 return { url, source: 'group', account: candidate.account, group };
             }
         }
@@ -444,6 +440,8 @@ export class PromptLookupContext {
 }
 
 export class PromptLookupService {
+    constructor(private readonly migration: LegacyPromptPropertyMigration = new LegacyPromptPropertyMigration(), private readonly log = true) { }
+
     async lookupDiscoveryExamples(params: DiscoveryExamplesLookupParams): Promise<string | undefined> {
         if (params.account) {
             const accountExamples = params.account.getProperty(AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim();
@@ -562,7 +560,7 @@ export class PromptLookupService {
 
         const groupId = params.file?.getProperty(GROUP_ID_PROPERTY, 'group_id_');
         const explicitGroup = groupId ? await params.book.getGroup(groupId) : undefined;
-        await this.migrateLegacyPromptProperties(explicitGroup);
+        await this.migration.migrateLegacyPromptProperties(explicitGroup);
 
         const filenameAccount = await this.lookupFilenameAccount(params.book, params.file);
         const filenameAccountCandidate = await this.createAccountCandidate(filenameAccount);
@@ -578,7 +576,8 @@ export class PromptLookupService {
             creditAccountCandidate,
             debitAccountCandidate,
             explicitGroup,
-            filenameAccountCandidate
+            filenameAccountCandidate,
+            this.log
         );
     }
 
@@ -596,7 +595,7 @@ export class PromptLookupService {
             const groupId = params.file?.getProperty(GROUP_ID_PROPERTY, 'group_id_');
             explicitGroup = groupId ? await params.book.getGroup(groupId) : undefined;
         }
-        await this.migrateLegacyPromptProperties(explicitGroup);
+        await this.migration.migrateLegacyPromptProperties(explicitGroup);
 
         const filenameAccount = await this.lookupFilenameAccount(params.book, params.file);
         const filenameAccountCandidate = await this.createAccountCandidate(filenameAccount);
@@ -606,7 +605,8 @@ export class PromptLookupService {
             creditAccountCandidate,
             debitAccountCandidate,
             explicitGroup,
-            filenameAccountCandidate
+            filenameAccountCandidate,
+            this.log
         );
 
         return context.getParserUrl(params.purpose, params.book);
@@ -660,48 +660,16 @@ export class PromptLookupService {
             return undefined;
         }
 
-        await this.migrateLegacyPromptProperties(account);
+        await this.migration.migrateLegacyPromptProperties(account);
         const groups = await account.getGroups();
         for (const group of groups) {
-            await this.migrateLegacyPromptProperties(group);
+            await this.migration.migrateLegacyPromptProperties(group);
         }
 
         return {
             account,
             groups,
         };
-    }
-
-    private async migrateLegacyPromptProperties(entity: Account | Group | undefined): Promise<void> {
-        if (!entity) {
-            return;
-        }
-
-        const legacyProperties = [AGENT_PROMPT_TRANSACTION_PROPERTY, AGENT_PROMPT_TRANSACTIONS_PROPERTY, AGENT_PROMPT_FILE_PROPERTY, AGENT_PROMPT_PROPERTY];
-        if (!legacyProperties.some((property) => entity.getProperty(property) !== undefined)) {
-            return;
-        }
-
-        try {
-            const genericPrompt = entity.getProperty(AGENT_PROMPT_PROPERTY);
-            for (const migration of PROMPT_PROPERTY_MIGRATIONS) {
-                if (!entity.getProperty(migration.target)) {
-                    const legacyPrompt = entity.getProperty(migration.legacy) || genericPrompt;
-                    if (legacyPrompt) {
-                        entity.setProperty(migration.target, legacyPrompt);
-                    }
-                }
-            }
-
-            for (const property of legacyProperties) {
-                entity.deleteProperty(property);
-            }
-
-            await entity.update();
-            console.log(`Migrated parser prompt properties on ${entity.getName()}`);
-        } catch (error) {
-            console.error(`Failed to migrate parser prompt properties on ${entity.getName()}`, error);
-        }
     }
 
     private hasAnyPrompt(candidate: AccountCandidate | undefined): boolean {

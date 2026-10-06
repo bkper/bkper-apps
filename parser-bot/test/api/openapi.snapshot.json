@@ -1,0 +1,314 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Parser Bot API",
+    "version": "1.0.0",
+    "description": "Read-only parsing using the existing automatic file router. Supply a canonical File, Transaction, or both; at least one is required. A File may contain base64 content or an ID in the authorized Book. Transaction-only requests use the first attachment when present, otherwise extract missing amount/date from the description. With both inputs, attachment extraction preserves supplied fields and properties. File metadata is extracted only when configured. Prompt lookup does not persist legacy migrations. Results are unrecorded draft suggestions without native transaction IDs; extracted cross-Book targets require read access. parsed means transaction fields or file properties were extracted; empty means none were extracted. Failures return no partial suggestions and a safe error. Valid requests return HTTP 200; inspect outcome. Malformed requests return HTTP 400. No Book writes, posting, discovery, installation check, batch route, or recording summary is performed. The Platform owns bearer authentication, outbound attribution, and AI allowance; caller identities never select permissions or allowance."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/parse": {
+      "post": {
+        "operationId": "parse",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unrecorded parsing results. Inspect outcome and error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parse request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform authentication required."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Account": {
+        "$id": "#/components/schemas/Account",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": {},
+        "x-typescript-type": "bkper.Account"
+      },
+      "File": {
+        "$id": "#/components/schemas/File",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "format": "base64",
+            "contentEncoding": "base64",
+            "pattern": "^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": {},
+        "x-typescript-type": "bkper.File",
+        "anyOf": [
+          {
+            "required": [
+              "id"
+            ]
+          },
+          {
+            "required": [
+              "content"
+            ]
+          }
+        ]
+      },
+      "Transaction": {
+        "$id": "#/components/schemas/Transaction",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "creditAccount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
+          },
+          "debitAccount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/File"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": {},
+        "x-typescript-type": "bkper.Transaction"
+      },
+      "ParseRequest": {
+        "$id": "#/components/schemas/ParseRequest",
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/File"
+              }
+            ]
+          },
+          "transaction": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Transaction"
+              }
+            ]
+          }
+        },
+        "required": [
+          "bookId"
+        ],
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "file"
+            ]
+          },
+          {
+            "required": [
+              "transaction"
+            ]
+          }
+        ]
+      },
+      "ParseResult": {
+        "$id": "#/components/schemas/ParseResult",
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bookId": {
+                  "type": "string"
+                },
+                "transaction": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              },
+              "required": [
+                "bookId",
+                "transaction"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "fileProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "parsed",
+              "empty",
+              "error"
+            ]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "transactions",
+          "outcome"
+        ],
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "$id": "#/components/schemas/ErrorResponse",
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

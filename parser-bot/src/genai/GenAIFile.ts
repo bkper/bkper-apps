@@ -22,7 +22,7 @@ export abstract class GenAIFile<E> extends GenAI<E> {
         if (fileContentBase64) {
             prompt = prompt || this.getDefaultUserPrompt();
 
-            console.log('FILE PROMPT:', prompt);
+            if (!this.readOnly) console.log('FILE PROMPT:', prompt);
 
             const contentType = this.file.getContentType() || 'application/octet-stream';
             const contents: StructuredGenerationPart[] = [

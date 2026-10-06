@@ -60,11 +60,12 @@ Extract the primary date in YYYY-MM-DD format or return null:`;
             return undefined;
         }
         try {
-            console.log(`DATE EXTRACTOR PROMPT:`, description);
+            if (!this.readOnly) console.log(`DATE EXTRACTOR PROMPT:`, description);
             const result = await this.query([{ text: description }]);
 
             return result;
         } catch (error) {
+            if (this.readOnly) throw error;
             console.error('ExtractorDate error:', error);
             return undefined;
         }

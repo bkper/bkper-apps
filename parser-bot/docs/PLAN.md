@@ -7,7 +7,8 @@ Companion plan: [Bookbot](../../bookbot/docs/PLAN.md), which defines the shared 
 ## Status
 
 - This directory is an inactive local snapshot of the legacy Bookbot Worker. It is not registered, deployed, or published. The permanent app ID is still to be confirmed; `parser-bot` is proposed.
-- No phase has started; the code is still the unchanged baseline. Live migration waits for verification of the legacy Bookbot rename rollout.
+- Phase 1 discovery API is implemented locally in Bookbot. Phase 2 is implemented locally: `POST /api/v1/parse`, `/openapi.json`, and generated canonical client types are available. Legacy event behavior and local discovery are unchanged; Phase 3 integration is still pending. Live migration waits for verification of the legacy Bookbot rename rollout.
+- Local verification passed: dry-run build, source/test typechecks, API contract freshness, 539 deterministic tests, Git-flow regressions, and a frozen-lockfile install with scripts disabled. The 22 live tests remain skipped; no live inference or Book writes were run.
 - Pushing this repository publishes the source; it requires a final publication review and explicit approval.
 
 ## Refactoring rules
@@ -57,13 +58,17 @@ Every row except transaction-created without an attachment looks up prompts or p
 
 ## API direction
 
-- Follow the shared conventions in Bookbot's plan: versioned routes, OpenAPI, one implementation for single and batch, per-item results, and target-Book authorization.
-- Expose raw extraction independently from optional discovery composition. A composed operation calls Bookbot's public API and reports extraction and discovery outcomes separately.
+- Follow Bookbot's shared conventions for versioned routes, OpenAPI, canonical Bkper payloads, errors, and target-Book authorization.
+- The initial endpoint is `POST /api/v1/parse`. For files, reuse `FileParserRouter`'s existing automatic detection and routing; callers do not select a parser. One statement can return multiple transactions. Requests containing multiple input files and a separate `/batch` route are deferred.
+- The request is `{ bookId, file?, transaction? }`, using canonical `bkper.File` and `bkper.Transaction` payloads and requiring at least one. A file uses existing automatic parsing; a transaction supplies description or attachment context; both together use the supplied transaction context for file extraction. No parser-selection field is required.
+- The initial API exposes raw extraction only. Composed parse-and-discover is deferred to keep Phase 2 small; callers can use Bookbot's discovery API separately.
+- The response is `{ transactions: [{ bookId, transaction }], fileProperties?, outcome, error? }`. Transactions are canonical `bkper.Transaction` payloads; the wrapper preserves cross-Book targets. Outcomes are `parsed`, `empty`, or `error`; errors use Bookbot's `{ code, message }` shape.
+- API authorization follows Bookbot: Platform bearer authentication and outbound authorization; `VIEWER`, `POSTER`, `EDITOR`, or `OWNER` access on every target Book; no installation requirement. Caller-supplied identities never select permissions or AI allowance.
 - Read-only results never contain native transaction IDs or claim drafts were recorded. Summaries are written by the recording adapter after successful writes.
 - Read-only parsing must not run the legacy prompt migration. Inject a non-persisting migration into `PromptLookupService`.
 - Existing parts are reused unchanged: `FileParserRouter` already parses without recording drafts, `ExtractorAmount` and `ExtractorDate` already extract description fields, and learning services are already separate from event handling.
 
-To agree before implementation: endpoint names, item/result/error shapes, and whether to offer the composed operation.
+The initial route, request/result/error shapes, and shared authentication boundary are agreed. Legacy event authentication and behavior remain unchanged.
 
 ## Agreed policies for migration
 
@@ -76,17 +81,18 @@ To agree before implementation: endpoint names, item/result/error shapes, and wh
 - Prompt and parser-URL lookup can persist migrated prompt properties.
 - Multi-Book imports are not atomic: drafts are created per target Book in sequence; if a later Book fails, earlier drafts remain and no summary or file update is written.
 - The posted/updated handler runs learning and rediscovery together; one rejection fails the combined result.
-- The attachment path has its own copy of the file-metadata filter. Unlike the import path's `filterFileProperties`, it does not drop `transactions_summary`. Move it verbatim; do not merge the two.
+- The attachment path retains its own file-metadata filter, moved verbatim into `AttachmentExtractionService`. Unlike the import path's `filterFileProperties`, it does not drop `transactions_summary`. Do not merge the two.
 
 ## Phases
 
 Both plans use the same phases.
 
 1. **Bookbot discovery API.** Done in Bookbot; this directory is unchanged.
-2. **Parser Bot API.** Confirm the app ID before registering. Expose the extraction operations over the existing code. Only these moves are needed:
-   - Move the attachment extraction methods (`extractAttachedTransaction`, `resolveTransactionParserAccount`, `extractFilePropertiesIfConfigured`, `filterFileProperties`, `shouldSkipFileProperty`) verbatim from `EventHandlerTransactionCreated` into `AttachmentExtractionService`; the handler calls it with the same behavior.
-   - Move `migrateLegacyPromptProperties` and its constant verbatim into `LegacyPromptPropertyMigration`, injected into `PromptLookupService` with the persisting one as default; the API passes one that does not persist.
-3. **Parser Bot uses Bookbot.** Event handlers call Bookbot's API instead of local discovery; remove the local discovery and rediscovery code. Keep property names and external parser contracts compatible.
+2. **Parser Bot API.** Implemented locally. Confirm the app ID before registering. `/api/v1/parse` wraps the existing file router, attachment extraction, and amount/date extractors; `/openapi.json` and `bun run api` / `api:check` maintain generated client types and the contract snapshot. Composed parse-and-discover and batch requests are deferred. The two necessary moves are complete:
+   - Moved the attachment extraction methods (`extractAttachedTransaction`, `resolveTransactionParserAccount`, `extractFilePropertiesIfConfigured`, `filterFileProperties`, `shouldSkipFileProperty`) verbatim from `EventHandlerTransactionCreated` into `AttachmentExtractionService`; only the two extraction entry points are public. The handler retains merging, concurrent calls, discovery, writes, and error handling.
+   - Moved `migrateLegacyPromptProperties` and its constant verbatim into `LegacyPromptPropertyMigration`, injected into `PromptLookupService` with the persisting one as default. The API supplies a non-persisting implementation.
+   - Small API-only controls suppress private prompt/context logging, propagate amount/date failures, attribute inference to Parser Bot, and pass request cancellation to external parsers. Default event behavior remains unchanged; the two file-property filters remain distinct.
+3. **Parser Bot uses Bookbot.** Pending. Event handlers still use working local discovery. Integrate against Bookbot's actual discovery API and verify that boundary before removing local discovery and rediscovery. Keep property names and external parser contracts compatible.
 4. **Event migration.** Apply the agreed policies with a controlled rollout and a rollback that never reprocesses recorded imports blindly.
 5. **Publication.** Final license, security, fixture, and documentation review; `bkper.yaml`, README, and delivery workflow; explicit approval before pushing.
 

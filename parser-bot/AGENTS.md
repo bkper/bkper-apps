@@ -4,7 +4,7 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is an inactive, behavior-preserving snapshot of the legacy Bookbot extraction automation. Both staging directories initially contain the same runtime and tests; the responsibility split is not implemented yet. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is inactive local staging of the legacy Bookbot extraction automation. The read-only parsing API is implemented locally; legacy event behavior and local discovery remain in place until the API integration and event migration phases. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - No app registration, deployment workflow, live webhook tooling, or production Worker configuration is included.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
@@ -27,6 +27,8 @@ This directory is an inactive, behavior-preserving snapshot of the legacy Bookbo
 ## Local verification
 
 ```bash
+bun run api               # Generate client types and OpenAPI snapshot after contract changes
+bun run api:check         # Verify contract freshness
 bun run typecheck
 bun run typecheck:tests
 bun run build             # Wrangler dry-run only
@@ -35,7 +37,7 @@ bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
 
-No new behavioral tests are needed for the snapshot itself: runtime, existing tests, and fixtures are unchanged. For refactoring, follow the rules above. Run `bun run test` after each step.
+Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and external parser compatibility. For refactoring, follow the rules above. Run `bun run test` after each step.
 
 The legacy branch scripts under `scripts/` are retained solely for their isolated regression tests. Do not use them to manage this monorepo's branches.
 
@@ -57,4 +59,4 @@ Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving 
 
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 
-Package dependencies and `bun.lock` are preserved from the baseline. For this local session, ignored `node_modules` symlinks reuse the reference checkout's existing installation without downloading dependencies. A clean-install/frozen-lockfile verification remains necessary before publication.
+The API adds explicit canonical Bkper types and OpenAPI type generation dependencies to `package.json` and `bun.lock`. The new generator dependency tree expands the lockfile; existing runtime dependency versions remain pinned. Parser Bot now uses its own ignored `node_modules` installation, not the reference checkout's symlink. Installation scripts are disabled for local verification. Final publication review remains separately gated.

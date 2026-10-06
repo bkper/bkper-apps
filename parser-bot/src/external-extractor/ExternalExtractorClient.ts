@@ -23,7 +23,7 @@ export class ExternalExtractorClient {
     private readonly INITIAL_DELAY_MS = 1000;
     private readonly TIMEOUT_MS = 600000; // 10 minutes
 
-    constructor(private url: string) { }
+    constructor(private url: string, private readonly log = true, private readonly requestSignal?: AbortSignal) { }
 
     /**
      * Extract multiple transactions using external service.
@@ -62,9 +62,10 @@ export class ExternalExtractorClient {
 
         for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
             try {
+                this.requestSignal?.throwIfAborted();
                 if (attempt > 0) {
                     const delay = this.calculateBackoffDelay(attempt);
-                    console.log(`Retrying external extractor ${this.url} (attempt ${attempt + 1}/${this.MAX_RETRIES + 1}) after ${delay}ms...`);
+                    if (this.log) console.log(`Retrying external extractor ${this.url} (attempt ${attempt + 1}/${this.MAX_RETRIES + 1}) after ${delay}ms...`);
                     await this.sleep(delay);
                 }
 
@@ -75,7 +76,7 @@ export class ExternalExtractorClient {
                     throw error;
                 }
 
-                console.warn(`External extractor attempt ${attempt + 1} failed:`, error);
+                if (this.log) console.warn(`External extractor attempt ${attempt + 1} failed:`, error);
 
                 if (attempt === this.MAX_RETRIES) {
                     throw new Error(`External extractor failed after ${this.MAX_RETRIES + 1} attempts: ${error}`);
@@ -165,7 +166,7 @@ export class ExternalExtractorClient {
         const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
 
         try {
-            console.log(`Calling external extractor: ${this.url}`);
+            if (this.log) console.log(`Calling external extractor: ${this.url}`);
 
             // Measure external extractor response time.
             const startedAt = Date.now();
@@ -175,14 +176,14 @@ export class ExternalExtractorClient {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(request),
-                signal: controller.signal,
+                signal: this.requestSignal ? AbortSignal.any([controller.signal, this.requestSignal]) : controller.signal,
             });
 
             clearTimeout(timeoutId);
 
             const data = (await response.json()) as ExternalExtractorResponse;
             const elapsedMs = Date.now() - startedAt;
-            console.log(`External extractor answered in ${elapsedMs}ms (status ${response.status})`);
+            if (this.log) console.log(`External extractor answered in ${elapsedMs}ms (status ${response.status})`);
 
             if (!response.ok) {
                 const errorMsg = data.error?.message || `HTTP ${response.status}`;
@@ -217,7 +218,7 @@ export class ExternalExtractorClient {
      */
     private mapToExtractedTransactions(response: ExternalExtractorResponse): ExtractedTransaction[] {
         if (!response.data?.transactions || response.data.transactions.length === 0) {
-            console.warn('External extractor returned no transactions');
+            if (this.log) console.warn('External extractor returned no transactions');
             return [];
         }
 

@@ -1,12 +1,11 @@
-import { Account, Book, File, Group, Transaction } from 'bkper-js';
-import { AGENT_EXTRACTED_PROPERTY, AGENT_PARSER_FILE_PROPERTY, AUTO_FILLED_DATE_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { Book, File, Transaction } from 'bkper-js';
+import { AGENT_EXTRACTED_PROPERTY, AUTO_FILLED_DATE_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { Discovery } from '../services/DiscoveryService.js';
-import { ExternalExtractorClient } from '../external-extractor/ExternalExtractorClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
-import { ExtractorUrlLookupResult, PromptResolution } from '../services/PromptLookupService.js';
+import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
 
 export class EventHandlerTransactionCreated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
@@ -55,10 +54,11 @@ export class EventHandlerTransactionCreated extends EventHandler {
                 const needsTransactionExtraction = !transaction.getAmount() || !transaction.getDescription().trim();
                 let extractedTransaction: ExtractedTransaction | undefined;
                 let fileProperties: Record<string, string> | undefined;
+                const attachmentExtractionService = new AttachmentExtractionService(this.context);
                 try {
                     [extractedTransaction, fileProperties] = await Promise.all([
-                        needsTransactionExtraction ? this.extractAttachedTransaction(book, transaction, file, account, group, promptResolution) : Promise.resolve(undefined),
-                        this.extractFilePropertiesIfConfigured(book, transaction, file, account, group, filePrompt),
+                        needsTransactionExtraction ? attachmentExtractionService.extractAttachedTransaction(book, transaction, file, account, group, promptResolution) : Promise.resolve(undefined),
+                        attachmentExtractionService.extractFilePropertiesIfConfigured(book, transaction, file, account, group, filePrompt),
                     ]);
                 } catch (error) {
                     console.error('Attachment extraction failed:', error);
@@ -188,87 +188,5 @@ export class EventHandlerTransactionCreated extends EventHandler {
         }
 
         return { result: false };
-    }
-
-    private async extractAttachedTransaction(
-        book: Book,
-        transaction: Transaction,
-        file: File,
-        account: Account | undefined,
-        group: Group | undefined,
-        promptResolution: PromptResolution | undefined
-    ): Promise<ExtractedTransaction | undefined> {
-        const parserLookup = await this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'transaction' });
-        if (parserLookup) {
-            const parserAccount = await this.resolveTransactionParserAccount(transaction, account, parserLookup);
-            if (!parserAccount) {
-                throw new Error('Account is required for external transaction parser');
-            }
-            const client = new ExternalExtractorClient(parserLookup.url);
-            return client.extractTransaction(file, book, parserAccount, parserLookup);
-        }
-
-        return this.context.createExtractorInvoice(file).extract(promptResolution?.prompt);
-    }
-
-    private async resolveTransactionParserAccount(transaction: Transaction, account: Account | undefined, parserLookup: ExtractorUrlLookupResult): Promise<Account | undefined> {
-        if (account) {
-            return account;
-        }
-        if (parserLookup.account) {
-            return parserLookup.account;
-        }
-        const creditAccount = await transaction.getCreditAccount();
-        if (creditAccount) {
-            return creditAccount;
-        }
-        return transaction.getDebitAccount();
-    }
-
-    private async extractFilePropertiesIfConfigured(
-        book: Book,
-        transaction: Transaction,
-        file: File,
-        account: Account | undefined,
-        group: Group | undefined,
-        filePrompt: PromptResolution | undefined
-    ): Promise<Record<string, string> | undefined> {
-        const parserLookup = await this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'file' });
-        if (parserLookup) {
-            const client = new ExternalExtractorClient(parserLookup.url);
-            return this.filterFileProperties(await client.extractFileProperties(file, book, account ?? parserLookup.account, parserLookup));
-        }
-
-        if (filePrompt?.sourceProperty !== AGENT_PARSER_FILE_PROPERTY || !filePrompt.prompt) {
-            return undefined;
-        }
-
-        const extracted = await this.context.createExtractorFileProperties(file).extract(filePrompt.prompt);
-        return this.filterFileProperties(extracted?.properties);
-    }
-
-    private filterFileProperties(properties: Record<string, string | number> | undefined): Record<string, string> | undefined {
-        if (!properties) {
-            return undefined;
-        }
-
-        const filtered: Record<string, string> = {};
-        for (const [key, value] of Object.entries(properties)) {
-            if (this.shouldSkipFileProperty(key) || value === undefined || value === null) {
-                continue;
-            }
-            const stringValue = String(value);
-            if (stringValue.length > 0) {
-                filtered[key] = stringValue;
-            }
-        }
-        return filtered;
-    }
-
-    private shouldSkipFileProperty(key: string): boolean {
-        if (!key.trim()) {
-            return true;
-        }
-        return ['agent_', 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'].some((prefix) => key.startsWith(prefix));
     }
 }

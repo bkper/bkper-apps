@@ -22,6 +22,10 @@ export abstract class GenAI<E> extends GenAIBase {
         this.responsesClient = responsesClient;
     }
 
+    protected get readOnly(): boolean {
+        return this.responsesClient?.readOnly === true;
+    }
+
     protected abstract getSystemPrompt(): string;
 
     protected abstract getResponseSchema(): JsonSchema;
@@ -93,10 +97,10 @@ export abstract class GenAI<E> extends GenAIBase {
 
                 return await this.attemptQuery(model, contents, metadata);
             } catch (error) {
-                console.warn(`Error on model ${model} attempt ${attempt + 1}:`, error);
+                if (!this.readOnly) console.warn(`Error on model ${model} attempt ${attempt + 1}:`, error);
 
                 if (!isTransientGenAIError(error) || attempt === GenAIBase.MAX_RETRIES) {
-                    if (isTransientGenAIError(error)) {
+                    if (!this.readOnly && isTransientGenAIError(error)) {
                         console.error(`Model ${model} exhausted all retries.`);
                     }
                     throw error;

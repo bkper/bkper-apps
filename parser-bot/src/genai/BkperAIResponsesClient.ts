@@ -55,6 +55,7 @@ export interface StructuredGenerationResult {
 }
 
 interface BkperAIResponsesClientOptions {
+    readOnly?: boolean;
     baseUrl?: string;
     oauthToken?: string;
     signal?: AbortSignal;
@@ -179,15 +180,17 @@ export class BkperAIResponsesClient {
     private readonly oauthToken?: string;
     private readonly requestSignal?: AbortSignal;
     private readonly provider: ReturnType<typeof createOpenAI>;
+    readonly readOnly: boolean;
 
     constructor(options: BkperAIResponsesClientOptions) {
+        this.readOnly = options.readOnly ?? false;
         this.baseUrl = options.baseUrl?.replace(/\/$/u, '');
         this.oauthToken = options.oauthToken;
         this.requestSignal = options.signal;
         this.provider = createOpenAI({
             baseURL: this.baseUrl,
             apiKey: this.oauthToken ?? '',
-            headers: { 'bkper-ai-source': 'bookbot' },
+            headers: { 'bkper-ai-source': this.readOnly ? 'parser-bot' : 'bookbot' },
             fetch: options.fetch ?? fetch,
         });
     }

@@ -26,13 +26,14 @@ export class AppContext {
     private _flagManagementService?: FlagManagementService;
     private _jevEvaluationService?: JevEvaluationService;
 
-    constructor(bkper: Bkper, env: Env, oauthToken?: string, requestSignal?: AbortSignal) {
+    constructor(bkper: Bkper, env: Env, oauthToken?: string, readonly requestSignal?: AbortSignal, readonly readOnly = false) {
         this.bkper = bkper;
         this.env = env;
         const clientOptions = {
             baseUrl: env.BKPER_AI_BASE_URL,
             oauthToken,
             signal: requestSignal,
+            readOnly,
         };
         this.bkperAIEvaluationsClient = new BkperAIEvaluationsClient(clientOptions);
         this.bkperAIResponsesClient = new BkperAIResponsesClient(clientOptions);
@@ -43,7 +44,7 @@ export class AppContext {
     // ============================================
 
     get promptLookupService(): PromptLookupService {
-        return (this._promptLookupService ??= new PromptLookupService());
+        return (this._promptLookupService ??= new PromptLookupService(this.readOnly ? { migrateLegacyPromptProperties: async () => {} } : undefined, !this.readOnly));
     }
 
     get flagManagementService(): FlagManagementService {

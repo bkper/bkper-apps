@@ -2,6 +2,8 @@
 
 ## Status and safety
 
+Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
+
 This directory is an inactive, behavior-preserving snapshot of the legacy Bookbot extraction automation. Both staging directories initially contain the same runtime and tests; the responsibility split is not implemented yet. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - No app registration, deployment workflow, live webhook tooling, or production Worker configuration is included.
@@ -13,6 +15,14 @@ This directory is an inactive, behavior-preserving snapshot of the legacy Bookbo
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Phase 1 characterizes current behavior, including SDK draft mutation, instance-scoped caches, best-effort enrichment, and failure fallbacks. Do not silently implement future API or outage policy.
 - The eventual Parser Bot consumes Bookbot discovery through its API; duplicated discovery here is only a temporary baseline.
+
+## Refactoring rules
+
+- This is a refactoring: preserve the code as much as possible. Change only what a stated boundary goal requires.
+- Don't rewrite, fix, rename, reformat, or clean up. Record defects or improvement ideas for a later, separately approved change.
+- When extracting, move code verbatim, keeping names, comments, and order.
+- Keep diffs small, concise, human-readable, and easy to review: one focused step per commit.
+- Add only the characterization tests needed, and keep them short. Existing tests change only mechanically.
 
 ## Local verification
 

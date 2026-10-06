@@ -1,0 +1,22 @@
+// Local-only baseline. Not registered; do not deploy or deliver live events.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bookbot-local-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-08-23",
+  "observability": {
+    "enabled": true
+  },
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "vars": {
+    "BKPER_AI_BASE_URL": "https://ai.bkper.app/v1"
+  },
+  "dev": {
+    "port": 8807,
+    "inspector_port": 9607,
+    "ip": "127.0.0.1"
+  }
+}

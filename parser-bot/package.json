@@ -1,0 +1,32 @@
+{
+    "name": "parser-bot-staging",
+    "version": "0.0.0",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "typecheck": "tsc --noEmit",
+        "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
+        "build": "bun run typecheck && wrangler deploy --dry-run --outdir dist",
+        "test:unit": "env -u BKPER_AI_BASE_URL -u BKPER_AI_OAUTH_TOKEN bun test",
+        "test-git-flow": "bash test/git-branch-flow.test.sh",
+        "test": "bun run build && bun run typecheck:tests && bun run test:unit && bun run test-git-flow"
+    },
+    "devDependencies": {
+        "@ngrok/ngrok": "^1.5.2",
+        "@types/bun": "^1.3.2",
+        "@types/node": "^24.9.1",
+        "bkper": "latest",
+        "dotenv": "16.4.5",
+        "npm-run-all2": "^8.0.4",
+        "typescript": "^5.5.2",
+        "wrangler": "^4.38.0"
+    },
+    "dependencies": {
+        "@ai-sdk/openai": "^4.0.71",
+        "@typesafe-ai/sdk": "0.6.0",
+        "ai": "^7.0.107",
+        "bkper-js": "^2.37.0",
+        "hono": "^4.9.5",
+        "zod": "^4.1.8"
+    }
+}

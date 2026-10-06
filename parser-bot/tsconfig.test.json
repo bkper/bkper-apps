@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"skipLibCheck": true,
+		"types": ["bun", "@bkper/bkper-api-types", "node"]
+	},
+	"include": ["test/**/*.ts", "src/env.d.ts", "worker-configuration.d.ts"],
+	"exclude": []
+}

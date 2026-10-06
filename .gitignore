@@ -7,4 +7,7 @@ tsconfig.tsbuildinfo
 .env
 yarn.lock
 bun.lock
+!bookbot/bun.lock
+!parser-bot/bun.lock
+.local/
 .gcloudignore

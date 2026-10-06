@@ -12,6 +12,8 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
+| Bookbot | Inactive local staging (legacy Worker snapshot; not registered) | `bookbot/` |
+| Parser Bot | Inactive local staging (legacy Worker snapshot; not registered) | `parser-bot/` |
 
 ## Port Allocation
 
@@ -29,7 +31,16 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 | tax-bot | — | `8805` |
 | merge-duplicates | `5206` | `8806` |
 
-**Next available:** client `5207`, Worker `8807`.
+### Inactive staging snapshots
+
+| App | Worker | Inspector |
+| --- | --- | --- |
+| bookbot | `8807` | `9607` |
+| parser-bot | `8808` | `9608` |
+
+These ports are reserved for local preparation, not live event delivery. Both directories initially contain the same legacy Bookbot behavior. Read each app's `AGENTS.md` before work; do not register, deploy, sync, install, or publish staging snapshots without separate approval.
+
+**Next available:** client `5207`, Worker `8809`.
 
 ### GCP Cloud Functions bots
 

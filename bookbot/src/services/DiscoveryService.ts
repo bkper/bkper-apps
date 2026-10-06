@@ -6,7 +6,7 @@ import { stripAccountNamesFromDescription } from '../utils.js';
 const NUMBER_OF_TRANSACTIONS = 3;
 const MIN_PROPERTY_DISCOVERY_TRANSACTIONS = Math.ceil(NUMBER_OF_TRANSACTIONS / 2);
 const MAX_DESCRIPTION_PARTS = 5;
-const MAX_EXTERNAL_REQUESTS = 950;
+export const MAX_EXTERNAL_REQUESTS = 950;
 
 interface DiscoveryResult {
     creditAccDiscovered: boolean;
@@ -21,7 +21,7 @@ export class Discovery {
     private propertySkipKeysCache: Map<string, Set<string>>;
     private externalRequestCount: number;
 
-    constructor(context: AppContext) {
+    constructor(context: AppContext, private readonly onError?: (error: unknown) => void) {
         this.context = context;
         this.transactionCache = new Map();
         this.accountCache = new Map();
@@ -39,7 +39,11 @@ export class Discovery {
             const result = await this.run(draft);
             return result;
         } catch (error) {
-            console.error('Discovery error:', error);
+            if (this.onError) {
+                this.onError(error);
+            } else {
+                console.error('Discovery error:', error);
+            }
             return { discovered: false };
         }
     }
@@ -142,7 +146,11 @@ export class Discovery {
             this.transactionCache.set(cacheKey, transactions);
             return transactions;
         } catch (error) {
-            console.warn('Error listing transactions:', error);
+            if (this.onError) {
+                this.onError(error);
+            } else {
+                console.warn('Error listing transactions:', error);
+            }
             return [];
         }
     }
@@ -155,7 +163,7 @@ export class Discovery {
 
         this.externalRequestCount++;
 
-        const parts = await this.context.createExtractorDescriptionParts().extract(description, discoveryExamples);
+        const parts = await this.context.createExtractorDescriptionParts(this.onError).extract(description, discoveryExamples);
         this.descriptionPartsCache.set(cacheKey, parts);
         return parts;
     }
@@ -352,7 +360,11 @@ export class Discovery {
             return addedPropertyKeys.length > 0;
         } catch (error) {
             // Property enrichment is best-effort and must not block transaction creation.
-            console.warn('Property discovery error:', error);
+            if (this.onError) {
+                this.onError(error);
+            } else {
+                console.warn('Property discovery error:', error);
+            }
             return false;
         }
     }

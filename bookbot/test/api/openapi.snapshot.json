@@ -1,0 +1,309 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Bookbot Discovery API",
+    "version": "1.0.0",
+    "description": "Discovers Accounts and historical properties without Book writes. Canonical transaction payloads are enriched locally. Existing discovery preserves supplied Account sides and visible properties, consumes parsed_account_name_, and updates its internal agent_* provenance. sourceAccount enables property enrichment from the history found by account discovery. Items run sequentially, reusing one discovery cache per target Book and its existing request limit. Item IDs are unique within a batch and are unrelated to native transaction IDs. No installation is required; every target Book requires read access. Creator hints are verified and never select permissions or AI allowance. The Platform owns authentication, app-chain attribution and AI allowance. No history datasets or frequency-based confidence are returned. no_change means both sides are supplied or the description is blank; no_match means discovery returned no Accounts. Errors return the original supplied transaction, including when only part of discovery succeeded."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/discovery": {
+      "post": {
+        "operationId": "discover",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryItem"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Read-only discovery results. Inspect each item outcome and error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or duplicate item identifiers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform authentication required."
+          }
+        }
+      }
+    },
+    "/api/v1/discovery/batch": {
+      "post": {
+        "operationId": "discoverBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Read-only discovery results. Inspect each item outcome and error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryBatchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or duplicate item identifiers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform authentication required."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Account": {
+        "$id": "#/components/schemas/Account",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": {},
+        "x-typescript-type": "bkper.Account"
+      },
+      "Transaction": {
+        "$id": "#/components/schemas/Transaction",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "creditAccount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
+          },
+          "debitAccount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": {},
+        "x-typescript-type": "bkper.Transaction"
+      },
+      "DiscoveryItem": {
+        "$id": "#/components/schemas/DiscoveryItem",
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bookId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "sourceAccount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
+          }
+        },
+        "required": [
+          "itemId",
+          "bookId",
+          "transaction"
+        ],
+        "additionalProperties": false
+      },
+      "DiscoveryResult": {
+        "$id": "#/components/schemas/DiscoveryResult",
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "bookId": {
+            "type": "string"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "changed",
+              "no_change",
+              "no_match",
+              "error"
+            ]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "itemId",
+          "bookId",
+          "transaction",
+          "outcome"
+        ],
+        "additionalProperties": false
+      },
+      "DiscoveryBatch": {
+        "$id": "#/components/schemas/DiscoveryBatch",
+        "type": "object",
+        "properties": {
+          "items": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryItem"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "DiscoveryBatchResult": {
+        "$id": "#/components/schemas/DiscoveryBatchResult",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryResult"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "$id": "#/components/schemas/ErrorResponse",
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

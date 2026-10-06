@@ -7,7 +7,7 @@ Companion plan: [Parser Bot](../../parser-bot/docs/PLAN.md).
 ## Status
 
 - This directory is an inactive local snapshot of the legacy Bookbot Worker. It is not registered, deployed, or published. `parser-bot/` starts from the same snapshot.
-- No phase has started; the code is still the unchanged baseline. Live migration waits for verification of the legacy Bookbot rename rollout.
+- Phase 1 discovery API is implemented locally. Legacy events remain in place; Parser Bot implementation and event migration have not started. Live migration waits for verification of the legacy Bookbot rename rollout.
 - Pushing this repository publishes the source; it requires a final publication review and explicit approval.
 
 ## Refactoring rules
@@ -65,16 +65,24 @@ Bookbot provides this API; Parser Bot consumes it.
 - Single and batch calls share one item contract and implementation. Stable client item identifiers correlate results.
 - Inputs identify the target Book and include transaction context, known account sides, description and hashtags, relevant properties, and optional verified creator or source context. Do not trust caller-supplied identities to select permissions or an execution principal.
 - Outputs include suggested account sides, proposed historical properties, an outcome, and bounded provenance. Report no-change separately from no-match, and both separately from dependency failures. Do not present frequency counts as calibrated confidence.
-- Validate that suggested Accounts belong to the authorized target Book. Preserve known sides and supplied properties.
-- Use one request-scoped discovery context per target Book to retain cache benefits. Bound batch size, concurrency, and time; choose limits from measured behavior.
+- Validate that suggested Accounts belong to the authorized target Book. Preserve known sides and supplied visible properties. Return the existing discovery `.json()`, including consumed `parsed_account_name_` context and updated internal `agent_*` provenance.
+- Use one request-scoped discovery context per target Book to retain cache benefits. Preserve baseline sequential processing, caches and the existing external-request limit; honor request cancellation. No new batch-size, concurrency or deadline controls are introduced in this refactoring.
 - Do not expose raw SDK objects, private event payloads, or full historical datasets.
 
-To agree before implementation: endpoint names, item/result/error shapes, batch limits, caller authentication, caller and app-chain attribution, and AI allowance attribution.
+### Agreed Phase 1 contract
+
+- `POST /api/v1/discovery` accepts `{ itemId, bookId, transaction, sourceAccount? }`; batch at `POST /api/v1/discovery/batch` accepts `{ items: [...] }` with unique client item IDs.
+- `transaction` is canonical `bkper.Transaction`; `sourceAccount` is canonical `bkper.Account` and enables property enrichment from the history found by account discovery. Account context requires an ID; other resource metadata is not trusted for authorization or configuration.
+- Each result is `{ itemId, bookId, transaction, outcome, error? }`, where outcome is `changed`, `no_change`, `no_match` or `error`, and error is `{ code, message }`. Valid requests return HTTP 200 with per-item outcomes, including partial-batch failures; invalid requests return HTTP 400. No-change means both Account sides are supplied or the description is blank. No-match means no Accounts were discovered. Failed items return their original supplied transaction, not partial suggestions.
+- Platform bearer authentication and outbound authorization are used. Each target Book requires `VIEWER`, `POSTER`, `EDITOR` or `OWNER`; installation is not required for API calls. Legacy event authentication is unchanged.
+- The Platform owns caller/app-chain attribution. Discovery inference is attributed to Bookbot and uses the allowance of the authenticated principal, including their Business-domain pool where applicable. Caller-supplied identity never chooses permissions or allowance.
+- `transaction.createdBy` is used as a lookup hint only when verified against the authenticated user or an existing transaction in the target Book. Otherwise it is excluded from lookup but preserved in the returned payload.
+- `/openapi.json` defines the contract; `src/api/generated/types.d.ts` references canonical Bkper resource types. `bun run api` regenerates types and the reviewed contract snapshot; `bun run api:check` checks freshness.
 
 ## Known current behavior
 
-- Discovery reads Books and runs inference but persists nothing, so the API can wrap `Discovery.discover` and `Discovery.discoverProperties` unchanged.
-- Dependency failures look the same as no match: a failed description-part extraction returns `discovered: false` (after `parsed_account_name_` may already be removed locally), and a failed history query counts as empty. The API must report them distinctly.
+- Discovery reads Books and runs inference but persists nothing. The API reuses `Discovery.discover` and `Discovery.discoverProperties` without algorithm changes.
+- Legacy dependency failures resemble no-match: discovery catches failures, a failed history query counts as empty, and the concrete description extractor catches inference failures and returns empty parts (so fallback searches can still match). Optional error hooks propagate these failures only for API callers; default event behavior is unchanged. See [deferred behavior](DEFERRED.md).
 - Rediscovery returns `null` when no account changed or the change was not made by discovery, stops when the backlog exceeds 50, and considers one `is:draft` query with limit 100.
 - The legacy posted/updated handler runs learning and rediscovery together; one rejection fails the combined result.
 
@@ -82,7 +90,7 @@ To agree before implementation: endpoint names, item/result/error shapes, batch 
 
 Both plans use the same phases.
 
-1. **Bookbot discovery API.** Wrap the existing discovery code in the API above without changing it. Keep legacy events working. Prepare platform hosting separately from any algorithm change.
+1. **Bookbot discovery API.** Wrap the existing discovery code in the API above without changing its default behavior. Keep legacy events working. Prepare platform hosting separately from any algorithm change.
 2. **Parser Bot API.** Done in Parser Bot; this directory is unchanged.
 3. **Parser Bot uses Bookbot.** Done in Parser Bot; this directory keeps its legacy handlers working.
 4. **Event migration.** Move file, attachment, and learning events to Parser Bot without duplicate processing. Only after Parser Bot continuity is verified, remove parsing, attachment, import, and learning code from this directory; keep rediscovery.

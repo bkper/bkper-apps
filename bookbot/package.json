@@ -4,12 +4,14 @@
     "type": "module",
     "private": true,
     "scripts": {
+        "api": "bun scripts/generate-api-types.ts",
+        "api:check": "bun scripts/generate-api-types.ts --check",
         "typecheck": "tsc --noEmit",
         "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
         "build": "bun run typecheck && wrangler deploy --dry-run --outdir dist",
         "test:unit": "env -u BKPER_AI_BASE_URL -u BKPER_AI_OAUTH_TOKEN bun test",
         "test-git-flow": "bash test/git-branch-flow.test.sh",
-        "test": "bun run build && bun run typecheck:tests && bun run test:unit && bun run test-git-flow"
+        "test": "bun run build && bun run api:check && bun run typecheck:tests && bun run test:unit && bun run test-git-flow"
     },
     "devDependencies": {
         "@ngrok/ngrok": "^1.5.2",
@@ -19,10 +21,12 @@
         "dotenv": "16.4.5",
         "npm-run-all2": "^8.0.4",
         "typescript": "^5.5.2",
+        "openapi-typescript": "7.13.0",
         "wrangler": "^4.38.0"
     },
     "dependencies": {
         "@ai-sdk/openai": "^4.0.71",
+        "@bkper/bkper-api-types": "5.41.0",
         "@typesafe-ai/sdk": "0.6.0",
         "ai": "^7.0.107",
         "bkper-js": "^2.37.0",

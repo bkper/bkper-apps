@@ -5,7 +5,7 @@ import { DESCRIPTION_PARTS_SCHEMA, JsonSchema } from './JsonSchema.js';
 
 export class ExtractorDescriptionParts extends GenAI<string[]> {
 
-    constructor(env: Env, responsesClient?: BkperAIResponsesClient) {
+    constructor(env: Env, responsesClient?: BkperAIResponsesClient, private readonly onError?: (error: unknown) => void) {
         super(env, responsesClient);
     }
 
@@ -72,7 +72,11 @@ ${description}`;
         try {
             return (await this.query([{ text: this.getUserPrompt(description, customExamples) }])) || [];
         } catch (error) {
-            console.error('ExtractorDescriptionParts error:', error);
+            if (this.onError) {
+                this.onError(error);
+            } else {
+                console.error('ExtractorDescriptionParts error:', error);
+            }
             return [];
         }
     }

@@ -111,7 +111,7 @@ export class AppContext {
         return new ExtractorDate(this.env, this.bkperAIResponsesClient);
     }
 
-    createExtractorDescriptionParts(): ExtractorDescriptionParts {
-        return new ExtractorDescriptionParts(this.env, this.bkperAIResponsesClient);
+    createExtractorDescriptionParts(onError?: (error: unknown) => void): ExtractorDescriptionParts {
+        return new ExtractorDescriptionParts(this.env, this.bkperAIResponsesClient, onError);
     }
 }

@@ -16,7 +16,9 @@ repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
 
-webhookUrl: https://bookbot.bkper.app/events
+# Until the Phase 4 cutover, production events go to the legacy Worker. Keep webhookUrl, events, filePatterns and
+# propertiesSchema identical to the legacy bkper.yaml so a sync from either repository cannot change production.
+webhookUrl: https://bookbot-legacy.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 
 events:

@@ -6,9 +6,9 @@ Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase
 
 This directory is inactive local staging of the legacy Bookbot extraction automation. The read-only parsing API is implemented locally; legacy event behavior and local discovery remain in place until the API integration and event migration phases. Bookbot is distinct from the managed conversational Bkper Agent.
 
-- No app registration, deployment workflow, live webhook tooling, or production Worker configuration is included.
+- It is a standard Bkper Platform app: `bkper.yaml` is local configuration only, with the proposed `parser-bot` ID. No app registration, deployment workflow, or live webhook tooling is included.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
-- The copied self-hosted event authentication is not a public API authentication boundary.
+- Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
 - Keep README content public-facing; development information belongs here.
 - Existing technical names and `agent_*` properties stay unchanged.

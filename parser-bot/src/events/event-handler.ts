@@ -14,16 +14,9 @@ export type Result = {
 };
 
 export function createAppContext(c: Context): AppContext {
-    const env = c.env as Env;
-    const apiKey = env.BKPER_API_KEY;
-    const oauthToken = c.req.header('bkper-oauth-token');
-
-    const bkper = new Bkper({
-        oauthTokenProvider: async () => oauthToken,
-        apiKeyProvider: apiKey ? async () => apiKey : undefined,
-        agentIdProvider: async () => c.req.header('bkper-agent-id'),
-    });
-    return new AppContext(bkper, env, oauthToken, c.req.raw.signal);
+    // The SDK requires an API-key value; this is a placeholder, not an event token.
+    // Platform outbound supplies the event authorization and app attribution.
+    return new AppContext(new Bkper(), c.env as Env, 'bkper-platform-outbound', c.req.raw.signal);
 }
 
 export async function handleEvent(c: Context) {

@@ -34,3 +34,21 @@ it('ignores event credential headers and relies on Platform outbound authenticat
     expect(outbound[0].headers.get('Authorization')).toBe('Bearer bkper-platform-outbound');
     expect(outbound[0].headers.get('bkper-agent-id')).not.toBe('untrusted-app');
 });
+
+it('calls Bkper AI on the Platform, where no BKPER_AI_BASE_URL variable is configured', async () => {
+    const outbound: Request[] = [];
+    spyOn(globalThis, 'fetch').mockImplementation(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
+        outbound.push(new Request(input, init));
+        return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429 });
+    }, { preconnect: globalThis.fetch.preconnect }));
+    const context = {
+        env: {},
+        req: { header: () => undefined, raw: { signal: new AbortController().signal } },
+    } as unknown as Context;
+
+    await createAppContext(context).createExtractorAmount().extract('Synthetic purchase 12.34').catch(() => undefined);
+
+    expect(outbound.length).toBeGreaterThan(0);
+    expect(new URL(outbound[0].url).origin).toBe('https://ai.bkper.app');
+    expect(new URL(outbound[0].url).pathname.startsWith('/v1/')).toBe(true);
+});

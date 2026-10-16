@@ -30,7 +30,8 @@ export class AppContext {
         this.bkper = bkper;
         this.env = env;
         const clientOptions = {
-            baseUrl: env.BKPER_AI_BASE_URL,
+            // Platform apps have no plain variables; Wrangler vars or .dev.vars may override for local development.
+            baseUrl: env.BKPER_AI_BASE_URL ?? 'https://ai.bkper.app/v1',
             oauthToken,
             signal: requestSignal,
             readOnly,

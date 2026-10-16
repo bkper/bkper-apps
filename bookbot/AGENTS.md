@@ -6,9 +6,9 @@ Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase
 
 This directory is inactive local staging of the legacy Bookbot extraction automation with the Phase 1 discovery API added. Both staging directories initially contained the same runtime and tests; legacy event responsibilities have not migrated. Bookbot is distinct from the managed conversational Bkper Agent.
 
-- No app registration, deployment workflow, live webhook tooling, or production Worker configuration is included.
+- It is a standard Bkper Platform app: `bkper.yaml` is local configuration only. No app registration, deployment workflow, or live webhook tooling is included.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
-- The copied self-hosted event authentication is not a public API authentication boundary.
+- Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
 - Keep README content public-facing; development information belongs here.
 - Existing technical names and `agent_*` properties stay unchanged.
@@ -59,4 +59,4 @@ Worker/inspector ports: 8807 / 9607. No UI/client port is needed. Local serving 
 
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 
-Baseline dependency versions are retained; Phase 1 adds direct canonical API types and the OpenAPI type generator. Ignored `node_modules` symlinks and existing API-tool installations are reused for local verification. A clean-install/frozen-lockfile verification remains necessary before publication.
+Baseline dependency versions are retained; Phase 1 adds direct canonical API types and the OpenAPI type generator. Bookbot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`), not the reference checkout's symlink. A clean-install/frozen-lockfile verification remains necessary before publication.

@@ -7,7 +7,7 @@ Companion plan: [Parser Bot](../../parser-bot/docs/PLAN.md).
 ## Status
 
 - This directory is an inactive local snapshot of the legacy Bookbot Worker. It is not registered, deployed, or published. `parser-bot/` starts from the same snapshot.
-- Phase 1 discovery API is implemented locally. Legacy events remain in place; Parser Bot implementation and event migration have not started. Live migration waits for verification of the legacy Bookbot rename rollout.
+- Phase 1 discovery API is implemented locally. Platform hosting is prepared locally: `bkper.yaml` and Platform event authentication. Legacy event behavior remains in place; event migration has not started. Live migration waits for verification of the legacy Bookbot rename rollout.
 - Pushing this repository publishes the source; it requires a final publication review and explicit approval.
 
 ## Refactoring rules
@@ -26,7 +26,7 @@ These apply to both apps.
 - AI suggests or extracts. Deterministic application code validates, merges, and controls financial writes.
 - Reusable APIs return results without Book writes; Book reads and inference are allowed. Event adapters or explicitly authorized callers own persistence.
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
-- Target hosting: one ordinary Bkper Platform Worker per app serving `/events`, `/api/v1/*`, and `/openapi.json`.
+- Hosting: one standard Bkper Platform app per app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Parser Bot calls Bookbot with a plain `fetch` to `https://bookbot.bkper.app/api/v1/*`; Platform outbound delegates user or event context without exposing credentials.
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance.
 - Do not log credentials, document content, transaction descriptions, or private Book data.
 
@@ -90,7 +90,7 @@ Bookbot provides this API; Parser Bot consumes it.
 
 Both plans use the same phases.
 
-1. **Bookbot discovery API.** Wrap the existing discovery code in the API above without changing its default behavior. Keep legacy events working. Prepare platform hosting separately from any algorithm change.
+1. **Bookbot discovery API.** Wrap the existing discovery code in the API above without changing its default behavior. Keep legacy events working. Platform hosting is prepared separately from any algorithm change: a local `bkper.yaml` (`deployment.server: src/index.ts`, legacy events and properties until Phase 4) and Platform event authentication. Flat `src/` layout and Wrangler dry-run build are retained until Phase 5.
 2. **Parser Bot API.** Done in Parser Bot; this directory is unchanged.
 3. **Parser Bot uses Bookbot.** Done in Parser Bot; this directory keeps its legacy handlers working.
 4. **Event migration.** Move file, attachment, and learning events to Parser Bot without duplicate processing. Only after Parser Bot continuity is verified, remove parsing, attachment, import, and learning code from this directory; keep rediscovery.

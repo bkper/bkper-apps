@@ -1,0 +1,73 @@
+# Local staging only. Do not sync, deploy, register, or install without separate explicit approval.
+# Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
+id: bookbot
+name: Bookbot
+description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.
+
+logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-light.svg
+logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-dark.svg
+
+website: https://bkper.com/apps/bookbot
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-apps/tree/main/bookbot
+repoPrivate: false
+deprecated: false
+developers: '*@bkper.com'
+
+webhookUrl: https://bookbot.bkper.app/events
+webhookUrlDev: https://bookbot-preview.bkper.app/events
+
+events:
+  - FILE_CREATED
+  - TRANSACTION_CREATED
+  - TRANSACTION_POSTED
+  - TRANSACTION_UPDATED
+  - TRANSACTION_DELETED
+  - BOOK_AUDITED
+
+propertiesSchema:
+  account:
+    keys:
+      - agent_parser_transaction
+      - agent_parser_transactions
+      - agent_parser_file
+      - agent_parser_url_transaction
+      - agent_parser_url_transactions
+      - agent_parser_url_file
+      - agent_excluded_properties
+      - agent_discovery_examples
+  group:
+    keys:
+      - agent_parser_transaction
+      - agent_parser_transactions
+      - agent_parser_file
+      - agent_parser_url_transaction
+      - agent_parser_url_transactions
+      - agent_parser_url_file
+      - agent_excluded_properties
+      - agent_discovery_examples
+  book:
+    keys:
+      - agent_parser_url_transaction
+      - agent_parser_url_transactions
+      - agent_parser_url_file
+      - agent_excluded_properties
+      - agent_discovery_examples
+
+filePatterns:
+  - '.csv'
+  - '.pdf'
+  - '.jpg'
+  - '.jpeg'
+  - '.png'
+  - '.bmp'
+  - '.webp'
+
+apiVersion: v5
+
+deployment:
+  server: src/index.ts
+  secrets: []
+  compatibility_date: '2025-08-23'

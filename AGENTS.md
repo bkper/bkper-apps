@@ -7,6 +7,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | App | Type | Location |
 | --- | --- | --- |
 | Bkper CSV App | Platform app (Vite + Cloudflare Workers) | `bkper-csv-app/` |
+| Bkper Slack Bot | Metadata-only App and Slack manifests (behavior in bkper-clients `packages/channels`) | `bkper-slack/` |
 | Exchange Bot | Platform app (Vite + Cloudflare Workers) | `exchange-bot/` |
 | Files Preview App | Platform app (Vite + Cloudflare Workers) | `files-preview-app/` |
 | Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |

@@ -1,0 +1,22 @@
+# Bkper Slack Bot
+
+Metadata-only Bkper App `bkper-slack`: the store listing and the Slack app setup of `@bkper`, Bkper Agent in Slack. No
+code, client, server or deployment here. Its behavior lives in `bkper-clients/packages/channels` (private), shared by
+every Slack bot; see `docs/plans/channels.md` there.
+
+## Files
+
+- `bkper.yaml`: the App. Keep it metadata-only: no `menuUrl`, `events`, `webhookUrl`, `propertiesSchema` or
+  `deployment`, so it never installs on a Book and Core's bot loop prevention never applies. `id` is permanent: it is
+  the bot id in channels URLs, the Agent workspace (account, App) and the attribution of Book changes.
+- `slack-manifest.json` (prod, `channels.bkper.app`) and `slack-manifest.dev.json` (dev, `channels-dev.bkper.app`):
+  filled-in copies of `packages/channels/slack/manifest.json`. Keep scopes and events equal to that template (its
+  scopes are the code's `SLACK_SCOPES`); a scope change means every workspace reinstalls.
+- `README.md`: the listing text, and the public "create your own bot" example.
+
+## Delivery
+
+No workflow. `bkper app sync` from this folder creates or updates the App in prod Core;
+`BKPER_API_URL=https://api-dev.bkper.app bkper app sync` in dev Core. Both are remote writes: only with approval.
+Each environment has its own Slack app, created from its manifest, whose credentials are registered with
+`PUT https://channels[-dev].bkper.app/slack/bkper-slack/credentials` (see `README.md`).

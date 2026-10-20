@@ -20,6 +20,9 @@
         },
         "agent_view": {
             "agent_description": "Answers questions about your Bkper Books and works on them: acts as each person, with their own Bkper account."
+        },
+        "code_channels": {
+            "enabled": true
         }
     },
     "oauth_config": {
@@ -31,10 +34,13 @@
                 "app_mentions:read",
                 "assistant:write",
                 "channels:history",
+                "channels:read",
                 "chat:write",
+                "code_channels:manage",
                 "files:read",
                 "files:write",
                 "groups:history",
+                "groups:read",
                 "im:history",
                 "users:read"
             ]

@@ -1,4 +1,4 @@
-# Bkper Slack Bot
+# Bkper for Slack
 
 Ask about your Books and work on them from Slack. Tag `@bkper` in a thread, or message it, and Bkper Agent (public
 beta) answers right there, as you: with your own Bkper account, your access to Books and your name in Book history.
@@ -22,7 +22,7 @@ beta) answers right there, as you: with your own Bkper account, your access to B
   someone, tag `@bkper` again.
 - **It asks before changing a Book**, and only the person who asked can confirm. To make sure it cannot change one,
   share that Book with them as View only.
-- **Changes show as "you via Bkper Slack Bot"** in Book history, apart from Bkper Agent in the Book.
+- **Changes show as "you via Bkper for Slack"** in Book history, apart from Bkper Agent in the Book.
 - **Files both ways.** Drop a receipt or a statement in a direct message, or in a thread and tag `@bkper`, and ask it
   to record it. Ask for a report or an export, and the file is posted in the thread below the answer.
 - **Guests and people from other organizations** in shared channels use it the same way, with their own Bkper

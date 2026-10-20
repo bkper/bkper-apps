@@ -1,8 +1,7 @@
 id: bkper-slack
-name: Bkper Slack Bot
-description: Ask about your Books and work on them from Slack. Tag @bkper in a thread or message it, and Bkper Agent answers with the Bkper account your workspace admin chose.
-logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-light.svg
-logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-dark.svg
+name: Bkper for Slack
+description: Ask about your Books and work on them from Slack. Tag @bkper in a thread or message it, and it answers as you, with your own access to Books.
+logoUrl: https://raw.githubusercontent.com/bkper/bkper-apps/main/bkper-slack/assets/slack-logo.svg
 ownerName: Bkper
 ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
 ownerWebsite: https://bkper.com

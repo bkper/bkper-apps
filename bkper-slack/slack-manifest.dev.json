@@ -48,6 +48,8 @@
                 "app_home_opened",
                 "app_mention",
                 "app_uninstalled",
+                "message.channels",
+                "message.groups",
                 "message.im",
                 "tokens_revoked",
                 "user_change"

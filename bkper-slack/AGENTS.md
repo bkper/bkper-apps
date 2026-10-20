@@ -12,7 +12,8 @@ every Slack bot; see `docs/plans/channels.md` there.
 - `slack-manifest.json` (prod, `channels.bkper.app`) and `slack-manifest.dev.json` (dev, `channels-dev.bkper.app`):
   filled-in copies of `packages/channels/slack/manifest.json`. Keep scopes and events equal to that template (its
   scopes are the code's `SLACK_SCOPES`); a scope change means every workspace reinstalls.
-- `README.md`: the listing text, and the public "create your own bot" example.
+- `README.md`: the listing text. The "create your own bot" guide is on hold until Slack confirms customers may create
+  one (`docs/plans/channels.md` §13); its steps stay there.
 
 ## Delivery
 

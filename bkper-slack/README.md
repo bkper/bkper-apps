@@ -39,10 +39,10 @@ In a direct message, drop a receipt or a bank statement and ask:
 Record this in Acme Corp.
 ```
 
-Ask for a file, and it is posted in the thread below the answer:
+Ask for a report, and the file is posted in the thread below the answer:
 
 ```text
-@bkper export Q3 expenses by Group as a CSV.
+@bkper send the Q3 profit and loss for Acme Corp as a PDF, compared with Q2.
 ```
 
 ## How it works

@@ -19,7 +19,7 @@
             "always_online": true
         },
         "agent_view": {
-            "agent_description": "Answers questions about your Bkper Books and works on them with the account a workspace admin chose."
+            "agent_description": "Answers questions about your Bkper Books and works on them: acts as each person, with their own Bkper account."
         }
     },
     "oauth_config": {
@@ -32,6 +32,8 @@
                 "assistant:write",
                 "channels:history",
                 "chat:write",
+                "files:read",
+                "files:write",
                 "groups:history",
                 "im:history",
                 "users:read"
@@ -47,7 +49,8 @@
                 "app_mention",
                 "app_uninstalled",
                 "message.im",
-                "tokens_revoked"
+                "tokens_revoked",
+                "user_change"
             ]
         },
         "interactivity": {

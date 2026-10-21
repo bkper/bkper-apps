@@ -22,7 +22,8 @@
             "agent_description": "Answers questions about your Bkper Books and works on them: acts as each person, with their own Bkper account."
         },
         "code_channels": {
-            "enabled": true
+            "enabled": true,
+            "slash_command_url": "https://channels.bkper.app/slack/bkper-slack/commands"
         }
     },
     "oauth_config": {

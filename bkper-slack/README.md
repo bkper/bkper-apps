@@ -11,6 +11,8 @@ sharing on every read and every change.
 
 ## Add it to Slack
 
+[![Add to Slack](https://platform.slack-edge.com/img/add_to_slack.png)](https://channels.bkper.app/slack/bkper-slack/install)
+
 1. Open [Add to Slack](https://channels.bkper.app/slack/bkper-slack/install). Anyone your workspace lets install apps
    can add it. Installing needs no Bkper account and grants nothing in Bkper.
 2. Invite it to a channel with `/invite @bkper` and tag it, or message it directly.

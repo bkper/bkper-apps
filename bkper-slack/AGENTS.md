@@ -11,7 +11,9 @@ every Slack bot; see `docs/plans/channels.md` there.
   the bot id in channels URLs, the Agent workspace (account, App) and the attribution of Book changes.
 - `slack-manifest.json` (prod, `channels.bkper.app`) and `slack-manifest.dev.json` (dev, `channels-dev.bkper.app`):
   filled-in copies of `packages/channels/slack/manifest.json`. Keep scopes and events equal to that template (its
-  scopes are the code's `SLACK_SCOPES`); a scope change means every workspace reinstalls.
+  scopes are the code's `SLACK_SCOPES`); a scope change means every workspace reinstalls. Their `long_description`
+  (Slack's listing text for `@bkper`) lives only here: change it here, then in Slack, so pasting a manifest never wipes
+  it.
 - `assets/`: `slack-logo.svg`, Slack's official mark, unmodified, is the App logo in Bkper (Apps page, Book history),
   where the surface is what tells it apart. `slack-app-icon.png` (1024px), the Bkper "b" on white, is the icon uploaded
   in Slack's app settings (Basic Information → Display Information), where Bkper is what tells it apart. In Slack the

@@ -6,7 +6,7 @@
     "display_information": {
         "name": "Bkper (dev)",
         "description": "Ask about your Bkper Books and Apps, right in Slack.",
-        "background_color": "#1d4ed8"
+        "background_color": "#131010"
     },
     "features": {
         "app_home": {

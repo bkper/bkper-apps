@@ -5,7 +5,7 @@
     },
     "display_information": {
         "name": "Bkper (dev)",
-        "description": "Ask about your Bkper Books, right in Slack.",
+        "description": "Ask about your Bkper Books and Apps, right in Slack.",
         "background_color": "#1d4ed8"
     },
     "features": {
@@ -19,7 +19,7 @@
             "always_online": true
         },
         "agent_view": {
-            "agent_description": "Answers questions about your Bkper Books and works on them: acts as each person, with their own Bkper account."
+            "agent_description": "Answers questions about your Bkper Books and works on them, and on the Bkper Apps you develop: acts as each person, with their own Bkper account."
         },
         "code_channels": {
             "enabled": true,

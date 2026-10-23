@@ -2,7 +2,7 @@
 
 Ask about your Books and work on them without leaving Slack. Tag `@bkper` in a thread, or message it directly, and
 [Bkper Agent](https://bkper.com/docs/ai/bkper-agent) answers right there, as you: with your own Bkper account and your
-access to Books.
+access to Books. If you develop Bkper Apps, it works on their code too.
 
 Bkper remains the source of truth. Balances and reports come from your Books, and Bkper enforces each person's Book
 sharing on every read and every change.
@@ -45,6 +45,12 @@ Ask for a report, and the file is posted in the thread below the answer:
 
 ```text
 @bkper send the Q3 profit and loss for Acme Corp as a PDF, compared with Q2.
+```
+
+If you develop a Bkper App, ask it to change the code. It asks before deploying anything:
+
+```text
+@bkper in my-app, add the due date to the invoice email.
 ```
 
 ## How it works

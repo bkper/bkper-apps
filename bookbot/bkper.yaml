@@ -1,4 +1,5 @@
-# Local staging only. Do not sync, deploy, register, or install without separate explicit approval.
+# Shares the live `bookbot` registration with the legacy bkper-agent repository. Do not sync until the Phase 4 event migration.
+# Deployed to preview and production (discovery API only). Deploy, install, or sync only with separate explicit approval.
 # Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
 id: bookbot
 name: Bookbot

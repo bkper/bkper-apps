@@ -1,13 +1,14 @@
-# Bookbot — Local Staging
+# Bookbot — Platform App (migration in progress)
 
 ## Status and safety
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is inactive local staging of the legacy Bookbot extraction automation with the Phase 1 discovery API added. Both staging directories initially contained the same runtime and tests; legacy event responsibilities have not migrated. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Platform Bookbot: the legacy Bookbot extraction automation with the Phase 1 discovery API added. Its preview and production deployments serve the discovery API only; Book events still go to the legacy Worker, and legacy event responsibilities have not migrated. Both directories initially contained the same runtime and tests. Bookbot is distinct from the managed conversational Bkper Agent.
 
-- It is a standard Bkper Platform app: `bkper.yaml` is local configuration only. No app registration, deployment workflow, or live webhook tooling is included.
-- Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
+- It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
+- `bkper.yaml` shares the live `bookbot` registration with the legacy `bkper-agent` repository, and `bkper app sync` from either repository replaces it. Do not sync until the Phase 4 event migration.
+- Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
 - Keep README content public-facing; development information belongs here.

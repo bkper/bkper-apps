@@ -1,4 +1,4 @@
-// Local-only baseline. Not registered; do not deploy or deliver live events.
+// Local development and dry-run build only. Platform deploys use `bkper app build` and `bkper app deploy`; never `wrangler deploy`.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bookbot-local-staging",

@@ -6,7 +6,7 @@ Companion plan: [Bookbot](../../bookbot/docs/PLAN.md), which defines the shared 
 
 ## Status
 
-- This directory is an inactive local snapshot of the legacy Bookbot Worker. It is not registered, deployed, or published. The permanent app ID is still to be confirmed; `parser-bot` is proposed.
+- This directory is an inactive local snapshot of the legacy Bookbot Worker. It is not registered, deployed, or published. The permanent app ID `parser-bot` was confirmed on 2026-10-30; it is not registered yet.
 - Phase 1 discovery API is implemented locally in Bookbot. Phase 2 is implemented locally: `POST /api/v1/parse`, `/openapi.json`, and generated canonical client types are available. Platform hosting is prepared locally: `bkper.yaml` and Platform event authentication. Legacy event behavior and local discovery are otherwise unchanged; Phase 3 integration is still pending. Live migration waits for verification of the legacy Bookbot rename rollout.
 - Local verification passed: dry-run build, source/test typechecks, API contract freshness, 539 deterministic tests, Git-flow regressions, and a frozen-lockfile install with scripts disabled. The 22 live tests remain skipped; no live inference or Book writes were run.
 - Pushing this repository publishes the source; it requires a final publication review and explicit approval.
@@ -88,7 +88,7 @@ The initial route, request/result/error shapes, and shared authentication bounda
 Both plans use the same phases.
 
 1. **Bookbot discovery API.** Done in Bookbot; this directory is unchanged.
-2. **Parser Bot API.** Implemented locally. Confirm the app ID before registering. `/api/v1/parse` wraps the existing file router, attachment extraction, and amount/date extractors; `/openapi.json` and `bun run api` / `api:check` maintain generated client types and the contract snapshot. Composed parse-and-discover and batch requests are deferred. The two necessary moves are complete:
+2. **Parser Bot API.** Implemented locally. App ID `parser-bot` confirmed; not registered yet. `/api/v1/parse` wraps the existing file router, attachment extraction, and amount/date extractors; `/openapi.json` and `bun run api` / `api:check` maintain generated client types and the contract snapshot. Composed parse-and-discover and batch requests are deferred. The two necessary moves are complete:
    - Moved the attachment extraction methods (`extractAttachedTransaction`, `resolveTransactionParserAccount`, `extractFilePropertiesIfConfigured`, `filterFileProperties`, `shouldSkipFileProperty`) verbatim from `EventHandlerTransactionCreated` into `AttachmentExtractionService`; only the two extraction entry points are public. The handler retains merging, concurrent calls, discovery, writes, and error handling.
    - Moved `migrateLegacyPromptProperties` and its constant verbatim into `LegacyPromptPropertyMigration`, injected into `PromptLookupService` with the persisting one as default. The API supplies a non-persisting implementation.
    - Small API-only controls suppress private prompt/context logging, propagate amount/date failures, attribute inference to Parser Bot, and pass request cancellation to external parsers. Default event behavior remains unchanged; the two file-property filters remain distinct.

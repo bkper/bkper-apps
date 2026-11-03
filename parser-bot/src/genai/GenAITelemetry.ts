@@ -5,7 +5,6 @@ export type GenAIOperation =
     | 'file_properties_extraction'
     | 'amount_extraction'
     | 'date_extraction'
-    | 'description_parts_extraction'
     | 'evaluation'
     | 'ace';
 

@@ -4,7 +4,7 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is registered (unpublished); its preview is deployed and installed only on a dedicated test Book. The read-only parsing API is implemented. File-import and transaction-created handlers call Bookbot's discovery API (Phase 3, verified on preview); other legacy event behavior, including local rediscovery, remains until the event migration phase. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is registered (unpublished); its preview is deployed and installed only on a dedicated test Book. The read-only parsing API is implemented. File-import and transaction-created handlers call Bookbot's discovery API (Phase 3, verified on preview); local discovery and rediscovery were removed; other legacy event behavior remains until the event migration phase. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy --preview`. Never use `wrangler deploy`. Production is not deployed.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Never install Parser Bot in a Book where the legacy Bookbot is installed. Before deploying, confirm the build log reports `Build complete` without errors.
@@ -14,7 +14,7 @@ This directory is the Parser Bot Platform app, started from the legacy Bookbot e
 - Existing technical names and `agent_*` properties stay unchanged.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Change only what the current phase in `docs/PLAN.md` needs. Do not silently implement future API or outage policy.
-- The eventual Parser Bot consumes Bookbot discovery through its API; duplicated discovery here is only a temporary baseline.
+- Parser Bot consumes Bookbot discovery through its API and has no local discovery code. Do not reintroduce it.
 
 ## Refactoring rules
 

@@ -113,10 +113,10 @@ describe('read-only parse', () => {
         const { context, writes } = setup();
         context.createExtractorAmount = () => ({ extract: mock(async () => new Amount('12.5')) }) as unknown as ExtractorAmount;
         context.createExtractorDate = () => ({ extract: mock(async () => '2024-01-02') }) as unknown as ExtractorDate;
-        context.createDiscovery = mock(() => { throw new Error('Raw parsing must not discover'); });
+        context.createBookbotDiscoveryClient = mock(() => { throw new Error('Raw parsing must not discover'); });
         const result = await parse({ bookId: 'book_1', transaction: { description: 'Payment 12.50 on 2024-01-02' } }, context);
         expect(result.transactions[0].transaction).toMatchObject({ amount: '12.5', date: '2024-01-02' });
-        expect(context.createDiscovery).not.toHaveBeenCalled();
+        expect(context.createBookbotDiscoveryClient).not.toHaveBeenCalled();
         expect(writes).not.toHaveBeenCalled();
     });
 

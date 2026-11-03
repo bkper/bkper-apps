@@ -84,11 +84,6 @@ export const OPTIONAL_DATE_SCHEMA: JsonSchema = {
     anyOf: [DATE_SCHEMA, { type: 'null' }],
 };
 
-export const DESCRIPTION_PARTS_SCHEMA: JsonSchema = {
-    type: 'array',
-    items: { type: 'string' },
-};
-
 export const REFLECTION_SCHEMA: JsonSchema = {
     type: 'object',
     properties: {

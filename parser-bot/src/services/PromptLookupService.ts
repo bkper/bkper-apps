@@ -15,7 +15,6 @@ import {
     AGENT_PARSER_URL_TRANSACTION_PROPERTY,
     AGENT_PARSER_URL_TRANSACTIONS_PROPERTY,
     AGENT_PARSER_URL_FILE_PROPERTY,
-    AGENT_DISCOVERY_EXAMPLES_PROPERTY,
 } from '../constants.js';
 import { LegacyPromptPropertyMigration } from './LegacyPromptPropertyMigration.js';
 
@@ -40,11 +39,6 @@ export interface PropertySkipLookupParams {
     book: Book;
     account?: Account;
     group?: Group;
-}
-
-export interface DiscoveryExamplesLookupParams {
-    book: Book;
-    account?: Account;
 }
 
 export interface ExtractorUrlLookupResult {
@@ -441,25 +435,6 @@ export class PromptLookupContext {
 
 export class PromptLookupService {
     constructor(private readonly migration: LegacyPromptPropertyMigration = new LegacyPromptPropertyMigration(), private readonly log = true) { }
-
-    async lookupDiscoveryExamples(params: DiscoveryExamplesLookupParams): Promise<string | undefined> {
-        if (params.account) {
-            const accountExamples = params.account.getProperty(AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim();
-            if (accountExamples) {
-                return accountExamples;
-            }
-
-            const groups = await params.account.getGroups();
-            for (const group of groups) {
-                const groupExamples = group.getProperty(AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim();
-                if (groupExamples) {
-                    return groupExamples;
-                }
-            }
-        }
-
-        return params.book.getProperty(AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim() || undefined;
-    }
 
     async lookupPropertySkipKeys(params: PropertySkipLookupParams): Promise<Set<string>> {
         // Resolve the most-specific account-level exclusion list first.

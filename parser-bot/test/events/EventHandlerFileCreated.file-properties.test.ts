@@ -90,9 +90,6 @@ describe('EventHandlerFileCreated - file properties', () => {
                 getBook: mock(async () => mockBook),
             },
             createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
-            createExtractorDescriptionParts: () => ({
-                extract: async (description: string) => description.split(' ').filter((w: string) => w.length > 2).slice(0, 3),
-            }),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,

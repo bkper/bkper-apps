@@ -32,7 +32,7 @@ export class EventHandlerTransactionPostedOrUpdated extends EventHandler {
         // Statement flagging (async preparation) - uses dedicated service
         promises.push(this.statementPromptImprovementService.flagStatementForImprovement(book, new Transaction(book, transaction)));
 
-        promises.push(this.context.createRediscoveryService().rediscover(book, new Transaction(book, transaction), event));
+        // Rediscovery of affected drafts after an Account correction belongs to Bookbot.
         const returns = await Promise.all(promises);
 
         const result: Result = { result: false };

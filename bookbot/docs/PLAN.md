@@ -93,7 +93,7 @@ Both plans use the same phases.
 1. **Bookbot discovery API.** Wrap the existing discovery code in the API above without changing its default behavior. Keep legacy events working. Platform hosting is prepared separately from any algorithm change: a local `bkper.yaml` (`deployment.server: src/index.ts`, legacy events and properties until Phase 4) and Platform event authentication. Flat `src/` layout and Wrangler dry-run build are retained until Phase 5.
 2. **Parser Bot API.** Done in Parser Bot; this directory is unchanged.
 3. **Parser Bot uses Bookbot.** Done in Parser Bot; this directory keeps its legacy handlers working.
-4. **Event migration.** Move file, attachment, and learning events to Parser Bot without duplicate processing. Only after Parser Bot continuity is verified, remove parsing, attachment, import, and learning code from this directory; keep rediscovery.
+4. **Event migration.** Move file, attachment, and learning events to Parser Bot without duplicate processing. Only after Parser Bot continuity is verified, remove parsing, attachment, import, and learning code from this directory; keep rediscovery. Prerequisite: Parser Bot no longer rediscovers drafts (removed in Phase 3), so this Bookbot must handle `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` rediscovery for real Book events before Parser Bot takes over events from the legacy Worker.
 5. **Publication.** Final license, security, fixture, and documentation review; `bkper.yaml`, README, and delivery workflow; explicit approval before pushing.
 
 ## Verification

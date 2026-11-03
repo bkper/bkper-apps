@@ -4,7 +4,6 @@ import { join } from 'path';
 import { File } from 'bkper-js';
 import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
 import { ExtractorDate } from '../../src/genai/ExtractorDate.js';
-import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
 import { ExtractorFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
 import { ExtractorStatementCSV } from '../../src/genai/statement/csv/ExtractorStatementCSV.js';
 import { ExtractorStatementIMG } from '../../src/genai/statement/img/ExtractorStatementIMG.js';
@@ -176,24 +175,6 @@ describe('GenAI Extraction (Integration)', () => {
 
                 // Model may return null or undefined — both are acceptable
                 expect(result == null).toBe(true);
-            },
-            { timeout: 30_000 }
-        );
-    });
-
-    describe.skipIf(!bkperAIClient)('ExtractorDescriptionParts through Bkper AI', () => {
-        it(
-            'extracts stable searchable parts from a transaction description',
-            async () => {
-                const extractor = new ExtractorDescriptionParts(env, bkperAIClient);
-                const result = await extractor.extract('Amazon AMAZON RETA* NJ1JM7QA0 #goodies');
-
-                expect(result).toBeArray();
-                expect(result.length).toBeGreaterThan(0);
-
-                // Should contain something referencing AMAZON — the stable merchant identifier
-                const joined = result.join(' ').toUpperCase();
-                expect(joined).toContain('AMAZON');
             },
             { timeout: 30_000 }
         );

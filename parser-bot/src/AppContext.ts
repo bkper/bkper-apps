@@ -1,8 +1,6 @@
 import { Bkper, File } from 'bkper-js';
 import { PromptLookupService } from './services/PromptLookupService.js';
-import { Discovery } from './services/DiscoveryService.js';
 import { FlagManagementService } from './services/FlagManagementService.js';
-import { RediscoveryService } from './services/RediscoveryService.js';
 import { BookbotDiscoveryClient } from './services/BookbotDiscoveryClient.js';
 import { JevEvaluationService } from './genai/JevEvaluationService.js';
 import { ExtractorInvoice } from './genai/invoice/ExtractorInvoice.js';
@@ -10,7 +8,6 @@ import { ExtractorStatementCSV } from './genai/statement/csv/ExtractorStatementC
 import { ExtractorStatementIMG } from './genai/statement/img/ExtractorStatementIMG.js';
 import { ExtractorAmount } from './genai/ExtractorAmount.js';
 import { ExtractorDate } from './genai/ExtractorDate.js';
-import { ExtractorDescriptionParts } from './genai/ExtractorDescriptionParts.js';
 import { ExtractorFileClassification } from './genai/file/ExtractorFileClassification.js';
 import { ExtractorFileProperties } from './genai/file/ExtractorFileProperties.js';
 import { BkperAIEvaluationsClient } from './genai/BkperAIEvaluationsClient.js';
@@ -62,23 +59,6 @@ export class AppContext {
     // ============================================
 
     /**
-     * Creates a new Discovery instance for batch operations.
-     * Discovery maintains caches (transactions, accounts, description parts)
-     * that should be scoped to a single batch operation.
-     */
-    createDiscovery(): Discovery {
-        return new Discovery(this);
-    }
-
-    /**
-     * Creates a new RediscoveryService instance.
-     * RediscoveryService creates its own Discovery internally for batch operations.
-     */
-    createRediscoveryService(): RediscoveryService {
-        return new RediscoveryService(this);
-    }
-
-    /**
      * Creates a client for Bookbot's discovery API. Event handlers use it instead of local discovery;
      * Platform outbound delegates the event or user authorization to Bookbot.
      */
@@ -120,9 +100,5 @@ export class AppContext {
 
     createExtractorDate(): ExtractorDate {
         return new ExtractorDate(this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorDescriptionParts(): ExtractorDescriptionParts {
-        return new ExtractorDescriptionParts(this.env, this.bkperAIResponsesClient);
     }
 }

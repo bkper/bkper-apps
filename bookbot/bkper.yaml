@@ -1,5 +1,5 @@
-# Shares the live `bookbot` registration with the legacy bkper-agent repository. Do not sync until the Phase 4 event migration.
-# Deployed to preview and production (discovery API only). Deploy, install, or sync only with separate explicit approval.
+# Live `bookbot` registration. Since the 2026-11-03 cutover, production events go to this Platform app (bookbot.bkper.app).
+# Never sync from the legacy bkper-agent repository. Deploy, install, or sync only with separate explicit approval.
 # Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
 id: bookbot
 name: Bookbot
@@ -17,9 +17,9 @@ repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
 
-# Until the Phase 4 cutover, production events go to the legacy Worker. Keep webhookUrl, events, filePatterns and
-# propertiesSchema identical to the legacy bkper.yaml so a sync from either repository cannot change production.
-webhookUrl: https://bookbot-legacy.bkper.app/events
+# Rollback: set webhookUrl back to https://bookbot-legacy.bkper.app/events, then commit, push, and sync.
+# The legacy Worker keeps running until it is retired.
+webhookUrl: https://bookbot.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 
 events:

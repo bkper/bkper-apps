@@ -13,7 +13,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
-| Bookbot | Platform app (Cloudflare Workers); discovery API deployed, events still on the legacy Worker, do not sync until Phase 4 | `bookbot/` |
+| Bookbot | Platform app (Cloudflare Workers); receives all Bookbot events since 2026-11-03 and serves the discovery API; never sync from the legacy repository | `bookbot/` |
 | Parser Bot | Platform app (Cloudflare Workers); registered (unpublished), preview deployed on a test Book only, production not deployed | `parser-bot/` |
 
 ## Port Allocation
@@ -39,7 +39,7 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 | bookbot | `8807` | `9607` |
 | parser-bot | `8808` | `9608` |
 
-These ports are for local development, not live event delivery. Both directories initially contained the same legacy Bookbot behavior. Bookbot is deployed (discovery API only) and must not be synced until Phase 4; Parser Bot is registered (unpublished) with only its preview deployed, installed on a dedicated test Book. Read each app's `AGENTS.md` before work; do not register, deploy, sync, install, or publish either app without separate approval.
+These ports are for local development, not live event delivery. Both directories initially contained the same legacy Bookbot behavior. Bookbot is live on the Platform (events and discovery API); sync it only from this repository; Parser Bot is registered (unpublished) with only its preview deployed, installed on a dedicated test Book. Read each app's `AGENTS.md` before work; do not register, deploy, sync, install, or publish either app without separate approval.
 
 **Next available:** client `5207`, Worker `8809`.
 

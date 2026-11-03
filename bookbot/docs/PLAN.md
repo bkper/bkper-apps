@@ -6,8 +6,8 @@ Companion plan: [Parser Bot](../../parser-bot/docs/PLAN.md).
 
 ## Status
 
-- This directory is the Platform Bookbot, started from a snapshot of the legacy Bookbot Worker; `parser-bot/` starts from the same snapshot. Preview (2026-10-16) and production (2026-10-30) deployments serve the discovery API at `bookbot-preview.bkper.app` and `bookbot.bkper.app`. Book events still go to the legacy Worker: this directory shares the `bookbot` registration and must not be synced until the Phase 4 event migration.
-- Phase 1 discovery API is implemented, tested against preview and deployed. Known API defects are recorded in [DEFERRED.md](DEFERRED.md). Platform hosting: `bkper.yaml` and Platform event authentication. Legacy event behavior remains in place; event migration has not started. The legacy Bookbot rename rollout is verified.
+- This directory is the Platform Bookbot, started from a snapshot of the legacy Bookbot Worker; `parser-bot/` starts from the same snapshot. Preview (2026-10-16) and production (2026-10-30) deployments serve the discovery API at `bookbot-preview.bkper.app` and `bookbot.bkper.app`. Since the 2026-11-03 cutover (Phase 4 step 1), production receives all `bookbot` Book events with unchanged legacy behavior, and preview receives development-mode events. This directory is the source of truth for the `bookbot` registration; never sync from the legacy repository.
+- Phase 1 discovery API is implemented, tested against preview and deployed. Known API defects are recorded in [DEFERRED.md](DEFERRED.md). Platform hosting: `bkper.yaml` and Platform event authentication. Legacy event behavior remains in place on the Platform; the split with Parser Bot (Phase 4 step 2) has not started. The legacy Bookbot rename rollout is verified.
 - Pushing this repository publishes the source; it requires a final publication review and explicit approval.
 
 ## Refactoring rules

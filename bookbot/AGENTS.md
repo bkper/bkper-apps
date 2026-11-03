@@ -4,10 +4,10 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is the Platform Bookbot: the legacy Bookbot extraction automation with the Phase 1 discovery API added. Its preview and production deployments serve the discovery API only; Book events still go to the legacy Worker, and legacy event responsibilities have not migrated. Both directories initially contained the same runtime and tests. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Platform Bookbot: the legacy Bookbot extraction automation with the Phase 1 discovery API added. Since the 2026-11-03 cutover, its production deployment receives all `bookbot` Book events (the same legacy behavior, now on the Platform) and serves the discovery API; preview receives development-mode events. The split of responsibilities with Parser Bot has not happened yet. Both directories initially contained the same runtime and tests. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
-- `bkper.yaml` shares the live `bookbot` registration with the legacy `bkper-agent` repository, and `bkper app sync` from either repository replaces it. Do not sync until the Phase 4 event migration.
+- `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the legacy `bkper-agent` repository: it would route events back to the legacy Worker. Rollback to the legacy Worker is documented in `bkper.yaml`.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.

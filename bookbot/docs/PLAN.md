@@ -26,7 +26,7 @@ These apply to both apps.
 - AI suggests or extracts. Deterministic application code validates, merges, and controls financial writes.
 - Reusable APIs return results without Book writes; Book reads and inference are allowed. Event adapters or explicitly authorized callers own persistence.
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
-- Hosting: one standard Bkper Platform app per app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Parser Bot calls Bookbot with a plain `fetch` to `https://bookbot.bkper.app/api/v1/*`; Platform outbound delegates user or event context without exposing credentials.
+- Hosting: one standard Bkper Platform app per app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Parser Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Until the legacy Bookbot is retired, both Parser Bot environments call only `https://bookbot-preview.bkper.app/api/v1/*`; afterwards both call only `https://bookbot.bkper.app/api/v1/*`. The address is one constant, changed in a single commit at the cutover. The production Bookbot deployment stays API only until then.
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance.
 - Do not log credentials, document content, transaction descriptions, or private Book data.
 

@@ -4,7 +4,7 @@ import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
-import { Discovery } from '../services/DiscoveryService.js';
+import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClient.js';
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
 
@@ -31,6 +31,9 @@ interface AccountSummary {
 }
 
 export class EventHandlerFileCreated extends EventHandler {
+    private discoveryError: DiscoveryError | undefined;
+    private discoveryFailures = 0;
+
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
         let transactions: ExtractedTransaction[] = [];
         let prompt: string | undefined;
@@ -71,8 +74,26 @@ export class EventHandlerFileCreated extends EventHandler {
         }
 
         return {
-            result: { prompt, transactions, ...(fileProperties ? { fileProperties } : {}) }
+            result: { prompt, transactions, ...(fileProperties ? { fileProperties } : {}) },
+            ...(this.discoveryError ? { warning: this.discoveryWarning(this.discoveryError) } : {}),
         };
+    }
+
+    /**
+     * Asks Bookbot to discover Accounts and properties for drafts of one target Book. When discovery fails,
+     * the drafts are still recorded as extracted and the failure is reported as a warning.
+     */
+    private async discover(book: Book, items: DiscoveryItem[]): Promise<void> {
+        const discovery = await this.context.createBookbotDiscoveryClient().discover(book.getId() || '', items);
+        if (discovery.error) {
+            this.discoveryError ??= discovery.error;
+            this.discoveryFailures += discovery.outcomes.filter(outcome => outcome === 'error').length;
+        }
+    }
+
+    private discoveryWarning(error: DiscoveryError): string {
+        const label = this.discoveryFailures === 1 ? 'transaction' : 'transactions';
+        return `Account discovery failed for ${this.discoveryFailures} ${label} (${error.code}); recorded as drafts without discovered Accounts or properties.`;
     }
 
     private async recordExtraction(book: Book, file: File, extraction: FileParsingResult): Promise<{ filePropertiesUpdated: Record<string, string> | undefined }> {
@@ -111,7 +132,6 @@ export class EventHandlerFileCreated extends EventHandler {
      * Single invoice/receipt path — builds the transaction, attaches the source file, runs discovery to enrich account sides and properties, and persists it immediately via API.
      */
     async recordTransaction(tx: ExtractedTransaction, book: Book, file: File, account: Account | undefined): Promise<TransactionRecording> {
-        const discovery: Discovery = this.context.createDiscovery();
         const recording = this.createTransactionRecordings([tx])[0];
         const transaction = this.assembleTransaction(book, recording.extracted, account);
         transaction.addFile(file);
@@ -119,10 +139,7 @@ export class EventHandlerFileCreated extends EventHandler {
         // Run discovery once for the transaction.
         const discoveryStartedAt = this.logDiscoveryStarted(1);
         try {
-            const discoveryResult = await discovery.discover(transaction);
-            if (account && discoveryResult.dataSet) {
-                await discovery.discoverProperties(account, transaction, discoveryResult.dataSet);
-            }
+            await this.discover(book, [{ transaction, sourceAccount: account }]);
         } finally {
             this.logDiscoveryFinished(discoveryStartedAt);
         }
@@ -158,7 +175,7 @@ export class EventHandlerFileCreated extends EventHandler {
     }
 
     /**
-     * Resolves the target book, sorts transactions oldest-to-newest, builds each one with discovery, then batch-creates them all.
+     * Resolves the target book, sorts transactions oldest-to-newest, builds each one, discovers the whole batch with Bookbot, then batch-creates them all.
      */
     private async recordTransactionsForBook(bookId: string, bookRecordings: TransactionRecording[], defaultBook: Book, file: File, defaultAccount: Account | undefined): Promise<TransactionBatchResult> {
         const isOriginalBook = bookId === (defaultBook.getId() || '');
@@ -166,17 +183,19 @@ export class EventHandlerFileCreated extends EventHandler {
 
         // Sort transactions with clear dates from oldest to newest; keep undated transactions last and stable.
         const sortedRecordings = [...bookRecordings].sort((a, b) => this.compareExtractedTransactionDates(a.extracted, b.extracted));
-        const discovery: Discovery = this.context.createDiscovery();
         const transactions: Transaction[] = [];
+        const discoveryItems: DiscoveryItem[] = [];
 
         // Run discovery once for the whole transaction batch.
         const discoveryStartedAt = this.logDiscoveryStarted(sortedRecordings.length);
         try {
             for (const recording of sortedRecordings) {
                 const account = await this.resolveTargetAccount(recording.extracted, targetBook, defaultAccount, isOriginalBook);
-                const transaction = await this.buildTransaction(recording.extracted, targetBook, account, file, discovery);
+                const transaction = await this.buildTransaction(recording.extracted, targetBook, account, file);
                 transactions.push(transaction);
+                discoveryItems.push({ transaction, sourceAccount: account });
             }
+            await this.discover(targetBook, discoveryItems);
         } finally {
             this.logDiscoveryFinished(discoveryStartedAt);
         }
@@ -201,25 +220,19 @@ export class EventHandlerFileCreated extends EventHandler {
 
 
     /**
-     * Constructs a single bkper Transaction from an extracted transaction and enriches it — sets the file ID property, runs account discovery, and if successful, discovers common properties from similar past transactions.
+     * Constructs a single bkper Transaction from an extracted transaction and enriches it with the file ID property. Discovery runs afterwards for the whole batch.
      */
-    private async buildTransaction(tx: ExtractedTransaction, book: Book, account: Account | undefined, file: File, discovery: Discovery): Promise<Transaction> {
+    private async buildTransaction(tx: ExtractedTransaction, book: Book, account: Account | undefined, file: File): Promise<Transaction> {
         const transaction = this.assembleTransaction(book, tx, account);
-        await this.enrichTransaction(transaction, file, account, discovery);
+        await this.enrichTransaction(transaction, file);
         return transaction;
     }
 
     /**
-     * Tags the transaction with the originating file ID, runs account discovery to fill in credit/debit sides, and if a matching dataset is found, discovers and adds common properties from past transactions.
+     * Tags the transaction with the originating file ID.
      */
-    private async enrichTransaction(transaction: Transaction, file: File, account: Account | undefined, discovery: Discovery): Promise<void> {
+    private async enrichTransaction(transaction: Transaction, file: File): Promise<void> {
         transaction.setProperty(AGENT_FILE_ID_PROPERTY, file.getId() || '');
-
-        // Enrich transaction via discovery and optionally discover account properties
-        const discoveryResult = await discovery.discover(transaction);
-        if (account && discoveryResult.dataSet) {
-            await discovery.discoverProperties(account, transaction, discoveryResult.dataSet);
-        }
     }
 
     /**

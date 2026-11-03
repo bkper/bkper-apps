@@ -6,6 +6,7 @@ import { Book, File, Account, Transaction, TransactionList, AccountType } from '
 import { AppContext } from '../../src/AppContext.js';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
 import { AGENT_DISCOVERED_PROPERTIES_PROPERTY, AGENT_EXCLUDED_PROPERTIES_PROPERTY } from '../../src/constants.js';
+import { createLocalBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 function createTransactionsWithNativeIds(transactions: Transaction[]): Transaction[] {
     return transactions.map((transaction, index) => ({
@@ -75,10 +76,7 @@ describe('EventHandlerFileCreated - Properties Discovery Integration', () => {
 
         mockContext = {
             env: {},
-            createDiscovery: () => {
-                const { Discovery } = require('../../src/services/DiscoveryService.js');
-                return new Discovery(mockContext);
-            },
+            createBookbotDiscoveryClient: () => createLocalBookbotDiscoveryClient(mockContext),
             createExtractorDescriptionParts: () => ({
                 extract: async (description: string) => {
                     const words = description.split(' ').filter(word => word.length > 2);

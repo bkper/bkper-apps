@@ -3,13 +3,14 @@ import { AGENT_EXTRACTED_PROPERTY, AUTO_FILLED_DATE_PROPERTY, UPLOAD_METHOD_PROP
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
-import { Discovery } from '../services/DiscoveryService.js';
+import { DiscoveryError } from '../services/BookbotDiscoveryClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
 
 export class EventHandlerTransactionCreated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
-        const discovery: Discovery = this.context.createDiscovery();
+        const discovery = this.context.createBookbotDiscoveryClient();
+        let warning: string | undefined;
 
         if (event.bookId && event.data) {
             let operation = event.data.object as bkper.TransactionOperation;
@@ -129,11 +130,12 @@ export class EventHandlerTransactionCreated extends EventHandler {
                     fileMetadataUpdated = true;
                 }
 
-                const discoveryResult = await discovery.discover(transaction);
+                const discoveryResult = await discovery.discover(book.getId() || '', [{ transaction }]);
 
-                if (discoveryResult.discovered) {
+                if (discoveryResult.outcomes[0] === 'changed') {
                     updatedProp = true;
                 }
+                warning = this.discoveryWarning(discoveryResult.error);
 
                 if (updatedFile) {
                     transaction.setProperty(AGENT_EXTRACTED_PROPERTY, JSON.stringify(extractedTransaction));
@@ -149,15 +151,17 @@ export class EventHandlerTransactionCreated extends EventHandler {
 
                 if (updatedFile || updatedProp || fileMetadataUpdated) {
                     return {
-                        result: { prompt, transaction: extractedTransaction, fileProperties }
+                        result: { prompt, transaction: extractedTransaction, fileProperties },
+                        ...(warning ? { warning } : {}),
                     };
                 }
             } else {
                 let updated = false;
-                const discoveryResult = await discovery.discover(transaction);
-                if (discoveryResult.discovered) {
+                const discoveryResult = await discovery.discover(book.getId() || '', [{ transaction }]);
+                if (discoveryResult.outcomes[0] === 'changed') {
                     updated = true;
                 }
+                warning = this.discoveryWarning(discoveryResult.error);
 
                 if (transaction.getAmount() == null) {
                     // Extract amount from description using AI
@@ -180,13 +184,18 @@ export class EventHandlerTransactionCreated extends EventHandler {
                 if (updated) {
                     await transaction.update();
                     return {
-                        result: { transaction: transaction.payload }
-
+                        result: { transaction: transaction.payload },
+                        ...(warning ? { warning } : {}),
                     };
                 }
             }
         }
 
-        return { result: false };
+        // Report a discovery failure even when nothing else changed.
+        return warning ? { warning } : { result: false };
+    }
+
+    private discoveryWarning(error: DiscoveryError | undefined): string | undefined {
+        return error ? `Account discovery failed (${error.code}); the transaction was left without discovered Accounts.` : undefined;
     }
 }

@@ -4,7 +4,7 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is inactive local staging of the legacy Bookbot extraction automation. The read-only parsing API is implemented locally; legacy event behavior and local discovery remain in place until the API integration and event migration phases. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is inactive local staging of the legacy Bookbot extraction automation. The read-only parsing API is implemented locally. File-import and transaction-created handlers call Bookbot's discovery API (Phase 3, implemented locally); other legacy event behavior, including local rediscovery, remains until the event migration phase. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app: `bkper.yaml` is local configuration only, with the confirmed `parser-bot` ID (not registered yet). No app registration, deployment workflow, or live webhook tooling is included.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
@@ -27,7 +27,7 @@ This directory is inactive local staging of the legacy Bookbot extraction automa
 ## Local verification
 
 ```bash
-bun run api               # Generate client types and OpenAPI snapshot after contract changes
+bun run api               # Generate client types and OpenAPI snapshot after contract changes (also Bookbot client types)
 bun run api:check         # Verify contract freshness
 bun run typecheck
 bun run typecheck:tests
@@ -36,6 +36,8 @@ bun run test:unit         # Clears live AI variables; integration cases skip
 bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
+
+Event handlers call Bookbot's discovery API through `src/services/BookbotDiscoveryClient.ts`. When Bookbot's contract changes, copy `bookbot/test/api/openapi.snapshot.json` to `src/clients/bookbot/openapi.json` and run `bun run api`. Local runs cannot call Bookbot (local outbound authorizes only the Bkper API and Bkper AI); tests use the doubles in `test/helpers/bookbot-discovery.ts`.
 
 Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and external parser compatibility. For refactoring, follow the rules above. Run `bun run test` after each step.
 

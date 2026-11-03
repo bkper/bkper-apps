@@ -7,6 +7,7 @@ import { EventHandlerTransactionCreated } from '../../src/events/EventHandlerTra
 import { ExternalExtractorClient } from '../../src/external-extractor/ExternalExtractorClient.js';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
 import { AGENT_PARSER_URL_TRANSACTION_PROPERTY, AUTO_FILLED_DATE_PROPERTY } from '../../src/constants.js';
+import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 const UPLOAD_METHOD_PROPERTY = 'upload_method';
 
@@ -103,9 +104,7 @@ describe('EventHandlerTransactionCreated - external parsers', () => {
 
         const mockContext = {
             promptLookupService,
-            createDiscovery: () => ({
-                discover: mock(async () => ({ discovered: false })),
-            }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             createExtractorInvoice: () => ({
                 extract: mock(async () => {
                     throw new Error('GenAI invoice extractor should not be called');
@@ -190,7 +189,7 @@ describe('EventHandlerTransactionCreated - external parsers', () => {
 
         const mockContext = {
             promptLookupService: new PromptLookupService(),
-            createDiscovery: () => ({ discover: mock(async () => ({ discovered: false })) }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             createExtractorInvoice: () => ({
                 extract: mock(async () => {
                     throw new Error('GenAI invoice extractor should not be called');
@@ -246,7 +245,7 @@ describe('EventHandlerTransactionCreated - external parsers', () => {
                 lookupPrompts: mock(async () => null),
                 lookupParserUrl: mock(async () => null),
             },
-            createDiscovery: () => ({ discover: mock(async () => ({ discovered: false })) }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             createExtractorInvoice: () => ({ extract: invoiceExtract }),
             createExtractorAmount: () => ({ extract: mock(async () => undefined) }),
             createExtractorDate: () => ({ extract: dateExtract }),

@@ -3,6 +3,7 @@ import { PromptLookupService } from './services/PromptLookupService.js';
 import { Discovery } from './services/DiscoveryService.js';
 import { FlagManagementService } from './services/FlagManagementService.js';
 import { RediscoveryService } from './services/RediscoveryService.js';
+import { BookbotDiscoveryClient } from './services/BookbotDiscoveryClient.js';
 import { JevEvaluationService } from './genai/JevEvaluationService.js';
 import { ExtractorInvoice } from './genai/invoice/ExtractorInvoice.js';
 import { ExtractorStatementCSV } from './genai/statement/csv/ExtractorStatementCSV.js';
@@ -75,6 +76,14 @@ export class AppContext {
      */
     createRediscoveryService(): RediscoveryService {
         return new RediscoveryService(this);
+    }
+
+    /**
+     * Creates a client for Bookbot's discovery API. Event handlers use it instead of local discovery;
+     * Platform outbound delegates the event or user authorization to Bookbot.
+     */
+    createBookbotDiscoveryClient(): BookbotDiscoveryClient {
+        return new BookbotDiscoveryClient(undefined, undefined, this.requestSignal);
     }
 
     // ============================================

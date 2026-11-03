@@ -6,6 +6,7 @@ import { AppContext } from '../../src/AppContext.js';
 import { AGENT_EXTRACTED_PROPERTY } from '../../src/constants.js';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
+import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 function createTransactionsWithNativeIds(transactions: Transaction[]): Transaction[] {
     return transactions.map((_transaction, index) => ({
@@ -61,10 +62,7 @@ function createContext(extractedTransaction: ExtractedTransaction, book: Book): 
             })),
             lookupParserUrl: mock(async () => null),
         },
-        createDiscovery: () => ({
-            discover: mock(async (_transaction: Transaction) => ({ dataSet: undefined })),
-            discoverProperties: mock(async (_account: Account, _transaction: Transaction, _dataSet: unknown) => undefined),
-        }),
+        createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
         createExtractorFileClassification: () => ({
             extract: mock(async (_prompt?: string) => ({ kind: 'statement' as const })),
         }),

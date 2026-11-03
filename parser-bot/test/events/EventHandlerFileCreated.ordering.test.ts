@@ -5,6 +5,7 @@ import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreate
 import { Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
+import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 function createTransactionsWithNativeIds(transactions: Transaction[]): Transaction[] {
     return transactions.map((transaction, index) => ({
@@ -79,10 +80,7 @@ describe('EventHandlerFileCreated - operation ordering', () => {
             bkper: {
                 getBook: mock(async () => mockBook),
             },
-            createDiscovery: () => ({
-                discover: mock(async (_tx: Transaction) => ({ dataSet: undefined })),
-                discoverProperties: mock(async () => {}),
-            }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,

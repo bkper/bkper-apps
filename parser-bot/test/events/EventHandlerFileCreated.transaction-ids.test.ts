@@ -5,6 +5,7 @@ import { Account, AccountType, Book, File, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
+import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 describe('EventHandlerFileCreated transaction IDs', () => {
     let context: AppContext;
@@ -26,10 +27,7 @@ describe('EventHandlerFileCreated transaction IDs', () => {
         } as unknown as File;
         context = {
             bkper: { getBook: mock(async () => undefined) },
-            createDiscovery: () => ({
-                discover: mock(async () => ({ dataSet: undefined })),
-                discoverProperties: mock(async () => undefined),
-            }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
         } as unknown as AppContext;
     });
 

@@ -5,6 +5,7 @@ import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreate
 import { Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
+import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 const SUMMARY_PROPERTY_KEY = 'transactions_summary';
 
@@ -118,10 +119,7 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
             bkper: {
                 getBook: mock(async (_bookId: string) => mockBook),
             },
-            createDiscovery: () => ({
-                discover: mock(async (_tx: Transaction) => ({ dataSet: undefined })),
-                discoverProperties: mock(async () => {}),
-            }),
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             createExtractorFileClassification: () => ({
                 extract: mock(async () => ({ kind: 'statement' as const })),
             }),

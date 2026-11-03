@@ -1,5 +1,5 @@
-# Local staging only. Do not sync, deploy, register, or install without separate explicit approval.
-# The app ID `parser-bot` is confirmed (2026-10-30) but not yet registered. Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
+# Registered 2026-11-03 (unpublished). Preview deployed and installed only on a dedicated test Book; production not deployed.
+# Sync, deploy, install, or publish only with separate explicit approval. Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
 id: parser-bot
 name: Parser Bot
 description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.

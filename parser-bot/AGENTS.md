@@ -4,10 +4,10 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is inactive local staging of the legacy Bookbot extraction automation. The read-only parsing API is implemented locally. File-import and transaction-created handlers call Bookbot's discovery API (Phase 3, implemented locally); other legacy event behavior, including local rediscovery, remains until the event migration phase. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is registered (unpublished); its preview is deployed and installed only on a dedicated test Book. The read-only parsing API is implemented. File-import and transaction-created handlers call Bookbot's discovery API (Phase 3, verified on preview); other legacy event behavior, including local rediscovery, remains until the event migration phase. Bookbot is distinct from the managed conversational Bkper Agent.
 
-- It is a standard Bkper Platform app: `bkper.yaml` is local configuration only, with the confirmed `parser-bot` ID (not registered yet). No app registration, deployment workflow, or live webhook tooling is included.
-- Do not deploy, sync metadata, install, replay events, publish, or send real events to this snapshot without separate explicit approval.
+- It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy --preview`. Never use `wrangler deploy`. Production is not deployed.
+- Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Never install Parser Bot in a Book where the legacy Bookbot is installed. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
 - Keep README content public-facing; development information belongs here.

@@ -2,10 +2,10 @@ import { Account, Transaction } from 'bkper-js';
 import type { components } from '../clients/bookbot/types.js';
 
 /**
- * Until the legacy Bookbot is retired, every Parser Bot environment calls only Bookbot preview.
- * Afterwards, change this single address to https://bookbot.bkper.app.
+ * Every Parser Bot environment calls only production Bookbot. Production Bookbot has handled all Bookbot events
+ * since the 2026-11-03 cutover; the legacy Worker stays only as a rollback target and is never called.
  */
-export const BOOKBOT_API_BASE_URL = 'https://bookbot-preview.bkper.app';
+export const BOOKBOT_API_BASE_URL = 'https://bookbot.bkper.app';
 
 type DiscoveryBatch = components['schemas']['DiscoveryBatch'];
 type DiscoveryResult = components['schemas']['DiscoveryResult'];

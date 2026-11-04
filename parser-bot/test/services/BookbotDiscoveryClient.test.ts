@@ -19,8 +19,8 @@ function sentBody(fetcher: ReturnType<typeof respondWith>): any {
 }
 
 describe('BookbotDiscoveryClient', () => {
-    it('calls Bookbot preview until the legacy Bookbot is retired', () => {
-        expect(BOOKBOT_API_BASE_URL).toBe('https://bookbot-preview.bkper.app');
+    it('calls production Bookbot from every environment', () => {
+        expect(BOOKBOT_API_BASE_URL).toBe('https://bookbot.bkper.app');
     });
 
     it('sends one batch for the target Book without credentials or attached files', async () => {

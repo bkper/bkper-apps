@@ -1,5 +1,5 @@
 # Registered 2026-11-03 (unpublished). Preview deployed and installed only on a dedicated test Book; production not deployed.
-# Sync, deploy, install, or publish only with separate explicit approval. Events, properties, and file patterns match the legacy Bookbot until the Phase 4 event migration.
+# Sync, deploy, install, or publish only with separate explicit approval. Properties and file patterns match the legacy Bookbot until the Phase 4 event migration.
 id: parser-bot
 name: Parser Bot
 description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.
@@ -19,13 +19,10 @@ developers: '*@bkper.com'
 webhookUrl: https://parser-bot.bkper.app/events
 webhookUrlDev: https://parser-bot-preview.bkper.app/events
 
-events:
-  - FILE_CREATED
-  - TRANSACTION_CREATED
-  - TRANSACTION_POSTED
-  - TRANSACTION_UPDATED
-  - TRANSACTION_DELETED
-  - BOOK_AUDITED
+# No events until the Phase 4 handover (P1): the V10 Book migration installs Parser Bot wherever Bookbot is
+# installed, and both apps must never process the same events. At the handover, restore:
+#   FILE_CREATED, TRANSACTION_CREATED, TRANSACTION_POSTED, TRANSACTION_UPDATED, TRANSACTION_DELETED, BOOK_AUDITED
+events: []
 
 propertiesSchema:
   account:

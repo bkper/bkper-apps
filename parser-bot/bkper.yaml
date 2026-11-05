@@ -1,5 +1,5 @@
-# Registered 2026-11-03 (unpublished). Preview deployed and installed only on a dedicated test Book; production not deployed.
-# Sync, deploy, install, or publish only with separate explicit approval. Properties and file patterns match the legacy Bookbot until the Phase 4 event migration.
+# Registered 2026-11-03, published 2026-11-04. Since the Phase 4 handover, Parser Bot reads documents and learns from extraction corrections.
+# Sync, deploy, install, or publish only with separate explicit approval.
 id: parser-bot
 name: Parser Bot
 description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.
@@ -19,10 +19,13 @@ developers: '*@bkper.com'
 webhookUrl: https://parser-bot.bkper.app/events
 webhookUrlDev: https://parser-bot-preview.bkper.app/events
 
-# No events until the Phase 4 handover (P1): the V10 Book migration installs Parser Bot wherever Bookbot is
-# installed, and both apps must never process the same events. At the handover, restore:
-#   FILE_CREATED, TRANSACTION_CREATED, TRANSACTION_POSTED, TRANSACTION_UPDATED, TRANSACTION_DELETED, BOOK_AUDITED
-events: []
+events:
+  - FILE_CREATED
+  - TRANSACTION_CREATED
+  - TRANSACTION_POSTED
+  - TRANSACTION_UPDATED
+  - TRANSACTION_DELETED
+  - BOOK_AUDITED
 
 propertiesSchema:
   account:
@@ -34,7 +37,6 @@ propertiesSchema:
       - agent_parser_url_transactions
       - agent_parser_url_file
       - agent_excluded_properties
-      - agent_discovery_examples
   group:
     keys:
       - agent_parser_transaction
@@ -44,14 +46,12 @@ propertiesSchema:
       - agent_parser_url_transactions
       - agent_parser_url_file
       - agent_excluded_properties
-      - agent_discovery_examples
   book:
     keys:
       - agent_parser_url_transaction
       - agent_parser_url_transactions
       - agent_parser_url_file
       - agent_excluded_properties
-      - agent_discovery_examples
 
 filePatterns:
   - '.csv'

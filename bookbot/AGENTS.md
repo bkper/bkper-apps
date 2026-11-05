@@ -4,18 +4,18 @@
 
 Read `docs/PLAN.md` for responsibilities, agreed decisions, contracts, and phase status before changing behavior or ownership.
 
-This directory is the Platform Bookbot: the legacy Bookbot extraction automation with the Phase 1 discovery API added. Since the 2026-11-03 cutover, its production deployment receives all `bookbot` Book events (the same legacy behavior, now on the Platform) and serves the discovery API; preview receives development-mode events. The split of responsibilities with Parser Bot has not happened yet. Both directories initially contained the same runtime and tests. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the discovery API (`/api/v1/discovery`, used by Parser Bot and other callers) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Since the 2026-11-05 handover, Parser Bot reads documents and learns from extraction corrections; the document reading, attachment, import and learning code was removed from this directory (Parser Bot keeps it). Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
 - `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the legacy `bkper-agent` repository: it would route events back to the legacy Worker. Rollback to the legacy Worker is documented in `bkper.yaml`.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
-- The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
+- The README is Bookbot's public listing: account discovery, rediscovery and the discovery API.
 - Keep README content public-facing; development information belongs here.
 - Existing technical names and `agent_*` properties stay unchanged.
-- Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
+- Discovery never posts or writes from the API. Preserve explicit account sides, existing property behavior, legacy provenance, and target-Book access.
 - Change only what the current phase in `docs/PLAN.md` needs. Do not silently implement future API or outage policy.
-- The eventual Parser Bot consumes Bookbot discovery through its API; duplicated discovery here is only a temporary baseline.
+- Parser Bot consumes Bookbot discovery through its API. Do not add document reading or extraction learning back here.
 
 ## Refactoring rules
 
@@ -38,7 +38,7 @@ bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
 
-Existing baseline tests and fixtures remain unchanged. Phase 1 adds short failure characterizations and API safety/contract tests. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
+Tests for removed code were deleted with it (Parser Bot keeps its own copies). Phase 1 adds short failure characterizations and API safety/contract tests. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
 
 The legacy branch scripts under `scripts/` are retained solely for their isolated regression tests. Do not use them to manage this monorepo's branches.
 

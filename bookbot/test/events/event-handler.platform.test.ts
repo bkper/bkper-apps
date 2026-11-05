@@ -25,7 +25,7 @@ it('ignores event credential headers and relies on Platform outbound authenticat
 
     const appContext = createAppContext(context);
     const config = appContext.bkper.getConfig();
-    await appContext.createExtractorAmount().extract('Synthetic purchase 12.34').catch(() => undefined);
+    await appContext.createExtractorDescriptionParts().extract('Synthetic purchase 12.34').catch(() => undefined);
 
     expect(config.oauthTokenProvider).toBeUndefined();
     expect(config.apiKeyProvider).toBeUndefined();
@@ -46,7 +46,7 @@ it('calls Bkper AI on the Platform, where no BKPER_AI_BASE_URL variable is confi
         req: { header: () => undefined, raw: { signal: new AbortController().signal } },
     } as unknown as Context;
 
-    await createAppContext(context).createExtractorAmount().extract('Synthetic purchase 12.34').catch(() => undefined);
+    await createAppContext(context).createExtractorDescriptionParts().extract('Synthetic purchase 12.34').catch(() => undefined);
 
     expect(outbound.length).toBeGreaterThan(0);
     expect(new URL(outbound[0].url).origin).toBe('https://ai.bkper.app');

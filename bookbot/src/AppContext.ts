@@ -1,30 +1,18 @@
-import { Bkper, File } from 'bkper-js';
+import { Bkper } from 'bkper-js';
 import { PromptLookupService } from './services/PromptLookupService.js';
 import { Discovery } from './services/DiscoveryService.js';
-import { FlagManagementService } from './services/FlagManagementService.js';
 import { RediscoveryService } from './services/RediscoveryService.js';
-import { JevEvaluationService } from './genai/JevEvaluationService.js';
-import { ExtractorInvoice } from './genai/invoice/ExtractorInvoice.js';
-import { ExtractorStatementCSV } from './genai/statement/csv/ExtractorStatementCSV.js';
-import { ExtractorStatementIMG } from './genai/statement/img/ExtractorStatementIMG.js';
-import { ExtractorAmount } from './genai/ExtractorAmount.js';
-import { ExtractorDate } from './genai/ExtractorDate.js';
 import { ExtractorDescriptionParts } from './genai/ExtractorDescriptionParts.js';
-import { ExtractorFileClassification } from './genai/file/ExtractorFileClassification.js';
-import { ExtractorFileProperties } from './genai/file/ExtractorFileProperties.js';
-import { BkperAIEvaluationsClient } from './genai/BkperAIEvaluationsClient.js';
 import { BkperAIResponsesClient } from './genai/BkperAIResponsesClient.js';
 
+/** Bookbot's request context: account discovery, rediscovery, and their Bkper AI client. */
 export class AppContext {
     readonly bkper: Bkper;
     readonly env: Env;
-    readonly bkperAIEvaluationsClient: BkperAIEvaluationsClient;
     readonly bkperAIResponsesClient: BkperAIResponsesClient;
 
     // Lazy-instantiated stateless services (singleton per request)
     private _promptLookupService?: PromptLookupService;
-    private _flagManagementService?: FlagManagementService;
-    private _jevEvaluationService?: JevEvaluationService;
 
     constructor(bkper: Bkper, env: Env, oauthToken?: string, requestSignal?: AbortSignal) {
         this.bkper = bkper;
@@ -35,7 +23,6 @@ export class AppContext {
             oauthToken,
             signal: requestSignal,
         };
-        this.bkperAIEvaluationsClient = new BkperAIEvaluationsClient(clientOptions);
         this.bkperAIResponsesClient = new BkperAIResponsesClient(clientOptions);
     }
 
@@ -45,14 +32,6 @@ export class AppContext {
 
     get promptLookupService(): PromptLookupService {
         return (this._promptLookupService ??= new PromptLookupService());
-    }
-
-    get flagManagementService(): FlagManagementService {
-        return (this._flagManagementService ??= new FlagManagementService());
-    }
-
-    get jevEvaluationService(): JevEvaluationService {
-        return (this._jevEvaluationService ??= new JevEvaluationService(this.bkperAIEvaluationsClient));
     }
 
     // ============================================
@@ -74,42 +53,6 @@ export class AppContext {
      */
     createRediscoveryService(): RediscoveryService {
         return new RediscoveryService(this);
-    }
-
-    // ============================================
-    // Factory Methods for File-Specific Extractors
-    // ============================================
-
-    createExtractorInvoice(file: File): ExtractorInvoice {
-        return new ExtractorInvoice(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorStatementCSV(file: File): ExtractorStatementCSV {
-        return new ExtractorStatementCSV(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorStatementIMG(file: File): ExtractorStatementIMG {
-        return new ExtractorStatementIMG(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorFileClassification(file: File): ExtractorFileClassification {
-        return new ExtractorFileClassification(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorFileProperties(file: File): ExtractorFileProperties {
-        return new ExtractorFileProperties(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    // ============================================
-    // Factory Methods for Stateless Extractors
-    // ============================================
-
-    createExtractorAmount(): ExtractorAmount {
-        return new ExtractorAmount(this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorDate(): ExtractorDate {
-        return new ExtractorDate(this.env, this.bkperAIResponsesClient);
     }
 
     createExtractorDescriptionParts(onError?: (error: unknown) => void): ExtractorDescriptionParts {

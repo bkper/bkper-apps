@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 
 import { GEMINI_MODEL_FLASH, GEMINI_MODEL_FLASH_LITE } from '../../src/constants.js';
 import { BkperAIResponsesClient } from '../../src/genai/BkperAIResponsesClient.js';
-import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
+import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
 import { GenAI } from '../../src/genai/GenAI.js';
 import { JsonSchema } from '../../src/genai/JsonSchema.js';
 
@@ -109,18 +109,18 @@ describe('GenAI Flash-Lite routing', () => {
                         role: 'assistant',
                         content: [{
                             type: 'output_text',
-                            text: '150.5',
+                            text: '["Office Depot"]',
                             annotations: [],
                         }],
                     }],
                 });
             }),
         });
-        const extractor = new ExtractorAmount({} as Env, client);
+        const extractor = new ExtractorDescriptionParts({} as Env, client);
 
-        const amount = await extractor.extract('Payment of $150.50 to vendor');
+        const parts = await extractor.extract('OFFICE DEPOT #1234 PURCHASE 04/15');
 
-        expect(amount?.toNumber()).toBe(150.5);
+        expect(parts).toEqual(['Office Depot']);
         expect(requestUrl).toBe('http://localhost:8792/v1/responses');
         expect(requestBody?.model).toBe(GEMINI_MODEL_FLASH_LITE);
         expect(requestBody?.reasoning).toEqual({ effort: 'minimal' });
@@ -129,7 +129,7 @@ describe('GenAI Flash-Lite routing', () => {
     });
 
     it('fails closed when Flash-Lite has no request-scoped Bkper AI client', async () => {
-        const extractor = new ExtractorAmount({} as Env);
+        const extractor = new ExtractorDescriptionParts({} as Env);
 
         await expect(extractor.query([{ text: 'invoice' }])).rejects.toThrow(
             'Bkper AI client is required for language-model inference.'

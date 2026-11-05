@@ -1,11 +1,7 @@
 import { Context } from 'hono';
 import { Bkper, Book } from 'bkper-js';
 import { AppContext } from '../AppContext.js';
-import { EventHandlerFileCreated } from './EventHandlerFileCreated.js';
-import { EventHandlerTransactionCreated } from './EventHandlerTransactionCreated.js';
 import { EventHandlerTransactionPostedOrUpdated } from './EventHandlerTransactionPostedOrUpdated.js';
-import { EventHandlerTransactionDeleted } from './EventHandlerTransactionDeleted.js';
-import { EventHandlerBookAudited } from './EventHandlerBookAudited.js';
 
 export type Result = {
     result?: any;
@@ -28,24 +24,14 @@ export async function handleEvent(c: Context) {
 
         console.log('Event received', event.type);
 
+        // Bookbot handles only posted/updated events: rediscovery after Account corrections.
+        // Document reading and extraction learning belong to Parser Bot.
         switch (event.type) {
-            case 'FILE_CREATED':
-                result = await new EventHandlerFileCreated(context).handleEvent(book, event);
-                break;
-            case 'TRANSACTION_CREATED':
-                result = await new EventHandlerTransactionCreated(context).handleEvent(book, event);
-                break;
             case 'TRANSACTION_POSTED':
                 result = await new EventHandlerTransactionPostedOrUpdated(context).handleEvent(book, event);
                 break;
             case 'TRANSACTION_UPDATED':
                 result = await new EventHandlerTransactionPostedOrUpdated(context).handleEvent(book, event);
-                break;
-            case 'TRANSACTION_DELETED':
-                result = await new EventHandlerTransactionDeleted(context).handleEvent(book, event);
-                break;
-            case 'BOOK_AUDITED':
-                result = await new EventHandlerBookAudited(context).handleEvent(book, event);
                 break;
             default:
         }

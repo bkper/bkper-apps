@@ -21,7 +21,7 @@ developers: '*@bkper.com'
 webhookUrl: https://bookbot.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 
-# Since the Phase 4 handover, Parser Bot reads documents and learns from extraction corrections;
+# Since the 2026-11-05 handover, Parser Bot reads documents and learns from extraction corrections;
 # Bookbot only rediscovers pending drafts after an Account correction.
 events:
   - TRANSACTION_POSTED

@@ -16,6 +16,11 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Bookbot | Platform app (Cloudflare Workers); receives all Bookbot events since 2026-11-03 and serves the discovery API; never sync from the legacy repository | `bookbot/` |
 | Parser Bot | Platform app (Cloudflare Workers); registered (unpublished), preview deployed on a test Book only, production not deployed | `parser-bot/` |
 
+## Plans
+
+- Plans are ephemeral: delete a plan as soon as its work is done.
+- Never reference plans from code, comments, tests, configs, skills, or `AGENTS.md` files: no paths, and no plan phase, step, section, or decision numbers. Write the rule or the reason itself where it applies.
+
 ## Port Allocation
 
 Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–9649`. Assign distinct ports per app; keep launch commands, proxies and HMR aligned with `strictPort: true`.

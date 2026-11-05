@@ -16,12 +16,12 @@ This directory is the active full-stack Cloudflare application for Inventory Bot
 
 ## Production and migration status
 
-- Chunks 1 through 18 are complete for their recorded scopes. Chunk 17 accepted the combined production event/menu rollout after the shared twenty-four-hour window. No production Calculate/Reset or signed-in menu workflow traffic was observed in that assessment; this is an accepted coverage limit, not a reason to reopen stabilization or initiate production mutations.
+- The Cloudflare migration is complete. The combined production event/menu rollout was accepted after a shared twenty-four-hour window. No production Calculate/Reset or signed-in menu workflow traffic was observed in that assessment; this is an accepted coverage limit, not a reason to reopen stabilization or initiate production mutations.
 - Production events and the menu route to Cloudflare; development routes remain on preview. HTTP success does not establish accounting correctness. Retained deterministic tests and accepted isolated preview validation provide the accounting evidence.
-- Chunk 18 moved the accepted app to this root without changing application source, tests, dependency pins, lockfile, generated contracts, app metadata, or built artifacts. All 206 tests and the full local gate passed before and after the move, including a clean frozen reinstall at the final root.
+- The accepted app was moved to this root without changing application source, tests, dependency pins, lockfile, generated contracts, app metadata, or built artifacts. All 206 tests and the full local gate passed before and after the move, including a clean frozen reinstall at the final root.
 - The unchanged deployed GCP handler and GAS menu remain independent routing rollback targets. Recovering legacy source or tooling requires Git history and a separate reviewed plan; deleting a local directory does not retire either deployed runtime.
 - Developer access remains unchanged. Restoring normal developer access is a separate metadata change requiring explicit approval, not part of the completed local consolidation.
-- Dependency pins remain frozen. The advisory assessment in Chunk 16 is scoped, not a clean vulnerability audit; dependency modernization requires separate compatibility review.
+- Dependency pins remain frozen. The migration's dependency advisory assessment is scoped, not a clean vulnerability audit; dependency modernization requires separate compatibility review.
 - Manual UI review is complete for the exercised preview contexts, and the production page-load smoke check is complete. Do not request more screenshots or initiate Book/API mutations unless separately requested and approved. Distinguish deterministic coverage, human-reported page loading, and authoritative live accounting evidence.
 
 ## Domain and safety boundaries

@@ -2,7 +2,7 @@
 
 Metadata-only Bkper App `bkper-slack`: the store listing and the Slack app setup of `@bkper`, Bkper Agent in Slack. No
 code, client, server or deployment here. Its behavior lives in `bkper-clients/packages/channels` (private), shared by
-every Slack bot; see `docs/plans/channels.md` there.
+every Slack bot; see its `AGENTS.md`.
 
 ## Files
 
@@ -18,8 +18,9 @@ every Slack bot; see `docs/plans/channels.md` there.
   where the surface is what tells it apart. `slack-app-icon.png` (1024px), the Bkper "b" on white, is the icon uploaded
   in Slack's app settings (Basic Information → Display Information), where Bkper is what tells it apart. In Slack the
   app stays "Bkper" (`@bkper`).
-- `README.md`: the listing text. The "create your own bot" guide is on hold until Slack confirms customers may create
-  one (`docs/plans/channels.md` §13); its steps stay there.
+- `README.md`: the listing text. Keep the "create your own bot" guide out of it until Slack confirms customers may
+  create one: Slack's terms count instructions for a templated custom app as commercial distribution. Its steps are in
+  `packages/channels/AGENTS.md` (Bots).
 
 ## Delivery
 

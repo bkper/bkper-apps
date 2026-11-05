@@ -2,19 +2,8 @@ import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
 import { Book, Account, Transaction, File, Group } from 'bkper-js';
 import {
-    AGENT_PARSER_URL_FILE_PROPERTY,
-    AGENT_PARSER_URL_PROPERTY,
     AGENT_PROMPT_SKIP_PROPERTY,
     AGENT_EXCLUDED_PROPERTIES_PROPERTY,
-    AGENT_PARSER_URL_TRANSACTION_PROPERTY,
-    AGENT_PARSER_URL_TRANSACTIONS_PROPERTY,
-    AGENT_PROMPT_PROPERTY,
-    AGENT_PROMPT_TRANSACTION_PROPERTY,
-    AGENT_PROMPT_TRANSACTIONS_PROPERTY,
-    AGENT_PROMPT_FILE_PROPERTY,
-    AGENT_PARSER_TRANSACTION_PROPERTY,
-    AGENT_PARSER_TRANSACTIONS_PROPERTY,
-    AGENT_PARSER_FILE_PROPERTY,
 } from '../../src/constants.js';
 
 describe('PromptLookupService', () => {

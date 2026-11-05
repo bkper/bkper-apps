@@ -100,8 +100,32 @@ export function isPeriodId(id: string): boolean {
     return PERIOD_ID_PATTERN.test(id);
 }
 
-export function defaultPeriod(nature: ReportNature): RelativePeriod {
-    return nature === 'activity' ? 'this_year' : 'today';
+export interface DefaultPeriodContext {
+    nature: ReportNature;
+    /** The request asks how amounts evolve over time. */
+    trend: boolean;
+    today: IsoDate;
+    /** The last month the report's groups had movements; absent when they never had. */
+    lastActiveMonth?: IsoMonth;
+}
+
+/**
+ * The period of a request that names none. Activity reads this year, a position today, and a
+ * trend the last 12 months. When activity or a trend would have no movements, it reads the
+ * last year that has them instead, so a Book with old data still shows its data.
+ */
+export function defaultPeriod(context: DefaultPeriodContext): string {
+    const { nature, trend, today, lastActiveMonth } = context;
+    const month = monthIndexOfDate(today);
+    const last = lastActiveMonth === undefined ? undefined : parseMonth(lastActiveMonth);
+    const lastYear = last === undefined ? '' : `${monthParts(last).year}`;
+    if (trend) {
+        return last === undefined || last >= month - 11 ? 'last_12_months' : lastYear;
+    }
+    if (nature === 'position') {
+        return 'today';
+    }
+    return last === undefined || last >= yearStart(month) ? 'this_year' : lastYear;
 }
 
 /** The calendar date of `now` in the Book time zone; Books without a time zone use UTC. */

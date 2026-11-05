@@ -269,9 +269,47 @@ describe('previousPeriod', () => {
 });
 
 describe('defaultPeriod', () => {
+    const today = '2026-11-05';
+
     it('reports activity for this year and positions as of today', () => {
-        expect(defaultPeriod('activity')).toBe('this_year');
-        expect(defaultPeriod('position')).toBe('today');
+        expect(defaultPeriod({ nature: 'activity', trend: false, today })).toBe('this_year');
+        expect(defaultPeriod({ nature: 'position', trend: false, today })).toBe('today');
+        expect(
+            defaultPeriod({ nature: 'activity', trend: false, today, lastActiveMonth: '2026-01' })
+        ).toBe('this_year');
+    });
+
+    it('reports activity for the last year with movements when this year has none', () => {
+        expect(
+            defaultPeriod({ nature: 'activity', trend: false, today, lastActiveMonth: '2025-12' })
+        ).toBe('2025');
+        expect(
+            defaultPeriod({ nature: 'activity', trend: false, today, lastActiveMonth: '2011-03' })
+        ).toBe('2011');
+    });
+
+    it('keeps positions as of today, whenever the last movement was', () => {
+        expect(
+            defaultPeriod({ nature: 'position', trend: false, today, lastActiveMonth: '2019-07' })
+        ).toBe('today');
+    });
+
+    it('shows a trend over the last 12 months when they have movements', () => {
+        for (const nature of ['activity', 'position'] as const) {
+            expect(defaultPeriod({ nature, trend: true, today })).toBe('last_12_months');
+            expect(defaultPeriod({ nature, trend: true, today, lastActiveMonth: '2025-12' })).toBe(
+                'last_12_months'
+            );
+        }
+    });
+
+    it('shows a trend over the last year with movements when the last 12 months have none', () => {
+        expect(
+            defaultPeriod({ nature: 'activity', trend: true, today, lastActiveMonth: '2025-11' })
+        ).toBe('2025');
+        expect(
+            defaultPeriod({ nature: 'position', trend: true, today, lastActiveMonth: '2019-07' })
+        ).toBe('2019');
     });
 });
 

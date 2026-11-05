@@ -164,13 +164,13 @@ Report turns a short request, in any language, into a financial report of a Book
 
 - **Client**: Lit + Web Awesome Pro; a Book picker and the selected Book, with the Book in the URL as `?book=<bookId>`.
 - **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
-- **Shared** (`shared/`, package `report-shared`): the report catalog and the strings, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
+- **Shared** (`shared/`, package `report-shared`): the report catalog, the strings and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
 ## Accounting rules
 
 - Numbers come only from deterministic code over Bkper balances. AI may choose among options the code offers; it never computes amounts or dates, and never writes queries.
 - Read-only on Books: never create, update or delete anything in a Book, and do not subscribe to events.
-- Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock; positions (Asset, Liability) default to today, activity (Incoming, Outgoing) to this year. Current periods (this month, quarter and year, year to date, the last 12 months, all time) end at tomorrow, so they include today and exclude future-dated transactions; past periods are whole calendar periods. Comparisons are calendar-aligned: a whole period compares with the previous month, quarter or year; a current period with the same span one period back, its day clamped to the end of a shorter month. A position compares with the position at the end of the previous period (for today, the end of last month). All time has no comparison.
+- Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock. A request that names no period reads activity (Incoming, Outgoing) for this year, positions (Asset, Liability) today, and a trend over the last 12 months; when this year or those 12 months have no movements in the report's groups, it reads the last year that has them (`defaultPeriod`), so Books with old data still show their data. Current periods (this month, quarter and year, year to date, the last 12 months, all time) end at tomorrow, so they include today and exclude future-dated transactions; past periods are whole calendar periods. Comparisons are calendar-aligned: a whole period compares with the previous month, quarter or year; a current period with the same span one period back, its day clamped to the end of a shorter month. A position compares with the position at the end of the previous period (for today, the end of last month). All time has no comparison.
 
 ## Book snapshot
 
@@ -202,6 +202,17 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - Periods the snapshot's months cannot answer (today's activity) need `rangeQuery`: the report's roots, by day, from the start of the previous period to the end of the current one.
 
 `npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] <bookId>...` cross-checks reports of several intents per root (and the net result) against `bkper balance list`, read-only: answers, previous periods, every row and every month, to the cent, and that breakdowns add up. The CLI shows raw balances negated for permanent accounts (Liability and Outgoing negative), so it flips a CLI amount when its row's `credit` equals its `permanent`.
+
+## Intent resolution
+
+`resolveIntent(prompt, snapshot, { client, timing })` (`server/src/services/intent-resolver.ts`) turns a request in any language into a `ReportIntent` with ONE decision request to Jev, measured as `jev` in `Server-Timing`. It returns `{ recognized: true, intent, language? }` or `{ recognized: false, language? }` (not a report).
+
+- `intent-questions.ts` holds every question, criterion and threshold (`THRESHOLDS`); review and tune them there, together. Jev only chooses among options code offers: the root groups (by name, described by their nature and up to 60 subgroup and account names) plus `net-result` and `none`; the period options of `buildPeriodOptions` within the snapshot's data range plus `unspecified`; whether to show months; the view; the 133 Bkper languages (`report-shared/languages`). State is only `{ request, today }`.
+- Code applies the thresholds: `none` or an unsure root is not a report; an unsure or unspecified period reads `defaultPeriod`, a trend when months or the trend view are asked; an unsure view is left out; the language is returned only when sure (≥ 0.8).
+- Hashtags come from the request text (`extractHashtags`), never from Jev, so a caller can start `hashtagQuery` in parallel with Jev.
+- `decision-client.ts` is the TypeSafe SDK connector: the platform outbound placeholder key in the Worker, a short timeout and one retry for typing, and `BkperAiError` keeping the Bkper AI error `code` (such as `usage_limit_exceeded`) for routes to map.
+
+`BKPER_AI_TOKEN=<token> npx tsx scripts/eval-intent.ts [--only=<n>,...]` asks real Jev ~30 multilingual requests on the two test Books (snapshots read-only with your `bkper auth token`; Jev with `BKPER_AI_TOKEN` or the same token) and reports accuracy per question, of the whole intent, and p50/p95 latency. Bkper AI caches identical requests for 15 minutes, so only a run after a change measures real latency. Tune the questions, never the expected answers.
 
 ## Report spec and catalog
 
@@ -274,7 +285,8 @@ shared/
 ├── catalog/en.json  — English strings with translator context
 └── src/
     ├── catalog.ts   — json-render report catalog, spec types and validation
-    └── strings.ts   — t(key, lang, params) with English fallback
+    ├── strings.ts   — t(key, lang, params) with English fallback
+    └── languages.ts — The 133 Bkper languages, with native and English names
 ```
 
 ## Key files
@@ -294,6 +306,8 @@ shared/
 | Change the report intent   | `server/src/services/report-intent.ts`                  |
 | Change the Book snapshot   | `server/src/services/snapshot.ts`, `snapshot-loader.ts` |
 | Change report calculation  | `server/src/services/report.ts`                         |
+| Change intent questions or thresholds | `server/src/services/intent-questions.ts`    |
+| Change how answers become an intent | `server/src/services/intent-resolver.ts`       |
 | Change live balance queries | `server/src/services/live-balances.ts`                 |
 | Add a Server-Timing metric | `server/src/services/timing.ts`                         |
 | Change the report spec     | `server/src/services/report-spec.ts`                    |

@@ -46,12 +46,20 @@ describe('EventHandlerTransactionPostedOrUpdated', () => {
         expect(rediscover).not.toHaveBeenCalled();
     });
 
-    it('runs extraction learning and rediscovery for posted transactions', async () => {
+    it('runs only rediscovery for posted transactions; extraction learning belongs to Parser Bot', async () => {
         const result = await new EventHandlerTransactionPostedOrUpdated(context).handleEvent(book, event(true));
 
-        expect(invoiceLearning).toHaveBeenCalledTimes(1);
-        expect(statementFlagging).toHaveBeenCalledTimes(1);
+        expect(invoiceLearning).not.toHaveBeenCalled();
+        expect(statementFlagging).not.toHaveBeenCalled();
         expect(rediscover).toHaveBeenCalledTimes(1);
-        expect(result.result).toBe('Invoice prompt improved\n\nStatement flagged\n\nRediscovered 1 draft');
+        expect(result.result).toBe('Rediscovered 1 draft');
+    });
+
+    it('suppresses the response when rediscovery changes nothing', async () => {
+        rediscover.mockImplementation(async () => null);
+
+        const result = await new EventHandlerTransactionPostedOrUpdated(context).handleEvent(book, event(true));
+
+        expect(result).toEqual({ result: false });
     });
 });

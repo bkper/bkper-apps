@@ -1,0 +1,359 @@
+{
+    "app_title": {
+        "text": "Report",
+        "role": "heading",
+        "context": "Name of the app, shown at the top of the page. The app turns a short request into a financial report of a Bkper Book. One short noun."
+    },
+    "input_label": {
+        "text": "Report request",
+        "role": "label",
+        "context": "Accessible label of the single text input where the person describes, in their own words, the financial report they want. Short noun phrase."
+    },
+    "input_placeholder": {
+        "text": "Describe a report, like expenses by month this year",
+        "role": "placeholder",
+        "context": "Placeholder text inside the empty report input. The report builds itself as the person types, with no submit button. The example is a typical request: the expenses of the Book, month by month, in the current year. Keep it short and lowercase after the first word, without ending punctuation."
+    },
+    "suggestions_label": {
+        "text": "Suggestions",
+        "role": "label",
+        "context": "Accessible label of the list of three suggested reports shown under the empty input. Clicking one builds that report. One short noun."
+    },
+    "status_loading": {
+        "text": "Building the report…",
+        "role": "status",
+        "context": "Message announced to screen readers while a report is being built from the Book's balances. Short, ends with an ellipsis."
+    },
+    "hint_not_a_report": {
+        "text": "That doesn't look like a report of this Book. Name a group and a period, or pick a suggestion.",
+        "role": "message",
+        "context": "Quiet hint shown under the input when the request could not be understood as a report of the Book. A group is a Bkper Group, such as Expenses or Assets; a period is a time range, such as this year or October. Friendly, two short sentences."
+    },
+    "book_picker_title": {
+        "text": "Choose a Book",
+        "role": "heading",
+        "context": "Heading of the list of the person's recent Books, shown when the app opens without a Book. A Book is a Bkper ledger. Short imperative."
+    },
+    "book_picker_empty": {
+        "text": "You have no Books yet.",
+        "role": "message",
+        "context": "Shown in place of the Book list when the person has no Books. A Book is a Bkper ledger."
+    },
+    "sign_in": {
+        "text": "Sign in",
+        "role": "button",
+        "context": "Button that signs the person in to Bkper so the app can read their Books. Short imperative."
+    },
+    "retry": {
+        "text": "Try again",
+        "role": "button",
+        "context": "Button shown with an error message; it repeats the request that failed. Short imperative."
+    },
+    "error_book_not_found": {
+        "text": "This Book was not found, or you can't access it.",
+        "role": "message",
+        "context": "Error shown when the Book in the address does not exist or is not shared with the person. A Book is a Bkper ledger."
+    },
+    "error_forbidden": {
+        "text": "You don't have permission to read this Book.",
+        "role": "message",
+        "context": "Error shown when the person may not read the balances of the Book. A Book is a Bkper ledger."
+    },
+    "error_ai_allowance_exhausted": {
+        "text": "Your Bkper AI allowance is used up. You can still pick a suggestion.",
+        "role": "message",
+        "context": "Error shown when the person's monthly Bkper AI usage allowance has run out, so typed requests cannot be understood. Suggested reports still work because they need no AI. Keep the product name Bkper AI unchanged."
+    },
+    "error_upstream": {
+        "text": "Bkper didn't respond. Try again in a moment.",
+        "role": "message",
+        "context": "Error shown when Bkper's servers failed to answer while the report was being built. Keep the name Bkper unchanged."
+    },
+    "error_unexpected": {
+        "text": "Something went wrong. Try again.",
+        "role": "message",
+        "context": "Generic error shown when the report failed for an unknown reason."
+    },
+    "error_future_period": {
+        "text": "That period hasn't started yet.",
+        "role": "message",
+        "context": "Error shown when the request asks for a period in the future, such as next year, which has no balances yet."
+    },
+    "error_no_activity_roots": {
+        "text": "This Book has no income or expense groups for a net result.",
+        "role": "message",
+        "context": "Error shown when a net result (income minus expenses, profit and loss) is requested but the Book has no top-level Groups of Incoming or Outgoing Accounts. A Book is a Bkper ledger."
+    },
+    "error_unknown_root": {
+        "text": "That group isn't a top-level group of this Book.",
+        "role": "message",
+        "context": "Error shown when a report asks for a Group that is not a top-level (root) Group of the Book. Reports start at a top-level Group, such as Expenses or Assets."
+    },
+    "report_net_result": {
+        "text": "Net result",
+        "role": "title",
+        "context": "Title of the report of income minus expenses over a period: all Incoming Accounts minus all Outgoing Accounts (profit and loss). Also labels its total amount. Short noun phrase, title or sentence case as the language uses."
+    },
+    "report_document_title": {
+        "text": "{report} · {book}",
+        "role": "title",
+        "context": "Title of the browser tab or file of a report: the report's title, a middle dot, then the Book's name. Keep the separator and both placeholders.",
+        "placeholders": {
+            "report": "title of the report: the name of a Group of the Book, verbatim, or the translated words Net result",
+            "book": "name of the Book, verbatim"
+        }
+    },
+    "period_today": {
+        "text": "Today",
+        "role": "label",
+        "context": "Period of a report: the current day. Shown under the report title, standing alone. Capitalized as a standalone label."
+    },
+    "period_this_month": {
+        "text": "This month",
+        "role": "label",
+        "context": "Period of a report: the current calendar month, up to today. Shown under the report title, standing alone."
+    },
+    "period_last_month": {
+        "text": "Last month",
+        "role": "label",
+        "context": "Period of a report: the previous whole calendar month. Shown under the report title, standing alone."
+    },
+    "period_this_quarter": {
+        "text": "This quarter",
+        "role": "label",
+        "context": "Period of a report: the current calendar quarter (three months), up to today. Shown under the report title, standing alone."
+    },
+    "period_last_quarter": {
+        "text": "Last quarter",
+        "role": "label",
+        "context": "Period of a report: the previous whole calendar quarter (three months). Shown under the report title, standing alone."
+    },
+    "period_this_year": {
+        "text": "This year",
+        "role": "label",
+        "context": "Period of a report: the current calendar year, up to today. Shown under the report title, standing alone."
+    },
+    "period_last_year": {
+        "text": "Last year",
+        "role": "label",
+        "context": "Period of a report: the previous whole calendar year. Shown under the report title, standing alone."
+    },
+    "period_ytd": {
+        "text": "Year to date",
+        "role": "label",
+        "context": "Period of a report: from January 1 of the current year up to today, the accounting term year to date. Shown under the report title, standing alone."
+    },
+    "period_last_12_months": {
+        "text": "Last 12 months",
+        "role": "label",
+        "context": "Period of a report: the current month to date and the 11 months before it. Shown under the report title, standing alone."
+    },
+    "period_all": {
+        "text": "All time",
+        "role": "label",
+        "context": "Period of a report: every date from the Book's first transaction up to today. Shown under the report title, standing alone."
+    },
+    "period_quarter": {
+        "text": "Q{quarter} {year}",
+        "role": "label",
+        "context": "A calendar quarter of a year, as a compact label, such as Q3 2026 for July to September 2026. Use the language's usual short form for a quarter.",
+        "placeholders": {
+            "quarter": "number of the quarter, 1 to 4",
+            "year": "the year, in digits, such as 2026"
+        }
+    },
+    "position_as_of": {
+        "text": "As of {date}",
+        "role": "label",
+        "context": "Date of a balance report (the amounts of Assets or Liabilities at the end of a day), shown under the report title, such as As of Dec 31, 2026.",
+        "placeholders": {
+            "date": "the date, already formatted in the language, such as Dec 31, 2026"
+        }
+    },
+    "answer_compared_with": {
+        "text": "vs. {period}",
+        "role": "label",
+        "context": "Shown next to the percentage change of a report's amount, naming what it is compared with: the previous period, such as vs. 2025 or vs. Q2 2026, or an earlier date for a balance. Very short.",
+        "placeholders": {
+            "period": "the earlier period or date, already formatted, such as 2025, Q2 2026, October 2026 or Jan 1 – Nov 5, 2025"
+        }
+    },
+    "row_other": {
+        "text": "Other",
+        "role": "label",
+        "context": "Row of a breakdown table and chart holding the part of a Group's amount not in any of its listed Accounts, so the rows add up to the Group's total. One short word."
+    },
+    "row_incoming": {
+        "text": "Incoming",
+        "role": "label",
+        "context": "Row and chart series of a net result report holding all Incoming Accounts: income, revenue, money coming in. Bkper's name for the Incoming Account type. One short word."
+    },
+    "row_outgoing": {
+        "text": "Outgoing",
+        "role": "label",
+        "context": "Row and chart series of a net result report holding all Outgoing Accounts: expenses, costs, money going out. Bkper's name for the Outgoing Account type. One short word."
+    },
+    "chart_by_month": {
+        "text": "{name} by month",
+        "role": "label",
+        "context": "Accessible label of a chart showing a report's amount in each month of the period.",
+        "placeholders": {
+            "name": "title of the report: the name of a Group of the Book, verbatim, or the translated words Net result"
+        }
+    },
+    "chart_breakdown": {
+        "text": "Breakdown of {name}",
+        "role": "label",
+        "context": "Accessible label of a chart comparing the parts (sub-groups and Accounts) of a report's amount.",
+        "placeholders": {
+            "name": "title of the report: the name of a Group of the Book, verbatim, or the translated words Net result"
+        }
+    },
+    "breakdown_label": {
+        "text": "Breakdown",
+        "role": "label",
+        "context": "Accessible label of the table listing the parts of a report's amount: its sub-groups and Accounts, each with its amount, share and change. One short noun."
+    },
+    "breakdown_column_name": {
+        "text": "Name",
+        "role": "header",
+        "context": "Column header of the breakdown table: the name of each Group or Account. One short word."
+    },
+    "breakdown_column_amount": {
+        "text": "Amount",
+        "role": "header",
+        "context": "Column header of the breakdown table: the money amount of each Group or Account in the period. One short word."
+    },
+    "breakdown_column_share": {
+        "text": "Share",
+        "role": "header",
+        "context": "Column header of the breakdown table: each row's percentage of its parent's amount. One short word."
+    },
+    "breakdown_column_change": {
+        "text": "Change",
+        "role": "header",
+        "context": "Column header of the breakdown table: the percentage change of each row's amount from the previous period. One short word."
+    },
+    "breakdown_column_trend": {
+        "text": "By month",
+        "role": "header",
+        "context": "Column header of the breakdown table: a small line chart of each row's amount month by month. Very short."
+    },
+    "breakdown_expand": {
+        "text": "Expand",
+        "role": "button",
+        "context": "Accessible label of the control that opens a row of the breakdown table to show its sub-groups and Accounts. Short imperative."
+    },
+    "breakdown_collapse": {
+        "text": "Collapse",
+        "role": "button",
+        "context": "Accessible label of the control that closes an open row of the breakdown table, hiding its sub-groups and Accounts. Short imperative."
+    },
+    "breakdown_empty": {
+        "text": "No balances in this period.",
+        "role": "message",
+        "context": "Shown in place of the breakdown table when no Account of the report has an amount in the period."
+    },
+    "source_label": {
+        "text": "Source",
+        "role": "heading",
+        "context": "Heading of the section at the end of a report that states where its numbers come from: the Book, the period, the exact Bkper query and when the balances were read. One short noun."
+    },
+    "source_footer": {
+        "text": "Computed from the balances of {book}",
+        "role": "message",
+        "context": "Sentence at the end of a report stating that every number was computed from the balances of the named Book. A Book is a Bkper ledger.",
+        "placeholders": {
+            "book": "name of the Book, verbatim"
+        }
+    },
+    "source_period": {
+        "text": "Period",
+        "role": "label",
+        "context": "Label of the exact dates the report covers, in the source section at the end of a report. One short noun."
+    },
+    "source_query": {
+        "text": "Query",
+        "role": "label",
+        "context": "Label of the exact Bkper search query whose transactions the report sums, in the source section at the end of a report. One short noun."
+    },
+    "source_data_at": {
+        "text": "Balances read",
+        "role": "label",
+        "context": "Label of the date and time the report's balances were read from Bkper, in the source section at the end of a report. Short phrase."
+    },
+    "source_open_in_bkper": {
+        "text": "Open in Bkper",
+        "role": "link",
+        "context": "Link that opens the report's query in the Book in Bkper, to see the transactions behind the numbers. Keep the name Bkper unchanged. Short imperative."
+    },
+    "source_open_in_report": {
+        "text": "Open in Report",
+        "role": "link",
+        "context": "Link at the end of a report file that opens the same report in the Report app, where it can be changed. Report is the app's name. Short imperative."
+    },
+    "suggestion_breakdown_this_year": {
+        "text": "{root} this year",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the amount of a Group in the current year, with its parts. Write it as the person would type it, lowercase where the language allows, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Expenses"
+        }
+    },
+    "suggestion_breakdown_year": {
+        "text": "{root} in {year}",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the amount of a Group in a past year, with its parts. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Expenses",
+            "year": "a year in digits, such as 2019"
+        }
+    },
+    "suggestion_monthly_this_year": {
+        "text": "{root} by month this year",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the amount of a Group in each month of the current year. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Expenses"
+        }
+    },
+    "suggestion_monthly_year": {
+        "text": "{root} by month in {year}",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the amount of a Group in each month of a past year. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Expenses",
+            "year": "a year in digits, such as 2019"
+        }
+    },
+    "suggestion_position_today": {
+        "text": "{root} today",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the balance today of a Group of Assets or Liabilities, such as Bank accounts. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Assets"
+        }
+    },
+    "suggestion_position_year_end": {
+        "text": "{root} at the end of {year}",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: the balance of a Group of Assets or Liabilities on the last day of a past year. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "root": "name of a Group of the Book, verbatim, such as Assets",
+            "year": "a year in digits, such as 2019"
+        }
+    },
+    "suggestion_net_result_this_year": {
+        "text": "Net result this year",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: income minus expenses (profit and loss) in the current year. Write it as the person would type it, no ending punctuation."
+    },
+    "suggestion_net_result_year": {
+        "text": "Net result in {year}",
+        "role": "option",
+        "context": "Suggested report, shown as an example request: income minus expenses (profit and loss) in a past year. Write it as the person would type it, no ending punctuation.",
+        "placeholders": {
+            "year": "a year in digits, such as 2019"
+        }
+    }
+}

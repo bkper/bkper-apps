@@ -164,6 +164,7 @@ Report turns a short request, in any language, into a financial report of a Book
 
 - **Client**: Lit + Web Awesome Pro; a Book picker and the selected Book, with the Book in the URL as `?book=<bookId>`.
 - **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
+- **Shared** (`shared/`, package `report-shared`): the report catalog and the strings, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
 ## Accounting rules
 
@@ -201,6 +202,21 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - Periods the snapshot's months cannot answer (today's activity) need `rangeQuery`: the report's roots, by day, from the start of the previous period to the end of the current one.
 
 `npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] <bookId>...` cross-checks reports of several intents per root (and the net result) against `bkper balance list`, read-only: answers, previous periods, every row and every month, to the cent, and that breakdowns add up. The CLI shows raw balances negated for permanent accounts (Liability and Outgoing negative), so it flips a CLI amount when its row's `credit` equals its `permanent`.
+
+## Report spec and catalog
+
+`buildReportSpec(report, lang)` (`server/src/services/report-spec.ts`) turns report data into a json-render spec of the report catalog (`report-shared/catalog`), and validates it before returning it.
+
+- The spec is the standard flat json-render spec (`root` plus an `elements` map of `{ type, props, children?, on? }`), built with `defineSchema`/`defineCatalog` from `@json-render/core`, pinned exactly, without React. Components: `Report` (the root, the only one with children), `Answer`, `Chart` (left out when the report has no chart), `BreakdownTable`, `Source`. Actions: `expandRow` (local, the renderer passes the row) and `openInBkper` (only where the renderer can navigate).
+- `validateReportSpec` checks the catalog (components, actions, strict props of each element), json-render's `validateSpec` (including unreachable elements) and that the root is a `Report`. Renderers may call it on specs they receive.
+- Every text is resolved in the spec, in the report's language: titles, period labels (`Intl` for years, months and dates, read as UTC calendar dates), comparisons, the labels of `other`, `incoming` and `outgoing` rows, and every label a renderer shows. Group and account names stay verbatim.
+- Amounts and ratios stay the report's decimal strings, and months and instants stay ISO; renderers format them with `Intl` in the Report's `locale`, with its `fractionDigits`, in its `dir`.
+
+## Strings
+
+`shared/catalog/en.json` holds every UI and report string: key → `{ text, role, context, placeholders? }`. Placeholders are named, `{name}`, and each is documented in `placeholders`; a test enforces both. Write `context` for a translator who sees nothing else: where the string appears, what it means in Bkper, and how short it must be.
+
+`t(key, lang, params)` (`report-shared/strings`) reads a language added with `addLocale(lang, messages)` (a flat `key → text` map), then its base language (`pt-BR` → `pt`), then English; blank texts fall back too. Params fill placeholders verbatim, so format numbers and dates before passing them; a placeholder without a value stays visible. `textDirection(lang)` gives `rtl` for right-to-left languages.
 
 ## Web Awesome Pro
 
@@ -253,6 +269,12 @@ server/src/
 ├── index.ts      — Worker composition, middleware, health, static assets
 ├── api/          — HTTP API routes, OpenAPI schemas, API error responses
 └── services/     — App behavior and Bkper SDK orchestration
+
+shared/
+├── catalog/en.json  — English strings with translator context
+└── src/
+    ├── catalog.ts   — json-render report catalog, spec types and validation
+    └── strings.ts   — t(key, lang, params) with English fallback
 ```
 
 ## Key files
@@ -274,6 +296,9 @@ server/src/
 | Change report calculation  | `server/src/services/report.ts`                         |
 | Change live balance queries | `server/src/services/live-balances.ts`                 |
 | Add a Server-Timing metric | `server/src/services/timing.ts`                         |
+| Change the report spec     | `server/src/services/report-spec.ts`                    |
+| Change report components   | `shared/src/catalog.ts`                                 |
+| Add or change a string     | `shared/catalog/en.json`                                |
 | Regenerate API types       | `npm run api`                                           |
 | Configure app              | `bkper.yaml`                                            |
 <!-- APP_SPECIFICS:END -->

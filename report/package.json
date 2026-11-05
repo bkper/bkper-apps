@@ -1,0 +1,55 @@
+{
+    "name": "report",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "client",
+        "server"
+    ],
+    "engines": {
+        "node": ">=22.19.0",
+        "npm": ">=10"
+    },
+    "scripts": {
+        "clean": "rimraf node_modules dist client/node_modules client/dist server/node_modules server/dist",
+        "predev": "node scripts/check-dependencies.ts",
+        "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+        "dev:client": "npm run dev --workspace client",
+        "dev:server": "bkper app dev --sp 8809 --cp 5207",
+        "agent:skills": "tsx scripts/sync-agent-skills.ts",
+        "check": "npm run check:agent-guidance && npm run agent:skills && npm run check:generate && npm run check:typecheck && npm run check:test && npm run check:build && npm run check:ui && npm run check:format && npm run check:generated",
+        "check:agent-guidance": "tsx scripts/check-agent-guidance.ts",
+        "check:generate": "npm run api && npm run build:server",
+        "check:typecheck": "npm run typecheck",
+        "check:test": "npm test",
+        "check:build": "npm run build:client",
+        "check:format": "prettier --check .",
+        "check:generated": "git diff --exit-code -- client/src/api/generated/types.d.ts env.d.ts .dev.vars.example",
+        "check:ui": "tsx scripts/check-ui-baseline.ts",
+        "postinstall": "npm run agent:skills",
+        "build": "npm run api && npm run typecheck && npm run build:client && npm run build:server",
+        "build:client": "npm run build --workspace client",
+        "build:server": "bkper app build",
+        "test": "npm run test:scripts && npm run test:client && npm run test:server",
+        "test:scripts": "vitest run",
+        "test:client": "npm test --workspace client",
+        "test:server": "npm test --workspace server",
+        "typecheck": "npm run typecheck:client && npm run typecheck:server",
+        "typecheck:client": "npm run typecheck --workspace client",
+        "typecheck:server": "npm run typecheck --workspace server",
+        "api": "tsx scripts/generate-api-types.ts",
+        "deploy": "npm run build && bkper app sync && bkper app deploy",
+        "deploy:preview": "npm run build && bkper app sync && bkper app deploy --preview"
+    },
+    "devDependencies": {
+        "bkper": "latest",
+        "concurrently": "^9",
+        "miniflare": "^4",
+        "openapi-typescript": "^7.10.1",
+        "prettier": "^3",
+        "rimraf": "^6",
+        "tsx": "^4",
+        "typescript": "^5",
+        "vitest": "^4"
+    }
+}

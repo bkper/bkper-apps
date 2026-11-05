@@ -15,6 +15,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 | Bookbot | Platform app (Cloudflare Workers); finds accounts: discovery API and rediscovery of drafts; never sync from the legacy repository | `bookbot/` |
 | Parser Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; published | `parser-bot/` |
+| Report | Platform app (Vite + Cloudflare Workers); read-only financial reports from a typed request | `report/` |
 
 ## Plans
 
@@ -36,6 +37,7 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 | exchange-bot | `5204` | `8804` |
 | tax-bot | — | `8805` |
 | merge-duplicates | `5206` | `8806` |
+| report | `5207` | `8809` |
 
 ### Bookbot and Parser Bot
 
@@ -46,7 +48,7 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 
 These ports are for local development, not live event delivery. Both directories started from the same legacy Bookbot code. Both apps are live on the Platform; sync Bookbot only from this repository. Read each app's `AGENTS.md` before work; do not deploy, sync, install, or publish either app without separate approval.
 
-**Next available:** client `5207`, Worker `8809`.
+**Next available:** client `5208`, Worker `8810`.
 
 ### GCP Cloud Functions bots
 

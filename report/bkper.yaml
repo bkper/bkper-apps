@@ -1,0 +1,32 @@
+# Bkper App Configuration
+# Full reference: https://raw.githubusercontent.com/bkper/bkper-cli/main/docs/bkper-reference.yaml
+
+id: report
+name: Report
+description: Type what you want to know and get a financial report of your Book instantly.
+
+logoUrl: https://report.bkper.app/images/logo-light.svg
+logoUrlDark: https://report.bkper.app/images/logo-dark.svg
+
+website: https://report.bkper.app
+ownerName: Bkper
+ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
+ownerWebsite: https://bkper.com
+repoUrl: https://github.com/bkper/bkper-apps/tree/main/report
+repoPrivate: false
+
+developers: '*@bkper.com'
+users: '*@bkper.com'
+
+menuUrl: https://report.bkper.app/?book=${book.id}
+menuUrlDev: https://report-preview.bkper.app/?book=${book.id}
+menuText: Report
+menuOpenMode: EXPANDED
+
+deployment:
+    server: server/src/index.ts
+    client: client
+    services:
+        - KV
+    secrets: []
+    compatibility_date: '2026-01-28'

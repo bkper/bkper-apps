@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Generated agent skills
+.agents/skills/webawesome/
+.agents/skills/webawesome-design/
+
+# Commit package-lock.json for reproducible npm installs.
+
+# Wrangler
+.wrangler/
+
+# Miniflare persistence
+.mf/
+
+# Local dev secrets
+.dev.vars
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env

@@ -1,0 +1,26 @@
+{
+    "name": "report-client",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "clean": "rimraf node_modules dist",
+        "dev": "vite dev",
+        "build": "vite build",
+        "test": "vitest run",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@awesome.me/webawesome-pro": "3.14.0",
+        "@bkper/web-auth": "^1.2.0",
+        "@bkper/web-design": "latest",
+        "bkper-js": "latest",
+        "lit": "^3.3.2",
+        "openapi-fetch": "^0.15.0"
+    },
+    "devDependencies": {
+        "@bkper/bkper-api-types": "latest",
+        "happy-dom": "^20.10.2",
+        "typescript": "^5",
+        "vite": "^7"
+    }
+}

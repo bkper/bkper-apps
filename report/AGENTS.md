@@ -169,7 +169,7 @@ Report turns a short request, in any language, into a financial report of a Book
 
 - Numbers come only from deterministic code over Bkper balances. AI may choose among options the code offers; it never computes amounts or dates, and never writes queries.
 - Read-only on Books: never create, update or delete anything in a Book, and do not subscribe to events.
-- Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock; positions (Asset, Liability) default to today, activity (Incoming, Outgoing) to this year. The previous comparable period has the same length immediately before: in months when both boundaries start a month, otherwise in days.
+- Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock; positions (Asset, Liability) default to today, activity (Incoming, Outgoing) to this year. Current periods (this month, quarter and year, year to date, the last 12 months, all time) end at tomorrow, so they include today and exclude future-dated transactions; past periods are whole calendar periods. Comparisons are calendar-aligned: a whole period compares with the previous month, quarter or year; a current period with the same span one period back, its day clamped to the end of a shorter month. A position compares with the position at the end of the previous period (for today, the end of last month). All time has no comparison.
 
 ## Web Awesome Pro
 

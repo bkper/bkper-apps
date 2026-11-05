@@ -5,6 +5,10 @@
  * `after:` (inclusive) and `before:` (exclusive) in a query. Only "today" depends on the
  * clock; everything else is plain calendar arithmetic, so the same inputs always give the
  * same boundaries.
+ *
+ * Current periods (this month, quarter and year, year to date, the last 12 months and all
+ * time) end at tomorrow: they include today and leave out future-dated transactions. Past
+ * periods are whole calendar periods.
  */
 
 /** A calendar date, `YYYY-MM-DD`, in the Book time zone. */
@@ -134,34 +138,50 @@ export function resolvePeriod(id: string, context: PeriodContext): DateRange | u
 
 function resolveRelative(id: RelativePeriod, context: PeriodContext): DateRange {
     const today = context.today;
+    const tomorrow = addDays(today, 1);
     const month = monthIndexOfDate(today);
-    const quarter = month - (month % 3);
-    const year = month - (month % 12);
     switch (id) {
         case 'today':
-            return { after: today, before: addDays(today, 1) };
-        case 'this_month':
-            return monthsRange(month, 1);
+            return { after: today, before: tomorrow };
         case 'last_month':
             return monthsRange(month - 1, 1);
-        case 'this_quarter':
-            return monthsRange(quarter, 3);
         case 'last_quarter':
-            return monthsRange(quarter - 3, 3);
-        case 'this_year':
-            return monthsRange(year, 12);
+            return monthsRange(quarterStart(month) - 3, 3);
         case 'last_year':
-            return monthsRange(year - 12, 12);
+            return monthsRange(yearStart(month) - 12, 12);
+        case 'all':
+            return { before: tomorrow };
+        default:
+            return { after: monthStart(toDateStart(id, month)), before: tomorrow };
+    }
+}
+
+/** Current periods run "to date": from their first month up to and including today. */
+const TO_DATE_MONTHS = {
+    this_month: 1,
+    this_quarter: 3,
+    this_year: 12,
+    ytd: 12,
+    last_12_months: 12,
+} as const;
+
+type ToDatePeriod = keyof typeof TO_DATE_MONTHS;
+
+function isToDatePeriod(id: string): id is ToDatePeriod {
+    return Object.hasOwn(TO_DATE_MONTHS, id);
+}
+
+function toDateStart(id: ToDatePeriod, month: number): number {
+    switch (id) {
+        case 'this_month':
+            return month;
+        case 'this_quarter':
+            return quarterStart(month);
+        case 'this_year':
         case 'ytd':
-            return { after: monthStart(year), before: addDays(today, 1) };
+            return yearStart(month);
         case 'last_12_months':
-            return monthsRange(month - 11, 12);
-        case 'all': {
-            const lastMonth = context.dataRange
-                ? Math.max(month, parseMonth(context.dataRange.lastMonth))
-                : month;
-            return { before: monthStart(lastMonth + 1) };
-        }
+            return month - 11;
     }
 }
 
@@ -170,20 +190,42 @@ function isRelativePeriod(id: string): id is RelativePeriod {
 }
 
 /**
- * The period of the same length immediately before: the same number of months when both
- * boundaries start a month, otherwise the same number of days. All time has none.
+ * The period to compare with, calendar-aligned.
+ *
+ * Activity compares with the previous comparable period: the previous month, quarter or
+ * year of a whole period, and the same span one period back for a current period, with
+ * the day clamped to the end of a shorter month (this month on the 31st compares with
+ * the whole of February). Today compares with yesterday.
+ *
+ * A position compares with the position at the end of the previous period, which is the
+ * start of this one (for today, the end of last month); the result then has only `before`.
+ *
+ * All time has nothing to compare with.
  */
-export function previousPeriod(range: DateRange): DateRange | undefined {
-    const { after, before } = range;
-    if (after === undefined) {
+export function previousPeriod(
+    id: string,
+    nature: ReportNature,
+    context: PeriodContext
+): DateRange | undefined {
+    const range = resolvePeriod(id, context);
+    if (!range?.after) {
         return undefined;
     }
-    if (isMonthStart(after) && isMonthStart(before)) {
-        const months = monthIndexOfDate(before) - monthIndexOfDate(after);
-        return monthsRange(monthIndexOfDate(after) - months, months);
+    if (nature === 'position') {
+        const before = id === 'today' ? monthStart(monthIndexOfDate(context.today)) : range.after;
+        return { before };
     }
-    const days = Math.round((dateMs(before) - dateMs(after)) / DAY_MS);
-    return { after: addDays(after, -days), before: after };
+    if (id === 'today') {
+        return { after: addDays(range.after, -1), before: range.after };
+    }
+    const months = isToDatePeriod(id)
+        ? TO_DATE_MONTHS[id]
+        : monthIndexOfDate(range.before) - monthIndexOfDate(range.after);
+    const after = monthStart(monthIndexOfDate(range.after) - months);
+    const before = isToDatePeriod(id)
+        ? addDays(shiftMonths(context.today, -months), 1)
+        : range.after;
+    return { after, before };
 }
 
 /**
@@ -295,12 +337,24 @@ function monthStart(index: number): IsoDate {
     return `${year}-${pad(monthOfYear)}-01`;
 }
 
-function monthsRange(first: number, length: number): DateRange {
-    return { after: monthStart(first), before: monthStart(first + length) };
+function quarterStart(month: number): number {
+    return month - (month % 3);
 }
 
-function isMonthStart(date: IsoDate): boolean {
-    return date.endsWith('-01');
+function yearStart(month: number): number {
+    return month - (month % 12);
+}
+
+/** The same day `months` later or earlier, clamped to the end of a shorter month. */
+function shiftMonths(date: IsoDate, months: number): IsoDate {
+    const target = monthIndexOfDate(date) + months;
+    const lastDay = Number(addDays(monthStart(target + 1), -1).slice(8));
+    const day = Math.min(Number(date.slice(8)), lastDay);
+    return `${monthStart(target).slice(0, 8)}${pad(day)}`;
+}
+
+function monthsRange(first: number, length: number): DateRange {
+    return { after: monthStart(first), before: monthStart(first + length) };
 }
 
 function dateMs(date: IsoDate): number {

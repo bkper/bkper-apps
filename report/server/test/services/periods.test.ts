@@ -37,7 +37,7 @@ describe('todayInTimeZone', () => {
         });
         expect(resolvePeriod('this_month', { today: tokyo })).toEqual({
             after: '2026-04-01',
-            before: '2026-05-01',
+            before: '2026-04-02',
         });
     });
 });
@@ -52,30 +52,22 @@ describe('resolvePeriod', () => {
         });
     });
 
-    it('resolves the relative periods', () => {
+    it('ends the current periods at tomorrow, so they include today and exclude future dates', () => {
         expect(resolvePeriod('today', { today })).toEqual({
             after: '2026-11-05',
             before: '2026-11-06',
         });
         expect(resolvePeriod('this_month', { today })).toEqual({
             after: '2026-11-01',
-            before: '2026-12-01',
-        });
-        expect(resolvePeriod('last_month', { today })).toEqual({
-            after: '2026-10-01',
-            before: '2026-11-01',
+            before: '2026-11-06',
         });
         expect(resolvePeriod('this_quarter', { today })).toEqual({
             after: '2026-10-01',
-            before: '2027-01-01',
+            before: '2026-11-06',
         });
         expect(resolvePeriod('this_year', { today })).toEqual({
             after: '2026-01-01',
-            before: '2027-01-01',
-        });
-        expect(resolvePeriod('last_year', { today })).toEqual({
-            after: '2025-01-01',
-            before: '2026-01-01',
+            before: '2026-11-06',
         });
         expect(resolvePeriod('ytd', { today })).toEqual({
             after: '2026-01-01',
@@ -83,7 +75,19 @@ describe('resolvePeriod', () => {
         });
         expect(resolvePeriod('last_12_months', { today })).toEqual({
             after: '2025-12-01',
-            before: '2026-12-01',
+            before: '2026-11-06',
+        });
+        expect(resolvePeriod('all', { today })).toEqual({ before: '2026-11-06' });
+    });
+
+    it('resolves the past relative periods to whole calendar periods', () => {
+        expect(resolvePeriod('last_month', { today })).toEqual({
+            after: '2026-10-01',
+            before: '2026-11-01',
+        });
+        expect(resolvePeriod('last_year', { today })).toEqual({
+            after: '2025-01-01',
+            before: '2026-01-01',
         });
     });
 
@@ -93,6 +97,10 @@ describe('resolvePeriod', () => {
             before: '2026-04-01',
         });
         expect(resolvePeriod('this_month', { today: '2026-03-31' })).toEqual({
+            after: '2026-03-01',
+            before: '2026-04-01',
+        });
+        expect(resolvePeriod('last_month', { today: '2026-04-20' })).toEqual({
             after: '2026-03-01',
             before: '2026-04-01',
         });
@@ -134,6 +142,10 @@ describe('resolvePeriod', () => {
             after: '2025-02-01',
             before: '2026-02-01',
         });
+        expect(resolvePeriod('this_year', { today: '2026-12-31' })).toEqual({
+            after: '2026-01-01',
+            before: '2027-01-01',
+        });
     });
 
     it('handles leap years', () => {
@@ -159,24 +171,19 @@ describe('resolvePeriod', () => {
         });
     });
 
-    it('resolves all time to everything up to the end of the later of the data or the current month', () => {
-        expect(resolvePeriod('all', { today })).toEqual({ before: '2026-12-01' });
+    it('resolves all time to everything up to today, whatever the data range', () => {
         expect(
             resolvePeriod('all', {
                 today,
                 dataRange: { firstMonth: '2019-04', lastMonth: '2027-02' },
             })
-        ).toEqual({
-            before: '2027-03-01',
-        });
+        ).toEqual({ before: '2026-11-06' });
         expect(
             resolvePeriod('all', {
                 today,
-                dataRange: { firstMonth: '2019-04', lastMonth: '2025-02' },
+                dataRange: { firstMonth: '2010-10', lastMonth: '2011-12' },
             })
-        ).toEqual({
-            before: '2026-12-01',
-        });
+        ).toEqual({ before: '2026-11-06' });
     });
 
     it('rejects unknown periods', () => {
@@ -188,43 +195,76 @@ describe('resolvePeriod', () => {
 });
 
 describe('previousPeriod', () => {
-    it('is the same number of months immediately before a month-aligned period', () => {
-        expect(previousPeriod({ after: '2026-07-01', before: '2026-10-01' })).toEqual({
-            after: '2026-04-01',
-            before: '2026-07-01',
+    const today = '2026-11-05';
+    const previous = (id: string, day = today) => previousPeriod(id, 'activity', { today: day });
+
+    it('is the previous calendar month, quarter or year of a whole period', () => {
+        expect(previous('last_month')).toEqual({ after: '2026-09-01', before: '2026-10-01' });
+        expect(previous('2026-03')).toEqual({ after: '2026-02-01', before: '2026-03-01' });
+        expect(previous('2026-01')).toEqual({ after: '2025-12-01', before: '2026-01-01' });
+        expect(previous('last_quarter')).toEqual({ after: '2026-04-01', before: '2026-07-01' });
+        expect(previous('2026-Q1')).toEqual({ after: '2025-10-01', before: '2026-01-01' });
+        expect(previous('last_year')).toEqual({ after: '2024-01-01', before: '2025-01-01' });
+        expect(previous('2024')).toEqual({ after: '2023-01-01', before: '2024-01-01' });
+    });
+
+    it('is the same span one period back for the current periods', () => {
+        expect(previous('this_month')).toEqual({ after: '2026-10-01', before: '2026-10-06' });
+        expect(previous('this_quarter')).toEqual({ after: '2026-07-01', before: '2026-08-06' });
+        expect(previous('this_year')).toEqual({ after: '2025-01-01', before: '2025-11-06' });
+        expect(previous('ytd')).toEqual({ after: '2025-01-01', before: '2025-11-06' });
+        expect(previous('last_12_months')).toEqual({
+            after: '2024-12-01',
+            before: '2025-11-06',
         });
-        expect(previousPeriod({ after: '2026-03-01', before: '2026-04-01' })).toEqual({
+        expect(previous('today')).toEqual({ after: '2026-11-04', before: '2026-11-05' });
+    });
+
+    it('clamps the same day to the end of a shorter month', () => {
+        expect(previous('this_month', '2026-03-31')).toEqual({
             after: '2026-02-01',
             before: '2026-03-01',
         });
-        expect(previousPeriod({ after: '2026-01-01', before: '2027-01-01' })).toEqual({
-            after: '2025-01-01',
-            before: '2026-01-01',
-        });
-        expect(previousPeriod({ after: '2025-12-01', before: '2026-12-01' })).toEqual({
-            after: '2024-12-01',
-            before: '2025-12-01',
-        });
-    });
-
-    it('is the same number of days immediately before any other period', () => {
-        expect(previousPeriod({ after: '2026-11-05', before: '2026-11-06' })).toEqual({
-            after: '2026-11-04',
-            before: '2026-11-05',
-        });
-        expect(previousPeriod({ after: '2024-03-01', before: '2024-03-02' })).toEqual({
-            after: '2024-02-29',
+        expect(previous('this_month', '2024-03-30')).toEqual({
+            after: '2024-02-01',
             before: '2024-03-01',
         });
-        // Year to date on 2024-03-01 spans 61 days (Jan 31 + leap Feb 29 + Mar 1).
-        expect(previousPeriod({ after: '2024-01-01', before: '2024-03-02' })).toEqual({
-            after: '2023-11-01',
-            before: '2024-01-01',
+        expect(previous('this_quarter', '2026-05-31')).toEqual({
+            after: '2026-01-01',
+            before: '2026-03-01',
+        });
+        expect(previous('this_year', '2024-02-29')).toEqual({
+            after: '2023-01-01',
+            before: '2023-03-01',
+        });
+        expect(previous('this_month', '2026-01-15')).toEqual({
+            after: '2025-12-01',
+            before: '2025-12-16',
+        });
+        expect(previous('this_quarter', '2026-01-31')).toEqual({
+            after: '2025-10-01',
+            before: '2025-11-01',
         });
     });
 
-    it('has no previous period for all time', () => {
-        expect(previousPeriod({ before: '2026-12-01' })).toBeUndefined();
+    it('has no previous period for all time or an unknown id', () => {
+        expect(previous('all')).toBeUndefined();
+        expect(previous('next_year')).toBeUndefined();
+    });
+
+    it('compares positions at the end of the previous period', () => {
+        const position = (id: string) => previousPeriod(id, 'position', { today });
+        expect(position('today')).toEqual({ before: '2026-11-01' });
+        expect(position('this_month')).toEqual({ before: '2026-11-01' });
+        expect(position('last_month')).toEqual({ before: '2026-10-01' });
+        expect(position('this_quarter')).toEqual({ before: '2026-10-01' });
+        expect(position('last_quarter')).toEqual({ before: '2026-07-01' });
+        expect(position('this_year')).toEqual({ before: '2026-01-01' });
+        expect(position('ytd')).toEqual({ before: '2026-01-01' });
+        expect(position('last_12_months')).toEqual({ before: '2025-12-01' });
+        expect(position('2024')).toEqual({ before: '2024-01-01' });
+        expect(position('2025-Q4')).toEqual({ before: '2025-10-01' });
+        expect(position('all')).toBeUndefined();
     });
 });
 
@@ -279,7 +319,8 @@ describe('buildPeriodOptions', () => {
         const description = (id: string) => options.find(option => option.id === id)?.description;
         expect(description('last_quarter')).toBe('last quarter, 2026-07-01 to 2026-09-30');
         expect(description('today')).toBe('today, 2026-11-05');
-        expect(description('all')).toBe('all time, everything up to 2026-11-30');
+        expect(description('this_month')).toBe('this month, 2026-11-01 to 2026-11-05');
+        expect(description('all')).toBe('all time, everything up to 2026-11-05');
         expect(description('2026')).toBe('year 2026, 2026-01-01 to 2026-12-31');
         expect(description('2026-Q1')).toBe('2026 Q1, 2026-01-01 to 2026-03-31');
         expect(description('2026-02')).toBe('February 2026, 2026-02-01 to 2026-02-28');

@@ -184,6 +184,24 @@ Every report is computed from one snapshot of the Book (`server/src/services/sna
 
 `npx tsx scripts/verify-snapshot.ts [--today=YYYY-MM-DD] <bookId>...` checks snapshots of live Books, read-only, with your `bkper auth token`: cold and warm load times, the tree against `bkper group list`/`bkper account list`, and amounts against `bkper balance list --trial`. `--today` reads a Book as of an earlier day to exercise current periods on old data.
 
+## Report calculation
+
+`buildReport(intent, snapshot, live?)` (`server/src/services/report.ts`) turns an intent into report data: the answer (amount, previous, change), Incoming and Outgoing for a net result, the months of the period, the chart kind, the breakdown tree, type colors, the exact Bkper query and its URL. It is pure and deterministic.
+
+- Roots that are permanent (Asset, Liability, or mixed of both) report a position at the period's `before`; all others, and the net result, report activity within the period.
+- A calendar period that contains today (`2026`, `2026-Q4`, `2026-11`) reads to date as its current period (`this_year`, …), so no report includes future-dated transactions. Periods that have not started are rejected (`ReportError`, `future_period`).
+- Rows are in the root's sense: a child whose credit nature differs from the root's counts negative (mixed groups), so every breakdown adds up to its parent. A remainder row (`kind: 'other'`) holds what Bkper left out of a group's children. Rows without amounts are left out; rows are sorted by size. Shares are left out under mixed parents.
+- The net result is Incoming minus Outgoing over the unique accounts of all activity roots; roots may share accounts, so root totals are never added.
+- Charts: the named view first; otherwise `monthly` means by month (bars for activity, a line for positions), else a breakdown chart: a donut for 2–6 positive rows of the root's type, ranked bars otherwise. `total` has no chart.
+- Ratios (`change`, `share`) are decimal strings rounded to 4 places; format them, and amounts, only when rendering.
+
+When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead of `{ report }`: run that one query with `book.getBalancesReport`, normalize it with `readLiveBalances` (`live-balances.ts`), and call `buildReport` again with it.
+
+- Hashtags always need `hashtagQuery(snapshot, hashtags)`: every root with the hashtags, by day, over the full history up to today. It depends only on the snapshot and the hashtags, so start it in parallel with intent resolution. Hashtag reports never read the snapshot.
+- Periods the snapshot's months cannot answer (today's activity) need `rangeQuery`: the report's roots, by day, from the start of the previous period to the end of the current one.
+
+`npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] <bookId>...` cross-checks reports of several intents per root (and the net result) against `bkper balance list`, read-only: answers, previous periods, every row and every month, to the cent, and that breakdowns add up. The CLI shows raw balances negated for permanent accounts (Liability and Outgoing negative), so it flips a CLI amount when its row's `credit` equals its `permanent`.
+
 ## Web Awesome Pro
 
 The client depends on `@awesome.me/webawesome-pro`, pinned exactly, from `https://npm.webawesome.com/`. Import components and themes from `@awesome.me/webawesome-pro/dist/...`, never from the free `@awesome.me/webawesome` package. The Agent Skills under `.agents/skills/` are synced from the Pro package and include its Pro components, such as the charts and data grid.
@@ -253,6 +271,8 @@ server/src/
 | Change periods or dates    | `server/src/services/periods.ts`                        |
 | Change the report intent   | `server/src/services/report-intent.ts`                  |
 | Change the Book snapshot   | `server/src/services/snapshot.ts`, `snapshot-loader.ts` |
+| Change report calculation  | `server/src/services/report.ts`                         |
+| Change live balance queries | `server/src/services/live-balances.ts`                 |
 | Add a Server-Timing metric | `server/src/services/timing.ts`                         |
 | Regenerate API types       | `npm run api`                                           |
 | Configure app              | `bkper.yaml`                                            |

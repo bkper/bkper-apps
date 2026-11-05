@@ -6,7 +6,8 @@
  *
  * Today is 2026-11-05 in the Book time zone, so every query ends before 2026-11-06.
  */
-import { Amount } from 'bkper-js';
+import { Amount, BalancesReport, Book } from 'bkper-js';
+import { buildSnapshot, snapshotQueries, type Snapshot } from '../../src/services/snapshot';
 
 export const TODAY = '2026-11-05';
 
@@ -320,4 +321,25 @@ function windowPayloads(
             ],
         },
     };
+}
+
+/** When the fixture balances were read. */
+export const DATA_AT = new Date('2026-11-05T15:00:00Z');
+
+/** The snapshot of the fixture Book, built from its recorded payloads. */
+export async function fixtureSnapshot(): Promise<Snapshot> {
+    const book = new Book(bookPayload);
+    const groups = await book.getGroups();
+    const accounts = await book.getAccounts();
+    const roots = groups
+        .filter(group => !group.hasParent())
+        .map(group => ({ name: group.getName() ?? '', permanent: group.isPermanent() ?? false }));
+    const results = snapshotQueries(roots, TODAY).map(query => {
+        const payload = balancesPayloads[query.query];
+        if (!payload) {
+            throw new Error(`No recorded balances for ${query.query}`);
+        }
+        return { query, report: new BalancesReport(book, payload) };
+    });
+    return buildSnapshot({ book, groups, accounts, results, today: TODAY, dataAt: DATA_AT });
 }

@@ -171,6 +171,19 @@ Report turns a short request, in any language, into a financial report of a Book
 - Read-only on Books: never create, update or delete anything in a Book, and do not subscribe to events.
 - Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock; positions (Asset, Liability) default to today, activity (Incoming, Outgoing) to this year. Current periods (this month, quarter and year, year to date, the last 12 months, all time) end at tomorrow, so they include today and exclude future-dated transactions; past periods are whole calendar periods. Comparisons are calendar-aligned: a whole period compares with the previous month, quarter or year; a current period with the same span one period back, its day clamped to the end of a shorter month. A position compares with the position at the end of the previous period (for today, the end of last month). All time has no comparison.
 
+## Book snapshot
+
+Every report is computed from one snapshot of the Book (`server/src/services/snapshot.ts`), loaded by `snapshot-loader.ts`:
+
+- One `bkper.getBook(id, true, true)` call, then one query per root group, all in parallel: `group:'<root>' before:<tomorrow> by:m` (the full monthly history; the last month is the month to date). Roots that report activity also get one query per partial-month comparison window (`comparisonWindows`), so current periods compare with the same days of an earlier month. Never query several roots at once: unbounded multi-group queries are slow and can fail.
+- Amounts are decimal strings with the sign Bkper shows in its charts (bkper-js representative balances: negated for debit nature). Sum them with bkper-js `Amount`, never binary floats. A child's amount counts toward its group with the opposite sign when their `credit` natures differ (as in mixed groups).
+- `periodAmount` and `positionAmount` answer only what the snapshot holds and return `undefined` otherwise; nothing is dated after the snapshot's `today`.
+- Accounts appear once even when several roots contain them, so combine roots by account, not by summing root totals.
+- Bkper leaves archived accounts whose balance is zero today out of balances, so the accounts of a group may not add up to the group's past amounts.
+- KV caches a snapshot for 60 s per user and Book (`snapshot:v1:<userId>:<bookId>`). Identifying the user costs one `getUser` call per request. `Server-Timing` reports `user`, `kv` and `balances`; the per-request `ServerTiming` lives in `AppContext`.
+
+`npx tsx scripts/verify-snapshot.ts [--today=YYYY-MM-DD] <bookId>...` checks snapshots of live Books, read-only, with your `bkper auth token`: cold and warm load times, the tree against `bkper group list`/`bkper account list`, and amounts against `bkper balance list --trial`. `--today` reads a Book as of an earlier day to exercise current periods on old data.
+
 ## Web Awesome Pro
 
 The client depends on `@awesome.me/webawesome-pro`, pinned exactly, from `https://npm.webawesome.com/`. Import components and themes from `@awesome.me/webawesome-pro/dist/...`, never from the free `@awesome.me/webawesome` package. The Agent Skills under `.agents/skills/` are synced from the Pro package and include its Pro components, such as the charts and data grid.
@@ -239,6 +252,8 @@ server/src/
 | Add server behavior        | `server/src/services/`                                  |
 | Change periods or dates    | `server/src/services/periods.ts`                        |
 | Change the report intent   | `server/src/services/report-intent.ts`                  |
+| Change the Book snapshot   | `server/src/services/snapshot.ts`, `snapshot-loader.ts` |
+| Add a Server-Timing metric | `server/src/services/timing.ts`                         |
 | Regenerate API types       | `npm run api`                                           |
 | Configure app              | `bkper.yaml`                                            |
 <!-- APP_SPECIFICS:END -->

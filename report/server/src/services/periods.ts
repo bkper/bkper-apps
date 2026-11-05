@@ -365,7 +365,7 @@ function dateMs(date: IsoDate): number {
     return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
-function addDays(date: IsoDate, days: number): IsoDate {
+export function addDays(date: IsoDate, days: number): IsoDate {
     return new Date(dateMs(date) + days * DAY_MS).toISOString().slice(0, 10);
 }
 

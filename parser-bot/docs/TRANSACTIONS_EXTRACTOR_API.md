@@ -159,8 +159,8 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
   -H "Content-Type: application/json" \
   -d '{
         "book": {
-          "id": "agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4PT116AJDA",
-          "name": "TP Prueba Import Bot USD",
+          "id": "book-id-123",
+          "name": "Example Book USD",
           "ownerName": "user@example.com",
           "datePattern": "dd/MM/yyyy",
           "decimalSeparator": "COMMA",
@@ -177,10 +177,10 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
           },
           "accounts": [
             {
-              "createdAt": "1774978949927",
-              "id": "2918047099",
-              "name": "TESTE BRUNO",
-              "normalizedName": "teste_bruno",
+              "createdAt": "1704067200000",
+              "id": "account-id-456",
+              "name": "Bank - USD - Cash 1234",
+              "normalizedName": "bank_usd_cash_1234",
               "credit": false,
               "permanent": true,
               "archived": false,
@@ -189,10 +189,10 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
               "balanceVerified": true,
               "groups": [
                 {
-                  "createdAt": "1774996598669",
-                  "id": "2922857006",
-                  "name": "GROUP TEST",
-                  "normalizedName": "group_test",
+                  "createdAt": "1704067200000",
+                  "id": "group-id-789",
+                  "name": "Cash",
+                  "normalizedName": "cash",
                   "properties": {},
                   "hidden": false,
                   "locked": false,
@@ -214,8 +214,8 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
             "permission": "OWNER",
             "books": [
               {
-                "id": "agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4PT116AJDA",
-                "name": "TP Prueba Import Bot USD",
+                "id": "book-id-123",
+                "name": "Example Book USD",
                 "ownerName": "user@example.com",
                 "datePattern": "dd/MM/yyyy",
                 "decimalSeparator": "COMMA",
@@ -242,19 +242,19 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
           "totalTransactionsCurrentYear": 38
         },
         "account": {
-          "id": "2768397104",
-          "name": "Bank Safra - USD - Cash 3384",
+          "id": "account-id-456",
+          "name": "Bank - USD - Cash 1234",
           "properties": {
             "type": "ASSET",
             "group": "Cash"
           }
         },
         "group": {
-          "id": "2922857006",
-          "name": "GROUP TEST",
-          "normalizedName": "group_test",
+          "id": "group-id-789",
+          "name": "Cash",
+          "normalizedName": "cash",
           "properties": {
-            "institution": "Safra"
+            "institution": "Example Bank"
           },
           "hidden": false,
           "locked": false,
@@ -262,7 +262,7 @@ curl -X POST https://your-service.com/api/v1/extract-transactions \
           "type": "ASSET"
         },
         "file": {
-          "id": "9e050776-b152-4fa9-9ceb-14cdda5c7ceb",
+          "id": "file-id-abc",
           "name": "bank_statement.csv",
           "content": "ZGF0ZSxhbW91bnQsZGVzY3JpcHRpb24KMjAyNC0wMS0wMiwxNzkwMDAuMDAsVU5JVEVEIFNUQVRFUyBUUkVBU1VSWQoyMDI0LTAxLTMwLDQ0OTgzNy42NyxCVVkgNDU1MDAwIEAgOTguNzU1NQ==",
           "contentType": "text/csv"
@@ -327,8 +327,8 @@ A single endpoint may return more than one section for backward-friendly impleme
                     "trade_date": "2024-01-02",
                     "quantity": 179000
                 },
-                "book_id": "agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4PT116AJDA",
-                "account_name": "Bank Safra - USD - Cash 3384"
+                "book_id": "book-id-123",
+                "account_name": "Bank - USD - Cash 1234"
             },
             {
                 "date": "2024-01-30",
@@ -338,8 +338,8 @@ A single endpoint may return more than one section for backward-friendly impleme
                     "trade_date": "2024-01-30",
                     "quantity": 455000
                 },
-                "book_id": "agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICA4PT116AJDA",
-                "account_name": "Bank Safra - USD - Cash 3384"
+                "book_id": "book-id-123",
+                "account_name": "Bank - USD - Cash 1234"
             },
             {
                 "date": "2024-01-16",
@@ -351,8 +351,8 @@ A single endpoint may return more than one section for backward-friendly impleme
     "file": {
         "properties": {
             "statement_period": "2024-01",
-            "bank_name": "Safra",
-            "account_number": "3384"
+            "bank_name": "Example Bank",
+            "account_number": "1234"
         }
     }
 }
@@ -392,8 +392,8 @@ The `file` object is an optional partial representation of the Bkper `File` inte
 Common example keys for `file.properties`:
 
 - `statement_period`: The period covered by the statement (e.g. `"2024-01"`)
-- `bank_name`: Name of the issuing bank (e.g. `"Safra"`)
-- `account_number`: Bank account number referenced in the file (e.g. `"3384"`)
+- `bank_name`: Name of the issuing bank (e.g. `"Example Bank"`)
+- `account_number`: Bank account number referenced in the file (e.g. `"1234"`)
 
 > **Note**: All values must be strings. The `file` object and its `properties` field may be omitted if there is no file-level metadata to record. The `transactions_summary` key is reserved for Bookbot: external file-properties responses cannot set or override it. Bookbot generates the property after creating non-zero transactions, for both multi-transaction and single-transaction extractions. Each entry is grouped by target book/account and contains the non-zero transaction count and native Bkper transaction IDs returned by transaction creation; a single-transaction extraction has one entry. Zero-amount transactions are excluded from the summary, and files containing only zero-amount transactions do not receive one. If the fetched file already has `transactions_summary`, Bookbot skips parsing it again.
 

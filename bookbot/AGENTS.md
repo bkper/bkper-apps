@@ -1,4 +1,4 @@
-# Bookbot — Platform App (migration in progress)
+# Bookbot — Platform App
 
 ## Status and safety
 
@@ -101,13 +101,28 @@ bun run typecheck
 bun run typecheck:tests
 bun run build             # Wrangler dry-run only
 bun run test:unit         # Clears live AI variables; integration cases skip
-bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
 
 Tests for removed code were deleted with it (Parser Bot keeps its own copies). Short failure characterizations and API safety/contract tests cover the discovery API. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
 
-The legacy branch scripts under `scripts/` are retained solely for their isolated regression tests. Do not use them to manage this monorepo's branches.
+## Check and deploy
+
+There is no CI workflow for this app. Run these from this directory: check locally, then deploy by hand with separate approval for each live step.
+
+```bash
+bun install --frozen-lockfile --ignore-scripts
+bun run test              # Build, contract freshness, typechecks and unit tests
+bkper app build           # Platform bundle in dist/; the log must say "Build complete" with no ERROR
+bkper app deploy --preview   # bookbot-preview.bkper.app
+bkper app deploy             # bookbot.bkper.app (production)
+bkper app status
+```
+
+- Deploy and sync need a clean tree whose commit is pushed to `origin/main`. `bkper app deploy` uploads the existing `dist/`, so build from that commit first.
+- `bkper app sync` replaces the live `bookbot` registration (events, properties, webhooks, README) with this directory's `bkper.yaml` and README. Run it only when they changed, never from the legacy `bkper-agent` repository.
+- Never run `wrangler deploy`; `wrangler.jsonc` is for local development and the dry-run build only.
+- After a deploy, check that `https://bookbot.bkper.app/openapi.json` matches `test/api/openapi.snapshot.json` and read the newest requests with `bkper app logs bookbot --events`.
 
 Worker/inspector ports: 8807 / 9607. No UI/client port is needed. Local serving and event delivery are not part of baseline verification.
 
@@ -123,8 +138,6 @@ Worker/inspector ports: 8807 / 9607. No UI/client port is needed. Local serving 
 
 ## Source and redistribution
 
-`baseline-manifest.json` records SHA-256 digests of the baseline files, including tests and fixtures. Files a change does not need to touch should still match it. List changed files with `jq -r 'to_entries[] | "\(.value)  \(.key)"' baseline-manifest.json | sha256sum -c --quiet`; new files appear only in `git status`.
-
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 
-Baseline dependency versions are retained; the discovery API adds direct canonical API types and the OpenAPI type generator. Bookbot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`), not the reference checkout's symlink. A clean-install/frozen-lockfile verification remains necessary before publication.
+Bookbot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`). Keep `bun.lock` committed and in sync with `package.json`.

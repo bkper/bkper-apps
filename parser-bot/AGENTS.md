@@ -1,15 +1,16 @@
-# Parser Bot — Local Staging
+# Parser Bot — Platform App
 
 ## Status and safety
 
 Read the responsibilities, events, properties and parse API below before changing behavior or ownership.
 
-This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is registered (unpublished); its preview is deployed and installed only on a dedicated test Book. The read-only parsing API is implemented. File-import and transaction-created handlers call Bookbot's discovery API (verified on preview); local discovery and rediscovery were removed. Since the 2026-11-05 handover, Parser Bot handles file, created, posted/updated (learning), deleted and audit events. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is published, deployed to production and preview, and installed by Bkper wherever Bookbot is installed. It handles file, created, posted/updated (learning), deleted and audit events, and serves the read-only parse API. File-import and transaction-created handlers call Bookbot's discovery API; Parser Bot has no local discovery or rediscovery. Parser Bot is distinct from the managed conversational Bkper Agent.
 
-- It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy --preview`. Never use `wrangler deploy`. Production is not deployed.
-- Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Never install Parser Bot in a Book where the legacy Bookbot is installed. Before deploying, confirm the build log reports `Build complete` without errors.
+- It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy`. Never use `wrangler deploy`.
+- `bkper.yaml` here is the source of truth for the live `parser-bot` registration.
+- Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
-- The snapshot's README describes the legacy Bookbot behavior. It is not a Parser Bot product listing.
+- The README is Parser Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
 - Keep README content public-facing; development information belongs here.
 - Existing technical names and `agent_*` properties stay unchanged.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
@@ -96,7 +97,6 @@ bun run typecheck
 bun run typecheck:tests
 bun run build             # Wrangler dry-run only
 bun run test:unit         # Clears live AI variables; integration cases skip
-bun run test-git-flow     # Isolated temporary repositories only
 bun run test              # All of the above
 ```
 
@@ -104,7 +104,23 @@ Event handlers call Bookbot's discovery API through `src/services/BookbotDiscove
 
 Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and external parser compatibility. For refactoring, follow the rules above. Run `bun run test` after each step.
 
-The legacy branch scripts under `scripts/` are retained solely for their isolated regression tests. Do not use them to manage this monorepo's branches.
+## Check and deploy
+
+There is no CI workflow for this app. Run these from this directory: check locally, then deploy by hand with separate approval for each live step.
+
+```bash
+bun install --frozen-lockfile --ignore-scripts
+bun run test              # Build, contract freshness, typechecks and unit tests
+bkper app build           # Platform bundle in dist/; the log must say "Build complete" with no ERROR
+bkper app deploy --preview   # parser-bot-preview.bkper.app
+bkper app deploy             # parser-bot.bkper.app (production)
+bkper app status
+```
+
+- Deploy and sync need a clean tree whose commit is pushed to `origin/main`. `bkper app deploy` uploads the existing `dist/`, so build from that commit first.
+- `bkper app sync` replaces the live `parser-bot` registration (events, properties, file patterns, webhooks, README) with this directory's `bkper.yaml` and README. Run it only when they changed.
+- Never run `wrangler deploy`; `wrangler.jsonc` is for local development and the dry-run build only.
+- After a deploy, check that `https://parser-bot.bkper.app/openapi.json` matches `test/api/openapi.snapshot.json` and read the newest requests with `bkper app logs parser-bot --events`.
 
 Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving and event delivery are not part of baseline verification.
 
@@ -120,8 +136,6 @@ Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving 
 
 ## Source and redistribution
 
-`baseline-manifest.json` records SHA-256 digests of the baseline files, including tests and fixtures. Files a change does not need to touch should still match it. List changed files with `jq -r 'to_entries[] | "\(.value)  \(.key)"' baseline-manifest.json | sha256sum -c --quiet`; new files appear only in `git status`.
-
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 
-The API adds explicit canonical Bkper types and OpenAPI type generation dependencies to `package.json` and `bun.lock`. The new generator dependency tree expands the lockfile; existing runtime dependency versions remain pinned. Parser Bot now uses its own ignored `node_modules` installation, not the reference checkout's symlink. Installation scripts are disabled for local verification. Final publication review remains separately gated.
+Parser Bot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`). Keep `bun.lock` committed and in sync with `package.json`.

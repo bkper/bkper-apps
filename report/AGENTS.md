@@ -169,6 +169,7 @@ Report turns a short request, in any language, into a financial report of a Book
 
 - Numbers come only from deterministic code over Bkper balances. AI may choose among options the code offers; it never computes amounts or dates, and never writes queries.
 - Read-only on Books: never create, update or delete anything in a Book, and do not subscribe to events.
+- Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock; positions (Asset, Liability) default to today, activity (Incoming, Outgoing) to this year. The previous comparable period has the same length immediately before: in months when both boundaries start a month, otherwise in days.
 
 ## Web Awesome Pro
 
@@ -236,6 +237,8 @@ server/src/
 | Add API schemas            | `server/src/api/schemas.ts`                             |
 | Add API endpoints          | `server/src/api/routes.ts`                              |
 | Add server behavior        | `server/src/services/`                                  |
+| Change periods or dates    | `server/src/services/periods.ts`                        |
+| Change the report intent   | `server/src/services/report-intent.ts`                  |
 | Regenerate API types       | `npm run api`                                           |
 | Configure app              | `bkper.yaml`                                            |
 <!-- APP_SPECIFICS:END -->

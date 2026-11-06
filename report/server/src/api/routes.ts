@@ -37,6 +37,7 @@ const pingRoute = createRoute({
     path: '/api/v1/ping',
     tags: ['API'],
     summary: 'Ping app API',
+    description: 'Checks that the API is reachable. Not needed before other calls.',
     responses: {
         200: jsonResponse('API is reachable', PingResponseSchema),
         ...apiErrorResponses,
@@ -49,7 +50,7 @@ const suggestionsRoute = createRoute({
     tags: ['Reports'],
     summary: 'Suggest reports of a Book',
     description:
-        'Up to three example requests the Book can answer, each with its intent. Requesting a report by one of these intents needs no AI.',
+        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.',
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
@@ -61,9 +62,16 @@ const reportRoute = createRoute({
     method: 'post',
     path: '/api/v1/books/{bookId}/report',
     tags: ['Reports'],
-    summary: 'Build a report of a Book',
-    description:
-        'Builds a financial report from a request in any language (`prompt`) or from an `intent`. Numbers are computed from the Book balances; the Book is never changed.',
+    summary: 'Build a financial report of a Book from a request in any language',
+    description: [
+        'Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts) or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.',
+        '',
+        'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`.',
+        '',
+        'With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.',
+        '',
+        'Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period and view among the Book’s own.',
+    ].join('\n'),
     request: {
         params: BookParamsSchema,
         body: {
@@ -74,18 +82,18 @@ const reportRoute = createRoute({
     responses: {
         200: {
             description:
-                'The report: a json-render spec with its intent, language, query and link (`format: spec`), or one self-contained HTML file (`format: html`)',
+                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query and link (`format: spec`)',
             content: {
                 'application/json': { schema: ReportResponseSchema },
                 'text/html': { schema: ReportFileSchema },
             },
         },
         422: jsonResponse(
-            'Not a report of this Book (`not_a_report`, with suggestions), a period that has not started (`future_period`) or an unknown root (`unknown_root`)',
+            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), or an intent whose root is not a root group of the Book (`unknown_root`)',
             ReportErrorResponseSchema
         ),
         429: jsonResponse(
-            'Bkper AI allowance exhausted (`ai_allowance_exhausted`)',
+            'The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); requests by `intent` still work',
             ErrorResponseSchema
         ),
         ...bookErrorResponses,

@@ -239,6 +239,14 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 `npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...` times the suggestion-intent, prompt and hashtag paths of a running app (default the local Worker) from `Server-Timing`, warm and, with `--cold`, after the snapshot cache expires; read-only, with your `bkper auth token`. Prompts vary so Bkper AI's 15-minute cache of identical requests is not measured, but a rerun within 15 minutes repeats them.
 
+## Docs for people and agents
+
+`README.md` is the listing page people read (`bkper app get report` shows it too): what Report does, how to open it, examples in several languages, what it reads, and its limits. Keep development notes here, not there.
+
+Agents decide from `bkper app list -b`, `bkper app get report` and `bkper app api spec report`, so the OpenAPI texts are written for them: the document's `info.description` (`server/src/api/openapi.ts`) is the guide, and each route, field and error repeats what an agent needs where it reads it (`routes.ts`, `schemas.ts`). The call they lead to: `POST /api/v1/books/{bookId}/report` with `{ "prompt": <the person's words, in their language>, "format": "html" }`, its output saved to an `.html` file the agent publishes. `bkper app api request` prints only an error's `message`, so messages say what to do next (`api/errors.ts`), never the request.
+
+`npx tsx scripts/check-agent-docs.ts [--spec-url=<url>/openapi.json] [--model=<id>]` gives only the README, the listing and the OpenAPI document (this folder's, or a running app's) to a Bkper AI language model playing a fresh agent, asks it for the commands it would run for report requests in four languages, and checks them (`scripts/agent-docs/plan.ts`): the report call on the Book, the request in its own words, `format: html`, the file saved and published, nothing that changes the Book. Nothing runs and no Book is read. Rerun it after changing the README, the listing's `description` or the OpenAPI texts.
+
 ## Report renderer
 
 `<report-view>` (`client/src/report/`, entry `index.ts`) renders a report spec with Lit and Web Awesome Pro: answer first, then the chart, the breakdown table and the source, in the spec's order, `locale` and `dir`. Set its `spec` property.
@@ -397,5 +405,6 @@ shared/
 | Add or change a string     | `shared/catalog/en.json`, then `npm run translate`      |
 | Change how strings are translated | `scripts/translate.ts`, `scripts/translate/`     |
 | Regenerate API types       | `npm run api`                                           |
+| Change the docs agents read | `README.md`, `server/src/api/openapi.ts`, then `scripts/check-agent-docs.ts` |
 | Configure app              | `bkper.yaml`                                            |
 <!-- APP_SPECIFICS:END -->

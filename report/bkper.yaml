@@ -3,7 +3,7 @@
 
 id: report
 name: Report
-description: Type what you want to know and get a financial report of your Book instantly.
+description: Ask in any language and see a financial report of your Book as you type, with a chart, a breakdown and a comparison. Read-only.
 
 logoUrl: https://report.bkper.app/images/logo-light.svg
 logoUrlDark: https://report.bkper.app/images/logo-dark.svg
@@ -14,6 +14,7 @@ ownerLogoUrl: https://avatars.githubusercontent.com/u/11943086?v=4
 ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/report
 repoPrivate: false
+deprecated: false
 
 developers: '*@bkper.com'
 users: '*@bkper.com'

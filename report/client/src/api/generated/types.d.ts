@@ -12,7 +12,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ping app API */
+        /**
+         * Ping app API
+         * @description Checks that the API is reachable. Not needed before other calls.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -31,7 +34,7 @@ export interface paths {
                         "application/json": components["schemas"]["PingResponse"];
                     };
                 };
-                /** @description API error */
+                /** @description Another error, such as `unauthorized` (401) or `internal_error` (500) */
                 default: {
                     headers: {
                         [name: string]: unknown;
@@ -59,16 +62,17 @@ export interface paths {
         };
         /**
          * Suggest reports of a Book
-         * @description Up to three example requests the Book can answer, each with its intent. Requesting a report by one of these intents needs no AI.
+         * @description Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.
          */
         get: {
             parameters: {
                 query?: {
-                    /** @description Language of the texts, as a BCP 47 tag of one of the Bkper languages, such as `pt` or `pt-BR`. */
+                    /** @description Language of the suggestions’ texts, as a BCP 47 tag of one of the 133 Bkper languages. Default: `Accept-Language`, else English. */
                     language?: string;
                 };
                 header?: never;
                 path: {
+                    /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
                     bookId: string;
                 };
                 cookie?: never;
@@ -84,7 +88,7 @@ export interface paths {
                         "application/json": components["schemas"]["SuggestionsResponse"];
                     };
                 };
-                /** @description Invalid request */
+                /** @description Invalid request (`invalid_request`, naming the field) */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -93,7 +97,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description No permission to read the Book (`forbidden`) */
+                /** @description The person cannot view the Book (`forbidden`) */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -102,7 +106,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Book not found (`book_not_found`) */
+                /** @description Book not found, or not shared with the person (`book_not_found`) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -111,7 +115,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Bkper or Bkper AI failed (`upstream_error`) */
+                /** @description Bkper or Bkper AI failed; try again (`upstream_error`) */
                 502: {
                     headers: {
                         [name: string]: unknown;
@@ -120,7 +124,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description API error */
+                /** @description Another error, such as `unauthorized` (401) or `internal_error` (500) */
                 default: {
                     headers: {
                         [name: string]: unknown;
@@ -149,14 +153,21 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Build a report of a Book
-         * @description Builds a financial report from a request in any language (`prompt`) or from an `intent`. Numbers are computed from the Book balances; the Book is never changed.
+         * Build a financial report of a Book from a request in any language
+         * @description Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts) or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.
+         *
+         *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`.
+         *
+         *     With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
+         *
+         *     Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period and view among the Book’s own.
          */
         post: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
+                    /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
                     bookId: string;
                 };
                 cookie?: never;
@@ -167,7 +178,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description The report: a json-render spec with its intent, language, query and link (`format: spec`), or one self-contained HTML file (`format: html`) */
+                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query and link (`format: spec`) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -177,7 +188,7 @@ export interface paths {
                         "text/html": string;
                     };
                 };
-                /** @description Invalid request */
+                /** @description Invalid request (`invalid_request`, naming the field) */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -186,7 +197,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description No permission to read the Book (`forbidden`) */
+                /** @description The person cannot view the Book (`forbidden`) */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -195,7 +206,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Book not found (`book_not_found`) */
+                /** @description Book not found, or not shared with the person (`book_not_found`) */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -204,7 +215,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Not a report of this Book (`not_a_report`, with suggestions), a period that has not started (`future_period`) or an unknown root (`unknown_root`) */
+                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), or an intent whose root is not a root group of the Book (`unknown_root`) */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -213,7 +224,7 @@ export interface paths {
                         "application/json": components["schemas"]["ReportErrorResponse"];
                     };
                 };
-                /** @description Bkper AI allowance exhausted (`ai_allowance_exhausted`) */
+                /** @description The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); requests by `intent` still work */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -222,7 +233,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Bkper or Bkper AI failed (`upstream_error`) */
+                /** @description Bkper or Bkper AI failed; try again (`upstream_error`) */
                 502: {
                     headers: {
                         [name: string]: unknown;
@@ -231,7 +242,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description API error */
+                /** @description Another error, such as `unauthorized` (401) or `internal_error` (500) */
                 default: {
                     headers: {
                         [name: string]: unknown;
@@ -263,53 +274,83 @@ export interface components {
             success: false;
             error: {
                 /**
-                 * @description invalid_request, unauthorized, forbidden, not_found, book_not_found, not_a_report, future_period, unknown_root, ai_allowance_exhausted, upstream_error or internal_error.
+                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
                  * @example book_not_found
                  */
                 code: string;
-                /** @example Book not found, or not shared with you. */
+                /**
+                 * @description What failed, in English, for people and logs. Never the request text.
+                 * @example Book not found, or not shared with you.
+                 */
                 message: string;
             };
         };
         SuggestionsResponse: {
+            /** @description Up to three reports, chosen from the Book’s own groups and data. */
             suggestions: components["schemas"]["Suggestion"][];
         };
+        /** @description A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI. */
         Suggestion: {
-            /** @example Expenses by month this year */
+            /**
+             * @description The report as a person would ask for it, in the requested language.
+             * @example Expenses by month this year
+             */
             text: string;
             intent: components["schemas"]["ReportIntent"];
         };
-        /** @description What to report: a root group id or `net-result`, a period id (`this_year`, `last_month`, `2025`, `2025-Q3`, `2025-10`, …), whether by month, an optional view and hashtags. */
+        /** @description Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
         ReportIntent: {
+            /**
+             * @description Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses (every Incoming root versus every Outgoing root).
+             * @example net-result
+             */
             root: string;
+            /**
+             * @description The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Current periods end today; past ones are whole calendar periods.
+             * @example this_year
+             */
             period: string;
+            /** @description Show the period month by month. */
             monthly: boolean;
-            /** @enum {string} */
+            /**
+             * @description The layout asked for: `trend` (over time), `breakdown` (by subgroups and Accounts) or `total` (the amount alone). Left out, the report picks one.
+             * @enum {string}
+             */
             view?: "trend" | "breakdown" | "total";
+            /**
+             * @description Only transactions with all these hashtags, without `#`.
+             * @example [
+             *       "travel"
+             *     ]
+             */
             hashtags?: string[];
         };
+        /** @description The report, with `format: spec`. */
         ReportResponse: {
             spec: components["schemas"]["ReportSpec"];
             intent: components["schemas"]["ReportIntent"];
             /**
-             * @description The Bkper language of the texts.
+             * @description The Bkper language of the report’s texts.
              * @example pt
              */
             language: string;
             /**
-             * @description The Bkper query of exactly the report’s transactions and dates.
+             * @description The Bkper query of exactly the report’s transactions and dates, to list them or check balances in Bkper.
              * @example group:'Expenses' after:2026-01-01 before:2026-11-06
              */
             query: string;
-            /** @description When the balances were read (ISO 8601). */
+            /**
+             * @description When the balances were read (ISO 8601); they may be up to 60 seconds old.
+             * @example 2026-11-05T14:03:12.345Z
+             */
             dataAt: string;
             /**
-             * @description The report in the Report app.
-             * @example https://report.bkper.app/?book=agtzfmJrcGVyLWhyZHINCxIGTGVkZ2VyGNEPDA&q=expenses
+             * @description The same report in the Report app, to open or share with the person.
+             * @example https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year
              */
             url: string;
         };
-        /** @description The report as a json-render spec of the report catalog, in `language`. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; for a net result, Incoming and Outgoing), `Chart` (when one fits), `BreakdownTable` (rows of subgroups and Accounts with amount, share and change, nested) and `Source`. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -456,24 +497,25 @@ export interface components {
             children: components["schemas"]["BreakdownRow"][];
         };
         ReportErrorResponse: components["schemas"]["ErrorResponse"] & {
-            /** @description With `not_a_report`: reports this Book can have. */
+            /** @description With `not_a_report`: reports this Book can have, to offer the person instead. */
             suggestions?: components["schemas"]["Suggestion"][];
         };
-        /** @description Exactly one of `prompt` (a request in any language) or `intent` (such as a suggestion’s, which needs no AI). */
+        /** @description Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
             /**
-             * @description The report asked for, in any language.
-             * @example expenses by month this year
+             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.
+             * @example show my expenses by category this year
              */
             prompt?: string;
             intent?: components["schemas"]["ReportIntent"];
             /**
-             * @description Language of the texts, as a BCP 47 tag of one of the Bkper languages, such as `pt` or `pt-BR`.
+             * @description Language of the report’s texts, as a BCP 47 tag of one of the 133 Bkper languages, such as `pt` or `pt-BR`. Leave it out to write the report in the language of `prompt`, else `Accept-Language`, else English.
              * @example pt-BR
              */
             language?: string;
             /**
-             * @description What to return: `spec` (the default), a json-render spec with the report’s intent, language, query and link; or `html`, one self-contained HTML file of the report that loads nothing and links to the Report app.
+             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time and link.
+             * @example html
              * @enum {string}
              */
             format?: "spec" | "html";

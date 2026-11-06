@@ -43,7 +43,7 @@ const HTTP_CODES: Partial<Record<number, ApiErrorCode>> = {
 
 const REPORT_ERROR_MESSAGES = {
     future_period: 'The period has not started yet.',
-    unknown_root: 'The intent names no root group of this Book.',
+    unknown_root: 'The intent names no root group of this Book, nor `net-result`.',
 } as const;
 
 /**
@@ -55,7 +55,10 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
         return {
             status: 422,
             body: {
-                ...buildApiError('not_a_report', 'The request is not a report of this Book.'),
+                ...buildApiError(
+                    'not_a_report',
+                    'The request is not a report this Book can have. Name one of its top-level groups, or income versus expenses, and a period; GET /api/v1/books/{bookId}/suggestions lists reports it can have.'
+                ),
                 suggestions: error.suggestions,
             },
         };
@@ -65,7 +68,11 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
     }
     if (error instanceof BkperAiError) {
         return error.code === 'usage_limit_exceeded'
-            ? respond(429, 'ai_allowance_exhausted', 'The Bkper AI allowance is exhausted.')
+            ? respond(
+                  429,
+                  'ai_allowance_exhausted',
+                  'The Bkper AI allowance is used up. Reports by `intent`, such as suggestions, still work.'
+              )
             : respond(502, 'upstream_error', 'Bkper AI failed to answer.');
     }
     if (error instanceof BkperError) {

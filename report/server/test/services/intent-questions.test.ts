@@ -7,7 +7,7 @@ import {
     buildIntentRequest,
 } from '../../src/services/intent-questions';
 import { buildPeriodOptions } from '../../src/services/periods';
-import { NET_RESULT_ROOT, REPORT_VIEWS } from '../../src/services/report-intent';
+import { NET_RESULT_ROOT, REPORT_CHARTS, REPORT_VIEWS } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
 import { TODAY, fixtureSnapshot } from '../fixtures/snapshot-book';
 
@@ -138,6 +138,14 @@ describe('buildIntentRequest', () => {
         expect(Object.keys(languages)).toEqual(LANGUAGES.map(language => language.code));
         expect(languages.pt).toBe('Portuguese (Português)');
         expect(languages.en).toBe('English');
+    });
+
+    it('offers every chart but auto, and unspecified', async () => {
+        const { request } = buildIntentRequest('expenses', await fixtureSnapshot());
+        expect(Object.keys(request.questions.chart.criteria)).toEqual([
+            ...REPORT_CHARTS.filter(chart => chart !== 'auto'),
+            UNSPECIFIED,
+        ]);
     });
 
     it('sends no null values and a bounded request', async () => {

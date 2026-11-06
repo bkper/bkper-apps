@@ -19,6 +19,7 @@ interface JevAnswers {
     root: string;
     period?: string;
     monthly?: number;
+    chart?: string;
     language?: string;
     rootConfidence?: number;
 }
@@ -37,6 +38,7 @@ function jevBody(answers: JevAnswers) {
             period: choice(answers.period ?? 'unspecified'),
             monthly: { type: 'noul', noul: answers.monthly ?? 0.01 },
             view: choice('unspecified'),
+            chart: choice(answers.chart ?? 'unspecified'),
             language: choice(answers.language ?? 'en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },
@@ -232,6 +234,18 @@ describe('createReport by prompt', () => {
         expect(result.language).toBe('es');
         expect(result.text).toBe('gastos en octubre');
         expect(test.options.timing.header()).toMatch(/^jev;dur=.*compute;dur=.*render;dur=/);
+    });
+
+    it('draws the chart the prompt asked for', async () => {
+        const test = harness({ root: 'Expenses', period: '2026-10', chart: 'table' });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'expenses in October, just the numbers' },
+            {},
+            test.options
+        );
+        expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'table' }));
+        expect(result.chart).toEqual({ kind: 'none', fallback: false });
     });
 
     it('prefers the requested language over the detected one', async () => {

@@ -6,7 +6,8 @@
  * Each case is a request, in one of many languages, with the answers it should get. The script
  * loads both snapshots (read-only, with your `bkper auth token`), asks the model each request
  * in turn as the app does, and reports the accuracy of each question after its threshold, of
- * the whole intent (default period included), and the p50/p95 latency of the model calls.
+ * the whole intent (default period and chart included), and the p50/p95 latency of the model
+ * calls. A case that names no chart expects `auto`, so every report checks the chart.
  *
  * The model calls use `BKPER_AI_TOKEN` when set, else your `bkper auth token`, and are labelled
  * `bkper-ai-source: report-eval-intent`. Bkper AI caches identical requests for 15 minutes, so
@@ -22,7 +23,7 @@ import {
     buildIntentRequest,
 } from '../server/src/services/intent-questions.ts';
 import { extractHashtags, readIntent } from '../server/src/services/intent-resolver.ts';
-import { NET_RESULT_ROOT } from '../server/src/services/report-intent.ts';
+import { NET_RESULT_ROOT, type ChartPreference } from '../server/src/services/report-intent.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
 import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
@@ -38,8 +39,9 @@ type Accepted = string | string[];
 /**
  * A request and what it should resolve to. Roots are group names, `net-result` or `none`;
  * `period` is the model's expected choice (`unspecified` when the request names none), and
- * `intentPeriod` the intent's period when it differs (the default period). Lists accept any
- * of their answers: equally right readings, such as an account found in two roots.
+ * `intentPeriod` the intent's period when it differs (the default period). `chart` is the
+ * intent's chart, `auto` when left out. Lists accept any of their answers: equally right
+ * readings, such as an account found in two roots.
  */
 interface Case {
     book: BookKey;
@@ -50,6 +52,7 @@ interface Case {
     intentPeriod?: string;
     monthly?: boolean;
     view?: Accepted;
+    chart?: ChartPreference;
 }
 
 const NONE = 'none';
@@ -292,9 +295,249 @@ const CASES: Case[] = [
         root: NONE,
         language: 'en',
     },
+
+    // Charts asked for, in many languages, and requests that only sound like one.
+    {
+        book: 'nimbus',
+        prompt: 'expenses in 2015 as a pie',
+        root: 'Despesas',
+        period: '2015',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'bridge from revenue to profit in 2014',
+        root: NET_RESULT_ROOT,
+        period: '2014',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'waterfall',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'expenses in 2016 versus last year by category',
+        root: 'Despesas',
+        period: '2016',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'compare',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'expenses in 2019, just the numbers',
+        root: 'Expenses',
+        period: '2019',
+        view: ['total', 'breakdown', UNSPECIFIED],
+        chart: 'table',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'my expenses in 2019 stacked by month',
+        root: 'Expenses',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'stacked',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'despesas de 2013 num gráfico de pizza',
+        root: 'Despesas',
+        period: '2013',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'cascata da receita até o lucro de 2015',
+        root: NET_RESULT_ROOT,
+        period: '2015',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'waterfall',
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: 'meus gastos em 2019, só a tabela',
+        root: 'Expenses',
+        period: '2019',
+        view: ['total', 'breakdown', UNSPECIFIED],
+        chart: 'table',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'ingresos de 2014 comparados con el año anterior',
+        root: 'Receitas',
+        period: '2014',
+        chart: 'compare',
+        language: 'es',
+    },
+    {
+        book: 'personal',
+        prompt: 'gastos de 2019 por mes en barras apiladas',
+        root: 'Expenses',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'stacked',
+        language: 'es',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Ausgaben 2012 als Tortendiagramm',
+        root: 'Despesas',
+        period: '2012',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'de',
+    },
+    {
+        book: 'personal',
+        prompt: 'Kontostand meiner Bankkonten Monat für Monat 2019 als Flächendiagramm',
+        root: 'Assets',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'area',
+        language: 'de',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Umsatz 2013 nur als Tabelle, ohne Grafik',
+        root: 'Receitas',
+        period: '2013',
+        view: ['total', 'breakdown', UNSPECIFIED],
+        chart: 'table',
+        language: 'de',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2016年の経費を前年と比べて',
+        root: 'Despesas',
+        period: '2016',
+        chart: 'compare',
+        language: 'ja',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2012年の売上から利益までのウォーターフォール',
+        root: NET_RESULT_ROOT,
+        period: '2012',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'waterfall',
+        language: 'ja',
+    },
+    {
+        book: 'personal',
+        prompt: '2019年の支出を月別の積み上げグラフで',
+        root: 'Expenses',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'stacked',
+        language: 'ja',
+    },
+    {
+        book: 'personal',
+        prompt: 'المصروفات في 2019 كمخطط دائري',
+        root: 'Expenses',
+        period: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'ar',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'الإيرادات في 2015 مقارنة بالعام السابق',
+        root: 'Receitas',
+        period: '2015',
+        chart: 'compare',
+        language: 'ar',
+    },
+    {
+        book: 'personal',
+        prompt: 'مصاريفي في 2019، الأرقام فقط بدون رسم',
+        root: 'Expenses',
+        period: '2019',
+        view: ['total', 'breakdown', UNSPECIFIED],
+        chart: 'table',
+        language: 'ar',
+    },
+    {
+        book: 'personal',
+        prompt: 'mes comptes bancaires mois par mois en 2019, en graphique en aires',
+        root: 'Assets',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'area',
+        language: 'fr',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2014年支出与上一年对比',
+        root: 'Despesas',
+        period: '2014',
+        chart: 'compare',
+        language: 'zh-CN',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'despesas por categoria em 2017',
+        root: 'Despesas',
+        period: '2017',
+        view: 'breakdown',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'revenue month by month in 2015',
+        root: 'Receitas',
+        period: '2015',
+        monthly: true,
+        view: 'trend',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'ingresos versus gastos en 2019',
+        root: [NET_RESULT_ROOT, 'Net income'],
+        period: '2019',
+        language: 'es',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'die größten Ausgaben 2015',
+        root: 'Despesas',
+        period: '2015',
+        view: 'breakdown',
+        language: 'de',
+    },
+    {
+        book: 'personal',
+        prompt: '2019年の銀行口座の残高',
+        root: 'Assets',
+        period: ['2019', '2019-12', '2019-Q4'],
+        view: ['total', UNSPECIFIED],
+        language: 'ja',
+    },
+    {
+        book: 'personal',
+        prompt: 'كم أنفقت على الطعام في 2019؟',
+        root: ['Expenses', 'Net income'],
+        period: '2019',
+        view: ['total', UNSPECIFIED],
+        language: 'ar',
+    },
 ];
 
-const QUESTIONS = ['root', 'period', 'monthly', 'view', 'language', 'intent'] as const;
+const QUESTIONS = ['root', 'period', 'monthly', 'view', 'chart', 'language', 'intent'] as const;
 type Measure = (typeof QUESTIONS)[number];
 
 class MemoryStore implements SnapshotStore {
@@ -371,6 +614,7 @@ async function main(): Promise<void> {
             period: sure(answers.period, THRESHOLDS.period),
             monthly: answers.monthly.noul >= THRESHOLDS.monthly,
             view: sure(answers.view, THRESHOLDS.view),
+            chart: intent?.chart ?? 'auto',
             language: resolution.language,
         };
         const checks: Partial<Record<Measure, boolean>> = {
@@ -382,12 +626,14 @@ async function main(): Promise<void> {
             checks.period = accepts(test.period, got.period);
             checks.monthly = got.monthly === (test.monthly ?? false);
             checks.view = accepts(test.view ?? UNSPECIFIED, got.view);
+            checks.chart = got.chart === (test.chart ?? 'auto');
             checks.intent =
                 intent !== undefined &&
                 checks.root &&
                 accepts(expectedPeriod, intent.period) &&
                 intent.monthly === (test.monthly ?? false) &&
                 accepts(test.view ?? UNSPECIFIED, intent.view ?? UNSPECIFIED) &&
+                checks.chart &&
                 (intent.hashtags ?? []).join() === hashtags.join();
         } else {
             checks.intent = !resolution.recognized;
@@ -406,6 +652,7 @@ async function main(): Promise<void> {
             `→${intent?.period ?? '-'}` +
             ` monthly=${answers.monthly.noul.toFixed(2)}` +
             ` view=${answers.view.choice}(${answers.view.confidence.toFixed(2)})` +
+            ` chart=${answers.chart.choice}(${answers.chart.confidence.toFixed(2)})` +
             ` lang=${answers.language.choice}(${answers.language.confidence.toFixed(2)})`;
         console.log(
             `${misses.length === 0 ? 'ok  ' : 'MISS'} #${number} ${Math.round(latencies.at(-1) ?? 0)}ms "${test.prompt}"` +

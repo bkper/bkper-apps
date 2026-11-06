@@ -70,6 +70,7 @@ function jevResponse(answers: JevAnswers): Response {
             period: choice(answers.period ?? 'unspecified'),
             monthly: { type: 'noul', noul: 0.01 },
             view: choice('unspecified'),
+            chart: choice('unspecified'),
             language: choice(answers.language ?? 'en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },

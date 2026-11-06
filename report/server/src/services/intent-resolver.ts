@@ -1,17 +1,19 @@
 /**
  * Intent resolution: a report request, in any language, becomes a {@link ReportIntent} with one
- * decision request. The model chooses the root, the period, whether to show months, the view
- * and the language among the options of {@link buildIntentRequest}; this code applies the
- * thresholds, picks the default period when the request names none, and reads hashtags from
- * the request text itself.
+ * decision request. The model chooses the root, the period, whether to show months, the view,
+ * the chart and the language among the options of {@link buildIntentRequest}; this code applies
+ * the thresholds, picks the default period when the request names none, and reads hashtags
+ * from the request text itself.
  */
 import { decide, type DecisionClient } from './decision-client.js';
 import { buildIntentRequest, NO_ROOT, THRESHOLDS, UNSPECIFIED } from './intent-questions.js';
 import { defaultPeriod, isPeriodId, type ReportNature } from './periods.js';
 import {
     NET_RESULT_ROOT,
+    REPORT_CHARTS,
     REPORT_VIEWS,
     ReportIntentSchema,
+    type ChartPreference,
     type ReportIntent,
     type ReportView,
 } from './report-intent.js';
@@ -34,8 +36,12 @@ export interface IntentAnswers {
     period: ChoiceAnswer;
     monthly: { noul: number };
     view: ChoiceAnswer;
+    chart: ChoiceAnswer;
     language: ChoiceAnswer;
 }
+
+/** Charts drawn by month, which read a trend's default period. */
+const CHARTS_BY_MONTH: readonly ChartPreference[] = ['stacked', 'area'];
 
 const MAX_HASHTAGS = 10;
 const MAX_HASHTAG_CHARACTERS = 100;
@@ -91,11 +97,14 @@ export function readIntent(
 
     const monthly = answers.monthly.noul >= THRESHOLDS.monthly;
     const view = readView(answers.view);
+    const chart = readChart(answers.chart);
+    const trend = monthly || view === 'trend' || CHARTS_BY_MONTH.includes(chart);
     const intent = ReportIntentSchema.parse({
         root,
-        period: readPeriod(answers.period, root, monthly || view === 'trend', snapshot),
+        period: readPeriod(answers.period, root, trend, snapshot),
         monthly,
         ...(view ? { view } : {}),
+        ...(chart !== 'auto' ? { chart } : {}),
         ...(hashtags.length > 0 ? { hashtags } : {}),
     });
     return { recognized: true, intent, ...languageField };
@@ -104,6 +113,12 @@ export function readIntent(
 function readView(answer: ChoiceAnswer): ReportView | undefined {
     const view = REPORT_VIEWS.find(id => id === answer.choice);
     return view && answer.confidence >= THRESHOLDS.view ? view : undefined;
+}
+
+/** The chart asked for when sure; otherwise the rules choose (`auto`). */
+function readChart(answer: ChoiceAnswer): ChartPreference {
+    const chart = REPORT_CHARTS.find(id => id !== 'auto' && id === answer.choice);
+    return chart && answer.confidence >= THRESHOLDS.chart ? chart : 'auto';
 }
 
 function readPeriod(answer: ChoiceAnswer, root: string, trend: boolean, snapshot: Snapshot) {

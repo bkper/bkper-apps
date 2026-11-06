@@ -3,14 +3,14 @@
  *
  * Every question, criterion and threshold of intent resolution lives here, so they can be
  * reviewed and tuned together. The model only chooses among options this code offers (the
- * Book's root groups, the periods within its data, the views, the languages); it never sees
- * amounts, computes dates or writes queries. Question ids are not sent to the model, so each
- * instruction stands alone and refers to the state fields in backticks.
+ * Book's root groups, the periods within its data, the views, the charts, the languages); it
+ * never sees amounts, computes dates or writes queries. Question ids are not sent to the model,
+ * so each instruction stands alone and refers to the state fields in backticks.
  */
 import type { ChoiceQuestion, NoulQuestion, SystemOneRequest } from '@typesafe-ai/sdk';
 import { LANGUAGES } from 'report-shared/languages';
 import { buildPeriodOptions } from './periods.js';
-import { NET_RESULT_ROOT, type ReportView } from './report-intent.js';
+import { NET_RESULT_ROOT, type ChartPreference, type ReportView } from './report-intent.js';
 import type { Snapshot, SnapshotGroup } from './snapshot.js';
 
 /** How sure the model must be before an answer is used. */
@@ -23,6 +23,8 @@ export const THRESHOLDS = {
     monthly: 0.5,
     /** Below it, the report picks its layout by rules. */
     view: 0.5,
+    /** Below it, the report picks its chart by rules (`auto`). */
+    chart: 0.5,
     /** Below it, the detected language is not used. */
     language: 0.8,
 } as const;
@@ -59,7 +61,7 @@ const PERIOD_INSTRUCTIONS =
 const UNSPECIFIED_PERIOD_CRITERION = '`request` names no date, year, month, quarter or period.';
 
 const MONTHLY_INSTRUCTIONS =
-    'Does `request` ask to see the amounts month by month, or how they evolve over time?';
+    'Does `request` ask to see the amounts month by month, or how they evolve over time? Comparing a period with an earlier one, such as versus last year, is not by month.';
 
 const VIEW_INSTRUCTIONS =
     'How does `request` explicitly ask to see the amounts? Choose `unspecified` when `request` only says what and when, without asking how to show it.';
@@ -71,6 +73,23 @@ export const VIEW_CRITERIA = {
     total: 'One total: `request` is a question answered by a single number, such as how much in all or what the balance is.',
     [UNSPECIFIED]: '`request` does not say how to show the amounts.',
 } as const satisfies Record<ReportView | typeof UNSPECIFIED, string>;
+
+const CHART_INSTRUCTIONS =
+    'Which chart does `request` explicitly ask for, in any language? Choose `unspecified` unless `request` names a kind of chart, asks for no chart, or compares with an earlier period. Saying only what to show, and when, is not asking for a chart: by month, over time, by category, the biggest items, a total or a balance are all `unspecified`.';
+
+export const CHART_CRITERIA = {
+    pie: 'A pie chart: the share of each part of the whole, drawn as slices. Such as "as a pie", "em pizza", "gráfico de tarta", "als Kuchendiagramm", "en camembert", "円グラフで", "كمخطط دائري".',
+    stacked:
+        'Stacked bars or columns: the parts piled on each other, month by month. Such as "stacked by month", "barras empilhadas", "apilado por mes", "gestapelt nach Monat", "積み上げ棒グラフ", "أعمدة مكدسة".',
+    area: 'An area chart: amounts over time drawn as a filled area. Such as "as an area chart", "gráfico de área", "Flächendiagramm", "面グラフ", "مخطط مساحي".',
+    compare:
+        'This period side by side with the previous or an earlier one: versus last year, against the month before, year over year, how each part changed since then. Such as "versus last year by category", "comparado com o ano anterior", "frente al año pasado", "im Vergleich zum Vorjahr", "前年と比較", "مقارنة بالعام الماضي". Not two different things in the same period, such as income versus expenses.',
+    waterfall:
+        'A waterfall or bridge: from a starting amount, step by step, to the final one, such as from revenue through each expense to profit, or from the opening to the closing balance. Such as "bridge from revenue to profit", "cascata", "gráfico de cascada", "Wasserfalldiagramm", "ウォーターフォール", "مخطط شلالي".',
+    table: 'No chart: only the numbers, a table or a list. Such as "just the numbers", "só a tabela", "sin gráfico", "nur die Zahlen", "表だけ", "الأرقام فقط".',
+    [UNSPECIFIED]:
+        '`request` names no chart, asks for no table only and compares with no earlier period.',
+} as const satisfies Record<Exclude<ChartPreference, 'auto'> | typeof UNSPECIFIED, string>;
 
 const LANGUAGE_INSTRUCTIONS = 'In which language is `request` written?';
 
@@ -101,6 +120,7 @@ export type IntentQuestions = {
     period: ChoiceQuestion<Criteria>;
     monthly: NoulQuestion;
     view: ChoiceQuestion<typeof VIEW_CRITERIA>;
+    chart: ChoiceQuestion<typeof CHART_CRITERIA>;
     language: ChoiceQuestion<Criteria>;
 };
 
@@ -131,6 +151,11 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                 },
                 monthly: { type: 'noul', instructions: MONTHLY_INSTRUCTIONS },
                 view: { type: 'choice', instructions: VIEW_INSTRUCTIONS, criteria: VIEW_CRITERIA },
+                chart: {
+                    type: 'choice',
+                    instructions: CHART_INSTRUCTIONS,
+                    criteria: CHART_CRITERIA,
+                },
                 language: {
                     type: 'choice',
                     instructions: LANGUAGE_INSTRUCTIONS,

@@ -19,6 +19,7 @@ function answers(overrides: Partial<IntentAnswers> = {}): IntentAnswers {
         period: sure('2026-Q3'),
         monthly: { noul: 0.1 },
         view: sure('unspecified'),
+        chart: sure('unspecified'),
         language: sure('pt'),
         ...overrides,
     };
@@ -87,6 +88,32 @@ describe('readIntent', () => {
                 hashtags: ['travel'],
             },
             language: 'pt',
+        });
+    });
+
+    it('reads a sure chart, and leaves an unsure or unspecified one to the rules', async () => {
+        for (const chart of ['pie', 'stacked', 'area', 'compare', 'waterfall', 'table']) {
+            expect(await read({ chart: sure(chart) })).toMatchObject({ intent: { chart } });
+        }
+        const unsure = await read({
+            chart: { choice: 'pie', confidence: THRESHOLDS.chart - 0.01 },
+        });
+        expect(unsure).toMatchObject({ recognized: true });
+        expect(unsure.recognized && unsure.intent).not.toHaveProperty('chart');
+        const unspecified = await read();
+        expect(unspecified.recognized && unspecified.intent).not.toHaveProperty('chart');
+    });
+
+    it('reads a trend period for a chart by month when no period is named', async () => {
+        const unnamed = { period: sure('unspecified') };
+        expect(await read({ ...unnamed, chart: sure('stacked') })).toMatchObject({
+            intent: { period: 'last_12_months', chart: 'stacked' },
+        });
+        expect(await read({ ...unnamed, chart: sure('area') })).toMatchObject({
+            intent: { period: 'last_12_months', chart: 'area' },
+        });
+        expect(await read({ ...unnamed, chart: sure('pie') })).toMatchObject({
+            intent: { period: 'this_year', chart: 'pie' },
         });
     });
 
@@ -184,6 +211,7 @@ function answerBody() {
             period: choice('2026-10'),
             monthly: { type: 'noul', noul: 0.02 },
             view: choice('total'),
+            chart: choice('unspecified'),
             language: choice('en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },

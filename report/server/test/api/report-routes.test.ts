@@ -2,7 +2,7 @@ import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
 import type { ReportFileData } from 'report-shared/report-file';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppContext } from '../../src/app-context';
 import { createDecisionClient } from '../../src/services/decision-client';
 import { createApp } from '../../src/index';
@@ -15,6 +15,10 @@ const SUGGESTIONS_URL = `http://localhost:8809/api/v1/books/${BOOK}/suggestions`
 
 /** The fixture Book's today, 2026-11-05, at noon in São Paulo. */
 const NOW = new Date('2026-11-05T15:00:00Z');
+
+// The routes read the clock: the fixture's queries are those of its today.
+beforeAll(() => vi.useFakeTimers({ now: NOW, toFake: ['Date'] }));
+afterAll(() => vi.useRealTimers());
 
 /** Reads the fixture Book; the Report app never writes to a Book, so nothing else is faked. */
 class FakeBkper {

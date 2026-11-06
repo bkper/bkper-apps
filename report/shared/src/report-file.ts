@@ -13,4 +13,10 @@ export interface ReportFileData {
     spec: ReportSpec;
     /** The plain link of the report's Source: the same report in the Report app. */
     link: { url: string; label: string };
+    /**
+     * The Book and the report's state (`report-state.ts`), with which a host that lets the file
+     * navigate, such as the Bkper Agent in a Book, opens the same report in the Report app in
+     * place; left out when the report has no state.
+     */
+    open?: { bookId: string; state: string };
 }

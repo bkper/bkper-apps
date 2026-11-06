@@ -1,6 +1,7 @@
 import { createRoute } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { supportedLanguage } from 'report-shared/languages';
+import { encodeReportState } from 'report-shared/report-state';
 import { t } from 'report-shared/strings';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext, AppEnv } from '../app-context.js';
@@ -139,10 +140,11 @@ export function registerApiRoutes(app: App): void {
         const { text, ...report } = result;
         const url = reportAppUrl(c.req.url, bookId, text);
         if (body.format === 'html') {
+            const state = encodeReportState({ intent: report.intent, language: report.language });
             const file = await context.timing.measure('render', async () =>
                 buildReportFile(report.spec, {
-                    url,
-                    label: t('source_open_in_report', report.language),
+                    link: { url, label: t('source_open_in_report', report.language) },
+                    ...(state ? { open: { bookId, state } } : {}),
                 })
             );
             return c.html(file, 200);

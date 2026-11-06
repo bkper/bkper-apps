@@ -11,6 +11,12 @@
  * periods are whole calendar periods.
  */
 
+import {
+    PERIOD_ID_PATTERN,
+    RELATIVE_PERIODS,
+    type RelativePeriod,
+} from 'report-shared/report-intent';
+
 /** A calendar date, `YYYY-MM-DD`, in the Book time zone. */
 export type IsoDate = string;
 
@@ -48,28 +54,10 @@ export interface PeriodOption {
 /** Activity happens within a period (Incoming, Outgoing); a position is measured to a date (Asset, Liability). */
 export type ReportNature = 'activity' | 'position';
 
-export const RELATIVE_PERIODS = [
-    'today',
-    'this_month',
-    'last_month',
-    'this_quarter',
-    'last_quarter',
-    'this_year',
-    'last_year',
-    'ytd',
-    'last_12_months',
-    'all',
-] as const;
-
-export type RelativePeriod = (typeof RELATIVE_PERIODS)[number];
+export { RELATIVE_PERIODS, PERIOD_ID_PATTERN, type RelativePeriod };
 
 /** Upper bound of options in a single choice. */
 export const MAX_PERIOD_OPTIONS = 255;
-
-/** Relative ids, a year `YYYY`, a quarter `YYYY-Qn` or a month `YYYY-MM`. */
-export const PERIOD_ID_PATTERN = new RegExp(
-    `^(?:${RELATIVE_PERIODS.join('|')}|[12]\\d{3}(?:-Q[1-4]|-(?:0[1-9]|1[0-2]))?)$`
-);
 
 const RELATIVE_LABELS: Record<RelativePeriod, string> = {
     today: 'today',

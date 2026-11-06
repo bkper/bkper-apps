@@ -13,6 +13,8 @@ const LINK = {
 /** The Agent shows HTML files up to 1 MB; the bundle leaves most of it to the report data. */
 const MAX_BUNDLE_BYTES = 400 * 1024;
 
+const OPEN = { bookId: 'book-1', state: '1MF9hLjIwMjYuLi5nLWJhbms' };
+
 const SOURCE_URL = 'https://bkper.app/b/#transactions:bookId=book-1';
 
 const BUNDLE = { script: 'window.started = true;', style: 'body { margin: 0; }' };
@@ -79,7 +81,7 @@ function dataOf(html: string): { text: string; data: ReportFileData } {
 
 describe('report file', () => {
     it('is one document in the report language, titled by the report', () => {
-        const html = buildReportFile(spec(), LINK, BUNDLE);
+        const html = buildReportFile(spec(), { link: LINK }, BUNDLE);
 
         expect(html).toMatch(/^<!doctype html>\n<html lang="ar" dir="rtl">/);
         expect(html).toContain('<meta charset="utf-8">');
@@ -91,11 +93,12 @@ describe('report file', () => {
     });
 
     it('carries the spec and the link without ending its script early', () => {
-        const html = buildReportFile(spec(), LINK, BUNDLE);
+        const html = buildReportFile(spec(), { link: LINK }, BUNDLE);
         const { text, data } = dataOf(html);
 
         expect(text).not.toMatch(/<\/?script|<!--|\u2028|\u2029/i);
         expect(data.link).toEqual(LINK);
+        expect(data.open).toBeUndefined();
         const expected = spec();
         const source = expected.elements.source;
         if (source.type === 'Source') {
@@ -106,14 +109,19 @@ describe('report file', () => {
     });
 
     it('carries a Content-Security-Policy that lets it load nothing', () => {
-        const html = buildReportFile(spec(), LINK, BUNDLE);
+        const html = buildReportFile(spec(), { link: LINK }, BUNDLE);
         expect(html).toContain(
             `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; form-action 'none'; base-uri 'none'">`
         );
     });
 
+    it('carries the Book and state that open the report in the Report app, when given', () => {
+        const { data } = dataOf(buildReportFile(spec(), { link: LINK, open: OPEN }, BUNDLE));
+        expect(data.open).toEqual(OPEN);
+    });
+
     describe('with the built renderer bundle', () => {
-        const html = buildReportFile(spec(), LINK);
+        const html = buildReportFile(spec(), { link: LINK, open: OPEN });
 
         it('refers to nothing on the network but its link to the Report app', () => {
             const urls = [...html.matchAll(/https?:\/\/[^\s"'`()<>\\]+/gi)].map(match => match[0]);

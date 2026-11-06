@@ -7,4 +7,4 @@ import './report-file.css';
 import '../report/index.js';
 import { startReportFile } from './report-file.js';
 
-startReportFile(document, matchMedia('(prefers-color-scheme: dark)'));
+startReportFile(document, matchMedia('(prefers-color-scheme: dark)'), window);

@@ -1,3 +1,4 @@
+import { reportText, type ReportState } from 'report-shared/report-state';
 import type { StringKey } from 'report-shared/strings';
 import {
     AppApiError,
@@ -69,7 +70,7 @@ export class Reports extends Store {
     /** Reports the Book can have; `undefined` while they load. */
     @reactive suggestions?: Suggestion[];
 
-    private bookId?: string;
+    private openBookId?: string;
     private cache = new Map<string, Entry>();
     /** Identifies the latest request: an answer to any other is stale. */
     private sequence = 0;
@@ -89,6 +90,11 @@ export class Reports extends Store {
         return this.options.language;
     }
 
+    /** The Book whose reports these are. */
+    get bookId(): string | undefined {
+        return this.openBookId;
+    }
+
     /** The suggestions show under an empty input, and with the notices they answer. */
     get showsSuggestions(): boolean {
         return (
@@ -96,12 +102,15 @@ export class Reports extends Store {
         );
     }
 
-    /** Start over for a Book, or none, running `prompt` at once, and load its suggestions. */
-    open(bookId: string | undefined, prompt = ''): void {
+    /**
+     * Start over for a Book, or none, and load its suggestions; show the report of `state` at
+     * once, else run `prompt`.
+     */
+    open(bookId: string | undefined, prompt = '', state?: ReportState): void {
         this.cancel();
         this.suggestionsRequest?.abort();
         this.suggestionsRequest = undefined;
-        this.bookId = bookId;
+        this.openBookId = bookId;
         this.cache = new Map();
         this.report = undefined;
         this.notice = undefined;
@@ -109,7 +118,18 @@ export class Reports extends Store {
         this.text = prompt;
         if (!bookId) return;
         void this.loadSuggestions(bookId);
-        if (prompt.trim()) this.run(prompt);
+        if (state) this.openState(state);
+        else if (prompt.trim()) this.run(prompt);
+    }
+
+    /**
+     * Show the report of a state, such as one Bkper kept in the Book's URL, by its intent (no
+     * AI), in its language; once it shows, the input holds its title and period.
+     */
+    openState(state: ReportState): void {
+        this.clearTimer();
+        this.notice = undefined;
+        this.run('', state.intent, { language: state.language, label: true });
     }
 
     /** The person typed: keep the request in the URL and ask once typing pauses. */
@@ -145,14 +165,24 @@ export class Reports extends Store {
         this.notice = notice;
     }
 
-    private run(text: string, intent?: ReportIntent): void {
-        const bookId = this.bookId;
+    /**
+     * Ask for the report of `text`, or of `intent` in `language` (by default the interface's);
+     * with `label`, the input then holds the report's title and period.
+     */
+    private run(
+        text: string,
+        intent?: ReportIntent,
+        { language = this.language, label = false }: { language?: string; label?: boolean } = {}
+    ): void {
+        const bookId = this.openBookId;
         if (!bookId) return;
-        const key = intent ? intentKey(intent, this.language) : promptKey(text);
+        const key = intent ? intentKey(intent, language) : promptKey(text);
         const cached = this.cache.get(key);
+        // The label replaces only the text the report was asked with, never later typing.
+        const labelFor = label ? this.text : undefined;
         if (cached?.value) {
             this.cancel();
-            this.show(cached.value);
+            this.show(cached.value, labelFor);
             return;
         }
         if (this.inFlight?.key === key) return;
@@ -161,9 +191,7 @@ export class Reports extends Store {
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
-            const body: ReportRequest = intent
-                ? { intent, language: this.language }
-                : { prompt: text.trim() };
+            const body: ReportRequest = intent ? { intent, language } : { prompt: text.trim() };
             entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
@@ -172,7 +200,7 @@ export class Reports extends Store {
             report => {
                 if (sequence !== this.sequence) return;
                 this.inFlight = undefined;
-                this.show(report);
+                this.show(report, labelFor);
             },
             (error: unknown) => {
                 if (sequence !== this.sequence) return;
@@ -203,10 +231,12 @@ export class Reports extends Store {
         return entry;
     }
 
-    private show(report: ReportResponse): void {
+    /** Show a report; when the input still holds `labelFor`, its title and period replace it. */
+    private show(report: ReportResponse, labelFor?: string): void {
         this.pending = false;
         this.notice = undefined;
         this.report = report;
+        if (labelFor !== undefined && this.text === labelFor) this.text = reportText(report.spec);
     }
 
     private failed(error: unknown): void {

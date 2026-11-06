@@ -31,11 +31,12 @@ const POLICY =
 
 /**
  * The report file of a validated spec. The file cannot open Bkper in place, so its Source keeps
- * no `openInBkper` action and shows `link` instead.
+ * no `openInBkper` action and shows `link` instead, which opens the report in the Report app
+ * in place (`open`) where the host lets the file navigate.
  */
 export function buildReportFile(
     spec: ReportSpec,
-    link: ReportFileData['link'],
+    { link, open }: Pick<ReportFileData, 'link' | 'open'>,
     bundle: ReportFileBundle = REPORT_FILE_BUNDLE
 ): string {
     const report = spec.elements[spec.root];
@@ -43,7 +44,11 @@ export function buildReportFile(
         throw new Error('The spec has no Report at its root');
     }
     const { title, subtitle, locale, dir } = report.props;
-    const data: ReportFileData = { spec: withoutOpenInBkper(spec), link };
+    const data: ReportFileData = {
+        spec: withoutOpenInBkper(spec),
+        link,
+        ...(open ? { open } : {}),
+    };
     return [
         '<!doctype html>',
         `<html lang="${escapeHtml(locale)}" dir="${dir}">`,

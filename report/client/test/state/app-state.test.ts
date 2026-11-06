@@ -1,8 +1,11 @@
+import { decodeReportState, encodeReportState } from 'report-shared/report-state';
 import { describe, expect, it, vi } from 'vitest';
+import type { ReportRequest, ReportResponse } from '../../src/api/app-api';
 import type { AuthSession, AuthSessionCallbacks } from '../../src/auth/auth-session';
 import type { BookListItem, BookService } from '../../src/services/book-service';
 import { AppState } from '../../src/state/app-state';
 import type { ReportApi } from '../../src/state/reports';
+import type { HostPage } from '../../src/state/book-host';
 import type { RoutePage } from '../../src/state/route';
 
 const SAFE_ERROR = 'error_load_data';
@@ -332,5 +335,158 @@ describe('AppState', () => {
         offline.connect();
         await vi.waitFor(() => expect(errors).toHaveLength(1));
         expect(offline.strings.language).toBe('en');
+    });
+
+    describe('in a Book that keeps the report’s state', () => {
+        const BKPER = 'https://bkper.app';
+        const EXPENSES = { root: 'g-1', period: '2011', monthly: true, chart: 'area' as const };
+        const REVENUE = { root: 'g-2', period: '2012', monthly: false };
+        const state = (intent: ReportResponse['intent'], language = 'pt') =>
+            encodeReportState({ intent, language }) ?? '';
+
+        /** A report API that answers each request at once, echoing its intent. */
+        function answeringApi() {
+            const bodies: ReportRequest[] = [];
+            const api: ReportApi = {
+                suggestions: async () => [],
+                report: async (_bookId, body) => {
+                    bodies.push(body);
+                    const intent = body.intent ?? REVENUE;
+                    const props = {
+                        title: body.intent ? `By intent ${intent.root}` : `Typed ${body.prompt}`,
+                        subtitle: intent.period,
+                        locale: 'pt',
+                        dir: 'ltr' as const,
+                        fractionDigits: 2,
+                    };
+                    return {
+                        spec: {
+                            root: 'report',
+                            elements: { report: { type: 'Report', props, children: [] } },
+                        },
+                        intent,
+                        language: body.language ?? 'pt',
+                        query: 'q',
+                        dataAt: '2026-11-05T00:00:00Z',
+                        chart: { kind: 'none', fallback: false },
+                        url: 'https://report.bkper.app/',
+                    };
+                },
+            };
+            return { api, bodies };
+        }
+
+        function embeddedApp(href: string) {
+            const { page } = createPage(href);
+            const parent = { postMessage: vi.fn() };
+            const host: HostPage = Object.assign(new EventTarget(), {
+                parent,
+                location: { origin: 'https://report.bkper.app' },
+            });
+            const { api, bodies } = answeringApi();
+            const auth: { callbacks?: AuthSessionCallbacks } = {};
+            const app = new AppState({
+                page,
+                host,
+                embedded: true,
+                language: 'en',
+                createReportApi: () => api,
+                loadRenderer: async () => undefined,
+                loadStrings: async () => undefined,
+                createAuthSession: callbacks => {
+                    auth.callbacks = callbacks;
+                    return createAuth();
+                },
+                createBookService: () => createBookService(),
+                logger: { error: () => undefined },
+            });
+            app.connect();
+            const send = (data: unknown) => {
+                const event = new MessageEvent('message', { data, origin: BKPER });
+                Object.defineProperty(event, 'source', { value: parent });
+                host.dispatchEvent(event);
+            };
+            const ready = (supports = ['navigate', 'app-state']) =>
+                send({ type: 'bkper:host-ready', supports });
+            const sent = () =>
+                parent.postMessage.mock.calls.map(([message, origin]) => ({ message, origin }));
+            const signIn = async () => auth.callbacks?.onLoginSuccess?.();
+            return { app, page, bodies, send, ready, sent, signIn };
+        }
+
+        it('opens the report of the state in its URL by intent, without AI', async () => {
+            const { app, bodies, signIn } = embeddedApp(
+                `https://report.bkper.app/?book=b&q=net&state=${state(EXPENSES, 'es')}`
+            );
+            await signIn();
+
+            await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(EXPENSES));
+            expect(bodies).toEqual([{ intent: EXPENSES, language: 'es' }]);
+            expect(app.reports.text).toBe('By intent g-1 2011');
+        });
+
+        it('runs the request in the URL when its state is missing, unreplaced or invalid', async () => {
+            for (const value of ['', '$%7Bapp.state%7D', '1notastate']) {
+                const { bodies, signIn } = embeddedApp(
+                    `https://report.bkper.app/?book=b&q=despesas%202011&state=${value}`
+                );
+                await signIn();
+                await vi.waitFor(() => expect(bodies).toEqual([{ prompt: 'despesas 2011' }]));
+            }
+        });
+
+        it('sends the state of the report shown only once the Book keeps it', async () => {
+            const { app, page, ready, sent, signIn } = embeddedApp(
+                'https://report.bkper.app/?book=b&q=receitas%202012'
+            );
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report).toBeDefined());
+            ready(['navigate']);
+            expect(sent()).toEqual([]);
+
+            ready();
+
+            const expected = state(REVENUE);
+            expect(sent()).toEqual([
+                { message: { type: 'bkper:app-state', state: expected }, origin: BKPER },
+            ]);
+            expect(new URL(page.location.href).searchParams.get('state')).toBe(expected);
+            expect(decodeReportState(expected)?.intent).toEqual(REVENUE);
+
+            // The same report again, or Bkper saying it host-ready again, sends nothing new.
+            ready();
+            app.reports.submit();
+            await vi.waitFor(() => expect(app.reports.pending).toBe(false));
+            expect(sent()).toHaveLength(1);
+        });
+
+        it('does not send back the state it opened with', async () => {
+            const { app, ready, sent, signIn } = embeddedApp(
+                `https://report.bkper.app/?book=b&state=${state(EXPENSES)}`
+            );
+            ready();
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(EXPENSES));
+            expect(sent()).toEqual([]);
+        });
+
+        it('shows the report of a state Bkper changes the app URL to', async () => {
+            const { app, bodies, send, ready, sent, signIn } = embeddedApp(
+                `https://report.bkper.app/?book=b&state=${state(EXPENSES)}`
+            );
+            ready();
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(EXPENSES));
+
+            send({
+                type: 'bkper:app-url-changed',
+                url: `https://report.bkper.app/?book=b&state=${state(REVENUE)}`,
+            });
+
+            await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(REVENUE));
+            expect(bodies.at(-1)).toEqual({ intent: REVENUE, language: 'pt' });
+            expect(app.reports.text).toBe('By intent g-2 2012');
+            expect(sent()).toEqual([]);
+        });
     });
 });

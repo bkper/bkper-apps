@@ -12,13 +12,18 @@
  * `<!doctype html>` and Content-Security-Policy, styled as the Agent styles it, while every
  * request is blocked. It checks there are no requests, no policy violations and no console
  * errors; that the answer, the chart and the link to the Report app show; that a row opens
- * in place; and that values written into texts, such as dates, read in the report's direction. `--screenshots` saves a picture of each. Needs Playwright's Chromium headless shell
- * (`npx playwright-core install chromium-headless-shell`).
+ * in place; that values written into texts, such as dates, read in the report's direction;
+ * and that the link asks the Agent to open the report in the Report app in the Book
+ * (`bkper:navigate`) only after the Agent's `bkper:host-ready` and a click, and stays a plain
+ * link before. `--screenshots` saves a picture of each. Needs Playwright's Chromium headless
+ * shell (`npx playwright-core install chromium-headless-shell`).
  */
 import { mkdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { chromium, type Frame, type Page } from 'playwright-core';
 import { validateReportSpec } from '../shared/src/catalog.ts';
+import type { ReportFileData } from '../shared/src/report-file.ts';
+import { decodeReportState, encodeReportState } from '../shared/src/report-state.ts';
 import { buildReportFile } from '../server/src/services/report-file.ts';
 
 /** The Agent's frame policy and document (bkper-clients `packages/agent`, `file-views.ts`). */
@@ -30,11 +35,29 @@ function sandboxedHtml(text: string): string {
     return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${HTML_VIEW_POLICY}">${text}`;
 }
 
-/** The Agent's HTML view: its frame fills the panel, on a light page (`html-css.ts`). */
+/** Where the Agent runs, served here, so the file's frame hears messages from its real origin. */
+const AGENT_URL = 'https://agent.bkper.app/';
+
+/** The Bkper the Agent names in its `bkper:host-ready` to the file. */
+const BKPER_ORIGIN = 'https://bkper.app';
+
+/**
+ * The Agent's HTML view: its frame fills the panel, on a light page (`html-css.ts`). It records
+ * the messages of the file's frame and whether the person was in the frame then, as the Agent
+ * checks (`file-host.ts`). A string: tsx would wrap a function's inner functions in a helper.
+ */
 const HOST_PAGE = `<!doctype html><html><head><style>
     html, body { height: 100%; margin: 0; }
     iframe { display: block; width: 100%; height: 100%; border: 0; background: white; color-scheme: light; }
-</style></head><body><iframe sandbox="allow-scripts" title="report.html"></iframe></body></html>`;
+</style></head><body><iframe sandbox="allow-scripts" title="report.html"></iframe><script>
+    window.fileMessages = [];
+    window.addEventListener('message', event => {
+        const frame = document.querySelector('iframe');
+        if (event.source !== frame.contentWindow) return;
+        const focused = document.activeElement === frame && document.hasFocus();
+        window.fileMessages.push({ data: event.data, focused });
+    });
+</script></body></html>`;
 
 /** The Agent shows HTML files up to this size; larger ones only download. */
 const MAX_TEXT_VIEW_BYTES = 1024 * 1024;
@@ -48,6 +71,15 @@ const CHART_ANIMATION_MS = 1200;
 const SPEC_FILES = ['client/dev/specs/studio.json', 'client/dev/specs/ledger.json'];
 
 const LINK = { url: 'https://report.bkper.app/?book=book-1&q=report', label: 'Open in Report' };
+
+/** Recorded specs carry no intent: any report's state shows the file opens what it carries. */
+const OPEN = {
+    bookId: 'book-1',
+    state: encodeReportState({
+        intent: { root: 'net-result', period: '2018', monthly: true, chart: 'waterfall' },
+        language: 'en',
+    }),
+};
 
 interface ReportFile {
     name: string;
@@ -77,7 +109,11 @@ async function recordedFiles(): Promise<ReportFile[]> {
                     `Invalid recorded spec ${entry.id}: ${validation.issues.join('; ')}`
                 );
             }
-            files.push({ name: entry.id, html: buildReportFile(validation.spec, LINK) });
+            const open = OPEN.state ? { bookId: OPEN.bookId, state: OPEN.state } : undefined;
+            files.push({
+                name: entry.id,
+                html: buildReportFile(validation.spec, { link: LINK, ...(open ? { open } : {}) }),
+            });
         }
     }
     return files;
@@ -104,7 +140,7 @@ async function givenFiles(): Promise<ReportFile[]> {
 
 /** Opens a file in the Agent's frame, and the frame once it has rendered the report. */
 async function open(page: Page, file: ReportFile): Promise<Frame> {
-    await page.setContent(HOST_PAGE);
+    await page.goto(AGENT_URL);
     await page.evaluate(srcdoc => {
         const frame = document.querySelector('iframe');
         if (frame) {
@@ -189,6 +225,78 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
         }
     }
     failures.push(...(await frame.evaluate(readingOrder)));
+    return failures;
+}
+
+/**
+ * The link opens the Report app in the Book in place only once the Agent allows it: before its
+ * `bkper:host-ready`, a click is left to the browser (a new tab) and nothing is sent; after it,
+ * nothing is sent until a click, which then sends one `bkper:navigate` to the Book page of the
+ * file's report state, while the person is in the frame. A file without state keeps the link.
+ */
+async function checkNavigation(page: Page, frame: Frame): Promise<string[]> {
+    const failures: string[] = [];
+    const data = await frame.evaluate(
+        () => JSON.parse(document.getElementById('report-data')?.textContent ?? '{}') as unknown
+    );
+    const open = (data as Partial<ReportFileData>).open;
+    const messages = () =>
+        page.evaluate(
+            () =>
+                (window as Window & { fileMessages?: { data: unknown; focused: boolean }[] })
+                    .fileMessages ?? []
+        );
+    // Records whether the file took each click, and keeps the browser from opening a tab.
+    await frame.evaluate(() => {
+        const clicks: boolean[] = [];
+        Object.assign(window, { clicks });
+        window.addEventListener('click', event => {
+            clicks.push(event.defaultPrevented);
+            event.preventDefault();
+        });
+    });
+    const clicks = () =>
+        frame.evaluate(() => (window as Window & { clicks?: boolean[] }).clicks ?? []);
+    const link = frame.locator('report-view .source-footer a');
+
+    await link.click();
+    if ((await clicks())[0] !== false || (await messages()).length > 0) {
+        failures.push('Before host-ready, the link is not a plain link');
+    }
+    await page.evaluate(origin => {
+        document
+            .querySelector('iframe')
+            ?.contentWindow?.postMessage(
+                { type: 'bkper:host-ready', supports: ['navigate'], origin },
+                '*'
+            );
+    }, BKPER_ORIGIN);
+    await page.waitForTimeout(100);
+    if ((await messages()).length > 0) {
+        failures.push('The file sent a message without a click');
+    }
+    await link.click();
+    await page.waitForTimeout(100);
+    const sent = await messages();
+    if (!open) {
+        if (sent.length > 0 || (await clicks())[1] !== false) {
+            failures.push('A file without a report state does not keep a plain link');
+        }
+        return failures;
+    }
+    const expected = `${BKPER_ORIGIN}/books/${encodeURIComponent(open.bookId)}/transactions?app=report&appState=${open.state}`;
+    const navigate = sent[0]?.data as { type?: unknown; url?: unknown } | undefined;
+    if (sent.length !== 1 || navigate?.type !== 'bkper:navigate' || navigate.url !== expected) {
+        failures.push(`After host-ready, a click sent ${JSON.stringify(sent)}, not one navigate`);
+    } else if (!sent[0].focused) {
+        failures.push('The navigate came while the person was not in the file');
+    }
+    if ((await clicks())[1] !== true) {
+        failures.push('After host-ready, the click still opens a tab');
+    }
+    if (!decodeReportState(open.state)) {
+        failures.push(`The file's state does not open a report: ${open.state}`);
+    }
     return failures;
 }
 
@@ -362,6 +470,9 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                 page.on('console', onConsole);
                 page.on('pageerror', onError);
                 await page.route('**/*', route => {
+                    if (route.request().url() === AGENT_URL) {
+                        return route.fulfill({ contentType: 'text/html', body: HOST_PAGE });
+                    }
                     requests.push(route.request().url());
                     return route.abort();
                 });
@@ -394,6 +505,8 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                         },
                     });
                 }
+                // Last: its clicks move the focus into the link.
+                failures.push(...(await checkNavigation(page, frame)));
                 page.off('console', onConsole);
                 page.off('pageerror', onError);
                 await page.unroute('**/*');

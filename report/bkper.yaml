@@ -19,8 +19,8 @@ deprecated: false
 developers: '*@bkper.com'
 users: '*@bkper.com'
 
-menuUrl: https://report.bkper.app/?book=${book.id}
-menuUrlDev: https://report-preview.bkper.app/?book=${book.id}
+menuUrl: https://report.bkper.app/?book=${book.id}&state=${app.state}
+menuUrlDev: https://report-preview.bkper.app/?book=${book.id}&state=${app.state}
 menuText: Report
 menuOpenMode: EXPANDED
 

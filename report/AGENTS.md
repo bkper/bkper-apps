@@ -162,7 +162,7 @@ Build output:
 
 Report turns a short request, in any language, into a financial report of a Book. The web client and the Bkper Agent call the same app API.
 
-- **Client**: Lit + Web Awesome Pro; a Book picker and, for the selected Book, one input whose report builds as the person types, with the Book and the request in the URL as `?book=<bookId>&q=<request>`.
+- **Client**: Lit + Web Awesome Pro; a Book picker and, for the selected Book, one input whose report builds as the person types, with the Book and the request in the URL as `?book=<bookId>&q=<request>`, and, in a Book, the report's state (`&state=`, see Report state).
 - **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
 - **Shared** (`shared/`, package `report-shared`): the report catalog, the strings, bidirectional text and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
@@ -247,6 +247,16 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 `npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...` times the suggestion-intent, prompt and hashtag paths of a running app (default the local Worker) from `Server-Timing`, warm and, with `--cold`, after the snapshot cache expires; read-only, with your `bkper auth token`. Prompts vary so Bkper AI's 15-minute cache of identical requests is not measured, but a rerun within 15 minutes repeats them.
 
+## Report state
+
+`report-shared/report-state` writes a report as the opaque app state Bkper keeps in a Book's URL (`appState`, at most 128 of `A–Z a–z 0–9 _ -`), so a link, Back or a reload opens it again: `encodeReportState({ intent, language? })` and `decodeReportState(state)`. The intent's values (`REPORT_VIEWS`, `REPORT_CHARTS`, the period ids, the hashtag rule and limits) live in `report-shared/report-intent`, which the Worker's `ReportIntentSchema` uses too.
+
+- A version, `1`, then the base64url of the UTF-8 of `<monthly><view><chart>.<period>.<language>.<hashtags>.<root>`: one letter each for the month flag, the view and the chart (`VIEW_CODES`, `CHART_CODES`, never to be reused), hashtags joined by `,` (neither `.` nor `,` can be in one), and the root group's id last, which stays valid when the group is renamed. No chart and `auto` are written alike.
+- Encoding gives `undefined` when the state would be longer than 128 or the intent is not one decoding accepts. Decoding validates every field as the API does and accepts only a state it writes itself (it encodes the result again and compares), so any other value is no state.
+- The report file carries the state of its report (`open`), and the web client sends and reads it in a Book (see Web client).
+
+`npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] <bookId>` checks opening a report from the Agent end to end, read-only, with your `bkper auth token` and the app running locally (`npm run dev`): headless Chromium plays the Book and the Agent at their origins, as bkper-clients implements them, with the real report file from the local API and the real app in the Book's panel. It checks that a click on the file's link opens the Report app in place of the Agent with the file's state, that the app shows that report by intent with its title and period in the input, that choosing another report sends its state to the Book once, that a state the Book goes back to shows its report again without being sent back, and that the file reaches no network and nothing logs an error.
+
 ## Docs for people and agents
 
 `README.md` is the listing page people read (`bkper app get report` shows it too): what Report does, how to open it, examples in several languages, what it reads, and its limits. Keep development notes here, not there.
@@ -280,10 +290,10 @@ Agents decide from `bkper app list -b`, `bkper app get report` and `bkper app ap
 
 - `npm run build:report-file` (`client/vite.report-file.config.ts`) bundles `client/src/report-file/` alone, the renderer with the Web Awesome theme and `@bkper/web-design` tokens, into one classic script and one stylesheet, written as `server/src/generated/report-file-bundle.ts` (Git and Prettier ignore it). The build fails if either holds text that would end its inline element. `postinstall`, `dev`, `build` and `check:generate` run it before anything imports the server; rerun it after changing the renderer while `npm run dev` runs.
 - `buildReportFile(spec, link)` (`server/src/services/report-file.ts`) writes the document around that bundle, held in the Worker's memory: `lang` and `dir`, `<meta charset>`, the same policy, a `<title>` of the report's title and period, and the data (`ReportFileData`, `report-shared/report-file`) as a JSON script with `<`, U+2028 and U+2029 escaped. Nothing is bundled per request; `render` in `Server-Timing` includes it.
-- The file cannot open Bkper in place, so the Source drops `openInBkper` and links to the same report in the Report app (the response's `url`, `source_open_in_report`). The file follows the viewer's light or dark color scheme (`prefers-color-scheme`); rows open in place and charts show tooltips offline.
+- The file cannot open Bkper in place, so the Source drops `openInBkper` and links to the same report in the Report app (the response's `url`, `source_open_in_report`). The file also carries the Book and the report's state (`open`, left out when the state does not fit); once the window around it says `bkper:host-ready` with `navigate` in `supports` and the Bkper `origin` (any web origin: the Agent checks the link again; as the Bkper Agent tells the files it shows, from the parent window only), a plain click on that link sends `bkper:navigate` to `<origin>/books/<bookId>/transactions?app=report&appState=<state>` instead (`followFileHost`), so the Book opens the report in the Report app in place of the Agent. Until then, it stays a plain link that opens a new tab; only a click sends anything. The file follows the viewer's light or dark color scheme (`prefers-color-scheme`); rows open in place and charts show tooltips offline.
 - The bundle is ~345 KB and stays under 400 KB (a test); the Agent shows HTML files up to 1 MB, so report data has the rest.
 
-`npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html>...]` opens report files in headless Chromium exactly as the Agent frames them, with every request blocked, and fails on any request, policy violation or console error, or when the answer, the chart, its tooltip, the link or opening a row do not work, or when a value isolated in a text (and the ends of an isolated date range) does not read in the report's direction, measured on screen; in light and dark. Without files it writes one per recorded spec; files saved from the local Worker end with the live-reload script `bkper app dev` adds to HTML, which it leaves out. It needs Playwright's headless shell: `npx playwright-core install chromium-headless-shell`.
+`npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html>...]` opens report files in headless Chromium exactly as the Agent frames them, with every request blocked, and fails on any request, policy violation or console error, or when the answer, the chart, its tooltip, the link or opening a row do not work, or when a value isolated in a text (and the ends of an isolated date range) does not read in the report's direction, measured on screen, or when the link sends anything before the Agent's `bkper:host-ready` or without a click, or other than one `bkper:navigate` to the file's report state after them; in light and dark. The Agent's page is served at its origin, so the file hears it as the Agent. Without files it writes one per recorded spec; files saved from the local Worker end with the live-reload script `bkper app dev` adds to HTML, which it leaves out. It needs Playwright's headless shell: `npx playwright-core install chromium-headless-shell`.
 
 ## Web client
 
@@ -293,6 +303,7 @@ The app has one layout everywhere, in a Book's panel (`menuOpenMode: EXPANDED`, 
 - The input shows, focused, in the app's first frame, and never moves: what sits above it grows upwards, and the report changes inside the scroll area. Enter asks at once (`enterkeyhint="send"`), Escape clears the request.
 - With a Book in the URL there is no Book picker and no breadcrumb. Without one, the Book picker (or its loading or error) shows above a disabled input.
 - `VisualViewportController` (`components/report-app/visual-viewport.ts`) sizes the app to the visual viewport, so on phones the input stays above the on-screen keyboard; `index.html` asks Chrome to resize the page for it (`interactive-widget=resizes-content`).
+- In a Book, the report on screen keeps its state (see Report state) in the Book's URL: `bkper.yaml`'s menu URLs pass it as `&state=${app.state}`, and a missing or empty value, or the expression left unreplaced by older Bkper versions, is no state. A valid state opens its report by intent, without Jev, over any `q`, and the input then shows its title and period (`reportText`). Once the Book's `bkper:host-ready` lists `app-state`, each new report sends `bkper:app-state { state }` (empty when its state does not fit) and keeps it in the app's own URL; a report whose state the URL already has sends nothing. A `bkper:app-url-changed` of another state shows that report; of the same Book without one, nothing changes. `BookHost` (`state/book-host.ts`) hears only the parent window on a Bkper origin (`bkper-host.ts`: production and development, and Bkper run locally only for the app run locally) and sends only to the origin of the last `bkper:host-ready`. Standalone, the URL keeps only `?book=&q=`.
 - Embedded, the light or dark theme follows `bkper:theme-changed` through the first-paint theme script, and the text scale follows `bkper:font-scale-changed` (`host-font-scale.ts`, `--wa-font-size-scale`, 0.5–2), both only from the parent window.
 
 Without a Book in the URL, the app shows the Book picker (`components/book-picker.ts`): the person's Books changed most recently (`lastUpdateMs`, sorted by the `Books` store), at most `RECENT_BOOKS` (8), and, when they have more, a field that finds any of them by every word typed, ignoring case and accents (`findBooks`); Enter opens the first. Its texts, the loading state and the errors of the `Books` store (string keys) come from the strings, in the interface's language and direction; Book names keep their own direction.
@@ -303,7 +314,7 @@ The Book page is one input, with no submit button, and the report above it. Its 
 - The last report stays on screen while the next is on its way, with a thin progress line under the input that appears only when the wait is felt; the page changes into the next report with a view transition scoped to the report (`Element.startViewTransition`), over the whole page where only document transitions exist, and without one otherwise or under reduced motion.
 - Reports are remembered in memory per Book, by normalized request and by intent (with its language and chart; no chart is `auto`); failures are forgotten. When the suggestions arrive, their reports are fetched by intent (no AI) and remembered under their texts too, so choosing or typing a suggestion shows it from memory.
 - The suggestions show as chips over the empty input, fading in when they arrive, and with the notices they answer: `not_a_report` (a quiet hint; the last report stays) and `ai_allowance_exhausted`. Other failures show a short message from `shared/catalog/en.json`, never the error. One message shows at a time: a Book that cannot be read shows the API's reason (`book_not_found`, `forbidden`), else that its details did not load (`error_book_load`).
-- `route.ts` alone keeps the request in the URL (`q`), replacing the entry as the person types; opening a URL with `q` runs it at once. Another Book drops it.
+- `route.ts` alone keeps the request in the URL (`q`), replacing the entry as the person types; opening a URL with `q` runs it at once. It keeps the report's state (`state`) the same way, and follows the app URLs Bkper sends (`follow`). Another Book drops both.
 - `AppState` opens the reports of the Book in the URL once signed in, and preloads the report renderer (`report-loader.ts`, a code-split chunk with the charts) as the app connects, so the shell and the input show first. The interface language is the browser's when Bkper has it, else English; suggestions and the reports they ask for use it, while a typed request gets the language the server detects.
 
 ## Strings
@@ -354,7 +365,7 @@ Both ports are strict and assigned in the bkper-apps monorepo's port table; keep
 | OpenAPI contract | `GET /openapi.json` |
 | Static client | Worker fallback backed by the `ASSETS` binding |
 | Platform storage | `KV` service binding |
-| Book menu | `bkper.yaml` `menuUrl`: `https://report.bkper.app/?book=${book.id}` |
+| Book menu | `bkper.yaml` `menuUrl`: `https://report.bkper.app/?book=${book.id}&state=${app.state}` |
 
 ## Current implementation structure
 
@@ -387,7 +398,9 @@ shared/
     ├── bidi.ts      — Isolates values written into texts of any direction
     ├── locales.ts, locale-loader.ts — Generated: every language for the Worker, one at a time for the browser
     ├── languages.ts — The 133 Bkper languages, with native and English names
-    └── report-file.ts — The data a report file carries for its script
+    ├── report-file.ts — The data a report file carries for its script
+    ├── report-intent.ts — The values an intent may hold (views, charts, periods, hashtags)
+    └── report-state.ts — A report's compact state, for the Book's URL
 ```
 
 ## Key files
@@ -410,7 +423,9 @@ shared/
 | Change the suggestions     | `server/src/services/suggestions.ts`                    |
 | Change API error mapping   | `server/src/api/errors.ts`                              |
 | Change periods or dates    | `server/src/services/periods.ts`                        |
-| Change the report intent   | `server/src/services/report-intent.ts`                  |
+| Change the report intent   | `server/src/services/report-intent.ts`, `shared/src/report-intent.ts` |
+| Change a report's state    | `shared/src/report-state.ts`                            |
+| Change what the app tells the Book | `client/src/state/book-host.ts`, `client/src/bkper-host.ts` |
 | Change the Book snapshot   | `server/src/services/snapshot.ts`, `snapshot-loader.ts` |
 | Change report calculation  | `server/src/services/report.ts`                         |
 | Change intent questions or thresholds | `server/src/services/intent-questions.ts`    |

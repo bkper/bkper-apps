@@ -1,9 +1,15 @@
+import { stateFromUrlValue } from 'report-shared/report-state';
 import { reactive, Store } from './store';
 
 /** The URL query parameter that selects the Book, as the Book menu opens the app. */
 const BOOK_PARAM = 'book';
 /** The URL query parameter that holds the report request, so a report can be reloaded or shared. */
 const PROMPT_PARAM = 'q';
+/**
+ * The URL query parameter that holds the report's compact state (`report-shared/report-state`),
+ * as the Book menu opens the app with the state Bkper keeps in the Book's URL (`${app.state}`).
+ */
+const STATE_PARAM = 'state';
 
 /** The page the app runs in: its URL and session history. The browser's `window`, or a double in tests. */
 export interface RoutePage {
@@ -18,21 +24,22 @@ export interface RoutePage {
 }
 
 /**
- * The person went back or forward to a URL that selects `bookId`, or the Book list without one,
- * and asks for `prompt` (empty for none).
+ * The person went back or forward, or Bkper changed the app's URL, to one that selects `bookId`,
+ * or the Book list without one, and asks for `prompt` (empty for none) or the report of `state`.
  */
 export class Navigation extends Event {
     constructor(
         readonly bookId: string | undefined,
-        readonly prompt: string
+        readonly prompt: string,
+        readonly state?: string
     ) {
         super('navigate');
     }
 }
 
 /**
- * The app's one binding to the page URL: the selected Book and the report request. Nothing else
- * reads or writes its path, query or history.
+ * The app's one binding to the page URL: the selected Book, the report request and the report's
+ * state. Nothing else reads or writes its path, query or history.
  *
  * Standalone, each Book selection is a history entry, so Back and Forward work. Embedded in a
  * Book, a selection only replaces the URL, so the Book's own Back button stays the Book's. The
@@ -42,6 +49,8 @@ export class Navigation extends Event {
 export class Route extends Store {
     @reactive bookId?: string;
     @reactive prompt = '';
+    /** The report's state, unread; none when missing, empty or the unreplaced expression. */
+    @reactive state?: string;
 
     constructor(
         private readonly page: RoutePage,
@@ -50,6 +59,7 @@ export class Route extends Store {
         super();
         this.bookId = bookIdFrom(page.location.href);
         this.prompt = promptFrom(page.location.href);
+        this.state = stateFrom(page.location.href);
     }
 
     connect(): void {
@@ -59,16 +69,18 @@ export class Route extends Store {
         this.page.removeEventListener('popstate', this.onPopState);
     }
 
-    /** Select a Book, or none for the Book list, and keep it in the URL. Another Book drops the request. */
+    /** Select a Book, or none for the Book list, and keep it in the URL. Another Book drops the request and its state. */
     select(bookId: string | undefined): void {
         this.bookId = bookId;
         // Compare the value, not the URL text: setting a parameter re-encodes the whole query.
         if (bookIdFrom(this.page.location.href) === bookId) return;
         this.prompt = '';
+        this.state = undefined;
         const url = new URL(this.page.location.href);
         if (bookId) url.searchParams.set(BOOK_PARAM, bookId);
         else url.searchParams.delete(BOOK_PARAM);
         url.searchParams.delete(PROMPT_PARAM);
+        url.searchParams.delete(STATE_PARAM);
         if (this.embedded) this.page.history.replaceState(this.page.history.state, '', url);
         else this.page.history.pushState(null, '', url);
     }
@@ -83,10 +95,43 @@ export class Route extends Store {
         this.page.history.replaceState(this.page.history.state, '', url);
     }
 
+    /** Keep the state of the report on screen in the URL, replacing it; none drops it. */
+    setState(state: string | undefined): void {
+        this.state = state;
+        if (stateFrom(this.page.location.href) === state) return;
+        const url = new URL(this.page.location.href);
+        if (state) url.searchParams.set(STATE_PARAM, state);
+        else url.searchParams.delete(STATE_PARAM);
+        this.page.history.replaceState(this.page.history.state, '', url);
+    }
+
+    /**
+     * Bkper changed the app's URL (`bkper:app-url-changed`), such as for Back in the Book: take
+     * its Book and state, replacing the URL, and fire a `Navigation` when they change. A URL of
+     * the same Book without a state keeps the report on screen.
+     */
+    follow(href: string): void {
+        const bookId = bookIdFrom(href);
+        const state = stateFrom(href);
+        if (bookId === this.bookId && (state === undefined || state === this.state)) return;
+        this.bookId = bookId;
+        this.prompt = '';
+        this.state = state;
+        const url = new URL(this.page.location.href);
+        if (bookId) url.searchParams.set(BOOK_PARAM, bookId);
+        else url.searchParams.delete(BOOK_PARAM);
+        url.searchParams.delete(PROMPT_PARAM);
+        if (state) url.searchParams.set(STATE_PARAM, state);
+        else url.searchParams.delete(STATE_PARAM);
+        this.page.history.replaceState(this.page.history.state, '', url);
+        this.dispatchEvent(new Navigation(bookId, '', state));
+    }
+
     private readonly onPopState = () => {
         const href = this.page.location.href;
         this.prompt = promptFrom(href);
-        this.dispatchEvent(new Navigation(bookIdFrom(href), this.prompt));
+        this.state = stateFrom(href);
+        this.dispatchEvent(new Navigation(bookIdFrom(href), this.prompt, this.state));
     };
 }
 
@@ -96,4 +141,8 @@ function bookIdFrom(href: string): string | undefined {
 
 function promptFrom(href: string): string {
     return new URL(href).searchParams.get(PROMPT_PARAM) ?? '';
+}
+
+function stateFrom(href: string): string | undefined {
+    return stateFromUrlValue(new URL(href).searchParams.get(STATE_PARAM));
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { NET_RESULT_ROOT, ReportIntentSchema } from '../../src/services/report-intent';
+import { decodeReportState, encodeReportState } from 'report-shared/report-state';
+import { RELATIVE_PERIODS } from '../../src/services/periods';
+import {
+    NET_RESULT_ROOT,
+    REPORT_CHARTS,
+    REPORT_VIEWS,
+    ReportIntentSchema,
+    type ReportIntent,
+} from '../../src/services/report-intent';
 
 describe('ReportIntentSchema', () => {
     it('accepts a minimal intent for a root group', () => {
@@ -60,6 +68,28 @@ describe('ReportIntentSchema', () => {
                 hashtags: [hashtag],
             });
             expect(result.success, hashtag).toBe(false);
+        }
+    });
+});
+
+describe('report state', () => {
+    it('opens every intent it can write as one the API accepts, unchanged', () => {
+        const intents: ReportIntent[] = [
+            ...REPORT_VIEWS.map(view => ({ root: 'a', period: 'ytd', monthly: true, view })),
+            ...REPORT_CHARTS.filter(chart => chart !== 'auto').map(chart => ({
+                root: NET_RESULT_ROOT,
+                period: '2017-Q2',
+                monthly: false,
+                chart,
+            })),
+            ...RELATIVE_PERIODS.map(period => ({ root: '191002', period, monthly: false })),
+            { root: 'a', period: '2019-03', monthly: false, hashtags: ['trip', 'ação'] },
+        ];
+        for (const intent of intents) {
+            const state = encodeReportState({ intent, language: 'ja' });
+            const opened = decodeReportState(state ?? '');
+            expect(opened?.intent, JSON.stringify(intent)).toEqual(intent);
+            expect(ReportIntentSchema.parse(opened?.intent)).toEqual(intent);
         }
     });
 });

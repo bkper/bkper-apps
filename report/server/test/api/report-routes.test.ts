@@ -1,3 +1,4 @@
+import { decodeReportState } from 'report-shared/report-state';
 import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
@@ -294,6 +295,9 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+October+2026`,
             label: 'Open in Report',
         });
+        // Where the Agent lets it, the file opens the same report in the Report app in the Book.
+        expect(data.open?.bookId).toBe(BOOK);
+        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
     });
 

@@ -9,7 +9,9 @@
         "./languages": "./src/languages.ts",
         "./locales": "./src/locales.ts",
         "./locale-loader": "./src/locale-loader.ts",
-        "./report-file": "./src/report-file.ts"
+        "./report-file": "./src/report-file.ts",
+        "./report-intent": "./src/report-intent.ts",
+        "./report-state": "./src/report-state.ts"
     },
     "scripts": {
         "test": "vitest run",

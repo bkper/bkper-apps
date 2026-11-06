@@ -22,14 +22,14 @@ function createPage(href: string): RoutePage {
     return page;
 }
 
-function response(title: string): ReportResponse {
+function response(title: string, subtitle = ''): ReportResponse {
     return {
         spec: {
             root: 'report',
             elements: {
                 report: {
                     type: 'Report',
-                    props: { title, subtitle: '', locale: 'en', dir: 'ltr', fractionDigits: 2 },
+                    props: { title, subtitle, locale: 'en', dir: 'ltr', fractionDigits: 2 },
                     children: [],
                 },
             },
@@ -393,6 +393,66 @@ describe('Reports', () => {
         expect(calls[0].signal?.aborted).toBe(true);
         expect(reports.report).toBeUndefined();
         expect(reports.text).toBe('');
+    });
+
+    describe('opened by state', () => {
+        const STATE = {
+            intent: { root: 'g-1', period: '2011', monthly: true, chart: 'stacked' as const },
+            language: 'es',
+        };
+        const byState = (call: Call) => call.body.intent?.chart === 'stacked';
+
+        it('asks for the report by intent, in its language, and shows its label', async () => {
+            const { reports, calls, prompts } = createReports();
+            reports.open('book-1', '', STATE);
+
+            const call = calls.find(byState);
+            expect(call?.body).toEqual({ intent: STATE.intent, language: 'es' });
+            expect(prompts()).toEqual([]);
+            expect(reports.text).toBe('');
+
+            const report = {
+                ...response('Gastos', '\u20682011\u2069'),
+                intent: STATE.intent,
+                language: 'es',
+            };
+            call?.resolve(report);
+            await settle();
+
+            expect(reports.report).toBe(report);
+            expect(reports.text).toBe('Gastos 2011');
+        });
+
+        it('wins over a request in the URL, and its label never overwrites typing', async () => {
+            const { reports, calls, prompts } = createReports();
+            reports.open('book-1', 'net result', STATE);
+            expect(prompts()).toEqual([]);
+
+            reports.input('ingresos 2011');
+            calls.find(byState)?.resolve(response('Gastos', '2011'));
+            await settle();
+
+            expect(reports.text).toBe('ingresos 2011');
+        });
+
+        it('shows another report of the same Book, keeping the suggestions and memory', async () => {
+            const { reports, calls, suggestionCalls } = createReports();
+            reports.open('book-1');
+            await settle();
+            calls
+                .find(call => call.body.intent?.root === 'net-result')
+                ?.resolve(response('Net result', '2011'));
+            await settle();
+            const count = calls.length;
+
+            reports.openState({ intent: SUGGESTIONS[0].intent, language: 'pt' });
+            await settle();
+
+            expect(calls.length).toBe(count);
+            expect(suggestionCalls.length).toBe(1);
+            expect(title(reports.report)).toBe('Net result');
+            expect(reports.text).toBe('Net result 2011');
+        });
     });
 });
 

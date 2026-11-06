@@ -509,5 +509,76 @@
         "placeholders": {
             "year": "a year in digits, such as 2019"
         }
+    },
+    "shelf_access_error": {
+        "text": "Saved reports access changed. Reload to check access.",
+        "role": "error",
+        "context": "Alert under the Book-shared shelf when the server denies a shelf read or mutation, authentication expires, or the Book is not found. Reload saved reports checks current access. Never imply the client can grant permission."
+    },
+    "shelf_label": {
+        "text": "Saved reports",
+        "role": "label",
+        "context": "Accessible name of the horizontally scrolling Book-shared prompt shelf just above the request input. Prompts are requests rerun freshly, not stored report data."
+    },
+    "shelf_load_error": {
+        "text": "Saved reports could not load. Try reloading.",
+        "role": "error",
+        "context": "Alert under the Book-shared shelf after a list/storage/network failure. The report and request input remain usable. Reload saved reports is available."
+    },
+    "shelf_loading": {
+        "text": "Loading saved reports…",
+        "role": "status",
+        "context": "Quiet status below the Book-shared prompt shelf while its list and permissions load. Keep short."
+    },
+    "shelf_reload": {
+        "text": "Reload saved reports",
+        "role": "button",
+        "context": "Recovery action under the Book-shared shelf after a list or mutation failure. Fetches the list and fresh server permissions. Does not run a report."
+    },
+    "shelf_remove": {
+        "text": "Remove saved report: {prompt}",
+        "role": "label",
+        "context": "Accessible name and tooltip of the small remove action beside one Book-shared saved request. Removes only the saved prompt from the shelf, never financial data. The prompt may be long and multilingual.",
+        "placeholders": {
+            "prompt": "The original natural-language report request, verbatim, isolated for bidirectional text."
+        }
+    },
+    "shelf_remove_error": {
+        "text": "Could not remove the saved request. Try removing it again.",
+        "role": "error",
+        "context": "Alert under the Book-shared shelf after a removal fails. The saved item remains visible with its remove control so the person can retry safely."
+    },
+    "shelf_save": {
+        "text": "Save",
+        "role": "button",
+        "context": "One-click action beside the prompt shelf. Saves the successfully shown report’s original request for everyone in this Book, not report data or later draft input. Keep very short."
+    },
+    "shelf_save_error": {
+        "text": "Could not save this request. Try Save again.",
+        "role": "error",
+        "context": "Alert under the Book-shared shelf after saving the shown report’s original request fails. Retrying the Save button is safe; no prompt or upstream details are shown."
+    },
+    "shelf_save_label": {
+        "text": "Save report request: {prompt}",
+        "role": "label",
+        "context": "Accessible name of the one-click Save action beside the shelf. Names the actual original request being saved, never a later draft input. The prompt may be long and multilingual.",
+        "placeholders": {
+            "prompt": "The original natural-language report request, verbatim, isolated for bidirectional text."
+        }
+    },
+    "shelf_saved": {
+        "text": "Saved",
+        "role": "status",
+        "context": "Disabled Save button label and announced status when the shown report’s original prompt already exists on this Book’s shared shelf. Keep very short."
+    },
+    "shelf_saving": {
+        "text": "Saving…",
+        "role": "status",
+        "context": "Pending label on the disabled Save button and announced status while the original prompt is being saved to this Book’s shared shelf. Keep very short."
+    },
+    "shelf_removing": {
+        "text": "Removing…",
+        "role": "status",
+        "context": "Announced pending status under the Book-shared prompt shelf while removing one saved request. The request stays visible until the API confirms removal. Keep very short."
     }
 }

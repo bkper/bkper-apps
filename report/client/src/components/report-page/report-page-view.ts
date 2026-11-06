@@ -8,10 +8,14 @@ import type { AppState } from '../../state/app-state';
 import { watch } from '../../state/store';
 import type { SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
-import '../report-suggestions';
+import { OPEN_SAVED_REPORT } from '../report-shelf';
+import '../report-shelf';
 import { reportPageCSS } from './report-page-css';
 
-export type ReportPageState = Pick<AppState, 'route' | 'books' | 'reports' | 'strings'>;
+export type ReportPageState = Pick<
+    AppState,
+    'route' | 'books' | 'reports' | 'strings' | 'savedReports' | 'openSavedReport'
+>;
 
 /** Notices that say something failed, rather than hint. */
 const ALERTS: ReadonlySet<StringKey> = new Set<StringKey>([
@@ -113,14 +117,13 @@ export class ReportPage extends LitElement {
                             : nothing
                     }
                     ${
-                        open && reports.showsSuggestions
-                            ? html`<report-suggestions
-                                  class="suggestions"
-                                  .suggestions=${reports.suggestions}
-                                  label=${t('suggestions_label', lang)}
-                                  loading-label=${t('suggestions_loading', lang)}
+                        open
+                            ? html`<report-shelf
+                                  .state=${this.state}
+                                  .current=${this.shown === reports.report}
                                   @report-choose-suggestion=${this.onChoose}
-                              ></report-suggestions>`
+                                  @report-open-saved=${this.onOpenSaved}
+                              ></report-shelf>`
                             : nothing
                     }
                     <div class="bar">
@@ -175,6 +178,11 @@ export class ReportPage extends LitElement {
 
     private onChoose = (event: HTMLElementEventMap[typeof CHOOSE_SUGGESTION]) => {
         this.state.reports.choose(event.detail);
+        this.input?.focus();
+    };
+
+    private onOpenSaved = (event: HTMLElementEventMap[typeof OPEN_SAVED_REPORT]) => {
+        this.state.openSavedReport(event.detail);
         this.input?.focus();
     };
 

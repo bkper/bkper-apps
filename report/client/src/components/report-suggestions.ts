@@ -45,9 +45,8 @@ function glyphOf({ intent }: Suggestion) {
 }
 
 /**
- * Suggested reports as chips just over the input, one line each, wrapping when there is no
- * room. Without `suggestions`, quiet placeholders hold their place; the chips fade in when they
- * arrive. Choosing one fires {@link CHOOSE_SUGGESTION}.
+ * Suggested reports as chips just over the input, in the shelf's sideways-scrolling row.
+ * Without `suggestions`, quiet placeholders hold their place; the chips fade in when they arrive. Choosing one fires {@link CHOOSE_SUGGESTION}.
  */
 @customElement('report-suggestions')
 export class ReportSuggestions extends LitElement {
@@ -58,7 +57,7 @@ export class ReportSuggestions extends LitElement {
 
         .suggestions {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: var(--wa-space-xs);
         }
 
@@ -67,7 +66,7 @@ export class ReportSuggestions extends LitElement {
         }
 
         .suggestion {
-            max-inline-size: 100%;
+            max-inline-size: min(32ch, 55vw);
         }
 
         .suggestion::part(button) {

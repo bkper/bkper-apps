@@ -90,7 +90,7 @@ The initial route, request/result/error shapes, and shared authentication bounda
 ## Known current behavior
 
 - Prompt and parser-URL lookup can persist migrated prompt properties.
-- An `account_name` that is not in the target Book records that row without the Account and logs a warning; the rest of the import continues. `book.getAccount` raises a 404 `BkperError` for a missing Account (bkper-js 2.37 to 2.45), so Account lookups by extracted name go through `findAccount` in `src/utils/account-utils.ts`.
+- An `account_name` that is not in the target Book records that row without the Account and logs a warning; the rest of the import continues. `book.getAccount`, `getFile` and `getGroup` raise a 404 `BkperError` for a missing resource instead of returning undefined (bkper-js 2.37 to 2.45). Lookups by an extracted name or a caller-supplied ID go through `findAccount`, `findFile` and `findGroup` in `src/utils/lookup-utils.ts`, so a missing resource is "not found" (no Account for an import row, `INVALID_CONTEXT` in the parse API) rather than a failure or `FORBIDDEN`.
 - Multi-Book imports are not atomic: drafts are created per target Book in sequence; if a later Book fails, earlier drafts remain and no summary or file update is written.
 - The posted/updated handler runs invoice learning and statement flagging; rediscovery was removed and belongs to Bookbot.
 - The attachment path retains its own file-metadata filter, moved verbatim into `AttachmentExtractionService`. Unlike the import path's `filterFileProperties`, it does not drop `transactions_summary`. Do not merge the two.

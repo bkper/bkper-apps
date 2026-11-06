@@ -7,7 +7,7 @@ import { BkperAIClientError } from '../genai/BkperAIClientError.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
-import { findAccount } from '../utils/account-utils.js';
+import { findAccount, findFile, findGroup } from '../utils/lookup-utils.js';
 import { ExtractedTransactionSchema, ParseResultSchema, type ParseRequest, type ParseResult } from './schemas.js';
 
 const READ_PERMISSIONS: readonly Permission[] = [Permission.VIEWER, Permission.POSTER, Permission.EDITOR, Permission.OWNER];
@@ -21,7 +21,7 @@ async function requireBook(context: AppContext, bookId: string): Promise<Book> {
 }
 
 async function requireAccount(book: Book, id: string): Promise<Account> {
-    const account = await book.getAccount(id);
+    const account = await findAccount(book, id);
     if (!account || account.getId() !== id) {
         throw new HTTPException(400, { message: 'Account does not belong to the target Book.' });
     }
@@ -31,7 +31,7 @@ async function requireAccount(book: Book, id: string): Promise<Account> {
 async function resolveFile(book: Book, payload: bkper.File): Promise<File> {
     let stored: File | undefined;
     if (payload.id) {
-        stored = await book.getFile(payload.id);
+        stored = await findFile(book, payload.id);
         if (!stored || stored.getId() !== payload.id) {
             throw new HTTPException(400, { message: 'File does not belong to the target Book.' });
         }
@@ -43,7 +43,7 @@ async function resolveFile(book: Book, payload: bkper.File): Promise<File> {
     if (accountId) await requireAccount(book, accountId);
     const groupId = file.getProperty('group_id', 'group_id_');
     if (groupId) {
-        const group = await book.getGroup(groupId);
+        const group = await findGroup(book, groupId);
         if (!group || group.getId() !== groupId) throw new HTTPException(400, { message: 'Group does not belong to the target Book.' });
     }
     return file;

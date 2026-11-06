@@ -4,7 +4,7 @@ import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
-import { findAccount } from '../utils/account-utils.js';
+import { findAccount } from '../utils/lookup-utils.js';
 import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClient.js';
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';

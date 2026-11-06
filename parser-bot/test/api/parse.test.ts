@@ -191,6 +191,24 @@ describe('read-only parse', () => {
         expect(await parse({ bookId: 'book_1', file }, context)).toMatchObject({ outcome: 'error', error: { code: 'DEPENDENCY_ERROR' }, transactions: [] });
     });
 
+    it('reports INVALID_CONTEXT when the Book raises a 404 for a foreign Account', async () => {
+        const { book, context } = setup();
+        book.getAccount = mock(async () => { throw new BkperError(404, 'Account NOT found!', undefined); });
+        expect(await parse({ bookId: 'book_1', transaction: { creditAccount: { id: 'foreign' } } }, context)).toMatchObject({ outcome: 'error', error: { code: 'INVALID_CONTEXT' } });
+        book.getAccount = mock(async () => { throw new BkperError(403, 'Forbidden', undefined); });
+        expect(await parse({ bookId: 'book_1', transaction: { creditAccount: { id: 'bank' } } }, context)).toMatchObject({ outcome: 'error', error: { code: 'FORBIDDEN' } });
+    });
+
+    it('reports INVALID_CONTEXT when the Book raises a 404 for a foreign file or group', async () => {
+        const { book, context } = setup();
+        book.getFile = mock(async () => { throw new BkperError(404, 'File NOT found!', undefined); });
+        expect(await parse({ bookId: 'book_1', file: { id: 'foreign' } }, context)).toMatchObject({ outcome: 'error', error: { code: 'INVALID_CONTEXT' } });
+        book.getGroup = mock(async () => { throw new BkperError(404, 'Group NOT found!', undefined); });
+        expect(await parse({ bookId: 'book_1', file: { ...file, properties: { group_id: 'foreign' } } }, context)).toMatchObject({ outcome: 'error', error: { code: 'INVALID_CONTEXT' } });
+        book.getGroup = mock(async () => { throw new BkperError(403, 'Forbidden', undefined); });
+        expect(await parse({ bookId: 'book_1', file: { ...file, properties: { group_id: 'group_1' } } }, context)).toMatchObject({ outcome: 'error', error: { code: 'FORBIDDEN' } });
+    });
+
     it('preserves external parser group ownership in the API without logging private context', async () => {
         const { book, context } = setup();
         const group = new Group(book, { id: 'group_1', name: 'PRIVATE GROUP', properties: { agent_parser_url_transactions: 'https://parser.example.com' } });

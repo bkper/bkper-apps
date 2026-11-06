@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import { Account, Bkper, Book, Group, Transaction, TransactionList, User } from 'bkper-js';
+import { Account, Bkper, BkperError, Book, Group, Transaction, TransactionList, User } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { discoverItems } from '../../src/api/discovery.js';
 import type { components } from '../../src/api/generated/types.js';
@@ -221,6 +221,34 @@ describe('read-only discovery adapter', () => {
 
         expect(results.map(result => result.error?.code)).toEqual(['INVALID_ACCOUNT', 'INVALID_ACCOUNT', 'INVALID_ACCOUNT']);
         expect(results.map(result => result.transaction)).toEqual(inputs.map(input => input.transaction));
+    });
+
+    it('reports INVALID_ACCOUNT when the Book raises a 404 for an Account it does not have', async () => {
+        const { book, context } = fixture();
+        const lookup = book.getAccount.bind(book);
+        book.getAccount = async (id?: string) => {
+            const account = await lookup(id);
+            if (!account) throw new BkperError(404, 'Account NOT found!', undefined);
+            return account;
+        };
+        const known = item('known');
+        known.transaction.creditAccount = { id: 'foreign' };
+        const source = item('source');
+        source.sourceAccount = { id: 'foreign' };
+        book.history = matchingHistory().map(tx => ({ ...tx, debitAccount: { id: 'foreign' } }));
+        const results = await discoverItems([known, source, item('suggested')], context);
+
+        expect(results.map(result => result.error?.code)).toEqual(['INVALID_ACCOUNT', 'INVALID_ACCOUNT', 'INVALID_ACCOUNT']);
+    });
+
+    it('still reports FORBIDDEN when an Account lookup is refused', async () => {
+        const { book, context } = fixture();
+        book.getAccount = async () => { throw new BkperError(403, 'Forbidden', undefined); };
+        const known = item('known');
+        known.transaction.creditAccount = { id: 'bank' };
+        const results = await discoverItems([known], context);
+
+        expect(results[0].error?.code).toBe('FORBIDDEN');
     });
 
     it('authorizes every target Book with read permissions, without requiring installation', async () => {

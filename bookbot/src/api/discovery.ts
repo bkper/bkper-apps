@@ -7,8 +7,18 @@ import type { DiscoveryItem, DiscoveryResult } from './schemas.js';
 
 const READ_PERMISSIONS: readonly Permission[] = [Permission.VIEWER, Permission.POSTER, Permission.EDITOR, Permission.OWNER];
 
+/** `book.getAccount` raises a 404 BkperError for a missing Account instead of returning undefined; other errors still propagate. */
+async function findAccount(book: Book, id: string): Promise<Account | undefined> {
+    try {
+        return await book.getAccount(id);
+    } catch (error) {
+        if (error instanceof BkperError && error.code === 404) return undefined;
+        throw error;
+    }
+}
+
 async function requireAccount(book: Book, id: string): Promise<Account> {
-    const account = await book.getAccount(id);
+    const account = await findAccount(book, id);
     if (!account || account.getId() !== id) {
         throw new HTTPException(400, { message: 'Account does not belong to the target Book.' });
     }

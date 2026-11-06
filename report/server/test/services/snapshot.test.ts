@@ -159,7 +159,11 @@ describe('buildSnapshot', () => {
     });
 
     it('spans the data range over months with movements in any root', async () => {
-        expect((await build()).dataRange).toEqual({ firstMonth: '2024-03', lastMonth: '2026-11' });
+        expect((await build()).dataRange).toEqual({
+            firstMonth: '2024-03',
+            lastMonth: '2026-11',
+            activeMonths: ['2024-03', '2025-11', '2026-08', '2026-10', '2026-11'],
+        });
     });
 
     it('ignores the empty bucket of the current month in the data range', async () => {
@@ -180,7 +184,49 @@ describe('buildSnapshot', () => {
             payloads[query.query] = { groupBalances: old('Expenses') };
         }
         const snapshot = await build({ ...bookPayload, groups, accounts: [] }, payloads);
-        expect(snapshot.dataRange).toEqual({ firstMonth: '2019-04', lastMonth: '2019-04' });
+        expect(snapshot.dataRange).toEqual({
+            firstMonth: '2019-04',
+            lastMonth: '2019-04',
+            activeMonths: ['2019-04'],
+        });
+    });
+
+    it('pads early years and keeps implausible years out of the data range', async () => {
+        // A typo such as year 0012 instead of 2012 is real data: its amounts stay, its
+        // month reads 0012-10, but it must not stretch the range back two thousand years.
+        const balances = [
+            bucket(12, 10, '-500', '0', '500'),
+            bucket(2019, 4, '-50', '0', '50'),
+            bucket(2026, 11, '0', '0', '0'),
+        ];
+        const groups = [
+            { id: 'g-x', name: 'Expenses', type: 'OUTGOING' as const, permanent: false },
+        ];
+        const payloads: Record<string, bkper.Balances> = {};
+        for (const query of snapshotQueries([{ name: 'Expenses', permanent: false }], TODAY)) {
+            payloads[query.query] = {
+                groupBalances: [
+                    {
+                        name: 'Expenses',
+                        credit: false,
+                        permanent: false,
+                        balances,
+                        accountBalances: [],
+                    },
+                ],
+            };
+        }
+        const snapshot = await build({ ...bookPayload, groups, accounts: [] }, payloads);
+        expect(snapshot.groups['g-x'].months.map(m => m.month)).toEqual([
+            '0012-10',
+            '2019-04',
+            '2026-11',
+        ]);
+        expect(snapshot.dataRange).toEqual({
+            firstMonth: '2019-04',
+            lastMonth: '2019-04',
+            activeMonths: ['2019-04'],
+        });
     });
 
     it('has no data range for a Book without movements', async () => {

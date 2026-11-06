@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
     MAX_PERIOD_OPTIONS,
+    addDays,
     buildPeriodOptions,
     defaultPeriod,
     isPeriodId,
+    isoMonth,
     previousPeriod,
     resolvePeriod,
     todayInTimeZone,
@@ -349,6 +351,47 @@ describe('buildPeriodOptions', () => {
         ]);
     });
 
+    it('offers only the years, quarters and months that have movements', () => {
+        const options = buildPeriodOptions({
+            today,
+            dataRange: {
+                firstMonth: '2024-11',
+                lastMonth: '2026-02',
+                activeMonths: ['2024-11', '2026-01', '2026-02'],
+            },
+        });
+        expect(ids(options).slice(10)).toEqual([
+            '2026',
+            '2024',
+            '2026-Q1',
+            '2024-Q4',
+            '2026-02',
+            '2026-01',
+            '2024-11',
+        ]);
+    });
+
+    it('keeps months and quarters when a few movements are far in the past', () => {
+        const options = buildPeriodOptions({
+            today,
+            dataRange: {
+                firstMonth: '1900-01',
+                lastMonth: '2026-10',
+                activeMonths: ['1900-01', '2026-09', '2026-10'],
+            },
+        });
+        expect(ids(options).slice(10)).toEqual([
+            '2026',
+            '1900',
+            '2026-Q4',
+            '2026-Q3',
+            '1900-Q1',
+            '2026-10',
+            '2026-09',
+            '1900-01',
+        ]);
+    });
+
     it('describes each option with its dates, end inclusive', () => {
         const options = buildPeriodOptions({
             today,
@@ -419,5 +462,14 @@ describe('isPeriodId', () => {
         ]) {
             expect(isPeriodId(id)).toBe(false);
         }
+    });
+});
+
+describe('early years', () => {
+    it('pads months and keeps day arithmetic in the year as written', () => {
+        expect(isoMonth(12, 10)).toBe('0012-10');
+        expect(isoMonth(2026, 1)).toBe('2026-01');
+        expect(addDays('0012-10-31', 1)).toBe('0012-11-01');
+        expect(addDays('0099-12-31', 1)).toBe('0100-01-01');
     });
 });

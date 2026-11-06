@@ -9,7 +9,7 @@
  * Amounts have the sign Bkper shows, like the snapshot: bkper-js representative balances.
  */
 import { Amount, type BalancesContainer, type BalancesReport } from 'bkper-js';
-import { addDays, type DateRange, type IsoDate } from './periods.js';
+import { addDays, isoMonth, type DateRange, type IsoDate } from './periods.js';
 import { quote, type Snapshot, type SnapshotGroup, type SnapshotNode } from './snapshot.js';
 
 /** A live balances query and the dates it covers: `after` (if any) inclusive, `before` exclusive. */
@@ -91,7 +91,7 @@ export function readLiveBalances(
             .getBalances()
             .filter(balance => !balance.getPeriodBalance().eq(0))
             .map(balance => ({
-                date: `${balance.getYear()}-${pad(balance.getMonth())}-${pad(balance.getDay())}`,
+                date: `${isoMonth(balance.getYear(), balance.getMonth())}-${pad(balance.getDay())}`,
                 period: balance.getPeriodBalance().toFixed(),
             }))
             .sort((a, b) => a.date.localeCompare(b.date));

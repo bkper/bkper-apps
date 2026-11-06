@@ -26,6 +26,7 @@ import {
 } from './live-balances.js';
 import {
     addDays,
+    isoMonth,
     previousPeriod,
     resolvePeriod,
     type DateRange,
@@ -299,9 +300,7 @@ function reportMonths(range: DateRange, snapshot: Snapshot): IsoMonth[] {
 
 function nextMonth(month: IsoMonth): IsoMonth {
     const [year, monthOfYear] = month.split('-').map(Number);
-    return monthOfYear === 12
-        ? `${year + 1}-01`
-        : `${year}-${String(monthOfYear + 1).padStart(2, '0')}`;
+    return monthOfYear === 12 ? isoMonth(year + 1, 1) : isoMonth(year, monthOfYear + 1);
 }
 
 /** Reads amounts from the live balances or the snapshot, noting what neither can answer. */

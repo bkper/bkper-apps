@@ -18,6 +18,8 @@ import {
 } from 'bkper-js';
 import {
     addDays,
+    isoMonth,
+    isPlausibleYear,
     previousPeriod,
     type DataRange,
     type DateRange,
@@ -200,8 +202,9 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
             }
             snapshot.roots.push(root);
             for (const balance of container.getBalances()) {
-                if (!balance.getPeriodDebit().eq(0) || !balance.getPeriodCredit().eq(0)) {
-                    active.add(monthOf(balance.getYear(), balance.getMonth()));
+                const moved = !balance.getPeriodDebit().eq(0) || !balance.getPeriodCredit().eq(0);
+                if (moved && isPlausibleYear(balance.getYear())) {
+                    active.add(isoMonth(balance.getYear(), balance.getMonth()));
                 }
             }
         }
@@ -213,7 +216,11 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
 
     const months = [...active].sort();
     if (months.length > 0) {
-        snapshot.dataRange = { firstMonth: months[0], lastMonth: months[months.length - 1] };
+        snapshot.dataRange = {
+            firstMonth: months[0],
+            lastMonth: months[months.length - 1],
+            activeMonths: months,
+        };
     }
     return snapshot;
 }
@@ -301,7 +308,7 @@ function addBalances(
     node.months = container
         .getBalances()
         .map(balance => ({
-            month: monthOf(balance.getYear(), balance.getMonth()),
+            month: isoMonth(balance.getYear(), balance.getMonth()),
             period: decimal(balance.getPeriodBalance()),
             cumulative: decimal(balance.getCumulativeBalance()),
         }))
@@ -422,10 +429,6 @@ function sum(months: MonthBalance[]): Amount {
 
 function isMonthStart(date: IsoDate): boolean {
     return date.endsWith('-01');
-}
-
-function monthOf(year: number, month: number): IsoMonth {
-    return `${year}-${String(month).padStart(2, '0')}`;
 }
 
 /** Plain decimal notation; zero has no sign. */

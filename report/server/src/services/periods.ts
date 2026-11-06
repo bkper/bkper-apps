@@ -23,10 +23,15 @@ export interface DateRange {
     before: IsoDate;
 }
 
-/** First and last months with balances in the Book, both inclusive. */
+/**
+ * First and last months with balances in the Book, both inclusive, in plausible calendar years
+ * (see {@link isPlausibleYear}).
+ */
 export interface DataRange {
     firstMonth: IsoMonth;
     lastMonth: IsoMonth;
+    /** Every month with movements within the range, ascending; absent in older snapshots. */
+    activeMonths?: IsoMonth[];
 }
 
 export interface PeriodContext {
@@ -95,6 +100,19 @@ const MONTH_NAMES = [
 ];
 
 const DAY_MS = 86_400_000;
+
+/** `YYYY-MM`, with the year padded to four digits so early years still sort and parse. */
+export function isoMonth(year: number, monthOfYear: number): IsoMonth {
+    return `${padYear(year)}-${pad(monthOfYear)}`;
+}
+
+/**
+ * A year a period can name (the years {@link PERIOD_ID_PATTERN} accepts). Movements outside
+ * it, such as a typo dated 0012, still count in totals but never shape the period options.
+ */
+export function isPlausibleYear(year: number): boolean {
+    return year >= 1000 && year <= 2999;
+}
 
 export function isPeriodId(id: string): boolean {
     return PERIOD_ID_PATTERN.test(id);
@@ -263,25 +281,28 @@ export function buildPeriodOptions(context: PeriodContext): PeriodOption[] {
     if (!range) {
         return relative;
     }
-    const first = parseMonth(range.firstMonth);
-    const last = parseMonth(range.lastMonth);
-
     const years: CalendarPeriod[] = [];
     const quarters: CalendarPeriod[] = [];
     const months: CalendarPeriod[] = [];
-    for (let month = last; month >= first; month--) {
+    const seen = new Set<string>();
+    const add = (list: CalendarPeriod[], period: CalendarPeriod) => {
+        if (!seen.has(period.id)) {
+            seen.add(period.id);
+            list.push(period);
+        }
+    };
+    for (const month of candidateMonths(range)) {
         const { year, monthOfYear } = monthParts(month);
-        months.push({ id: `${year}-${pad(monthOfYear)}`, end: month + 1, length: 1 });
-        if (monthOfYear % 3 === 1 || month === first) {
-            quarters.push({
-                id: `${year}-Q${Math.ceil(monthOfYear / 3)}`,
-                end: month - (month % 3) + 3,
-                length: 3,
-            });
+        if (!isPlausibleYear(year)) {
+            continue;
         }
-        if (monthOfYear === 1 || month === first) {
-            years.push({ id: `${year}`, end: month - (month % 12) + 12, length: 12 });
-        }
+        add(months, { id: isoMonth(year, monthOfYear), end: month + 1, length: 1 });
+        add(quarters, {
+            id: `${padYear(year)}-Q${Math.ceil(monthOfYear / 3)}`,
+            end: quarterStart(month) + 3,
+            length: 3,
+        });
+        add(years, { id: padYear(year), end: yearStart(month) + 12, length: 12 });
     }
 
     const keptYears = years.slice(0, Math.max(0, MAX_PERIOD_OPTIONS - relative.length));
@@ -358,7 +379,19 @@ function monthParts(index: number): { year: number; monthOfYear: number } {
 
 function monthStart(index: number): IsoDate {
     const { year, monthOfYear } = monthParts(index);
-    return `${year}-${pad(monthOfYear)}-01`;
+    return `${isoMonth(year, monthOfYear)}-01`;
+}
+
+/** Month indexes to offer, most recent first: the active months, else every month in the range. */
+function candidateMonths(range: DataRange): number[] {
+    if (range.activeMonths) {
+        return [...new Set(range.activeMonths.map(parseMonth))].sort((a, b) => b - a);
+    }
+    const months: number[] = [];
+    for (let month = parseMonth(range.lastMonth); month >= parseMonth(range.firstMonth); month--) {
+        months.push(month);
+    }
+    return months;
 }
 
 function quarterStart(month: number): number {
@@ -386,7 +419,10 @@ function dateMs(date: IsoDate): number {
     if (!match) {
         throw new Error(`Invalid date: ${date}`);
     }
-    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    // Date.UTC reads years 0–99 as 1900–1999; setUTCFullYear keeps them as written.
+    const utc = new Date(0);
+    utc.setUTCFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return utc.getTime();
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {
@@ -395,4 +431,8 @@ export function addDays(date: IsoDate, days: number): IsoDate {
 
 function pad(value: number): string {
     return String(value).padStart(2, '0');
+}
+
+function padYear(year: number): string {
+    return String(year).padStart(4, '0');
 }

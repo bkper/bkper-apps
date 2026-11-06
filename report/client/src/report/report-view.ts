@@ -11,14 +11,14 @@
 import '@awesome.me/webawesome-pro/dist/components/bar-chart/bar-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/doughnut-chart/doughnut-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/line-chart/line-chart.js';
+import '@awesome.me/webawesome-pro/dist/components/pie-chart/pie-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/sparkline/sparkline.js';
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { renderAnswer } from './answer.js';
 import { renderBreakdown } from './breakdown.js';
 import { renderChart } from './chart.js';
-import { chartConfig, type ChartView } from './chart-config.js';
-import { shades, typeColor } from './colors.js';
+import { chartConfig, chartSwatches, type ChartView } from './chart-config.js';
 import {
     EXPAND_ROW,
     OPEN_IN_BKPER,
@@ -62,7 +62,7 @@ export class ReportView extends LitElement {
     private chartView?: {
         chart: PropsOf<'Chart'>;
         highlight?: string;
-        view: ChartView | undefined;
+        view: ChartView;
     };
 
     render() {
@@ -105,10 +105,12 @@ export class ReportView extends LitElement {
         switch (element.type) {
             case 'Answer':
                 return renderAnswer(element.props, format, report.title);
-            case 'Chart': {
-                const view = this.chartFor(element.props, format, rows, highlight);
-                return view ? renderChart(view, element.props.label, report.dir) : nothing;
-            }
+            case 'Chart':
+                return renderChart(
+                    this.chartFor(element.props, format, rows, highlight),
+                    element.props.label,
+                    report.dir
+                );
             case 'BreakdownTable':
                 return html`<section class="breakdown-section" aria-label=${element.props.label}>
                     ${renderBreakdown(element.props, {
@@ -178,7 +180,7 @@ export class ReportView extends LitElement {
         format: ReportFormat,
         rows: BreakdownRow[],
         highlight: BreakdownRow | undefined
-    ): ChartView | undefined {
+    ): ChartView {
         const cached = this.chartView;
         if (cached?.chart === chart && cached.highlight === highlight?.id) {
             return cached.view;
@@ -188,18 +190,10 @@ export class ReportView extends LitElement {
         return view;
     }
 
-    /** The colors of the rows a breakdown chart draws, so the table is its legend. */
+    /** The colors of the rows the chart draws, so the table is their legend. */
     private swatches(): ReadonlyMap<string, string> {
         const chart = this.spec && Object.values(this.spec.elements).find(e => e.type === 'Chart');
-        if (chart?.type !== 'Chart' || !('items' in chart.props)) {
-            return new Map();
-        }
-        const { items, kind } = chart.props;
-        const colors =
-            kind === 'donut' || kind === 'pie'
-                ? shades(items.map(item => item.color))
-                : items.map(item => typeColor(item.color, 'medium'));
-        return new Map(items.map((item, index) => [item.rowId, colors[index]]));
+        return chart?.type === 'Chart' ? chartSwatches(chart.props) : new Map();
     }
 }
 

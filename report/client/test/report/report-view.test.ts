@@ -77,22 +77,29 @@ describe('<report-view>', () => {
         }
     });
 
-    it('renders the report without a chart it cannot draw yet', async () => {
-        const spec = gallerySpec(galleryIds()[0]);
-        const chart = {
-            type: 'Chart' as const,
-            props: {
-                kind: 'waterfall' as const,
-                label: 'Bridge',
-                start: { label: 'Incoming', color: 'green' as const, value: '5000' },
-                steps: [{ label: 'Other', color: 'red' as const, value: '-1000' }],
-                end: { label: 'Net result', color: 'grey' as const, value: '4000' },
-            },
+    it('draws every chart kind with its Web Awesome chart, and no chart for a table', async () => {
+        const drawn: Record<string, string> = {
+            'revenue-pie': 'wa-pie-chart',
+            'revenue-donut-ja': 'wa-doughnut-chart',
+            'expenses-stacked': 'wa-bar-chart',
+            'bank-accounts-area': 'wa-line-chart',
+            'expenses-compare': 'wa-bar-chart[orientation="horizontal"]',
+            'net-result-waterfall': 'wa-bar-chart[orientation="horizontal"]',
         };
-        const view = await mount({ ...spec, elements: { ...spec.elements, chart } });
-        expect(root(view).querySelector('.chart')).toBeNull();
-        expect(root(view).querySelector('.answer')).not.toBeNull();
-        expect(root(view).querySelector('.breakdown-section')).not.toBeNull();
+        for (const [id, selector] of Object.entries(drawn)) {
+            const view = await mount(gallerySpec(id));
+            expect(root(view).querySelector(`.chart > ${selector}`), id).not.toBeNull();
+        }
+        const table = await mount(gallerySpec('expenses-table'));
+        expect(root(table).querySelector('.chart')).toBeNull();
+        expect(root(table).querySelector('.breakdown-section')).not.toBeNull();
+    });
+
+    it('shows the swatches of a pie and of a stacked chart in the table', async () => {
+        for (const id of ['revenue-pie', 'expenses-stacked']) {
+            const view = await mount(gallerySpec(id));
+            expect(root(view).querySelectorAll('tbody .swatch').length, id).toBeGreaterThan(1);
+        }
     });
 
     it('formats amounts and ratios in the report locale', async () => {

@@ -141,7 +141,8 @@ export const reportViewCSS = css`
         min-inline-size: 0;
     }
 
-    .chart.doughnut {
+    .chart.doughnut,
+    .chart.pie {
         --chart-height: 13rem;
     }
 

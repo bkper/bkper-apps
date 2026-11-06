@@ -35,11 +35,13 @@ const MONTH_OPTIONS: Record<MonthStyle, Intl.DateTimeFormatOptions> = {
 
 export class ReportFormat {
     private readonly amounts: Intl.NumberFormat;
+    private readonly signedAmounts: Intl.NumberFormat;
     private readonly changes: Intl.NumberFormat;
     private readonly shares: Intl.NumberFormat;
     private readonly zeroShare: string;
     private readonly tinyShare: string;
     private readonly compacts: Intl.NumberFormat;
+    private readonly signedCompacts: Intl.NumberFormat;
     private readonly instants: Intl.DateTimeFormat;
     private readonly months = new Map<MonthStyle, Intl.DateTimeFormat>();
 
@@ -53,18 +55,25 @@ export class ReportFormat {
         readonly fractionDigits: number,
         private readonly timeZone?: string
     ) {
-        this.amounts = new Intl.NumberFormat(locale, {
+        const digits = {
             minimumFractionDigits: fractionDigits,
             maximumFractionDigits: fractionDigits,
+        };
+        this.amounts = new Intl.NumberFormat(locale, digits);
+        this.signedAmounts = new Intl.NumberFormat(locale, {
+            ...digits,
+            signDisplay: 'exceptZero',
         });
         const percent = { style: 'percent', maximumFractionDigits: SHARE_DIGITS } as const;
         this.changes = new Intl.NumberFormat(locale, { ...percent, signDisplay: 'exceptZero' });
         this.shares = new Intl.NumberFormat(locale, percent);
         this.zeroShare = this.shares.format(0);
         this.tinyShare = `<${this.shares.format(SMALLEST_SHARE)}`;
-        this.compacts = new Intl.NumberFormat(locale, {
-            notation: 'compact',
-            maximumFractionDigits: 1,
+        const compact = { notation: 'compact', maximumFractionDigits: 1 } as const;
+        this.compacts = new Intl.NumberFormat(locale, compact);
+        this.signedCompacts = new Intl.NumberFormat(locale, {
+            ...compact,
+            signDisplay: 'exceptZero',
         });
         this.instants = new Intl.DateTimeFormat(locale, {
             dateStyle: 'medium',
@@ -76,6 +85,11 @@ export class ReportFormat {
     /** An amount, with the Book's decimal places. */
     amount(value: string): string {
         return this.amounts.format(decimal(value));
+    }
+
+    /** An amount that adds to another, signed, such as `+1,200.00` or `-35.50`. */
+    signedAmount(value: string): string {
+        return this.signedAmounts.format(decimal(value));
     }
 
     /** A change ratio as a signed percentage, such as `+12.3%`. */
@@ -99,6 +113,11 @@ export class ReportFormat {
     /** An abbreviated number for chart axes, such as `12.5K`. Display only. */
     compact(value: number): string {
         return this.compacts.format(value);
+    }
+
+    /** An abbreviated signed number, such as `+12.5K`, next to what it adds to. Display only. */
+    signedCompact(value: number): string {
+        return this.signedCompacts.format(value);
     }
 
     /** A `YYYY-MM` calendar month. */

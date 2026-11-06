@@ -1061,5 +1061,483 @@
                 }
             }
         }
+    },
+    {
+        "id": "mixed-pie-fallback",
+        "intent": {
+            "root": "g-net",
+            "period": "last_month",
+            "monthly": false,
+            "chart": "pie"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Net income",
+                        "subtitle": "Last month",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "chart",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Net income",
+                        "amount": "3799.5",
+                        "color": "grey",
+                        "previous": "0",
+                        "comparison": "vs. ⁨September 2026⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "ranked-bar",
+                        "label": "Breakdown of ⁨Net income⁩",
+                        "items": [
+                            {
+                                "rowId": "a-salary",
+                                "label": "Salary",
+                                "color": "green",
+                                "value": "5000"
+                            },
+                            {
+                                "rowId": "a-rent",
+                                "label": "Rent",
+                                "color": "red",
+                                "value": "-1000"
+                            },
+                            {
+                                "rowId": "a-food",
+                                "label": "Food",
+                                "color": "red",
+                                "value": "-200.5"
+                            }
+                        ]
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "Breakdown",
+                        "months": [
+                            "2026-10"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "a-salary",
+                                "kind": "account",
+                                "label": "Salary",
+                                "color": "green",
+                                "amount": "5000",
+                                "previous": "0",
+                                "months": [
+                                    "5000"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-rent",
+                                "kind": "account",
+                                "label": "Rent",
+                                "color": "red",
+                                "amount": "-1000",
+                                "previous": "0",
+                                "months": [
+                                    "-1000"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-food",
+                                "kind": "account",
+                                "label": "Food",
+                                "color": "red",
+                                "amount": "-200.5",
+                                "previous": "0",
+                                "months": [
+                                    "-200.5"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "Oct 1 – 31, 2026",
+                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "mixed-compare",
+        "intent": {
+            "root": "g-net",
+            "period": "last_month",
+            "monthly": false,
+            "chart": "compare"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Net income",
+                        "subtitle": "Last month",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "chart",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Net income",
+                        "amount": "3799.5",
+                        "color": "grey",
+                        "previous": "0",
+                        "comparison": "vs. ⁨September 2026⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "compare",
+                        "label": "Breakdown of ⁨Net income⁩",
+                        "periods": {
+                            "current": "Last month",
+                            "previous": "September 2026"
+                        },
+                        "items": [
+                            {
+                                "rowId": "a-salary",
+                                "label": "Salary",
+                                "color": "green",
+                                "value": "5000",
+                                "previous": "0"
+                            },
+                            {
+                                "rowId": "a-rent",
+                                "label": "Rent",
+                                "color": "red",
+                                "value": "-1000",
+                                "previous": "0"
+                            },
+                            {
+                                "rowId": "a-food",
+                                "label": "Food",
+                                "color": "red",
+                                "value": "-200.5",
+                                "previous": "0"
+                            }
+                        ]
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "Breakdown",
+                        "months": [
+                            "2026-10"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "a-salary",
+                                "kind": "account",
+                                "label": "Salary",
+                                "color": "green",
+                                "amount": "5000",
+                                "previous": "0",
+                                "months": [
+                                    "5000"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-rent",
+                                "kind": "account",
+                                "label": "Rent",
+                                "color": "red",
+                                "amount": "-1000",
+                                "previous": "0",
+                                "months": [
+                                    "-1000"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-food",
+                                "kind": "account",
+                                "label": "Food",
+                                "color": "red",
+                                "amount": "-200.5",
+                                "previous": "0",
+                                "months": [
+                                    "-200.5"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "Oct 1 – 31, 2026",
+                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "assets-waterfall",
+        "intent": {
+            "root": "g-assets",
+            "period": "today",
+            "monthly": false,
+            "chart": "waterfall"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Assets",
+                        "subtitle": "As of ⁨Nov 5, 2026⁩",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "chart",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Assets",
+                        "amount": "7849.25",
+                        "color": "blue",
+                        "previous": "3899.5",
+                        "change": "1.0129",
+                        "comparison": "vs. ⁨Oct 31, 2026⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "waterfall",
+                        "label": "Breakdown of ⁨Assets⁩",
+                        "start": {
+                            "label": "As of ⁨Oct 31, 2026⁩",
+                            "color": "blue",
+                            "value": "3899.5"
+                        },
+                        "steps": [
+                            {
+                                "rowId": "g-banks",
+                                "label": "Banks",
+                                "color": "blue",
+                                "value": "3949.75"
+                            }
+                        ],
+                        "end": {
+                            "label": "As of ⁨Nov 5, 2026⁩",
+                            "color": "blue",
+                            "value": "7849.25"
+                        }
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "Breakdown",
+                        "months": [
+                            "2026-11"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "g-banks",
+                                "kind": "group",
+                                "label": "Banks",
+                                "color": "blue",
+                                "amount": "7749.25",
+                                "previous": "3799.5",
+                                "change": "1.0395",
+                                "share": "0.9873",
+                                "months": [
+                                    "7749.25"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "a-bank-a",
+                                        "kind": "account",
+                                        "label": "Bank A",
+                                        "color": "blue",
+                                        "amount": "7749.25",
+                                        "previous": "3799.5",
+                                        "change": "1.0395",
+                                        "share": "1",
+                                        "months": [
+                                            "7749.25"
+                                        ],
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "a-cash",
+                                "kind": "account",
+                                "label": "Cash",
+                                "color": "blue",
+                                "amount": "100",
+                                "previous": "100",
+                                "change": "0",
+                                "share": "0.0127",
+                                "months": [
+                                    "100"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "As of ⁨Nov 5, 2026⁩",
+                        "query": "group:'Assets' before:2026-11-06",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A2026-11-06",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A2026-11-06"
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 ]

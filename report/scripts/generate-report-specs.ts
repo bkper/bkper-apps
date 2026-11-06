@@ -85,6 +85,62 @@ const STUDIO_CASES: Case[] = [
         intent: intent('g-revenue', 'last_month', { view: 'total' }),
         lang: 'en',
     },
+    { id: 'revenue-pie', intent: intent('g-revenue', '2025', { chart: 'pie' }), lang: 'en' },
+    {
+        id: 'expenses-stacked',
+        intent: intent('g-expenses', '2025', { monthly: true, chart: 'stacked' }),
+        lang: 'en',
+    },
+    {
+        id: 'expenses-stacked-he',
+        intent: intent('g-expenses', '2025', { monthly: true, chart: 'stacked' }),
+        lang: 'he',
+    },
+    {
+        id: 'bank-accounts-area',
+        intent: intent('g-bank-accounts', '2025', { monthly: true, chart: 'area' }),
+        lang: 'en',
+    },
+    {
+        id: 'net-result-area-ar',
+        intent: intent(NET_RESULT_ROOT, '2025', { monthly: true, chart: 'area' }),
+        lang: 'ar',
+    },
+    {
+        id: 'expenses-compare',
+        intent: intent('g-expenses', '2025', { chart: 'compare' }),
+        lang: 'en',
+    },
+    {
+        id: 'bank-accounts-compare-ar',
+        intent: intent('g-bank-accounts', '2025', { chart: 'compare' }),
+        lang: 'ar-EG',
+    },
+    {
+        id: 'net-result-waterfall',
+        intent: intent(NET_RESULT_ROOT, '2025', { chart: 'waterfall' }),
+        lang: 'en',
+    },
+    {
+        id: 'net-result-loss-waterfall-ar',
+        intent: intent(NET_RESULT_ROOT, '2025-09', { chart: 'waterfall' }),
+        lang: 'ar',
+    },
+    {
+        id: 'bank-accounts-waterfall',
+        intent: intent('g-bank-accounts', '2025-Q3', { chart: 'waterfall' }),
+        lang: 'en',
+    },
+    {
+        id: 'loans-waterfall-pt',
+        intent: intent('g-loans', '2025-Q2', { chart: 'waterfall' }),
+        lang: 'pt-BR',
+    },
+    {
+        id: 'expenses-table',
+        intent: intent('g-expenses', '2025', { chart: 'table' }),
+        lang: 'en',
+    },
 ];
 
 const LEDGER_CASES: Case[] = [
@@ -98,6 +154,21 @@ const LEDGER_CASES: Case[] = [
     },
     { id: 'card-empty', intent: intent('g-card', 'last_year'), lang: 'en' },
     { id: 'expenses-this-year-he', intent: intent('g-expenses', 'this_year'), lang: 'he' },
+    {
+        id: 'mixed-pie-fallback',
+        intent: intent('g-net', 'last_month', { chart: 'pie' }),
+        lang: 'en',
+    },
+    {
+        id: 'mixed-compare',
+        intent: intent('g-net', 'last_month', { chart: 'compare' }),
+        lang: 'en',
+    },
+    {
+        id: 'assets-waterfall',
+        intent: intent('g-assets', 'today', { chart: 'waterfall' }),
+        lang: 'en',
+    },
 ];
 
 function entries(snapshot: Snapshot, cases: Case[]): GalleryEntry[] {

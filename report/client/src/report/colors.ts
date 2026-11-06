@@ -16,6 +16,11 @@ export function faded(color: string): string {
     return `color-mix(in srgb, ${color} 40%, transparent)`;
 }
 
+/** A light fill of a color, inside an outline or under a line, so what it fills stays visible. */
+export function hollow(color: string): string {
+    return `color-mix(in srgb, ${color} 22%, transparent)`;
+}
+
 /** How far the lightest shade goes, from high (0) through medium (0.5) to low (1). */
 const LIGHTEST_SHADE = 0.85;
 

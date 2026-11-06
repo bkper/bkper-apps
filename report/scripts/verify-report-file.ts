@@ -292,22 +292,24 @@ interface DrawnChart {
     tooltip?: { getActiveElements(): unknown[] } | null;
 }
 
-/** Where, in the chart element, its first value other than zero is drawn. Runs in the page. */
+/** Where, in the chart element, its first bar or point other than zero is drawn. Runs in the page. */
 function tooltipPoint(element: Element): { x: number; y: number } | undefined {
     const chart: unknown = Reflect.get(element, 'chart');
     if (typeof chart !== 'object' || chart === null || !('getDatasetMeta' in chart)) {
         return undefined;
     }
     const drawn = chart as DrawnChart;
-    const datasetIndex = drawn.data.datasets.findIndex(dataset =>
-        dataset.data.some(value => typeof value === 'number' && value !== 0)
+    // The first value, or floating bar's start and end, that draws something. (No named
+    // inner functions: tsx would wrap them in a helper the page lacks.)
+    const indexes = drawn.data.datasets.map(dataset =>
+        dataset.data.findIndex(
+            value =>
+                (typeof value === 'number' && value !== 0) ||
+                (Array.isArray(value) && value.length === 2 && value[0] !== value[1])
+        )
     );
-    const dataIndex =
-        datasetIndex < 0
-            ? -1
-            : drawn.data.datasets[datasetIndex].data.findIndex(
-                  value => typeof value === 'number' && value !== 0
-              );
+    const datasetIndex = indexes.findIndex(index => index >= 0);
+    const dataIndex = datasetIndex < 0 ? -1 : indexes[datasetIndex];
     const value =
         dataIndex < 0
             ? undefined

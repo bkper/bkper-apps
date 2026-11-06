@@ -1,5 +1,8 @@
-/** Where a request spends its time, reported in the `Server-Timing` response header. */
-export type TimingMetric = 'user' | 'kv' | 'balances' | 'jev' | 'compute' | 'render';
+/**
+ * Where a request spends its time, reported in the `Server-Timing` response header; `total`
+ * is the whole request in the Worker.
+ */
+export type TimingMetric = 'user' | 'kv' | 'balances' | 'jev' | 'compute' | 'render' | 'total';
 
 export interface Timing {
     /** Runs `work`, adding its duration to `metric`, whether it succeeds or fails. */

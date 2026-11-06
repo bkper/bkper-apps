@@ -406,6 +406,16 @@ export function positionAmount(
     return new Amount(last?.cumulative ?? 0);
 }
 
+/** The last month any of the nodes had movements; `undefined` when none ever had. */
+export function lastActiveMonth(nodes: SnapshotNode[]): IsoMonth | undefined {
+    return nodes
+        .flatMap(node => node.months)
+        .filter(month => month.period !== '0')
+        .map(month => month.month)
+        .sort()
+        .at(-1);
+}
+
 function sum(months: MonthBalance[]): Amount {
     return months.reduce((total, month) => total.plus(month.period), new Amount(0));
 }

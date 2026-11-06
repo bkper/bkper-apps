@@ -12,7 +12,7 @@ export type ReportView = (typeof REPORT_VIEWS)[number];
  * A hashtag name without `#`. It goes into a Bkper query verbatim, so it excludes whitespace,
  * quotes and the separators Bkper splits hashtags on.
  */
-const HASHTAG_PATTERN = /^[^\s#,.'"]+$/u;
+const HASHTAG_PATTERN = /^[^\s#,.'"]+$/;
 
 /** What to report, fully resolved: the report is computed from this alone. */
 export const ReportIntentSchema = z.object({

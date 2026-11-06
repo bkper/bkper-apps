@@ -7,7 +7,7 @@
  */
 import { decide, type DecisionClient } from './decision-client.js';
 import { buildIntentRequest, NO_ROOT, THRESHOLDS, UNSPECIFIED } from './intent-questions.js';
-import { defaultPeriod, isPeriodId, type IsoMonth, type ReportNature } from './periods.js';
+import { defaultPeriod, isPeriodId, type ReportNature } from './periods.js';
 import {
     NET_RESULT_ROOT,
     REPORT_VIEWS,
@@ -15,7 +15,7 @@ import {
     type ReportIntent,
     type ReportView,
 } from './report-intent.js';
-import type { Snapshot } from './snapshot.js';
+import { lastActiveMonth, type Snapshot } from './snapshot.js';
 import type { Timing } from './timing.js';
 
 export type IntentResolution =
@@ -123,14 +123,6 @@ function readPeriod(answer: ChoiceAnswer, root: string, trend: boolean, snapshot
         nature,
         trend,
         today: snapshot.today,
-        lastActiveMonth: lastActiveMonth(groups.flatMap(group => group.months)),
+        lastActiveMonth: lastActiveMonth(groups),
     });
-}
-
-function lastActiveMonth(months: { month: IsoMonth; period: string }[]): IsoMonth | undefined {
-    return months
-        .filter(month => month.period !== '0')
-        .map(month => month.month)
-        .sort()
-        .at(-1);
 }

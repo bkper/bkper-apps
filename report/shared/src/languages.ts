@@ -145,3 +145,37 @@ export const LANGUAGES: readonly Language[] = [
     { code: 'zh-TW', name: '繁體中文', english: 'Chinese (Traditional)' },
     { code: 'zu', name: 'IsiZulu', english: 'Zulu' },
 ];
+
+const CODES = new Map(LANGUAGES.map(language => [language.code.toLowerCase(), language.code]));
+
+/** Other codes of a Bkper language. */
+const ALIASES: Record<string, string> = { fil: 'tl', nb: 'no', nn: 'no' };
+
+const TRADITIONAL_CHINESE_REGIONS = ['TW', 'HK', 'MO'];
+
+/**
+ * The Bkper language a BCP 47 tag is written in, such as `pt` for `pt-BR`, or `undefined`
+ * when the tag is malformed or its language is not one of {@link LANGUAGES}.
+ */
+export function supportedLanguage(tag: string): string | undefined {
+    let locale: Intl.Locale;
+    try {
+        locale = new Intl.Locale(tag);
+    } catch {
+        return undefined;
+    }
+    const exact = CODES.get(tag.toLowerCase()) ?? CODES.get(locale.baseName.toLowerCase());
+    if (exact) {
+        return exact;
+    }
+    const language = ALIASES[locale.language] ?? locale.language;
+    if (language === 'zh') {
+        const traditional =
+            locale.script === 'Hant' ||
+            (locale.script === undefined &&
+                TRADITIONAL_CHINESE_REGIONS.includes(locale.region ?? ''));
+        return traditional ? 'zh-TW' : 'zh-CN';
+    }
+    const byBase = LANGUAGES.filter(entry => entry.code.split('-')[0] === language);
+    return byBase.length === 1 ? byBase[0].code : undefined;
+}

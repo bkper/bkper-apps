@@ -223,6 +223,20 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - Every text is resolved in the spec, in the report's language: titles, period labels (`Intl` for years, months and dates, read as UTC calendar dates), comparisons, the labels of `other`, `incoming` and `outgoing` rows, and every label a renderer shows. Group and account names stay verbatim.
 - Amounts and ratios stay the report's decimal strings, and months and instants stay ISO; renderers format them with `Intl` in the Report's `locale`, with its `fractionDigits`, in its `dir`.
 
+## API
+
+`server/src/api/routes.ts` adapts HTTP; `server/src/services/report-service.ts` (`createReport`) and `suggestions.ts` (`buildSuggestions`) hold the behavior.
+
+- `GET /api/v1/books/{bookId}/suggestions?language=` — up to 3 example requests (`SUGGESTION_COUNT`), each with its intent, chosen by fixed rules from the snapshot: the net result, the largest Outgoing root by month, the largest permanent root's position, then other roots. Roots without movements are left out, and periods anchor to the data (this year, or the last year with movements). It also warms the snapshot.
+- `POST /api/v1/books/{bookId}/report` — body of exactly one of `prompt` (one Jev decision) or `intent` (no AI), with optional `language` and `format` (`spec` only for now). Returns `{ spec, intent, language, query, dataAt, url }`. The plural `/reports` is kept free for saved or shared reports.
+- Order of work: `getUser`, then the KV snapshot (its key needs the user, and Dispatch passes no identity), then Jev, whose options come from the snapshot. A prompt with `#hashtags` starts its live balances query before asking Jev, so both run in parallel. Jev answers in ~0.3 s when called often but ~1 s after some idle seconds; that, not the app, is most of the prompt path's p95.
+- Language: the `language` field (any BCP 47 tag of a Bkper language, `supportedLanguage`), else the one Jev is sure of, else `Accept-Language`, else `en`.
+- `url` opens the request in the Report app (`?book=&q=`), on the preview host when the API was called there, else production. `q` is the prompt, or the report's title and period for an intent.
+- Errors use one envelope, `{ success: false, error: { code, message } }`, with the app's own messages, never the prompt or upstream details (`api/errors.ts`): 400 `invalid_request` (naming the field), 401 `unauthorized`, 403 `forbidden` (also for a Bkper 401, its answer to a user who is not a collaborator: the platform has already authenticated the caller), 404 `book_not_found`, 422 `not_a_report` (with `suggestions`), `future_period` and `unknown_root`, 429 `ai_allowance_exhausted` (Bkper AI `usage_limit_exceeded`), 502 `upstream_error` (Bkper or Bkper AI), 500 `internal_error`.
+- `Server-Timing` on every API response: `user`, `kv`, `balances`, `jev`, `compute`, `render` and `total`.
+
+`npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...` times the suggestion-intent, prompt and hashtag paths of a running app (default the local Worker) from `Server-Timing`, warm and, with `--cold`, after the snapshot cache expires; read-only, with your `bkper auth token`. Prompts vary so Bkper AI's 15-minute cache of identical requests is not measured, but a rerun within 15 minutes repeats them.
+
 ## Strings
 
 `shared/catalog/en.json` holds every UI and report string: key → `{ text, role, context, placeholders? }`. Placeholders are named, `{name}`, and each is documented in `placeholders`; a test enforces both. Write `context` for a translator who sees nothing else: where the string appears, what it means in Bkper, and how short it must be.
@@ -258,6 +272,8 @@ Both ports are strict and assigned in the bkper-apps monorepo's port table; keep
 | Resource or behavior | Route or implementation |
 | -------------------- | ----------------------- |
 | API health/ping | `GET /api/v1/ping` |
+| Suggested reports of a Book | `GET /api/v1/books/{bookId}/suggestions` |
+| A report of a Book | `POST /api/v1/books/{bookId}/report` |
 | OpenAPI contract | `GET /openapi.json` |
 | Static client | Worker fallback backed by the `ASSETS` binding |
 | Platform storage | `KV` service binding |
@@ -302,6 +318,9 @@ shared/
 | Add API schemas            | `server/src/api/schemas.ts`                             |
 | Add API endpoints          | `server/src/api/routes.ts`                              |
 | Add server behavior        | `server/src/services/`                                  |
+| Change how a report request runs | `server/src/services/report-service.ts`           |
+| Change the suggestions     | `server/src/services/suggestions.ts`                    |
+| Change API error mapping   | `server/src/api/errors.ts`                              |
 | Change periods or dates    | `server/src/services/periods.ts`                        |
 | Change the report intent   | `server/src/services/report-intent.ts`                  |
 | Change the Book snapshot   | `server/src/services/snapshot.ts`, `snapshot-loader.ts` |

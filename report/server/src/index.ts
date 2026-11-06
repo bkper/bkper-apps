@@ -1,9 +1,8 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { BkperError } from 'bkper-js';
-import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
-import { buildApiError } from './api/errors.js';
+import type { ZodError } from 'zod';
+import { apiErrorResponse, buildApiError } from './api/errors.js';
 import { registerApiRoutes } from './api/routes.js';
 import {
     appContextMiddleware,
@@ -16,8 +15,7 @@ export function createApp(createContext: AppContextFactory = createAppContext) {
     const app = new OpenAPIHono<AppEnv>({
         defaultHook: (result, c) => {
             if (!result.success) {
-                const message = result.error.issues[0]?.message ?? 'Invalid request';
-                return c.json(buildApiError('INVALID_REQUEST', message), 400);
+                return c.json(buildApiError('invalid_request', issueMessage(result.error)), 400);
             }
         },
     });
@@ -27,16 +25,12 @@ export function createApp(createContext: AppContextFactory = createAppContext) {
 
     app.onError((err, c) => {
         if (c.req.path.startsWith('/api/')) {
-            if (err instanceof HTTPException) {
-                return c.json(buildApiError(String(err.status), err.message), err.status);
-            }
-            if (err instanceof BkperError && err.code >= 400 && err.code <= 599) {
-                return Response.json(buildApiError(String(err.code), err.message), {
-                    status: err.code,
-                });
+            const known = apiErrorResponse(err);
+            if (known) {
+                return c.json(known.body, known.status);
             }
             console.error(err);
-            return c.json(buildApiError('INTERNAL_ERROR', 'An unexpected error occurred'), 500);
+            return c.json(buildApiError('internal_error', 'An unexpected error occurred'), 500);
         }
         console.error(err);
         return c.json({ error: err.message }, 500);
@@ -51,6 +45,16 @@ export function createApp(createContext: AppContextFactory = createAppContext) {
     app.get('*', c => c.env.ASSETS.fetch(c.req.raw));
 
     return app;
+}
+
+/** The first issue of a validation error, after the path of the field it is about. */
+function issueMessage(error: ZodError): string {
+    const issue = error.issues[0];
+    if (!issue) {
+        return 'Invalid request';
+    }
+    const path = issue.path.map(String).join('.');
+    return path ? `${path}: ${issue.message}` : issue.message;
 }
 
 const app = createApp();

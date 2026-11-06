@@ -43,21 +43,21 @@ describe('app API routes', () => {
         expect(response.status).toBe(403);
         expect(await response.json()).toEqual({
             success: false,
-            error: { code: '403', message: 'Required Book permission' },
+            error: { code: 'forbidden', message: 'Required Book permission' },
         });
     });
 
-    it('forwards controlled Bkper API errors without individual status mapping', async () => {
+    it('maps Bkper API errors to typed codes with their own messages', async () => {
         const testApp = createApp(
             failingContext(new BkperError(401, 'You are not a collaborator on this Book'))
         );
 
         const response = await testApp.request('/api/v1/ping');
 
-        expect(response.status).toBe(401);
+        expect(response.status).toBe(403);
         expect(await response.json()).toEqual({
             success: false,
-            error: { code: '401', message: 'You are not a collaborator on this Book' },
+            error: { code: 'forbidden', message: 'No permission to read this Book.' },
         });
     });
 
@@ -72,7 +72,7 @@ describe('app API routes', () => {
             expect(response.status).toBe(500);
             expect(await response.json()).toEqual({
                 success: false,
-                error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+                error: { code: 'internal_error', message: 'An unexpected error occurred' },
             });
         } finally {
             console.error = originalConsoleError;
@@ -95,7 +95,7 @@ describe('app API routes', () => {
         expect(response.status).toBe(404);
         expect(await response.json()).toEqual({
             success: false,
-            error: { code: 'NOT_FOUND', message: 'Route not found: GET /api/missing' },
+            error: { code: 'not_found', message: 'Route not found: GET /api/missing' },
         });
     });
 
@@ -105,7 +105,7 @@ describe('app API routes', () => {
         expect(response.status).toBe(404);
         expect(await response.json()).toEqual({
             success: false,
-            error: { code: 'NOT_FOUND', message: 'Route not found: GET /api/books' },
+            error: { code: 'not_found', message: 'Route not found: GET /api/books' },
         });
     });
 });

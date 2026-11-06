@@ -17,12 +17,12 @@ function createTestApp() {
 describe('appContextMiddleware', () => {
     it('reports what the request measured in the Server-Timing header', async () => {
         const response = await createTestApp().request('/api/measured', {}, createTestEnv());
-        expect(response.headers.get('Server-Timing')).toMatch(/^kv;dur=[\d.]+$/);
+        expect(response.headers.get('Server-Timing')).toMatch(/^kv;dur=[\d.]+, total;dur=[\d.]+$/);
     });
 
-    it('adds no Server-Timing header when nothing was measured', async () => {
+    it('reports the total time of every API request, even when nothing else was measured', async () => {
         const response = await createTestApp().request('/api/plain', {}, createTestEnv());
-        expect(response.headers.get('Server-Timing')).toBeNull();
+        expect(response.headers.get('Server-Timing')).toMatch(/^total;dur=[\d.]+$/);
     });
 
     it('runs deferred work with waitUntil when the runtime has an execution context', async () => {

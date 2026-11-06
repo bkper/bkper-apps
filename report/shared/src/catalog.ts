@@ -131,20 +131,23 @@ export interface BreakdownRow {
     children: BreakdownRow[];
 }
 
-const BreakdownRowSchema: z.ZodType<BreakdownRow> = z.strictObject({
-    id: z.string().min(1),
-    kind: z.enum(['group', 'account', 'other', 'incoming', 'outgoing']),
-    label: Text,
-    color: Color,
-    amount: Decimal,
-    previous: Decimal.optional(),
-    change: Ratio.optional(),
-    share: Ratio.optional(),
-    months: z.array(Decimal),
-    get children() {
-        return z.array(BreakdownRowSchema);
-    },
-});
+const BreakdownRowSchema: z.ZodType<BreakdownRow> = z
+    .strictObject({
+        id: z.string().min(1),
+        kind: z.enum(['group', 'account', 'other', 'incoming', 'outgoing']),
+        label: Text,
+        color: Color,
+        amount: Decimal,
+        previous: Decimal.optional(),
+        change: Ratio.optional(),
+        share: Ratio.optional(),
+        months: z.array(Decimal),
+        get children() {
+            return z.array(BreakdownRowSchema);
+        },
+    })
+    // Named, so JSON Schema and OpenAPI generators reference the recursion instead of expanding it.
+    .meta({ id: 'BreakdownRow' });
 
 export const BreakdownTableProps = z
     .strictObject({
@@ -295,7 +298,7 @@ const ReportElement = z.discriminatedUnion('type', [
     }),
 ]);
 
-const ReportSpecSchema = z.strictObject({
+export const ReportSpecSchema = z.strictObject({
     root: z.string().min(1),
     elements: z.record(z.string(), ReportElement),
 });

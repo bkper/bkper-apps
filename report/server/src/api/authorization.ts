@@ -1,4 +1,4 @@
-import { Permission, type Book } from 'bkper-js';
+import { Permission } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 
 const VIEW_PERMISSIONS: readonly Permission[] = [
@@ -8,9 +8,9 @@ const VIEW_PERMISSIONS: readonly Permission[] = [
     Permission.OWNER,
 ];
 
-export function requireViewPermission(book: Book): void {
-    const permission = book.getPermission();
-    if (!VIEW_PERMISSIONS.includes(permission)) {
+/** Requires a Book permission that can read balances. */
+export function requireViewPermission(permission: string | undefined): void {
+    if (!VIEW_PERMISSIONS.some(allowed => allowed === permission)) {
         throw new HTTPException(403, {
             message: `Required Book permission: VIEWER, POSTER, EDITOR, or OWNER. Current: ${permission ?? 'unavailable'}.`,
         });

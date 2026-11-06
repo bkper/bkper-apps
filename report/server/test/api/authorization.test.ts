@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Book, Permission } from 'bkper-js';
+import { Permission } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import { requireViewPermission } from '../../src/api/authorization';
 
@@ -16,18 +16,16 @@ const cases = [
 describe('Book authorization', () => {
     it('allows only permissions that can view balances', () => {
         for (const { permission, allowed } of cases) {
-            const book = new Book({ permission });
-
             if (allowed) {
-                expect(() => requireViewPermission(book)).not.toThrow();
+                expect(() => requireViewPermission(permission)).not.toThrow();
             } else {
-                expect(() => requireViewPermission(book)).toThrow(HTTPException);
+                expect(() => requireViewPermission(permission)).toThrow(HTTPException);
             }
         }
     });
 
     it('returns a useful forbidden error', () => {
-        const action = () => requireViewPermission(new Book({ permission: Permission.RECORDER }));
+        const action = () => requireViewPermission(Permission.RECORDER);
 
         expect(action).toThrowError(
             expect.objectContaining({

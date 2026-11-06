@@ -14,7 +14,11 @@ describe('server OpenAPI contract', () => {
             components?: { schemas?: Record<string, unknown> };
         };
 
-        expect(Object.keys(spec.paths).sort()).toEqual(['/api/v1/ping']);
+        expect(Object.keys(spec.paths).sort()).toEqual([
+            '/api/v1/books/{bookId}/report',
+            '/api/v1/books/{bookId}/suggestions',
+            '/api/v1/ping',
+        ]);
         expect(spec.paths['/events']).toBeUndefined();
         expect(spec.paths['/health']).toBeUndefined();
         const schemas = spec.components?.schemas ?? {};
@@ -49,7 +53,7 @@ describe('server OpenAPI contract', () => {
         expect(await response.json()).toEqual({
             success: false,
             error: {
-                code: 'NOT_FOUND',
+                code: 'not_found',
                 message: 'Route not found: GET /api/missing',
             },
         });

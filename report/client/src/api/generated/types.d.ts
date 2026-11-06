@@ -50,6 +50,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/books/{bookId}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest reports of a Book
+         * @description Up to three example requests the Book can answer, each with its intent. Requesting a report by one of these intents needs no AI.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Language of the texts, as a BCP 47 tag of one of the Bkper languages, such as `pt` or `pt-BR`. */
+                    language?: string;
+                };
+                header?: never;
+                path: {
+                    bookId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Suggested reports */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuggestionsResponse"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description No permission to read the Book (`forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Book not found (`book_not_found`) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Bkper or Bkper AI failed (`upstream_error`) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description API error */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/books/{bookId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build a report of a Book
+         * @description Builds a financial report from a request in any language (`prompt`) or from an `intent`. Numbers are computed from the Book balances; the Book is never changed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    bookId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReportRequest"];
+                };
+            };
+            responses: {
+                /** @description The report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportResponse"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description No permission to read the Book (`forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Book not found (`book_not_found`) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not a report of this Book (`not_a_report`, with suggestions), a period that has not started (`future_period`) or an unknown root (`unknown_root`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportErrorResponse"];
+                    };
+                };
+                /** @description Bkper AI allowance exhausted (`ai_allowance_exhausted`) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Bkper or Bkper AI failed (`upstream_error`) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description API error */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -64,11 +261,210 @@ export interface components {
             /** @enum {boolean} */
             success: false;
             error: {
-                /** @example INTERNAL_ERROR */
+                /**
+                 * @description invalid_request, unauthorized, forbidden, not_found, book_not_found, not_a_report, future_period, unknown_root, ai_allowance_exhausted, upstream_error or internal_error.
+                 * @example book_not_found
+                 */
                 code: string;
-                /** @example An unexpected error occurred */
+                /** @example Book not found, or not shared with you. */
                 message: string;
             };
+        };
+        SuggestionsResponse: {
+            suggestions: components["schemas"]["Suggestion"][];
+        };
+        Suggestion: {
+            /** @example Expenses by month this year */
+            text: string;
+            intent: components["schemas"]["ReportIntent"];
+        };
+        /** @description What to report: a root group id or `net-result`, a period id (`this_year`, `last_month`, `2025`, `2025-Q3`, `2025-10`, …), whether by month, an optional view and hashtags. */
+        ReportIntent: {
+            root: string;
+            period: string;
+            monthly: boolean;
+            /** @enum {string} */
+            view?: "trend" | "breakdown" | "total";
+            hashtags?: string[];
+        };
+        ReportResponse: {
+            spec: components["schemas"]["ReportSpec"];
+            intent: components["schemas"]["ReportIntent"];
+            /**
+             * @description The Bkper language of the texts.
+             * @example pt
+             */
+            language: string;
+            /**
+             * @description The Bkper query of exactly the report’s transactions and dates.
+             * @example group:'Expenses' after:2026-01-01 before:2026-11-06
+             */
+            query: string;
+            /** @description When the balances were read (ISO 8601). */
+            dataAt: string;
+            /**
+             * @description The report in the Report app.
+             * @example https://report.bkper.app/?book=agtzfmJrcGVyLWhyZHINCxIGTGVkZ2VyGNEPDA&q=expenses
+             */
+            url: string;
+        };
+        /** @description The report as a json-render spec of the report catalog, in `language`. */
+        ReportSpec: {
+            root: string;
+            elements: {
+                [key: string]: {
+                    /** @enum {string} */
+                    type: "Report";
+                    props: {
+                        title: string;
+                        subtitle: string;
+                        locale: string;
+                        /** @enum {string} */
+                        dir: "ltr" | "rtl";
+                        fractionDigits: number;
+                    };
+                    children: string[];
+                } | {
+                    /** @enum {string} */
+                    type: "Answer";
+                    props: {
+                        label: string;
+                        amount: string;
+                        /** @enum {string} */
+                        color: "blue" | "yellow" | "green" | "red" | "grey";
+                        previous?: string;
+                        change?: string;
+                        comparison?: string;
+                        parts?: {
+                            /** @enum {string} */
+                            id: "incoming" | "outgoing";
+                            label: string;
+                            amount: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            previous?: string;
+                            change?: string;
+                        }[];
+                    };
+                } | {
+                    /** @enum {string} */
+                    type: "Chart";
+                    props: {
+                        /** @enum {string} */
+                        kind: "bar" | "line";
+                        label: string;
+                        months: string[];
+                        series: {
+                            id: string;
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            values: string[];
+                        }[];
+                    } | {
+                        /** @enum {string} */
+                        kind: "ranked-bar" | "donut";
+                        label: string;
+                        items: {
+                            rowId: string;
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            value: string;
+                        }[];
+                    };
+                } | {
+                    /** @enum {string} */
+                    type: "BreakdownTable";
+                    props: {
+                        label: string;
+                        months: string[];
+                        columns: {
+                            name: string;
+                            amount: string;
+                            share: string;
+                            change: string;
+                            trend: string;
+                        };
+                        expandLabel: string;
+                        collapseLabel: string;
+                        emptyLabel: string;
+                        rows: components["schemas"]["BreakdownRow"][];
+                    };
+                    on?: {
+                        expand: {
+                            /** @enum {string} */
+                            action: "expandRow";
+                        };
+                    };
+                } | {
+                    /** @enum {string} */
+                    type: "Source";
+                    props: {
+                        footer: string;
+                        period: string;
+                        query: string;
+                        /** Format: uri */
+                        url: string;
+                        /** Format: date-time */
+                        dataAt: string;
+                        labels: {
+                            source: string;
+                            period: string;
+                            query: string;
+                            dataAt: string;
+                            open: string;
+                        };
+                    };
+                    on?: {
+                        open: {
+                            /** @enum {string} */
+                            action: "openInBkper";
+                            params: {
+                                /** Format: uri */
+                                url: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        BreakdownRow: {
+            id: string;
+            /** @enum {string} */
+            kind: "group" | "account" | "other" | "incoming" | "outgoing";
+            label: string;
+            /** @enum {string} */
+            color: "blue" | "yellow" | "green" | "red" | "grey";
+            amount: string;
+            previous?: string;
+            change?: string;
+            share?: string;
+            months: string[];
+            children: components["schemas"]["BreakdownRow"][];
+        };
+        ReportErrorResponse: components["schemas"]["ErrorResponse"] & {
+            /** @description With `not_a_report`: reports this Book can have. */
+            suggestions?: components["schemas"]["Suggestion"][];
+        };
+        /** @description Exactly one of `prompt` (a request in any language) or `intent` (such as a suggestion’s, which needs no AI). */
+        ReportRequest: {
+            /**
+             * @description The report asked for, in any language.
+             * @example expenses by month this year
+             */
+            prompt?: string;
+            intent?: components["schemas"]["ReportIntent"];
+            /**
+             * @description Language of the texts, as a BCP 47 tag of one of the Bkper languages, such as `pt` or `pt-BR`.
+             * @example pt-BR
+             */
+            language?: string;
+            /**
+             * @description What to return; `spec` (the default) is a json-render spec.
+             * @enum {string}
+             */
+            format?: "spec";
         };
     };
     responses: never;
@@ -79,5 +475,13 @@ export interface components {
 }
 export type PingResponse = components['schemas']['PingResponse'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
+export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
+export type Suggestion = components['schemas']['Suggestion'];
+export type ReportIntent = components['schemas']['ReportIntent'];
+export type ReportResponse = components['schemas']['ReportResponse'];
+export type ReportSpec = components['schemas']['ReportSpec'];
+export type BreakdownRow = components['schemas']['BreakdownRow'];
+export type ReportErrorResponse = components['schemas']['ReportErrorResponse'];
+export type ReportRequest = components['schemas']['ReportRequest'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

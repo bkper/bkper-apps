@@ -26,6 +26,12 @@ Prefer this to computing balances yourself: numbers are computed by deterministi
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.
 
+## Saved prompts
+
+The plural \`/api/v1/books/{bookId}/reports\` is a Book-shared shelf of original prompts, not computed reports. \`GET\` lists \`reports: [{ id, prompt }]\` and fresh \`capabilities: { list, save, remove }\`. Every known non-\`NONE\` role may list, including \`RECORDER\`; only \`OWNER\` and \`EDITOR\` may save or remove. \`POST\` accepts exactly \`{ "prompt": "…" }\` and returns \`{ report: { id, prompt } }\` (200); \`DELETE /api/v1/books/{bookId}/reports/{reportId}\` returns 204, including when absent. Both mutations are idempotent for identical input.
+
+Save only when asked: this writes durable app metadata shared with the Book's collaborators, not Book resources or executable saved queries. Only the original text is saved (edges trimmed, 1–1000 characters), never report HTML, resolved intent, dates, amounts, inferred language or a separately selected chart. To open one against current data, send its \`prompt\` to the existing singular \`POST /report\`. Every shelf operation reads the Book's role afresh. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Storage visibility is eventually consistent; independent items cannot overwrite each other, while concurrent save/remove of the same item follows KV ordering. Shelf responses must not be cached. A 502 \`storage_error\` means retry the same operation; a failed write may have reached storage.
+
 ## Errors
 
 Errors are JSON, \`{ "success": false, "error": { "code", "message" } }\`. With \`not_a_report\`, the request names nothing this Book can report: ask the person to name a group of the Book and a period, or offer the reports \`GET /api/v1/books/{bookId}/suggestions\` lists.`;
@@ -46,6 +52,11 @@ export const openApiDocumentConfig = {
         {
             name: 'Reports',
             description: 'Financial reports of a Book, read-only, from a request in any language.',
+        },
+        {
+            name: 'Saved prompts',
+            description:
+                'Book-shared original prompts in durable app metadata, with fresh Book role authorization. No computed reports or Book resources are stored or changed.',
         },
         { name: 'API', description: 'API health.' },
     ],

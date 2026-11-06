@@ -9,6 +9,7 @@ import { createReport, DEFAULT_LANGUAGE, type ReportRequest } from '../services/
 import type { Snapshot } from '../services/snapshot.js';
 import { loadSnapshot } from '../services/snapshot-loader.js';
 import { buildSuggestions } from '../services/suggestions.js';
+import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
 import { buildApiError } from './errors.js';
 import { openApiDocumentConfig } from './openapi.js';
@@ -28,6 +29,10 @@ import {
     ReportResponseSchema,
     SuggestionsQuerySchema,
     SuggestionsResponseSchema,
+    SavedPromptParamsSchema,
+    SavedPromptsResponseSchema,
+    SavePromptRequestSchema,
+    SavePromptResponseSchema,
 } from './schemas.js';
 
 type App = OpenAPIHono<AppEnv>;
@@ -100,6 +105,69 @@ const reportRoute = createRoute({
     },
 });
 
+const savedPromptErrors = {
+    ...bookErrorResponses,
+    403: jsonResponse(
+        'Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.',
+        ErrorResponseSchema
+    ),
+    502: jsonResponse(
+        'Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage.',
+        ErrorResponseSchema
+    ),
+};
+
+const listSavedPromptsRoute = createRoute({
+    method: 'get',
+    path: '/api/v1/books/{bookId}/reports',
+    tags: ['Saved prompts'],
+    summary: 'List the Book’s shared saved prompts and current capabilities',
+    description:
+        'Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.',
+    request: { params: BookParamsSchema },
+    responses: {
+        200: jsonResponse(
+            'Saved prompts and freshly authorized capabilities',
+            SavedPromptsResponseSchema
+        ),
+        ...savedPromptErrors,
+    },
+});
+
+const savePromptRoute = createRoute({
+    method: 'post',
+    path: '/api/v1/books/{bookId}/reports',
+    tags: ['Saved prompts'],
+    summary: 'Save an original prompt on the Book’s shared shelf',
+    description:
+        'Requires OWNER or EDITOR, checked afresh. Saves only the trimmed original prompt and its opaque id in durable app metadata, not in the Book’s executable saved-query list. Identical text after edge trimming is idempotent across collaborators. Does not store HTML, resolved intent, dates, numbers, inferred language or a separately selected chart. No AI or report computation runs. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Independent items never overwrite each other; visibility and concurrent changes to the same item follow KV eventual consistency. A later save can save a removed prompt again.',
+    request: {
+        params: BookParamsSchema,
+        body: {
+            required: true,
+            content: { 'application/json': { schema: SavePromptRequestSchema } },
+        },
+    },
+    responses: {
+        200: jsonResponse('Saved prompt, also for an identical retry', SavePromptResponseSchema),
+        ...savedPromptErrors,
+    },
+});
+
+const removeSavedPromptRoute = createRoute({
+    method: 'delete',
+    path: '/api/v1/books/{bookId}/reports/{reportId}',
+    tags: ['Saved prompts'],
+    summary: 'Remove a prompt from the Book’s shared shelf',
+    description:
+        'Requires OWNER or EDITOR, checked afresh. Either may remove any saved prompt on this Book. Idempotent: an absent id also succeeds. Removes only this item of app metadata, never a report, a Book saved query or financial data. Visibility is eventually consistent. A failed write may have reached storage, so retrying the same removal is safe.',
+    request: { params: SavedPromptParamsSchema },
+    responses: {
+        204: { description: 'Removed, or already absent. No response body.' },
+        ...savedPromptErrors,
+    },
+});
+
 export function registerApiRoutes(app: App): void {
     app.openapi(pingRoute, c => c.json({ ok: true, source: 'report' }, 200));
 
@@ -149,6 +217,35 @@ export function registerApiRoutes(app: App): void {
             return c.html(file, 200);
         }
         return c.json({ ...report, url }, 200);
+    });
+
+    app.openapi(listSavedPromptsRoute, async c => {
+        c.header('Cache-Control', 'no-store');
+        const context = c.var.appContext;
+        const { bookId } = c.req.valid('param');
+        return c.json(
+            await listSavedPrompts(bookId, { bkper: context.bkper, kv: context.env.KV }),
+            200
+        );
+    });
+
+    app.openapi(savePromptRoute, async c => {
+        c.header('Cache-Control', 'no-store');
+        const context = c.var.appContext;
+        const { bookId } = c.req.valid('param');
+        const { prompt } = c.req.valid('json');
+        return c.json(
+            await savePrompt(bookId, prompt, { bkper: context.bkper, kv: context.env.KV }),
+            200
+        );
+    });
+
+    app.openapi(removeSavedPromptRoute, async c => {
+        c.header('Cache-Control', 'no-store');
+        const context = c.var.appContext;
+        const { bookId, reportId } = c.req.valid('param');
+        await removeSavedPrompt(bookId, reportId, { bkper: context.bkper, kv: context.env.KV });
+        return c.body(null, 204);
     });
 
     app.doc('/openapi.json', openApiDocumentConfig);

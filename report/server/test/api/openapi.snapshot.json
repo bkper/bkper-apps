@@ -249,6 +249,275 @@
                     }
                 }
             }
+        },
+        "/api/v1/books/{bookId}/reports": {
+            "get": {
+                "tags": [
+                    "Saved prompts"
+                ],
+                "summary": "List the Book’s shared saved prompts and current capabilities",
+                "description": "Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.",
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "example": "abc123"
+                        },
+                        "required": true,
+                        "name": "bookId",
+                        "in": "path",
+                        "description": "Id of the Book, as Bkper gives it (`bkper book list`)."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Saved prompts and freshly authorized capabilities",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SavedPromptsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request (`invalid_request`, naming the field)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Book not found, or not shared with the person (`book_not_found`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Another error, such as `unauthorized` (401) or `internal_error` (500)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Saved prompts"
+                ],
+                "summary": "Save an original prompt on the Book’s shared shelf",
+                "description": "Requires OWNER or EDITOR, checked afresh. Saves only the trimmed original prompt and its opaque id in durable app metadata, not in the Book’s executable saved-query list. Identical text after edge trimming is idempotent across collaborators. Does not store HTML, resolved intent, dates, numbers, inferred language or a separately selected chart. No AI or report computation runs. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Independent items never overwrite each other; visibility and concurrent changes to the same item follow KV eventual consistency. A later save can save a removed prompt again.",
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "example": "abc123"
+                        },
+                        "required": true,
+                        "name": "bookId",
+                        "in": "path",
+                        "description": "Id of the Book, as Bkper gives it (`bkper book list`)."
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavePromptRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Saved prompt, also for an identical retry",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SavePromptResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request (`invalid_request`, naming the field)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Book not found, or not shared with the person (`book_not_found`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Another error, such as `unauthorized` (401) or `internal_error` (500)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/books/{bookId}/reports/{reportId}": {
+            "delete": {
+                "tags": [
+                    "Saved prompts"
+                ],
+                "summary": "Remove a prompt from the Book’s shared shelf",
+                "description": "Requires OWNER or EDITOR, checked afresh. Either may remove any saved prompt on this Book. Idempotent: an absent id also succeeds. Removes only this item of app metadata, never a report, a Book saved query or financial data. Visibility is eventually consistent. A failed write may have reached storage, so retrying the same removal is safe.",
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "example": "abc123"
+                        },
+                        "required": true,
+                        "name": "bookId",
+                        "in": "path",
+                        "description": "Id of the Book, as Bkper gives it (`bkper book list`)."
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 64,
+                            "maxLength": 64,
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "Opaque saved-prompt id returned by this API. Scoped to the Book."
+                        },
+                        "required": true,
+                        "description": "Opaque saved-prompt id returned by this API. Scoped to the Book.",
+                        "name": "reportId",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Removed, or already absent. No response body."
+                    },
+                    "400": {
+                        "description": "Invalid request (`invalid_request`, naming the field)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Book not found, or not shared with the person (`book_not_found`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Another error, such as `unauthorized` (401) or `internal_error` (500)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "schemas": {
@@ -2060,6 +2329,99 @@
             },
             "additionalProperties": false,
             "description": "Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ \"prompt\": \"…\", \"format\": \"html\" }`."
+        },
+        "SavedPromptsResponse": {
+            "type": "object",
+            "properties": {
+                "reports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/components/schemas/SavedPrompt"
+                    },
+                    "description": "All saved prompts in stable id order. The server follows every storage page. Visibility after saves/removals is eventually consistent."
+                },
+                "capabilities": {
+                    "type": "object",
+                    "properties": {
+                        "list": {
+                            "type": "boolean",
+                            "description": "True for OWNER, EDITOR, POSTER, RECORDER and VIEWER. Unknown or NONE roles are denied."
+                        },
+                        "save": {
+                            "type": "boolean",
+                            "description": "True only for OWNER and EDITOR."
+                        },
+                        "remove": {
+                            "type": "boolean",
+                            "description": "True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf."
+                        }
+                    },
+                    "required": [
+                        "list",
+                        "save",
+                        "remove"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata."
+                }
+            },
+            "required": [
+                "reports",
+                "capabilities"
+            ],
+            "additionalProperties": false
+        },
+        "SavedPrompt": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64,
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "Opaque saved-prompt id returned by this API. Scoped to the Book."
+                },
+                "prompt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "description": "Only the saved request text. To build it against current Book data, send this as `prompt` to the singular POST /api/v1/books/{bookId}/report."
+                }
+            },
+            "required": [
+                "id",
+                "prompt"
+            ],
+            "additionalProperties": false,
+            "description": "Book-shared original prompt, not a report snapshot or executable saved query. No HTML, intent, resolved period, amounts, inferred language or separately selected chart is saved."
+        },
+        "SavePromptResponse": {
+            "type": "object",
+            "properties": {
+                "report": {
+                    "$ref": "#/components/schemas/SavedPrompt"
+                }
+            },
+            "required": [
+                "report"
+            ],
+            "additionalProperties": false
+        },
+        "SavePromptRequest": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "description": "The original request, in its own words and language. Trimmed at the edges, 1–1000 characters; internal whitespace and case are preserved. No report is computed and no AI is called.",
+                    "example": "Despesas por mês este ano"
+                }
+            },
+            "required": [
+                "prompt"
+            ],
+            "additionalProperties": false
         }
     }
 }

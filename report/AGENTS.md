@@ -163,13 +163,13 @@ Build output:
 Report turns a short request, in any language, into a financial report of a Book. The web client and the Bkper Agent call the same app API.
 
 - **Client**: Lit + Web Awesome Pro; a Book picker and, for the selected Book, one input whose report builds as the person types, with the Book and the request in the URL as `?book=<bookId>&q=<request>`, and, in a Book, the report's state (`&state=`, see Report state).
-- **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
+- **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: financial reporting only reads Books. The saved-prompt shelf writes only Book-scoped app metadata, never Book resources.
 - **Shared** (`shared/`, package `report-shared`): the report catalog, the strings, bidirectional text and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
 ## Accounting rules
 
 - Numbers come only from deterministic code over Bkper balances. AI may choose among options the code offers; it never computes amounts or dates, and never writes queries.
-- Read-only on Books: never create, update or delete anything in a Book, and do not subscribe to events.
+- Read-only on Books: never create, update or delete Book resources, and do not subscribe to events. The sole persistence exception is the explicitly requested saved-prompt shelf in app KV (original prompt text only); it never writes to a Book, its executable saved queries or its financial data. Normal report computation remains read-only.
 - Periods resolve to ISO dates in the Book time zone: `after:` inclusive, `before:` exclusive. Only "today" reads the clock. A request that names no period reads activity (Incoming, Outgoing) for this year, positions (Asset, Liability) today, and a trend over the last 12 months; when this year or those 12 months have no movements in the report's groups, it reads the last year that has them (`defaultPeriod`), so Books with old data still show their data. Current periods (this month, quarter and year, year to date, the last 12 months, all time) end at tomorrow, so they include today and exclude future-dated transactions; past periods are whole calendar periods. Comparisons are calendar-aligned: a whole period compares with the previous month, quarter or year; a current period with the same span one period back, its day clamped to the end of a shorter month. A position compares with the position at the end of the previous period (for today, the end of last month). All time has no comparison.
 
 ## Book snapshot
@@ -251,6 +251,19 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - `Server-Timing` on every API response: `user`, `kv`, `balances`, `jev`, `compute`, `render` and `total`.
 
 `npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...` times the suggestion-intent, prompt and hashtag paths of a running app (default the local Worker) from `Server-Timing`, warm and, with `--cold`, after the snapshot cache expires; read-only, with your `bkper auth token`. Prompts vary so Bkper AI's 15-minute cache of identical requests is not measured, but a rerun within 15 minutes repeats them.
+
+## Saved prompts
+
+The plural `/api/v1/books/{bookId}/reports` is the Book-shared shelf of original prompts, not computed reports. The singular `/report` remains unchanged and read-only. There is no shelf UI/store yet.
+
+- `GET /reports` returns `{ reports: [{ id, prompt }], capabilities: { list, save, remove } }`. Every known non-`NONE` Book role may list: `OWNER`, `EDITOR`, `POSTER`, `RECORDER`, `VIEWER`. Unknown, missing and `NONE` roles are denied.
+- `POST /reports` accepts exactly `{ prompt }` and returns `{ report: { id, prompt } }` (200, also on an identical retry). `DELETE /reports/{reportId}` returns 204 even when absent. Only `OWNER` and `EDITOR` may save/remove, and either may remove any shelf item. These are additive v1 routes; no existing contracts are tightened.
+- `services/saved-prompts.ts` performs one fresh, thin `bkper.getBook(bookId)` on **every** read/write before accessing storage. It never authorizes through a cached balances snapshot, the current caller’s billing plan, or client-supplied capabilities. A list’s capabilities describe that request, not future authorization. Shelf responses use `Cache-Control: no-store`.
+- Prompts follow the current report-request rules (`services/report-prompt.ts`): trim the edges, 1–1000 UTF-16 code units; preserve internal whitespace, case and language. Nothing is resolved or computed when saving. No HTML, intent, resolved dates, amounts, inferred language or separately selected chart is stored. To reopen, send the saved text as `prompt` to the existing singular `/report`, so relative periods resolve again.
+- Storage is the existing app KV binding, one durable key per item: `saved-prompts:v1:<encodeURIComponent(bookId)>:<id>`. `id` is lowercase SHA-256 of the JSON-encoded prompt; the value is only that JSON string (encoding preserves all UTF-16 text). There is no TTL, user partition or whole-list read/modify/write. Identical saves address the same item; independent saves/removals cannot overwrite one another. Listing follows every KV page, checks stored data, tolerates an item removed before reading, and returns stable id order. KV visibility is eventually consistent: a successful write need not appear immediately on another replica; same-item save/remove races follow KV ordering, and a later save can restore a removed item. This is not a linearizable shelf. KV failures return 502 `storage_error`, without prompt/key/upstream details; a failed write may have reached storage, so identical retries are safe.
+- Native evidence (paths from `/workspace`): `bkper-core/api/src/main/java/com/bkper/books/savedquery/SavedQueryController.java` lists via `Authorizer.assertCollaboratorOn` and saves/deletes via explicit `OWNER`/`EDITOR` checks; `books/collaborator/Authorizer.java` denies only `NONE` for listing. Native saves additionally check the **owner’s** free plan (`users/user/BkperUser.java:isToBlockSaveQueries`), unlike deletion. That billing restriction is deliberately **not inherited** by app metadata; only the verified Book role model applies.
+- Native saved queries are executable (`bkper-clients/packages/pwa/client/src/book/services/query-service.ts`, SDK `Query.getQuery`, canonical `bkper.Query.query`). They have no metadata discriminator and must never carry natural-language prompts. Their native repository uses per-entity transactions (`books/savedquery/SavedQueryRepository.java`), but is not a suitable shelf. Book properties also are unsuitable: `books/book/BookService.java` and `BookEntity.setProperties` replace the entire map, risking lost concurrent changes. The installed SDK types (`node_modules/bkper-js/lib/index.d.ts`, `node_modules/@bkper/bkper-api-types/index.d.ts`) expose `Book.permission`, properties and executable queries, but no owner-plan capability or per-property atomic mutation.
+- All mutation tests inject clients and isolated storage and prohibit network access. Never test writes against real Books. No app installation or installation requirement is added.
 
 ## Report state
 
@@ -370,6 +383,8 @@ Both ports are strict and assigned in the bkper-apps monorepo's port table; keep
 | API health/ping | `GET /api/v1/ping` |
 | Suggested reports of a Book | `GET /api/v1/books/{bookId}/suggestions` |
 | A report of a Book | `POST /api/v1/books/{bookId}/report` |
+| Book-shared saved prompts and role capabilities | `GET /api/v1/books/{bookId}/reports` |
+| Save/remove original prompts (app metadata only) | `POST /api/v1/books/{bookId}/reports`, `DELETE /api/v1/books/{bookId}/reports/{reportId}` |
 | OpenAPI contract | `GET /openapi.json` |
 | Static client | Worker fallback backed by the `ASSETS` binding |
 | Platform storage | `KV` service binding |
@@ -429,6 +444,7 @@ shared/
 | Add server behavior        | `server/src/services/`                                  |
 | Change how a report request runs | `server/src/services/report-service.ts`           |
 | Change the suggestions     | `server/src/services/suggestions.ts`                    |
+| Change saved-prompt persistence and role authorization | `server/src/services/saved-prompts.ts` |
 | Change API error mapping   | `server/src/api/errors.ts`                              |
 | Change periods or dates    | `server/src/services/periods.ts`                        |
 | Change the report intent   | `server/src/services/report-intent.ts`, `shared/src/report-intent.ts` |

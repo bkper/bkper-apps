@@ -5,6 +5,7 @@ import type { ZodType } from 'zod';
 import { CHART_KINDS, CHART_RULES, UNFIT_REASON_CODES } from '../services/report.js';
 import { SHOW_RULE_NAMES } from '../services/intent-resolver.js';
 import { ReportIntentSchema } from '../services/report-intent.js';
+import { ReportPromptSchema } from '../services/report-prompt.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
 
@@ -161,7 +162,7 @@ export const EXACTLY_ONE_REQUEST = 'Send exactly one of `prompt` or `intent`.';
 // field that is wrong instead of the whole body.
 export const ReportRequestSchema = z
     .strictObject({
-        prompt: z.string().trim().min(1).max(1000).optional().openapi({
+        prompt: ReportPromptSchema.optional().openapi({
             description:
                 'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.',
             example: 'show my expenses by category this year',
@@ -186,6 +187,72 @@ export const ReportRequestSchema = z
     });
 
 export type ReportRequestBody = z.infer<typeof ReportRequestSchema>;
+
+const SavedPromptIdSchema = z
+    .string()
+    .length(64)
+    .regex(/^[a-f0-9]{64}$/)
+    .openapi({
+        description: 'Opaque saved-prompt id returned by this API. Scoped to the Book.',
+    });
+
+export const SavedPromptParamsSchema = BookParamsSchema.extend({
+    reportId: SavedPromptIdSchema.openapi({ param: { name: 'reportId', in: 'path' } }),
+}).strict();
+
+export const SavePromptRequestSchema = z
+    .strictObject({
+        prompt: ReportPromptSchema.openapi({
+            description:
+                'The original request, in its own words and language. Trimmed at the edges, 1–1000 characters; internal whitespace and case are preserved. No report is computed and no AI is called.',
+            example: 'Despesas por mês este ano',
+        }),
+    })
+    .openapi('SavePromptRequest');
+
+export const SavedPromptSchema = z
+    .strictObject({
+        id: SavedPromptIdSchema,
+        prompt: z.string().min(1).max(1000).openapi({
+            description:
+                'Only the saved request text. To build it against current Book data, send this as `prompt` to the singular POST /api/v1/books/{bookId}/report.',
+        }),
+    })
+    .openapi('SavedPrompt', {
+        description:
+            'Book-shared original prompt, not a report snapshot or executable saved query. No HTML, intent, resolved period, amounts, inferred language or separately selected chart is saved.',
+    });
+
+export const SavedPromptsResponseSchema = z
+    .strictObject({
+        reports: z.array(SavedPromptSchema).openapi({
+            description:
+                'All saved prompts in stable id order. The server follows every storage page. Visibility after saves/removals is eventually consistent.',
+        }),
+        capabilities: z
+            .strictObject({
+                list: z.boolean().openapi({
+                    description:
+                        'True for OWNER, EDITOR, POSTER, RECORDER and VIEWER. Unknown or NONE roles are denied.',
+                }),
+                save: z.boolean().openapi({ description: 'True only for OWNER and EDITOR.' }),
+                remove: z.boolean().openapi({
+                    description:
+                        'True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf.',
+                }),
+            })
+            .openapi({
+                description:
+                    'Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata.',
+            }),
+    })
+    .openapi('SavedPromptsResponse');
+
+export const SavePromptResponseSchema = z
+    .strictObject({
+        report: SavedPromptSchema,
+    })
+    .openapi('SavePromptResponse');
 
 const ViewKindSchema = z.enum(VIEW_KINDS).openapi({
     description:

@@ -16,6 +16,8 @@ describe('server OpenAPI contract', () => {
 
         expect(Object.keys(spec.paths).sort()).toEqual([
             '/api/v1/books/{bookId}/report',
+            '/api/v1/books/{bookId}/reports',
+            '/api/v1/books/{bookId}/reports/{reportId}',
             '/api/v1/books/{bookId}/suggestions',
             '/api/v1/ping',
         ]);

@@ -5,6 +5,7 @@ import { BkperAiError } from '../services/decision-client.js';
 import { ReportError } from '../services/report.js';
 import { NotAReportError } from '../services/report-service.js';
 import type { Suggestion } from '../services/suggestions.js';
+import { SavedPromptsError } from '../services/saved-prompts.js';
 
 /** The `error.code` of every API error response. */
 export type ApiErrorCode =
@@ -18,6 +19,7 @@ export type ApiErrorCode =
     | 'unknown_root'
     | 'ai_allowance_exhausted'
     | 'upstream_error'
+    | 'storage_error'
     | 'internal_error';
 
 export function buildApiError(code: ApiErrorCode, message: string) {
@@ -51,6 +53,19 @@ const REPORT_ERROR_MESSAGES = {
  * the app's own: they never include the request's text or upstream details.
  */
 export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
+    if (error instanceof SavedPromptsError) {
+        return error.reason === 'forbidden'
+            ? respond(
+                  403,
+                  'forbidden',
+                  'Saved prompts require a known non-NONE Book role to list, and OWNER or EDITOR to save or remove.'
+              )
+            : respond(
+                  502,
+                  'storage_error',
+                  'Saved-prompt storage failed. Retry the same operation; a failed write may have reached storage.'
+              );
+    }
     if (error instanceof NotAReportError) {
         return {
             status: 422,

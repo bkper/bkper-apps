@@ -11,8 +11,8 @@
  * an `<iframe sandbox="allow-scripts">` whose `srcdoc` is the file after the Agent's
  * `<!doctype html>` and Content-Security-Policy, styled as the Agent styles it, while every
  * request is blocked. It checks there are no requests, no policy violations and no console
- * errors; that the answer, the chart and the link to the Report app show; and that a row opens
- * in place. `--screenshots` saves a picture of each. Needs Playwright's Chromium headless shell
+ * errors; that the answer, the chart and the link to the Report app show; that a row opens
+ * in place; and that values written into texts, such as dates, read in the report's direction. `--screenshots` saves a picture of each. Needs Playwright's Chromium headless shell
  * (`npx playwright-core install chromium-headless-shell`).
  */
 import { mkdir, readFile } from 'node:fs/promises';
@@ -189,6 +189,94 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
         }
         if (!point || !(await chart.evaluate(hasTooltip))) {
             failures.push('Hovering the chart shows no tooltip');
+        }
+    }
+    failures.push(...(await frame.evaluate(readingOrder)));
+    return failures;
+}
+
+/**
+ * Where values inserted into texts read out of order: in each text of the report, every part
+ * between isolates (FIRST STRONG ISOLATE … POP DIRECTIONAL ISOLATE) must follow the part
+ * before it in the report's direction, as must the end of a date range its start. Runs in the
+ * page, so it is self-contained.
+ */
+function readingOrder(): string[] {
+    // No named inner functions: tsx would wrap them in a helper the page lacks.
+    const view = document.querySelector('report-view')?.shadowRoot;
+    const report = view?.querySelector<HTMLElement>('.report');
+    if (!view || !report) {
+        return ['No report to read'];
+    }
+    const rtl = report.dir === 'rtl';
+    const failures: string[] = [];
+    const walker = document.createTreeWalker(view, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node as Text;
+        if (!text.data.includes('\u2068')) {
+            continue;
+        }
+        // The top-level parts, plain text and isolated values, in logical order; and the ends
+        // of each isolated date range.
+        const parts: { start: number; end: number; range?: 'from' | 'to'; rtl?: boolean }[] = [];
+        let depth = 0;
+        let start = 0;
+        for (let index = 0; index < text.data.length; index++) {
+            const char = text.data[index];
+            if (char === '\u2068' && depth++ === 0) {
+                parts.push({ start, end: index });
+                start = index + 1;
+            } else if (char === '\u2069' && --depth === 0) {
+                parts.push({ start, end: index });
+                const dash = text.data.indexOf('–', start);
+                if (dash >= 0 && dash < index) {
+                    // An isolated value runs in the direction of its first strong character.
+                    const strong = /[\p{L}\u200e\u200f\u061c]/u.exec(text.data.slice(start, index));
+                    const valueRtl = strong
+                        ? /[\u200f\u061c\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thaana}\p{Script=Syriac}]/u.test(
+                              strong[0]
+                          )
+                        : rtl;
+                    parts.push({ start, end: dash, range: 'from', rtl: valueRtl });
+                    parts.push({ start: dash + 1, end: index, range: 'to', rtl: valueRtl });
+                }
+                start = index + 1;
+            }
+        }
+        parts.push({ start, end: text.data.length });
+        // Where each part shows, without its spaces; blank parts do not show.
+        const shown = parts.flatMap(part => {
+            const piece = text.data.slice(part.start, part.end);
+            const from = part.start + (piece.length - piece.trimStart().length);
+            const to = part.end - (piece.length - piece.trimEnd().length);
+            if (to <= from) {
+                return [];
+            }
+            const range = document.createRange();
+            range.setStart(text, from);
+            range.setEnd(text, to);
+            const box = range.getBoundingClientRect();
+            return box.width > 0 ? [{ ...part, box }] : [];
+        });
+        const sentence = shown.filter(part => !part.range);
+        const ranges = shown.filter(part => part.range);
+        const pairs = [
+            ...sentence.slice(1).map((part, index) => [sentence[index], part] as const),
+            ...ranges.flatMap((part, index) =>
+                part.range === 'to' && ranges[index - 1]?.range === 'from'
+                    ? [[ranges[index - 1], part] as const]
+                    : []
+            ),
+        ];
+        for (const [first, second] of pairs) {
+            const sameLine = Math.abs(first.box.top - second.box.top) <= first.box.height / 2;
+            const inOrder =
+                (second.rtl ?? rtl)
+                    ? second.box.right <= first.box.left + 1
+                    : second.box.left >= first.box.right - 1;
+            if (sameLine && !inOrder) {
+                failures.push(`Out of reading order: ${JSON.stringify(text.data)}`);
+            }
         }
     }
     return failures;

@@ -5,6 +5,11 @@
  */
 
 const DECIMAL = /^-?(0|[1-9]\d*)(\.\d+)?$/;
+const ZERO = /^0(\.0+)?$/;
+
+/** Percentages show one decimal place: the smallest share shown is 0.1%. */
+const SHARE_DIGITS = 1;
+const SMALLEST_SHARE = 10 ** -(SHARE_DIGITS + 2);
 
 type DecimalString = `${number}`;
 
@@ -32,6 +37,8 @@ export class ReportFormat {
     private readonly amounts: Intl.NumberFormat;
     private readonly changes: Intl.NumberFormat;
     private readonly shares: Intl.NumberFormat;
+    private readonly zeroShare: string;
+    private readonly tinyShare: string;
     private readonly compacts: Intl.NumberFormat;
     private readonly instants: Intl.DateTimeFormat;
     private readonly months = new Map<MonthStyle, Intl.DateTimeFormat>();
@@ -50,9 +57,11 @@ export class ReportFormat {
             minimumFractionDigits: fractionDigits,
             maximumFractionDigits: fractionDigits,
         });
-        const percent = { style: 'percent', maximumFractionDigits: 1 } as const;
+        const percent = { style: 'percent', maximumFractionDigits: SHARE_DIGITS } as const;
         this.changes = new Intl.NumberFormat(locale, { ...percent, signDisplay: 'exceptZero' });
         this.shares = new Intl.NumberFormat(locale, percent);
+        this.zeroShare = this.shares.format(0);
+        this.tinyShare = `<${this.shares.format(SMALLEST_SHARE)}`;
         this.compacts = new Intl.NumberFormat(locale, {
             notation: 'compact',
             maximumFractionDigits: 1,
@@ -74,9 +83,17 @@ export class ReportFormat {
         return this.changes.format(decimal(ratio));
     }
 
-    /** A share ratio as a percentage, such as `98.7%`. */
+    /**
+     * A share ratio as a percentage, such as `98.7%`. A share too small to show, other than
+     * zero, reads as under the smallest one shown (`<0.1%`), never as a signed zero.
+     */
     share(ratio: string): string {
-        return this.shares.format(decimal(ratio));
+        const value = decimal(ratio);
+        const magnitude = decimal(value.replace(/^-/, ''));
+        if (this.shares.format(magnitude) === this.zeroShare) {
+            return ZERO.test(magnitude) ? this.zeroShare : this.tinyShare;
+        }
+        return this.shares.format(value);
     }
 
     /** An abbreviated number for chart axes, such as `12.5K`. Display only. */

@@ -13,6 +13,7 @@ import {
     type ReportElement,
     type ReportSpec,
 } from 'report-shared/catalog';
+import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import { addDays, type DateRange, type IsoDate, type RelativePeriod } from './periods.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
@@ -92,7 +93,7 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
     elements.source = {
         type: 'Source',
         props: {
-            footer: t('source_footer', lang, { book: report.book.name }),
+            footer: fill('source_footer', lang, { book: report.book.name }),
             period: report.nature === 'position' ? subtitle : labels.dates(report),
             query: report.query,
             url: report.url,
@@ -143,7 +144,7 @@ function answerProps(
         color: report.root.color,
         ...amounts(report.answer),
         ...(comparison
-            ? { comparison: t('answer_compared_with', labels.lang, { period: comparison }) }
+            ? { comparison: fill('answer_compared_with', labels.lang, { period: comparison }) }
             : {}),
         ...(report.net
             ? {
@@ -182,7 +183,7 @@ function chartElement(
                 type: 'Chart',
                 props: {
                     kind: chart.kind,
-                    label: t('chart_by_month', lang, { name: title }),
+                    label: fill('chart_by_month', lang, { name: title }),
                     months: report.months,
                     series: chart.series.map(series => chartSeries(series, title, labels)),
                 },
@@ -193,7 +194,7 @@ function chartElement(
                 type: 'Chart',
                 props: {
                     kind: chart.kind,
-                    label: t('chart_breakdown', lang, { name: title }),
+                    label: fill('chart_breakdown', lang, { name: title }),
                     items: chart.rows.map(id => {
                         const row = report.breakdown.find(candidate => candidate.id === id);
                         if (!row) {
@@ -244,12 +245,29 @@ function amounts(source: ReportAmounts): ReportAmounts {
     };
 }
 
-/** Labels of rows, periods and dates in one language; dates are calendar dates, read in UTC. */
+/**
+ * The text of a key with values written into it, each isolated: a Latin name or a date keeps
+ * its place in a right-to-left sentence, and an Arabic name in a left-to-right one.
+ */
+function fill(key: StringKey, lang: string, params: Record<string, string>): string {
+    return t(
+        key,
+        lang,
+        Object.fromEntries(Object.entries(params).map(([name, value]) => [name, isolate(value)]))
+    );
+}
+
+/**
+ * Labels of rows, periods and dates in one language, with its own digits and date formats;
+ * dates are calendar dates, read in UTC.
+ */
 class Labels {
     private readonly day: Intl.DateTimeFormat;
+    private readonly number: Intl.NumberFormat;
 
     constructor(readonly lang: string) {
         this.day = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
+        this.number = new Intl.NumberFormat(lang);
     }
 
     row(kind: RowKind, name?: string): string {
@@ -299,8 +317,8 @@ class Labels {
             return this.format(after, { year: 'numeric' });
         }
         if (day === 1 && month % 3 === 1 && months === 3) {
-            return t('period_quarter', this.lang, {
-                quarter: String((month + 2) / 3),
+            return fill('period_quarter', this.lang, {
+                quarter: this.number.format((month + 2) / 3),
                 year: this.format(after, { year: 'numeric' }),
             });
         }
@@ -311,7 +329,7 @@ class Labels {
     }
 
     private asOf(before: IsoDate): string {
-        return t('position_as_of', this.lang, { date: this.date(lastDay(before)) });
+        return fill('position_as_of', this.lang, { date: this.date(lastDay(before)) });
     }
 
     private date(date: IsoDate): string {

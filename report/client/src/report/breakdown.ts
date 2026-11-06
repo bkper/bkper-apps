@@ -5,6 +5,7 @@
  * data grid and fully under the report's control (hover and focus highlight the chart).
  */
 import { html, nothing, svg } from 'lit';
+import { isolate } from 'report-shared/bidi';
 import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { faded, typeColor } from './colors.js';
@@ -176,7 +177,7 @@ function trend(row: BreakdownRow | TableTotal, table: TableProps) {
     return html`<wa-sparkline
         appearance="gradient"
         data=${row.months.map(ReportFormat.plot).join(' ')}
-        label=${`${table.columns.trend}: ${row.label}`}
+        label=${`${table.columns.trend}: ${isolate(row.label)}`}
         style=${styleMap({ '--line-color': color, '--fill-color': faded(color) })}
     ></wa-sparkline>`;
 }

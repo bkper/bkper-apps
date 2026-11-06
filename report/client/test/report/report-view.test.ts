@@ -94,7 +94,7 @@ describe('<report-view>', () => {
         const view = await mount(spec);
         const answer = elementOf(spec, 'Answer').props;
         const format = new ReportFormat('pt-BR', 2);
-        expect(text(view, 'tfoot th')).toEqual(['Net result']);
+        expect(text(view, 'tfoot th')).toEqual([elementOf(spec, 'Report').props.title]);
         expect(text(view, 'tfoot td.amount')).toEqual([format.amount(answer.amount)]);
         expect(text(view, 'tfoot td.change')).toEqual([format.change(answer.change ?? '')]);
         // Outgoing changes the same way in the answer and in the table.

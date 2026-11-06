@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'lit';
+import { t } from 'report-shared/strings';
 import '../../../src/web-awesome';
 import { ReportApp } from '../../../src/components/report-app/report-app-view';
 
@@ -10,46 +11,39 @@ describe('ReportApp component', () => {
 
         render(app.render(), container);
 
-        const CardElement = customElements.get('wa-card');
         const SpinnerElement = customElements.get('wa-spinner');
-        const card = container.querySelector('wa-card');
-        const spinner = container.querySelector('wa-spinner');
-
-        if (!CardElement || !SpinnerElement) {
+        if (!SpinnerElement) {
             throw new Error('Web Awesome components were not registered');
         }
-
-        expect(card).toBeInstanceOf(CardElement);
-        expect(spinner).toBeInstanceOf(SpinnerElement);
+        expect(container.querySelector('wa-spinner')).toBeInstanceOf(SpinnerElement);
+        expect(container.textContent).toContain(t('app_loading', 'en'));
     });
 
     it('renders an initial data failure instead of an empty Book list', () => {
         const app = new ReportApp();
         app.state.books.loading = false;
-        app.state.books.appError = 'Could not load your Bkper data. Please reload and try again.';
+        app.state.books.appError = 'error_load_data';
         const container = document.createElement('div');
 
         render(app.render(), container);
 
         const callout = container.querySelector('wa-callout');
         expect(callout?.getAttribute('variant')).toBe('danger');
-        expect(callout?.textContent).toContain(
-            'Could not load your Bkper data. Please reload and try again.'
-        );
-        expect(container.textContent).not.toContain('No books found');
+        expect(callout?.textContent?.trim()).toBe(t('error_load_data', 'en'));
+        expect(container.querySelector('book-picker')).toBeNull();
     });
 
-    it('renders one direct Book picker without duplicating the list through the app API', () => {
+    it('renders the Book picker of the person Books, which opens the chosen one', () => {
         const app = new ReportApp();
         app.state.books.loading = false;
-        app.state.books.userDisplayName = 'Ada';
         app.state.books.books = [{ id: 'book-1', name: 'Main Book' }];
         const container = document.createElement('div');
 
         render(app.render(), container);
 
-        expect(container.querySelectorAll('wa-card')).toHaveLength(1);
-        expect(container.textContent).toContain('Main Book');
+        const picker = container.querySelector('book-picker');
+        expect(picker?.books).toEqual([{ id: 'book-1', name: 'Main Book' }]);
+        expect(picker?.language).toBe('en');
     });
 
     it('renders the report page of the selected Book at once, while the Book loads', () => {

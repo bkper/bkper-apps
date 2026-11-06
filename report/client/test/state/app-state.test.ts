@@ -5,7 +5,7 @@ import { AppState } from '../../src/state/app-state';
 import type { ReportApi } from '../../src/state/reports';
 import type { RoutePage } from '../../src/state/route';
 
-const SAFE_ERROR = 'Could not load your Bkper data. Please reload and try again.';
+const SAFE_ERROR = 'error_load_data';
 
 function createPage(href: string) {
     const listeners = new Set<() => void>();
@@ -38,7 +38,6 @@ function createAuth(): AuthSession {
 
 function createBookService(overrides: Partial<BookService> = {}): BookService {
     return {
-        getCurrentUser: async () => ({ displayName: 'Ada Lovelace' }),
         listBooksDirect: async () => [{ id: 'book-1', name: 'Main Book' }],
         getBook: async bookId => ({ id: bookId, name: `Book ${bookId}` }),
         ...overrides,
@@ -92,15 +91,32 @@ describe('AppState', () => {
         await signIn();
 
         expect(state.books.loading).toBe(false);
-        expect(state.books.userDisplayName).toBe('Ada Lovelace');
         expect(state.books.books).toEqual([{ id: 'book-1', name: 'Main Book' }]);
+    });
+
+    it('lists the Books changed most recently first', async () => {
+        const { state, signIn } = createApp(
+            'https://report.bkper.app/',
+            createBookService({
+                listBooksDirect: async () => [
+                    { id: 'old', name: 'Old', lastUpdateMs: 10 },
+                    { id: 'never', name: 'Never' },
+                    { id: 'new', name: 'New', lastUpdateMs: 30 },
+                    { id: 'mid', name: 'Mid', lastUpdateMs: 20 },
+                ],
+            })
+        );
+
+        await signIn();
+
+        expect(state.books.books.map(book => book.id)).toEqual(['new', 'mid', 'old', 'never']);
     });
 
     it('shows a safe error when initial Bkper data cannot be loaded', async () => {
         const { state, signIn } = createApp(
             'https://report.bkper.app/',
             createBookService({
-                getCurrentUser: async () => {
+                listBooksDirect: async () => {
                     throw new Error('Sensitive client details');
                 },
             })
@@ -143,7 +159,7 @@ describe('AppState', () => {
         await signIn();
 
         expect(state.books.loading).toBe(false);
-        expect(state.books.selectedBookError).toBe('Could not load this Book.');
+        expect(state.books.selectedBookError).toBe('error_book_load');
     });
 
     it('selecting a Book writes it to the URL and loads it without reloading the page', async () => {

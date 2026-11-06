@@ -135,6 +135,18 @@ describe('createReport by intent', () => {
         expect(test.options.timing.header()).toMatch(/^compute;dur=[\d.]+, render;dur=[\d.]+$/);
     });
 
+    it('writes a report as a request without the isolates of its dates', async () => {
+        const test = harness();
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { intent: intent('g-assets', 'today') },
+            { requested: 'en' },
+            test.options
+        );
+
+        expect(result.text).toBe('Assets As of Nov 5, 2026');
+    });
+
     it('falls back to the accepted language, then English', async () => {
         const snapshot = await fixtureSnapshot();
         const request = { intent: intent('g-assets', 'today') };

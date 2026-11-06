@@ -8,6 +8,7 @@
  */
 import type { BalancesReport } from 'bkper-js';
 import type { ReportSpec } from 'report-shared/catalog';
+import { withoutIsolates } from 'report-shared/bidi';
 import type { DecisionClient } from './decision-client.js';
 import { extractHashtags, resolveIntent } from './intent-resolver.js';
 import {
@@ -145,8 +146,10 @@ function notAReport(snapshot: Snapshot, language = DEFAULT_LANGUAGE): NotAReport
     return new NotAReportError(buildSuggestions(snapshot, language));
 }
 
-/** The report's title and period, which read like the request for it. */
+/** The report's title and period, which read like the request for it, as plain words. */
 function reportText(spec: ReportSpec): string {
     const root = spec.elements[spec.root];
-    return root.type === 'Report' ? `${root.props.title} ${root.props.subtitle}` : '';
+    return root.type === 'Report'
+        ? withoutIsolates(`${root.props.title} ${root.props.subtitle}`)
+        : '';
 }

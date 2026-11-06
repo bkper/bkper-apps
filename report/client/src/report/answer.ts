@@ -40,7 +40,7 @@ function renderComparison(answer: AnswerProps, format: ReportFormat) {
                     ? nothing
                     : html`<span class="change">${format.change(answer.change)}</span>`
             }
-            ${answer.comparison ? html`<span dir="auto">${answer.comparison}</span>` : nothing}
+            ${answer.comparison ? html`<span>${answer.comparison}</span>` : nothing}
             ${
                 answer.previous === undefined
                     ? nothing

@@ -1,10 +1,10 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { t } from 'report-shared/strings';
-import type { BookListItem } from '../../services/book-service';
 import { AppState } from '../../state/app-state';
-import type { Books } from '../../state/books';
 import { watch } from '../../state/store';
+import { CHOOSE_BOOK } from '../book-picker';
+import '../book-picker';
 import '../report-page/report-page-view';
 import { reportAppCSS } from './report-app-css';
 
@@ -31,6 +31,7 @@ export class ReportApp extends LitElement {
 
     render() {
         const state = this.state.books;
+        const lang = this.state.strings.language;
 
         // The report page shows at once: its request runs while the Book's name loads.
         const bookId = this.state.route.bookId;
@@ -40,13 +41,9 @@ export class ReportApp extends LitElement {
 
         if (state.loading) {
             return html`
-                <div class="container">
-                    <wa-card appearance="outlined">
-                        <div class="loading-content" role="status">
-                            <wa-spinner></wa-spinner>
-                            <span>Loading...</span>
-                        </div>
-                    </wa-card>
+                <div class="loading" role="status">
+                    <wa-spinner></wa-spinner>
+                    <span>${t('app_loading', lang)}</span>
                 </div>
             `;
         }
@@ -54,63 +51,23 @@ export class ReportApp extends LitElement {
         if (state.appError) {
             return html`
                 <div class="container">
-                    <wa-card appearance="outlined">
-                        ${this.renderCallout(state.appError, 'danger')}
-                    </wa-card>
+                    <wa-callout variant="danger" appearance="outlined" size="s">
+                        ${t(state.appError, lang)}
+                    </wa-callout>
                 </div>
             `;
         }
 
-        // Book picker: show list of books.
-        return this.renderBookPicker(state);
+        return html`<book-picker
+            .books=${state.books}
+            language=${lang}
+            @report-choose-book=${this.onChooseBook}
+        ></book-picker>`;
     }
 
-    private renderBookPicker(state: Books) {
-        return html`
-            <div class="container">
-                <wa-card appearance="outlined">
-                    <div slot="header" class="panel-header">
-                        <p class="eyebrow">Report</p>
-                        <h1>Hello, ${state.userDisplayName}!</h1>
-                        <p class="subtitle">
-                            ${t('book_picker_title', this.state.strings.language)}
-                        </p>
-                    </div>
-                    ${
-                        state.books.length === 0
-                            ? this.renderCallout(
-                                  t('book_picker_empty', this.state.strings.language)
-                              )
-                            : html`
-                                  <div class="book-list">
-                                      ${state.books.map(this.renderBookButton)}
-                                  </div>
-                              `
-                    }
-                </wa-card>
-            </div>
-        `;
-    }
-
-    private renderBookButton = (book: BookListItem) => html`
-        <wa-button
-            class="book-button"
-            variant="neutral"
-            appearance="outlined"
-            @click=${() => this.state.select(book.id)}
-        >
-            <span class="book-button-content">
-                <span class="book-name">${book.name}</span>
-                <span class="hint">Open</span>
-            </span>
-        </wa-button>
-    `;
-
-    private renderCallout(message: string, variant: 'neutral' | 'danger' = 'neutral') {
-        return html`
-            <wa-callout variant=${variant} appearance="outlined" size="s">${message}</wa-callout>
-        `;
-    }
+    private onChooseBook = (event: HTMLElementEventMap[typeof CHOOSE_BOOK]) => {
+        this.state.select(event.detail);
+    };
 }
 
 declare global {

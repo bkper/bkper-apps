@@ -34,14 +34,14 @@
                         "amount": "3799.5",
                         "color": "grey",
                         "previous": "0",
-                        "comparison": "vs. September 2026"
+                        "comparison": "vs. ⁨September 2026⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "ranked-bar",
-                        "label": "Breakdown of Net income",
+                        "label": "Breakdown of ⁨Net income⁩",
                         "items": [
                             {
                                 "rowId": "a-salary",
@@ -129,7 +129,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Test Ledger",
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
                         "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
                         "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
@@ -188,14 +188,14 @@
                         "amount": "1200.5",
                         "color": "red",
                         "previous": "0",
-                        "comparison": "vs. September 2026"
+                        "comparison": "vs. ⁨September 2026⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "donut",
-                        "label": "Breakdown of Expenses",
+                        "label": "Breakdown of ⁨Expenses⁩",
                         "items": [
                             {
                                 "rowId": "a-rent",
@@ -267,7 +267,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Test Ledger",
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
                         "query": "group:'Expenses' after:2026-10-01 before:2026-11-01",
                         "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-10-01%20before%3A2026-11-01",
@@ -307,7 +307,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Assets",
-                        "subtitle": "As of 5 de nov. de 2026",
+                        "subtitle": "Em ⁨5 de nov. de 2026⁩",
                         "locale": "pt-BR",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -327,14 +327,14 @@
                         "color": "blue",
                         "previous": "3899.5",
                         "change": "1.0129",
-                        "comparison": "vs. 31 de out. de 2026"
+                        "comparison": "vs. ⁨31 de out. de 2026⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "donut",
-                        "label": "Breakdown of Assets",
+                        "label": "Detalhamento de ⁨Assets⁩",
                         "items": [
                             {
                                 "rowId": "g-banks",
@@ -354,20 +354,20 @@
                 "breakdown": {
                     "type": "BreakdownTable",
                     "props": {
-                        "label": "Breakdown",
+                        "label": "Detalhamento",
                         "months": [
                             "2026-11"
                         ],
                         "columns": {
-                            "name": "Name",
-                            "amount": "Amount",
-                            "share": "Share",
-                            "change": "Change",
-                            "trend": "By month"
+                            "name": "Nome",
+                            "amount": "Valor",
+                            "share": "Participação",
+                            "change": "Variação",
+                            "trend": "Por mês"
                         },
-                        "expandLabel": "Expand",
-                        "collapseLabel": "Collapse",
-                        "emptyLabel": "No balances in this period.",
+                        "expandLabel": "Expandir",
+                        "collapseLabel": "Recolher",
+                        "emptyLabel": "Nenhum saldo neste período.",
                         "rows": [
                             {
                                 "id": "g-banks",
@@ -423,17 +423,17 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Test Ledger",
-                        "period": "As of 5 de nov. de 2026",
+                        "footer": "Calculado a partir dos saldos do ⁨Test Ledger⁩",
+                        "period": "Em ⁨5 de nov. de 2026⁩",
                         "query": "group:'Assets' before:2026-11-06",
                         "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A2026-11-06",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
-                            "source": "Source",
-                            "period": "Period",
-                            "query": "Query",
-                            "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "source": "Fonte",
+                            "period": "Período",
+                            "query": "Consulta",
+                            "dataAt": "Saldos lidos em",
+                            "open": "Abrir no Bkper"
                         }
                     },
                     "on": {
@@ -462,8 +462,8 @@
                 "report": {
                     "type": "Report",
                     "props": {
-                        "title": "Net result",
-                        "subtitle": "Last 12 months",
+                        "title": "صافي النتيجة",
+                        "subtitle": "آخر 12 شهرًا",
                         "locale": "ar",
                         "dir": "rtl",
                         "fractionDigits": 2
@@ -478,23 +478,23 @@
                 "answer": {
                     "type": "Answer",
                     "props": {
-                        "label": "Net result",
+                        "label": "صافي النتيجة",
                         "amount": "6749.25",
                         "color": "grey",
                         "previous": "-1000",
                         "change": "7.7493",
-                        "comparison": "vs. 1‏/12‏/2024 – 5‏/11‏/2025",
+                        "comparison": "مقابل ⁨1‏/12‏/2024 – 5‏/11‏/2025⁩",
                         "parts": [
                             {
                                 "id": "incoming",
-                                "label": "Incoming",
+                                "label": "وارد",
                                 "amount": "10000",
                                 "color": "green",
                                 "previous": "0"
                             },
                             {
                                 "id": "outgoing",
-                                "label": "Outgoing",
+                                "label": "صادر",
                                 "amount": "3250.75",
                                 "color": "red",
                                 "previous": "1000",
@@ -507,7 +507,7 @@
                     "type": "Chart",
                     "props": {
                         "kind": "bar",
-                        "label": "Net result by month",
+                        "label": "⁨صافي النتيجة⁩ حسب الشهر",
                         "months": [
                             "2025-12",
                             "2026-01",
@@ -525,7 +525,7 @@
                         "series": [
                             {
                                 "id": "incoming",
-                                "label": "Incoming",
+                                "label": "وارد",
                                 "color": "green",
                                 "values": [
                                     "0",
@@ -544,7 +544,7 @@
                             },
                             {
                                 "id": "outgoing",
-                                "label": "Outgoing",
+                                "label": "صادر",
                                 "color": "red",
                                 "values": [
                                     "0",
@@ -563,7 +563,7 @@
                             },
                             {
                                 "id": "net-result",
-                                "label": "Net result",
+                                "label": "صافي النتيجة",
                                 "color": "grey",
                                 "line": true,
                                 "values": [
@@ -587,7 +587,7 @@
                 "breakdown": {
                     "type": "BreakdownTable",
                     "props": {
-                        "label": "Breakdown",
+                        "label": "التفصيل",
                         "months": [
                             "2025-12",
                             "2026-01",
@@ -603,20 +603,20 @@
                             "2026-11"
                         ],
                         "columns": {
-                            "name": "Name",
-                            "amount": "Amount",
-                            "share": "Share",
-                            "change": "Change",
-                            "trend": "By month"
+                            "name": "الاسم",
+                            "amount": "المبلغ",
+                            "share": "النسبة",
+                            "change": "التغيّر",
+                            "trend": "حسب الشهر"
                         },
-                        "expandLabel": "Expand",
-                        "collapseLabel": "Collapse",
-                        "emptyLabel": "No balances in this period.",
+                        "expandLabel": "وسّع",
+                        "collapseLabel": "طيّ",
+                        "emptyLabel": "لا توجد أرصدة في هذه الفترة.",
                         "rows": [
                             {
                                 "id": "incoming",
                                 "kind": "incoming",
-                                "label": "Incoming",
+                                "label": "وارد",
                                 "color": "green",
                                 "amount": "10000",
                                 "previous": "0",
@@ -664,7 +664,7 @@
                             {
                                 "id": "outgoing",
                                 "kind": "outgoing",
-                                "label": "Outgoing",
+                                "label": "صادر",
                                 "color": "red",
                                 "amount": "3250.75",
                                 "previous": "1000",
@@ -737,7 +737,7 @@
                             }
                         ],
                         "total": {
-                            "label": "Net result",
+                            "label": "صافي النتيجة",
                             "color": "grey",
                             "amount": "6749.25",
                             "previous": "-1000",
@@ -767,17 +767,17 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Test Ledger",
+                        "footer": "تم احتسابه من أرصدة ⁨Test Ledger⁩",
                         "period": "1‏/12‏/2025 – 5‏/11‏/2026",
                         "query": "(group:'Expenses' OR group:'Revenue' OR group:'Net income') after:2025-12-01 before:2026-11-06",
                         "url": "https://bkper.app/books/book-1/transactions?query=(group%3A'Expenses'%20OR%20group%3A'Revenue'%20OR%20group%3A'Net%20income')%20after%3A2025-12-01%20before%3A2026-11-06",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
-                            "source": "Source",
-                            "period": "Period",
-                            "query": "Query",
-                            "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "source": "المصدر",
+                            "period": "الفترة",
+                            "query": "استعلام",
+                            "dataAt": "وقت قراءة الأرصدة",
+                            "open": "افتح في Bkper"
                         }
                     },
                     "on": {
@@ -807,7 +807,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Card",
-                        "subtitle": "As of Dec 31, 2025",
+                        "subtitle": "As of ⁨Dec 31, 2025⁩",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -825,7 +825,7 @@
                         "amount": "0",
                         "color": "yellow",
                         "previous": "0",
-                        "comparison": "vs. Dec 31, 2024"
+                        "comparison": "vs. ⁨Dec 31, 2024⁩"
                     }
                 },
                 "breakdown": {
@@ -867,8 +867,8 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Test Ledger",
-                        "period": "As of Dec 31, 2025",
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "As of ⁨Dec 31, 2025⁩",
                         "query": "group:'Card' before:2026-01-01",
                         "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A2026-01-01",
                         "dataAt": "2026-11-05T15:00:00.000Z",
@@ -885,6 +885,176 @@
                             "action": "openInBkper",
                             "params": {
                                 "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A2026-01-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "expenses-this-year-he",
+        "intent": {
+            "root": "g-expenses",
+            "period": "this_year",
+            "monthly": false
+        },
+        "lang": "he",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Expenses",
+                        "subtitle": "השנה הנוכחית",
+                        "locale": "he",
+                        "dir": "rtl",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "chart",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Expenses",
+                        "amount": "3250.75",
+                        "color": "red",
+                        "previous": "1000",
+                        "change": "2.2508",
+                        "comparison": "לעומת ⁨1 ינו׳ – 5 נוב׳ 2025⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "donut",
+                        "label": "פירוט של ⁨Expenses⁩",
+                        "items": [
+                            {
+                                "rowId": "a-rent",
+                                "label": "Rent",
+                                "color": "red",
+                                "value": "3000"
+                            },
+                            {
+                                "rowId": "a-food",
+                                "label": "Food",
+                                "color": "red",
+                                "value": "250.75"
+                            }
+                        ]
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "פירוט",
+                        "months": [
+                            "2026-01",
+                            "2026-02",
+                            "2026-03",
+                            "2026-04",
+                            "2026-05",
+                            "2026-06",
+                            "2026-07",
+                            "2026-08",
+                            "2026-09",
+                            "2026-10",
+                            "2026-11"
+                        ],
+                        "columns": {
+                            "name": "שם",
+                            "amount": "סכום",
+                            "share": "נתח",
+                            "change": "שינוי",
+                            "trend": "לפי חודש"
+                        },
+                        "expandLabel": "הרחבה",
+                        "collapseLabel": "כיווץ",
+                        "emptyLabel": "אין יתרות בתקופה זו.",
+                        "rows": [
+                            {
+                                "id": "a-rent",
+                                "kind": "account",
+                                "label": "Rent",
+                                "color": "red",
+                                "amount": "3000",
+                                "previous": "1000",
+                                "change": "2",
+                                "share": "0.9229",
+                                "months": [
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "1000",
+                                    "0",
+                                    "1000",
+                                    "1000"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-food",
+                                "kind": "account",
+                                "label": "Food",
+                                "color": "red",
+                                "amount": "250.75",
+                                "previous": "0",
+                                "share": "0.0771",
+                                "months": [
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "200.5",
+                                    "50.25"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "חושב מתוך היתרות של ⁨Test Ledger⁩",
+                        "period": "1 ינו׳ – 5 נוב׳ 2026",
+                        "query": "group:'Expenses' after:2026-01-01 before:2026-11-06",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-01-01%20before%3A2026-11-06",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "מקור",
+                            "period": "תקופה",
+                            "query": "שאילתה",
+                            "dataAt": "קריאת היתרות",
+                            "open": "פתיחה ב-Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-01-01%20before%3A2026-11-06"
                             }
                         }
                     }

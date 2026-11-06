@@ -1,21 +1,43 @@
+import type { StringKey } from 'report-shared/strings';
 import type { BookListItem, BookService } from '../services/book-service';
 import type { Route } from './route';
 import { reactive, Store } from './store';
 
-const INITIAL_DATA_ERROR = 'Could not load your Bkper data. Please reload and try again.';
-const BOOK_ERROR = 'Could not load this Book.';
+/**
+ * The Books whose names have every word of `filter`, ignoring case and accents, in their order;
+ * the first ones without a filter. At most `limit`.
+ */
+export function findBooks(books: BookListItem[], filter: string, limit: number): BookListItem[] {
+    const words = searchable(filter).split(/\s+/).filter(Boolean);
+    const found = words.length
+        ? books.filter(book => {
+              const name = searchable(book.name);
+              return words.every(word => name.includes(word));
+          })
+        : books;
+    return found.slice(0, limit);
+}
+
+function searchable(text: string): string {
+    return text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();
+}
+
+/** The Books changed most recently first; Books without a date last. */
+function byRecency(books: BookListItem[]): BookListItem[] {
+    return [...books].sort((a, b) => (b.lastUpdateMs ?? 0) - (a.lastUpdateMs ?? 0));
+}
 
 /**
  * The signed-in person's Books and the selected Book. The route says which Book is
- * selected; `select` changes it and loads what it shows.
+ * selected; `select` changes it and loads what it shows. Errors are string keys, safe to show.
  */
 export class Books extends Store {
     @reactive loading = true;
-    @reactive appError: string | null = null;
-    @reactive userDisplayName = '';
+    @reactive appError: StringKey | null = null;
+    /** The person's Books, the most recently changed first. */
     @reactive books: BookListItem[] = [];
     @reactive bookName: string | null = null;
-    @reactive selectedBookError: string | null = null;
+    @reactive selectedBookError: StringKey | null = null;
     private listed = false;
 
     constructor(
@@ -26,13 +48,11 @@ export class Books extends Store {
         super();
     }
 
-    /** Load the person and what the URL selects, once signed in. */
+    /** Load what the URL selects, once signed in. */
     async load(): Promise<void> {
         this.loading = true;
         this.appError = null;
         try {
-            const user = await this.bookService.getCurrentUser();
-            this.userDisplayName = user.displayName;
             await this.show();
         } catch (error) {
             this.fail('Error loading data:', error);
@@ -55,7 +75,7 @@ export class Books extends Store {
     fail(message: string, error: unknown): void {
         this.logger.error(message, error);
         this.loading = false;
-        this.appError = INITIAL_DATA_ERROR;
+        this.appError = 'error_load_data';
     }
 
     /** Load what the route selects, showing the loading state until the latest selection answers. */
@@ -69,7 +89,7 @@ export class Books extends Store {
         this.loading = true;
         try {
             if (bookId) return await this.loadBook(bookId);
-            this.books = await this.bookService.listBooksDirect();
+            this.books = byRecency(await this.bookService.listBooksDirect());
             this.listed = true;
         } finally {
             if (this.route.bookId === bookId) this.loading = false;
@@ -87,7 +107,7 @@ export class Books extends Store {
         } catch (error) {
             if (this.route.bookId !== bookId) return;
             this.logger.error('Error loading book:', error);
-            this.selectedBookError = BOOK_ERROR;
+            this.selectedBookError = 'error_book_load';
         }
     }
 }

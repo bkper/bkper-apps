@@ -5,6 +5,7 @@
     "exports": {
         "./catalog": "./src/catalog.ts",
         "./strings": "./src/strings.ts",
+        "./bidi": "./src/bidi.ts",
         "./languages": "./src/languages.ts",
         "./locales": "./src/locales.ts",
         "./locale-loader": "./src/locale-loader.ts",

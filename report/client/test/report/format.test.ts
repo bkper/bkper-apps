@@ -24,6 +24,19 @@ describe('ReportFormat', () => {
         expect(new ReportFormat('pt-BR', 2).change('1.0129')).toBe('+101,3%');
     });
 
+    it('never shows a signed zero, and a tiny share other than zero as under its precision', () => {
+        const format = new ReportFormat('en', 2);
+        expect(format.share('0')).toBe('0%');
+        expect(format.share('-0.0004')).toBe('<0.1%');
+        expect(format.share('0.0004')).toBe('<0.1%');
+        expect(format.share('-0.0005')).toBe('-0.1%');
+        expect(format.share('-0.25')).toBe('-25%');
+        expect(format.change('-0.0004')).toBe('0%');
+        expect(format.change('0.0004')).toBe('0%');
+        expect(new ReportFormat('pt-BR', 2).share('-0.0004')).toBe('<0,1%');
+        expect(new ReportFormat('ar-EG', 2).share('-0.0004')).toBe('<٠٫١٪؜');
+    });
+
     it('abbreviates axis values', () => {
         expect(new ReportFormat('en', 2).compact(12500)).toBe('12.5K');
         expect(new ReportFormat('ja', 2).compact(12500)).toBe('1.3万');

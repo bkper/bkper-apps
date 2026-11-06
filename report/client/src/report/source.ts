@@ -21,7 +21,7 @@ export function renderSource(
             <dl class="source-facts">
                 <div>
                     <dt>${labels.period}</dt>
-                    <dd dir="auto">${source.period}</dd>
+                    <dd>${source.period}</dd>
                 </div>
                 <div>
                     <dt>${labels.query}</dt>

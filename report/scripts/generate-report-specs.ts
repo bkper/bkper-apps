@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Bkper } from 'bkper-js';
 import type { ReportSpec } from 'report-shared/catalog';
+import { addAllLocales } from 'report-shared/locales';
 import { buildReport } from '../server/src/services/report.ts';
 import { NET_RESULT_ROOT, type ReportIntent } from '../server/src/services/report-intent.ts';
 import { buildReportSpec } from '../server/src/services/report-spec.ts';
@@ -96,6 +97,7 @@ const LEDGER_CASES: Case[] = [
         lang: 'ar',
     },
     { id: 'card-empty', intent: intent('g-card', 'last_year'), lang: 'en' },
+    { id: 'expenses-this-year-he', intent: intent('g-expenses', 'this_year'), lang: 'he' },
 ];
 
 function entries(snapshot: Snapshot, cases: Case[]): GalleryEntry[] {
@@ -144,6 +146,8 @@ class MemoryStore implements SnapshotStore {
 }
 
 async function main(): Promise<void> {
+    // Specs are written in their languages, as the Worker writes them.
+    addAllLocales();
     const bookIds = process.argv.slice(2);
     if (bookIds.length === 0) {
         await write(join(SPECS_DIR, 'studio.json'), entries(await studioSnapshot(), STUDIO_CASES));

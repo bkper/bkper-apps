@@ -164,7 +164,7 @@ Report turns a short request, in any language, into a financial report of a Book
 
 - **Client**: Lit + Web Awesome Pro; a Book picker and, for the selected Book, one input whose report builds as the person types, with the Book and the request in the URL as `?book=<bookId>&q=<request>`.
 - **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
-- **Shared** (`shared/`, package `report-shared`): the report catalog, the strings and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
+- **Shared** (`shared/`, package `report-shared`): the report catalog, the strings, bidirectional text and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
 ## Accounting rules
 
@@ -221,6 +221,7 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - The spec is the standard flat json-render spec (`root` plus an `elements` map of `{ type, props, children?, on? }`), built with `defineSchema`/`defineCatalog` from `@json-render/core`, pinned exactly, without React. Components: `Report` (the root, the only one with children), `Answer`, `Chart` (left out when the report has no chart), `BreakdownTable`, `Source`. Actions: `expandRow` (local, the renderer passes the row) and `openInBkper` (only where the renderer can navigate).
 - `validateReportSpec` checks the catalog (components, actions, strict props of each element), json-render's `validateSpec` (including unreachable elements) and that the root is a `Report`. Renderers may call it on specs they receive.
 - Every text is resolved in the spec, in the report's language: titles, period labels (`Intl` for years, months and dates, read as UTC calendar dates), comparisons, the labels of `other`, `incoming` and `outgoing` rows, and every label a renderer shows. Group and account names stay verbatim.
+- Values written into a text (a period, a date, a name) are isolated with `isolate` (`report-shared/bidi`, FIRST STRONG ISOLATE … POP DIRECTIONAL ISOLATE), so dates and Latin names read in order in Arabic or Hebrew, and Arabic names in English. Where a text is read as words rather than shown, such as the request in `url`, `withoutIsolates` takes them out. Numbers in texts, like a quarter's, use the language's digits.
 - A net result's BreakdownTable has a `total` row (the net result) under its Incoming and Outgoing rows, and its chart by month a series with `line: true` (the net result) over their bars.
 - Amounts and ratios stay the report's decimal strings, and months and instants stay ISO; renderers format them with `Intl` in the Report's `locale`, with its `fractionDigits`, in its `dir`.
 
@@ -242,9 +243,10 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 `<report-view>` (`client/src/report/`, entry `index.ts`) renders a report spec with Lit and Web Awesome Pro: answer first, then the chart, the breakdown table and the source, in the spec's order, `locale` and `dir`. Set its `spec` property.
 
-- Self-contained: no app state, no network, and only type imports from `report-shared/catalog` (its validation code is large; the server validates every spec). It registers the Web Awesome charts and sparkline it uses; the page provides the Web Awesome theme and `@bkper/web-design` tokens. So the web app and a standalone report file can bundle it alone.
-- `format.ts` formats the spec's decimal strings exactly with `Intl` (never through floats); `ReportFormat.plot` gives the numbers charts draw. Charts' tooltips show the exact amounts.
-- `chart-config.ts` builds the Chart.js configuration of `wa-bar-chart` (by month, or ranked horizontal bars), `wa-line-chart` (positions by month) and `wa-doughnut-chart`. Colors are the Bkper type color tokens (`--bkper-color-<color>-<low|medium|high>`, the palette of Bkper's charts), so they follow the light or dark theme; a donut shades items of one color from high to low.
+- Self-contained: no app state, no network, and only type imports from `report-shared/catalog` (its validation code is large; the server validates every spec), plus the tiny `report-shared/bidi`. It registers the Web Awesome charts and sparkline it uses; the page provides the Web Awesome theme and `@bkper/web-design` tokens. So the web app and a standalone report file can bundle it alone.
+- `format.ts` formats the spec's decimal strings exactly with `Intl` (never through floats); `ReportFormat.plot` gives the numbers charts draw. Charts' tooltips show the exact amounts, name and amount each isolated. A share never shows as a signed zero: a share too small to show, other than zero, reads `<0.1%` in the locale's digits.
+- `chart-config.ts` builds the Chart.js configuration of `wa-bar-chart` (by month, or ranked horizontal bars), `wa-line-chart` (positions by month) and `wa-doughnut-chart`. Colors are the Bkper type color tokens (`--bkper-color-<color>-<low|medium|high>`, the palette of Bkper's charts), so they follow the light or dark theme; a donut shades items of one color from high to low. Ranked bars of negative values go the other way from zero, in their type's color, with room past zero (`grace`) and a minimum length, so a tiny value, such as a small overdraft, still shows.
+- Values the renderer places next to texts (amounts, changes) are isolated with CSS (`unicode-bidi: isolate`) and inherit the report's direction; texts of the spec carry their own isolates.
 - The breakdown is a plain table with disclosure buttons, not `wa-data-grid`: the grid would more than double the renderer's size (about 600 KB minified) and it would hide the row hover the chart follows. `wa-icon` fetches its SVGs, which a strict content security policy blocks, so the chevron is inline SVG.
 - Rows open in place when the spec binds `expandRow`. Hovering or focusing a row, or else the row opened last, highlights it in the chart: its top-level item in a breakdown chart, its series in a net result, or its months added to a chart by month; the rest fades. A row the chart does not draw (no amount in the period) highlights nothing. The table's swatches are the legend of breakdown charts.
 - A series with `line` is drawn as a line over the bars of `wa-bar-chart` (Chart.js mixed datasets, no extra component). The table's `total` is a `tfoot` row.
@@ -261,9 +263,11 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - The file cannot open Bkper in place, so the Source drops `openInBkper` and links to the same report in the Report app (the response's `url`, `source_open_in_report`). The file follows the viewer's light or dark color scheme (`prefers-color-scheme`); rows open in place and charts show tooltips offline.
 - The bundle is ~330 KB and stays under 400 KB (a test); the Agent shows HTML files up to 1 MB, so report data has the rest.
 
-`npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html>...]` opens report files in headless Chromium exactly as the Agent frames them, with every request blocked, and fails on any request, policy violation or console error, or when the answer, the chart, its tooltip, the link or opening a row do not work; in light and dark. Without files it writes one per recorded spec; files saved from the local Worker end with the live-reload script `bkper app dev` adds to HTML, which it leaves out. It needs Playwright's headless shell: `npx playwright-core install chromium-headless-shell`.
+`npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html>...]` opens report files in headless Chromium exactly as the Agent frames them, with every request blocked, and fails on any request, policy violation or console error, or when the answer, the chart, its tooltip, the link or opening a row do not work, or when a value isolated in a text (and the ends of an isolated date range) does not read in the report's direction, measured on screen; in light and dark. Without files it writes one per recorded spec; files saved from the local Worker end with the live-reload script `bkper app dev` adds to HTML, which it leaves out. It needs Playwright's headless shell: `npx playwright-core install chromium-headless-shell`.
 
 ## Web client
+
+Without a Book in the URL, the app shows the Book picker (`components/book-picker.ts`): the person's Books changed most recently (`lastUpdateMs`, sorted by the `Books` store), at most `RECENT_BOOKS` (8), and, when they have more, a field that finds any of them by every word typed, ignoring case and accents (`findBooks`); Enter opens the first. Its texts, the loading state and the errors of the `Books` store (string keys) come from the strings, in the interface's language and direction; Book names keep their own direction.
 
 The Book page (`components/report-page/`) is one input, with no submit button, and the report below it. Its behavior lives in the `Reports` store (`state/reports.ts`), the input controller, which the unit tests cover:
 
@@ -330,7 +334,7 @@ Both ports are strict and assigned in the bkper-apps monorepo's port table; keep
 client/src/
 ├── index.ts       — Browser entrypoint
 ├── web-awesome.ts — Web Awesome Pro component registration for the client UI
-├── components/    — Lit features with co-located view and CSS: the app shell, the Book page, the suggestions
+├── components/    — Lit features with co-located view and CSS: the app shell, the Book picker, the Book page, the suggestions
 ├── state/         — Stores: the URL (route), Books, the input controller (reports), and their wiring (app-state)
 ├── report-loader.ts — Loads the report renderer's code-split chunk
 ├── auth/          — @bkper/web-auth session boundary
@@ -352,6 +356,7 @@ shared/
 └── src/
     ├── catalog.ts   — json-render report catalog, spec types and validation
     ├── strings.ts   — t(key, lang, params) with English fallback
+    ├── bidi.ts      — Isolates values written into texts of any direction
     ├── locales.ts, locale-loader.ts — Generated: every language for the Worker, one at a time for the browser
     ├── languages.ts — The 133 Bkper languages, with native and English names
     └── report-file.ts — The data a report file carries for its script
@@ -362,6 +367,7 @@ shared/
 | Task                       | File                                                    |
 | -------------------------- | ------------------------------------------------------- |
 | Add UI rendering           | `client/src/components/report-app/report-app-view.ts`   |
+| Change the Book picker     | `client/src/components/book-picker.ts`                  |
 | Change the Book page       | `client/src/components/report-page/`                    |
 | Change how typing asks for reports | `client/src/state/reports.ts`                |
 | Add shared client state    | `client/src/state/`                                     |

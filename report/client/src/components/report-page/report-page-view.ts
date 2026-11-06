@@ -85,7 +85,9 @@ export class ReportPage extends LitElement {
                 </header>
                 ${
                     books.selectedBookError
-                        ? html`<p class="notice alert" role="alert">${books.selectedBookError}</p>`
+                        ? html`<p class="notice alert" role="alert">
+                              ${t(books.selectedBookError, lang)}
+                          </p>`
                         : nothing
                 }
                 <div class="ask">

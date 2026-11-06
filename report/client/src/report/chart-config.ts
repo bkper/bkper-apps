@@ -5,6 +5,7 @@
  * exact amounts. A highlighted breakdown row stands out, and the rest fades.
  */
 import type { ChartConfiguration, ChartDataset } from 'chart.js';
+import { isolate } from 'report-shared/bidi';
 import { faded, shades, typeColor } from './colors.js';
 import { ReportFormat } from './format.js';
 import { topRow, type BreakdownRow, type PropsOf, type TypeColor } from './spec-types.js';
@@ -43,6 +44,17 @@ interface Series {
     emphasis: 'normal' | 'strong' | 'faded';
 }
 
+/** The shortest bar drawn, in pixels, so no ranked value vanishes. */
+const MIN_BAR_LENGTH = 3;
+
+/** Space past the largest values of a ranked chart, as Web Awesome leaves on value axes. */
+const VALUE_GRACE = '5%';
+
+/** A name and its value, each isolated so they read in order in either direction. */
+function valueLabel(name: string, value: string): string {
+    return `${isolate(name)}: ${isolate(value)}`;
+}
+
 export function chartConfig(chart: ChartProps, context: ChartContext): ChartView {
     return 'months' in chart ? byMonth(chart, context) : breakdown(chart, context);
 }
@@ -73,7 +85,10 @@ function byMonth(chart: Extract<ChartProps, { months: string[] }>, context: Char
         chart.months[0].slice(0, 4) !== chart.months[chart.months.length - 1].slice(0, 4);
     const datasets = series.map(entry => monthDataset(element, entry));
     const tooltipLabel = (datasetIndex: number, dataIndex: number) =>
-        `${series[datasetIndex].label}: ${format.amount(series[datasetIndex].values[dataIndex])}`;
+        valueLabel(
+            series[datasetIndex].label,
+            format.amount(series[datasetIndex].values[dataIndex])
+        );
     const axisLabel = (value: number) => format.compact(value);
     const config: ChartConfiguration<ChartElement, number[], string> = {
         type: element,
@@ -164,7 +179,7 @@ function breakdown(chart: Extract<ChartProps, { items: unknown[] }>, context: Ch
         return donut ? base[index] : typeColor(item.color, 'high');
     });
     const tooltipLabel = (_datasetIndex: number, dataIndex: number) =>
-        `${chart.items[dataIndex].label}: ${format.amount(chart.items[dataIndex].value)}`;
+        valueLabel(chart.items[dataIndex].label, format.amount(chart.items[dataIndex].value));
     const axisLabel = (value: number) => format.compact(value);
     const data = chart.items.map(item => ReportFormat.plot(item.value));
     const tooltip = {
@@ -208,12 +223,21 @@ function breakdown(chart: Extract<ChartProps, { items: unknown[] }>, context: Ch
                           borderColor: colors,
                           borderWidth: 0,
                           maxBarThickness: 28,
+                          // A value tiny next to the others, such as a small overdraft, still shows.
+                          minBarLength: MIN_BAR_LENGTH,
                       },
                   ],
               },
               options: {
                   plugins: { title: { display: false }, legend: { display: false }, tooltip },
-                  scales: { x: { ticks: { callback: value => axisLabel(Number(value)) } } },
+                  scales: {
+                      x: {
+                          // Room on both sides of the values, so bars of negative values, which
+                          // go the other way from zero, show past it.
+                          grace: VALUE_GRACE,
+                          ticks: { callback: value => axisLabel(Number(value)) },
+                      },
+                  },
               },
           };
     return { element, horizontal: !donut, legend: false, config, tooltipLabel, axisLabel };

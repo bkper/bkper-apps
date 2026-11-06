@@ -1,5 +1,7 @@
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
-import { addLocale } from 'report-shared/strings';
+import { isolate } from 'report-shared/bidi';
+import { addAllLocales } from 'report-shared/locales';
+import { addLocale, t } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { buildReport, type ReportData } from '../../src/services/report';
 import type { ReportIntent } from '../../src/services/report-intent';
@@ -105,10 +107,10 @@ describe('buildReportSpec', () => {
         });
         expect(element(built, 'Answer').props).toMatchObject({
             label: 'Expenses',
-            comparison: 'vs. September 2026',
+            comparison: `vs. ${isolate('September 2026')}`,
         });
         expect(element(built, 'Source').props).toMatchObject({
-            footer: 'Computed from the balances of Test Ledger',
+            footer: `Computed from the balances of ${isolate('Test Ledger')}`,
             period: `Oct 1${TO}31, 2026`,
             query: "group:'Expenses' after:2026-10-01 before:2026-11-01",
         });
@@ -116,23 +118,29 @@ describe('buildReportSpec', () => {
 
     it('names calendar periods and the span a current period compares with', async () => {
         const quarter = await spec(intent('g-expenses', '2026-Q3'));
-        expect(element(quarter, 'Report').props.subtitle).toBe('Q3 2026');
-        expect(element(quarter, 'Answer').props.comparison).toBe('vs. Q2 2026');
+        expect(element(quarter, 'Report').props.subtitle).toBe(
+            `Q${isolate('3')} ${isolate('2026')}`
+        );
+        expect(element(quarter, 'Answer').props.comparison).toBe(
+            `vs. ${isolate(`Q${isolate('2')} ${isolate('2026')}`)}`
+        );
         const month = await spec(intent('g-expenses', '2026-09'));
         expect(element(month, 'Report').props.subtitle).toBe('September 2026');
         const year = await spec(intent('g-expenses', '2025'));
         expect(element(year, 'Report').props.subtitle).toBe('2025');
-        expect(element(year, 'Answer').props.comparison).toBe('vs. 2024');
+        expect(element(year, 'Answer').props.comparison).toBe(`vs. ${isolate('2024')}`);
         const current = await spec(intent('g-expenses', 'this_year'));
         expect(element(current, 'Report').props.subtitle).toBe('This year');
-        expect(element(current, 'Answer').props.comparison).toBe(`vs. Jan 1${TO}Nov 5, 2025`);
+        expect(element(current, 'Answer').props.comparison).toBe(
+            `vs. ${isolate(`Jan 1${TO}Nov 5, 2025`)}`
+        );
     });
 
     it('dates a position and compares it with an earlier date', async () => {
         const built = await spec(intent('g-assets', 'today'));
-        expect(element(built, 'Report').props.subtitle).toBe('As of Nov 5, 2026');
-        expect(element(built, 'Answer').props.comparison).toBe('vs. Oct 31, 2026');
-        expect(element(built, 'Source').props.period).toBe('As of Nov 5, 2026');
+        expect(element(built, 'Report').props.subtitle).toBe(`As of ${isolate('Nov 5, 2026')}`);
+        expect(element(built, 'Answer').props.comparison).toBe(`vs. ${isolate('Oct 31, 2026')}`);
+        expect(element(built, 'Source').props.period).toBe(`As of ${isolate('Nov 5, 2026')}`);
     });
 
     it('has no comparison for all time, and reads it from the first month of data', async () => {
@@ -155,7 +163,7 @@ describe('buildReportSpec', () => {
         const table = element(built, 'BreakdownTable').props;
         expect(table.rows.map(row => row.label)).toEqual(['Incoming', 'Outgoing']);
         const chart = element(built, 'Chart').props;
-        expect(chart).toMatchObject({ kind: 'bar', label: 'Net result by month' });
+        expect(chart).toMatchObject({ kind: 'bar', label: `${isolate('Net result')} by month` });
         expect(
             'series' in chart && chart.series.map(series => [series.label, series.line ?? false])
         ).toEqual([
@@ -216,7 +224,7 @@ describe('buildReportSpec', () => {
         const built = await spec(intent('g-assets', 'today'));
         expect(element(built, 'Chart').props).toEqual({
             kind: 'donut',
-            label: 'Breakdown of Assets',
+            label: `Breakdown of ${isolate('Assets')}`,
             items: [
                 { rowId: 'g-banks', label: 'Banks', color: 'blue', value: '7749.25' },
                 { rowId: 'a-cash', label: 'Cash', color: 'blue', value: '100' },
@@ -228,7 +236,7 @@ describe('buildReportSpec', () => {
         const built = await spec(intent('g-assets', '2026-Q4', { monthly: true }));
         expect(element(built, 'Chart').props).toMatchObject({
             kind: 'line',
-            label: 'Assets by month',
+            label: `${isolate('Assets')} by month`,
             months: ['2026-10', '2026-11'],
             series: [{ id: 'g-assets', label: 'Assets', values: ['3899.5', '7849.25'] }],
         });
@@ -268,11 +276,39 @@ describe('buildReportSpec', () => {
             'Entradas',
             'Outgoing',
         ]);
-        expect(element(built, 'Answer').props.comparison).toBe('vs. setembro de 2026');
+        expect(element(built, 'Answer').props.comparison).toBe(
+            `vs. ${isolate('setembro de 2026')}`
+        );
     });
 
     it('lays out right-to-left languages right to left', async () => {
         const built = await spec(intent('g-expenses', 'last_month'), 'ar');
         expect(element(built, 'Report').props.dir).toBe('rtl');
+    });
+
+    it('isolates the values it writes into right-to-left texts, in the report locale', async () => {
+        addAllLocales();
+        const day = (lang: string) =>
+            new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
+        const date = (iso: string) => new Date(`${iso}T00:00:00Z`);
+        for (const lang of ['ar', 'he']) {
+            const current = await spec(intent('g-expenses', 'this_year'), lang);
+            const range = day(lang).formatRange(date('2025-01-01'), date('2025-11-05'));
+            const comparison = element(current, 'Answer').props.comparison;
+            expect(comparison).toBe(t('answer_compared_with', lang, { period: isolate(range) }));
+            expect(comparison).not.toMatch(/[A-Za-z]/);
+            expect(element(current, 'Source').props.footer).toBe(
+                t('source_footer', lang, { book: isolate('Test Ledger') })
+            );
+            expect(element(current, 'Report').props.dir).toBe('rtl');
+            const position = await spec(intent('g-assets', 'today'), lang);
+            expect(element(position, 'Report').props.subtitle).toBe(
+                t('position_as_of', lang, { date: isolate(day(lang).format(date('2026-11-05'))) })
+            );
+        }
+        const quarter = await spec(intent('g-expenses', '2026-Q3'), 'ar-EG');
+        expect(element(quarter, 'Report').props.subtitle).toBe(
+            t('period_quarter', 'ar-EG', { quarter: isolate('٣'), year: isolate('٢٠٢٦') })
+        );
     });
 });

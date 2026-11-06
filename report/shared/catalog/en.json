@@ -4,6 +4,11 @@
         "role": "heading",
         "context": "Name of the app, shown at the top of the page: this language's ordinary word for a report, as a name. The app turns a short request into a financial report of a Bkper Book. One short noun."
     },
+    "app_loading": {
+        "text": "Loading…",
+        "role": "status",
+        "context": "Shown with a spinner while the app signs the person in and loads their Books, before anything else can show. Short, ends with an ellipsis."
+    },
     "input_label": {
         "text": "Report request",
         "role": "label",
@@ -44,6 +49,21 @@
         "role": "message",
         "context": "Shown in place of the Book list when the person has no Books. A Book is a Bkper ledger."
     },
+    "book_picker_filter": {
+        "text": "Find a Book",
+        "role": "placeholder",
+        "context": "Placeholder and accessible label of the search field above the list of the person's recent Books; typing filters all their Books by name. A Book is a Bkper ledger. Short imperative, without ending punctuation."
+    },
+    "book_picker_no_match": {
+        "text": "No Books match.",
+        "role": "message",
+        "context": "Shown in place of the Book list when no Book name contains the words typed in the search field. A Book is a Bkper ledger. Short."
+    },
+    "book_untitled": {
+        "text": "Untitled Book",
+        "role": "label",
+        "context": "Name shown in the Book list for a Book that has no name. A Book is a Bkper ledger. Short noun phrase."
+    },
     "books_back": {
         "text": "Books",
         "role": "button",
@@ -83,6 +103,16 @@
         "text": "Something went wrong. Try again.",
         "role": "message",
         "context": "Generic error shown when the report failed for an unknown reason."
+    },
+    "error_load_data": {
+        "text": "Couldn't load your Books. Reload the page to try again.",
+        "role": "message",
+        "context": "Error shown when the app opens and cannot sign the person in or load their list of Books. A Book is a Bkper ledger. Two short sentences."
+    },
+    "error_book_load": {
+        "text": "Couldn't load this Book.",
+        "role": "message",
+        "context": "Error shown at the top of a Book's report page when the Book's name and details could not be loaded. A Book is a Bkper ledger. Short."
     },
     "error_future_period": {
         "text": "That period hasn't started yet.",

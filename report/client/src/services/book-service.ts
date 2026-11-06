@@ -1,33 +1,26 @@
 import { Bkper, type Config } from 'bkper-js';
 import type { AuthProvider } from '../auth/auth-session';
 
-export interface UserProfile {
-    displayName: string;
-}
-
 export interface BookListItem {
     id: string;
+    /** Empty for a Book without a name, which the interface names in its language. */
     name: string;
-}
-
-export interface BrowserBkperUser {
-    getName(): string | undefined;
-    getFullName(): string | undefined;
+    /** When the Book last changed, in milliseconds. */
+    lastUpdateMs?: number;
 }
 
 export interface BrowserBkperBook {
     getId(): string;
     getName(): string | undefined;
+    getLastUpdateMs(): number | undefined;
 }
 
 export interface BrowserBkperClient {
-    getUser(): Promise<BrowserBkperUser>;
     getBooks(): Promise<BrowserBkperBook[]>;
     getBook(id: string): Promise<BrowserBkperBook>;
 }
 
 export interface BookService {
-    getCurrentUser(): Promise<UserProfile>;
     listBooksDirect(): Promise<BookListItem[]>;
     getBook(bookId: string): Promise<BookListItem>;
 }
@@ -36,8 +29,6 @@ export interface BookServiceOptions {
     auth: AuthProvider;
     bkper?: BrowserBkperClient;
 }
-
-const UNTITLED_BOOK_NAME = 'Untitled book';
 
 export function createBkperClientConfig(auth: AuthProvider): Config {
     return {
@@ -54,13 +45,6 @@ export function createBookService(options: BookServiceOptions): BookService {
     const bkper = options.bkper ?? new Bkper(createBkperClientConfig(options.auth));
 
     return {
-        async getCurrentUser(): Promise<UserProfile> {
-            const user = await bkper.getUser();
-            return {
-                displayName: user.getName() || user.getFullName() || 'there',
-            };
-        },
-
         async listBooksDirect(): Promise<BookListItem[]> {
             const books = await bkper.getBooks();
             return books.map(toBookListItem);
@@ -73,8 +57,10 @@ export function createBookService(options: BookServiceOptions): BookService {
 }
 
 function toBookListItem(book: BrowserBkperBook): BookListItem {
+    const lastUpdateMs = book.getLastUpdateMs();
     return {
         id: book.getId(),
-        name: book.getName() ?? UNTITLED_BOOK_NAME,
+        name: book.getName() ?? '',
+        ...(lastUpdateMs === undefined ? {} : { lastUpdateMs }),
     };
 }

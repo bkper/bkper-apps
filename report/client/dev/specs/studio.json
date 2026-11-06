@@ -34,14 +34,14 @@
                         "color": "red",
                         "previous": "269573.05",
                         "change": "0.079",
-                        "comparison": "vs. 2024"
+                        "comparison": "vs. ⁨2024⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "bar",
-                        "label": "Expenses by month",
+                        "label": "⁨Expenses⁩ by month",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -446,7 +446,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
                         "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
@@ -507,14 +507,14 @@
                         "color": "red",
                         "previous": "269573.05",
                         "change": "0.079",
-                        "comparison": "vs. 2024"
+                        "comparison": "vs. ⁨2024⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "ranked-bar",
-                        "label": "Breakdown of Expenses",
+                        "label": "Breakdown of ⁨Expenses⁩",
                         "items": [
                             {
                                 "rowId": "g-people",
@@ -928,7 +928,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
                         "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
@@ -969,7 +969,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Taxes",
-                        "subtitle": "Q4 2025",
+                        "subtitle": "Q⁨4⁩ ⁨2025⁩",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -989,14 +989,14 @@
                         "color": "red",
                         "previous": "16086.88",
                         "change": "-0.1102",
-                        "comparison": "vs. Q3 2025"
+                        "comparison": "vs. ⁨Q⁨3⁩ ⁨2025⁩⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "donut",
-                        "label": "Breakdown of Taxes",
+                        "label": "Breakdown of ⁨Taxes⁩",
                         "items": [
                             {
                                 "rowId": "a-income-tax",
@@ -1114,7 +1114,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Oct 1 – Dec 31, 2025",
                         "query": "group:'Taxes' after:2025-10-01 before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Taxes'%20after%3A2025-10-01%20before%3A2026-01-01",
@@ -1154,7 +1154,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Bank accounts",
-                        "subtitle": "As of Dec 31, 2025",
+                        "subtitle": "As of ⁨Dec 31, 2025⁩",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -1174,14 +1174,14 @@
                         "color": "blue",
                         "previous": "70880.75",
                         "change": "0.5126",
-                        "comparison": "vs. Dec 31, 2024"
+                        "comparison": "vs. ⁨Dec 31, 2024⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "line",
-                        "label": "Bank accounts by month",
+                        "label": "⁨Bank accounts⁩ by month",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -1334,8 +1334,8 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
-                        "period": "As of Dec 31, 2025",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
+                        "period": "As of ⁨Dec 31, 2025⁩",
                         "query": "group:'Bank accounts' before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01",
                         "dataAt": "2025-12-31T21:00:00.000Z",
@@ -1374,7 +1374,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Loans",
-                        "subtitle": "As of Dec 31, 2025",
+                        "subtitle": "As of ⁨Dec 31, 2025⁩",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -1394,14 +1394,14 @@
                         "color": "yellow",
                         "previous": "37624.96",
                         "change": "-0.0288",
-                        "comparison": "vs. Nov 30, 2025"
+                        "comparison": "vs. ⁨Nov 30, 2025⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "donut",
-                        "label": "Breakdown of Loans",
+                        "label": "Breakdown of ⁨Loans⁩",
                         "items": [
                             {
                                 "rowId": "a-bank-loan",
@@ -1475,8 +1475,8 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
-                        "period": "As of Dec 31, 2025",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
+                        "period": "As of ⁨Dec 31, 2025⁩",
                         "query": "group:'Loans' before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Loans'%20before%3A2026-01-01",
                         "dataAt": "2025-12-31T21:00:00.000Z",
@@ -1514,7 +1514,7 @@
                 "report": {
                     "type": "Report",
                     "props": {
-                        "title": "Net result",
+                        "title": "Resultado líquido",
                         "subtitle": "2025",
                         "locale": "pt-BR",
                         "dir": "ltr",
@@ -1530,16 +1530,16 @@
                 "answer": {
                     "type": "Answer",
                     "props": {
-                        "label": "Net result",
+                        "label": "Resultado líquido",
                         "amount": "50371.36",
                         "color": "grey",
                         "previous": "20301.13",
                         "change": "1.4812",
-                        "comparison": "vs. 2024",
+                        "comparison": "vs. ⁨2024⁩",
                         "parts": [
                             {
                                 "id": "incoming",
-                                "label": "Incoming",
+                                "label": "Entrada",
                                 "amount": "400724.18",
                                 "color": "green",
                                 "previous": "343752.1",
@@ -1547,7 +1547,7 @@
                             },
                             {
                                 "id": "outgoing",
-                                "label": "Outgoing",
+                                "label": "Saída",
                                 "amount": "350352.82",
                                 "color": "red",
                                 "previous": "323450.97",
@@ -1560,7 +1560,7 @@
                     "type": "Chart",
                     "props": {
                         "kind": "bar",
-                        "label": "Net result by month",
+                        "label": "⁨Resultado líquido⁩ por mês",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -1578,7 +1578,7 @@
                         "series": [
                             {
                                 "id": "incoming",
-                                "label": "Incoming",
+                                "label": "Entrada",
                                 "color": "green",
                                 "values": [
                                     "32599.29",
@@ -1597,7 +1597,7 @@
                             },
                             {
                                 "id": "outgoing",
-                                "label": "Outgoing",
+                                "label": "Saída",
                                 "color": "red",
                                 "values": [
                                     "29852.43",
@@ -1616,7 +1616,7 @@
                             },
                             {
                                 "id": "net-result",
-                                "label": "Net result",
+                                "label": "Resultado líquido",
                                 "color": "grey",
                                 "line": true,
                                 "values": [
@@ -1640,7 +1640,7 @@
                 "breakdown": {
                     "type": "BreakdownTable",
                     "props": {
-                        "label": "Breakdown",
+                        "label": "Detalhamento",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -1656,20 +1656,20 @@
                             "2025-12"
                         ],
                         "columns": {
-                            "name": "Name",
-                            "amount": "Amount",
-                            "share": "Share",
-                            "change": "Change",
-                            "trend": "By month"
+                            "name": "Nome",
+                            "amount": "Valor",
+                            "share": "Participação",
+                            "change": "Variação",
+                            "trend": "Por mês"
                         },
-                        "expandLabel": "Expand",
-                        "collapseLabel": "Collapse",
-                        "emptyLabel": "No balances in this period.",
+                        "expandLabel": "Expandir",
+                        "collapseLabel": "Recolher",
+                        "emptyLabel": "Nenhum saldo neste período.",
                         "rows": [
                             {
                                 "id": "incoming",
                                 "kind": "incoming",
-                                "label": "Incoming",
+                                "label": "Entrada",
                                 "color": "green",
                                 "amount": "400724.18",
                                 "previous": "343752.1",
@@ -1794,7 +1794,7 @@
                             {
                                 "id": "outgoing",
                                 "kind": "outgoing",
-                                "label": "Outgoing",
+                                "label": "Saída",
                                 "color": "red",
                                 "amount": "350352.82",
                                 "previous": "323450.97",
@@ -2193,7 +2193,7 @@
                             }
                         ],
                         "total": {
-                            "label": "Net result",
+                            "label": "Resultado líquido",
                             "color": "grey",
                             "amount": "50371.36",
                             "previous": "20301.13",
@@ -2223,17 +2223,17 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "Calculado a partir dos saldos do ⁨Studio Norte⁩",
                         "period": "1 de jan. – 31 de dez. de 2025",
                         "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
-                            "source": "Source",
-                            "period": "Period",
-                            "query": "Query",
-                            "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "source": "Fonte",
+                            "period": "Período",
+                            "query": "Consulta",
+                            "dataAt": "Saldos lidos em",
+                            "open": "Abrir no Bkper"
                         }
                     },
                     "on": {
@@ -2284,14 +2284,14 @@
                         "color": "green",
                         "previous": "343752.1",
                         "change": "0.1657",
-                        "comparison": "vs. 2024年"
+                        "comparison": "⁨2024年⁩比"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "donut",
-                        "label": "Breakdown of Revenue",
+                        "label": "⁨Revenue⁩の内訳",
                         "items": [
                             {
                                 "rowId": "a-design-projects",
@@ -2323,7 +2323,7 @@
                 "breakdown": {
                     "type": "BreakdownTable",
                     "props": {
-                        "label": "Breakdown",
+                        "label": "内訳",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -2339,15 +2339,15 @@
                             "2025-12"
                         ],
                         "columns": {
-                            "name": "Name",
-                            "amount": "Amount",
-                            "share": "Share",
-                            "change": "Change",
-                            "trend": "By month"
+                            "name": "名前",
+                            "amount": "金額",
+                            "share": "構成比",
+                            "change": "増減",
+                            "trend": "月別"
                         },
-                        "expandLabel": "Expand",
-                        "collapseLabel": "Collapse",
-                        "emptyLabel": "No balances in this period.",
+                        "expandLabel": "展開",
+                        "collapseLabel": "折りたたむ",
+                        "emptyLabel": "この期間の残高はありません。",
                         "rows": [
                             {
                                 "id": "a-design-projects",
@@ -2460,17 +2460,17 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "⁨Studio Norte⁩の残高から計算",
                         "period": "2025/01/01～2025/12/31",
                         "query": "group:'Revenue' after:2025-01-01 before:2026-01-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-01-01%20before%3A2026-01-01",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
-                            "source": "Source",
-                            "period": "Period",
-                            "query": "Query",
-                            "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "source": "出典",
+                            "period": "期間",
+                            "query": "クエリ",
+                            "dataAt": "残高の読み取り日時",
+                            "open": "Bkperで開く"
                         }
                     },
                     "on": {
@@ -2521,14 +2521,14 @@
                         "color": "red",
                         "previous": "24442.61",
                         "change": "0.0749",
-                        "comparison": "vs. أكتوبر ٢٠٢٥"
+                        "comparison": "مقابل ⁨أكتوبر ٢٠٢٥⁩"
                     }
                 },
                 "chart": {
                     "type": "Chart",
                     "props": {
                         "kind": "ranked-bar",
-                        "label": "Breakdown of Expenses",
+                        "label": "تفصيل ⁨Expenses⁩",
                         "items": [
                             {
                                 "rowId": "g-people",
@@ -2578,20 +2578,20 @@
                 "breakdown": {
                     "type": "BreakdownTable",
                     "props": {
-                        "label": "Breakdown",
+                        "label": "التفصيل",
                         "months": [
                             "2025-11"
                         ],
                         "columns": {
-                            "name": "Name",
-                            "amount": "Amount",
-                            "share": "Share",
-                            "change": "Change",
-                            "trend": "By month"
+                            "name": "الاسم",
+                            "amount": "المبلغ",
+                            "share": "النسبة",
+                            "change": "التغيّر",
+                            "trend": "حسب الشهر"
                         },
-                        "expandLabel": "Expand",
-                        "collapseLabel": "Collapse",
-                        "emptyLabel": "No balances in this period.",
+                        "expandLabel": "وسّع",
+                        "collapseLabel": "طيّ",
+                        "emptyLabel": "لا توجد أرصدة في هذه الفترة.",
                         "rows": [
                             {
                                 "id": "g-people",
@@ -2788,17 +2788,17 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "١‏/١١‏/٢٠٢٥ – ٣٠‏/١١‏/٢٠٢٥",
                         "query": "group:'Expenses' after:2025-11-01 before:2025-12-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-11-01%20before%3A2025-12-01",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
-                            "source": "Source",
-                            "period": "Period",
-                            "query": "Query",
-                            "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "source": "المصدر",
+                            "period": "الفترة",
+                            "query": "استعلام",
+                            "dataAt": "وقت قراءة الأرصدة",
+                            "open": "افتح في Bkper"
                         }
                     },
                     "on": {
@@ -2848,7 +2848,7 @@
                         "color": "green",
                         "previous": "33552.56",
                         "change": "0.0471",
-                        "comparison": "vs. October 2025"
+                        "comparison": "vs. ⁨October 2025⁩"
                     }
                 },
                 "breakdown": {
@@ -2936,7 +2936,7 @@
                 "source": {
                     "type": "Source",
                     "props": {
-                        "footer": "Computed from the balances of Studio Norte",
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Nov 1 – 30, 2025",
                         "query": "group:'Revenue' after:2025-11-01 before:2025-12-01",
                         "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-11-01%20before%3A2025-12-01",

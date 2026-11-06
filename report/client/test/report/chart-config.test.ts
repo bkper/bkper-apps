@@ -1,3 +1,4 @@
+import { isolate } from 'report-shared/bidi';
 import type { BreakdownRow } from 'report-shared/catalog';
 import { describe, expect, it } from 'vitest';
 import { chartConfig, type ChartView } from '../../src/report/chart-config';
@@ -56,10 +57,12 @@ describe('chartConfig', () => {
 
     it('draws Incoming and Outgoing as positive bars under a line of the net result', () => {
         const chart = view('net-result-by-month-pt');
+        const spec = gallerySpec('net-result-by-month-pt');
+        const [incoming, outgoing] = elementOf(spec, 'Answer').props.parts ?? [];
         expect(datasets(chart).map(dataset => [dataset.label, dataset.type])).toEqual([
-            ['Incoming', 'bar'],
-            ['Outgoing', 'bar'],
-            ['Net result', 'line'],
+            [incoming?.label, 'bar'],
+            [outgoing?.label, 'bar'],
+            [elementOf(spec, 'Report').props.title, 'line'],
         ]);
         expect(datasets(chart)[0].backgroundColor).toBe('var(--bkper-color-green-medium)');
         expect(datasets(chart)[1].backgroundColor).toBe('var(--bkper-color-red-medium)');
@@ -86,6 +89,29 @@ describe('chartConfig', () => {
         expect(chart).toMatchObject({ element: 'bar', horizontal: true, legend: false });
         expect(chart.config.data.labels?.slice(0, 3)).toEqual(['People', 'Office', 'Marketing']);
         expect(datasets(chart)[0].data.slice(0, 2)).toEqual([190099.76, 47311.68]);
+    });
+
+    it('draws a negative ranked value the other way from zero, visible however small', () => {
+        const chart = chartConfig(
+            {
+                kind: 'ranked-bar',
+                label: 'Assets by part',
+                items: [
+                    { rowId: 'bank', label: 'Bank Account', color: 'blue', value: '10090' },
+                    { rowId: 'cash', label: 'Cash', color: 'blue', value: '-4' },
+                ],
+            },
+            { format: en, rows: [] }
+        );
+        const [bars] = datasets(chart);
+        expect(bars.data).toEqual([10090, -4]);
+        expect(bars.backgroundColor).toEqual([
+            'var(--bkper-color-blue-medium)',
+            'var(--bkper-color-blue-medium)',
+        ]);
+        expect('minBarLength' in bars && Number(bars.minBarLength) > 0).toBe(true);
+        // Room beyond zero for the bars that go the other way.
+        expect(chart.config.options?.scales?.x).toMatchObject({ grace: expect.any(String) });
     });
 
     it('shades the slices of a donut of one type from strong to light', () => {
@@ -157,7 +183,10 @@ describe('chartConfig', () => {
         const chart = view('expenses-by-month');
         const label = chart.config.options?.plugins?.tooltip?.callbacks?.label;
         expect(typeof label).toBe('function');
-        expect(chart.tooltipLabel(0, 0)).toBe(`Expenses: ${en.amount(firstMonthValue())}`);
+        // Each isolated, so a name and an amount read in order in either direction.
+        expect(chart.tooltipLabel(0, 0)).toBe(
+            `${isolate('Expenses')}: ${isolate(en.amount(firstMonthValue()))}`
+        );
         expect(chart.axisLabel(12500)).toBe('12.5K');
     });
 });

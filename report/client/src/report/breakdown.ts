@@ -1,6 +1,7 @@
 /**
  * The BreakdownTable of a report: its rows by size, each with its amount, share, change and
- * months; rows with children open in place. A table with disclosure buttons, lighter than a
+ * months, and the total under them when the spec has one (the net result of Incoming and
+ * Outgoing); rows with children open in place. A table with disclosure buttons, lighter than a
  * data grid and fully under the report's control (hover and focus highlight the chart).
  */
 import { html, nothing, svg } from 'lit';
@@ -11,6 +12,7 @@ import { ReportFormat } from './format.js';
 import type { BreakdownRow, PropsOf } from './spec-types.js';
 
 type TableProps = PropsOf<'BreakdownTable'>;
+type TableTotal = NonNullable<TableProps['total']>;
 
 export interface BreakdownState {
     format: ReportFormat;
@@ -37,7 +39,9 @@ export function renderBreakdown(table: TableProps, state: BreakdownState) {
     }
     const columns = {
         share: hasAny(table.rows, row => row.share !== undefined),
-        change: hasAny(table.rows, row => row.change !== undefined),
+        change:
+            table.total?.change !== undefined ||
+            hasAny(table.rows, row => row.change !== undefined),
         trend: table.months.length >= MIN_TREND_MONTHS,
     };
     const row = (entry: BreakdownRow, depth: number): unknown => {
@@ -137,11 +141,37 @@ export function renderBreakdown(table: TableProps, state: BreakdownState) {
             >
                 ${table.rows.map(entry => row(entry, 0))}
             </tbody>
+            ${table.total ? renderTotal(table.total, table, columns, state.format) : nothing}
         </table>
     `;
 }
 
-function trend(row: BreakdownRow, table: TableProps) {
+function renderTotal(
+    total: TableTotal,
+    table: TableProps,
+    columns: { share: boolean; change: boolean; trend: boolean },
+    format: ReportFormat
+) {
+    return html`<tfoot>
+        <tr class="total">
+            <th scope="row" class="name">
+                <span class="leaf"><span class="row-label">${total.label}</span></span>
+            </th>
+            <td class="amount">${format.amount(total.amount)}</td>
+            ${columns.share ? html`<td class="ratio share"></td>` : nothing}
+            ${
+                columns.change
+                    ? html`<td class="ratio change">
+                          ${total.change === undefined ? nothing : format.change(total.change)}
+                      </td>`
+                    : nothing
+            }
+            ${columns.trend ? html`<td class="trend">${trend(total, table)}</td>` : nothing}
+        </tr>
+    </tfoot>`;
+}
+
+function trend(row: BreakdownRow | TableTotal, table: TableProps) {
     const color = typeColor(row.color, 'high');
     return html`<wa-sparkline
         appearance="gradient"

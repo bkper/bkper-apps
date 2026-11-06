@@ -8,10 +8,15 @@
  * Book's data range, runs the one live query a report asks for, and compares to the cent with
  * `bkper balance list` over the report's exact query and its previous period:
  *
- * - the answer, and Incoming and Outgoing for a net result over the unique accounts;
- * - every group and account row of the breakdown, in the root's sense;
- * - each month of the root, for reports over several months;
- * - that every breakdown, remainder included, adds up to its parent.
+ * - the answer, and Incoming and Outgoing for a net result over the unique accounts, both in
+ *   the answer and in the breakdown's Incoming and Outgoing rows;
+ * - every group and account row of the breakdown, in the root's sense (for a net result, in
+ *   its side's sense: Outgoing positive);
+ * - each month of the root, or of Incoming, Outgoing and the net result, for reports over
+ *   several months;
+ * - that every breakdown, remainder included, adds up to its parent, and that a net result is
+ *   Incoming minus Outgoing, in total, in the previous period and in every month;
+ * - that charts draw no row without an amount.
  *
  * The CLI shows raw balances (credit minus debit), negated for permanent accounts, so Liability
  * and Outgoing come out negative; reports show them as Bkper charts do, by credit nature. A CLI
@@ -197,15 +202,19 @@ async function verifyReport(
         shown(node, rows?.get(node.name)?.[0]?.total ?? new Amount(0));
 
     if (report.root.id === NET_RESULT_ROOT) {
-        const sides = (rows: Map<string, CliRow[]> | undefined) => {
+        // Sums the CLI amounts of the Book's Incoming and Outgoing accounts, in total or in a month.
+        const sides = (
+            rows: Map<string, CliRow[]> | undefined,
+            pick: (row: CliRow) => Amount | undefined = row => row.total
+        ) => {
             let incoming = new Amount(0);
             let outgoing = new Amount(0);
-            const accounts = Object.values(snapshot.accounts);
-            for (const account of accounts) {
-                if (!rows?.has(account.name)) {
+            for (const account of Object.values(snapshot.accounts)) {
+                const row = rows?.get(account.name)?.[0];
+                if (!row) {
                     continue;
                 }
-                const amount = cliTotal(rows, account);
+                const amount = shown(account, pick(row) ?? new Amount(0));
                 if (account.type === 'INCOMING') {
                     incoming = incoming.plus(amount);
                 } else if (account.type === 'OUTGOING') {
@@ -214,15 +223,42 @@ async function verifyReport(
             }
             return { incoming, outgoing, net: incoming.minus(outgoing) };
         };
+        const incomingRow = report.breakdown.find(row => row.kind === 'incoming');
+        const outgoingRow = report.breakdown.find(row => row.kind === 'outgoing');
         const now = sides(current);
         same('incoming', report.net?.incoming.amount, now.incoming);
         same('outgoing', report.net?.outgoing.amount, now.outgoing);
         same('net', report.answer.amount, now.net);
+        // Rows without amounts are left out, so a missing side must be zero.
+        same('incoming row', incomingRow?.amount ?? '0', now.incoming);
+        same('outgoing row', outgoingRow?.amount ?? '0', now.outgoing);
         if (previous) {
             const before = sides(previous);
             same('previous incoming', report.net?.incoming.previous, before.incoming);
             same('previous outgoing', report.net?.outgoing.previous, before.outgoing);
             same('previous net', report.answer.previous, before.net);
+            same('previous incoming row', incomingRow?.previous ?? '0', before.incoming);
+            same('previous outgoing row', outgoingRow?.previous ?? '0', before.outgoing);
+        }
+        // Every account of a side, in the side's sense, as Bkper shows it.
+        for (const row of [incomingRow, outgoingRow].flatMap(side => side?.children ?? [])) {
+            const account = snapshot.accounts[row.id];
+            if (!account) {
+                problems.push(`${row.name ?? row.id}: not an account of the Book`);
+                continue;
+            }
+            same(row.name ?? row.id, row.amount, cliTotal(current, account));
+            if (previous) {
+                same(`${row.name} previous`, row.previous, cliTotal(previous, account));
+            }
+        }
+        if (report.months.length > 1 && !cumulative) {
+            report.months.forEach((month, i) => {
+                const cli = sides(current, row => row.months.get(month));
+                same(`incoming ${month}`, incomingRow?.months[i] ?? '0', cli.incoming);
+                same(`outgoing ${month}`, outgoingRow?.months[i] ?? '0', cli.outgoing);
+                same(`net ${month}`, report.net?.months[i], cli.net);
+            });
         }
     } else {
         const root = snapshot.groups[report.root.id];
@@ -328,7 +364,66 @@ function unbalanced(report: ReportData): string[] {
             checkRows(row.name ?? row.id, row.amount, row.previous, row.children);
         }
     };
-    checkRows('answer', report.answer.amount, report.answer.previous, report.breakdown);
+    const side = (id: string) =>
+        report.breakdown.find(row => row.kind === id && (id === 'incoming' || id === 'outgoing'));
+    if (report.root.id !== NET_RESULT_ROOT) {
+        checkRows('answer', report.answer.amount, report.answer.previous, report.breakdown);
+    } else {
+        // Incoming minus Outgoing is the net result, in total, before and in every month.
+        const zero = { amount: '0', previous: '0', months: report.months.map(() => '0') };
+        const incoming = side('incoming') ?? zero;
+        const outgoing = side('outgoing') ?? zero;
+        const net = (a?: string, b?: string) => new Amount(a ?? 0).minus(b ?? 0);
+        if (!net(incoming.amount, outgoing.amount).eq(report.answer.amount)) {
+            problems.push(`Incoming - Outgoing is not the net result ${report.answer.amount}`);
+        }
+        if (
+            report.answer.previous !== undefined &&
+            !net(incoming.previous, outgoing.previous).eq(report.answer.previous)
+        ) {
+            problems.push(`Incoming - Outgoing is not the previous net ${report.answer.previous}`);
+        }
+        if (report.net?.months.length !== report.months.length) {
+            problems.push('The net result does not have one amount per month');
+        }
+        report.months.forEach((month, i) => {
+            const expected = net(incoming.months[i], outgoing.months[i]);
+            if (!expected.eq(report.net?.months[i] ?? 'NaN')) {
+                problems.push(`Incoming - Outgoing is not the net result in ${month}`);
+            }
+        });
+        for (const row of report.breakdown) {
+            if (row.kind !== 'incoming' && row.kind !== 'outgoing') {
+                problems.push(`${row.id}: not a side of the net result`);
+            }
+            checkRows(row.id, row.amount, row.previous, row.children);
+        }
+        if (report.chart.kind === 'bar') {
+            for (const series of report.chart.series) {
+                const expected =
+                    series.id === NET_RESULT_ROOT ? report.net?.months : side(series.id)?.months;
+                if (series.amounts.join() !== expected?.join()) {
+                    problems.push(`The chart's ${series.id} is not the table's`);
+                }
+            }
+        }
+    }
+    // Charts draw only rows with an amount.
+    if (report.chart.kind === 'ranked-bar' || report.chart.kind === 'donut') {
+        for (const id of report.chart.rows) {
+            const row = report.breakdown.find(candidate => candidate.id === id);
+            if (!row || new Amount(row.amount).eq(0)) {
+                problems.push(`The chart draws ${id}, a row without an amount`);
+            }
+        }
+    }
+    if (report.chart.kind === 'bar' && report.root.id === NET_RESULT_ROOT) {
+        for (const series of report.chart.series.filter(entry => entry.id !== NET_RESULT_ROOT)) {
+            if (new Amount(side(series.id)?.amount ?? 0).eq(0)) {
+                problems.push(`The chart draws ${series.id}, a side without an amount`);
+            }
+        }
+    }
     return problems;
 }
 

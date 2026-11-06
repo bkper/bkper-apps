@@ -75,6 +75,8 @@ const ChartSeries = z.strictObject({
     id: z.string().min(1),
     label: Text,
     color: Color,
+    /** Drawn as a line over the bars of a bar chart, as a net result over its sides. */
+    line: z.literal(true).optional(),
     /** One value per month of the chart. */
     values: z.array(Decimal),
 });
@@ -149,6 +151,17 @@ const BreakdownRowSchema: z.ZodType<BreakdownRow> = z
     // Named, so JSON Schema and OpenAPI generators reference the recursion instead of expanding it.
     .meta({ id: 'BreakdownRow' });
 
+/** The row under the others that totals them, as the net result of Incoming and Outgoing. */
+const BreakdownTotal = z.strictObject({
+    label: Text,
+    color: Color,
+    amount: Decimal,
+    previous: Decimal.optional(),
+    change: Ratio.optional(),
+    /** One amount per month of the table. */
+    months: z.array(Decimal),
+});
+
 export const BreakdownTableProps = z
     .strictObject({
         label: Text,
@@ -166,8 +179,16 @@ export const BreakdownTableProps = z
         emptyLabel: Text,
         /** Sorted by size; children expand in place. */
         rows: z.array(BreakdownRowSchema),
+        total: BreakdownTotal.optional(),
     })
     .superRefine((table, context) => {
+        if (table.total && table.total.months.length !== table.months.length) {
+            context.addIssue({
+                code: 'custom',
+                path: ['total', 'months'],
+                message: 'Needs one amount per month of the months',
+            });
+        }
         const check = (rows: BreakdownRow[], path: (string | number)[]): void =>
             rows.forEach((row, index) => {
                 if (row.months.length !== table.months.length) {

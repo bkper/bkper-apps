@@ -160,6 +160,43 @@ describe('validateReportSpec', () => {
         expect(issuesOf(spec)).toEqual([]);
     });
 
+    it('accepts a net result as a line over the bars and as the total of the table', () => {
+        const spec = changed(spec => {
+            const chart = spec.elements.chart;
+            if (chart.type === 'Chart' && 'series' in chart.props) {
+                chart.props.series.push({
+                    id: 'net-result',
+                    label: 'Net result',
+                    color: 'grey',
+                    line: true,
+                    values: ['-5', '10'],
+                });
+            }
+            const table = spec.elements.breakdown;
+            if (table.type === 'BreakdownTable') {
+                table.props.total = {
+                    label: 'Net result',
+                    color: 'grey',
+                    amount: '10',
+                    previous: '-5',
+                    change: '3',
+                    months: ['-5', '10'],
+                };
+            }
+        });
+        expect(issuesOf(spec)).toEqual([]);
+    });
+
+    it('rejects a total whose months do not match the months', () => {
+        const spec = changed(spec => {
+            const table = spec.elements.breakdown;
+            if (table.type === 'BreakdownTable') {
+                table.props.total = { label: 'Net result', color: 'grey', amount: '1', months: [] };
+            }
+        });
+        expect(issuesOf(spec).join()).toMatch(/breakdown.*total.*months/);
+    });
+
     it('rejects a component the catalog does not have', () => {
         const spec = changed(spec => {
             Object.assign(spec.elements.answer, { type: 'Button' });

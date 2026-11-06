@@ -156,10 +156,42 @@ describe('buildReportSpec', () => {
         expect(table.rows.map(row => row.label)).toEqual(['Incoming', 'Outgoing']);
         const chart = element(built, 'Chart').props;
         expect(chart).toMatchObject({ kind: 'bar', label: 'Net result by month' });
-        expect('series' in chart && chart.series.map(series => series.label)).toEqual([
-            'Incoming',
-            'Outgoing',
+        expect(
+            'series' in chart && chart.series.map(series => [series.label, series.line ?? false])
+        ).toEqual([
+            ['Incoming', false],
+            ['Outgoing', false],
+            ['Net result', true],
         ]);
+    });
+
+    it('shows Outgoing positive everywhere, under the total of the net result', async () => {
+        const data = await report(intent('net-result', 'this_month', { monthly: true }));
+        const built = buildReportSpec(data, 'en');
+        const answer = element(built, 'Answer').props;
+        const table = element(built, 'BreakdownTable').props;
+        const chart = element(built, 'Chart').props;
+        const side = (id: string) => {
+            const part = answer.parts?.find(candidate => candidate.id === id);
+            const row = table.rows.find(candidate => candidate.id === id);
+            const series = 'series' in chart && chart.series.find(entry => entry.id === id);
+            return [part?.amount, part?.change, row?.amount, row?.change, series && series.values];
+        };
+        expect(side('outgoing')).toEqual(['1050.25', '0.0503', '1050.25', '0.0503', ['1050.25']]);
+        expect(side('incoming')).toEqual(['5000', '0', '5000', '0', ['5000']]);
+        expect(table.total).toEqual({
+            label: 'Net result',
+            color: 'grey',
+            amount: '3949.75',
+            previous: '4000',
+            change: '-0.0126',
+            months: ['3949.75'],
+        });
+    });
+
+    it('totals only the table of a net result', async () => {
+        const built = await spec(intent('g-expenses', 'last_month'));
+        expect(element(built, 'BreakdownTable').props.total).toBeUndefined();
     });
 
     it('labels the remainder Bkper left out of a group', async () => {

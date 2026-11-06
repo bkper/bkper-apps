@@ -641,6 +641,12 @@
                                                                         "grey"
                                                                     ]
                                                                 },
+                                                                "line": {
+                                                                    "type": "boolean",
+                                                                    "enum": [
+                                                                        true
+                                                                    ]
+                                                                },
                                                                 "values": {
                                                                     "type": "array",
                                                                     "items": {
@@ -821,6 +827,52 @@
                                                 "items": {
                                                     "$ref": "#/components/schemas/BreakdownRow"
                                                 }
+                                            },
+                                            "total": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "label": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 1000
+                                                    },
+                                                    "color": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "blue",
+                                                            "yellow",
+                                                            "green",
+                                                            "red",
+                                                            "grey"
+                                                        ]
+                                                    },
+                                                    "amount": {
+                                                        "type": "string",
+                                                        "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
+                                                    },
+                                                    "previous": {
+                                                        "type": "string",
+                                                        "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
+                                                    },
+                                                    "change": {
+                                                        "type": "string",
+                                                        "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
+                                                    },
+                                                    "months": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string",
+                                                            "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "label",
+                                                    "color",
+                                                    "amount",
+                                                    "months"
+                                                ],
+                                                "additionalProperties": false
                                             }
                                         },
                                         "required": [

@@ -359,6 +359,8 @@ export interface components {
                             label: string;
                             /** @enum {string} */
                             color: "blue" | "yellow" | "green" | "red" | "grey";
+                            /** @enum {boolean} */
+                            line?: true;
                             values: string[];
                         }[];
                     } | {
@@ -390,6 +392,15 @@ export interface components {
                         collapseLabel: string;
                         emptyLabel: string;
                         rows: components["schemas"]["BreakdownRow"][];
+                        total?: {
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            amount: string;
+                            previous?: string;
+                            change?: string;
+                            months: string[];
+                        };
                     };
                     on?: {
                         expand: {

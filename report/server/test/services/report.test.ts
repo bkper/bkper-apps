@@ -1,4 +1,4 @@
-import { BalancesReport, Book } from 'bkper-js';
+import { Amount, BalancesReport, Book } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
 import {
     readLiveBalances,
@@ -249,18 +249,19 @@ describe('buildReport: mixed groups and net result', () => {
         const data = await report(intent('net-result', 'all'));
         expect(data.root).toEqual({ id: 'net-result', type: 'MIXED', color: 'grey' });
         // Rent and Food are under two roots but count once; Old Supplier is under one.
-        expect(data.net).toEqual({
+        expect(data.net).toMatchObject({
             incoming: { amount: '10000' },
             outgoing: { amount: '4260.75' },
         });
         expect(data.answer).toEqual({ amount: '5739.25' });
+        // Outgoing shows positive, like the answer; the net result is Incoming minus Outgoing.
         expect(rows(data.breakdown)).toEqual([
             'incoming 10000 (prev -, change -, share -)',
             '  Salary 10000 (prev -, change -, share 1)',
-            'outgoing -4260.75 (prev -, change -, share -)',
-            '  Rent -4000 (prev -, change -, share 0.9388)',
-            '  Food -250.75 (prev -, change -, share 0.0589)',
-            '  Old Supplier -10 (prev -, change -, share 0.0023)',
+            'outgoing 4260.75 (prev -, change -, share -)',
+            '  Rent 4000 (prev -, change -, share 0.9388)',
+            '  Food 250.75 (prev -, change -, share 0.0589)',
+            '  Old Supplier 10 (prev -, change -, share 0.0023)',
         ]);
         expect(data.breakdown.map(row => [row.id, row.type, row.color])).toEqual([
             ['incoming', 'INCOMING', 'green'],
@@ -276,15 +277,50 @@ describe('buildReport: mixed groups and net result', () => {
         expect(data.net).toEqual({
             incoming: { amount: '5000', previous: '5000', change: '0' },
             outgoing: { amount: '1050.25', previous: '1000', change: '0.0503' },
+            months: ['3949.75'],
         });
         expect(data.answer).toEqual({ amount: '3949.75', previous: '4000', change: '-0.0126' });
+        // The rows carry the same amounts and changes as the answer's sides.
+        expect(rows(data.breakdown).filter(row => !row.startsWith(' '))).toEqual([
+            'incoming 5000 (prev 5000, change 0, share -)',
+            'outgoing 1050.25 (prev 1000, change 0.0503, share -)',
+        ]);
         expect(data.chart).toEqual({
             kind: 'bar',
             series: [
                 { id: 'incoming', type: 'INCOMING', color: 'green', amounts: ['5000'] },
-                { id: 'outgoing', type: 'OUTGOING', color: 'red', amounts: ['-1050.25'] },
+                { id: 'outgoing', type: 'OUTGOING', color: 'red', amounts: ['1050.25'] },
+                {
+                    id: 'net-result',
+                    type: 'MIXED',
+                    color: 'grey',
+                    line: true,
+                    amounts: ['3949.75'],
+                },
             ],
         });
+    });
+
+    it('nets Incoming against Outgoing in every month', async () => {
+        const data = await report(intent('net-result', 'last_12_months', { monthly: true }));
+        const [incoming, outgoing] = data.breakdown;
+        expect(data.net?.months).toEqual(
+            data.months.map((_, i) =>
+                new Amount(incoming.months[i]).minus(outgoing.months[i]).toFixed()
+            )
+        );
+        expect(data.net?.months.slice(-2)).toEqual(['3799.5', '3949.75']);
+    });
+
+    it('leaves a side without amount out of the chart of a net result', async () => {
+        const data = await report(intent('net-result', '2026-09', { monthly: true }));
+        expect(rows(data.breakdown)).toEqual([
+            'outgoing 0 (prev 1000, change -1, share -)',
+            '  Rent 0 (prev 1000, change -1, share -)',
+        ]);
+        expect(data.chart.kind === 'bar' && data.chart.series.map(series => series.id)).toEqual([
+            'net-result',
+        ]);
     });
 
     it('rejects a net result in a Book without activity roots', async () => {
@@ -311,6 +347,53 @@ describe('buildReport: remainder', () => {
             months: ['50.25'],
         });
         expect(data.breakdown[1].name).toBeUndefined();
+    });
+});
+
+/** Adds an Expenses account that moved only in September 2026, and the move to its group. */
+function withSeptemberOnly(snapshot: Snapshot): Snapshot {
+    const id = 'a-september';
+    snapshot.accounts[id] = {
+        ...snapshot.accounts['a-food'],
+        id,
+        name: 'September Only',
+        months: [{ month: '2026-09', period: '5', cumulative: '5' }],
+        windows: [],
+    };
+    const expenses = snapshot.groups['g-expenses'];
+    expenses.accounts.push(id);
+    expenses.months = [...expenses.months, { month: '2026-09', period: '5', cumulative: '0' }].sort(
+        (a, b) => a.month.localeCompare(b.month)
+    );
+    return snapshot;
+}
+
+describe('buildReport: rows without amount', () => {
+    it('keeps them in the table, last, and leaves them out of breakdown charts', async () => {
+        const snapshot = withSeptemberOnly(await fixtureSnapshot());
+        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-september'];
+        const data = await report(intent('g-expenses', 'last_month'), snapshot);
+        expect(rows(data.breakdown)).toEqual([
+            'Rent 1000 (prev 0, change -, share 0.833)',
+            'other 200.5 (prev 0, change -, share 0.167)',
+            'September Only 0 (prev 5, change -1, share 0)',
+        ]);
+        expect(data.chart).toEqual({ kind: 'donut', rows: ['a-rent', 'g-expenses:other'] });
+    });
+
+    it('needs two rows with amounts for a breakdown chart', async () => {
+        const snapshot = withSeptemberOnly(await fixtureSnapshot());
+        const expenses = snapshot.groups['g-expenses'];
+        expenses.accounts = ['a-rent', 'a-september'];
+        expenses.months = expenses.months.map(month =>
+            month.month === '2026-10' ? { ...month, period: '1000' } : month
+        );
+        const data = await report(
+            intent('g-expenses', 'last_month', { view: 'breakdown' }),
+            snapshot
+        );
+        expect(data.breakdown.map(row => row.name)).toEqual(['Rent', 'September Only']);
+        expect(data.chart).toEqual({ kind: 'none' });
     });
 });
 

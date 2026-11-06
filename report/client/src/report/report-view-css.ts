@@ -206,6 +206,13 @@ export const reportViewCSS = css`
         border-block-end: 0;
     }
 
+    .breakdown tfoot th,
+    .breakdown tfoot td {
+        border-block-start: var(--wa-border-width-m) solid var(--wa-color-surface-border);
+        border-block-end: 0;
+        font-weight: var(--wa-font-weight-semibold);
+    }
+
     .row.highlighted {
         background: var(--wa-color-neutral-fill-quiet);
     }

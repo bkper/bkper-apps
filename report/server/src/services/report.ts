@@ -5,7 +5,10 @@
  * charts show (Outgoing and Liability positive). Rows are expressed in their root's sense:
  * a child whose credit nature differs from the root's counts with the opposite sign, as in
  * mixed groups, so every breakdown adds up to its parent. When Bkper leaves accounts out of
- * a group's balances, a remainder row (`kind: 'other'`) keeps the breakdown adding up.
+ * a group's balances, a remainder row (`kind: 'other'`) keeps the breakdown adding up. A net
+ * result breaks down into its Incoming and Outgoing sides, both positive as Bkper shows them,
+ * and Incoming minus Outgoing is the net result. Rows without an amount in the period stay in
+ * the breakdown, last, but charts leave them out.
  *
  * A report reads the snapshot, except when it filters by hashtags or the snapshot cannot
  * answer its period: then {@link buildReport} asks for one live balances query instead, and
@@ -78,7 +81,10 @@ export interface ReportRow extends ReportAmounts {
     share?: string;
     /** Amount in each of the report's {@link ReportData.months}. */
     months: string[];
-    /** Sorted by size; a remainder comes last. Rows without amounts are left out. */
+    /**
+     * Sorted by size; a remainder comes next, then rows without an amount in the period, which
+     * charts leave out. Rows without amounts in any period or month are left out.
+     */
     children: ReportRow[];
 }
 
@@ -87,6 +93,8 @@ export interface ChartSeries {
     name?: string;
     type: NodeType;
     color: TypeColor;
+    /** Drawn as a line over the bars, as the net result over its Incoming and Outgoing. */
+    line?: true;
     /** Amount in each of the report's {@link ReportData.months}. */
     amounts: string[];
 }
@@ -95,7 +103,7 @@ export type ReportChart =
     | { kind: 'none' }
     /** By month: bars for activity, a line for positions. */
     | { kind: 'bar' | 'line'; series: ChartSeries[] }
-    /** The top breakdown rows, by id, in breakdown order. */
+    /** The top breakdown rows with an amount, by id, in breakdown order. */
     | { kind: 'ranked-bar' | 'donut'; rows: string[] };
 
 export interface ReportData {
@@ -114,8 +122,12 @@ export interface ReportData {
     previous?: DateRange;
     /** The root's amount; for a net result, Incoming minus Outgoing. */
     answer: ReportAmounts;
-    /** Both sides of a net result, each with the sign Bkper shows (Outgoing positive). */
-    net?: { incoming: ReportAmounts; outgoing: ReportAmounts };
+    /**
+     * Both sides of a net result, each with the sign Bkper shows (Outgoing positive), and the
+     * net result (Incoming minus Outgoing) in each of the {@link ReportData.months}. The
+     * breakdown has the same two sides, as its `incoming` and `outgoing` rows.
+     */
+    net?: { incoming: ReportAmounts; outgoing: ReportAmounts; months: string[] };
     /** The months of the period, in order; the first and last may be partial. */
     months: IsoMonth[];
     chart: ReportChart;
@@ -465,8 +477,10 @@ function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer)
     };
     roots.forEach(id => collect(snapshot.groups[id]));
 
+    // Each side in its own sense, as Bkper shows it: Outgoing positive.
     const side = (kind: 'incoming' | 'outgoing'): Line => {
         const type = kind === 'incoming' ? 'INCOMING' : 'OUTGOING';
+        const credit = kind === 'incoming';
         const children: Line[] = [...accounts]
             .map(id => snapshot.accounts[id])
             .filter(account => account.type === type)
@@ -475,7 +489,7 @@ function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer)
                 kind: 'account',
                 name: account.name,
                 type,
-                measure: measure.of(account, signOf(account, true)),
+                measure: measure.of(account, signOf(account, credit)),
                 children: [],
             }));
         const total = sum(
@@ -486,7 +500,7 @@ function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer)
     };
     const incoming = side('incoming');
     const outgoing = side('outgoing');
-    const total = sum([incoming.measure, outgoing.measure], measure.zero());
+    const total = sum([incoming.measure, scale(outgoing.measure, -1)], measure.zero());
     const netLine: Line = {
         id: NET_RESULT_ROOT,
         kind: 'group',
@@ -498,6 +512,7 @@ function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer)
         id: line.id,
         type: line.type,
         color: TYPE_COLORS[line.type],
+        ...(line === netLine ? { line: true as const } : {}),
         amounts: line.measure.months.map(decimal),
     });
     return {
@@ -505,10 +520,14 @@ function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer)
         total,
         net: {
             incoming: reportAmounts(incoming.measure),
-            outgoing: reportAmounts(scale(outgoing.measure, -1)),
+            outgoing: reportAmounts(outgoing.measure),
+            months: total.months.map(decimal),
         },
         rows: toRows([incoming, outgoing], netLine),
-        series: [series(incoming), series(outgoing)],
+        series: [
+            ...[incoming, outgoing].filter(line => !line.measure.amount.eq(0)).map(series),
+            series(netLine),
+        ],
     };
 }
 
@@ -530,10 +549,12 @@ function toRows(lines: Line[], parent: Line): ReportRow[] {
         }));
 }
 
-/** Largest first, by size whatever the sign; a remainder last. */
+/** Largest first, by size whatever the sign; then a remainder; then rows without an amount. */
 function byRank(a: Line, b: Line): number {
+    const zero = Number(a.measure.amount.eq(0)) - Number(b.measure.amount.eq(0));
     const other = Number(a.kind === 'other') - Number(b.kind === 'other');
     return (
+        zero ||
         other ||
         b.measure.amount.abs().cmp(a.measure.amount.abs()) ||
         (a.name ?? '').localeCompare(b.name ?? '')
@@ -551,13 +572,15 @@ function chooseChart(
     if (view === 'trend' && months.length > 0) {
         return { kind: nature === 'activity' ? 'bar' : 'line', series };
     }
-    if (view === 'breakdown' && rows.length >= 2) {
+    // Charts draw only rows with an amount in the period.
+    const drawn = rows.filter(row => !new Amount(row.amount).eq(0));
+    if (view === 'breakdown' && drawn.length >= 2) {
         // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
         const donut =
-            rows.length <= MAX_DONUT_ROWS &&
+            drawn.length <= MAX_DONUT_ROWS &&
             rootType !== 'MIXED' &&
-            rows.every(row => row.type === rootType && new Amount(row.amount).gt(0));
-        return { kind: donut ? 'donut' : 'ranked-bar', rows: rows.map(row => row.id) };
+            drawn.every(row => row.type === rootType && new Amount(row.amount).gt(0));
+        return { kind: donut ? 'donut' : 'ranked-bar', rows: drawn.map(row => row.id) };
     }
     return { kind: 'none' };
 }

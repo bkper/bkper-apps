@@ -15,6 +15,7 @@ import {
 } from 'report-shared/catalog';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import { addDays, type DateRange, type IsoDate, type RelativePeriod } from './periods.js';
+import { NET_RESULT_ROOT } from './report-intent.js';
 import {
     TYPE_COLORS,
     type ChartSeries,
@@ -75,6 +76,16 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
             collapseLabel: t('breakdown_collapse', lang),
             emptyLabel: t('breakdown_empty', lang),
             rows: report.breakdown.map(row => breakdownRow(row, labels)),
+            ...(report.net
+                ? {
+                      total: {
+                          label: title,
+                          color: report.root.color,
+                          ...amounts(report.answer),
+                          months: report.net.months,
+                      },
+                  }
+                : {}),
         },
         on: { expand: { action: 'expandRow' } },
     };
@@ -173,7 +184,7 @@ function chartElement(
                     kind: chart.kind,
                     label: t('chart_by_month', lang, { name: title }),
                     months: report.months,
-                    series: chart.series.map(series => chartSeries(series, labels)),
+                    series: chart.series.map(series => chartSeries(series, title, labels)),
                 },
             };
         case 'ranked-bar':
@@ -200,13 +211,14 @@ function chartElement(
     }
 }
 
-/** A series of the root, by its name, or of a side of the net result. */
-function chartSeries(series: ChartSeries, labels: Labels) {
+/** A series of the root, by its name, or of a side of the net result, or the net result itself. */
+function chartSeries(series: ChartSeries, title: string, labels: Labels) {
     const kind = series.id === 'incoming' || series.id === 'outgoing' ? series.id : 'group';
     return {
         id: series.id,
-        label: labels.row(kind, series.name),
+        label: series.id === NET_RESULT_ROOT ? title : labels.row(kind, series.name),
         color: series.color,
+        ...(series.line ? { line: series.line } : {}),
         values: series.amounts,
     };
 }

@@ -54,10 +54,24 @@ describe('chartConfig', () => {
         expect(datasets(chart)[0]).toMatchObject({ borderColor: 'var(--bkper-color-blue-high)' });
     });
 
-    it('draws the Incoming and Outgoing series of a net result with a legend', () => {
+    it('draws Incoming and Outgoing as positive bars under a line of the net result', () => {
         const chart = view('net-result-by-month-pt');
-        expect(datasets(chart).map(dataset => dataset.label)).toEqual(['Incoming', 'Outgoing']);
+        expect(datasets(chart).map(dataset => [dataset.label, dataset.type])).toEqual([
+            ['Incoming', 'bar'],
+            ['Outgoing', 'bar'],
+            ['Net result', 'line'],
+        ]);
+        expect(datasets(chart)[0].backgroundColor).toBe('var(--bkper-color-green-medium)');
+        expect(datasets(chart)[1].backgroundColor).toBe('var(--bkper-color-red-medium)');
+        expect(datasets(chart)[2].borderColor).toBe('var(--bkper-color-grey-high)');
+        expect(datasets(chart)[1].data.every(value => value > 0)).toBe(true);
         expect(chart.legend).toBe(true);
+        const sort = chart.config.options?.plugins?.legend?.labels?.sort;
+        const items = [2, 0, 1].map(datasetIndex => ({ text: '', datasetIndex }));
+        expect(
+            sort &&
+                [...items].sort((a, b) => sort(a, b, chart.config.data)).map(i => i.datasetIndex)
+        ).toEqual([0, 1, 2]);
     });
 
     it('labels months with their year when the chart spans years', () => {
@@ -107,9 +121,36 @@ describe('chartConfig', () => {
 
     it('emphasizes the series a highlighted row stands for', () => {
         const chart = view('net-result-by-month-pt', 'outgoing');
-        expect(datasets(chart)).toHaveLength(2);
+        expect(datasets(chart)).toHaveLength(3);
         expect(datasets(chart)[0].backgroundColor).toContain('transparent');
         expect(datasets(chart)[1].backgroundColor).toBe('var(--bkper-color-red-high)');
+        expect(datasets(chart)[2].borderColor).toContain('transparent');
+    });
+
+    it('leaves a highlighted row without amount out of a chart by month', () => {
+        const spec = gallerySpec('taxes-donut');
+        const table = elementOf(spec, 'BreakdownTable').props;
+        const property = table.rows.find(row => row.label === 'Property tax');
+        expect(property?.amount).toBe('0');
+        const chart = chartConfig(
+            {
+                kind: 'bar',
+                label: 'Taxes by month',
+                months: table.months,
+                series: [{ id: 'g-taxes', label: 'Taxes', color: 'red', values: ['1', '2', '3'] }],
+            },
+            { format: en, rows: table.rows, highlight: property }
+        );
+        expect(datasets(chart).map(dataset => dataset.label)).toEqual(['Taxes']);
+        expect(datasets(chart)[0].backgroundColor).toBe('var(--bkper-color-red-medium)');
+    });
+
+    it('fades nothing in a breakdown chart for a highlighted row it does not draw', () => {
+        const plain = datasets(view('taxes-donut'))[0].backgroundColor;
+        const property = elementOf(gallerySpec('taxes-donut'), 'BreakdownTable').props.rows.find(
+            row => row.label === 'Property tax'
+        );
+        expect(datasets(view('taxes-donut', property?.id))[0].backgroundColor).toEqual(plain);
     });
 
     it('formats tooltips with the exact amounts and axes compactly', () => {

@@ -37,6 +37,8 @@ export interface ChartContext {
 interface Series {
     label: string;
     color: TypeColor;
+    /** A line over the bars of a bar chart. */
+    line: boolean;
     values: string[];
     emphasis: 'normal' | 'strong' | 'faded';
 }
@@ -49,17 +51,21 @@ function byMonth(chart: Extract<ChartProps, { months: string[] }>, context: Char
     const { format, highlight } = context;
     const element = chart.kind;
     const stood = highlight && chart.series.find(series => series.id === highlight.id);
+    // Charts leave out rows without an amount in the period, even when highlighted.
+    const drawn = highlight && ReportFormat.plot(highlight.amount) !== 0 ? highlight : undefined;
     const series: Series[] = chart.series.map(entry => ({
         label: entry.label,
         color: entry.color,
+        line: entry.line === true,
         values: entry.values,
-        emphasis: !highlight ? 'normal' : entry === stood ? 'strong' : 'faded',
+        emphasis: !drawn ? 'normal' : entry === stood ? 'strong' : 'faded',
     }));
-    if (highlight && !stood && highlight.months.length === chart.months.length) {
+    if (drawn && !stood && drawn.months.length === chart.months.length) {
         series.push({
-            label: highlight.label,
-            color: highlight.color,
-            values: highlight.months,
+            label: drawn.label,
+            color: drawn.color,
+            line: false,
+            values: drawn.months,
             emphasis: 'strong',
         });
     }
@@ -78,7 +84,12 @@ function byMonth(chart: Extract<ChartProps, { months: string[] }>, context: Char
         options: {
             plugins: {
                 title: { display: false },
-                legend: { display: series.length > 1, position: 'bottom' },
+                legend: {
+                    display: series.length > 1,
+                    position: 'bottom',
+                    // In series order, whatever order the datasets are drawn in.
+                    labels: { sort: (a, b) => (a.datasetIndex ?? 0) - (b.datasetIndex ?? 0) },
+                },
                 tooltip: {
                     callbacks: {
                         title: items =>
@@ -100,7 +111,8 @@ function byMonth(chart: Extract<ChartProps, { months: string[] }>, context: Char
     };
 }
 
-function monthDataset(element: 'bar' | 'line', series: Series): Dataset {
+function monthDataset(chart: 'bar' | 'line', series: Series): Dataset {
+    const element = series.line ? 'line' : chart;
     const strong = typeColor(series.color, element === 'line' ? 'high' : 'medium');
     const color =
         series.emphasis === 'strong'
@@ -117,6 +129,8 @@ function monthDataset(element: 'bar' | 'line', series: Series): Dataset {
             borderColor: color,
             backgroundColor: color,
             pointBackgroundColor: color,
+            // Chart.js draws lower orders on top: a line over bars stays visible.
+            ...(chart === 'bar' ? { order: -1 } : {}),
         };
     }
     return {
@@ -134,7 +148,9 @@ function breakdown(chart: Extract<ChartProps, { items: unknown[] }>, context: Ch
     const { format, highlight } = context;
     const donut = chart.kind === 'donut';
     const element: ChartElement = donut ? 'doughnut' : 'bar';
-    const highlighted = highlight && topRow(context.rows, highlight.id)?.id;
+    // Rows the chart does not draw, such as rows without an amount, highlight nothing in it.
+    const top = highlight && topRow(context.rows, highlight.id)?.id;
+    const highlighted = chart.items.some(item => item.rowId === top) ? top : undefined;
     const base = donut
         ? shades(chart.items.map(item => item.color))
         : chart.items.map(item => typeColor(item.color, 'medium'));

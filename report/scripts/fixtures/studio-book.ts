@@ -98,6 +98,8 @@ const taxes: GroupSpec = {
         { name: 'Income tax', type: 'OUTGOING', amount: series(1900, 0.1, 0.01, 0.5) },
         { name: 'Payroll tax', type: 'OUTGOING', amount: series(1350, 0, 0.008, 0.1) },
         { name: 'Sales tax', type: 'OUTGOING', amount: series(820, 0.18, 0.012, 0.4) },
+        // Paid once a year, in September, so most periods have none of it.
+        { name: 'Property tax', type: 'OUTGOING', amount: month => (month % 12 === 8 ? 2400 : 0) },
     ],
 };
 

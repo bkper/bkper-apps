@@ -64,7 +64,7 @@ function barColors(view: ReportView): unknown {
 }
 
 describe('<report-view>', () => {
-    it('renders every recorded spec, answer first, then chart, table and source', async () => {
+    it('renders every recorded spec, answer first, then previews, chart, table and source', async () => {
         for (const id of galleryIds()) {
             const spec = gallerySpec(id);
             const view = await mount(spec);
@@ -72,11 +72,11 @@ describe('<report-view>', () => {
                 node => node.className
             );
             const expected = ['report-header', 'answer'];
-            if (Object.values(spec.elements).some(element => element.type === 'Chart')) {
-                expected.push(expect.stringContaining('chart'));
-            }
             if (Object.values(spec.elements).some(element => element.type === 'Visualizations')) {
                 expected.push('previews');
+            }
+            if (Object.values(spec.elements).some(element => element.type === 'Chart')) {
+                expected.push(expect.stringContaining('chart'));
             }
             expect(order, id).toEqual([...expected, 'breakdown-section', 'source']);
         }
@@ -301,12 +301,12 @@ describe('<report-view> chart previews', () => {
         const spec = gallerySpec('expenses-by-month');
         const view = await mount(spec);
         const visualizations = elementOf(spec, 'Visualizations').props;
+        const charts = visualizations.views.filter(entry => entry.kind !== 'table');
+        expect(visualizations.views.some(entry => entry.kind === 'table')).toBe(true);
         expect(previews(view).map(button => button.dataset.kind)).toEqual(
-            visualizations.views.map(entry => entry.kind)
+            charts.map(entry => entry.kind)
         );
-        expect(text(view, '.preview .preview-name')).toEqual(
-            visualizations.views.map(entry => entry.name)
-        );
+        expect(text(view, '.preview .preview-name')).toEqual(charts.map(entry => entry.name));
         expect(
             previews(view)
                 .filter(button => button.getAttribute('aria-pressed') === 'true')
@@ -348,9 +348,7 @@ describe('<report-view> chart previews', () => {
         // The table's swatches follow the chart shown.
         expect(root(view).querySelectorAll('tbody .swatch').length).toBeGreaterThan(1);
 
-        preview(view, 'table').click();
-        await view.updateComplete;
-        expect(root(view).querySelector('.chart')).toBeNull();
+        expect(root(view).querySelector('.preview[data-kind="table"]')).toBeNull();
         expect(root(view).querySelector('.breakdown-section')).not.toBeNull();
         expect(fetch).not.toHaveBeenCalled();
         fetch.mockRestore();
@@ -363,7 +361,41 @@ describe('<report-view> chart previews', () => {
         await view.updateComplete;
         expect(shownKind(view)).toBe('donut');
         const order = [...root(view).querySelectorAll('.report > *')].map(node => node.className);
-        expect(order.indexOf('previews')).toBe(order.findIndex(name => name.includes('chart')) + 1);
+        expect(order.indexOf('previews')).toBe(order.findIndex(name => name.includes('chart')) - 1);
+    });
+
+    it('keeps table-only reports keyboard-accessible without a pressed preview', async () => {
+        for (const id of ['expenses-table', 'revenue-total']) {
+            const view = await mount(gallerySpec(id));
+            expect(shownKind(view), id).toBeNull();
+            expect(root(view).querySelector('.breakdown-section'), id).not.toBeNull();
+            expect(root(view).querySelector('.preview[data-kind="table"]'), id).toBeNull();
+            const buttons = previews(view);
+            expect(buttons.length, id).toBeGreaterThan(0);
+            expect(buttons.every(button => button.getAttribute('aria-pressed') === 'false')).toBe(
+                true
+            );
+            expect(buttons.map(button => button.tabIndex)).toEqual(
+                buttons.map((_, index) => (index === 0 ? 0 : -1))
+            );
+            buttons[0].focus();
+            buttons[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+            expect(root(view).activeElement).toBe(buttons.at(-1));
+            buttons.at(-1)?.click();
+            await view.updateComplete;
+            expect(shownKind(view)).toBe(buttons.at(-1)?.dataset.kind);
+            expect(previews(view).filter(button => button.tabIndex === 0)).toHaveLength(1);
+        }
+    });
+
+    it('preserves a host-selected table-only view without a Table preview', async () => {
+        const view = await mount(gallerySpec('expenses-by-month'));
+        view.chart = 'table';
+        await view.updateComplete;
+        expect(shownKind(view)).toBeNull();
+        expect(root(view).querySelector('.breakdown-section')).not.toBeNull();
+        expect(root(view).querySelector('.preview[data-kind="table"]')).toBeNull();
+        expect(previews(view).filter(button => button.tabIndex === 0)).toEqual([previews(view)[0]]);
     });
 
     it('shows the chart its host chooses, and the main one for a new report', async () => {
@@ -432,6 +464,29 @@ describe('<report-view> chart previews', () => {
     it('offers no previews for a report that fits only its table', async () => {
         const view = await mount(gallerySpec('card-empty'));
         expect(root(view).querySelector('.previews')).toBeNull();
+    });
+
+    it('renders no empty toolbar when a compatible spec offers only the table', async () => {
+        const spec = gallerySpec('expenses-table');
+        const choices = elementOf(spec, 'Visualizations');
+        const id = Object.keys(spec.elements).find(key => spec.elements[key] === choices);
+        if (!id) throw new Error('No Visualizations');
+        const view = await mount({
+            ...spec,
+            elements: {
+                ...spec.elements,
+                [id]: {
+                    ...choices,
+                    props: {
+                        ...choices.props,
+                        views: choices.props.views.filter(entry => entry.kind === 'table'),
+                    },
+                },
+            },
+        });
+        expect(root(view).querySelector('.previews')).toBeNull();
+        expect(root(view).querySelector('.chart')).toBeNull();
+        expect(root(view).querySelector('.breakdown-section')).not.toBeNull();
     });
 
     it('offers no previews where the spec binds no selectChart action', async () => {

@@ -6,7 +6,7 @@
  * draws with; the page provides the Web Awesome theme and `@bkper/web-design` tokens. Rows
  * open in place (`expandRow`), hovering or opening a row highlights it in the chart, and the
  * link to Bkper (`openInBkper`) fires `report-open-in-bkper` (see `events.ts`); a host that
- * cannot navigate gives a plain `link` instead. Under the chart, a preview of every chart that
+ * cannot navigate gives a plain `link` instead. Above the chart, a preview of every chart that
  * fits (`selectChart`) shows it in place of the chart, from the data the spec carries, and
  * fires `report-select-chart`.
  */
@@ -140,14 +140,14 @@ export class ReportView extends LitElement {
             case 'Answer':
                 return renderAnswer(element.props, format, report.title);
             case 'Chart':
-                // With a choice of charts, the one shown goes where the choice is, just after.
+                // With a choice of charts, the one shown goes just after its previews.
                 return shown.choices
                     ? nothing
                     : this.renderShown(shown, report, format, rows, highlight);
             case 'Visualizations':
                 return shown.choices
-                    ? html`${this.renderShown(shown, report, format, rows, highlight)}
-                      ${this.renderPreviews(shown, shown.choices, report.dir)}`
+                    ? html`${this.renderPreviews(shown, shown.choices, report.dir)}
+                      ${this.renderShown(shown, report, format, rows, highlight)}`
                     : nothing;
             case 'BreakdownTable':
                 return html`<section class="breakdown-section" aria-label=${element.props.label}>
@@ -195,11 +195,15 @@ export class ReportView extends LitElement {
 
     /**
      * A toolbar of previews, in the spec's order: the chart asked for that does not fit first,
-     * dimmed with why, then every chart that fits, the one shown pressed. Only the one shown is
-     * in the tab order; the arrow keys move between them, and a click, Enter or Space shows one.
+     * dimmed with why, then every chart that fits, the one shown pressed. The table stays below
+     * the chart, not among the previews. Only the one shown is in the tab order, or the first
+     * chart for a table-only report; arrows move between them, a click, Enter or Space shows one.
      */
     private renderPreviews(shown: Shown, choices: VisualizationsProps, dir: 'ltr' | 'rtl') {
-        const { unfit } = choices;
+        const views = choices.views.filter(view => view.kind !== 'table');
+        const unfit = choices.unfit?.kind === 'table' ? undefined : choices.unfit;
+        if (views.length === 0 && !unfit) return nothing;
+        const tabKind = views.find(view => view.kind === shown.kind)?.kind ?? views[0]?.kind;
         const drawings = this.drawings(choices, shown.main);
         return html`<div
             class="previews"
@@ -221,14 +225,14 @@ export class ReportView extends LitElement {
                       </button>`
                     : nothing
             }
-            ${choices.views.map(
+            ${views.map(
                 view =>
                     html`<button
                         type="button"
                         class="preview"
                         data-kind=${view.kind}
                         aria-pressed=${view.kind === shown.kind ? 'true' : 'false'}
-                        tabindex=${view.kind === shown.kind ? 0 : -1}
+                        tabindex=${view.kind === tabKind ? 0 : -1}
                         @click=${() => this.select(view.kind, shown.kind)}
                     >
                         <span class="thumb">${drawings.get(view.kind)}</span>
@@ -302,10 +306,12 @@ export class ReportView extends LitElement {
             return this.previews.drawings;
         }
         const drawings = new Map(
-            choices.views.map(view => [
-                view.kind,
-                renderPreview(view.kind, view.kind === choices.main ? main : view.chart),
-            ])
+            choices.views
+                .filter(view => view.kind !== 'table')
+                .map(view => [
+                    view.kind,
+                    renderPreview(view.kind, view.kind === choices.main ? main : view.chart),
+                ])
         );
         if (spec) {
             this.previews = { spec, drawings };

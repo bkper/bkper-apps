@@ -158,15 +158,14 @@ export const reportViewCSS = css`
         flex-wrap: wrap;
         align-items: flex-start;
         gap: var(--wa-space-xs);
-        margin-block-start: calc(-1 * var(--wa-space-m));
         padding: var(--wa-space-3xs);
         overflow-x: auto;
         overscroll-behavior-inline: contain;
         scrollbar-width: thin;
     }
 
-    .report-header + .answer + .previews {
-        margin-block-start: 0;
+    .previews + .chart {
+        margin-block-start: calc(-1 * var(--wa-space-m));
     }
 
     .preview {
@@ -234,7 +233,7 @@ export const reportViewCSS = css`
         block-size: 100%;
     }
 
-    /* As the chart above them, they run from the inline start. */
+    /* Like the chart below them, they run from the inline start. */
     .report[dir='rtl'] .thumb svg {
         transform: scaleX(-1);
     }

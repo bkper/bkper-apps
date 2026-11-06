@@ -1,5 +1,5 @@
 /**
- * Tiny drawings of a report's charts, for the previews under its chart: the shape of each chart
+ * Tiny drawings of a report's charts, for the previews above its chart: the shape of each chart
  * from the spec's numbers, in the colors the chart uses, with no labels, axes or tooltips. Plain
  * SVG, so a dozen of them cost next to nothing to draw. A kind without data (the table, or a
  * chart asked for that does not fit) gets a sketch of its shape, in the text's color.

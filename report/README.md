@@ -9,7 +9,7 @@ Type what you want to know about your Book, in your own language, and see the re
 Report turns a short request, such as _expenses by category this year_, into a financial report of your Book:
 
 - **The answer first**: the amount, the same amount in the previous comparable period, and the change.
-- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)). Under it, small previews of every other chart that fits the same numbers: click one to see it instead.
+- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)). Above it, small previews of every chart that fits the same numbers: click one to see it instead. The previews stay in place when the chart's height changes.
 - **A breakdown table** of the group's subgroups and Accounts, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
 - **The source**: the exact Bkper query, the period and when the balances were read, with a link to open the same query in your Book.
 
@@ -45,7 +45,7 @@ When your request names no period, Report shows activity for this year and balan
 
 ## Charts
 
-Report picks the chart that fits your request, and shows every other chart that fits the same numbers as small previews under it. Click a preview, or move to it with the arrow keys and press **Enter**, to see the report as that chart at once. The report's address keeps the chart you chose, so its link, reloading it or coming back to it shows that chart.
+Report picks the chart that fits your request, and shows every chart that fits the same numbers as small previews above it. Click a preview, or move to it with the arrow keys and press **Enter**, to see the report as that chart at once. The report's address keeps the chart you chose, so its link, reloading it or coming back to it shows that chart.
 
 To start with another chart, name it in your request, in any language:
 
@@ -60,6 +60,8 @@ To start with another chart, name it in your request, in any language:
 | just the numbers, no chart | The answer and the breakdown table, without a chart |
 
 ### When a chart is dimmed
+
+The breakdown table always stays below the chart, so it has no preview card. You can still ask for just the numbers, without a chart; any chart previews remain available if you want to add one.
 
 A chart you ask for that does not fit your numbers is not drawn: it shows first among the previews, dimmed, with the reason, such as _A pie can't show Taxes (-186.74)_. The report shows the closest chart that fits instead. A chart fits when:
 

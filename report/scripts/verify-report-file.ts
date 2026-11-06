@@ -2,7 +2,7 @@
  * Opens report files in headless Chromium exactly as the Bkper Agent shows a published HTML
  * file, and checks they work there with no network.
  *
- *     npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html> ...]
+ *     npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [--width=900] [<file.html> ...]
  *
  * Without files, it writes one report file per recorded spec (`client/dev/specs/*.json`) with
  * the built bundle (run `npm run build:report-file` first); with files, such as one saved from
@@ -14,7 +14,9 @@
  * errors; that the answer, the chart and the link to the Report app show; that a row opens
  * in place; that values written into texts, such as dates, read in the report's direction;
  * that a click on a chart's preview shows that chart in place of the main one, with no network,
- * and the link then opens it (the time each switch takes is reported); and that the link asks
+ * and the link then opens it (the time each switch takes is reported); that previews stay above
+ * the chart, at the same position even when its height changes, with no Table card and with
+ * keyboard access even for table-only reports; and that the link asks
  * the Agent to open the report in the Report app in the Book (`bkper:navigate`) only after the
  * Agent's `bkper:host-ready` and a click, and stays a plain link before. `--screenshots` saves
  * a picture of each. Needs Playwright's Chromium headless
@@ -95,11 +97,17 @@ interface Result {
     darkTheme: boolean;
     /** How long showing a chosen chart took, from the click to its first frame. */
     switchMs?: number;
+    heightChange?: number;
 }
 
 const args = process.argv.slice(2);
 const screenshots = args.find(arg => arg.startsWith('--screenshots='))?.split('=')[1];
 const paths = args.filter(arg => !arg.startsWith('--'));
+const width = Number(args.find(arg => arg.startsWith('--width='))?.split('=')[1] ?? VIEWPORT.width);
+if (!Number.isFinite(width) || width < 320) {
+    throw new Error('--width must be a finite number of at least 320');
+}
+const viewport = { ...VIEWPORT, width };
 
 async function recordedFiles(): Promise<ReportFile[]> {
     const files: ReportFile[] = [];
@@ -241,22 +249,81 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
         }
     }
     failures.push(...(await frame.evaluate(readingOrder)));
+    failures.push(...(await checkPreviewKeyboard(frame)));
+    return failures;
+}
+
+/** The toolbar is reachable by Tab, even without a pressed chart; arrows follow direction. */
+async function checkPreviewKeyboard(frame: Frame): Promise<string[]> {
+    const failures: string[] = [];
+    if (await frame.locator('report-view .preview[data-kind="table"]').count()) {
+        failures.push('The previews still offer a Table card');
+    }
+    const buttons = frame.locator('report-view .preview');
+    if ((await buttons.count()) === 0) return failures;
+    const tabbable = frame.locator('report-view .preview[tabindex="0"]');
+    if ((await tabbable.count()) !== 1) {
+        return [...failures, 'The previews need exactly one Tab entry, even without a chart'];
+    }
+    const heading = frame.locator('report-view h1');
+    await heading.evaluate(element => element.setAttribute('tabindex', '-1'));
+    await heading.focus();
+    await heading.press('Tab');
+    if (
+        !(await tabbable.evaluate(
+            element => element === (element.getRootNode() as ShadowRoot).activeElement
+        ))
+    ) {
+        failures.push('Tab from the heading did not reach the preview toolbar');
+    }
+    await heading.evaluate(element => element.removeAttribute('tabindex'));
+    await tabbable.press('Home');
+    if (
+        !(await buttons
+            .first()
+            .evaluate(element => element === (element.getRootNode() as ShadowRoot).activeElement))
+    ) {
+        failures.push('Home did not focus the first preview');
+    }
+    const rtl = (await frame.locator('report-view article').getAttribute('dir')) === 'rtl';
+    if ((await buttons.count()) > 1) {
+        await buttons.first().press(rtl ? 'ArrowLeft' : 'ArrowRight');
+        if (
+            !(await buttons
+                .nth(1)
+                .evaluate(
+                    element => element === (element.getRootNode() as ShadowRoot).activeElement
+                ))
+        ) {
+            failures.push('The forward arrow did not follow the report direction');
+        }
+    }
+    await tabbable.press('End');
+    if (
+        !(await buttons
+            .last()
+            .evaluate(element => element === (element.getRootNode() as ShadowRoot).activeElement))
+    ) {
+        failures.push('End did not focus the last preview');
+    }
     return failures;
 }
 
 /**
  * A click on a preview shows its chart in place of the main one, from the data the file
- * carries: the first chart offered that is not shown and draws something (not the table). The
+ * carries: prefer a round chart (or leave one) to exercise different chart heights. The
  * chart then draws, and the link opens the report as that chart. Returns the chart chosen and
  * the time from the click to the chart's first frame; nothing for a file without previews.
  */
 async function checkChoice(
     page: Page,
     frame: Frame
-): Promise<{ failures: string[]; kind?: string; ms?: number }> {
-    const preview = frame
-        .locator('report-view .preview[aria-pressed="false"]:not([data-kind="table"])')
-        .first();
+): Promise<{ failures: string[]; kind?: string; ms?: number; heightChange?: number }> {
+    const alternatives = frame.locator('report-view .preview[aria-pressed="false"]');
+    const round = alternatives
+        .filter({ has: frame.locator('svg') })
+        .and(frame.locator('[data-kind="pie"], [data-kind="donut"]'));
+    const preview = (await round.count()) > 0 ? round.first() : alternatives.first();
     if ((await preview.count()) === 0) {
         return { failures: [] };
     }
@@ -271,6 +338,22 @@ async function checkChoice(
                     ?.getAttribute('data-kind') ?? 'table'
         );
     const before = await shownKind();
+    const layout = () =>
+        frame.evaluate(() => {
+            const root = document.querySelector('report-view')?.shadowRoot;
+            const previews = root?.querySelector('.previews')?.getBoundingClientRect();
+            const chart = root?.querySelector('.chart')?.getBoundingClientRect();
+            const table = root?.querySelector('.breakdown-section')?.getBoundingClientRect();
+            return {
+                top: (previews?.top ?? 0) + scrollY,
+                bottom: (previews?.bottom ?? 0) + scrollY,
+                chartTop: chart ? chart.top + scrollY : undefined,
+                chartBottom: chart ? chart.bottom + scrollY : undefined,
+                height: chart?.height ?? 0,
+                tableTop: (table?.top ?? 0) + scrollY,
+            };
+        });
+    const initial = await layout();
     // Timed in the page: the click, the report's update, the chart's, then its first frame.
     const ms = await preview.evaluate(async button => {
         const view = document.querySelector('report-view');
@@ -290,6 +373,23 @@ async function checkChoice(
         failures.push(`Choosing ${kind} showed ${shown} (was ${before}), pressed ${pressed}`);
     }
     await page.waitForTimeout(CHART_ANIMATION_MS);
+    const after = await layout();
+    if (Math.abs(after.top - initial.top) > 1) {
+        failures.push(`The previews moved when choosing ${kind}: ${initial.top} → ${after.top}`);
+    }
+    for (const position of [initial, after]) {
+        if (position.chartTop !== undefined && position.bottom > position.chartTop) {
+            failures.push('The previews are not above the chart');
+        }
+        if (position.chartBottom !== undefined && position.tableTop < position.chartBottom) {
+            failures.push('The breakdown table is not below the chart');
+        }
+    }
+    const heightChange = Math.abs(after.height - initial.height);
+    // The recorded monthly report is the explicit differing-height regression, not a same-size switch.
+    if (before === 'bar' && (kind === 'pie' || kind === 'donut') && heightChange < 1) {
+        failures.push('The monthly-to-round chart regression did not exercise different heights');
+    }
     // Drawn by Chart.js: its elements of the first dataset. (Reading the canvas's pixels
     // again would make Chrome warn about repeated readbacks.)
     const drawn = await frame
@@ -313,7 +413,7 @@ async function checkChoice(
     if (chosen && (!href || new URL(href).searchParams.get('state') !== chosen)) {
         failures.push(`After choosing ${kind}, the link does not open it: ${href}`);
     }
-    return { failures, kind, ms };
+    return { failures, kind, ms, heightChange };
 }
 
 /**
@@ -545,7 +645,7 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
     try {
         for (const scheme of ['light', 'dark'] as const) {
             const context = await browser.newContext({
-                viewport: VIEWPORT,
+                viewport,
                 colorScheme: scheme,
                 locale: 'en-US',
             });
@@ -595,8 +695,8 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                         clip: {
                             x: 0,
                             y: 0,
-                            width: VIEWPORT.width,
-                            height: Math.min(height, VIEWPORT.height),
+                            width: viewport.width,
+                            height: Math.min(height, viewport.height),
                         },
                     });
                 }
@@ -619,6 +719,7 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                     failures,
                     darkTheme,
                     ...(choice.ms === undefined ? {} : { switchMs: choice.ms }),
+                    heightChange: choice.heightChange,
                 });
             }
             await context.close();
@@ -641,7 +742,8 @@ for (const result of results) {
             ` ${(result.bytes / 1024).toFixed(1)} KB${result.darkTheme ? ' (dark theme)' : ''}` +
             (result.switchMs === undefined
                 ? ''
-                : `, chart chosen in ${result.switchMs.toFixed(1)} ms`)
+                : `, chart chosen in ${result.switchMs.toFixed(1)} ms` +
+                  `, height Δ${result.heightChange?.toFixed(1)} px`)
     );
     failures.forEach(failure => console.log(`     ${failure}`));
 }

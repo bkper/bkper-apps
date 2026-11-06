@@ -162,10 +162,7 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
         }
     }
     const link = frame.locator('report-view .source-footer a');
-    if (
-        (await link.count()) !== 1 ||
-        !(await link.getAttribute('href'))?.startsWith('https://report.bkper.app/')
-    ) {
+    if ((await link.count()) !== 1 || !isReportAppLink(await link.getAttribute('href'))) {
         failures.push('The Source has no single link to the Report app');
     }
     const toggle = frame.locator('report-view button.toggle').first();
@@ -432,3 +429,11 @@ console.log(
     `${results.length - failed}/${results.length} ok; largest file ${(largest / 1024).toFixed(1)} KB`
 );
 process.exitCode = failed > 0 ? 1 : 0;
+
+/** A link to the Report app: production, or preview for files the preview Worker served. */
+function isReportAppLink(href: string | null): boolean {
+    return (
+        href?.startsWith('https://report.bkper.app/') === true ||
+        href?.startsWith('https://report-preview.bkper.app/') === true
+    );
+}

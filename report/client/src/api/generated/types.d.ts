@@ -158,9 +158,9 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`.
          *
-         *     With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time, chart and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
+         *     With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
          *
-         *     Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period, view and chart among the options the Book has.
+         *     Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only recognizes in the prompt the group and period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
         post: {
             parameters: {
@@ -178,7 +178,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query and link (`format: spec`) */
+                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query, chart, trace and link (`format: spec`) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -318,7 +318,7 @@ export interface components {
              */
             view?: "trend" | "breakdown" | "total";
             /**
-             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).
+             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (see the response’s `chart` and `trace.chart`).
              * @example pie
              * @enum {string}
              */
@@ -744,7 +744,7 @@ export interface components {
         /** @description Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
             /**
-             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.
+             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.
              * @example show my expenses by category this year
              */
             prompt?: string;
@@ -755,7 +755,7 @@ export interface components {
              */
             language?: string;
             /**
-             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time and link.
+             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.
              * @example html
              * @enum {string}
              */

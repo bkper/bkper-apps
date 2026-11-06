@@ -1,5 +1,5 @@
 import type WaInput from '@awesome.me/webawesome-pro/dist/components/input/input.js';
-import { LitElement, html, nothing, svg, type PropertyValues } from 'lit';
+import { LitElement, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
@@ -21,8 +21,6 @@ const ALERTS: ReadonlySet<StringKey> = new Set<StringKey>([
     'error_upstream',
     'error_unexpected',
 ]);
-
-const CHART = svg`<path d="M3 3v18h18"/><path d="M8 17v-4M12 17V9M16 17v-6"/>`;
 
 /**
  * The app's one layout: the report, which scrolls, over an input fixed at the bottom that looks
@@ -125,6 +123,7 @@ export class ReportPage extends LitElement {
                             class="prompt"
                             pill
                             autofocus
+                            with-clear
                             autocomplete="off"
                             inputmode="text"
                             enterkeyhint="send"
@@ -134,9 +133,7 @@ export class ReportPage extends LitElement {
                             .value=${live(reports.text)}
                             @input=${this.onInput}
                             @keydown=${this.onKeyDown}
-                        >
-                            ${glyph(CHART, 'end')}
-                        </wa-input>
+                        ></wa-input>
                         <wa-progress-bar
                             class="progress ${reports.pending ? 'active' : ''}"
                             indeterminate
@@ -227,22 +224,6 @@ function morphOf(area: HTMLElement): ViewTransitionScope['startViewTransition'] 
 function reportTitle(report: ReportResponse): string | undefined {
     const root = report.spec.elements[report.spec.root];
     return root?.type === 'Report' ? root.props.title : undefined;
-}
-
-function glyph(paths: ReturnType<typeof svg>, slot: string) {
-    return html`<svg
-        slot=${slot}
-        class="glyph"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-    >
-        ${paths}
-    </svg>`;
 }
 
 declare global {

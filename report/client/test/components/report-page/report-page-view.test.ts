@@ -237,6 +237,27 @@ describe('ReportPage', () => {
         expect(view.state.route.prompt).toBe('');
     });
 
+    it('clears the request with the clear button, and has no chart glyph', async () => {
+        const view = createPage();
+        view.state.reports.open('book-1');
+        await settle(view);
+        const field = input(view);
+        expect(field.withClear).toBe(true);
+        expect(field.querySelector('svg')).toBeNull();
+
+        view.state.reports.input('net result');
+        await view.updateComplete;
+        await field.updateComplete;
+        const clear = field.shadowRoot?.querySelector<HTMLButtonElement>('[part~="clear-button"]');
+        expect(clear).not.toBeNull();
+        clear?.click();
+        await field.updateComplete;
+        await settle(view);
+
+        expect(view.state.reports.text).toBe('');
+        expect(view.state.route.prompt).toBe('');
+    });
+
     it('shows a quiet hint, or a clear alert when something failed', async () => {
         const view = createPage();
         view.state.reports.fail('hint_not_a_report');

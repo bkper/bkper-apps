@@ -78,14 +78,6 @@ export const reportPageCSS = css`
         white-space: nowrap;
     }
 
-    /* Where the transaction input has its attachment icons. */
-    .glyph {
-        inline-size: 1em;
-        block-size: 1em;
-        font-size: var(--bkper-font-size-large);
-        color: var(--wa-color-neutral-on-quiet);
-    }
-
     /* A thin line under the input, inside the pill's straight edge, while a report is on its way. */
     .progress {
         --track-height: var(--wa-border-width-m);

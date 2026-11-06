@@ -52,21 +52,14 @@ describe('ReportApp component', () => {
         expect(container.textContent).toContain('Main Book');
     });
 
-    it('renders the selected Book, or a visible error when it cannot load', () => {
+    it('renders the report page of the selected Book at once, while the Book loads', () => {
         const app = new ReportApp();
-        app.state.books.loading = false;
+        app.state.books.loading = true;
         app.state.route.bookId = 'book-1';
-        app.state.books.bookName = 'Main Book';
         const container = document.createElement('div');
 
         render(app.render(), container);
-        expect(container.querySelector('h1')?.textContent).toBe('Main Book');
 
-        app.state.books.bookName = null;
-        app.state.books.selectedBookError = 'Could not load this Book.';
-        render(app.render(), container);
-        const callout = container.querySelector('wa-callout');
-        expect(callout?.getAttribute('variant')).toBe('danger');
-        expect(callout?.textContent).toContain('Could not load this Book.');
+        expect(container.querySelector('report-page')?.state).toBe(app.state);
     });
 });

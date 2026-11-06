@@ -61,7 +61,11 @@ export class Books extends Store {
     /** Load what the route selects, showing the loading state until the latest selection answers. */
     private async show(): Promise<void> {
         const bookId = this.route.bookId;
-        if (!bookId && this.listed) return;
+        if (!bookId && this.listed) {
+            // The list is loaded; a Book still loading must not keep it waiting.
+            this.loading = false;
+            return;
+        }
         this.loading = true;
         try {
             if (bookId) return await this.loadBook(bookId);

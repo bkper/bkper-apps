@@ -1,8 +1,17 @@
 import createClient from 'openapi-fetch';
-import type { ErrorResponse, paths, PingResponse } from './generated/types';
+import type { components, ErrorResponse, paths, PingResponse } from './generated/types';
 
 export type { PingResponse };
 export type ApiErrorResponse = ErrorResponse;
+export type Suggestion = components['schemas']['Suggestion'];
+export type ReportIntent = components['schemas']['ReportIntent'];
+export type ReportRequest = components['schemas']['ReportRequest'];
+export type ReportResponse = components['schemas']['ReportResponse'];
+
+export interface RequestOptions {
+    /** Cancels the request; it then rejects with the `AbortError` of `fetch`. */
+    signal?: AbortSignal;
+}
 
 export interface AppApiOptions {
     baseUrl?: string;
@@ -13,7 +22,9 @@ export class AppApiError extends Error {
     constructor(
         message: string,
         readonly status: number,
-        readonly code?: string
+        readonly code?: string,
+        /** With `not_a_report`: reports the Book can have. */
+        readonly suggestions?: Suggestion[]
     ) {
         super(message);
         this.name = 'AppApiError';
@@ -45,10 +56,19 @@ function readApiErrorResponse(value: unknown): ApiErrorResponse | undefined {
     };
 }
 
-function toAppApiError(error: unknown, response: Response): AppApiError {
+function toAppApiError(
+    error: unknown,
+    response: Response,
+    suggestions?: Suggestion[]
+): AppApiError {
     const apiError = readApiErrorResponse(error);
     if (apiError) {
-        return new AppApiError(apiError.error.message, response.status, apiError.error.code);
+        return new AppApiError(
+            apiError.error.message,
+            response.status,
+            apiError.error.code,
+            suggestions
+        );
     }
 
     return new AppApiError(`Server API returned ${response.status}`, response.status);
@@ -75,6 +95,42 @@ export function createAppApi(options: AppApiOptions) {
             const { data, error, response } = await client.GET('/api/v1/ping');
             if (error) {
                 throw toAppApiError(error, response);
+            }
+            return requireData(data, response);
+        },
+
+        /** Up to three reports the Book can have, with texts in `language`. */
+        async suggestions(
+            bookId: string,
+            options: RequestOptions & { language?: string } = {}
+        ): Promise<Suggestion[]> {
+            const { data, error, response } = await client.GET(
+                '/api/v1/books/{bookId}/suggestions',
+                {
+                    params: { path: { bookId }, query: { language: options.language } },
+                    signal: options.signal,
+                }
+            );
+            if (error) {
+                throw toAppApiError(error, response);
+            }
+            return requireData(data, response).suggestions;
+        },
+
+        /** A report of the Book, by `prompt` (one AI decision) or by `intent` (no AI). */
+        async report(
+            bookId: string,
+            body: ReportRequest,
+            options: RequestOptions = {}
+        ): Promise<ReportResponse> {
+            const { data, error, response } = await client.POST('/api/v1/books/{bookId}/report', {
+                params: { path: { bookId } },
+                body,
+                signal: options.signal,
+            });
+            if (error) {
+                const suggestions = 'suggestions' in error ? error.suggestions : undefined;
+                throw toAppApiError(error, response, suggestions);
             }
             return requireData(data, response);
         },

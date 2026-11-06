@@ -19,6 +19,11 @@
         "role": "label",
         "context": "Accessible label of the list of three suggested reports shown under the empty input. Clicking one builds that report. One short noun."
     },
+    "suggestions_loading": {
+        "text": "Loading suggestions…",
+        "role": "status",
+        "context": "Message announced to screen readers while the three suggested reports of the Book load, under the empty input. Short, ends with an ellipsis."
+    },
     "status_loading": {
         "text": "Building the report…",
         "role": "status",
@@ -38,6 +43,11 @@
         "text": "You have no Books yet.",
         "role": "message",
         "context": "Shown in place of the Book list when the person has no Books. A Book is a Bkper ledger."
+    },
+    "books_back": {
+        "text": "Books",
+        "role": "button",
+        "context": "Small button at the top of a Book's report page that goes back to the list of the person's Books. A Book is a Bkper ledger. One short word."
     },
     "sign_in": {
         "text": "Sign in",

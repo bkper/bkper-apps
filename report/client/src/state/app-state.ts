@@ -3,15 +3,24 @@ import {
     type AuthSession,
     type AuthSessionCallbacks,
 } from '../auth/auth-session';
+import { supportedLanguage } from 'report-shared/languages';
+import { createAppApi } from '../api/app-api';
+import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
 import { Books } from './books';
+import { Reports, type ReportApi } from './reports';
 import { Navigation, Route, type RoutePage } from './route';
 
 export interface AppStateOptions {
     page?: RoutePage;
     embedded?: boolean;
+    /** The language of the interface; by default the browser's, if Bkper has it, else English. */
+    language?: string;
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
     createBookService?: (auth: AuthSession) => BookService;
+    createReportApi?: (auth: AuthSession) => ReportApi;
+    /** Loads the report renderer; by default its code-split bundle. */
+    loadRenderer?: () => Promise<void>;
     logger?: Pick<Console, 'error'>;
 }
 
@@ -19,30 +28,60 @@ export interface AppStateOptions {
 export class AppState {
     readonly route: Route;
     readonly books: Books;
+    readonly reports: Reports;
     private readonly auth: AuthSession;
+    private readonly loadRenderer: () => Promise<void>;
+    private readonly logger: Pick<Console, 'error'>;
     private started = false;
 
     constructor(options: AppStateOptions = {}) {
         const page = options.page ?? window;
+        const logger = options.logger ?? console;
+        this.logger = logger;
+        this.loadRenderer = options.loadRenderer ?? loadReportRenderer;
         this.route = new Route(page, options.embedded ?? window.parent !== window);
         this.auth = (options.createAuthSession ?? createAuthSession)({
-            onLoginSuccess: () => this.books.load(),
+            onLoginSuccess: () => {
+                // The report of the URL starts with the Book, not after it.
+                this.reports.open(this.route.bookId, this.route.prompt);
+                return this.books.load();
+            },
             onError: error => this.books.fail('Auth error:', error),
         });
         const bookService = (options.createBookService ?? createService)(this.auth);
-        this.books = new Books(bookService, this.route, options.logger ?? console);
+        this.books = new Books(bookService, this.route, logger);
+        const api = (options.createReportApi ?? createReportApi)(this.auth);
+        this.reports = new Reports(api, this.route, {
+            language: options.language ?? browserLanguage(),
+            logger,
+        });
         // Back or Forward shows what the URL selects.
         this.route.addEventListener('navigate', event => {
-            if (event instanceof Navigation) void this.books.select(event.bookId);
+            if (!(event instanceof Navigation)) return;
+            void this.books.select(event.bookId);
+            this.reports.open(event.bookId, event.prompt);
         });
     }
 
-    /** Follow Back and Forward, and sign in the first time. */
+    /** Open a Book, or the Book list without one. */
+    readonly select = (bookId: string | undefined): void => {
+        void this.books.select(bookId);
+        this.reports.open(bookId);
+    };
+
+    /**
+     * Follow Back and Forward, and the first time sign in and preload the report renderer, so
+     * the first report shows as soon as it answers.
+     */
     connect(): void {
         this.route.connect();
         if (this.started) return;
         this.started = true;
         this.auth.init().catch(error => this.books.fail('Auth error:', error));
+        this.loadRenderer().catch(error => {
+            this.logger.error('Error loading the report renderer:', error);
+            this.reports.fail('error_unexpected');
+        });
     }
     disconnect(): void {
         this.route.disconnect();
@@ -51,4 +90,12 @@ export class AppState {
 
 function createService(auth: AuthSession): BookService {
     return createBookService({ auth });
+}
+
+function createReportApi(auth: AuthSession): ReportApi {
+    return createAppApi({ fetch: request => auth.authenticatedFetch(request) });
+}
+
+function browserLanguage(): string {
+    return supportedLanguage(navigator.language) ?? 'en';
 }

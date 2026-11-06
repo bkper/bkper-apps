@@ -162,7 +162,7 @@ Build output:
 
 Report turns a short request, in any language, into a financial report of a Book. The web client and the Bkper Agent call the same app API.
 
-- **Client**: Lit + Web Awesome Pro; a Book picker and the selected Book, with the Book in the URL as `?book=<bookId>`.
+- **Client**: Lit + Web Awesome Pro; a Book picker and, for the selected Book, one input whose report builds as the person types, with the Book and the request in the URL as `?book=<bookId>&q=<request>`.
 - **Server**: Hono Worker serving typed OpenAPI `/api/v1/*` routes. No `/events`: the app only reads Books and never changes them.
 - **Shared** (`shared/`, package `report-shared`): the report catalog, the strings and the Bkper languages, imported by both the server and the renderers. It holds only environment-neutral code (no DOM, Worker or Bkper SDK), so browser bundles never pull server code.
 
@@ -252,6 +252,17 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 `http://localhost:5207/dev/report.html` is a development-only gallery of recorded specs (`?only=<id>,…`, `?width=<css length>`; the `bkper_theme` cookie picks light or dark). `npx tsx scripts/generate-report-specs.ts` rebuilds those specs (`client/dev/specs/*.json`, which the renderer tests read) with the real report and spec builders from made-up Books shaped like recorded payloads: `scripts/fixtures/studio-book.ts`, a balanced design studio, and the server test Book. Rerun it when the report data or the spec changes. With Book ids it reads live Books, read-only, into `client/dev/specs/local/`, which Git ignores so real Book data is never committed.
 
+## Web client
+
+The Book page (`components/report-page/`) is one input, with no submit button, and the report below it. Its behavior lives in the `Reports` store (`state/reports.ts`), the input controller, which the unit tests cover:
+
+- A request goes out `DEBOUNCE_MS` (250 ms) after the last keystroke once it has `MIN_WORDS` (2) words, counted with `Intl.Segmenter` so languages written without spaces count too; Enter asks at once. A newer request aborts the one in flight (`AbortController`), and an answer to any but the latest request is dropped (a sequence id).
+- The last report stays on screen while the next is on its way, with a thin progress line under the input that appears only when the wait is felt; the page changes into the next report with a view transition scoped to the report (`Element.startViewTransition`), over the whole page where only document transitions exist, and without one otherwise or under reduced motion.
+- Reports are remembered in memory per Book, by normalized request and by intent (with its language); failures are forgotten. When the suggestions arrive, their reports are fetched by intent (no AI) and remembered under their texts too, so choosing or typing a suggestion shows it from memory.
+- The suggestions show under the empty input, in the style of the Bkper Agent home, and with the notices they answer: `not_a_report` (a quiet hint; the last report stays) and `ai_allowance_exhausted`. Other failures show a short message from `shared/catalog/en.json`, never the error.
+- `route.ts` alone keeps the request in the URL (`q`), replacing the entry as the person types; opening a URL with `q` runs it at once. Another Book drops it.
+- `AppState` opens the reports of the Book in the URL once signed in, and preloads the report renderer (`report-loader.ts`, a code-split chunk with the charts) as the app connects, so the shell and the input show first. The interface language is the browser's when Bkper has it, else English; suggestions and the reports they ask for use it, while a typed request gets the language the server detects.
+
 ## Strings
 
 `shared/catalog/en.json` holds every UI and report string: key → `{ text, role, context, placeholders? }`. Placeholders are named, `{name}`, and each is documented in `placeholders`; a test enforces both. Write `context` for a translator who sees nothing else: where the string appears, what it means in Bkper, and how short it must be.
@@ -300,8 +311,9 @@ Both ports are strict and assigned in the bkper-apps monorepo's port table; keep
 client/src/
 ├── index.ts       — Browser entrypoint
 ├── web-awesome.ts — Web Awesome Pro component registration for the client UI
-├── components/    — Lit features with co-located view and CSS
-├── state/         — Stores: the URL (route), Books, and their wiring (app-state)
+├── components/    — Lit features with co-located view and CSS: the app shell, the Book page, the suggestions
+├── state/         — Stores: the URL (route), Books, the input controller (reports), and their wiring (app-state)
+├── report-loader.ts — Loads the report renderer's code-split chunk
 ├── auth/          — @bkper/web-auth session boundary
 ├── services/      — bkper-js orchestration for the browser
 ├── api/           — Typed /api/v1 client and generated OpenAPI types
@@ -326,6 +338,8 @@ shared/
 | Task                       | File                                                    |
 | -------------------------- | ------------------------------------------------------- |
 | Add UI rendering           | `client/src/components/report-app/report-app-view.ts`   |
+| Change the Book page       | `client/src/components/report-page/`                    |
+| Change how typing asks for reports | `client/src/state/reports.ts`                |
 | Add shared client state    | `client/src/state/`                                     |
 | Change what the URL holds  | `client/src/state/route.ts`                             |
 | Add Bkper client behavior  | `client/src/services/book-service.ts`                   |

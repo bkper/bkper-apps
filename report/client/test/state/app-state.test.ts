@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AuthSession, AuthSessionCallbacks } from '../../src/auth/auth-session';
 import type { BookListItem, BookService } from '../../src/services/book-service';
 import { AppState } from '../../src/state/app-state';
+import type { ReportApi } from '../../src/state/reports';
 import type { RoutePage } from '../../src/state/route';
 
 const SAFE_ERROR = 'Could not load your Bkper data. Please reload and try again.';
@@ -44,13 +45,33 @@ function createBookService(overrides: Partial<BookService> = {}): BookService {
     };
 }
 
+/** A report API that records what it is asked and never answers. */
+function createReportApi() {
+    const asked: string[] = [];
+    const api: ReportApi = {
+        suggestions: async bookId => {
+            asked.push(`suggestions ${bookId}`);
+            return [];
+        },
+        report: (bookId, body) => {
+            asked.push(`report ${bookId} ${body.prompt ?? ''}`);
+            return new Promise(() => undefined);
+        },
+    };
+    return { api, asked };
+}
+
 /** An app at `href`, signed in once `signIn` runs. */
 function createApp(href: string, bookService = createBookService()) {
     const { page, goTo } = createPage(href);
     const auth: { callbacks?: AuthSessionCallbacks } = {};
+    const reportApi = createReportApi();
     const state = new AppState({
         page,
         embedded: false,
+        language: 'en',
+        createReportApi: () => reportApi.api,
+        loadRenderer: async () => undefined,
         createAuthSession: callbacks => {
             auth.callbacks = callbacks;
             return createAuth();
@@ -60,7 +81,7 @@ function createApp(href: string, bookService = createBookService()) {
     });
     state.connect();
     const signIn = async () => auth.callbacks?.onLoginSuccess?.();
-    return { state, page, goTo, signIn, auth };
+    return { state, page, goTo, signIn, auth, asked: reportApi.asked };
 }
 
 describe('AppState', () => {
@@ -191,5 +212,75 @@ describe('AppState', () => {
 
         expect(state.books.bookName).toBe('Second');
         expect(state.books.loading).toBe(false);
+    });
+
+    it('opens the report the URL asks for, with the suggestions, once signed in', async () => {
+        const { state, signIn, asked } = createApp(
+            'https://report.bkper.app/?book=book-1&q=despesas%202011'
+        );
+        expect(asked).toEqual([]);
+
+        await signIn();
+
+        expect(state.reports.text).toBe('despesas 2011');
+        expect(asked).toEqual(['suggestions book-1', 'report book-1 despesas 2011']);
+    });
+
+    it('opening a Book starts its reports over', async () => {
+        const { state, signIn, asked, page } = createApp('https://report.bkper.app/?q=x');
+        await signIn();
+
+        state.select('book-2');
+
+        expect(page.location.href).toBe('https://report.bkper.app/?book=book-2');
+        expect(asked).toEqual(['suggestions book-2']);
+    });
+
+    it('Back and Forward open the report the URL asks for', async () => {
+        const { state, goTo, signIn, asked } = createApp('https://report.bkper.app/');
+        await signIn();
+
+        goTo('https://report.bkper.app/?book=book-3&q=net%20result');
+
+        expect(state.reports.text).toBe('net result');
+        expect(asked).toEqual(['suggestions book-3', 'report book-3 net result']);
+    });
+
+    it('going back to the Book list while a Book loads shows the list', async () => {
+        const { state, signIn } = createApp(
+            'https://report.bkper.app/',
+            createBookService({ getBook: () => new Promise(() => undefined) })
+        );
+        await signIn();
+
+        state.select('book-1');
+        state.select(undefined);
+
+        expect(state.books.loading).toBe(false);
+        expect(state.books.books).toEqual([{ id: 'book-1', name: 'Main Book' }]);
+    });
+
+    it('preloads the report renderer once, and says so when it cannot load', async () => {
+        const { page } = createPage('https://report.bkper.app/?book=book-1');
+        let loads = 0;
+        const state = new AppState({
+            page,
+            embedded: false,
+            language: 'en',
+            createAuthSession: () => createAuth(),
+            createBookService: () => createBookService(),
+            createReportApi: () => createReportApi().api,
+            loadRenderer: async () => {
+                loads++;
+                throw new Error('Offline');
+            },
+            logger: { error: () => undefined },
+        });
+
+        state.connect();
+        state.connect();
+
+        await vi.waitFor(() => expect(state.reports.notice).toBe('error_unexpected'));
+        expect(loads).toBe(1);
     });
 });

@@ -2,6 +2,8 @@ import { reactive, Store } from './store';
 
 /** The URL query parameter that selects the Book, as the Book menu opens the app. */
 const BOOK_PARAM = 'book';
+/** The URL query parameter that holds the report request, so a report can be reloaded or shared. */
+const PROMPT_PARAM = 'q';
 
 /** The page the app runs in: its URL and session history. The browser's `window`, or a double in tests. */
 export interface RoutePage {
@@ -15,23 +17,31 @@ export interface RoutePage {
     removeEventListener(type: 'popstate', listener: () => void): void;
 }
 
-/** The person went back or forward to a URL that selects `bookId`, or the Book list without one. */
+/**
+ * The person went back or forward to a URL that selects `bookId`, or the Book list without one,
+ * and asks for `prompt` (empty for none).
+ */
 export class Navigation extends Event {
-    constructor(readonly bookId: string | undefined) {
+    constructor(
+        readonly bookId: string | undefined,
+        readonly prompt: string
+    ) {
         super('navigate');
     }
 }
 
 /**
- * The app's one binding to the page URL: the selected Book. Nothing else reads or writes its path,
- * query or history.
+ * The app's one binding to the page URL: the selected Book and the report request. Nothing else
+ * reads or writes its path, query or history.
  *
- * Standalone, each selection is a history entry, so Back and Forward work. Embedded in a Book,
- * a selection only replaces the URL, so the Book's own Back button stays the Book's. Fires a
- * `Navigation` when the person goes back or forward.
+ * Standalone, each Book selection is a history entry, so Back and Forward work. Embedded in a
+ * Book, a selection only replaces the URL, so the Book's own Back button stays the Book's. The
+ * request always replaces the URL: it changes with every keystroke. Fires a `Navigation` when
+ * the person goes back or forward.
  */
 export class Route extends Store {
     @reactive bookId?: string;
+    @reactive prompt = '';
 
     constructor(
         private readonly page: RoutePage,
@@ -39,6 +49,7 @@ export class Route extends Store {
     ) {
         super();
         this.bookId = bookIdFrom(page.location.href);
+        this.prompt = promptFrom(page.location.href);
     }
 
     connect(): void {
@@ -48,22 +59,41 @@ export class Route extends Store {
         this.page.removeEventListener('popstate', this.onPopState);
     }
 
-    /** Select a Book, or none for the Book list, and keep it in the URL. */
+    /** Select a Book, or none for the Book list, and keep it in the URL. Another Book drops the request. */
     select(bookId: string | undefined): void {
         this.bookId = bookId;
         // Compare the value, not the URL text: setting a parameter re-encodes the whole query.
         if (bookIdFrom(this.page.location.href) === bookId) return;
+        this.prompt = '';
         const url = new URL(this.page.location.href);
         if (bookId) url.searchParams.set(BOOK_PARAM, bookId);
         else url.searchParams.delete(BOOK_PARAM);
+        url.searchParams.delete(PROMPT_PARAM);
         if (this.embedded) this.page.history.replaceState(this.page.history.state, '', url);
         else this.page.history.pushState(null, '', url);
     }
 
-    private readonly onPopState = () =>
-        this.dispatchEvent(new Navigation(bookIdFrom(this.page.location.href)));
+    /** Keep the report request in the URL, replacing it: typing adds no history entries. */
+    setPrompt(prompt: string): void {
+        this.prompt = prompt;
+        if (promptFrom(this.page.location.href) === prompt) return;
+        const url = new URL(this.page.location.href);
+        if (prompt) url.searchParams.set(PROMPT_PARAM, prompt);
+        else url.searchParams.delete(PROMPT_PARAM);
+        this.page.history.replaceState(this.page.history.state, '', url);
+    }
+
+    private readonly onPopState = () => {
+        const href = this.page.location.href;
+        this.prompt = promptFrom(href);
+        this.dispatchEvent(new Navigation(bookIdFrom(href), this.prompt));
+    };
 }
 
 function bookIdFrom(href: string): string | undefined {
     return new URL(href).searchParams.get(BOOK_PARAM) ?? undefined;
+}
+
+function promptFrom(href: string): string {
+    return new URL(href).searchParams.get(PROMPT_PARAM) ?? '';
 }

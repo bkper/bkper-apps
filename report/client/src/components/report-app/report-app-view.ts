@@ -1,9 +1,11 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
+import { t } from 'report-shared/strings';
 import type { BookListItem } from '../../services/book-service';
 import { AppState } from '../../state/app-state';
 import type { Books } from '../../state/books';
 import { watch } from '../../state/store';
+import '../report-page/report-page-view';
 import { reportAppCSS } from './report-app-css';
 
 @customElement('report-app')
@@ -30,6 +32,12 @@ export class ReportApp extends LitElement {
     render() {
         const state = this.state.books;
 
+        // The report page shows at once: its request runs while the Book's name loads.
+        const bookId = this.state.route.bookId;
+        if (bookId && !state.appError) {
+            return html`<report-page .state=${this.state}></report-page>`;
+        }
+
         if (state.loading) {
             return html`
                 <div class="container">
@@ -53,12 +61,6 @@ export class ReportApp extends LitElement {
             `;
         }
 
-        // Book view: show the selected Book, or a visible load error.
-        const bookId = this.state.route.bookId;
-        if (bookId) {
-            return this.renderBookView(state, bookId);
-        }
-
         // Book picker: show list of books.
         return this.renderBookPicker(state);
     }
@@ -70,11 +72,15 @@ export class ReportApp extends LitElement {
                     <div slot="header" class="panel-header">
                         <p class="eyebrow">Report</p>
                         <h1>Hello, ${state.userDisplayName}!</h1>
-                        <p class="subtitle">Select a book to continue</p>
+                        <p class="subtitle">
+                            ${t('book_picker_title', this.state.reports.language)}
+                        </p>
                     </div>
                     ${
                         state.books.length === 0
-                            ? this.renderCallout('No books found')
+                            ? this.renderCallout(
+                                  t('book_picker_empty', this.state.reports.language)
+                              )
                             : html`
                                   <div class="book-list">
                                       ${state.books.map(this.renderBookButton)}
@@ -86,38 +92,12 @@ export class ReportApp extends LitElement {
         `;
     }
 
-    private renderBookView(state: Books, bookId: string) {
-        return html`
-            <div class="container">
-                <wa-button
-                    class="back-action"
-                    variant="brand"
-                    appearance="plain"
-                    @click=${() => void this.state.books.select(undefined)}
-                >
-                    &larr; Back to books
-                </wa-button>
-                <wa-card appearance="outlined">
-                    <div slot="header" class="panel-header">
-                        <p class="eyebrow">Report</p>
-                        <h1>${state.bookName ?? bookId}</h1>
-                    </div>
-                    ${
-                        state.selectedBookError
-                            ? this.renderCallout(state.selectedBookError, 'danger')
-                            : this.renderCallout('Reports for this Book will appear here.')
-                    }
-                </wa-card>
-            </div>
-        `;
-    }
-
     private renderBookButton = (book: BookListItem) => html`
         <wa-button
             class="book-button"
             variant="neutral"
             appearance="outlined"
-            @click=${() => void this.state.books.select(book.id)}
+            @click=${() => this.state.select(book.id)}
         >
             <span class="book-button-content">
                 <span class="book-name">${book.name}</span>

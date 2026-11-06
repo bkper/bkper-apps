@@ -8,3 +8,17 @@ body {
     color: var(--bkper-color-text);
     font-family: var(--bkper-font-family);
 }
+
+/* Reports change into one another with a short view transition (see report-page). */
+::view-transition-group(*) {
+    animation-duration: var(--wa-transition-slow);
+    animation-timing-function: var(--wa-transition-easing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none;
+    }
+}

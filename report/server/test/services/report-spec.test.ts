@@ -368,7 +368,8 @@ describe('buildReportSpec', () => {
         expect(element(built, 'Chart').props).toEqual({
             kind: 'compare',
             label: `Breakdown of ${isolate('Expenses')}`,
-            periods: { current: 'This month', previous: `Oct 1${TO}5, 2026` },
+            // Both by their dates, in the same style.
+            periods: { current: `Nov 1${TO}5, 2026`, previous: `Oct 1${TO}5, 2026` },
             items: [
                 { rowId: 'a-rent', label: 'Rent', color: 'red', value: '1000', previous: '1000' },
                 { rowId: 'a-food', label: 'Food', color: 'red', value: '50.25', previous: '0' },
@@ -380,6 +381,28 @@ describe('buildReportSpec', () => {
             current: `As of ${isolate('Nov 5, 2026')}`,
             previous: `As of ${isolate('Oct 31, 2026')}`,
         });
+    });
+
+    it('names both compared periods absolutely, in the same style, in any language', async () => {
+        const whole = await spec(intent('g-expenses', 'last_month', { chart: 'compare' }));
+        const chart = element(whole, 'Chart').props;
+        expect('periods' in chart && chart.periods).toEqual({
+            current: 'October 2026',
+            previous: 'September 2026',
+        });
+        const month = (date: number) =>
+            new Intl.DateTimeFormat('ar', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+            }).format(date);
+        const arabic = await spec(intent('g-expenses', 'last_month', { chart: 'compare' }), 'ar');
+        const rtl = element(arabic, 'Chart').props;
+        expect('periods' in rtl && rtl.periods).toEqual({
+            current: month(Date.UTC(2026, 9, 1)),
+            previous: month(Date.UTC(2026, 8, 1)),
+        });
+        expect(month(Date.UTC(2026, 9, 1))).toMatch(/\p{Script=Arabic}/u);
     });
 
     it('bridges Incoming to the net result', async () => {

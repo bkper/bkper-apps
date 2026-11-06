@@ -221,8 +221,10 @@ function chartElement(
                 props: {
                     kind: 'compare',
                     label: fill('chart_breakdown', lang, { name: title }),
+                    // Both by their dates, so they read alike: never `Last month` against
+                    // `September 2026`.
                     periods: {
-                        current: labels.period(report),
+                        current: labels.dated(report),
                         previous:
                             report.nature === 'position'
                                 ? labels.asOf(previous.before)
@@ -368,6 +370,13 @@ class Labels {
         }
         const relative = relativePeriodLabel(report.period.id);
         return relative ? t(relative, this.lang) : this.range(report.period);
+    }
+
+    /** The period of an activity by its dates or calendar name, never relative; the date of a position. */
+    dated(report: ReportData): string {
+        return report.nature === 'position'
+            ? this.asOf(report.period.before)
+            : this.range(report.period);
     }
 
     /** What a report compares with: an earlier date for a position, else a period. */

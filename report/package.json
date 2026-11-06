@@ -42,6 +42,7 @@
         "typecheck:client": "npm run typecheck --workspace client",
         "typecheck:server": "npm run typecheck --workspace server",
         "api": "tsx scripts/generate-api-types.ts",
+        "translate": "tsx scripts/translate.ts",
         "deploy": "npm run build && bkper app sync && bkper app deploy",
         "deploy:preview": "npm run build && bkper app sync && bkper app deploy --preview"
     },

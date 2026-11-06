@@ -1,5 +1,7 @@
 import type { ReportSpec } from 'report-shared/catalog';
+import { LOCALES } from 'report-shared/locales';
 import type { ReportFileData } from 'report-shared/report-file';
+import { t, type StringKey } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { REPORT_FILE_BUNDLE, buildReportFile } from '../../src/services/report-file';
 
@@ -128,6 +130,17 @@ describe('report file', () => {
             expect(html).not.toMatch(
                 /\bfetch\s*\(|XMLHttpRequest|\bimport\s*\(|sendBeacon|WebSocket|EventSource|importScripts|new\s+Worker/
             );
+        });
+
+        it('carries the strings of no language: the spec has its own, resolved', () => {
+            const bundle = REPORT_FILE_BUNDLE.script + REPORT_FILE_BUNDLE.style;
+            const keys: StringKey[] = ['hint_not_a_report', 'error_future_period'];
+            for (const key of keys) {
+                for (const text of [t(key, 'en'), LOCALES.ja[key], LOCALES.pt[key]]) {
+                    expect(text).toBeTruthy();
+                    expect(bundle).not.toContain(text);
+                }
+            }
         });
 
         it('stays within its size bound', () => {

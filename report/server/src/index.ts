@@ -1,6 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import { addAllLocales } from 'report-shared/locales';
 import type { ZodError } from 'zod';
 import { apiErrorResponse, buildApiError } from './api/errors.js';
 import { registerApiRoutes } from './api/routes.js';
@@ -10,6 +11,9 @@ import {
     type AppContextFactory,
     type AppEnv,
 } from './app-context.js';
+
+// Reports and suggestions are written in any Bkper language.
+addAllLocales();
 
 export function createApp(createContext: AppContextFactory = createAppContext) {
     const app = new OpenAPIHono<AppEnv>({

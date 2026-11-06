@@ -72,6 +72,7 @@ function createApp(href: string, bookService = createBookService()) {
         language: 'en',
         createReportApi: () => reportApi.api,
         loadRenderer: async () => undefined,
+        loadStrings: async () => undefined,
         createAuthSession: callbacks => {
             auth.callbacks = callbacks;
             return createAuth();
@@ -274,6 +275,7 @@ describe('AppState', () => {
                 loads++;
                 throw new Error('Offline');
             },
+            loadStrings: async () => undefined,
             logger: { error: () => undefined },
         });
 
@@ -282,5 +284,37 @@ describe('AppState', () => {
 
         await vi.waitFor(() => expect(state.reports.notice).toBe('error_unexpected'));
         expect(loads).toBe(1);
+    });
+
+    it('shows the interface in its language once its strings load, else in English', async () => {
+        const { page } = createPage('https://report.bkper.app/');
+        const loaded: string[] = [];
+        const errors: unknown[] = [];
+        const app = (loadStrings: (lang: string) => Promise<void>) =>
+            new AppState({
+                page,
+                embedded: false,
+                language: 'ja',
+                createAuthSession: () => createAuth(),
+                createBookService: () => createBookService(),
+                createReportApi: () => createReportApi().api,
+                loadRenderer: async () => undefined,
+                loadStrings,
+                logger: { error: (...args: unknown[]) => errors.push(args) },
+            });
+
+        const state = app(async lang => void loaded.push(lang));
+        expect(state.strings.language).toBe('en');
+        state.connect();
+        await vi.waitFor(() => expect(state.strings.language).toBe('ja'));
+        expect(loaded).toEqual(['ja']);
+        expect(state.reports.language).toBe('ja');
+
+        const offline = app(async () => {
+            throw new Error('Offline');
+        });
+        offline.connect();
+        await vi.waitFor(() => expect(errors).toHaveLength(1));
+        expect(offline.strings.language).toBe('en');
     });
 });

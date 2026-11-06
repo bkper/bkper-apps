@@ -16,7 +16,7 @@ export class ReportApp extends LitElement {
 
     constructor() {
         super();
-        watch(this, () => [this.state.route, this.state.books]);
+        watch(this, () => [this.state.route, this.state.books, this.state.strings]);
     }
 
     connectedCallback(): void {
@@ -73,13 +73,13 @@ export class ReportApp extends LitElement {
                         <p class="eyebrow">Report</p>
                         <h1>Hello, ${state.userDisplayName}!</h1>
                         <p class="subtitle">
-                            ${t('book_picker_title', this.state.reports.language)}
+                            ${t('book_picker_title', this.state.strings.language)}
                         </p>
                     </div>
                     ${
                         state.books.length === 0
                             ? this.renderCallout(
-                                  t('book_picker_empty', this.state.reports.language)
+                                  t('book_picker_empty', this.state.strings.language)
                               )
                             : html`
                                   <div class="book-list">

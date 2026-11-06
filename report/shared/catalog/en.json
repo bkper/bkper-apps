@@ -2,7 +2,7 @@
     "app_title": {
         "text": "Report",
         "role": "heading",
-        "context": "Name of the app, shown at the top of the page. The app turns a short request into a financial report of a Bkper Book. One short noun."
+        "context": "Name of the app, shown at the top of the page: this language's ordinary word for a report, as a name. The app turns a short request into a financial report of a Bkper Book. One short noun."
     },
     "input_label": {
         "text": "Report request",
@@ -136,7 +136,7 @@
     "period_last_quarter": {
         "text": "Last quarter",
         "role": "label",
-        "context": "Period of a report: the previous whole calendar quarter (three months). Shown under the report title, standing alone."
+        "context": "Period of a report: the whole calendar quarter before the current one (not the fourth quarter of a year). Shown under the report title, standing alone."
     },
     "period_this_year": {
         "text": "This year",
@@ -161,7 +161,7 @@
     "period_all": {
         "text": "All time",
         "role": "label",
-        "context": "Period of a report: every date from the Book's first transaction up to today. Shown under the report title, standing alone."
+        "context": "Period of a report: every date from the Book's first transaction up to today, the whole history of the Book. Shown under the report title, standing alone, as a period name such as all time or since the beginning."
     },
     "period_quarter": {
         "text": "Q{quarter} {year}",
@@ -175,7 +175,7 @@
     "position_as_of": {
         "text": "As of {date}",
         "role": "label",
-        "context": "Date of a balance report (the amounts of Assets or Liabilities at the end of a day), shown under the report title, such as As of Dec 31, 2026.",
+        "context": "Date of a balance report (the amounts of Assets or Liabilities at the end of a day), shown under the report title, such as As of Dec 31, 2026: the usual accounting phrase for the date of a balance sheet, not until or since.",
         "placeholders": {
             "date": "the date, already formatted in the language, such as Dec 31, 2026"
         }
@@ -237,7 +237,7 @@
     "breakdown_column_share": {
         "text": "Share",
         "role": "header",
-        "context": "Column header of the breakdown table: each row's percentage of its parent's amount. One short word."
+        "context": "Column header of the breakdown table: each row's share of its parent's amount, as a percentage (a share of the total, not a quota or an allowance). One short word."
     },
     "breakdown_column_change": {
         "text": "Change",
@@ -300,7 +300,7 @@
     "source_open_in_report": {
         "text": "Open in Report",
         "role": "link",
-        "context": "Link at the end of a report file that opens the same report in the Report app, where it can be changed. Report is the app's name. Short imperative."
+        "context": "Link at the end of a report file that opens the same report in the Report app, where it can be changed. Report is the app's name, shown at the top of its page: write it as this language's ordinary word for a report, as a name. Short imperative."
     },
     "suggestion_breakdown_this_year": {
         "text": "{root} this year",

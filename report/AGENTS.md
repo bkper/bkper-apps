@@ -278,7 +278,15 @@ The Book page (`components/report-page/`) is one input, with no submit button, a
 
 `shared/catalog/en.json` holds every UI and report string: key → `{ text, role, context, placeholders? }`. Placeholders are named, `{name}`, and each is documented in `placeholders`; a test enforces both. Write `context` for a translator who sees nothing else: where the string appears, what it means in Bkper, and how short it must be.
 
-`t(key, lang, params)` (`report-shared/strings`) reads a language added with `addLocale(lang, messages)` (a flat `key → text` map), then its base language (`pt-BR` → `pt`), then English; blank texts fall back too. Params fill placeholders verbatim, so format numbers and dates before passing them; a placeholder without a value stays visible. `textDirection(lang)` gives `rtl` for right-to-left languages.
+`t(key, lang, params)` (`report-shared/strings`) reads a language added with `addLocale(lang, messages)` (a flat `key → text` map), then its base language (`pt-BR` → `pt`), then English; blank texts fall back too. Params fill placeholders verbatim, so format numbers and dates before passing them; a placeholder without a value stays visible. `textDirection(lang)` gives `rtl` for right-to-left languages (a test checks it against each language's script).
+
+`shared/locales/{lang}.json` holds the strings of each of the 133 Bkper languages, generated and committed; never edit `en.json`, which is the catalog's English. How they load:
+
+- The Worker imports all of them statically (`report-shared/locales`, `addAllLocales()` in `server/src/index.ts`), so reports and suggestions are written in any language.
+- The browser loads only the interface's language, a chunk of its own (`report-shared/locale-loader`, `loadLocale`), through the `Strings` store (`client/src/state/strings.ts`): the interface shows in English at once and in the person's language when its strings arrive. Components write their texts in `strings.language`.
+- A report file carries no strings: its spec has every text resolved in the report's language.
+
+`npm run translate` (`scripts/translate.ts`) translates with a Bkper AI language model (`claude-sonnet` by default, the model of Bkper's own interface translations, with strict JSON output), with your `bkper auth token`, labelled `bkper-ai-source: report-translate`. Each call is one key and up to 44 languages (`--batch`; a strict answer for all 132 at once is more than the model accepts), with the key's text, role, context and placeholders, each language's tone (`scripts/translate/tones.ts`) and the Bkper words the text uses (`scripts/translate/glossary.ts`), both copied from bkper-clients `packages/translations`; the instructions are `scripts/translate/prompt.md`. Every text is checked before it is written (`scripts/translate/translation.ts`: placeholders exactly as in English, Bkper kept, not empty, not quoted, no line breaks, no explanations). It is incremental: `scripts/translate/sources.json` holds a hash of each text's source (English, role, context, placeholders, glossary words, tone), so a run translates only missing texts and keys whose source changed; `--keys`, `--languages` and `--force` redo chosen ones. Up to 8 calls run at once (`--concurrency`), with retries. Each run also writes `shared/locales/en.json` and the two loading modules (`shared/src/locales.ts`, `shared/src/locale-loader.ts`). After adding or changing a string, run it and review the new texts of a few languages; `shared/test/locales.test.ts` fails until every language has every key.
 
 ## Web Awesome Pro
 
@@ -340,9 +348,11 @@ server/src/
 
 shared/
 ├── catalog/en.json  — English strings with translator context
+├── locales/         — Generated strings of every Bkper language (`npm run translate`)
 └── src/
     ├── catalog.ts   — json-render report catalog, spec types and validation
     ├── strings.ts   — t(key, lang, params) with English fallback
+    ├── locales.ts, locale-loader.ts — Generated: every language for the Worker, one at a time for the browser
     ├── languages.ts — The 133 Bkper languages, with native and English names
     └── report-file.ts — The data a report file carries for its script
 ```
@@ -378,7 +388,8 @@ shared/
 | Change the report file     | `client/src/report-file/`, `server/src/services/report-file.ts` |
 | Rebuild the recorded specs | `scripts/generate-report-specs.ts`                      |
 | Change report components   | `shared/src/catalog.ts`                                 |
-| Add or change a string     | `shared/catalog/en.json`                                |
+| Add or change a string     | `shared/catalog/en.json`, then `npm run translate`      |
+| Change how strings are translated | `scripts/translate.ts`, `scripts/translate/`     |
 | Regenerate API types       | `npm run api`                                           |
 | Configure app              | `bkper.yaml`                                            |
 <!-- APP_SPECIFICS:END -->

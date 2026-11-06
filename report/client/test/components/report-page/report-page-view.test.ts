@@ -1,3 +1,4 @@
+import { t } from 'report-shared/strings';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ReportResponse, Suggestion } from '../../../src/api/app-api';
 import '../../../src/web-awesome';
@@ -32,7 +33,7 @@ function report(title: string): ReportResponse {
     };
 }
 
-function createPage(): ReportPage {
+function createPage(language = 'en'): ReportPage {
     const href = 'https://report.bkper.app/?book=book-1';
     const page: RoutePage = {
         location: { href },
@@ -51,7 +52,7 @@ function createPage(): ReportPage {
     const state = new AppState({
         page,
         embedded: false,
-        language: 'en',
+        language,
         createAuthSession: () => ({
             authenticatedFetch: async () => new Response(),
             getAccessToken: () => 'token',
@@ -86,6 +87,18 @@ describe('ReportPage', () => {
         expect(input?.getAttribute('placeholder')).toContain('Describe a report');
         expect(shadow(view).querySelectorAll('wa-button')).toHaveLength(1);
         expect(shadow(view).querySelector('wa-button')?.textContent).toContain('Books');
+    });
+
+    it('writes the interface in the language of the person once its strings load', async () => {
+        const view = createPage('es');
+        view.state.connect();
+        await view.updateComplete;
+        await view.state.strings.load();
+        await view.updateComplete;
+
+        const input = shadow(view).querySelector('wa-input');
+        expect(input?.getAttribute('label')).toBe(t('input_label', 'es'));
+        expect(input?.getAttribute('label')).not.toBe('Report request');
     });
 
     it('shows the suggestions under the empty input and the report a suggestion asks for', async () => {

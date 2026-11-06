@@ -11,7 +11,7 @@ import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import '../report-suggestions';
 import { reportPageCSS } from './report-page-css';
 
-export type ReportPageState = Pick<AppState, 'books' | 'reports' | 'select'>;
+export type ReportPageState = Pick<AppState, 'books' | 'reports' | 'strings' | 'select'>;
 
 /** Notices that say something failed, rather than hint. */
 const ALERTS: ReadonlySet<Notice> = new Set<Notice>([
@@ -45,7 +45,7 @@ export class ReportPage extends LitElement {
 
     constructor() {
         super();
-        watch(this, () => [this.state.books, this.state.reports]);
+        watch(this, () => [this.state.books, this.state.reports, this.state.strings]);
     }
 
     protected willUpdate(): void {
@@ -58,18 +58,18 @@ export class ReportPage extends LitElement {
     }
 
     protected updated(): void {
-        const { books, reports } = this.state;
+        const { books, strings } = this.state;
         const report = this.shown && reportTitle(this.shown);
         const book = books.bookName ?? '';
         document.title =
             report && book
-                ? t('report_document_title', reports.language, { report, book })
-                : report || book || t('app_title', reports.language);
+                ? t('report_document_title', strings.language, { report, book })
+                : report || book || t('app_title', strings.language);
     }
 
     render() {
         const { books, reports } = this.state;
-        const lang = reports.language;
+        const lang = this.state.strings.language;
         return html`
             <div class="page">
                 <header class="bar">

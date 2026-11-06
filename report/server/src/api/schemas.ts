@@ -231,7 +231,7 @@ export const ReportResponseSchema = z
 
 export const ReportFileSchema = z.string().openapi({
     description:
-        'With `format: html`: a self-contained, interactive HTML document of the report, in `language`. Every script and style is inline and it loads nothing, so it works in a sandboxed frame: the chart shows tooltips, rows open in place, and a link opens the report in the Report app.',
+        'With `format: html`: a self-contained, interactive HTML document of the report, in `language`. Every script and style is inline and it loads nothing, so it works in a sandboxed frame: the chart shows tooltips, rows open in place, and a link opens the report in the Report app (shown by the Bkper Agent in a Book, in place of the Agent).',
     example: '<!doctype html>\n<html lang="en" dir="ltr">…',
 });
 

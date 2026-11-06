@@ -9,11 +9,11 @@ Type what you want to know about your Book, in your own language, and see the re
 Report turns a short request, such as _expenses by category this year_, into a financial report of your Book:
 
 - **The answer first**: the amount, the same amount in the previous comparable period, and the change.
-- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown.
+- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)).
 - **A breakdown table** of the group's subgroups and Accounts, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
 - **The source**: the exact Bkper query, the period and when the balances were read, with a link to open the same query in your Book.
 
-Every number is computed from your Book's balances by fixed rules, never by AI. AI only reads your request to choose which group, period and view you mean.
+Every number is computed from your Book's balances by fixed rules, never by AI. AI only reads your request to choose which group, period, view and chart you mean.
 
 ## How to use it
 
@@ -21,7 +21,7 @@ Every number is computed from your Book's balances by fixed rules, never by AI. 
 2. Choose **Report** from the Book menu.
 3. Pick one of the suggested reports, or type your own request. There is no button: the report appears and updates as you type. Press **Enter** to ask at once.
 
-The address of the page keeps your request, so you can bookmark a report or send its link to someone who also has access to the Book. They see it with the Book's latest balances.
+The address of the page keeps your report, so you can bookmark it or send its link to someone who also has access to the Book. In a Book, the Book's own address keeps it, so reloading the Book, or coming back to it, opens the same report. Whoever opens the link sees the report with the Book's latest balances.
 
 ## What you can ask
 
@@ -36,10 +36,32 @@ Write the way you would ask a colleague, in any language:
 | 去年第四季度的支出 | Expenses in the fourth quarter of last year |
 | dettes à la fin de 2024 | What you owed at the end of 2024 |
 | #travel expenses this year | This year's expenses on transactions tagged `#travel` |
+| despesas por categoria em pizza | This year's expenses as a pie chart |
+| bridge from revenue to profit last year | Last year's net result as a waterfall, from income through each expense |
 
 A report always starts from one of the **top-level groups** of your Book, such as Expenses or Assets, or from **income versus expenses** (the net result). Activity groups (incoming and outgoing) show what moved within the period; balance groups (assets and liabilities) show the balance at the end of it.
 
 When your request names no period, Report shows activity for this year and balances for today. If your Book has no movements in that time, it shows the last year that has them.
+
+## Charts
+
+Report picks the chart that fits your request. To see another, name it in your request, in any language:
+
+| Ask for | You see |
+| --- | --- |
+| a pie | Each part's share of the total, as slices |
+| stacked by month | The parts piled on each other, month by month |
+| an area chart | The amounts over time, as a filled area |
+| versus last year, compared with the month before | Each part in this period beside the previous one |
+| a bridge, a waterfall | From a starting amount, step by step, to the final one: from income, through each expense, to the net result; or from the balance at the start of the period, through each part's change, to the balance at its end |
+| just the numbers, no chart | The answer and the breakdown table, without a chart |
+
+A chart that does not fit the report shows as the chart Report would pick instead. For example:
+
+- **A pie** needs two or more parts, all positive and of one kind, so not income versus expenses.
+- **Stacked** and **area** charts need a period of two or more months. Stacked also needs two or more parts, and does not fit income versus expenses.
+- **A comparison** needs a previous period, so not all time.
+- **A bridge** fits income versus expenses, and balances such as assets except over all time. It does not fit a single activity group, such as expenses alone.
 
 ## Good to know
 
@@ -52,7 +74,9 @@ When your request names no period, Report shows activity for this year and balan
 
 ## Reports in Bkper Agent
 
-Ask the Bkper Agent for a report in your own words, such as _show my expenses by category this year_. It asks Report on your behalf and shows you the same interactive report, with a link to open it in Report.
+Ask the Bkper Agent for a report in your own words, such as _show my expenses by category this year_. It asks Report on your behalf and shows you the same interactive report, with an **Open in Report** link.
+
+When the Agent is open in Bkper, such as in your Book, the link opens the report in Report in the Book, in place of the Agent, where you can keep asking. Report needs to be installed in that Book. Where the Agent cannot open it there, such as when the Agent is opened on its own, the link opens Report in a new tab.
 
 ## API access
 

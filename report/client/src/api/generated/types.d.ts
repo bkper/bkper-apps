@@ -158,9 +158,9 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`.
          *
-         *     With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
+         *     With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time, chart and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
          *
-         *     Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period and view among the Book’s own.
+         *     Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period, view and chart among the options the Book has.
          */
         post: {
             parameters: {

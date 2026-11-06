@@ -21,6 +21,7 @@ const PLACEHOLDERS = 3;
 // 24px line glyphs, inline: a strict content security policy would block wa-icon's fetches.
 const glyph = (paths: ReturnType<typeof svg>) =>
     html`<svg
+        slot="start"
         class="glyph"
         viewBox="0 0 24 24"
         fill="none"
@@ -44,88 +45,58 @@ function glyphOf({ intent }: Suggestion) {
 }
 
 /**
- * Suggested reports as full-text cards, as the Bkper Agent home shows its starting points: in
- * a row when there is room, stacked as compact rows when narrow. Without `suggestions`, quiet
- * placeholders hold their place. Choosing one fires {@link CHOOSE_SUGGESTION}.
- *
- * The cards are native buttons: `wa-button` is a one-line control, and these wrap their text.
+ * Suggested reports as chips just over the input, one line each, wrapping when there is no
+ * room. Without `suggestions`, quiet placeholders hold their place; the chips fade in when they
+ * arrive. Choosing one fires {@link CHOOSE_SUGGESTION}.
  */
 @customElement('report-suggestions')
 export class ReportSuggestions extends LitElement {
     static styles = css`
         :host {
             display: block;
-            container-type: inline-size;
         }
 
         .suggestions {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: var(--wa-space-s);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--wa-space-xs);
+        }
+
+        .suggestions.ready {
             animation: fade var(--wa-transition-slow) var(--wa-transition-easing);
         }
 
         .suggestion {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: var(--wa-space-s);
-            min-block-size: calc(var(--wa-space-scale) * 6rem);
-            padding: var(--wa-space-s) var(--wa-space-m);
-            border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
-            border-radius: var(--wa-border-radius-l);
-            background: transparent;
+            max-inline-size: 100%;
+        }
+
+        .suggestion::part(button) {
+            max-inline-size: 100%;
             color: var(--wa-color-text-normal);
-            font: inherit;
-            font-size: var(--wa-font-size-s);
-            line-height: var(--wa-line-height-normal);
-            text-align: start;
-            cursor: pointer;
-            transition:
-                background-color var(--wa-transition-fast),
-                border-color var(--wa-transition-fast);
         }
 
-        .suggestion:hover {
-            background: color-mix(in oklab, var(--wa-color-text-normal) 6%, transparent);
-        }
-
-        .suggestion:focus-visible {
-            outline: var(--wa-focus-ring);
-            outline-offset: var(--wa-focus-ring-offset);
+        .suggestion::part(label) {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .glyph {
             flex-shrink: 0;
-            inline-size: calc(var(--wa-font-size-scale) * 1.125rem);
-            block-size: calc(var(--wa-font-size-scale) * 1.125rem);
+            inline-size: 1.15em;
+            block-size: 1.15em;
             color: var(--wa-color-brand-on-quiet);
         }
 
-        .text {
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3;
-            overflow: hidden;
-            overflow-wrap: anywhere;
-        }
-
         .placeholder {
-            cursor: default;
+            inline-size: calc(var(--wa-space-scale) * 11rem);
+            block-size: var(--wa-form-control-height);
+            font-size: var(--wa-font-size-s);
+            --color: var(--wa-color-neutral-fill-quiet);
         }
 
-        .placeholder .lines {
-            display: grid;
-            gap: var(--wa-space-xs);
-            inline-size: 100%;
-        }
-
-        .placeholder wa-skeleton {
-            block-size: var(--wa-space-s);
-        }
-
-        .placeholder wa-skeleton:last-child {
-            inline-size: 60%;
+        .placeholder::part(indicator) {
+            border-radius: var(--wa-border-radius-pill);
         }
 
         .visually-hidden {
@@ -137,24 +108,6 @@ export class ReportSuggestions extends LitElement {
             white-space: nowrap;
         }
 
-        @container (max-width: 36rem) {
-            .suggestions {
-                grid-template-columns: 1fr;
-                gap: var(--wa-space-xs);
-            }
-
-            .suggestion {
-                flex-direction: row;
-                align-items: center;
-                min-block-size: calc(var(--wa-space-scale) * 2.75rem);
-                padding: var(--wa-space-xs) var(--wa-space-s);
-            }
-
-            .text {
-                -webkit-line-clamp: 2;
-            }
-        }
-
         @keyframes fade {
             from {
                 opacity: 0;
@@ -162,7 +115,7 @@ export class ReportSuggestions extends LitElement {
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .suggestions {
+            .suggestions.ready {
                 animation: none;
             }
         }
@@ -187,31 +140,32 @@ export class ReportSuggestions extends LitElement {
                 ${Array.from(
                     { length: PLACEHOLDERS },
                     () =>
-                        html`<div class="suggestion placeholder" aria-hidden="true">
-                            <wa-skeleton class="glyph" effect="sheen"></wa-skeleton>
-                            <span class="lines">
-                                <wa-skeleton effect="sheen"></wa-skeleton>
-                                <wa-skeleton effect="sheen"></wa-skeleton>
-                            </span>
-                        </div>`
+                        html`<wa-skeleton
+                            class="placeholder"
+                            effect="sheen"
+                            aria-hidden="true"
+                        ></wa-skeleton>`
                 )}
                 <span class="visually-hidden">${this.loadingLabel}</span>
             </div>`;
         }
         if (suggestions.length === 0) return nothing;
-        return html`<div class="suggestions" role="group" aria-label=${this.label}>
+        return html`<div class="suggestions ready" role="group" aria-label=${this.label}>
             ${repeat(
                 suggestions,
                 suggestion => suggestion.text,
                 suggestion =>
-                    html`<button
+                    html`<wa-button
                         class="suggestion"
-                        type="button"
+                        size="s"
+                        pill
+                        appearance="outlined"
+                        variant="neutral"
                         title=${suggestion.text}
                         @click=${() => this.choose(suggestion)}
                     >
-                        ${glyphOf(suggestion)}<span class="text">${suggestion.text}</span>
-                    </button>`
+                        ${glyphOf(suggestion)}${suggestion.text}
+                    </wa-button>`
             )}
         </div>`;
     }

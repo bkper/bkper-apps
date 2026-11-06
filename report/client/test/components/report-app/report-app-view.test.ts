@@ -17,6 +17,8 @@ describe('ReportApp component', () => {
         }
         expect(container.querySelector('wa-spinner')).toBeInstanceOf(SpinnerElement);
         expect(container.textContent).toContain(t('app_loading', 'en'));
+        // Above the input, which shows from the first frame.
+        expect(container.querySelector('wa-spinner')?.closest('report-page')).not.toBeNull();
     });
 
     it('renders an initial data failure instead of an empty Book list', () => {
@@ -44,6 +46,7 @@ describe('ReportApp component', () => {
         const picker = container.querySelector('book-picker');
         expect(picker?.books).toEqual([{ id: 'book-1', name: 'Main Book' }]);
         expect(picker?.language).toBe('en');
+        expect(picker?.parentElement?.localName).toBe('report-page');
     });
 
     it('renders the report page of the selected Book at once, while the Book loads', () => {
@@ -55,5 +58,6 @@ describe('ReportApp component', () => {
         render(app.render(), container);
 
         expect(container.querySelector('report-page')?.state).toBe(app.state);
+        expect(container.querySelector('report-page')?.children).toHaveLength(0);
     });
 });

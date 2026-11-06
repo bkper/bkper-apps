@@ -6,59 +6,67 @@ export const reportPageCSS = css`
         container-type: inline-size;
     }
 
+    /* The report scrolls; the dock under it never moves, and grows upwards. */
     .page {
+        display: flex;
+        flex-direction: column;
+        block-size: 100%;
+    }
+
+    .scroll {
+        flex: 1 1 auto;
+        min-block-size: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .content {
         display: grid;
-        /* A wide report scrolls inside itself rather than widening the input. */
+        /* A wide report scrolls inside itself rather than widening the page. */
         grid-template-columns: minmax(0, 1fr);
         gap: var(--wa-space-l);
+        box-sizing: border-box;
         max-inline-size: calc(var(--wa-space-scale) * 56rem);
         margin-inline: auto;
+        padding: var(--bkper-spacing-large);
     }
 
-    .bar {
-        display: flex;
-        align-items: center;
-        gap: var(--wa-space-xs);
-        min-inline-size: 0;
-        margin-block-end: calc(-1 * var(--wa-space-s));
-        color: var(--wa-color-text-quiet);
-        font-size: var(--wa-font-size-s);
-    }
-
-    .back {
-        margin-inline-start: calc(-1 * var(--wa-space-s));
-    }
-
-    .back::part(button) {
-        color: var(--wa-color-text-quiet);
-    }
-
-    .book {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .book::before {
-        content: '/';
-        margin-inline-end: var(--wa-space-xs);
-        opacity: 0.6;
-    }
-
-    .glyph {
-        inline-size: 1.1em;
-        block-size: 1.1em;
-    }
-
-    /* The request: one large input and a thin line under it while a report is on its way. */
-
-    .ask {
+    .dock {
+        flex: none;
         display: grid;
-        gap: var(--wa-space-2xs);
+        gap: var(--bkper-spacing-x-small);
+    }
+
+    .dock > :not(.bar) {
+        margin-inline: var(--bkper-spacing-small);
+    }
+
+    .dock > :first-child:not(.bar) {
+        margin-block-start: var(--bkper-spacing-x-small);
+    }
+
+    /*
+     * The Book's transaction input, measure for measure: a pill field in a bar 3.75rem high
+     * (padding medium above, small at the sides) at the top of a footer 5.1875rem high, with
+     * the Book's border instead of the form control's.
+     */
+    /* Its padding above the input is the space under what sits over it. */
+    .bar {
+        margin-block-start: calc(-1 * var(--bkper-spacing-x-small));
+        position: relative;
+        box-sizing: border-box;
+        min-block-size: calc(var(--wa-space-scale) * 5.1875rem);
+        padding: var(--bkper-spacing-medium) var(--bkper-spacing-small) 0;
+        background-color: var(--bkper-background-color);
     }
 
     .prompt {
-        --wa-form-control-height: calc(var(--wa-space-scale) * 3.5rem);
+        display: block;
+        padding-block-start: var(--bkper-spacing-2x-small);
+    }
+
+    .prompt::part(input-wrapper) {
+        border: var(--bkper-border);
     }
 
     .prompt::part(form-control-label) {
@@ -70,17 +78,20 @@ export const reportPageCSS = css`
         white-space: nowrap;
     }
 
-    .prompt::part(input) {
-        font-size: var(--wa-font-size-l);
+    /* Where the transaction input has its attachment icons. */
+    .glyph {
+        inline-size: 1em;
+        block-size: 1em;
+        font-size: var(--bkper-font-size-large);
+        color: var(--wa-color-neutral-on-quiet);
     }
 
-    .prompt .glyph {
-        color: var(--wa-color-brand-on-quiet);
-    }
-
+    /* A thin line under the input, inside the pill's straight edge, while a report is on its way. */
     .progress {
         --track-height: var(--wa-border-width-m);
         --track-color: transparent;
+        margin-block-start: var(--bkper-spacing-2x-small);
+        margin-inline: var(--bkper-spacing-large);
         opacity: 0;
         transition: opacity var(--wa-transition-normal) var(--wa-transition-easing);
     }
@@ -92,7 +103,7 @@ export const reportPageCSS = css`
     }
 
     .notice {
-        margin: 0;
+        margin-block: 0;
         color: var(--wa-color-text-quiet);
         font-size: var(--wa-font-size-s);
         line-height: var(--wa-line-height-normal);
@@ -103,10 +114,6 @@ export const reportPageCSS = css`
     }
 
     /* The report changes in place with a short view transition scoped to it (see follow). */
-    .report {
-        margin-block-start: var(--wa-space-s);
-    }
-
     .report::view-transition-group(*) {
         animation-duration: var(--wa-transition-slow);
         animation-timing-function: var(--wa-transition-easing);

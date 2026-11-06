@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { t } from 'report-shared/strings';
 import { AppState } from '../../state/app-state';
@@ -7,12 +7,15 @@ import { CHOOSE_BOOK } from '../book-picker';
 import '../book-picker';
 import '../report-page/report-page-view';
 import { reportAppCSS } from './report-app-css';
+import { VisualViewportController } from './visual-viewport';
 
 @customElement('report-app')
 export class ReportApp extends LitElement {
     static styles = reportAppCSS;
 
     readonly state = new AppState();
+    /** Keeps the app, and its input, above the on-screen keyboard. */
+    readonly viewport = new VisualViewportController(this);
 
     constructor() {
         super();
@@ -29,15 +32,20 @@ export class ReportApp extends LitElement {
         this.state.disconnect();
     }
 
+    /**
+     * One layout everywhere: the report page, with its input at the bottom from the first frame.
+     * Without a Book, what shows above the input is the Book picker, or its loading or error.
+     */
     render() {
+        return html`<report-page .state=${this.state}>${this.renderWithoutBook()}</report-page>`;
+    }
+
+    private renderWithoutBook() {
         const state = this.state.books;
         const lang = this.state.strings.language;
 
         // The report page shows at once: its request runs while the Book's name loads.
-        const bookId = this.state.route.bookId;
-        if (bookId && !state.appError) {
-            return html`<report-page .state=${this.state}></report-page>`;
-        }
+        if (this.state.route.bookId && !state.appError) return nothing;
 
         if (state.loading) {
             return html`

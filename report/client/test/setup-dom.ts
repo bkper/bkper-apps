@@ -34,6 +34,7 @@ const browserGlobals = [
     ['EventTarget', browserWindow.EventTarget],
     ['CustomEvent', browserWindow.CustomEvent],
     ['KeyboardEvent', browserWindow.KeyboardEvent],
+    ['MessageEvent', browserWindow.MessageEvent],
     ['ShadowRoot', browserWindow.ShadowRoot],
     ['CSSStyleSheet', browserWindow.CSSStyleSheet],
     ['MutationObserver', browserWindow.MutationObserver],

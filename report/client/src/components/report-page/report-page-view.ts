@@ -1,8 +1,8 @@
 import type WaInput from '@awesome.me/webawesome-pro/dist/components/input/input.js';
-import { LitElement, html, nothing, svg } from 'lit';
+import { LitElement, html, nothing, svg, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
-import { t } from 'report-shared/strings';
+import { t, textDirection } from 'report-shared/strings';
 import type { ReportResponse } from '../../api/app-api';
 import type { AppState } from '../../state/app-state';
 import type { Notice } from '../../state/reports';
@@ -11,7 +11,7 @@ import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import '../report-suggestions';
 import { reportPageCSS } from './report-page-css';
 
-export type ReportPageState = Pick<AppState, 'books' | 'reports' | 'strings' | 'select'>;
+export type ReportPageState = Pick<AppState, 'route' | 'books' | 'reports' | 'strings'>;
 
 /** Notices that say something failed, rather than hint. */
 const ALERTS: ReadonlySet<Notice> = new Set<Notice>([
@@ -22,14 +22,15 @@ const ALERTS: ReadonlySet<Notice> = new Set<Notice>([
     'error_unexpected',
 ]);
 
-const BACK = svg`<path d="m15 18-6-6 6-6"/>`;
-const ASK = svg`<path d="M3 3v18h18"/><path d="M8 17v-4M12 17V9M16 17v-6"/>`;
+const CHART = svg`<path d="M3 3v18h18"/><path d="M8 17v-4M12 17V9M16 17v-6"/>`;
 
 /**
- * A Book's report page: one input, no button, and the report below it. The report builds as the
- * person types (see `Reports`); the last one stays while the next is on its way, with a thin
- * progress line under the input, and changes into the next one with a view transition where
- * the browser has them. Suggestions show under the empty input.
+ * The app's one layout: the report, which scrolls, over an input fixed at the bottom that looks
+ * like the Book's transaction input, so opening the app over a Book feels like changing layers.
+ * The report builds as the person types (see `Reports`); the last one stays while the next is
+ * on its way, with a thin progress line under the input, and changes into the next one in place
+ * with a view transition where the browser has them. Suggestions and notices sit just over the
+ * input. Without a Book, the page shows its content (the Book picker) over a disabled input.
  */
 @customElement('report-page')
 export class ReportPage extends LitElement {
@@ -41,23 +42,31 @@ export class ReportPage extends LitElement {
     @state() private shown?: ReportResponse;
     @query('wa-input') private input?: WaInput;
     @query('.report') private reportArea?: HTMLElement;
+    @query('.scroll') private scroller?: HTMLElement;
     private morphing = false;
+    /** The input has had focus since the Book opened. */
+    private focused = false;
 
     constructor() {
         super();
-        watch(this, () => [this.state.books, this.state.reports, this.state.strings]);
+        watch(this, () => [
+            this.state.route,
+            this.state.books,
+            this.state.reports,
+            this.state.strings,
+        ]);
+    }
+
+    /** A Book is open, so the input asks for its reports. */
+    private get bookOpen(): boolean {
+        return !!this.state.route.bookId && !this.state.books.appError;
     }
 
     protected willUpdate(): void {
         this.follow();
     }
 
-    protected async firstUpdated(): Promise<void> {
-        await this.input?.updateComplete;
-        this.input?.focus();
-    }
-
-    protected updated(): void {
+    protected updated(changed: PropertyValues): void {
         const { books, strings } = this.state;
         const report = this.shown && reportTitle(this.shown);
         const book = books.bookName ?? '';
@@ -65,70 +74,79 @@ export class ReportPage extends LitElement {
             report && book
                 ? t('report_document_title', strings.language, { report, book })
                 : report || book || t('app_title', strings.language);
+        // A new report starts at its answer.
+        if (changed.has('shown')) this.scroller?.scrollTo({ top: 0 });
+        if (!this.bookOpen) this.focused = false;
+        else if (!this.focused) {
+            this.focused = true;
+            void this.focusInput();
+        }
     }
 
     render() {
         const { books, reports } = this.state;
         const lang = this.state.strings.language;
+        const open = this.bookOpen;
         return html`
-            <div class="page">
-                <header class="bar">
-                    <wa-button
-                        class="back"
-                        appearance="plain"
-                        size="s"
-                        @click=${() => this.state.select(undefined)}
-                    >
-                        ${glyph(BACK, 'start')} ${t('books_back', lang)}
-                    </wa-button>
-                    ${books.bookName ? html`<span class="book">${books.bookName}</span>` : nothing}
-                </header>
-                ${
-                    books.selectedBookError
-                        ? html`<p class="notice alert" role="alert">
-                              ${t(books.selectedBookError, lang)}
-                          </p>`
-                        : nothing
-                }
-                <div class="ask">
-                    <wa-input
-                        class="prompt"
-                        size="l"
-                        autofocus
-                        with-clear
-                        autocomplete="off"
-                        enterkeyhint="go"
-                        label=${t('input_label', lang)}
-                        placeholder=${t('input_placeholder', lang)}
-                        .value=${live(reports.text)}
-                        @input=${this.onInput}
-                        @keydown=${this.onKeyDown}
-                    >
-                        ${glyph(ASK, 'start')}
-                    </wa-input>
-                    <wa-progress-bar
-                        class="progress ${reports.pending ? 'active' : ''}"
-                        indeterminate
-                        label=${t('status_loading', lang)}
-                        aria-hidden=${reports.pending ? 'false' : 'true'}
-                    ></wa-progress-bar>
+            <div class="page" lang=${lang} dir=${textDirection(lang)}>
+                <main class="scroll">
+                    <div class="content">
+                        <slot></slot>
+                        ${
+                            open && this.shown
+                                ? html`<report-view
+                                      class="report"
+                                      .spec=${this.shown.spec}
+                                  ></report-view>`
+                                : nothing
+                        }
+                    </div>
+                </main>
+                <div class="dock">
+                    ${
+                        open && books.selectedBookError
+                            ? html`<p class="notice alert" role="alert">
+                                  ${t(books.selectedBookError, lang)}
+                              </p>`
+                            : nothing
+                    }
+                    ${open ? this.renderNotice(reports.notice, lang) : nothing}
+                    ${
+                        open && reports.showsSuggestions
+                            ? html`<report-suggestions
+                                  class="suggestions"
+                                  .suggestions=${reports.suggestions}
+                                  label=${t('suggestions_label', lang)}
+                                  loading-label=${t('suggestions_loading', lang)}
+                                  @report-choose-suggestion=${this.onChoose}
+                              ></report-suggestions>`
+                            : nothing
+                    }
+                    <div class="bar">
+                        <wa-input
+                            class="prompt"
+                            pill
+                            autofocus
+                            autocomplete="off"
+                            inputmode="text"
+                            enterkeyhint="send"
+                            ?disabled=${!open}
+                            label=${t('input_label', lang)}
+                            placeholder=${t('input_placeholder', lang)}
+                            .value=${live(reports.text)}
+                            @input=${this.onInput}
+                            @keydown=${this.onKeyDown}
+                        >
+                            ${glyph(CHART, 'end')}
+                        </wa-input>
+                        <wa-progress-bar
+                            class="progress ${reports.pending ? 'active' : ''}"
+                            indeterminate
+                            label=${t('status_loading', lang)}
+                            aria-hidden=${reports.pending ? 'false' : 'true'}
+                        ></wa-progress-bar>
+                    </div>
                 </div>
-                ${this.renderNotice(reports.notice, lang)}
-                ${
-                    reports.showsSuggestions
-                        ? html`<report-suggestions
-                              .suggestions=${reports.suggestions}
-                              label=${t('suggestions_label', lang)}
-                              loading-label=${t('suggestions_loading', lang)}
-                              @report-choose-suggestion=${this.onChoose}
-                          ></report-suggestions>`
-                        : nothing
-                }
-                ${
-                    this.shown
-                        ? html`<report-view class="report" .spec=${this.shown.spec}></report-view>`
-                        : nothing
-                }
             </div>
         `;
     }
@@ -144,13 +162,23 @@ export class ReportPage extends LitElement {
     private onInput = () => this.state.reports.input(this.input?.value ?? '');
 
     private onKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Enter' && !event.isComposing) this.state.reports.submit();
+        if (event.isComposing) return;
+        if (event.key === 'Enter') this.state.reports.submit();
+        else if (event.key === 'Escape' && this.state.reports.text) {
+            event.preventDefault();
+            this.state.reports.input('');
+        }
     };
 
     private onChoose = (event: HTMLElementEventMap[typeof CHOOSE_SUGGESTION]) => {
         this.state.reports.choose(event.detail);
         this.input?.focus();
     };
+
+    private async focusInput(): Promise<void> {
+        await this.input?.updateComplete;
+        this.input?.focus();
+    }
 
     /**
      * Show the store's report, changing into it with a view transition when one is on screen.

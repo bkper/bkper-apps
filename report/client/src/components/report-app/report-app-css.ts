@@ -1,14 +1,21 @@
 import { css } from 'lit';
 
 export const reportAppCSS = css`
+    /* The visible part of the page (see VisualViewportController): nothing outside it scrolls. */
     :host {
+        position: fixed;
+        inset-inline: 0;
+        inset-block-start: var(--report-viewport-top, 0);
         display: block;
-        min-height: 100vh;
+        block-size: var(--report-viewport-height, 100dvh);
         box-sizing: border-box;
-        padding: var(--bkper-spacing-large);
         background: var(--bkper-color-background);
         color: var(--bkper-color-text);
         font-family: var(--bkper-font-family);
+    }
+
+    report-page {
+        block-size: 100%;
     }
 
     .container {

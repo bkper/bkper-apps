@@ -2,6 +2,22 @@
 @import '@awesome.me/webawesome-pro/dist/styles/themes/default.css';
 @import '@bkper/web-design';
 
+/*
+ * Bkper's density: Web Awesome's scale knobs (default 1), compact from tablet up, as the Bkper
+ * page around the app sets them, so the input measures exactly as the Book's transaction input.
+ * Web Awesome re-declares them on its theme classes, so match those selectors. A font scale
+ * Bkper sends overrides the text scale (see host-font-scale.ts).
+ */
+@media (min-width: 768px) {
+    :root,
+    .wa-light,
+    .wa-dark,
+    .wa-invert {
+        --wa-space-scale: 0.9;
+        --wa-font-size-scale: 0.92;
+    }
+}
+
 body {
     margin: 0;
     background: var(--bkper-color-background);

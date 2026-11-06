@@ -371,7 +371,7 @@ A single endpoint may return more than one section for backward-friendly impleme
 | `book_id`     | String | No       | Target book ID; if omitted, defaults to the request's `book.id`           |
 | `account_name`| String | No       | Target account name; if omitted, defaults to the request's `account.name` |
 
-> **Routing Behavior**: Each transaction can optionally specify a different `book_id` and/or `account_name` to route the transaction to a different book or account than where the file was uploaded. If these fields are omitted, the transaction is recorded to the default book and account from the request.
+> **Routing Behavior**: Each transaction can optionally specify a different `book_id` and/or `account_name` to route the transaction to a different book or account than where the file was uploaded. If these fields are omitted, the transaction is recorded to the default book and account from the request. If `account_name` does not match an Account in the target book, the transaction is still recorded as a draft, without that Account.
 
 ### Properties Object
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { Account, Amount, Bkper, Book, File, Group, Permission, Transaction } from 'bkper-js';
+import { Account, Amount, Bkper, BkperError, Book, File, Group, Permission, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { parse } from '../../src/api/parse.js';
 import { BkperAIResponsesClient } from '../../src/genai/BkperAIResponsesClient.js';
@@ -92,6 +92,18 @@ describe('read-only parse', () => {
         expect(writes).not.toHaveBeenCalled();
         target.getPermission = () => Permission.NONE;
         expect(await parse({ bookId: 'book_1', file }, context)).toMatchObject({ outcome: 'error', error: { code: 'FORBIDDEN' }, transactions: [] });
+    });
+
+    it('returns a row without an Account when its account_name is not in the target Book', async () => {
+        const { context, book, writes } = setup();
+        book.getAccount = mock(async () => { throw new BkperError(404, 'Account NOT found!', undefined); });
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [{ date: '2024-01-02', description: 'Row', amount: -10, properties: {}, account_name: 'Missing Account' }] })) }) as unknown as ExtractorStatementCSV;
+        const result = await parse({ bookId: 'book_1', file }, context);
+        expect(result.outcome).toBe('parsed');
+        expect(result.transactions).toHaveLength(1);
+        expect(result.transactions[0].transaction.creditAccount).toBeUndefined();
+        expect(result.transactions[0].transaction.debitAccount).toBeUndefined();
+        expect(writes).not.toHaveBeenCalled();
     });
 
     it('preserves supplied transaction fields and properties while extracting an attachment', async () => {

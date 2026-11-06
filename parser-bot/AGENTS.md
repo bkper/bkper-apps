@@ -83,7 +83,7 @@ The initial route, request/result/error shapes, and shared authentication bounda
 ## Known current behavior
 
 - Prompt and parser-URL lookup can persist migrated prompt properties.
-- File imports fail entirely when an external parser returns an `account_name` that does not exist in the target Book. `resolveTargetAccount` expects `targetBook.getAccount(name)` to return nothing and then record without an Account, but `bkper-js` 2.37.0 raises a 404 `BkperError` ("Account NOT found!"), so no drafts are created and the event reports an error. Observed in Bookbot production on 2026-11-03; Parser Bot has the same code. Same root cause as the discovery API's `FORBIDDEN` for an Account from another Book.
+- An `account_name` that is not in the target Book records that row without the Account and logs a warning; the rest of the import continues. `book.getAccount` raises a 404 `BkperError` for a missing Account (bkper-js 2.37 to 2.45), so Account lookups by extracted name go through `findAccount` in `src/utils/account-utils.ts`.
 - Multi-Book imports are not atomic: drafts are created per target Book in sequence; if a later Book fails, earlier drafts remain and no summary or file update is written.
 - The posted/updated handler runs invoice learning and statement flagging; rediscovery was removed and belongs to Bookbot.
 - The attachment path retains its own file-metadata filter, moved verbatim into `AttachmentExtractionService`. Unlike the import path's `filterFileProperties`, it does not drop `transactions_summary`. Do not merge the two.

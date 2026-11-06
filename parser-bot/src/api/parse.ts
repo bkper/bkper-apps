@@ -7,6 +7,7 @@ import { BkperAIClientError } from '../genai/BkperAIClientError.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
+import { findAccount } from '../utils/account-utils.js';
 import { ExtractedTransactionSchema, ParseResultSchema, type ParseRequest, type ParseResult } from './schemas.js';
 
 const READ_PERMISSIONS: readonly Permission[] = [Permission.VIEWER, Permission.POSTER, Permission.EDITOR, Permission.OWNER];
@@ -110,7 +111,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
                     targetBook = await requireBook(context, bookId);
                     books.set(bookId, targetBook);
                 }
-                const account = extracted.account_name ? await targetBook.getAccount(extracted.account_name) : bookId === request.bookId ? extraction.account : undefined;
+                const account = extracted.account_name ? await findAccount(targetBook, extracted.account_name) : bookId === request.bookId ? extraction.account : undefined;
                 if (account?.getId()) await requireAccount(targetBook, account.getId()!);
                 const transaction = new Transaction(targetBook, {});
                 applyExtraction(transaction, extracted);

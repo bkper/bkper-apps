@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
-import { Book, File, Account, Transaction, TransactionList } from 'bkper-js';
+import { BkperError, Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
@@ -451,6 +451,49 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
         expect(book2Entry!.accountId).toBe('acc_resolved_from_book2');
         expect(book2Entry!.accountId).not.toBe('acc_1');
         expectSameIds(book2Entry!.transactionIds, ['tx-Investment Tx']);
+    });
+
+    // bkper-js raises a 404 BkperError for an Account name that is not in the Book; the row is recorded without that Account.
+    it('records every row and an empty accountId when an account_name is not in the target Book', async () => {
+        (mockBook.getAccount as any) = mock(async (name: string) => {
+            if (name === 'Bank') return mockAccount;
+            throw new BkperError(404, 'Account NOT found!', undefined);
+        });
+
+        extractorResult = {
+            transactions: [
+                { date: '2024-01-01', description: 'Bank Tx', amount: 100, properties: {}, account_name: 'Bank' },
+                { date: '2024-01-02', description: 'Unknown Tx', amount: 200, properties: {}, account_name: 'Missing Account' },
+            ],
+        };
+
+        const result = await eventHandler.handleEvent(mockBook, makeEvent());
+
+        expect(result.error).toBeUndefined();
+        const created = (mockBook.batchCreateTransactions as any).mock.calls[0][0] as Transaction[];
+        expect(created.map(transaction => transaction.getDescription())).toEqual(['Bank Tx', 'Unknown Tx']);
+        expect(created[1].payload.creditAccount).toBeUndefined();
+        expect(created[1].payload.debitAccount).toBeUndefined();
+
+        const summary = getSummary();
+        expect(summary.find(e => e.accountId === 'acc_1')?.transactionIds).toEqual(['tx-Bank Tx']);
+        expect(summary.find(e => e.accountId === '')?.transactionIds).toEqual(['tx-Unknown Tx']);
+    });
+
+    // Only a missing Account is tolerated; other lookup failures still fail the import without creating drafts.
+    it('still fails the import when an account_name lookup fails for another reason', async () => {
+        (mockBook.getAccount as any) = mock(async () => {
+            throw new BkperError(403, 'Forbidden', undefined);
+        });
+
+        extractorResult = {
+            transactions: [{ date: '2024-01-01', description: 'Tx', amount: 100, properties: {}, account_name: 'Bank' }],
+        };
+
+        const result = await eventHandler.handleEvent(mockBook, makeEvent());
+
+        expect(result.error).toContain('File extraction failed');
+        expect(mockBook.batchCreateTransactions).not.toHaveBeenCalled();
     });
 
     // Verifies GenAI multi-transaction parser results use the same native-ID summary path.

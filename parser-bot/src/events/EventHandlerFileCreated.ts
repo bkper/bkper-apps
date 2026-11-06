@@ -4,6 +4,7 @@ import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
+import { findAccount } from '../utils/account-utils.js';
 import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClient.js';
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
@@ -241,7 +242,7 @@ export class EventHandlerFileCreated extends EventHandler {
     private async resolveTargetAccount(tx: ExtractedTransaction, targetBook: Book, defaultAccount: Account | undefined, isOriginalBook: boolean): Promise<Account | undefined> {
         if (tx.account_name) {
             // Named override: look up by account_name in the target book
-            const account = await targetBook.getAccount(tx.account_name);
+            const account = await findAccount(targetBook, tx.account_name);
             if (!account) {
                 console.warn(`Account '${tx.account_name}' not found in book '${targetBook.getId()}', recording without account`);
             }
@@ -352,7 +353,7 @@ export class EventHandlerFileCreated extends EventHandler {
                     accountId = accountKey;
                 } else {
                     // Named override — look up in the target book to get the ID.
-                    const resolved = await targetBook.getAccount(accountKey);
+                    const resolved = await findAccount(targetBook, accountKey);
                     accountId = resolved?.getId() || '';
                 }
                 summary.push({

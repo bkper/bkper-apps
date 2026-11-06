@@ -3,11 +3,14 @@
  *
  *     BKPER_AI_TOKEN=<token> npx tsx scripts/eval-intent.ts [--only=<case number>,...]
  *
- * Each case is a request, in one of many languages, with the answers it should get. The script
+ * Each case is a request, in one of many languages, with the intent it should get. The script
  * loads both snapshots (read-only, with your `bkper auth token`), asks the model each request
- * in turn as the app does, and reports the accuracy of each question after its threshold, of
- * the whole intent (default period and chart included), and the p50/p95 latency of the model
- * calls. A case that names no chart expects `auto`, so every report checks the chart.
+ * in turn as the app does, and reports the accuracy of each part of the intent (the root, the
+ * period, the months, the view and the chart preference, which code decides from the model's
+ * judgments), of the language, of the whole intent (default period and chart included), and the
+ * p50/p95 latency of the model calls. A case that names no chart expects `auto`, so every
+ * report checks the chart. Each miss prints its trace: every judgment with its score, and the
+ * rule that chose the chart.
  *
  * The model calls use `BKPER_AI_TOKEN` when set, else your `bkper auth token`, and are labelled
  * `bkper-ai-source: report-eval-intent`. Bkper AI caches identical requests for 15 minutes, so
@@ -39,9 +42,9 @@ type Accepted = string | string[];
 /**
  * A request and what it should resolve to. Roots are group names, `net-result` or `none`;
  * `period` is the model's expected choice (`unspecified` when the request names none), and
- * `intentPeriod` the intent's period when it differs (the default period). `chart` is the
- * intent's chart, `auto` when left out. Lists accept any of their answers: equally right
- * readings, such as an account found in two roots.
+ * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`
+ * and `chart` are the intent's (`view` is `unspecified` when left out, `chart` is `auto`). Lists
+ * accept any of their answers: equally right readings, such as an account found in two roots.
  */
 interface Case {
     book: BookKey;
@@ -535,6 +538,143 @@ const CASES: Case[] = [
         view: ['total', UNSPECIFIED],
         language: 'ar',
     },
+
+    // Short chart requests, in many languages.
+    {
+        book: 'nimbus',
+        prompt: 'despesas em pizza',
+        root: 'Despesas',
+        period: UNSPECIFIED,
+        intentPeriod: '2018',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'despesas 2017 pizza',
+        root: 'Despesas',
+        period: '2017',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: 'gastos en barras',
+        root: 'Expenses',
+        period: UNSPECIFIED,
+        intentPeriod: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'ranked-bar',
+        language: 'es',
+    },
+    {
+        book: 'personal',
+        prompt: 'Ausgaben als Torte',
+        root: 'Expenses',
+        period: UNSPECIFIED,
+        intentPeriod: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'de',
+    },
+    {
+        book: 'personal',
+        prompt: '費用 円グラフ',
+        root: 'Expenses',
+        period: UNSPECIFIED,
+        intentPeriod: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'ja',
+    },
+    {
+        book: 'personal',
+        prompt: 'المصروفات دائري',
+        root: 'Expenses',
+        period: UNSPECIFIED,
+        intentPeriod: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'ar',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'lucro em cascata',
+        root: NET_RESULT_ROOT,
+        period: UNSPECIFIED,
+        intentPeriod: '2018',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'waterfall',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'dépenses 2015 en camembert',
+        root: 'Despesas',
+        period: '2015',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'fr',
+    },
+    {
+        book: 'personal',
+        prompt: '2019年支出饼图',
+        root: 'Expenses',
+        period: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'zh-CN',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'profit bridge 2016',
+        root: NET_RESULT_ROOT,
+        period: '2016',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'waterfall',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'receitas mês a mês em 2016 em linha',
+        root: 'Receitas',
+        period: '2016',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'line',
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: 'expenses by month in 2019 as bars',
+        root: 'Expenses',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'bar',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Umsatz 2014 im Vergleich zum Vorjahr als Balken',
+        root: 'Receitas',
+        period: '2014',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'compare',
+        language: 'de',
+    },
+    {
+        book: 'personal',
+        prompt: 'expenses by category, month by month in 2019',
+        root: 'Expenses',
+        period: '2019',
+        monthly: true,
+        view: ['trend', UNSPECIFIED],
+        chart: 'stacked',
+        language: 'en',
+    },
 ];
 
 const QUESTIONS = ['root', 'period', 'monthly', 'view', 'chart', 'language', 'intent'] as const;
@@ -612,8 +752,8 @@ async function main(): Promise<void> {
         const got = {
             root: rootName(snapshot, intent?.root),
             period: sure(answers.period, THRESHOLDS.period),
-            monthly: answers.monthly.noul >= THRESHOLDS.monthly,
-            view: sure(answers.view, THRESHOLDS.view),
+            monthly: intent?.monthly ?? false,
+            view: intent?.view ?? UNSPECIFIED,
             chart: intent?.chart ?? 'auto',
             language: resolution.language,
         };
@@ -631,8 +771,8 @@ async function main(): Promise<void> {
                 intent !== undefined &&
                 checks.root &&
                 accepts(expectedPeriod, intent.period) &&
-                intent.monthly === (test.monthly ?? false) &&
-                accepts(test.view ?? UNSPECIFIED, intent.view ?? UNSPECIFIED) &&
+                checks.monthly &&
+                checks.view &&
                 checks.chart &&
                 (intent.hashtags ?? []).join() === hashtags.join();
         } else {
@@ -646,17 +786,23 @@ async function main(): Promise<void> {
         const misses = Object.entries(checks)
             .filter(([, ok]) => !ok)
             .map(([question]) => question);
+        const yes = (answer: { noul: number }) => answer.noul.toFixed(2);
         const detail =
             `root=${got.root}(${answers.root.confidence.toFixed(2)})` +
             ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
             `→${intent?.period ?? '-'}` +
-            ` monthly=${answers.monthly.noul.toFixed(2)}` +
-            ` view=${answers.view.choice}(${answers.view.confidence.toFixed(2)})` +
-            ` chart=${answers.chart.choice}(${answers.chart.confidence.toFixed(2)})` +
+            ` over_time=${yes(answers.over_time)} composition=${yes(answers.composition)}` +
+            ` versus_earlier=${yes(answers.versus_earlier)} bridge=${yes(answers.bridge)}` +
+            ` chart_named=${answers.chart_named.choice}(${answers.chart_named.confidence.toFixed(2)})` +
+            ` → ${resolution.recognized ? resolution.trace.rule : '-'}: monthly=${got.monthly} view=${got.view} chart=${got.chart}` +
             ` lang=${answers.language.choice}(${answers.language.confidence.toFixed(2)})`;
+        const trace =
+            misses.length > 0 && resolution.recognized
+                ? `\n       trace: ${JSON.stringify(resolution.trace)}`
+                : '';
         console.log(
             `${misses.length === 0 ? 'ok  ' : 'MISS'} #${number} ${Math.round(latencies.at(-1) ?? 0)}ms "${test.prompt}"` +
-                `\n       ${detail}${misses.length ? `\n       wrong: ${misses.join(', ')}` : ''}`
+                `\n       ${detail}${misses.length ? `\n       wrong: ${misses.join(', ')}${trace}` : ''}`
         );
     }
 

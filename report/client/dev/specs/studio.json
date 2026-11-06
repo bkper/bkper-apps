@@ -848,7 +848,8 @@
             "root": "g-expenses",
             "period": "2025",
             "monthly": false,
-            "view": "breakdown"
+            "view": "breakdown",
+            "chart": "ranked-bar"
         },
         "lang": "en",
         "spec": {
@@ -4433,7 +4434,8 @@
             "root": "g-expenses",
             "period": "2025-11",
             "monthly": false,
-            "view": "breakdown"
+            "view": "breakdown",
+            "chart": "ranked-bar"
         },
         "lang": "ar-EG",
         "spec": {

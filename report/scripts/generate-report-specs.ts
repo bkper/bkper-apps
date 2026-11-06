@@ -55,7 +55,7 @@ const STUDIO_CASES: Case[] = [
     },
     {
         id: 'expenses-breakdown',
-        intent: intent('g-expenses', '2025', { view: 'breakdown' }),
+        intent: intent('g-expenses', '2025', { view: 'breakdown', chart: 'ranked-bar' }),
         lang: 'en',
     },
     { id: 'taxes-donut', intent: intent('g-taxes', '2025-Q4', { view: 'breakdown' }), lang: 'en' },
@@ -77,7 +77,7 @@ const STUDIO_CASES: Case[] = [
     },
     {
         id: 'expenses-breakdown-ar',
-        intent: intent('g-expenses', '2025-11', { view: 'breakdown' }),
+        intent: intent('g-expenses', '2025-11', { view: 'breakdown', chart: 'ranked-bar' }),
         lang: 'ar-EG',
     },
     {

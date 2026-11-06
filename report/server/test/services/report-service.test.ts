@@ -18,8 +18,8 @@ const NOW = new Date('2026-11-05T16:00:00Z');
 interface JevAnswers {
     root: string;
     period?: string;
-    monthly?: number;
-    chart?: string;
+    over_time?: number;
+    chart_named?: string;
     language?: string;
     rootConfidence?: number;
 }
@@ -36,9 +36,11 @@ function jevBody(answers: JevAnswers) {
         answers: {
             root: choice(answers.root, answers.rootConfidence),
             period: choice(answers.period ?? 'unspecified'),
-            monthly: { type: 'noul', noul: answers.monthly ?? 0.01 },
-            view: choice('unspecified'),
-            chart: choice(answers.chart ?? 'unspecified'),
+            over_time: { type: 'noul', noul: answers.over_time ?? 0.01 },
+            composition: { type: 'noul', noul: 0.01 },
+            versus_earlier: { type: 'noul', noul: 0.01 },
+            bridge: { type: 'noul', noul: 0.01 },
+            chart_named: choice(answers.chart_named ?? 'none'),
             language: choice(answers.language ?? 'en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },
@@ -237,7 +239,7 @@ describe('createReport by prompt', () => {
     });
 
     it('draws the chart the prompt asked for', async () => {
-        const test = harness({ root: 'Expenses', period: '2026-10', chart: 'table' });
+        const test = harness({ root: 'Expenses', period: '2026-10', chart_named: 'table' });
         const result = await createReport(
             await fixtureSnapshot(),
             { prompt: 'expenses in October, just the numbers' },
@@ -246,6 +248,30 @@ describe('createReport by prompt', () => {
         );
         expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'table' }));
         expect(result.chart).toEqual({ kind: 'none', fallback: false });
+    });
+
+    it('traces the judgments of a request and the rule that chose its chart', async () => {
+        const test = harness({ root: 'Expenses', period: '2026-10', chart_named: 'table' });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'expenses in October, just the numbers' },
+            {},
+            test.options
+        );
+        expect(result.trace).toMatchObject({
+            judgments: {
+                root: { answer: 'Expenses', score: 0.99 },
+                period: { answer: '2026-10', score: 0.99 },
+                over_time: { answer: false, score: 0.01 },
+                composition: { answer: false, score: 0.01 },
+                versus_earlier: { answer: false, score: 0.01 },
+                bridge: { answer: false, score: 0.01 },
+                chart_named: { answer: 'table', score: 0.99 },
+                language: { answer: 'en', score: 0.99 },
+            },
+            rule: 'named',
+            chart: { main: 'table', rule: 'preference' },
+        });
     });
 
     it('traces the facts, the charts that fit and the rule that chose the main one', async () => {
@@ -273,6 +299,9 @@ describe('createReport by prompt', () => {
             },
         });
         expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true });
+        // An intent asks no judgments.
+        expect(result.trace).not.toHaveProperty('judgments');
+        expect(result.trace).not.toHaveProperty('rule');
     });
 
     it('prefers the requested language over the detected one', async () => {

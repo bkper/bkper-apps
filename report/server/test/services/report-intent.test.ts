@@ -41,11 +41,23 @@ describe('ReportIntentSchema', () => {
     });
 
     it('accepts every chart a person may prefer, and only those', () => {
-        for (const chart of ['auto', 'pie', 'stacked', 'area', 'compare', 'waterfall', 'table']) {
+        for (const chart of [
+            'auto',
+            'pie',
+            'stacked',
+            'area',
+            'compare',
+            'waterfall',
+            'table',
+            'bar',
+            'line',
+            'ranked-bar',
+            'donut',
+        ]) {
             const intent = { root: 'a', period: 'ytd', monthly: false, chart };
             expect(ReportIntentSchema.parse(intent), chart).toEqual(intent);
         }
-        for (const chart of ['donut', 'bar', '', 'PIE']) {
+        for (const chart of ['none', 'bars', '', 'PIE']) {
             const intent = { root: 'a', period: 'ytd', monthly: false, chart };
             expect(ReportIntentSchema.safeParse(intent).success, chart).toBe(false);
         }

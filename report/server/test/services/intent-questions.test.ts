@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { LANGUAGES } from 'report-shared/languages';
 import {
+    CHART_WORDS,
     MAX_REQUEST_CHARACTERS,
+    NO_CHART,
     NO_ROOT,
     UNSPECIFIED,
     buildIntentRequest,
 } from '../../src/services/intent-questions';
 import { buildPeriodOptions } from '../../src/services/periods';
-import { NET_RESULT_ROOT, REPORT_CHARTS, REPORT_VIEWS } from '../../src/services/report-intent';
+import { NET_RESULT_ROOT } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
 import { TODAY, fixtureSnapshot } from '../fixtures/snapshot-book';
 
@@ -128,23 +130,39 @@ describe('buildIntentRequest', () => {
         expect(ids.at(-1)).toBe(UNSPECIFIED);
     });
 
-    it('offers every view and every Bkper language', async () => {
+    it('offers every Bkper language', async () => {
         const { request } = buildIntentRequest('expenses', await fixtureSnapshot());
-        expect(Object.keys(request.questions.view.criteria)).toEqual([
-            ...REPORT_VIEWS,
-            UNSPECIFIED,
-        ]);
         const languages = request.questions.language.criteria;
         expect(Object.keys(languages)).toEqual(LANGUAGES.map(language => language.code));
         expect(languages.pt).toBe('Portuguese (Português)');
         expect(languages.en).toBe('English');
     });
 
-    it('offers every chart but auto, and unspecified', async () => {
+    it('offers every chart word, and none', async () => {
         const { request } = buildIntentRequest('expenses', await fixtureSnapshot());
-        expect(Object.keys(request.questions.chart.criteria)).toEqual([
-            ...REPORT_CHARTS.filter(chart => chart !== 'auto'),
-            UNSPECIFIED,
+        expect(Object.keys(request.questions.chart_named.criteria)).toEqual([
+            ...CHART_WORDS,
+            NO_CHART,
+        ]);
+    });
+
+    it('asks each judgment as a yes or no question that stands alone', async () => {
+        const { questions } = buildIntentRequest('expenses', await fixtureSnapshot()).request;
+        for (const id of ['over_time', 'composition', 'versus_earlier', 'bridge'] as const) {
+            expect(questions[id].type).toBe('noul');
+            expect(questions[id].instructions).toMatch(/^Does `request` ask /);
+            // No question refers to another or says when not to answer yes.
+            expect(questions[id].instructions).not.toMatch(/\bnot\b|unless|except/i);
+        }
+        expect(Object.keys(questions)).toEqual([
+            'root',
+            'period',
+            'over_time',
+            'composition',
+            'versus_earlier',
+            'bridge',
+            'chart_named',
+            'language',
         ]);
     });
 

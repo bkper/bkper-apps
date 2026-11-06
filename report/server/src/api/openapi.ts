@@ -21,7 +21,7 @@ Prefer this to computing balances yourself: numbers are computed by deterministi
 - One top-level (root) group of the Book, such as Expenses or Assets, broken down into its subgroups and Accounts; or income versus expenses (the net result). Not a single subgroup or Account: ask for its root group and the breakdown includes it.
 - A period in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a year, a quarter or a month, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data.
 - By month, or a breakdown, a trend or a total.
-- A chart, when the person names one: a pie, stacked by month, an area, versus the previous period, a bridge (waterfall) or no chart. Keep it in the prompt as they said it; a chart that does not fit the report falls back to the one the report picks.
+- A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, a bridge (waterfall) or no chart. Keep it in the prompt as they said it; a chart that does not fit the report falls back to the one the report picks.
 - \`#hashtags\`: only transactions with all of them.
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.

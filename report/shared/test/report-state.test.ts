@@ -36,6 +36,22 @@ describe('report state', () => {
         }
     });
 
+    it('opens states written before more charts could be preferred, unchanged', () => {
+        expect(decodeReportState('1MGJwLjIwMTcucHQuLjE5MTAwMg')).toEqual({
+            intent: {
+                root: '191002',
+                period: '2017',
+                monthly: false,
+                view: 'breakdown',
+                chart: 'pie',
+            },
+            language: 'pt',
+        });
+        expect(decodeReportState('1MXRhLjIwMTcuLi4xOTEwMDI')).toEqual({
+            intent: { root: '191002', period: '2017', monthly: true, view: 'trend' },
+        });
+    });
+
     it('round-trips every kind of period', () => {
         for (const period of [...RELATIVE_PERIODS, '2017', '2017-Q4', '2017-03', '1999-12']) {
             const state: ReportState = { intent: { root: 'net-result', period, monthly: false } };

@@ -10,7 +10,7 @@ import type { BalancesReport } from 'bkper-js';
 import type { ReportSpec } from 'report-shared/catalog';
 import { reportText } from 'report-shared/report-state';
 import type { DecisionClient } from './decision-client.js';
-import { extractHashtags, resolveIntent } from './intent-resolver.js';
+import { extractHashtags, resolveIntent, type IntentTrace } from './intent-resolver.js';
 import {
     hashtagQuery,
     readLiveBalances,
@@ -57,8 +57,11 @@ export interface ReportServiceOptions {
     now?: () => Date;
 }
 
-/** How the report was shown: the facts of its data, the charts that fit them, and the main one. */
-export interface ReportTrace {
+/**
+ * How the report was shown: for a request, the model's judgments and the rule that chose the
+ * chart it prefers; the facts of its data, the charts that fit them, and the main one.
+ */
+export interface ReportTrace extends Partial<IntentTrace> {
     facts: ChartFacts;
     chart: {
         /** Every chart that fits, in the order a renderer offers them; `table` for none. */
@@ -109,6 +112,7 @@ export async function createReport(
         });
 
     let intent: ReportIntent;
+    let intentTrace: IntentTrace | undefined;
     let detected: string | undefined;
     let prefetched: { query: LiveQuery; balances: Promise<LiveBalances> } | undefined;
     if ('intent' in request) {
@@ -130,6 +134,7 @@ export async function createReport(
             throw notAReport(snapshot, languages.requested ?? detected ?? languages.accepted);
         }
         intent = resolution.intent;
+        intentTrace = resolution.trace;
     }
     const language = languages.requested ?? detected ?? languages.accepted ?? DEFAULT_LANGUAGE;
 
@@ -166,7 +171,7 @@ export async function createReport(
         dataAt: report.dataAt,
         chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: 'prompt' in request ? request.prompt : reportText(spec),
-        trace: reportTrace(report.charts),
+        trace: { ...intentTrace, ...reportTrace(report.charts) },
     };
 }
 

@@ -3,14 +3,17 @@
  *
  * Every question, criterion and threshold of intent resolution lives here, so they can be
  * reviewed and tuned together. The model only chooses among options this code offers (the
- * Book's root groups, the periods within its data, the views, the charts, the languages); it
- * never sees amounts, computes dates or writes queries. Question ids are not sent to the model,
- * so each instruction stands alone and refers to the state fields in backticks.
+ * Book's root groups, the periods within its data, the chart words, the languages) and answers
+ * yes or no to small recognition questions about how the request asks to see the amounts; it
+ * never sees amounts, computes dates or writes queries. Each question stands alone: none
+ * refers to another or says when not to answer yes, since code combines the answers
+ * (`intent-resolver.ts`). Question ids are not sent to the model, so each instruction refers to
+ * the state fields in backticks.
  */
 import type { ChoiceQuestion, NoulQuestion, SystemOneRequest } from '@typesafe-ai/sdk';
 import { LANGUAGES } from 'report-shared/languages';
 import { buildPeriodOptions } from './periods.js';
-import { NET_RESULT_ROOT, type ChartPreference, type ReportView } from './report-intent.js';
+import { NET_RESULT_ROOT } from './report-intent.js';
 import type { Snapshot, SnapshotGroup } from './snapshot.js';
 
 /** How sure the model must be before an answer is used. */
@@ -19,12 +22,16 @@ export const THRESHOLDS = {
     root: 0.5,
     /** Below it, the request reads the default period. */
     period: 0.5,
-    /** The probability of yes from which the report shows months. */
-    monthly: 0.5,
-    /** Below it, the report picks its layout by rules. */
-    view: 0.5,
-    /** Below it, the report picks its chart by rules (`auto`). */
-    chart: 0.5,
+    /** The probability of yes from which the request asks how amounts change over time. */
+    over_time: 0.5,
+    /** The probability of yes from which the request asks what makes up the amount. */
+    composition: 0.5,
+    /** The probability of yes from which the request compares with an earlier period. */
+    versus_earlier: 0.5,
+    /** The probability of yes from which the request asks how one amount leads to another. */
+    bridge: 0.5,
+    /** Below it, the request names no chart. */
+    chart_named: 0.5,
     /** Below it, the detected language is not used. */
     language: 0.8,
 } as const;
@@ -43,7 +50,7 @@ const MAX_CHOICE_OPTIONS = 255;
 
 /** The root answer for a request that is not a report of this Book. */
 export const NO_ROOT = 'none';
-/** The period and view answer for a request that names none. */
+/** The period answer for a request that names none. */
 export const UNSPECIFIED = 'unspecified';
 
 const NET_RESULT_CRITERION =
@@ -60,36 +67,48 @@ const PERIOD_INSTRUCTIONS =
 
 const UNSPECIFIED_PERIOD_CRITERION = '`request` names no date, year, month, quarter or period.';
 
-const MONTHLY_INSTRUCTIONS =
-    'Does `request` ask to see the amounts month by month, or how they evolve over time? Comparing a period with an earlier one, such as versus last year, is not by month.';
+const OVER_TIME_INSTRUCTIONS =
+    'Does `request` ask to see the amounts month by month, such as monthly amounts, how they evolve or a timeline?';
 
-const VIEW_INSTRUCTIONS =
-    'How does `request` explicitly ask to see the amounts? Choose `unspecified` when `request` only says what and when, without asking how to show it.';
+const COMPOSITION_INSTRUCTIONS =
+    'Does `request` ask for the amount broken down into its parts, such as by category or by client, the share of each or the biggest items?';
 
-export const VIEW_CRITERIA = {
-    trend: 'Over time: `request` asks for monthly amounts, month by month, their evolution, a history or a timeline.',
-    breakdown:
-        'Broken down: `request` asks what makes them up, by category, account or item, the biggest items, a ranking or the share of each.',
-    total: 'One total: `request` is a question answered by a single number, such as how much in all or what the balance is.',
-    [UNSPECIFIED]: '`request` does not say how to show the amounts.',
-} as const satisfies Record<ReportView | typeof UNSPECIFIED, string>;
+const VERSUS_EARLIER_INSTRUCTIONS =
+    'Does `request` ask to compare the amounts with an earlier period it names, such as last year, the year before or the previous month?';
 
-const CHART_INSTRUCTIONS =
-    'Which chart does `request` explicitly ask for, in any language? Choose `unspecified` unless `request` names a kind of chart, asks for no chart, or compares with an earlier period. Saying only what to show, and when, is not asking for a chart: by month, over time, by category, the biggest items, a total or a balance are all `unspecified`.';
+const BRIDGE_INSTRUCTIONS =
+    'Does `request` ask how one amount leads to another, step by step, such as from revenue through each expense to profit, or from an opening to a closing balance?';
 
-export const CHART_CRITERIA = {
-    pie: 'A pie chart: the share of each part of the whole, drawn as slices. Such as "as a pie", "em pizza", "gráfico de tarta", "als Kuchendiagramm", "en camembert", "円グラフで", "كمخطط دائري".',
+const CHART_NAMED_INSTRUCTIONS = 'Which kind of chart does `request` name, in any language?';
+
+/** The answer for a request that names no chart. */
+export const NO_CHART = 'none';
+
+/** The chart words a request may use, each standing for a kind of chart. */
+export const CHART_WORDS = [
+    'pie',
+    'bars',
+    'line',
+    'area',
+    'stacked',
+    'waterfall',
+    'table',
+] as const;
+
+export type ChartWord = (typeof CHART_WORDS)[number];
+
+export const CHART_NAMED_CRITERIA = {
+    pie: 'A pie or donut chart, drawn as slices. Such as "pie", "as a pie", "pizza", "em pizza", "gráfico de tarta", "Tortendiagramm", "en camembert", "円グラフ", "饼图", "دائري", "donut".',
+    bars: 'A bar or column chart. Such as "in bars", "em barras", "en barras", "als Balken", "en barres", "棒グラフ", "柱状图", "أعمدة".',
+    line: 'A line chart. Such as "as a line", "em linha", "gráfico de líneas", "Liniendiagramm", "en courbe", "折れ線グラフ", "折线图", "خطي".',
+    area: 'An area chart, drawn as a filled area. Such as "as an area chart", "gráfico de área", "Flächendiagramm", "en aires", "面グラフ", "面积图", "مساحي".',
     stacked:
-        'Stacked bars or columns: the parts piled on each other, month by month. Such as "stacked by month", "barras empilhadas", "apilado por mes", "gestapelt nach Monat", "積み上げ棒グラフ", "أعمدة مكدسة".',
-    area: 'An area chart: amounts over time drawn as a filled area. Such as "as an area chart", "gráfico de área", "Flächendiagramm", "面グラフ", "مخطط مساحي".',
-    compare:
-        'This period side by side with the previous or an earlier one: versus last year, against the month before, year over year, how each part changed since then. Such as "versus last year by category", "comparado com o ano anterior", "frente al año pasado", "im Vergleich zum Vorjahr", "前年と比較", "مقارنة بالعام الماضي". Not two different things in the same period, such as income versus expenses.',
+        'Stacked bars or columns, the parts piled on each other. Such as "stacked", "empilhadas", "apiladas", "gestapelt", "empilées", "積み上げ", "堆积", "مكدسة".',
     waterfall:
-        'A waterfall or bridge: from a starting amount, step by step, to the final one, such as from revenue through each expense to profit, or from the opening to the closing balance. Such as "bridge from revenue to profit", "cascata", "gráfico de cascada", "Wasserfalldiagramm", "ウォーターフォール", "مخطط شلالي".',
-    table: 'No chart: only the numbers, a table or a list. Such as "just the numbers", "só a tabela", "sin gráfico", "nur die Zahlen", "表だけ", "الأرقام فقط".',
-    [UNSPECIFIED]:
-        '`request` names no chart, asks for no table only and compares with no earlier period.',
-} as const satisfies Record<Exclude<ChartPreference, 'auto'> | typeof UNSPECIFIED, string>;
+        'A waterfall or bridge chart. Such as "waterfall", "bridge", "em cascata", "en cascada", "Wasserfalldiagramm", "en cascade", "ウォーターフォール", "瀑布图", "شلالي".',
+    table: 'No chart, only the numbers: a table or a list. Such as "just the numbers", "só a tabela", "sin gráfico", "nur die Zahlen", "表だけ", "只要表格", "الأرقام فقط".',
+    [NO_CHART]: '`request` names no kind of chart and does not ask for the numbers alone.',
+} as const satisfies Record<ChartWord | typeof NO_CHART, string>;
 
 const LANGUAGE_INSTRUCTIONS = 'In which language is `request` written?';
 
@@ -118,9 +137,11 @@ type Criteria = Record<string, string>;
 export type IntentQuestions = {
     root: ChoiceQuestion<Criteria>;
     period: ChoiceQuestion<Criteria>;
-    monthly: NoulQuestion;
-    view: ChoiceQuestion<typeof VIEW_CRITERIA>;
-    chart: ChoiceQuestion<typeof CHART_CRITERIA>;
+    over_time: NoulQuestion;
+    composition: NoulQuestion;
+    versus_earlier: NoulQuestion;
+    bridge: NoulQuestion;
+    chart_named: ChoiceQuestion<typeof CHART_NAMED_CRITERIA>;
     language: ChoiceQuestion<Criteria>;
 };
 
@@ -149,12 +170,14 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                     instructions: PERIOD_INSTRUCTIONS,
                     criteria: periodCriteria(snapshot),
                 },
-                monthly: { type: 'noul', instructions: MONTHLY_INSTRUCTIONS },
-                view: { type: 'choice', instructions: VIEW_INSTRUCTIONS, criteria: VIEW_CRITERIA },
-                chart: {
+                over_time: { type: 'noul', instructions: OVER_TIME_INSTRUCTIONS },
+                composition: { type: 'noul', instructions: COMPOSITION_INSTRUCTIONS },
+                versus_earlier: { type: 'noul', instructions: VERSUS_EARLIER_INSTRUCTIONS },
+                bridge: { type: 'noul', instructions: BRIDGE_INSTRUCTIONS },
+                chart_named: {
                     type: 'choice',
-                    instructions: CHART_INSTRUCTIONS,
-                    criteria: CHART_CRITERIA,
+                    instructions: CHART_NAMED_INSTRUCTIONS,
+                    criteria: CHART_NAMED_CRITERIA,
                 },
                 language: {
                     type: 'choice',

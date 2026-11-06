@@ -3,6 +3,7 @@ import { ReportSpecSchema, VIEW_KINDS } from 'report-shared/catalog';
 import { supportedLanguage } from 'report-shared/languages';
 import type { ZodType } from 'zod';
 import { CHART_KINDS, CHART_RULES, UNFIT_REASON_CODES } from '../services/report.js';
+import { SHOW_RULE_NAMES } from '../services/intent-resolver.js';
 import { ReportIntentSchema } from '../services/report-intent.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -115,11 +116,11 @@ const IntentSchema = ReportIntentSchema.extend({
     monthly: shape.monthly.meta({ description: 'Show the period month by month.' }),
     view: shape.view.meta({
         description:
-            'The layout asked for: `trend` (over time), `breakdown` (by subgroups and Accounts) or `total` (the amount alone). Left out, the report picks one.',
+            'The layout asked for: `trend` (over time), `breakdown` (what makes up the amount: a donut of a few parts, a pie of more, else ranked bars) or `total` (the amount alone). Left out, the report picks one.',
     }),
     chart: shape.chart.meta({
         description:
-            'The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).',
+            'The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).',
         example: 'pie',
     }),
     hashtags: shape.hashtags.meta({
@@ -192,8 +193,56 @@ const ViewKindSchema = z.enum(VIEW_KINDS).openapi({
     example: 'donut',
 });
 
+const ChoiceJudgmentSchema = z.object({
+    answer: z.string().openapi({ description: 'The option chosen.' }),
+    score: z.number().min(0).max(1).openapi({ description: 'How sure the model is of it.' }),
+});
+
+const YesNoJudgmentSchema = z.object({
+    answer: z.boolean().openapi({ description: 'Yes, from the threshold of the question on.' }),
+    score: z.number().min(0).max(1).openapi({ description: 'The probability of yes.' }),
+});
+
 export const ReportTraceSchema = z
     .object({
+        judgments: z
+            .object({
+                root: ChoiceJudgmentSchema.openapi({
+                    description: 'The group asked about, by name, `net-result` or `none`.',
+                }),
+                period: ChoiceJudgmentSchema.openapi({
+                    description: 'The period asked about, or `unspecified`.',
+                }),
+                over_time: YesNoJudgmentSchema.openapi({
+                    description: 'Whether the request asks how the amounts change over time.',
+                }),
+                composition: YesNoJudgmentSchema.openapi({
+                    description: 'Whether it asks what makes up the amount.',
+                }),
+                versus_earlier: YesNoJudgmentSchema.openapi({
+                    description: 'Whether it compares with an earlier period.',
+                }),
+                bridge: YesNoJudgmentSchema.openapi({
+                    description: 'Whether it asks how one amount leads to another, step by step.',
+                }),
+                chart_named: ChoiceJudgmentSchema.openapi({
+                    description:
+                        'The chart word it uses: `pie`, `bars`, `line`, `area`, `stacked`, `waterfall`, `table` (just the numbers) or `none`.',
+                }),
+                language: ChoiceJudgmentSchema.openapi({
+                    description: 'The language it is written in.',
+                }),
+            })
+            .optional()
+            .openapi({
+                description:
+                    'With a `prompt`: what Bkper AI recognized in it, each answer with its score. Code decides the report from these.',
+            }),
+        rule: z.enum(SHOW_RULE_NAMES).optional().openapi({
+            description:
+                'With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).',
+            example: 'named',
+        }),
         facts: z
             .object({
                 rows: z.int().min(0).openapi({
@@ -268,7 +317,7 @@ export const ReportTraceSchema = z
     })
     .openapi('ReportTrace', {
         description:
-            'How the report chose its charts, decided by code from the facts of its numbers.',
+            'How the report chose its charts: the judgments of the request and the rule they fired, then the facts of its numbers, from which code decides which charts fit.',
     });
 
 export const ReportResponseSchema = z

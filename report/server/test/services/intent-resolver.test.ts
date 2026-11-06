@@ -2,27 +2,44 @@ import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { THRESHOLDS, buildIntentRequest } from '../../src/services/intent-questions';
 import {
+    SHOW_RULES,
+    SHOW_RULE_NAMES,
+    decideShown,
     extractHashtags,
     readIntent,
     resolveIntent,
     type IntentAnswers,
+    type Judgments,
 } from '../../src/services/intent-resolver';
 import type { Snapshot } from '../../src/services/snapshot';
 import { ServerTiming } from '../../src/services/timing';
 import { fixtureSnapshot } from '../fixtures/snapshot-book';
 
 const sure = (choice: string) => ({ choice, confidence: 0.99 });
+const yes = { noul: 0.9 };
+const no = { noul: 0.1 };
 
 function answers(overrides: Partial<IntentAnswers> = {}): IntentAnswers {
     return {
         root: sure('Expenses'),
         period: sure('2026-Q3'),
-        monthly: { noul: 0.1 },
-        view: sure('unspecified'),
-        chart: sure('unspecified'),
+        over_time: no,
+        composition: no,
+        versus_earlier: no,
+        bridge: no,
+        chart_named: sure('none'),
         language: sure('pt'),
         ...overrides,
     };
+}
+
+/** The intent of `overrides`, which must be a report. */
+async function intentOf(overrides: Partial<IntentAnswers>, snapshot?: Snapshot) {
+    const result = await read(overrides, snapshot);
+    if (!result.recognized) {
+        throw new Error('Not a report');
+    }
+    return result.intent;
 }
 
 async function read(
@@ -56,29 +73,77 @@ describe('extractHashtags', () => {
     });
 });
 
+const NONE: Judgments = {
+    overTime: false,
+    composition: false,
+    versusEarlier: false,
+    bridge: false,
+};
+
+describe('decideShown', () => {
+    it('applies its rules in order, the first that applies deciding', () => {
+        expect(SHOW_RULES.map(entry => entry.rule)).toEqual([...SHOW_RULE_NAMES]);
+        const unnamed: Judgments = {
+            overTime: true,
+            composition: true,
+            versusEarlier: true,
+            bridge: true,
+        };
+        expect(decideShown({ ...unnamed, chartNamed: 'pie' })).toEqual({
+            rule: 'named',
+            chart: 'pie',
+        });
+        expect(decideShown(unnamed)).toEqual({ rule: 'bridge', chart: 'waterfall' });
+        expect(decideShown({ ...unnamed, bridge: false })).toEqual({
+            rule: 'versus_earlier',
+            chart: 'compare',
+        });
+        const overTime = { ...NONE, overTime: true };
+        expect(decideShown({ ...overTime, composition: true })).toEqual({
+            rule: 'over_time_composition',
+            chart: 'stacked',
+        });
+        expect(decideShown(overTime)).toEqual({ rule: 'over_time', view: 'trend' });
+        expect(decideShown({ ...NONE, composition: true })).toEqual({
+            rule: 'composition',
+            view: 'breakdown',
+        });
+        expect(decideShown(NONE)).toEqual({ rule: 'auto' });
+    });
+
+    it('prefers the chart each chart word names', () => {
+        const named = (chartNamed: Judgments['chartNamed'], more: Partial<Judgments> = {}) =>
+            decideShown({ ...NONE, ...more, chartNamed }).chart;
+        for (const word of ['pie', 'line', 'area', 'stacked', 'waterfall', 'table'] as const) {
+            expect(named(word)).toBe(word);
+        }
+        // Bars of the months, of a period against an earlier one, or of the parts.
+        expect(named('bars', { overTime: true, versusEarlier: true })).toBe('bar');
+        expect(named('bars', { versusEarlier: true })).toBe('compare');
+        expect(named('bars', { composition: true })).toBe('ranked-bar');
+    });
+});
+
 describe('readIntent', () => {
     it('reads a confident answer as an intent with the root id', async () => {
         expect(await read()).toEqual({
             recognized: true,
             intent: { root: 'g-expenses', period: '2026-Q3', monthly: false },
             language: 'pt',
+            trace: expect.objectContaining({ rule: 'auto' }),
         });
     });
 
-    it('reads the net result, months, the view and hashtags', async () => {
+    it('reads the net result, change over time and hashtags', async () => {
         const book = await fixtureSnapshot();
         const { roots } = buildIntentRequest('request', book);
         const result = readIntent(
-            answers({
-                root: sure('net-result'),
-                monthly: { noul: THRESHOLDS.monthly },
-                view: sure('trend'),
-            }),
+            answers({ root: sure('net-result'), over_time: { noul: THRESHOLDS.over_time } }),
             roots,
             book,
             ['travel']
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             recognized: true,
             intent: {
                 root: 'net-result',
@@ -91,29 +156,93 @@ describe('readIntent', () => {
         });
     });
 
-    it('reads a sure chart, and leaves an unsure or unspecified one to the rules', async () => {
-        for (const chart of ['pie', 'stacked', 'area', 'compare', 'waterfall', 'table']) {
-            expect(await read({ chart: sure(chart) })).toMatchObject({ intent: { chart } });
-        }
-        const unsure = await read({
-            chart: { choice: 'pie', confidence: THRESHOLDS.chart - 0.01 },
+    it('traces every judgment, with its answer and score, and the rule that fired', async () => {
+        const result = await read({
+            over_time: { noul: 0.7 },
+            composition: { noul: 0.6 },
+            chart_named: { choice: 'pie', confidence: THRESHOLDS.chart_named - 0.01 },
         });
-        expect(unsure).toMatchObject({ recognized: true });
-        expect(unsure.recognized && unsure.intent).not.toHaveProperty('chart');
-        const unspecified = await read();
-        expect(unspecified.recognized && unspecified.intent).not.toHaveProperty('chart');
+        expect(result).toMatchObject({
+            trace: {
+                judgments: {
+                    root: { answer: 'Expenses', score: 0.99 },
+                    period: { answer: '2026-Q3', score: 0.99 },
+                    over_time: { answer: true, score: 0.7 },
+                    composition: { answer: true, score: 0.6 },
+                    versus_earlier: { answer: false, score: 0.1 },
+                    bridge: { answer: false, score: 0.1 },
+                    chart_named: { answer: 'pie', score: THRESHOLDS.chart_named - 0.01 },
+                    language: { answer: 'pt', score: 0.99 },
+                },
+                rule: 'over_time_composition',
+            },
+            intent: { chart: 'stacked', monthly: true },
+        });
     });
 
-    it('reads a trend period for a chart by month when no period is named', async () => {
+    it('reads a sure chart word, and leaves an unsure one or none to the other rules', async () => {
+        expect(await intentOf({ chart_named: sure('pie') })).toMatchObject({ chart: 'pie' });
+        expect(await intentOf({ chart_named: sure('table') })).toMatchObject({ chart: 'table' });
+        const unsure = await intentOf({
+            chart_named: { choice: 'pie', confidence: THRESHOLDS.chart_named - 0.01 },
+        });
+        expect(unsure).not.toHaveProperty('chart');
+        expect(await intentOf({})).not.toHaveProperty('chart');
+        expect(await intentOf({ chart_named: sure('unknown') })).not.toHaveProperty('chart');
+    });
+
+    it('reads each judgment from its threshold', async () => {
+        const at = (question: keyof typeof THRESHOLDS) => ({ noul: THRESHOLDS[question] });
+        const below = (question: keyof typeof THRESHOLDS) => ({
+            noul: THRESHOLDS[question] - 0.01,
+        });
+        expect(await intentOf({ bridge: at('bridge') })).toMatchObject({ chart: 'waterfall' });
+        expect(await intentOf({ bridge: below('bridge') })).not.toHaveProperty('chart');
+        expect(await intentOf({ versus_earlier: at('versus_earlier') })).toMatchObject({
+            chart: 'compare',
+        });
+        expect(await intentOf({ composition: at('composition') })).toMatchObject({
+            view: 'breakdown',
+        });
+        expect(await intentOf({ composition: below('composition') })).not.toHaveProperty('view');
+        expect(await intentOf({ over_time: below('over_time') })).toMatchObject({
+            monthly: false,
+        });
+    });
+
+    it('shows the months over time, whichever rule chose the chart', async () => {
+        expect(await intentOf({ over_time: yes, versus_earlier: yes })).toMatchObject({
+            monthly: true,
+            chart: 'compare',
+        });
+        expect(await intentOf({ over_time: yes, chart_named: sure('bars') })).toMatchObject({
+            monthly: true,
+            chart: 'bar',
+        });
+    });
+
+    it('reads a trend period over time, or for a chart by month, when no period is named', async () => {
         const unnamed = { period: sure('unspecified') };
-        expect(await read({ ...unnamed, chart: sure('stacked') })).toMatchObject({
-            intent: { period: 'last_12_months', chart: 'stacked' },
+        expect(await intentOf({ ...unnamed, over_time: yes })).toMatchObject({
+            period: 'last_12_months',
+            monthly: true,
         });
-        expect(await read({ ...unnamed, chart: sure('area') })).toMatchObject({
-            intent: { period: 'last_12_months', chart: 'area' },
+        for (const word of ['stacked', 'area', 'line']) {
+            expect(await intentOf({ ...unnamed, chart_named: sure(word) })).toMatchObject({
+                period: 'last_12_months',
+                chart: word,
+            });
+        }
+        expect(await intentOf({ ...unnamed, chart_named: sure('pie') })).toMatchObject({
+            period: 'this_year',
+            chart: 'pie',
         });
-        expect(await read({ ...unnamed, chart: sure('pie') })).toMatchObject({
-            intent: { period: 'this_year', chart: 'pie' },
+        expect(await intentOf({ ...unnamed, chart_named: sure('bars') })).toMatchObject({
+            period: 'this_year',
+            chart: 'ranked-bar',
+        });
+        expect(await intentOf({ ...unnamed, composition: yes })).toMatchObject({
+            period: 'this_year',
         });
     });
 
@@ -124,14 +253,14 @@ describe('readIntent', () => {
         ).toEqual({ recognized: false, language: 'pt' });
     });
 
-    it('leaves out an unsure language and an unsure view', async () => {
+    it('leaves out an unsure language', async () => {
         const result = await read({
             language: { choice: 'pt', confidence: THRESHOLDS.language - 0.01 },
-            view: { choice: 'total', confidence: THRESHOLDS.view - 0.01 },
         });
         expect(result).toEqual({
             recognized: true,
             intent: { root: 'g-expenses', period: '2026-Q3', monthly: false },
+            trace: expect.anything(),
         });
     });
 
@@ -167,15 +296,12 @@ describe('readIntent', () => {
 
     it('reads a longer default period for a trend', async () => {
         const unnamed = { period: sure('unspecified') };
-        const monthly = { ...unnamed, monthly: { noul: 0.9 } };
-        expect(await read(monthly)).toMatchObject({
+        const overTime = { ...unnamed, over_time: yes };
+        expect(await read(overTime)).toMatchObject({
             intent: { period: 'last_12_months', monthly: true },
         });
-        expect(await read({ ...unnamed, view: sure('trend') })).toMatchObject({
-            intent: { period: 'last_12_months', view: 'trend' },
-        });
         expect(
-            await read({ ...monthly, root: sure('Assets') }, await laterSnapshot())
+            await read({ ...overTime, root: sure('Assets') }, await laterSnapshot())
         ).toMatchObject({ intent: { period: '2026' } });
     });
 
@@ -184,9 +310,9 @@ describe('readIntent', () => {
         expect(await read(unnamed, await laterSnapshot())).toMatchObject({
             intent: { period: 'today' },
         });
-        expect(
-            await read({ ...unnamed, monthly: { noul: 0.9 } }, await laterSnapshot())
-        ).toMatchObject({ intent: { period: 'last_12_months' } });
+        expect(await read({ ...unnamed, over_time: yes }, await laterSnapshot())).toMatchObject({
+            intent: { period: 'last_12_months' },
+        });
     });
 });
 
@@ -209,9 +335,11 @@ function answerBody() {
         answers: {
             root: choice('Revenue'),
             period: choice('2026-10'),
-            monthly: { type: 'noul', noul: 0.02 },
-            view: choice('total'),
-            chart: choice('unspecified'),
+            over_time: { type: 'noul', noul: 0.02 },
+            composition: { type: 'noul', noul: 0.8 },
+            versus_earlier: { type: 'noul', noul: 0.03 },
+            bridge: { type: 'noul', noul: 0.01 },
+            chart_named: choice('none'),
             language: choice('en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },
@@ -235,16 +363,17 @@ describe('resolveIntent', () => {
             timing,
         });
 
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             recognized: true,
             intent: {
                 root: 'g-revenue',
                 period: '2026-10',
                 monthly: false,
-                view: 'total',
+                view: 'breakdown',
                 hashtags: ['extra'],
             },
             language: 'en',
+            trace: { rule: 'composition' },
         });
         expect(requests).toHaveLength(1);
         expect(requests[0].url).toBe('https://ai.bkper.app/v1/systemone');

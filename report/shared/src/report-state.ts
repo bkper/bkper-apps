@@ -50,6 +50,10 @@ const CHART_CODES: Record<ChartPreference, string> = {
     compare: 'c',
     waterfall: 'w',
     table: 't',
+    bar: 'b',
+    line: 'l',
+    'ranked-bar': 'k',
+    donut: 'd',
 };
 
 const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';

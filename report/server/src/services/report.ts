@@ -35,7 +35,12 @@ import {
     type IsoMonth,
     type ReportNature,
 } from './periods.js';
-import { NET_RESULT_ROOT, type ChartPreference, type ReportIntent } from './report-intent.js';
+import {
+    NET_RESULT_ROOT,
+    type ChartPreference,
+    type ReportIntent,
+    type ReportView,
+} from './report-intent.js';
 import {
     periodAmount,
     positionAmount,
@@ -345,7 +350,7 @@ export function buildReport(
             ? `before:${before}`
             : `after:${after} before:${before}`;
     const query = `${filter} ${dates}`;
-    const view = intent.view ?? (intent.monthly ? 'trend' : 'breakdown');
+    const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
     const charts = reportCharts(intent.chart ?? 'auto', view, {
         nature,
         root: report.root,
@@ -735,6 +740,10 @@ function isFit(fit: Fit | undefined): fit is { chart: ReportChart } {
  * parts drawn another way, then the same months.
  */
 const CLOSEST: Record<Exclude<ChartPreference, 'auto' | 'table'>, ViewKind[]> = {
+    bar: ['line', 'area', 'ranked-bar', 'donut'],
+    line: ['bar', 'area', 'ranked-bar', 'donut'],
+    'ranked-bar': ['bar', 'line', 'donut'],
+    donut: ['pie', 'ranked-bar'],
     pie: ['donut', 'ranked-bar'],
     stacked: ['bar', 'line', 'area', 'donut', 'ranked-bar'],
     area: ['bar', 'line', 'stacked', 'donut', 'ranked-bar'],
@@ -748,21 +757,26 @@ const CLOSEST: Record<Exclude<ChartPreference, 'auto' | 'table'>, ViewKind[]> = 
  */
 function reportCharts(
     preference: ChartPreference,
-    view: 'trend' | 'breakdown' | 'total',
+    view: ReportView | undefined,
     input: ChartInput
 ): { chart: ReportChart; charts: ReportCharts } {
+    // Each nature has its own chart by month; the other one only when preferred.
     const fits = new Map(
-        VIEW_KINDS.filter(kind => kind !== otherByMonth(input.nature)).map(kind => [
-            kind,
-            fitChart(kind, input),
-        ])
+        VIEW_KINDS.filter(kind => kind !== otherByMonth(input.nature) || kind === preference).map(
+            kind => [kind, fitChart(kind, input)]
+        )
     );
     const fitting = (kind: ViewKind): ReportChart | undefined => {
         const fit = fits.get(kind);
         return isFit(fit) ? fit.chart : undefined;
     };
     const views = VIEW_KINDS.flatMap(kind => fitting(kind) ?? []);
-    const chosen = mainChoice(preference, fits, () => rulesKind(view, input), input.months.length);
+    const chosen = mainChoice(
+        preference,
+        fits,
+        () => rulesKind(view, input, fits),
+        input.months.length
+    );
     const main = fitting(chosen.main);
     if (!main) {
         throw new Error(`The main chart does not fit: ${chosen.main}`);
@@ -829,11 +843,16 @@ function chartFacts({ nature, root, net, rows, months, total }: ChartInput): Cha
 }
 
 /**
- * The rules' chart: by month for a trend (bars for activity, a line for positions), else a
- * breakdown chart (a donut of a few parts of one whole, else ranked bars), else the table.
+ * The rules' chart: by month for a trend (bars for activity, a line for positions); else, for a
+ * composition asked for, a donut of a few parts, a pie of more, else ranked bars; else, with no
+ * view named, a donut of a few parts of one whole, else ranked bars; else the table.
  */
-function rulesKind(view: 'trend' | 'breakdown' | 'total', input: ChartInput): ViewKind {
-    const { nature, root, rows, series, months } = input;
+function rulesKind(
+    view: ReportView | undefined,
+    input: ChartInput,
+    fits: ReadonlyMap<ViewKind, Fit>
+): ViewKind {
+    const { nature, series, months } = input;
     if (view === 'trend' && months.length > 0) {
         // A chart whose every value is zero shows nothing, as charts leave out empty rows.
         if (!hasValues(series)) {
@@ -841,14 +860,14 @@ function rulesKind(view: 'trend' | 'breakdown' | 'total', input: ChartInput): Vi
         }
         return nature === 'activity' ? 'bar' : 'line';
     }
-    // Charts draw only rows with an amount in the period.
-    const drawn = rows.filter(hasAmount);
-    if (view === 'breakdown' && drawn.length >= 2) {
-        // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
-        const donut = drawn.length <= MAX_DONUT_ROWS && isComposition(drawn, root.type);
-        return donut ? 'donut' : 'ranked-bar';
-    }
-    return 'table';
+    // Like Bkper charts: a donut or a pie only shows parts of one type that add up to a whole.
+    const candidates: ViewKind[] =
+        view === 'breakdown'
+            ? ['donut', 'pie', 'ranked-bar']
+            : view === undefined
+              ? ['donut', 'ranked-bar']
+              : [];
+    return candidates.find(kind => isFit(fits.get(kind))) ?? 'table';
 }
 
 /** A chart of the report, or the reason it does not fit. */

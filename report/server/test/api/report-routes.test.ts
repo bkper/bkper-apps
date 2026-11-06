@@ -69,9 +69,11 @@ function jevResponse(answers: JevAnswers): Response {
         answers: {
             root: choice(answers.root),
             period: choice(answers.period ?? 'unspecified'),
-            monthly: { type: 'noul', noul: 0.01 },
-            view: choice('unspecified'),
-            chart: choice('unspecified'),
+            over_time: { type: 'noul', noul: 0.01 },
+            composition: { type: 'noul', noul: 0.01 },
+            versus_earlier: { type: 'noul', noul: 0.01 },
+            bridge: { type: 'noul', noul: 0.01 },
+            chart_named: choice('none'),
             language: choice(answers.language ?? 'en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },
@@ -260,7 +262,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             },
         });
         const invalid = await post(test, {
-            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'donut' },
+            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'bars' },
         });
         expect(invalid.status).toBe(400);
     });

@@ -1049,6 +1049,89 @@ describe('buildReport: chart views', () => {
     });
 });
 
+describe('buildReport: every chart a person may prefer', () => {
+    it('draws bars or a line by month as preferred, for activity and positions alike', async () => {
+        const line = await report(intent('g-expenses', '2026', { monthly: true, chart: 'line' }));
+        expect(line.chart).toMatchObject({ kind: 'line', series: [{ id: 'g-expenses' }] });
+        expect(line.charts).toMatchObject({ main: 'line', rule: 'preference' });
+        expect(kinds(line)).toEqual(expect.arrayContaining(['bar', 'line']));
+        const bars = await report(intent('g-assets', '2026', { monthly: true, chart: 'bar' }));
+        expect(bars.chart).toMatchObject({ kind: 'bar', series: [{ id: 'g-assets' }] });
+        expect(bars.charts).toMatchObject({ main: 'bar', rule: 'preference' });
+        // Unpreferred, each nature offers its own chart by month only.
+        const plain = await report(intent('g-expenses', '2026', { monthly: true }));
+        expect(kinds(plain)).not.toContain('line');
+    });
+
+    it('draws ranked bars and a donut as preferred', async () => {
+        const ranked = await report(intent('g-expenses', 'last_month', { chart: 'ranked-bar' }));
+        expect(ranked.chart).toEqual({ kind: 'ranked-bar', rows: ['a-rent', 'a-food'] });
+        const donut = await report(intent('g-expenses', 'last_month', { chart: 'donut' }));
+        expect(donut.chart).toEqual({ kind: 'donut', rows: ['a-rent', 'a-food'] });
+        expect(donut.charts.rule).toBe('preference');
+    });
+
+    it('falls from a preference that does not fit to the closest chart, with its reason', async () => {
+        const few = await report(intent('g-revenue', '2026', { chart: 'ranked-bar' }));
+        expect(few.charts.unfit).toEqual({ kind: 'ranked-bar', reason: { code: 'few_parts' } });
+        expect(few.charts).toMatchObject({ main: 'bar', rule: 'closest' });
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+            '-186.74',
+        ]);
+        const donut = await report(
+            intent('g-expenses', 'last_month', { chart: 'donut' }),
+            snapshot
+        );
+        expect(donut.charts.unfit).toEqual({
+            kind: 'donut',
+            reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
+        });
+        expect(donut.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
+        const today = await report(intent('g-assets', 'today', { chart: 'bar' }));
+        expect(today.charts.unfit).toBeUndefined();
+        expect(today.charts).toMatchObject({ main: 'bar', rule: 'preference' });
+    });
+});
+
+describe('buildReport: a composition asked for', () => {
+    it('draws a donut of a few positive parts', async () => {
+        const data = await report(intent('g-expenses', 'last_month', { view: 'breakdown' }));
+        expect(data.chart.kind).toBe('donut');
+        expect(data.charts.rule).toBe('rules');
+    });
+
+    it('draws a pie of more parts than a donut holds, where the rules alone rank them', async () => {
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+            '6',
+            '5',
+            '4',
+            '3',
+            '2',
+        ]);
+        const asked = await report(
+            intent('g-expenses', 'last_month', { view: 'breakdown' }),
+            snapshot
+        );
+        expect(asked.charts.facts).toMatchObject({ rows: 7, negative: 0 });
+        expect(asked.chart.kind).toBe('pie');
+        const unasked = await report(intent('g-expenses', 'last_month'), snapshot);
+        expect(unasked.chart.kind).toBe('ranked-bar');
+    });
+
+    it('ranks parts that are no slices of one whole in bars, with no reason given', async () => {
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+            '-186.74',
+        ]);
+        const data = await report(
+            intent('g-expenses', 'last_month', { view: 'breakdown' }),
+            snapshot
+        );
+        expect(data.chart).toMatchObject({ kind: 'ranked-bar' });
+        expect(data.chart.fallback).toBeUndefined();
+        expect(data.charts.unfit).toBeUndefined();
+    });
+});
+
 /** What in a view does not add up to its parent: the root, or each side of a net result. */
 function viewProblems(data: ReportData, view: ReportChart): string[] {
     const problems: string[] = [];

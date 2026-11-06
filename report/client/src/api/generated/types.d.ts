@@ -313,16 +313,16 @@ export interface components {
             /** @description Show the period month by month. */
             monthly: boolean;
             /**
-             * @description The layout asked for: `trend` (over time), `breakdown` (by subgroups and Accounts) or `total` (the amount alone). Left out, the report picks one.
+             * @description The layout asked for: `trend` (over time), `breakdown` (what makes up the amount: a donut of a few parts, a pie of more, else ranked bars) or `total` (the amount alone). Left out, the report picks one.
              * @enum {string}
              */
             view?: "trend" | "breakdown" | "total";
             /**
-             * @description The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).
+             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).
              * @example pie
              * @enum {string}
              */
-            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table";
+            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             /**
              * @description Only transactions with all these hashtags, without `#`.
              * @example [
@@ -595,8 +595,73 @@ export interface components {
             months: string[];
             children: components["schemas"]["BreakdownRow"][];
         };
-        /** @description How the report chose its charts, decided by code from the facts of its numbers. */
+        /** @description How the report chose its charts: the judgments of the request and the rule they fired, then the facts of its numbers, from which code decides which charts fit. */
         ReportTrace: {
+            /** @description With a `prompt`: what Bkper AI recognized in it, each answer with its score. Code decides the report from these. */
+            judgments?: {
+                /** @description The group asked about, by name, `net-result` or `none`. */
+                root: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                };
+                /** @description The period asked about, or `unspecified`. */
+                period: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                };
+                /** @description Whether the request asks how the amounts change over time. */
+                over_time: {
+                    /** @description Yes, from the threshold of the question on. */
+                    answer: boolean;
+                    /** @description The probability of yes. */
+                    score: number;
+                };
+                /** @description Whether it asks what makes up the amount. */
+                composition: {
+                    /** @description Yes, from the threshold of the question on. */
+                    answer: boolean;
+                    /** @description The probability of yes. */
+                    score: number;
+                };
+                /** @description Whether it compares with an earlier period. */
+                versus_earlier: {
+                    /** @description Yes, from the threshold of the question on. */
+                    answer: boolean;
+                    /** @description The probability of yes. */
+                    score: number;
+                };
+                /** @description Whether it asks how one amount leads to another, step by step. */
+                bridge: {
+                    /** @description Yes, from the threshold of the question on. */
+                    answer: boolean;
+                    /** @description The probability of yes. */
+                    score: number;
+                };
+                /** @description The chart word it uses: `pie`, `bars`, `line`, `area`, `stacked`, `waterfall`, `table` (just the numbers) or `none`. */
+                chart_named: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                };
+                /** @description The language it is written in. */
+                language: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                };
+            };
+            /**
+             * @description With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).
+             * @example named
+             * @enum {string}
+             */
+            rule?: "named" | "bridge" | "versus_earlier" | "over_time_composition" | "over_time" | "composition" | "auto";
             /** @description The facts of the report’s numbers that decide which charts fit. */
             facts: {
                 /**

@@ -6,3 +6,6 @@ client/src/api/generated/
 env.d.ts
 .dev.vars.example
 server/test/api/openapi.snapshot.json
+
+# Generated report specs (scripts/generate-report-specs.ts)
+client/dev/specs/

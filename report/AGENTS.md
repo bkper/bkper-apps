@@ -237,6 +237,19 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 `npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...` times the suggestion-intent, prompt and hashtag paths of a running app (default the local Worker) from `Server-Timing`, warm and, with `--cold`, after the snapshot cache expires; read-only, with your `bkper auth token`. Prompts vary so Bkper AI's 15-minute cache of identical requests is not measured, but a rerun within 15 minutes repeats them.
 
+## Report renderer
+
+`<report-view>` (`client/src/report/`, entry `index.ts`) renders a report spec with Lit and Web Awesome Pro: answer first, then the chart, the breakdown table and the source, in the spec's order, `locale` and `dir`. Set its `spec` property.
+
+- Self-contained: no app state, no network, and only type imports from `report-shared/catalog` (its validation code is large; the server validates every spec). It registers the Web Awesome charts and sparkline it uses; the page provides the Web Awesome theme and `@bkper/web-design` tokens. So the web app and a standalone report file can bundle it alone.
+- `format.ts` formats the spec's decimal strings exactly with `Intl` (never through floats); `ReportFormat.plot` gives the numbers charts draw. Charts' tooltips show the exact amounts.
+- `chart-config.ts` builds the Chart.js configuration of `wa-bar-chart` (by month, or ranked horizontal bars), `wa-line-chart` (positions by month) and `wa-doughnut-chart`. Colors are the Bkper type color tokens (`--bkper-color-<color>-<low|medium|high>`, the palette of Bkper's charts), so they follow the light or dark theme; a donut shades items of one color from high to low.
+- The breakdown is a plain table with disclosure buttons, not `wa-data-grid`: the grid would more than double the renderer's size (about 600 KB minified) and it would hide the row hover the chart follows. `wa-icon` fetches its SVGs, which a strict content security policy blocks, so the chevron is inline SVG.
+- Rows open in place when the spec binds `expandRow`. Hovering or focusing a row, or else the row opened last, highlights it in the chart: its top-level item in a breakdown chart, its series in a net result, or its months added to a chart by month; the rest fades. The table's swatches are the legend of breakdown charts.
+- Events (`events.ts`), bubbling and composed: `report-expand-row` (`{ rowId, expanded }`) and `report-open-in-bkper` (`{ url }`, cancelable: cancel it to navigate another way). The link to Bkper shows only when the spec binds `openInBkper`.
+
+`http://localhost:5207/dev/report.html` is a development-only gallery of recorded specs (`?only=<id>,…`, `?width=<css length>`; the `bkper_theme` cookie picks light or dark). `npx tsx scripts/generate-report-specs.ts` rebuilds those specs (`client/dev/specs/*.json`, which the renderer tests read) with the real report and spec builders from made-up Books shaped like recorded payloads: `scripts/fixtures/studio-book.ts`, a balanced design studio, and the server test Book. Rerun it when the report data or the spec changes. With Book ids it reads live Books, read-only, into `client/dev/specs/local/`, which Git ignores so real Book data is never committed.
+
 ## Strings
 
 `shared/catalog/en.json` holds every UI and report string: key → `{ text, role, context, placeholders? }`. Placeholders are named, `{name}`, and each is documented in `placeholders`; a test enforces both. Write `context` for a translator who sees nothing else: where the string appears, what it means in Bkper, and how short it must be.
@@ -289,8 +302,9 @@ client/src/
 ├── state/         — Stores: the URL (route), Books, and their wiring (app-state)
 ├── auth/          — @bkper/web-auth session boundary
 ├── services/      — bkper-js orchestration for the browser
-└── api/           — Typed /api/v1 client and generated OpenAPI types
-client/dev/        — Development-only pages served by vite dev
+├── api/           — Typed /api/v1 client and generated OpenAPI types
+└── report/        — <report-view>: the self-contained report renderer
+client/dev/        — Development-only pages served by vite dev, and recorded report specs
 
 server/src/
 ├── index.ts      — Worker composition, middleware, health, static assets
@@ -330,6 +344,8 @@ shared/
 | Change live balance queries | `server/src/services/live-balances.ts`                 |
 | Add a Server-Timing metric | `server/src/services/timing.ts`                         |
 | Change the report spec     | `server/src/services/report-spec.ts`                    |
+| Change how reports render  | `client/src/report/`                                    |
+| Rebuild the recorded specs | `scripts/generate-report-specs.ts`                      |
 | Change report components   | `shared/src/catalog.ts`                                 |
 | Add or change a string     | `shared/catalog/en.json`                                |
 | Regenerate API types       | `npm run api`                                           |

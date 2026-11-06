@@ -6,7 +6,7 @@
  */
 import { REPORT_FILE_DATA_ID, type ReportFileData } from 'report-shared/report-file';
 import { plainClick, readHostReady } from '../bkper-host.js';
-import type { ReportView } from '../report/index.js';
+import { SELECT_CHART, type ReportView } from '../report/index.js';
 
 /** The Report app's id in Bkper, which a Book URL names to open it. */
 const REPORT_APP_ID = 'report';
@@ -52,12 +52,35 @@ export function startReportFile(
     const data: ReportFileData = JSON.parse(text);
     view.spec = data.spec;
     view.link = data.link;
+    // The link opens the chart chosen in the file; nothing else changes outside it.
+    view.addEventListener(SELECT_CHART, event => {
+        view.link = { ...data.link, url: chosenReport(data, event.detail.kind).url };
+    });
     if (page) followFileHost(page, document, data);
     return view;
 }
 
+/**
+ * The link to the report in the Report app, and its state, as the chart `kind` chosen in the
+ * file shows it: the file's own link and state for its main chart, or a kind without a state.
+ */
+export function chosenReport(
+    data: Pick<ReportFileData, 'link' | 'open'>,
+    kind?: string
+): { url: string; state?: string } {
+    const charts: Partial<Record<string, string>> = data.open?.charts ?? {};
+    const state = kind === undefined ? undefined : charts[kind];
+    if (!state) return { url: data.link.url, state: data.open?.state };
+    const url = new URL(data.link.url);
+    url.searchParams.set('state', state);
+    return { url: url.href, state };
+}
+
 /** The Book page that opens the Report app with a report's state, on the Bkper `origin`. */
-export function openInReportUrl(origin: string, open: NonNullable<ReportFileData['open']>): string {
+export function openInReportUrl(
+    origin: string,
+    open: Pick<NonNullable<ReportFileData['open']>, 'bookId' | 'state'>
+): string {
     const url = new URL(`/books/${encodeURIComponent(open.bookId)}/transactions`, origin);
     url.searchParams.set('app', REPORT_APP_ID);
     url.searchParams.set('appState', open.state);
@@ -69,8 +92,8 @@ export function openInReportUrl(origin: string, open: NonNullable<ReportFileData
  * (`bkper:host-ready`, as the Bkper Agent tells the files it shows), a plain click on the
  * file's link asks it to open the same report in the Report app in the Book, in place, instead
  * of a new tab. Until then, and for a report without state, the link stays a plain link. Only
- * the parent window's messages count, and only a click sends anything. Returns a function that
- * stops following.
+ * the parent window's messages count, and only a click sends anything. It opens the chart
+ * chosen in the file (`report-select-chart`). Returns a function that stops following.
  */
 export function followFileHost(
     page: FilePage,
@@ -79,7 +102,7 @@ export function followFileHost(
 ): () => void {
     const open = data.open;
     if (!open) return () => undefined;
-    const link = new URL(data.link.url).href;
+    let chosen = chosenReport(data);
     /** The Bkper origin to open, and the origin of the window that said so. */
     let host: { bkper: string; parent: string } | undefined;
     const onMessage = (event: Event) => {
@@ -102,18 +125,26 @@ export function followFileHost(
         const anchor = event
             .composedPath()
             .find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
-        if (anchor?.href !== link) return;
+        if (anchor?.href !== new URL(chosen.url).href) return;
         event.preventDefault();
+        const state = chosen.state ?? open.state;
         page.parent.postMessage(
-            { type: 'bkper:navigate', url: openInReportUrl(host.bkper, open) },
+            { type: 'bkper:navigate', url: openInReportUrl(host.bkper, { ...open, state }) },
             host.parent
         );
     };
+    const onSelectChart = (event: Event) => {
+        const detail: unknown = event instanceof CustomEvent ? event.detail : undefined;
+        const kind = isRecord(detail) && typeof detail.kind === 'string' ? detail.kind : undefined;
+        chosen = chosenReport(data, kind);
+    };
     page.addEventListener('message', onMessage);
     root.addEventListener('click', onClick);
+    root.addEventListener(SELECT_CHART, onSelectChart);
     return () => {
         page.removeEventListener('message', onMessage);
         root.removeEventListener('click', onClick);
+        root.removeEventListener(SELECT_CHART, onSelectChart);
     };
 }
 
@@ -125,4 +156,8 @@ function isWebOrigin(origin: string): boolean {
     } catch {
         return false;
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
 }

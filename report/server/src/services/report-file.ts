@@ -7,8 +7,10 @@
  * held in memory, with the validated spec and the link the renderer shows. Nothing is bundled
  * per request.
  */
-import type { ReportSpec } from 'report-shared/catalog';
+import type { ReportSpec, ViewKind } from 'report-shared/catalog';
 import { REPORT_FILE_DATA_ID, type ReportFileData } from 'report-shared/report-file';
+import type { ReportIntentData } from 'report-shared/report-intent';
+import { encodeReportState } from 'report-shared/report-state';
 import { REPORT_FILE_SCRIPT, REPORT_FILE_STYLE } from '../generated/report-file-bundle.js';
 
 export interface ReportFileBundle {
@@ -67,6 +69,32 @@ export function buildReportFile(
         '</html>',
         '',
     ].join('\n');
+}
+
+/**
+ * What opens the file's report in the Report app: the Book and the report's state, and the
+ * state of the same report as each other chart that fits, for a chart chosen in the file. None
+ * when the report's state does not fit; a chart whose state does not fit opens the report's.
+ */
+export function reportFileOpen(
+    bookId: string,
+    report: {
+        intent: ReportIntentData;
+        language: string;
+        charts: { fitting: ViewKind[]; main: ViewKind };
+    }
+): ReportFileData['open'] {
+    const { intent, language, charts } = report;
+    const state = encodeReportState({ intent, language });
+    if (!state) return undefined;
+    const others = charts.fitting.flatMap(kind => {
+        const chosen =
+            kind === charts.main
+                ? undefined
+                : encodeReportState({ intent: { ...intent, chart: kind }, language });
+        return chosen ? [[kind, chosen] as const] : [];
+    });
+    return { bookId, state, ...(others.length ? { charts: Object.fromEntries(others) } : {}) };
 }
 
 function withoutOpenInBkper(spec: ReportSpec): ReportSpec {

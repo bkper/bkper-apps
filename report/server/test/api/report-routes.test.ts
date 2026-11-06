@@ -323,6 +323,16 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         // Where the Agent lets it, the file opens the same report in the Report app in the Book.
         expect(data.open?.bookId).toBe(BOOK);
         expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+        // A chart chosen in the file opens as that chart: each other chart that fits has a state.
+        const choices = elementOf(data.spec, 'Visualizations').props;
+        const others = choices.views.map(view => view.kind).filter(kind => kind !== choices.main);
+        expect(Object.keys(data.open?.charts ?? {}).sort()).toEqual([...others].sort());
+        for (const kind of others) {
+            expect(decodeReportState(data.open?.charts?.[kind] ?? '')).toEqual({
+                intent: { ...intent, chart: kind },
+                language: 'en',
+            });
+        }
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
     });
 

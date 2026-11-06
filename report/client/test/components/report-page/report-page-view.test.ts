@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { AppApiError, type ReportResponse, type Suggestion } from '../../../src/api/app-api';
 import '../../../src/web-awesome';
 import { ReportPage } from '../../../src/components/report-page/report-page-view';
-import '../../../src/report/index';
+import { SELECT_CHART } from '../../../src/report/index';
 import { CHOOSE_SUGGESTION } from '../../../src/components/report-suggestions';
 import { AppState } from '../../../src/state/app-state';
 import type { ReportApi } from '../../../src/state/reports';
@@ -29,7 +29,19 @@ function report(title: string): ReportResponse {
         language: 'en',
         query: 'q',
         dataAt: '2026-11-05T00:00:00Z',
-        chart: { kind: 'none', fallback: false },
+        chart: { kind: 'bar', fallback: false },
+        trace: {
+            facts: {
+                rows: 2,
+                negative: 0,
+                mixed: false,
+                months: 12,
+                previous: true,
+                net: false,
+                permanent: false,
+            },
+            chart: { fitting: ['bar', 'pie', 'table'], main: 'bar', rule: 'rules' },
+        },
         url: 'https://report.bkper.app/',
     };
 }
@@ -256,6 +268,28 @@ describe('ReportPage', () => {
 
         expect(view.state.reports.text).toBe('');
         expect(view.state.route.prompt).toBe('');
+    });
+
+    it('keeps the chart chosen in the report, and shows it in the report', async () => {
+        const view = createPage();
+        view.state.reports.open('book-1');
+        view.state.reports.input('net result');
+        view.state.reports.submit();
+        await settle(view);
+        const shown = shadow(view).querySelector('report-view');
+        expect(shown?.chart).toBeUndefined();
+
+        shown?.dispatchEvent(
+            new CustomEvent(SELECT_CHART, {
+                detail: { kind: 'pie' },
+                bubbles: true,
+                composed: true,
+            })
+        );
+        await settle(view);
+
+        expect(view.state.reports.chart).toBe('pie');
+        expect(shown?.chart).toBe('pie');
     });
 
     it('shows a quiet hint, or a clear alert when something failed', async () => {

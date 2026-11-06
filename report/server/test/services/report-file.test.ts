@@ -3,7 +3,12 @@ import { LOCALES } from 'report-shared/locales';
 import type { ReportFileData } from 'report-shared/report-file';
 import { t, type StringKey } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
-import { REPORT_FILE_BUNDLE, buildReportFile } from '../../src/services/report-file';
+import { decodeReportState } from 'report-shared/report-state';
+import {
+    REPORT_FILE_BUNDLE,
+    buildReportFile,
+    reportFileOpen,
+} from '../../src/services/report-file';
 
 const LINK = {
     url: 'https://report.bkper.app/?book=book-1&q=expenses+%3C%2Fscript%3E',
@@ -157,5 +162,33 @@ describe('report file', () => {
             ).length;
             expect(bytes).toBeLessThanOrEqual(MAX_BUNDLE_BYTES);
         });
+    });
+});
+
+describe('reportFileOpen', () => {
+    const intent = { root: 'g-expenses', period: '2017', monthly: true };
+
+    it('gives the report’s state, and the state of each other chart that fits', () => {
+        const open = reportFileOpen('book-1', {
+            intent,
+            language: 'es',
+            charts: { fitting: ['bar', 'pie', 'table'], main: 'bar' },
+        });
+        expect(open?.bookId).toBe('book-1');
+        expect(decodeReportState(open?.state ?? '')).toEqual({ intent, language: 'es' });
+        expect(Object.keys(open?.charts ?? {})).toEqual(['pie', 'table']);
+        expect(decodeReportState(open?.charts?.pie ?? '')).toEqual({
+            intent: { ...intent, chart: 'pie' },
+            language: 'es',
+        });
+    });
+
+    it('gives nothing for a report whose state does not fit', () => {
+        const open = reportFileOpen('book-1', {
+            intent: { ...intent, root: 'x'.repeat(200) },
+            language: 'en',
+            charts: { fitting: ['bar', 'pie'], main: 'bar' },
+        });
+        expect(open).toBeUndefined();
     });
 });

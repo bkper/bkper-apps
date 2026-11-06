@@ -13,18 +13,21 @@
  * request is blocked. It checks there are no requests, no policy violations and no console
  * errors; that the answer, the chart and the link to the Report app show; that a row opens
  * in place; that values written into texts, such as dates, read in the report's direction;
- * and that the link asks the Agent to open the report in the Report app in the Book
- * (`bkper:navigate`) only after the Agent's `bkper:host-ready` and a click, and stays a plain
- * link before. `--screenshots` saves a picture of each. Needs Playwright's Chromium headless
+ * that a click on a chart's preview shows that chart in place of the main one, with no network,
+ * and the link then opens it (the time each switch takes is reported); and that the link asks
+ * the Agent to open the report in the Report app in the Book (`bkper:navigate`) only after the
+ * Agent's `bkper:host-ready` and a click, and stays a plain link before. `--screenshots` saves
+ * a picture of each. Needs Playwright's Chromium headless
  * shell (`npx playwright-core install chromium-headless-shell`).
  */
 import { mkdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { chromium, type Frame, type Page } from 'playwright-core';
 import { validateReportSpec } from '../shared/src/catalog.ts';
+import type { ViewKind } from '../shared/src/catalog.ts';
 import type { ReportFileData } from '../shared/src/report-file.ts';
-import { decodeReportState, encodeReportState } from '../shared/src/report-state.ts';
-import { buildReportFile } from '../server/src/services/report-file.ts';
+import { decodeReportState } from '../shared/src/report-state.ts';
+import { buildReportFile, reportFileOpen } from '../server/src/services/report-file.ts';
 
 /** The Agent's frame policy and document (bkper-clients `packages/agent`, `file-views.ts`). */
 const HTML_VIEW_POLICY =
@@ -75,10 +78,8 @@ const LINK = { url: 'https://report.bkper.app/?book=book-1&q=report', label: 'Op
 /** Recorded specs carry no intent: any report's state shows the file opens what it carries. */
 const OPEN = {
     bookId: 'book-1',
-    state: encodeReportState({
-        intent: { root: 'net-result', period: '2018', monthly: true, chart: 'waterfall' },
-        language: 'en',
-    }),
+    intent: { root: 'net-result', period: '2018', monthly: true, chart: 'waterfall' as const },
+    language: 'en',
 };
 
 interface ReportFile {
@@ -92,6 +93,8 @@ interface Result {
     bytes: number;
     failures: string[];
     darkTheme: boolean;
+    /** How long showing a chosen chart took, from the click to its first frame. */
+    switchMs?: number;
 }
 
 const args = process.argv.slice(2);
@@ -109,7 +112,20 @@ async function recordedFiles(): Promise<ReportFile[]> {
                     `Invalid recorded spec ${entry.id}: ${validation.issues.join('; ')}`
                 );
             }
-            const open = OPEN.state ? { bookId: OPEN.bookId, state: OPEN.state } : undefined;
+            const choices = Object.values(validation.spec.elements).find(
+                element => element.type === 'Visualizations'
+            );
+            const open = reportFileOpen(OPEN.bookId, {
+                intent: OPEN.intent,
+                language: OPEN.language,
+                charts:
+                    choices?.type === 'Visualizations'
+                        ? {
+                              fitting: choices.props.views.map(view => view.kind),
+                              main: choices.props.main,
+                          }
+                        : { fitting: [], main: 'table' },
+            });
             files.push({
                 name: entry.id,
                 html: buildReportFile(validation.spec, { link: LINK, ...(open ? { open } : {}) }),
@@ -229,12 +245,84 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
 }
 
 /**
+ * A click on a preview shows its chart in place of the main one, from the data the file
+ * carries: the first chart offered that is not shown and draws something (not the table). The
+ * chart then draws, and the link opens the report as that chart. Returns the chart chosen and
+ * the time from the click to the chart's first frame; nothing for a file without previews.
+ */
+async function checkChoice(
+    page: Page,
+    frame: Frame
+): Promise<{ failures: string[]; kind?: string; ms?: number }> {
+    const preview = frame
+        .locator('report-view .preview[aria-pressed="false"]:not([data-kind="table"])')
+        .first();
+    if ((await preview.count()) === 0) {
+        return { failures: [] };
+    }
+    const failures: string[] = [];
+    const kind = (await preview.getAttribute('data-kind')) ?? '';
+    const shownKind = () =>
+        frame.evaluate(
+            () =>
+                document
+                    .querySelector('report-view')
+                    ?.shadowRoot?.querySelector('.chart')
+                    ?.getAttribute('data-kind') ?? 'table'
+        );
+    const before = await shownKind();
+    // Timed in the page: the click, the report's update, the chart's, then its first frame.
+    const ms = await preview.evaluate(async button => {
+        const view = document.querySelector('report-view');
+        const start = performance.now();
+        (button as HTMLElement).click();
+        await (view as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+        const chart = view?.shadowRoot?.querySelector('.chart > *');
+        await (chart as unknown as { updateComplete?: Promise<unknown> } | null)?.updateComplete;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        return performance.now() - start;
+    });
+    const shown = await shownKind();
+    const pressed = await frame
+        .locator(`report-view .preview[data-kind="${kind}"]`)
+        .getAttribute('aria-pressed');
+    if (shown !== kind || shown === before || pressed !== 'true') {
+        failures.push(`Choosing ${kind} showed ${shown} (was ${before}), pressed ${pressed}`);
+    }
+    await page.waitForTimeout(CHART_ANIMATION_MS);
+    // Drawn by Chart.js: its elements of the first dataset. (Reading the canvas's pixels
+    // again would make Chrome warn about repeated readbacks.)
+    const drawn = await frame
+        .locator('report-view .chart > *')
+        .evaluate(element => {
+            const chart: unknown = Reflect.get(element, 'chart');
+            if (typeof chart !== 'object' || chart === null || !('getDatasetMeta' in chart)) {
+                return 0;
+            }
+            return (chart as DrawnChart).getDatasetMeta(0).data.length;
+        })
+        .catch(() => 0);
+    if (drawn === 0) {
+        failures.push(`The chosen ${kind} chart drew nothing`);
+    }
+    const data = await frame.evaluate(
+        () => JSON.parse(document.getElementById('report-data')?.textContent ?? '{}') as unknown
+    );
+    const chosen = (data as Partial<ReportFileData>).open?.charts?.[kind as ViewKind];
+    const href = await frame.locator('report-view .source-footer a').getAttribute('href');
+    if (chosen && (!href || new URL(href).searchParams.get('state') !== chosen)) {
+        failures.push(`After choosing ${kind}, the link does not open it: ${href}`);
+    }
+    return { failures, kind, ms };
+}
+
+/**
  * The link opens the Report app in the Book in place only once the Agent allows it: before its
  * `bkper:host-ready`, a click is left to the browser (a new tab) and nothing is sent; after it,
  * nothing is sent until a click, which then sends one `bkper:navigate` to the Book page of the
  * file's report state, while the person is in the frame. A file without state keeps the link.
  */
-async function checkNavigation(page: Page, frame: Frame): Promise<string[]> {
+async function checkNavigation(page: Page, frame: Frame, chosen?: string): Promise<string[]> {
     const failures: string[] = [];
     const data = await frame.evaluate(
         () => JSON.parse(document.getElementById('report-data')?.textContent ?? '{}') as unknown
@@ -284,7 +372,9 @@ async function checkNavigation(page: Page, frame: Frame): Promise<string[]> {
         }
         return failures;
     }
-    const expected = `${BKPER_ORIGIN}/books/${encodeURIComponent(open.bookId)}/transactions?app=report&appState=${open.state}`;
+    // The chart chosen in the file opens as that chart.
+    const state = (chosen && open.charts?.[chosen as ViewKind]) || open.state;
+    const expected = `${BKPER_ORIGIN}/books/${encodeURIComponent(open.bookId)}/transactions?app=report&appState=${state}`;
     const navigate = sent[0]?.data as { type?: unknown; url?: unknown } | undefined;
     if (sent.length !== 1 || navigate?.type !== 'bkper:navigate' || navigate.url !== expected) {
         failures.push(`After host-ready, a click sent ${JSON.stringify(sent)}, not one navigate`);
@@ -294,8 +384,8 @@ async function checkNavigation(page: Page, frame: Frame): Promise<string[]> {
     if ((await clicks())[1] !== true) {
         failures.push('After host-ready, the click still opens a tab');
     }
-    if (!decodeReportState(open.state)) {
-        failures.push(`The file's state does not open a report: ${open.state}`);
+    if (!decodeReportState(state)) {
+        failures.push(`The file's state does not open a report: ${state}`);
     }
     return failures;
 }
@@ -479,11 +569,6 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                 await page.mouse.move(0, 0);
                 const frame = await open(page, file);
                 failures.push(...(await check(page, frame)));
-                const violations = await frame.evaluate(
-                    () => (window as Window & { violations?: string[] }).violations ?? []
-                );
-                failures.push(...violations.map(violation => `policy violation: ${violation}`));
-                failures.push(...requests.map(url => `network request: ${url}`));
                 const darkTheme = await frame.evaluate(() =>
                     document.documentElement.classList.contains('wa-dark')
                 );
@@ -505,8 +590,15 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                         },
                     });
                 }
+                const choice = await checkChoice(page, frame);
+                failures.push(...choice.failures);
+                const violations = await frame.evaluate(
+                    () => (window as Window & { violations?: string[] }).violations ?? []
+                );
+                failures.push(...violations.map(violation => `policy violation: ${violation}`));
+                failures.push(...requests.map(url => `network request: ${url}`));
                 // Last: its clicks move the focus into the link.
-                failures.push(...(await checkNavigation(page, frame)));
+                failures.push(...(await checkNavigation(page, frame, choice.kind)));
                 page.off('console', onConsole);
                 page.off('pageerror', onError);
                 await page.unroute('**/*');
@@ -516,6 +608,7 @@ async function verify(files: ReportFile[]): Promise<Result[]> {
                     bytes: new TextEncoder().encode(file.html).length,
                     failures,
                     darkTheme,
+                    ...(choice.ms === undefined ? {} : { switchMs: choice.ms }),
                 });
             }
             await context.close();
@@ -535,13 +628,24 @@ for (const result of results) {
     failed += failures.length > 0 ? 1 : 0;
     console.log(
         `${failures.length === 0 ? 'ok  ' : 'FAIL'} ${result.name} ${result.scheme}` +
-            ` ${(result.bytes / 1024).toFixed(1)} KB${result.darkTheme ? ' (dark theme)' : ''}`
+            ` ${(result.bytes / 1024).toFixed(1)} KB${result.darkTheme ? ' (dark theme)' : ''}` +
+            (result.switchMs === undefined
+                ? ''
+                : `, chart chosen in ${result.switchMs.toFixed(1)} ms`)
     );
     failures.forEach(failure => console.log(`     ${failure}`));
 }
 const largest = Math.max(...results.map(result => result.bytes));
+const switches = results.flatMap(result =>
+    result.switchMs === undefined ? [] : [result.switchMs]
+);
+switches.sort((a, b) => a - b);
+const median = switches[Math.floor(switches.length / 2)];
 console.log(
-    `${results.length - failed}/${results.length} ok; largest file ${(largest / 1024).toFixed(1)} KB`
+    `${results.length - failed}/${results.length} ok; largest file ${(largest / 1024).toFixed(1)} KB` +
+        (switches.length
+            ? `; ${switches.length} charts chosen, p50 ${median.toFixed(1)} ms, max ${switches[switches.length - 1].toFixed(1)} ms`
+            : '')
 );
 process.exitCode = failed > 0 ? 1 : 0;
 

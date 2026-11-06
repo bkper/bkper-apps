@@ -10,7 +10,7 @@ import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
 import { AppUrlChange, BookHost, type HostPage } from './book-host';
 import { Books } from './books';
-import { Reports, type ReportApi } from './reports';
+import { Reports, type ChartKind, type ReportApi } from './reports';
 import { Navigation, Route, type RoutePage } from './route';
 import { Strings } from './strings';
 
@@ -44,15 +44,18 @@ export class AppState {
     private readonly loadRenderer: () => Promise<void>;
     private readonly logger: Pick<Console, 'error'>;
     private started = false;
-    /** The report whose state the URL and the Book have, or were last checked to have. */
-    private synced?: ReportResponse;
+    /** In a Book's panel, where the Book keeps the report's state; else the app's own page. */
+    private readonly embedded: boolean;
+    /** The report, and chart, whose state the URL and the Book have, or were last checked to have. */
+    private synced?: { report: ReportResponse; chart?: ChartKind };
 
     constructor(options: AppStateOptions = {}) {
         const page = options.page ?? window;
         const logger = options.logger ?? console;
         this.logger = logger;
         this.loadRenderer = options.loadRenderer ?? loadReportRenderer;
-        this.route = new Route(page, options.embedded ?? window.parent !== window);
+        this.embedded = options.embedded ?? window.parent !== window;
+        this.route = new Route(page, this.embedded);
         this.host = new BookHost(options.host ?? window);
         this.auth = (options.createAuthSession ?? createAuthSession)({
             onLoginSuccess: () => {
@@ -95,15 +98,18 @@ export class AppState {
     }
 
     /**
-     * Keep the state of the report on screen in the URL and in the Book's, so a link, Back or a
-     * reload of the Book opens it again; only while the Book keeps it (`bkper:app-state`).
-     * Standalone, the URL keeps only the request. A report whose state is too long drops it.
+     * Keep the state of the report on screen, as the chart chosen shows it, in the URL and in
+     * the Book's, so a link, Back or a reload opens it again. In a Book, only while it keeps the
+     * state (`bkper:app-state`); standalone, in the app's own URL. A report whose state is too
+     * long drops it.
      */
     private syncState(): void {
-        const report = this.reports.report;
-        if (!report || report === this.synced || !this.host.acceptsState) return;
-        this.synced = report;
-        const state = encodeReportState({ intent: report.intent, language: report.language });
+        const { report, chart } = this.reports;
+        if (!report || (report === this.synced?.report && chart === this.synced.chart)) return;
+        if (this.embedded && !this.host.acceptsState) return;
+        this.synced = { report, chart };
+        const intent = chart ? { ...report.intent, chart } : report.intent;
+        const state = encodeReportState({ intent, language: report.language });
         if (state === this.route.state) return;
         this.route.setState(state);
         this.host.sendState(state ?? '');

@@ -6,6 +6,7 @@ import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { ReportResponse } from '../../api/app-api';
 import type { AppState } from '../../state/app-state';
 import { watch } from '../../state/store';
+import type { SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import '../report-suggestions';
 import { reportPageCSS } from './report-page-css';
@@ -95,6 +96,10 @@ export class ReportPage extends LitElement {
                                 ? html`<report-view
                                       class="report"
                                       .spec=${this.shown.spec}
+                                      .chart=${
+                                          this.shown === reports.report ? reports.chart : undefined
+                                      }
+                                      @report-select-chart=${this.onSelectChart}
                                   ></report-view>`
                                 : nothing
                         }
@@ -164,6 +169,9 @@ export class ReportPage extends LitElement {
             this.state.reports.input('');
         }
     };
+
+    private onSelectChart = (event: HTMLElementEventMap[typeof SELECT_CHART]) =>
+        this.state.reports.chooseChart(event.detail.kind);
 
     private onChoose = (event: HTMLElementEventMap[typeof CHOOSE_SUGGESTION]) => {
         this.state.reports.choose(event.detail);

@@ -368,15 +368,27 @@ describe('AppState', () => {
                         language: body.language ?? 'pt',
                         query: 'q',
                         dataAt: '2026-11-05T00:00:00Z',
-                        chart: { kind: 'none', fallback: false },
+                        chart: { kind: 'bar', fallback: false },
+                        trace: {
+                            facts: {
+                                rows: 2,
+                                negative: 0,
+                                mixed: false,
+                                months: 12,
+                                previous: true,
+                                net: false,
+                                permanent: false,
+                            },
+                            chart: { fitting: ['bar', 'pie', 'table'], main: 'bar', rule: 'rules' },
+                        },
                         url: 'https://report.bkper.app/',
-                    };
+                    } satisfies ReportResponse;
                 },
             };
             return { api, bodies };
         }
 
-        function embeddedApp(href: string) {
+        function embeddedApp(href: string, embedded = true) {
             const { page } = createPage(href);
             const parent = { postMessage: vi.fn() };
             const host: HostPage = Object.assign(new EventTarget(), {
@@ -388,7 +400,7 @@ describe('AppState', () => {
             const app = new AppState({
                 page,
                 host,
-                embedded: true,
+                embedded,
                 language: 'en',
                 createReportApi: () => api,
                 loadRenderer: async () => undefined,
@@ -458,6 +470,62 @@ describe('AppState', () => {
             app.reports.submit();
             await vi.waitFor(() => expect(app.reports.pending).toBe(false));
             expect(sent()).toHaveLength(1);
+        });
+
+        it('sends the state of the chart chosen, and keeps it in its URL', async () => {
+            const { app, page, ready, sent, signIn } = embeddedApp(
+                'https://report.bkper.app/?book=b&q=receitas%202012'
+            );
+            ready();
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report).toBeDefined());
+            const stateIn = () => new URL(page.location.href).searchParams.get('state');
+            expect(stateIn()).toBe(state(REVENUE));
+
+            app.reports.chooseChart('pie');
+
+            const pie = state({ ...REVENUE, chart: 'pie' });
+            expect(sent().at(-1)).toEqual({
+                message: { type: 'bkper:app-state', state: pie },
+                origin: BKPER,
+            });
+            expect(stateIn()).toBe(pie);
+
+            // Back to the main chart: the report's own state.
+            app.reports.chooseChart('bar');
+            expect(sent().at(-1)?.message).toEqual({
+                type: 'bkper:app-state',
+                state: state(REVENUE),
+            });
+            expect(stateIn()).toBe(state(REVENUE));
+            expect(sent()).toHaveLength(3);
+
+            // Another report drops the chart chosen at once: one state, its own.
+            app.reports.chooseChart('pie');
+            const other = { root: 'g-3', period: '2013', monthly: false };
+            app.reports.openState({ intent: other, language: 'pt' });
+            await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(other));
+            expect(app.reports.chart).toBeUndefined();
+            expect(sent().slice(4)).toEqual([
+                { message: { type: 'bkper:app-state', state: state(other) }, origin: BKPER },
+            ]);
+        });
+
+        it('keeps the state of the report shown in its own URL when standalone', async () => {
+            const { app, page, sent, signIn } = embeddedApp(
+                'https://report.bkper.app/?book=b&q=receitas%202012',
+                false
+            );
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report).toBeDefined());
+            const stateIn = () => new URL(page.location.href).searchParams.get('state');
+            expect(stateIn()).toBe(state(REVENUE));
+
+            app.reports.chooseChart('pie');
+
+            expect(stateIn()).toBe(state({ ...REVENUE, chart: 'pie' }));
+            expect(new URL(page.location.href).searchParams.get('q')).toBe('receitas 2012');
+            expect(sent()).toEqual([]);
         });
 
         it('does not send back the state it opened with', async () => {

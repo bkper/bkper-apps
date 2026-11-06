@@ -10,7 +10,7 @@ const PAIRED_ROW = 3.25;
 const RANKED_AXIS = 2.5;
 const LEGEND = 2;
 
-export function renderChart(view: ChartView, label: string, dir: 'ltr' | 'rtl') {
+export function renderChart(view: ChartView, kind: string, label: string, dir: 'ltr' | 'rtl') {
     const rows = view.config.data.labels?.length ?? 0;
     const row = view.config.data.datasets.length > 1 ? PAIRED_ROW : RANKED_ROW;
     const size = view.horizontal
@@ -49,7 +49,11 @@ export function renderChart(view: ChartView, label: string, dir: 'ltr' | 'rtl') 
                       grid=${view.horizontal ? 'x' : 'y'}
                       ?without-legend=${!view.legend}
                   ></wa-bar-chart>`;
-    return html`<figure class="chart ${view.horizontal ? 'ranked' : view.element}" style=${size}>
+    return html`<figure
+        class="chart ${view.horizontal ? 'ranked' : view.element}"
+        data-kind=${kind}
+        style=${size}
+    >
         ${chart}
     </figure>`;
 }

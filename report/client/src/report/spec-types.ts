@@ -4,7 +4,7 @@
  */
 import type { BreakdownRow, ReportComponent, ReportElement } from 'report-shared/catalog';
 
-export type { BreakdownRow, ReportElement, ReportSpec } from 'report-shared/catalog';
+export type { BreakdownRow, ReportElement, ReportSpec, ViewKind } from 'report-shared/catalog';
 
 export type PropsOf<T extends ReportComponent> = Extract<ReportElement, { type: T }>['props'];
 

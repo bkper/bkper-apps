@@ -395,6 +395,40 @@ describe('Reports', () => {
         expect(reports.text).toBe('');
     });
 
+    it('keeps the chart chosen for the report shown, until another report shows', async () => {
+        const { reports, calls } = createReports();
+        reports.open('book-1');
+        reports.input('despesas 2011');
+        await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+        const report = withMain(response('Despesas', '2011'), 'bar');
+        calls.at(-1)?.resolve(report);
+        await settle();
+        expect(reports.chart).toBeUndefined();
+
+        reports.chooseChart('pie');
+        expect(reports.chart).toBe('pie');
+        expect(reports.report).toBe(report);
+        // The main chart again is no choice.
+        reports.chooseChart('bar');
+        expect(reports.chart).toBeUndefined();
+
+        reports.chooseChart('pie');
+        reports.input('receitas 2011');
+        await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+        // The chart stays while the next report is on its way.
+        expect(reports.chart).toBe('pie');
+        calls.at(-1)?.resolve(withMain(response('Receitas', '2011'), 'donut'));
+        await settle();
+        expect(reports.chart).toBeUndefined();
+    });
+
+    it('chooses no chart without a report', () => {
+        const { reports } = createReports();
+        reports.open('book-1');
+        reports.chooseChart('pie');
+        expect(reports.chart).toBeUndefined();
+    });
+
     describe('opened by state', () => {
         const STATE = {
             intent: { root: 'g-1', period: '2011', monthly: true, chart: 'stacked' as const },
@@ -460,3 +494,21 @@ function title(report: ReportResponse | undefined): string | undefined {
     const root = report?.spec.elements[report.spec.root];
     return root?.type === 'Report' ? root.props.title : undefined;
 }
+
+/** A report whose main chart is `main`, as its trace says. */
+function withMain(report: ReportResponse, main: ReportResponse['trace']['chart']['main']) {
+    return {
+        ...report,
+        trace: { facts: FACTS, chart: { fitting: [main, 'pie', 'table'], main, rule: 'rules' } },
+    } satisfies ReportResponse;
+}
+
+const FACTS: ReportResponse['trace']['facts'] = {
+    rows: 3,
+    negative: 0,
+    mixed: false,
+    months: 12,
+    previous: true,
+    net: false,
+    permanent: false,
+};

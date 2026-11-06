@@ -18,6 +18,9 @@ export const MIN_WORDS = 2;
 
 export type ReportApi = Pick<AppApi, 'suggestions' | 'report'>;
 
+/** A way to show a report: one of its charts, or `table` for none. */
+export type ChartKind = ReportResponse['trace']['chart']['main'];
+
 /** The message shown under the input: a quiet hint or what went wrong, as a string key. */
 export type Notice = Extract<StringKey, 'hint_not_a_report' | `error_${string}`>;
 
@@ -64,6 +67,11 @@ export class Reports extends Store {
     @reactive text = '';
     /** The last report that answered: shown until another one does. */
     @reactive report?: ReportResponse;
+    /**
+     * The chart the person chose, from its previews, and the report it is for: it holds the
+     * report, so showing another report drops the choice in the same change.
+     */
+    @reactive private choice?: { report: ReportResponse; kind: ChartKind };
     /** A request is on its way. */
     @reactive pending = false;
     @reactive notice?: Notice;
@@ -84,6 +92,11 @@ export class Reports extends Store {
         private readonly options: ReportsOptions
     ) {
         super();
+    }
+
+    /** The chart the person chose for the report shown, from its previews; none for its main one. */
+    get chart(): ChartKind | undefined {
+        return this.choice?.report === this.report ? this.choice?.kind : undefined;
     }
 
     get language(): string {
@@ -113,6 +126,7 @@ export class Reports extends Store {
         this.openBookId = bookId;
         this.cache = new Map();
         this.report = undefined;
+        this.choice = undefined;
         this.notice = undefined;
         this.suggestions = undefined;
         this.text = prompt;
@@ -158,6 +172,13 @@ export class Reports extends Store {
         this.route.setPrompt(suggestion.text);
         this.notice = undefined;
         this.run(suggestion.text, suggestion.intent);
+    }
+
+    /** The person chose another chart of the report shown: it shows with no new request. */
+    chooseChart(kind: ChartKind): void {
+        const report = this.report;
+        if (!report) return;
+        this.choice = kind === report.trace.chart.main ? undefined : { report, kind };
     }
 
     /** Something outside the requests failed, such as loading the report renderer. */
@@ -235,7 +256,9 @@ export class Reports extends Store {
     private show(report: ReportResponse, labelFor?: string): void {
         this.pending = false;
         this.notice = undefined;
+        // The report first: its chart is then its main one, and dropping the choice changes nothing.
         this.report = report;
+        this.choice = undefined;
         if (labelFor !== undefined && this.text === labelFor) this.text = reportText(report.spec);
     }
 

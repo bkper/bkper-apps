@@ -1,6 +1,6 @@
 import { REPORT_FILE_DATA_ID, type ReportFileData } from 'report-shared/report-file';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import '../../src/report/index';
+import { SELECT_CHART, type SelectChartDetail } from '../../src/report/index';
 import {
     followColorScheme,
     followFileHost,
@@ -52,6 +52,35 @@ describe('report file', () => {
         expect(view?.link).toEqual(data.link);
         await view?.updateComplete;
         expect(view?.shadowRoot?.querySelector('.answer-amount')?.textContent).toBeTruthy();
+    });
+
+    it('opens the chart chosen in the file from its link, changing nothing outside it', async () => {
+        const data: ReportFileData = {
+            spec: gallerySpec('expenses-by-month'),
+            link: { url: 'https://report.bkper.app/?book=b&q=expenses', label: 'Open in Report' },
+            open: { bookId: 'b', state: 'main-state', charts: { pie: 'pie-state' } },
+        };
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.id = REPORT_FILE_DATA_ID;
+        script.textContent = JSON.stringify(data);
+        document.body.append(document.createElement('report-view'), script);
+        const parent = { postMessage: vi.fn() };
+        const page = Object.assign(new EventTarget(), { parent });
+        const view = startReportFile(document, new FakeColorScheme(false), page);
+        await view?.updateComplete;
+
+        view?.shadowRoot?.querySelector<HTMLElement>('.preview[data-kind="pie"]')?.click();
+        await view?.updateComplete;
+
+        expect(view?.link).toEqual({
+            label: 'Open in Report',
+            url: 'https://report.bkper.app/?book=b&q=expenses&state=pie-state',
+        });
+        expect(parent.postMessage).not.toHaveBeenCalled();
+        view?.shadowRoot?.querySelector<HTMLElement>('.preview[data-kind="bar"]')?.click();
+        await view?.updateComplete;
+        expect(view?.link).toEqual(data.link);
     });
 
     it('renders nothing without data', () => {
@@ -150,6 +179,35 @@ describe('opening the report in the Report app from the file', () => {
         page.dispatchEvent(message(READY, parent));
         expect(click(link).defaultPrevented).toBe(false);
         expect(parent.postMessage).not.toHaveBeenCalled();
+    });
+
+    it('opens the chart chosen in the file, with its state', () => {
+        const charts = { pie: 'pie-state' };
+        const { page, parent, link } = filePage({ link: LINK, open: { ...OPEN, charts } });
+        page.dispatchEvent(message(READY, parent));
+        const choose = (kind: SelectChartDetail['kind']) =>
+            link.dispatchEvent(
+                new CustomEvent(SELECT_CHART, { detail: { kind }, bubbles: true, composed: true })
+            );
+
+        choose('pie');
+        // The view links to the chart chosen.
+        link.href = `${LINK.url}&state=pie-state`;
+        expect(click(link).defaultPrevented).toBe(true);
+        choose('bar');
+        link.href = LINK.url;
+        expect(click(link).defaultPrevented).toBe(true);
+
+        expect(parent.postMessage.mock.calls.map(([message]) => message)).toEqual([
+            {
+                type: 'bkper:navigate',
+                url: openInReportUrl('https://bkper.app', {
+                    bookId: OPEN.bookId,
+                    state: 'pie-state',
+                }),
+            },
+            { type: 'bkper:navigate', url: openInReportUrl('https://bkper.app', OPEN) },
+        ]);
     });
 
     it('leaves other links alone', () => {

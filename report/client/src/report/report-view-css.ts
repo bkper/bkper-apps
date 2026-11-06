@@ -151,6 +151,108 @@ export const reportViewCSS = css`
         block-size: var(--chart-height);
     }
 
+    /* Previews of every chart that fits: quiet cards that scroll sideways; the one shown stands out. */
+
+    .previews {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: var(--wa-space-xs);
+        margin-block-start: calc(-1 * var(--wa-space-m));
+        padding: var(--wa-space-3xs);
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: thin;
+    }
+
+    .report-header + .answer + .previews {
+        margin-block-start: 0;
+    }
+
+    .preview {
+        appearance: none;
+        flex: none;
+        display: grid;
+        justify-items: center;
+        align-content: start;
+        gap: var(--wa-space-2xs);
+        inline-size: 4.75rem;
+        margin: 0;
+        padding: var(--wa-space-xs) var(--wa-space-2xs);
+        border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-m);
+        background: var(--wa-color-surface-default);
+        color: var(--wa-color-text-quiet);
+        font: inherit;
+        font-size: var(--wa-font-size-2xs);
+        line-height: var(--wa-line-height-condensed);
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .preview:not(.unfit):hover {
+        border-color: var(--wa-color-neutral-border-normal);
+        color: var(--wa-color-text-normal);
+    }
+
+    .preview[aria-pressed='true'] {
+        border-color: var(--wa-color-brand-border-loud);
+        box-shadow: inset 0 0 0 var(--wa-border-width-s) var(--wa-color-brand-border-loud);
+        background: var(--wa-color-brand-fill-quiet);
+        color: var(--wa-color-text-normal);
+        cursor: default;
+    }
+
+    .preview:focus-visible {
+        outline: var(--wa-focus-ring);
+        outline-offset: var(--wa-focus-ring-offset);
+    }
+
+    /* The chart asked for that does not fit: dimmed, with why. */
+    .preview.unfit {
+        inline-size: auto;
+        max-inline-size: 11rem;
+        border-style: dashed;
+        background: none;
+        cursor: default;
+    }
+
+    .preview.unfit .thumb,
+    .preview.unfit .preview-name {
+        opacity: 0.45;
+    }
+
+    .thumb {
+        display: block;
+        inline-size: 3.75rem;
+        aspect-ratio: 8 / 5;
+    }
+
+    .thumb svg {
+        display: block;
+        inline-size: 100%;
+        block-size: 100%;
+    }
+
+    /* As the chart above them, they run from the inline start. */
+    .report[dir='rtl'] .thumb svg {
+        transform: scaleX(-1);
+    }
+
+    .preview-name {
+        font-weight: var(--wa-font-weight-semibold);
+    }
+
+    .preview-reason {
+        overflow-wrap: break-word;
+    }
+
+    @container (max-width: 40rem) {
+        .previews {
+            flex-wrap: nowrap;
+        }
+    }
+
     /* Breakdown table */
 
     .breakdown {

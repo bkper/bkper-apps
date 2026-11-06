@@ -19,15 +19,17 @@
  *   origin, and passes on a `bkper:navigate` only from that frame while it has focus, for a
  *   link on the Bkper origin.
  *
- * It checks that a click on the file's link opens the Report app in place of the Agent with
- * the file's report state; that the app shows that report by intent, without AI, with its
- * title and period in the input; that choosing another report sends its state to the Book;
- * that a state the Book goes back to shows that report again; and that the file reaches no
- * network and sends nothing before the click.
+ * It checks that a chart chosen in the file, then a click on the file's link, opens the Report
+ * app in place of the Agent with the state of the report as that chart; that the app shows
+ * that report by intent, without AI, as that chart, with its title and period in the input;
+ * that choosing another chart, then another report, sends each state to the Book; that a
+ * state the Book goes back to shows that report again; and that the file reaches no network
+ * and sends nothing before the click.
  */
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { chromium, type Frame, type Page, type Request } from 'playwright-core';
+import type { ViewKind } from '../shared/src/catalog.ts';
 import type { ReportFileData } from '../shared/src/report-file.ts';
 import { decodeReportState, reportText, type ReportState } from '../shared/src/report-state.ts';
 
@@ -207,6 +209,25 @@ async function frameOf(page: Page, matches: (url: string) => boolean): Promise<F
     }
 }
 
+/** The chart a report view shows, `table` for none. */
+const shownChart = (frame: Frame): Promise<string> =>
+    frame
+        .locator('report-view')
+        .evaluate(
+            view => view.shadowRoot?.querySelector('.chart')?.getAttribute('data-kind') ?? 'table'
+        );
+
+/** Clicks the first preview of a chart not shown, other than the table; its kind. */
+async function choosePreview(frame: Frame): Promise<string> {
+    const preview = frame
+        .locator('report-view .preview[aria-pressed="false"]:not([data-kind="table"])')
+        .first();
+    await preview.waitFor({ timeout: TIMEOUT_MS });
+    const kind = (await preview.getAttribute('data-kind')) ?? '';
+    await preview.click();
+    return kind;
+}
+
 const inputValue = async (frame: Frame): Promise<unknown> =>
     frame.locator('report-page wa-input.prompt').evaluate(input => Reflect.get(input, 'value'));
 
@@ -248,6 +269,7 @@ async function main(): Promise<void> {
     if (!open || !fileState)
         throw new Error(`The file carries no valid report state: ${JSON.stringify(open)}`);
     const fileLabel = reportText(file.data.spec);
+    if (!open.charts) throw new Error('The file carries no state for other charts');
 
     let failed = 0;
     const check = (ok: boolean, what: string, detail = '') => {
@@ -304,6 +326,20 @@ async function main(): Promise<void> {
         await page.waitForTimeout(300);
         check((await log(agent, 'agentLog')).length === 0, 'the file sends nothing before a click');
 
+        // A chart chosen in the file: it shows there, and the link opens the report as it.
+        const fileChart = await choosePreview(fileFrame);
+        const chosenState = open.charts[fileChart as ViewKind] ?? '';
+        const fileChosen = decodeReportState(chosenState);
+        check(
+            (await shownChart(fileFrame)) === fileChart &&
+                fileChosen?.intent.chart === fileChart &&
+                (await log(agent, 'agentLog')).length === 0 &&
+                fileRequests.length === 0,
+            `choosing ${fileChart} in the file shows it there, sending and loading nothing`,
+            `${await shownChart(fileFrame)} ${chosenState}`
+        );
+        if (!fileChosen) throw new Error(`No state for ${fileChart}`);
+
         await fileFrame.locator('report-view .source-footer a').click();
         await page.waitForURL(url => url.searchParams.get('app') === 'report', {
             timeout: TIMEOUT_MS,
@@ -311,14 +347,14 @@ async function main(): Promise<void> {
         const bookUrl = new URL(page.url());
         check(
             bookUrl.pathname === `/books/${bookId}/transactions` &&
-                bookUrl.searchParams.get('appState') === open.state,
-            'a click opens the Report app in the Book with the file’s state',
+                bookUrl.searchParams.get('appState') === chosenState,
+            'a click opens the Report app in the Book with the state of the chart chosen',
             bookUrl.href
         );
 
         const app = await frameOf(page, url => url.startsWith(appOrigin));
         check(
-            new URL(app.url()).searchParams.get('state') === open.state,
+            new URL(app.url()).searchParams.get('state') === chosenState,
             'the app opens at its menu URL with the state',
             app.url()
         );
@@ -330,10 +366,41 @@ async function main(): Promise<void> {
             String(await inputValue(app))
         );
         check(
-            JSON.stringify(reportBodies[0]) === JSON.stringify(withLanguage(fileState)),
-            'the app asks for the file’s report by intent, without AI',
+            JSON.stringify(reportBodies[0]) === JSON.stringify(withLanguage(fileChosen)),
+            'the app asks for the file’s report by intent, as the chart chosen, without AI',
             JSON.stringify(reportBodies[0])
         );
+        await until(async () => (await shownChart(app)) === fileChart);
+        check(
+            (await shownChart(app)) === fileChart,
+            `the app shows the chart chosen in the file (${fileChart})`,
+            await shownChart(app)
+        );
+
+        // Another chart, in the app: its state goes to the Book, with no new report.
+        const requested = reportBodies.length;
+        const appChart = await choosePreview(app);
+        await until(async () => new URL(page.url()).searchParams.get('appState') !== chosenState);
+        const appChartState = new URL(page.url()).searchParams.get('appState') ?? '';
+        const appChosen = decodeReportState(appChartState);
+        const chartSent = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
+        check(
+            (await shownChart(app)) === appChart &&
+                appChosen?.intent.chart === appChart &&
+                JSON.stringify({ ...appChosen.intent, chart: fileChosen.intent.chart }) ===
+                    JSON.stringify(fileChosen.intent),
+            `choosing ${appChart} in the app keeps its state in the Book URL`,
+            appChartState
+        );
+        check(
+            chartSent.length === 1 &&
+                JSON.stringify(chartSent[0].data) ===
+                    JSON.stringify({ type: 'bkper:app-state', state: appChartState }) &&
+                new URL(app.url()).searchParams.get('state') === appChartState,
+            'the app sends one bkper:app-state for it and keeps it in its own URL',
+            JSON.stringify(chartSent)
+        );
+        check(reportBodies.length === requested, 'choosing a chart asks for no report');
 
         // Another report, from a suggestion: its state goes to the Book.
         await app.locator('report-page wa-input.prompt').click();
@@ -344,7 +411,7 @@ async function main(): Promise<void> {
         const chosen = ((await chips.nth(1).textContent()) ?? '').trim();
         if (chosen) await chips.nth(1).click();
         check(chosen !== '', 'another suggestion to choose');
-        await until(async () => new URL(page.url()).searchParams.get('appState') !== open.state);
+        await until(async () => new URL(page.url()).searchParams.get('appState') !== appChartState);
         const next = new URL(page.url()).searchParams.get('appState') ?? '';
         const nextState = decodeReportState(next);
         const sent = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
@@ -354,8 +421,8 @@ async function main(): Promise<void> {
             next
         );
         check(
-            sent.length === 1 &&
-                JSON.stringify(sent[0].data) ===
+            sent.length === 2 &&
+                JSON.stringify(sent[1].data) ===
                     JSON.stringify({ type: 'bkper:app-state', state: next }),
             'the app sends one bkper:app-state for it',
             JSON.stringify(sent)
@@ -377,7 +444,7 @@ async function main(): Promise<void> {
         await page.waitForTimeout(500);
         const after = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
         check(
-            after.length === 1,
+            after.length === 2,
             'the app does not send back the state it is given',
             JSON.stringify(after)
         );

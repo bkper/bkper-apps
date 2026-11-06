@@ -1,8 +1,8 @@
 import { z } from '@hono/zod-openapi';
-import { ReportSpecSchema } from 'report-shared/catalog';
+import { ReportSpecSchema, VIEW_KINDS } from 'report-shared/catalog';
 import { supportedLanguage } from 'report-shared/languages';
 import type { ZodType } from 'zod';
-import { CHART_KINDS } from '../services/report.js';
+import { CHART_KINDS, CHART_RULES, UNFIT_REASON_CODES } from '../services/report.js';
 import { ReportIntentSchema } from '../services/report-intent.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -119,7 +119,7 @@ const IntentSchema = ReportIntentSchema.extend({
     }),
     chart: shape.chart.meta({
         description:
-            'The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the one the report picks (see the response’s `chart`).',
+            'The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).',
         example: 'pie',
     }),
     hashtags: shape.hashtags.meta({
@@ -186,12 +186,97 @@ export const ReportRequestSchema = z
 
 export type ReportRequestBody = z.infer<typeof ReportRequestSchema>;
 
+const ViewKindSchema = z.enum(VIEW_KINDS).openapi({
+    description:
+        'A way to show the report: `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the previous period); `waterfall` (a bridge); `table` (no chart).',
+    example: 'donut',
+});
+
+export const ReportTraceSchema = z
+    .object({
+        facts: z
+            .object({
+                rows: z.int().min(0).openapi({
+                    description: 'Top-level parts with an amount in the period.',
+                    example: 6,
+                }),
+                negative: z.int().min(0).openapi({
+                    description: 'Of those, the parts below zero, in the sense of the report.',
+                    example: 1,
+                }),
+                mixed: z.boolean().openapi({
+                    description:
+                        'Whether the parts are of different types, as under a mixed group or in a net result.',
+                    example: false,
+                }),
+                months: z
+                    .int()
+                    .min(0)
+                    .openapi({ description: 'Months of the period.', example: 12 }),
+                previous: z.boolean().openapi({
+                    description: 'Whether there is a previous period to compare with.',
+                    example: true,
+                }),
+                net: z.boolean().openapi({
+                    description: 'Whether the report is a net result (income versus expenses).',
+                    example: false,
+                }),
+                permanent: z.boolean().openapi({
+                    description:
+                        'Whether the report is a balance at the end of the period (Assets, Liabilities) rather than activity within it.',
+                    example: false,
+                }),
+            })
+            .openapi({
+                description: 'The facts of the report’s numbers that decide which charts fit.',
+            }),
+        chart: z
+            .object({
+                fitting: z.array(ViewKindSchema).openapi({
+                    description:
+                        'Every chart that fits the report, in the order to offer them; the spec’s `Visualizations` carries the data of each.',
+                }),
+                main: ViewKindSchema.openapi({ description: 'The chart shown first.' }),
+                rule: z.enum(CHART_RULES).openapi({
+                    description:
+                        'What chose `main`: `preference` (the intent’s `chart`, which fits), `closest` (the fitting chart closest to a preference that does not fit) or `rules` (the report’s own choice, with no preference or nothing close).',
+                    example: 'closest',
+                }),
+                unfit: z
+                    .object({
+                        kind: ViewKindSchema.openapi({
+                            description: 'The chart the intent prefers.',
+                        }),
+                        reason: z.object({
+                            code: z.enum(UNFIT_REASON_CODES).openapi({
+                                description:
+                                    'Why it does not fit: `net_result`, `negative_part` (a part below zero, `rowId`), `mixed_parts`, `few_parts`, `too_many_parts`, `few_months`, `no_amounts`, `no_previous`, `not_a_bridge` (a bridge of activity other than the net result) or `no_change`.',
+                                example: 'negative_part',
+                            }),
+                            rowId: z.string().optional().openapi({
+                                description: 'The breakdown row that is the reason.',
+                            }),
+                        }),
+                    })
+                    .optional()
+                    .openapi({
+                        description:
+                            'The preferred chart, when it does not fit the report, and why; the spec shows it dimmed with the reason in words.',
+                    }),
+            })
+            .openapi({ description: 'The charts that fit, and how the main one was chosen.' }),
+    })
+    .openapi('ReportTrace', {
+        description:
+            'How the report chose its charts, decided by code from the facts of its numbers.',
+    });
+
 export const ReportResponseSchema = z
     .object({
         spec: ReportSpecSchema.meta({
             id: 'ReportSpec',
             description:
-                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; for a net result, Incoming and Outgoing), `Chart` (when one fits), `BreakdownTable` (rows of subgroups and Accounts with amount, share and change, nested) and `Source`. Amounts and ratios are exact decimal strings; months and instants are ISO.',
+                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; for a net result, Incoming and Outgoing), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (rows of subgroups and Accounts with amount, share and change, nested) and `Source`. Amounts and ratios are exact decimal strings; months and instants are ISO.',
         }),
         intent: IntentSchema,
         language: z.string().openapi({
@@ -217,11 +302,12 @@ export const ReportResponseSchema = z
                 }),
                 fallback: z.boolean().openapi({
                     description:
-                        'True when the intent’s `chart` does not fit this report, so `kind` is the chart the report picks instead.',
+                        'True when the intent’s `chart` does not fit this report, so `kind` is the closest chart that fits, or the one the report picks (see `trace.chart`).',
                     example: false,
                 }),
             })
             .openapi({ description: 'The chart drawn, and whether the one asked for fit.' }),
+        trace: ReportTraceSchema,
         url: z.string().openapi({
             description: 'The same report in the Report app, to open or share with the person.',
             example: 'https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year',

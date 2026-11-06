@@ -17,11 +17,14 @@
  * - that every breakdown, remainder included, adds up to its parent, and that a net result is
  *   Incoming minus Outgoing, in total, in the previous period and in every month;
  * - that charts draw no row without an amount;
- * - the charts a person may prefer, for every root and the net result: each series of stacked
+ * - every chart that fits each report, the main one and every other one a renderer may switch
+ *   to, for every root and the net result: each month of a chart by month; each part of a
+ *   breakdown chart, with an amount (and positive in a pie or donut); each series of stacked
  *   bars in every month, and that they add up to the root; each part of a comparison, now and
  *   before; each step of a bridge, its start and its end, and that the steps add up to the end;
- *   the rest (`other`) of stacked bars and bridges as what the CLI leaves after the parts shown.
- *   A chart that does not fit falls back to the rules, which the summary counts.
+ *   the rest (`other`) of stacked bars and bridges as what the CLI leaves after the parts shown;
+ *   and that the main chart is among them, and a preferred chart that does not fit is not, with
+ *   its reason. Each line shows the preference, the main chart, the rule and the reason.
  *
  * The CLI shows raw balances (credit minus debit), negated for permanent accounts, so Liability
  * and Outgoing come out negative; reports show them as Bkper charts do, by credit nature. A CLI
@@ -36,6 +39,8 @@ import type { DateRange } from '../server/src/services/periods.ts';
 import {
     OTHER_PART,
     buildReport,
+    viewKindOf,
+    type ReportChart,
     type ReportData,
     type ReportRow,
 } from '../server/src/services/report.ts';
@@ -310,37 +315,46 @@ async function verifyReport(
         if (report.months.length > 1 && (report.nature === 'position' || !cumulative)) {
             const months = current.get(root.name)?.[0]?.months ?? new Map<string, Amount>();
             const series = cliSeries(report, months, cumulative);
-            report.months.forEach((month, i) => {
-                const amount =
-                    report.chart.kind === 'bar' ||
-                    report.chart.kind === 'line' ||
-                    report.chart.kind === 'area'
-                        ? report.chart.series[0].amounts[i]
-                        : undefined;
-                const expected = series.get(month);
-                if (amount !== undefined && expected !== undefined) {
-                    same(`month ${month}`, amount, shown(root, expected));
+            // Every chart by month that fits, whether drawn first or offered.
+            for (const view of report.charts.views) {
+                if (view.kind !== 'bar' && view.kind !== 'line' && view.kind !== 'area') {
+                    continue;
                 }
-            });
+                report.months.forEach((month, i) => {
+                    const expected = series.get(month);
+                    if (expected !== undefined) {
+                        same(
+                            `${view.kind} ${month}`,
+                            view.series[0].amounts[i],
+                            shown(root, expected)
+                        );
+                    }
+                });
+            }
         }
     }
-    problems.push(
-        ...chartProblems(report, snapshot, {
-            current,
-            previous,
-            cumulative,
-            cliTotal,
-            sides,
-            same,
-        })
-    );
+    problems.push(...choiceProblems(report));
+    for (const view of report.charts.views) {
+        problems.push(
+            ...chartProblems(report, view, snapshot, {
+                current,
+                previous,
+                cumulative,
+                cliTotal,
+                sides,
+                same,
+            }).map(problem => `${view.kind}: ${problem}`)
+        );
+    }
     problems.push(...unbalanced(report));
 
     const rowCount = countRows(report.breakdown);
     const remainders = countRows(report.breakdown, row => row.kind === 'other');
-    const chart = report.intent.chart
-        ? ` [${report.intent.chart} → ${report.chart.kind}${report.chart.fallback ? ', fallback' : ''}]`
-        : '';
+    const { charts } = report;
+    const unfit = charts.unfit ? `, ${charts.unfit.kind} unfit: ${charts.unfit.reason.code}` : '';
+    const chart =
+        ` [${report.intent.chart ?? 'auto'} → ${charts.main} by ${charts.rule}${unfit};` +
+        ` ${charts.views.length} views]`;
     check(
         problems.length === 0,
         `${label}${chart}: ${report.answer.amount}` +
@@ -367,13 +381,50 @@ interface ChartCheck {
 }
 
 /**
- * Cross-checks the data of the charts a person may prefer against the CLI: stacked series in
- * every month, compared parts now and before, and every bar of a bridge. The rest (`other`)
- * is checked as what the CLI leaves after the parts shown.
+ * Whether the main chart is one of the charts that fit, drawn as the report's chart, and a
+ * preferred chart that does not fit is left out of them, with the main chart marked `fallback`.
  */
-function chartProblems(report: ReportData, snapshot: Snapshot, cli: ChartCheck): string[] {
+function choiceProblems(report: ReportData): string[] {
     const problems: string[] = [];
-    const { chart } = report;
+    const { charts, chart } = report;
+    const kinds = charts.views.map(viewKindOf);
+    if (new Set(kinds).size !== kinds.length) {
+        problems.push(`Repeated views: ${kinds.join(', ')}`);
+    }
+    const main = charts.views.find(view => viewKindOf(view) === charts.main);
+    if (!main || viewKindOf(chart) !== charts.main) {
+        problems.push(`The main chart ${charts.main} is not among the views, or not drawn`);
+    } else if (
+        JSON.stringify({ ...chart, fallback: undefined }) !==
+        JSON.stringify({ ...main, fallback: undefined })
+    ) {
+        problems.push('The main chart is not its view');
+    }
+    if (charts.unfit && kinds.includes(charts.unfit.kind)) {
+        problems.push(`${charts.unfit.kind} is unfit and among the views`);
+    }
+    if ((chart.fallback === true) !== (charts.unfit !== undefined)) {
+        problems.push('A fallback without an unfit preference, or the reverse');
+    }
+    const preferred = report.intent.chart;
+    if (preferred && preferred !== 'auto' && !charts.unfit && charts.main !== preferred) {
+        problems.push(`The preferred ${preferred} fits, but ${charts.main} is drawn`);
+    }
+    return problems;
+}
+
+/**
+ * Cross-checks the data of a chart against the CLI: breakdown parts, stacked series in every
+ * month, compared parts now and before, and every bar of a bridge. The rest (`other`) is
+ * checked as what the CLI leaves after the parts shown.
+ */
+function chartProblems(
+    report: ReportData,
+    chart: ReportChart,
+    snapshot: Snapshot,
+    cli: ChartCheck
+): string[] {
+    const problems: string[] = [];
     const { current, previous, same } = cli;
     const net = report.root.id === NET_RESULT_ROOT;
     const root = net ? undefined : snapshot.groups[report.root.id];
@@ -392,15 +443,34 @@ function chartProblems(report: ReportData, snapshot: Snapshot, cli: ChartCheck):
     const sum = (values: (string | Amount)[]) =>
         values.reduce<Amount>((result, value) => result.plus(value), new Amount(0));
 
-    if (report.intent.chart === 'table' && chart.kind !== 'none') {
-        problems.push(`A table draws a ${chart.kind} chart`);
-    }
-    if (chart.kind === 'pie') {
+    if (chart.kind === 'ranked-bar' || chart.kind === 'donut' || chart.kind === 'pie') {
+        const drawn = report.breakdown.filter(row => !new Amount(row.amount).eq(0));
+        if (chart.rows.join() !== drawn.map(row => row.id).join()) {
+            problems.push('Does not draw exactly the parts with an amount, in order');
+        }
         for (const id of chart.rows) {
             const row = report.breakdown.find(candidate => candidate.id === id);
-            if (!row || !new Amount(row.amount).gt(0)) {
-                problems.push(`The pie draws ${id}, not a positive part`);
+            if (chart.kind !== 'ranked-bar' && (!row || !new Amount(row.amount).gt(0))) {
+                problems.push(`Draws ${id}, not a positive part`);
             }
+        }
+        // The parts add up to the root; a net result's sides to the net result.
+        if (net) {
+            const side = (id: string) =>
+                new Amount(report.breakdown.find(row => row.id === id)?.amount ?? 0);
+            same(
+                'net of the parts',
+                side('incoming').minus(side('outgoing')).toFixed(),
+                new Amount(report.answer.amount)
+            );
+        } else {
+            same(
+                'sum of the parts',
+                sum(
+                    chart.rows.map(id => report.breakdown.find(row => row.id === id)?.amount ?? '0')
+                ).toFixed(),
+                new Amount(report.answer.amount)
+            );
         }
     }
     if (chart.kind === 'stacked') {
@@ -447,6 +517,19 @@ function chartProblems(report: ReportData, snapshot: Snapshot, cli: ChartCheck):
                 same(`compare ${side}`, row.amount, cli.sides(current)[side]);
                 same(`compare ${side} previous`, row.previous, cli.sides(previous)[side]);
             }
+        }
+        if (root && previous) {
+            const rows = chart.rows.map(id => report.breakdown.find(row => row.id === id));
+            same(
+                'compare total',
+                sum(rows.map(row => row?.amount ?? '0')).toFixed(),
+                total(current, root)
+            );
+            same(
+                'compare total previous',
+                sum(rows.map(row => row?.previous ?? '0')).toFixed(),
+                total(previous, root)
+            );
         }
     }
     if (chart.kind === 'waterfall') {
@@ -570,36 +653,23 @@ function unbalanced(report: ReportData): string[] {
             }
             checkRows(row.id, row.amount, row.previous, row.children);
         }
-        if (report.chart.kind === 'bar' || report.chart.kind === 'area') {
-            for (const series of report.chart.series) {
+        for (const view of report.charts.views) {
+            if (view.kind !== 'bar' && view.kind !== 'area') {
+                continue;
+            }
+            for (const series of view.series) {
                 const expected =
                     series.id === NET_RESULT_ROOT ? report.net?.months : side(series.id)?.months;
                 if (series.amounts.join() !== expected?.join()) {
-                    problems.push(`The chart's ${series.id} is not the table's`);
+                    problems.push(`The ${view.kind} chart's ${series.id} is not the table's`);
                 }
             }
-        }
-    }
-    // Charts draw only rows with an amount.
-    if (
-        report.chart.kind === 'ranked-bar' ||
-        report.chart.kind === 'donut' ||
-        report.chart.kind === 'pie'
-    ) {
-        for (const id of report.chart.rows) {
-            const row = report.breakdown.find(candidate => candidate.id === id);
-            if (!row || new Amount(row.amount).eq(0)) {
-                problems.push(`The chart draws ${id}, a row without an amount`);
-            }
-        }
-    }
-    if (
-        (report.chart.kind === 'bar' || report.chart.kind === 'area') &&
-        report.root.id === NET_RESULT_ROOT
-    ) {
-        for (const series of report.chart.series.filter(entry => entry.id !== NET_RESULT_ROOT)) {
-            if (new Amount(side(series.id)?.amount ?? 0).eq(0)) {
-                problems.push(`The chart draws ${series.id}, a side without an amount`);
+            for (const series of view.series.filter(entry => entry.id !== NET_RESULT_ROOT)) {
+                if (new Amount(side(series.id)?.amount ?? 0).eq(0)) {
+                    problems.push(
+                        `The ${view.kind} chart draws ${series.id}, a side without an amount`
+                    );
+                }
             }
         }
     }

@@ -122,10 +122,11 @@ describe('reportCatalog', () => {
             'Report',
             'Answer',
             'Chart',
+            'Visualizations',
             'BreakdownTable',
             'Source',
         ]);
-        expect(reportCatalog.actionNames).toEqual(['expandRow', 'openInBkper']);
+        expect(reportCatalog.actionNames).toEqual(['expandRow', 'selectChart', 'openInBkper']);
     });
 });
 
@@ -258,6 +259,127 @@ describe('validateReportSpec', () => {
         for (const props of invalid) {
             expect(issuesOf(withChart(props)), JSON.stringify(props)).not.toEqual([]);
         }
+    });
+
+    /** The valid spec, its bar chart main among the views. */
+    const withViews = (
+        props: Record<string, unknown>
+    ): { root: string; elements: Record<string, object> } => {
+        const spec = validSpec();
+        const report = spec.elements.report;
+        if (report.type === 'Report') {
+            report.children = ['answer', 'chart', 'views', 'breakdown', 'source'];
+        }
+        return {
+            ...spec,
+            elements: {
+                ...spec.elements,
+                views: {
+                    type: 'Visualizations',
+                    props: {
+                        label: 'Charts',
+                        main: 'bar',
+                        views: [
+                            { kind: 'bar', name: 'By month' },
+                            { kind: 'pie', name: 'Pie', chart: charts.pie },
+                            { kind: 'table', name: 'Table' },
+                        ],
+                        ...props,
+                    },
+                    on: { select: { action: 'selectChart' } },
+                },
+            },
+        };
+    };
+
+    it('accepts every chart that fits, with the data of each but the main one', () => {
+        expect(issuesOf(withViews({}))).toEqual([]);
+        expect(
+            issuesOf(
+                withViews({
+                    unfit: { kind: 'waterfall', name: 'Bridge', reason: 'Nothing changed' },
+                })
+            )
+        ).toEqual([]);
+    });
+
+    it('accepts the table as the main view, with no Chart', () => {
+        const spec = withViews({
+            main: 'table',
+            views: [
+                { kind: 'bar', name: 'By month', chart: charts.bar },
+                { kind: 'table', name: 'Table' },
+            ],
+        });
+        delete spec.elements.chart;
+        Object.assign(spec.elements.report, {
+            children: ['answer', 'views', 'breakdown', 'source'],
+        });
+        expect(issuesOf(spec)).toEqual([]);
+    });
+
+    it('rejects views that cannot be shown as they say', () => {
+        const invalid = [
+            // Data for another kind, or none for a chart other than the main one.
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    { kind: 'pie', name: 'Pie', chart: charts.donut },
+                ],
+            },
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    { kind: 'pie', name: 'Pie' },
+                ],
+            },
+            // The main chart's data is the Chart's; the table has none.
+            { views: [{ kind: 'bar', name: 'By month', chart: charts.bar }] },
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    { kind: 'table', name: 'Table', chart: charts.bar },
+                ],
+            },
+            // The main view must be among them, each once, and the unfit one not.
+            { main: 'pie' },
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    { kind: 'bar', name: 'By month' },
+                ],
+            },
+            { unfit: { kind: 'pie', name: 'Pie', reason: 'No' } },
+            { views: [] },
+        ];
+        for (const props of invalid) {
+            expect(issuesOf(withViews(props)), JSON.stringify(props)).not.toEqual([]);
+        }
+    });
+
+    it('rejects a main view that is not the Chart', () => {
+        const spec = withViews({
+            main: 'pie',
+            views: [
+                { kind: 'bar', name: 'By month', chart: charts.bar },
+                { kind: 'pie', name: 'Pie' },
+            ],
+        });
+        expect(issuesOf(spec).join()).toMatch(/main view/);
+        const table = withViews({
+            main: 'table',
+            views: [
+                { kind: 'bar', name: 'By month', chart: charts.bar },
+                { kind: 'table', name: 'Table' },
+            ],
+        });
+        expect(issuesOf(table).join()).toMatch(/main view/);
+    });
+
+    it('rejects another action on the views', () => {
+        const spec = withViews({});
+        Object.assign(spec.elements.views, { on: { select: { action: 'expandRow' } } });
+        expect(issuesOf(spec)).not.toEqual([]);
     });
 
     it('rejects a total whose months do not match the months', () => {

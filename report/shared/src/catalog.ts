@@ -127,48 +127,124 @@ function oneValuePerMonth(
     });
 }
 
-export const ChartProps = z.discriminatedUnion('kind', [
-    /** By month: bars for activity, a line for positions, or areas. */
-    z
-        .strictObject({
-            kind: z.enum(['bar', 'line', 'area']),
+export const ChartProps = z
+    .discriminatedUnion('kind', [
+        /** By month: bars for activity, a line for positions, or areas. */
+        z
+            .strictObject({
+                kind: z.enum(['bar', 'line', 'area']),
+                label: Text,
+                months: z.array(IsoMonth).min(1),
+                series: z.array(ChartSeries).min(1),
+            })
+            .superRefine(oneValuePerMonth),
+        /** By month, the parts stacked: in every month the series add up to the report's amount. */
+        z
+            .strictObject({
+                kind: z.literal('stacked'),
+                label: Text,
+                months: z.array(IsoMonth).min(2),
+                series: z.array(ChartSeries.omit({ line: true })).min(2),
+            })
+            .superRefine(oneValuePerMonth),
+        /** The top breakdown rows, in breakdown order. */
+        z.strictObject({
+            kind: z.enum(['ranked-bar', 'donut', 'pie']),
             label: Text,
-            months: z.array(IsoMonth).min(1),
-            series: z.array(ChartSeries).min(1),
-        })
-        .superRefine(oneValuePerMonth),
-    /** By month, the parts stacked: in every month the series add up to the report's amount. */
-    z
-        .strictObject({
-            kind: z.literal('stacked'),
+            items: z.array(ChartItem).min(1),
+        }),
+        /** Each breakdown row in the period and in the previous one, side by side. */
+        z.strictObject({
+            kind: z.literal('compare'),
             label: Text,
-            months: z.array(IsoMonth).min(2),
-            series: z.array(ChartSeries.omit({ line: true })).min(2),
-        })
-        .superRefine(oneValuePerMonth),
-    /** The top breakdown rows, in breakdown order. */
-    z.strictObject({
-        kind: z.enum(['ranked-bar', 'donut', 'pie']),
+            /** The names of the period and the previous one, for the legend. */
+            periods: z.strictObject({ current: Text, previous: Text }),
+            items: z.array(CompareItem).min(1),
+        }),
+        /** A bridge: `start`, plus every step, makes `end`. */
+        z.strictObject({
+            kind: z.literal('waterfall'),
+            label: Text,
+            start: WaterfallBar,
+            steps: z.array(WaterfallStep).min(1),
+            end: WaterfallBar,
+        }),
+    ])
+    // Named, so OpenAPI references it from the Chart and from each view instead of repeating it.
+    .meta({ id: 'ChartProps' });
+
+/**
+ * Every way a report can be shown: its chart kinds, and `table`, the breakdown table alone
+ * with no chart.
+ */
+export const VIEW_KINDS = [
+    'bar',
+    'line',
+    'area',
+    'stacked',
+    'ranked-bar',
+    'donut',
+    'pie',
+    'compare',
+    'waterfall',
+    'table',
+] as const satisfies readonly (z.infer<typeof ChartProps>['kind'] | 'table')[];
+
+export type ViewKind = (typeof VIEW_KINDS)[number];
+
+const ViewKindSchema = z.enum(VIEW_KINDS);
+
+const ChartView = z.strictObject({
+    kind: ViewKindSchema,
+    /** A short name, such as `Pie`, under its preview. */
+    name: Text,
+    /** What to draw; absent for the table and for the main chart, which is the report's Chart. */
+    chart: ChartProps.optional(),
+});
+
+/**
+ * Every chart that fits the report, the main one among them, with the data of each other one,
+ * so a renderer can show any of them with no network; and the chart the person asked for when
+ * it does not fit, with why.
+ */
+export const VisualizationsProps = z
+    .strictObject({
+        /** Names the choice of charts, for assistive technologies. */
         label: Text,
-        items: z.array(ChartItem).min(1),
-    }),
-    /** Each breakdown row in the period and in the previous one, side by side. */
-    z.strictObject({
-        kind: z.literal('compare'),
-        label: Text,
-        /** The names of the period and the previous one, for the legend. */
-        periods: z.strictObject({ current: Text, previous: Text }),
-        items: z.array(CompareItem).min(1),
-    }),
-    /** A bridge: `start`, plus every step, makes `end`. */
-    z.strictObject({
-        kind: z.literal('waterfall'),
-        label: Text,
-        start: WaterfallBar,
-        steps: z.array(WaterfallStep).min(1),
-        end: WaterfallBar,
-    }),
-]);
+        /** The chart the report shows first: its Chart, or none for the table. */
+        main: ViewKindSchema,
+        /** In the order to offer them. */
+        views: z.array(ChartView).min(1),
+        unfit: z.strictObject({ kind: ViewKindSchema, name: Text, reason: Text }).optional(),
+    })
+    .superRefine((props, context) => {
+        const kinds = props.views.map(view => view.kind);
+        if (new Set(kinds).size !== kinds.length) {
+            context.addIssue({ code: 'custom', path: ['views'], message: 'Repeats a kind' });
+        }
+        if (!kinds.includes(props.main)) {
+            context.addIssue({ code: 'custom', path: ['main'], message: 'Not among the views' });
+        }
+        if (props.unfit && kinds.includes(props.unfit.kind)) {
+            context.addIssue({
+                code: 'custom',
+                path: ['unfit', 'kind'],
+                message: 'A view that fits is not unfit',
+            });
+        }
+        props.views.forEach((view, index) => {
+            const drawn = view.kind !== 'table' && view.kind !== props.main;
+            if (drawn ? view.chart?.kind !== view.kind : view.chart !== undefined) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['views', index, 'chart'],
+                    message: drawn
+                        ? `Needs the data of a ${view.kind} chart`
+                        : 'Has its data in the Chart, or none',
+                });
+            }
+        });
+    });
 
 export interface BreakdownRow {
     /** Group or account id; `<groupId>:other`; `incoming` or `outgoing`. */
@@ -279,6 +355,9 @@ export const SourceProps = z.strictObject({
 /** Expands or collapses a breakdown row in place; the renderer passes the row. */
 export const ExpandRowParams = z.strictObject({ rowId: z.string().min(1) });
 
+/** Shows one of the views as the report's chart, in place; the renderer passes the kind. */
+export const SelectChartParams = z.strictObject({ kind: ViewKindSchema });
+
 /** Opens a Bkper link; only where the renderer can navigate (the web app). */
 export const OpenInBkperParams = z.strictObject({ url: BkperUrl });
 
@@ -323,6 +402,11 @@ export const reportCatalog = defineCatalog(reportSchema, {
             description:
                 'The amount by month, its largest parts, the parts against the previous period, or a bridge to the amount.',
         },
+        Visualizations: {
+            props: VisualizationsProps,
+            description:
+                'Every chart that fits the report, with their data, to show any of them instead of the Chart.',
+        },
         BreakdownTable: {
             props: BreakdownTableProps,
             description: 'The parts of the amount, a tree of groups and accounts by size.',
@@ -336,6 +420,10 @@ export const reportCatalog = defineCatalog(reportSchema, {
         expandRow: {
             params: ExpandRowParams,
             description: 'Expand or collapse a breakdown row in place.',
+        },
+        selectChart: {
+            params: SelectChartParams,
+            description: 'Show another chart that fits the report, with no new numbers.',
         },
         openInBkper: {
             params: OpenInBkperParams,
@@ -352,6 +440,13 @@ const ReportElement = z.discriminatedUnion('type', [
     }),
     z.strictObject({ type: z.literal('Answer'), props: AnswerProps }),
     z.strictObject({ type: z.literal('Chart'), props: ChartProps }),
+    z.strictObject({
+        type: z.literal('Visualizations'),
+        props: VisualizationsProps,
+        on: z
+            .strictObject({ select: z.strictObject({ action: z.literal('selectChart') }) })
+            .optional(),
+    }),
     z.strictObject({
         type: z.literal('BreakdownTable'),
         props: BreakdownTableProps,
@@ -404,7 +499,26 @@ export function validateReportSpec(input: unknown): ReportSpecValidation {
     if (spec.elements[spec.root] && spec.elements[spec.root].type !== 'Report') {
         issues.push(`Root element "${spec.root}" is not a Report.`);
     }
+    issues.push(...chartIssues(spec));
     return issues.length === 0 ? { valid: true, spec } : { valid: false, issues };
+}
+
+/** At most one Chart and one Visualizations, whose main view is that Chart, or no Chart for the table. */
+function chartIssues(spec: ReportSpec): string[] {
+    const elements = Object.values(spec.elements);
+    const charts = elements.filter(element => element.type === 'Chart');
+    const views = elements.filter(element => element.type === 'Visualizations');
+    if (charts.length > 1 || views.length > 1) {
+        return ['A report has at most one Chart and one Visualizations.'];
+    }
+    const [chart] = charts;
+    const [visualizations] = views;
+    if (visualizations?.type !== 'Visualizations') {
+        return [];
+    }
+    const main = visualizations.props.main;
+    const drawn = chart?.type === 'Chart' ? chart.props.kind : 'table';
+    return drawn === main ? [] : [`The main view, ${main}, is not the Chart (${drawn}).`];
 }
 
 function zodIssues(error: z.ZodError): string[] {

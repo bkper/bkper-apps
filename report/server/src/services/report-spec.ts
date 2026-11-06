@@ -12,6 +12,7 @@ import {
     type BreakdownRow,
     type ReportElement,
     type ReportSpec,
+    type ViewKind,
 } from 'report-shared/catalog';
 import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
@@ -20,11 +21,14 @@ import { NET_RESULT_ROOT } from './report-intent.js';
 import {
     OTHER_PART,
     TYPE_COLORS,
+    viewKindOf,
     type ChartSeries,
     type ReportAmounts,
+    type ReportChart,
     type ReportData,
     type ReportRow,
     type RowKind,
+    type UnfitReason,
     type WaterfallStep,
 } from './report.js';
 
@@ -45,6 +49,33 @@ function relativePeriodLabel(id: string): StringKey | undefined {
     return Object.entries(RELATIVE_PERIOD_LABELS).find(([period]) => period === id)?.[1];
 }
 
+const VIEW_NAMES = {
+    bar: 'chart_name_bar',
+    line: 'chart_name_line',
+    area: 'chart_name_area',
+    stacked: 'chart_name_stacked',
+    'ranked-bar': 'chart_name_ranked_bar',
+    donut: 'chart_name_donut',
+    pie: 'chart_name_pie',
+    compare: 'chart_name_compare',
+    waterfall: 'chart_name_waterfall',
+    table: 'chart_name_table',
+} as const satisfies Record<ViewKind, StringKey>;
+
+const UNFIT_REASONS = {
+    negative_part: 'chart_unfit_negative_part',
+    mixed_parts: 'chart_unfit_mixed_parts',
+    few_parts: 'chart_unfit_few_parts',
+    too_many_parts: 'chart_unfit_too_many_parts',
+    few_months: 'chart_unfit_few_months',
+    no_amounts: 'chart_unfit_no_amounts',
+    no_previous: 'chart_unfit_no_previous',
+    not_a_bridge: 'chart_unfit_not_a_bridge',
+    no_change: 'chart_unfit_no_change',
+    // Said of the chart it is about.
+    net_result: 'chart_unfit_pie_net_result',
+} as const satisfies Record<UnfitReason['code'], StringKey>;
+
 const NAMED_ROWS = {
     other: 'row_other',
     incoming: 'row_incoming',
@@ -59,9 +90,13 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
     const elements: Record<string, ReportElement> = {
         answer: { type: 'Answer', props: answerProps(report, title, labels) },
     };
-    const chart = chartElement(report, title, labels);
+    const chart = chartProps(report.chart, report, title, labels);
     if (chart) {
-        elements.chart = chart;
+        elements.chart = { type: 'Chart', props: chart };
+    }
+    const views = visualizations(report, title, labels);
+    if (views) {
+        elements.views = views;
     }
     elements.breakdown = {
         type: 'BreakdownTable',
@@ -169,12 +204,72 @@ function answerProps(
     };
 }
 
-function chartElement(
+type ChartProps = Extract<ReportElement, { type: 'Chart' }>['props'];
+
+/**
+ * Every other chart that fits the report, with its data, and the preferred one that does not
+ * fit with why; left out when the report fits no chart but its main one and nothing was asked.
+ */
+function visualizations(
     report: ReportData,
     title: string,
     labels: Labels
-): Extract<ReportElement, { type: 'Chart' }> | undefined {
-    const { chart } = report;
+): Extract<ReportElement, { type: 'Visualizations' }> | undefined {
+    const { views, main, unfit } = report.charts;
+    if (views.length < 2 && !unfit) {
+        return undefined;
+    }
+    const lang = labels.lang;
+    return {
+        type: 'Visualizations',
+        props: {
+            label: t('charts_label', lang),
+            main,
+            views: views.map(view => {
+                const kind = viewKindOf(view);
+                const chart = kind === main ? undefined : chartProps(view, report, title, labels);
+                return { kind, name: t(VIEW_NAMES[kind], lang), ...(chart ? { chart } : {}) };
+            }),
+            ...(unfit
+                ? {
+                      unfit: {
+                          kind: unfit.kind,
+                          name: t(VIEW_NAMES[unfit.kind], lang),
+                          reason: unfitReason(unfit.kind, unfit.reason, report, labels),
+                      },
+                  }
+                : {}),
+        },
+        on: { select: { action: 'selectChart' } },
+    };
+}
+
+/** Why a chart does not fit, naming the part and its amount where one is the reason. */
+function unfitReason(
+    kind: ViewKind,
+    reason: UnfitReason,
+    report: ReportData,
+    labels: Labels
+): string {
+    if (reason.code === 'negative_part') {
+        const row = breakdownRowOf(report, reason.rowId);
+        return fill(UNFIT_REASONS.negative_part, labels.lang, {
+            name: labels.row(row.kind, row.name),
+            amount: labels.amount(row.amount, report.book.fractionDigits ?? 2),
+        });
+    }
+    if (reason.code === 'net_result' && kind === 'stacked') {
+        return t('chart_unfit_stacked_net_result', labels.lang);
+    }
+    return t(UNFIT_REASONS[reason.code], labels.lang);
+}
+
+function chartProps(
+    chart: ReportChart,
+    report: ReportData,
+    title: string,
+    labels: Labels
+): ChartProps | undefined {
     const lang = labels.lang;
     switch (chart.kind) {
         case 'none':
@@ -184,32 +279,26 @@ function chartElement(
         case 'area':
         case 'stacked':
             return {
-                type: 'Chart',
-                props: {
-                    kind: chart.kind,
-                    label: fill('chart_by_month', lang, { name: title }),
-                    months: report.months,
-                    series: chart.series.map(series => chartSeries(series, title, labels)),
-                },
+                kind: chart.kind,
+                label: fill('chart_by_month', lang, { name: title }),
+                months: report.months,
+                series: chart.series.map(series => chartSeries(series, title, labels)),
             };
         case 'ranked-bar':
         case 'donut':
         case 'pie':
             return {
-                type: 'Chart',
-                props: {
-                    kind: chart.kind,
-                    label: fill('chart_breakdown', lang, { name: title }),
-                    items: chart.rows.map(id => {
-                        const row = breakdownRowOf(report, id);
-                        return {
-                            rowId: row.id,
-                            label: labels.row(row.kind, row.name),
-                            color: row.color,
-                            value: row.amount,
-                        };
-                    }),
-                },
+                kind: chart.kind,
+                label: fill('chart_breakdown', lang, { name: title }),
+                items: chart.rows.map(id => {
+                    const row = breakdownRowOf(report, id);
+                    return {
+                        rowId: row.id,
+                        label: labels.row(row.kind, row.name),
+                        color: row.color,
+                        value: row.amount,
+                    };
+                }),
             };
         case 'compare': {
             const previous = report.previous;
@@ -217,30 +306,27 @@ function chartElement(
                 throw new Error('A comparison without a previous period');
             }
             return {
-                type: 'Chart',
-                props: {
-                    kind: 'compare',
-                    label: fill('chart_breakdown', lang, { name: title }),
-                    // Both by their dates, so they read alike: never `Last month` against
-                    // `September 2026`.
-                    periods: {
-                        current: labels.dated(report),
-                        previous:
-                            report.nature === 'position'
-                                ? labels.asOf(previous.before)
-                                : labels.previous(report, previous),
-                    },
-                    items: chart.rows.map(id => {
-                        const row = breakdownRowOf(report, id);
-                        return {
-                            rowId: row.id,
-                            label: labels.row(row.kind, row.name),
-                            color: row.color,
-                            value: row.amount,
-                            previous: row.previous ?? '0',
-                        };
-                    }),
+                kind: 'compare',
+                label: fill('chart_breakdown', lang, { name: title }),
+                // Both by their dates, so they read alike: never `Last month` against
+                // `September 2026`.
+                periods: {
+                    current: labels.dated(report),
+                    previous:
+                        report.nature === 'position'
+                            ? labels.asOf(previous.before)
+                            : labels.previous(report, previous),
                 },
+                items: chart.rows.map(id => {
+                    const row = breakdownRowOf(report, id);
+                    return {
+                        rowId: row.id,
+                        label: labels.row(row.kind, row.name),
+                        color: row.color,
+                        value: row.amount,
+                        previous: row.previous ?? '0',
+                    };
+                }),
             };
         }
         case 'waterfall': {
@@ -253,21 +339,18 @@ function chartElement(
                 throw new Error('A bridge of a position without a previous one');
             }
             return {
-                type: 'Chart',
-                props: {
-                    kind: 'waterfall',
-                    label: fill('chart_breakdown', lang, { name: title }),
-                    start: {
-                        label: start,
-                        color: net ? TYPE_COLORS.INCOMING : report.root.color,
-                        value: chart.start,
-                    },
-                    steps: chart.steps.map(step => waterfallStep(step, labels)),
-                    end: {
-                        label: net ? title : labels.period(report),
-                        color: report.root.color,
-                        value: chart.end,
-                    },
+                kind: 'waterfall',
+                label: fill('chart_breakdown', lang, { name: title }),
+                start: {
+                    label: start,
+                    color: net ? TYPE_COLORS.INCOMING : report.root.color,
+                    value: chart.start,
+                },
+                steps: chart.steps.map(step => waterfallStep(step, labels)),
+                end: {
+                    label: net ? title : labels.period(report),
+                    color: report.root.color,
+                    value: chart.end,
                 },
             };
         }
@@ -418,6 +501,17 @@ class Labels {
         return this.day.formatRange(utc(after), utc(lastDay(before)));
     }
 
+    /** An amount with the Book's decimal places, exactly, in the language's digits. */
+    amount(value: string, fractionDigits: number): string {
+        if (!isDecimal(value)) {
+            throw new Error(`Expected a decimal string: ${value}`);
+        }
+        return new Intl.NumberFormat(this.lang, {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits,
+        }).format(value);
+    }
+
     /** The date of a position at the start of `before`. */
     asOf(before: IsoDate): string {
         return fill('position_as_of', this.lang, { date: this.date(lastDay(before)) });
@@ -432,6 +526,11 @@ class Labels {
             utc(date)
         );
     }
+}
+
+/** Intl formats a decimal string exactly, never through a binary float. */
+function isDecimal(value: string): value is `${number}` {
+    return /^-?(0|[1-9]\d*)(\.\d+)?$/.test(value);
 }
 
 /** Whole months from `after` to `before` when both are first days of a month, else 0. */

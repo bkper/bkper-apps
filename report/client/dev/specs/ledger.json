@@ -23,6 +23,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -62,6 +63,84 @@
                                 "value": "-200.5"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "ranked-bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨Net income⁩ by month",
+                                    "months": [
+                                        "2026-10"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-net",
+                                            "label": "Net income",
+                                            "color": "grey",
+                                            "values": [
+                                                "3799.5"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked"
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Breakdown of ⁨Net income⁩",
+                                    "periods": {
+                                        "current": "October 2026",
+                                        "previous": "September 2026"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-salary",
+                                            "label": "Salary",
+                                            "color": "green",
+                                            "value": "5000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "-1000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "-200.5",
+                                            "previous": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -177,6 +256,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -210,6 +290,121 @@
                                 "value": "200.5"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "donut",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨Expenses⁩ by month",
+                                    "months": [
+                                        "2026-10"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "values": [
+                                                "1200.5"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "Breakdown of ⁨Expenses⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "1000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "200.5"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "donut",
+                                "name": "Donut"
+                            },
+                            {
+                                "kind": "pie",
+                                "name": "Pie",
+                                "chart": {
+                                    "kind": "pie",
+                                    "label": "Breakdown of ⁨Expenses⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "1000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "200.5"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Breakdown of ⁨Expenses⁩",
+                                    "periods": {
+                                        "current": "October 2026",
+                                        "previous": "September 2026"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "1000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "200.5",
+                                            "previous": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -315,6 +510,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -349,6 +545,147 @@
                                 "value": "100"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "donut",
+                        "views": [
+                            {
+                                "kind": "line",
+                                "name": "Line",
+                                "chart": {
+                                    "kind": "line",
+                                    "label": "⁨Assets⁩ por mês",
+                                    "months": [
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-assets",
+                                            "label": "Assets",
+                                            "color": "blue",
+                                            "values": [
+                                                "7849.25"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "Detalhamento de ⁨Assets⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "donut",
+                                "name": "Donut"
+                            },
+                            {
+                                "kind": "pie",
+                                "name": "Pie",
+                                "chart": {
+                                    "kind": "pie",
+                                    "label": "Detalhamento de ⁨Assets⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Detalhamento de ⁨Assets⁩",
+                                    "periods": {
+                                        "current": "Em ⁨5 de nov. de 2026⁩",
+                                        "previous": "Em ⁨31 de out. de 2026⁩"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25",
+                                            "previous": "3799.5"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100",
+                                            "previous": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "waterfall",
+                                "name": "Bridge",
+                                "chart": {
+                                    "kind": "waterfall",
+                                    "label": "Detalhamento de ⁨Assets⁩",
+                                    "start": {
+                                        "label": "Em ⁨31 de out. de 2026⁩",
+                                        "color": "blue",
+                                        "value": "3899.5"
+                                    },
+                                    "steps": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "3949.75"
+                                        }
+                                    ],
+                                    "end": {
+                                        "label": "Em ⁨5 de nov. de 2026⁩",
+                                        "color": "blue",
+                                        "value": "7849.25"
+                                    }
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -471,6 +808,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -582,6 +920,192 @@
                                 ]
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month"
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Area",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨صافي النتيجة⁩ حسب الشهر",
+                                    "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "incoming",
+                                            "label": "وارد",
+                                            "color": "green",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "5000",
+                                                "5000"
+                                            ]
+                                        },
+                                        {
+                                            "id": "outgoing",
+                                            "label": "صادر",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "1000",
+                                                "0",
+                                                "1200.5",
+                                                "1050.25"
+                                            ]
+                                        },
+                                        {
+                                            "id": "net-result",
+                                            "label": "صافي النتيجة",
+                                            "color": "grey",
+                                            "line": true,
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "-1000",
+                                                "0",
+                                                "3799.5",
+                                                "3949.75"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "تفصيل ⁨صافي النتيجة⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "incoming",
+                                            "label": "وارد",
+                                            "color": "green",
+                                            "value": "10000"
+                                        },
+                                        {
+                                            "rowId": "outgoing",
+                                            "label": "صادر",
+                                            "color": "red",
+                                            "value": "3250.75"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "تفصيل ⁨صافي النتيجة⁩",
+                                    "periods": {
+                                        "current": "1‏/12‏/2025 – 5‏/11‏/2026",
+                                        "previous": "1‏/12‏/2024 – 5‏/11‏/2025"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "incoming",
+                                            "label": "وارد",
+                                            "color": "green",
+                                            "value": "10000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "outgoing",
+                                            "label": "صادر",
+                                            "color": "red",
+                                            "value": "3250.75",
+                                            "previous": "1000"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "waterfall",
+                                "name": "Bridge",
+                                "chart": {
+                                    "kind": "waterfall",
+                                    "label": "تفصيل ⁨صافي النتيجة⁩",
+                                    "start": {
+                                        "label": "وارد",
+                                        "color": "green",
+                                        "value": "10000"
+                                    },
+                                    "steps": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "-3000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "-250.75"
+                                        }
+                                    ],
+                                    "end": {
+                                        "label": "صافي النتيجة",
+                                        "color": "grey",
+                                        "value": "6749.25"
+                                    }
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -915,6 +1439,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -949,6 +1474,241 @@
                                 "value": "250.75"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "donut",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "months": [
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "1000",
+                                                "0",
+                                                "1200.5",
+                                                "1050.25"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Area",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "months": [
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "1000",
+                                                "0",
+                                                "1200.5",
+                                                "1050.25"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "stacked",
+                                "name": "Stacked",
+                                "chart": {
+                                    "kind": "stacked",
+                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "months": [
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "1000",
+                                                "0",
+                                                "1000",
+                                                "1000"
+                                            ]
+                                        },
+                                        {
+                                            "id": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "200.5",
+                                                "50.25"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "פירוט של ⁨Expenses⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "3000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "250.75"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "donut",
+                                "name": "Donut"
+                            },
+                            {
+                                "kind": "pie",
+                                "name": "Pie",
+                                "chart": {
+                                    "kind": "pie",
+                                    "label": "פירוט של ⁨Expenses⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "3000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "250.75"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "פירוט של ⁨Expenses⁩",
+                                    "periods": {
+                                        "current": "1 ינו׳ – 5 נוב׳ 2026",
+                                        "previous": "1 ינו׳ – 5 נוב׳ 2025"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "3000",
+                                            "previous": "1000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "250.75",
+                                            "previous": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -1086,6 +1846,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -1125,6 +1886,89 @@
                                 "value": "-200.5"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "ranked-bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨Net income⁩ by month",
+                                    "months": [
+                                        "2026-10"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-net",
+                                            "label": "Net income",
+                                            "color": "grey",
+                                            "values": [
+                                                "3799.5"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked"
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Breakdown of ⁨Net income⁩",
+                                    "periods": {
+                                        "current": "October 2026",
+                                        "previous": "September 2026"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-salary",
+                                            "label": "Salary",
+                                            "color": "green",
+                                            "value": "5000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "-1000",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "-200.5",
+                                            "previous": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ],
+                        "unfit": {
+                            "kind": "pie",
+                            "name": "Pie",
+                            "reason": "A pie can't show ⁨Rent⁩ (⁨-1,000.00⁩)"
+                        }
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -1241,6 +2085,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -1287,6 +2132,77 @@
                                 "previous": "0"
                             }
                         ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "compare",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨Net income⁩ by month",
+                                    "months": [
+                                        "2026-10"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-net",
+                                            "label": "Net income",
+                                            "color": "grey",
+                                            "values": [
+                                                "3799.5"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "Breakdown of ⁨Net income⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "a-salary",
+                                            "label": "Salary",
+                                            "color": "green",
+                                            "value": "5000"
+                                        },
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "-1000"
+                                        },
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "-200.5"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared"
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
                     }
                 },
                 "breakdown": {
@@ -1403,6 +2319,7 @@
                     "children": [
                         "answer",
                         "chart",
+                        "views",
                         "breakdown",
                         "source"
                     ]
@@ -1440,6 +2357,143 @@
                             "label": "As of ⁨Nov 5, 2026⁩",
                             "color": "blue",
                             "value": "7849.25"
+                        }
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "waterfall",
+                        "views": [
+                            {
+                                "kind": "line",
+                                "name": "Line",
+                                "chart": {
+                                    "kind": "line",
+                                    "label": "⁨Assets⁩ by month",
+                                    "months": [
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-assets",
+                                            "label": "Assets",
+                                            "color": "blue",
+                                            "values": [
+                                                "7849.25"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "Breakdown of ⁨Assets⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "donut",
+                                "name": "Donut",
+                                "chart": {
+                                    "kind": "donut",
+                                    "label": "Breakdown of ⁨Assets⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "pie",
+                                "name": "Pie",
+                                "chart": {
+                                    "kind": "pie",
+                                    "label": "Breakdown of ⁨Assets⁩",
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Breakdown of ⁨Assets⁩",
+                                    "periods": {
+                                        "current": "As of ⁨Nov 5, 2026⁩",
+                                        "previous": "As of ⁨Oct 31, 2026⁩"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "value": "7749.25",
+                                            "previous": "3799.5"
+                                        },
+                                        {
+                                            "rowId": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "value": "100",
+                                            "previous": "100"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "waterfall",
+                                "name": "Bridge"
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
                         }
                     }
                 },

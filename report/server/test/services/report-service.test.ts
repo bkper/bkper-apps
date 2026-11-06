@@ -248,6 +248,33 @@ describe('createReport by prompt', () => {
         expect(result.chart).toEqual({ kind: 'none', fallback: false });
     });
 
+    it('traces the facts, the charts that fit and the rule that chose the main one', async () => {
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { intent: intent('net-result', '2026-10', { chart: 'pie' }) },
+            {},
+            harness().options
+        );
+        expect(result.trace).toEqual({
+            facts: {
+                rows: 2,
+                negative: 0,
+                mixed: true,
+                months: 1,
+                previous: true,
+                net: true,
+                permanent: false,
+            },
+            chart: {
+                fitting: ['bar', 'ranked-bar', 'compare', 'waterfall', 'table'],
+                main: 'ranked-bar',
+                rule: 'closest',
+                unfit: { kind: 'pie', reason: { code: 'net_result' } },
+            },
+        });
+        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true });
+    });
+
     it('prefers the requested language over the detected one', async () => {
         const result = await createReport(
             await fixtureSnapshot(),

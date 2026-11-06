@@ -239,6 +239,26 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(await ask('pie')).toEqual({ kind: 'pie', fallback: false });
         expect(await ask('table')).toEqual({ kind: 'none', fallback: false });
         expect(await ask('stacked')).toEqual({ kind: 'donut', fallback: true });
+        const traced = await post(test, {
+            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'area' },
+        });
+        expect(((await traced.json()) as { trace: unknown }).trace).toEqual({
+            facts: {
+                rows: 2,
+                negative: 0,
+                mixed: false,
+                months: 1,
+                previous: true,
+                net: false,
+                permanent: false,
+            },
+            chart: {
+                fitting: ['bar', 'ranked-bar', 'donut', 'pie', 'compare', 'table'],
+                main: 'donut',
+                rule: 'closest',
+                unfit: { kind: 'area', reason: { code: 'few_months' } },
+            },
+        });
         const invalid = await post(test, {
             intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'donut' },
         });
@@ -290,6 +310,9 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 ''
         ) as ReportFileData;
         expect(validateReportSpec(data.spec).valid).toBe(true);
+        // The trace is for callers of the API, not for the person reading the file.
+        expect(html).not.toContain('"trace"');
+        expect(Object.keys(data)).not.toContain('trace');
         expect(elementOf(data.spec, 'Source').on).toBeUndefined();
         expect(data.link).toEqual({
             url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+October+2026`,

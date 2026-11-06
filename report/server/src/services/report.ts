@@ -15,6 +15,7 @@
  * computes the report once its result is passed back.
  */
 import { Amount } from 'bkper-js';
+import { VIEW_KINDS, type ViewKind } from 'report-shared/catalog';
 import {
     groupsFilter,
     hashtagQuery,
@@ -151,6 +152,86 @@ export type ReportChart = (
     fallback?: true;
 };
 
+export { VIEW_KINDS, type ViewKind };
+
+/** Every reason a chart may not fit a report. */
+export const UNFIT_REASON_CODES = [
+    'net_result',
+    'negative_part',
+    'mixed_parts',
+    'few_parts',
+    'too_many_parts',
+    'few_months',
+    'no_amounts',
+    'no_previous',
+    'not_a_bridge',
+    'no_change',
+] as const satisfies readonly UnfitReason['code'][];
+
+export const CHART_RULES = [
+    'preference',
+    'closest',
+    'rules',
+] as const satisfies readonly ChartRule[];
+
+/** Why a chart does not fit a report, from its facts. */
+export type UnfitReason =
+    /** A pie or donut of a net result, or its sides stacked. */
+    | { code: 'net_result' }
+    /** A part below zero, in the root's sense, cannot be a slice. */
+    | { code: 'negative_part'; rowId: string }
+    /** Parts of another type than the root's, or under a mixed root, are no slices of one whole. */
+    | { code: 'mixed_parts' }
+    /** Fewer than two parts with an amount. */
+    | { code: 'few_parts' }
+    /** More parts than a donut shows. */
+    | { code: 'too_many_parts' }
+    /** Fewer months than the chart needs: two over time, one for a chart by month. */
+    | { code: 'few_months' }
+    /** Every value the chart would draw is zero. */
+    | { code: 'no_amounts' }
+    /** Nothing to compare with or bridge from, as for all time. */
+    | { code: 'no_previous' }
+    /** A bridge of activity other than the net result. */
+    | { code: 'not_a_bridge' }
+    /** A bridge whose every step is zero. */
+    | { code: 'no_change' };
+
+/** The facts of a report that decide which charts fit it. */
+export interface ChartFacts {
+    /** Top-level breakdown rows with an amount in the period. */
+    rows: number;
+    /** Of those, the ones below zero in the root's sense. */
+    negative: number;
+    /** Whether any of those is of another type than the root, or the root is mixed. */
+    mixed: boolean;
+    /** Months of the period. */
+    months: number;
+    /** Whether there is a previous period to compare with. */
+    previous: boolean;
+    /** A net result. */
+    net: boolean;
+    /** A position of a permanent root (Asset, Liability). */
+    permanent: boolean;
+}
+
+/**
+ * How the main chart was chosen: the intent's preference, which fits; the chart closest to a
+ * preference that does not fit; or the rules, for `auto` or when nothing close fits.
+ */
+export type ChartRule = 'preference' | 'closest' | 'rules';
+
+/** Every chart a report can show, and why its main one is the one shown. */
+export interface ReportCharts {
+    facts: ChartFacts;
+    /** Every chart that fits, in {@link VIEW_KINDS} order, the main one among them; `none` is the table. */
+    views: ReportChart[];
+    main: ViewKind;
+    rule: ChartRule;
+    /** The preferred chart, when it does not fit, and why. */
+    unfit?: { kind: ViewKind; reason: UnfitReason };
+}
+
 export interface ReportData {
     book: { id: string; name: string; timeZone?: string; fractionDigits?: number };
     intent: ReportIntent;
@@ -175,7 +256,9 @@ export interface ReportData {
     net?: { incoming: ReportAmounts; outgoing: ReportAmounts; months: string[] };
     /** The months of the period, in order; the first and last may be partial. */
     months: IsoMonth[];
+    /** The main chart: `fallback` when the intent preferred another, which does not fit. */
     chart: ReportChart;
+    charts: ReportCharts;
     breakdown: ReportRow[];
     /** The Bkper query of exactly these transactions and dates. */
     query: string;
@@ -263,6 +346,15 @@ export function buildReport(
             : `after:${after} before:${before}`;
     const query = `${filter} ${dates}`;
     const view = intent.view ?? (intent.monthly ? 'trend' : 'breakdown');
+    const charts = reportCharts(intent.chart ?? 'auto', view, {
+        nature,
+        root: report.root,
+        total: reportAmounts(report.total),
+        net: report.net,
+        rows: report.rows,
+        series: report.series,
+        months,
+    });
     return {
         report: {
             book: {
@@ -279,15 +371,8 @@ export function buildReport(
             answer: reportAmounts(report.total),
             ...(report.net ? { net: report.net } : {}),
             months,
-            chart: reportChart(intent.chart ?? 'auto', view, {
-                nature,
-                root: report.root,
-                total: reportAmounts(report.total),
-                net: report.net,
-                rows: report.rows,
-                series: report.series,
-                months,
-            }),
+            chart: charts.chart,
+            charts: charts.charts,
             breakdown: report.rows,
             query,
             url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
@@ -633,68 +718,201 @@ interface ChartInput {
     months: IsoMonth[];
 }
 
-/** The chart the person prefers when it fits the report, else the chart of the rules. */
-function reportChart(
+/** The kind of a view: a chart's, or `table` for none. */
+export function viewKindOf(chart: ReportChart): ViewKind {
+    return chart.kind === 'none' ? 'table' : chart.kind;
+}
+
+/** A chart that fits the report, or why it does not. */
+type Fit = { chart: ReportChart } | { reason: UnfitReason };
+
+function isFit(fit: Fit | undefined): fit is { chart: ReportChart } {
+    return fit !== undefined && 'chart' in fit;
+}
+
+/**
+ * The fitting charts closest to each preference, in order, when it does not fit: the same
+ * parts drawn another way, then the same months.
+ */
+const CLOSEST: Record<Exclude<ChartPreference, 'auto' | 'table'>, ViewKind[]> = {
+    pie: ['donut', 'ranked-bar'],
+    stacked: ['bar', 'line', 'area', 'donut', 'ranked-bar'],
+    area: ['bar', 'line', 'stacked', 'donut', 'ranked-bar'],
+    compare: ['ranked-bar', 'donut'],
+    waterfall: ['compare', 'ranked-bar', 'donut'],
+};
+
+/**
+ * Every chart that fits the report, and the main one: the preference when it fits; else the
+ * fitting chart closest to it; else, as for `auto`, the rules' chart.
+ */
+function reportCharts(
     preference: ChartPreference,
     view: 'trend' | 'breakdown' | 'total',
     input: ChartInput
-): ReportChart {
-    const byRules = (): ReportChart => chooseChart(view, input);
-    if (preference === 'auto') {
-        return byRules();
+): { chart: ReportChart; charts: ReportCharts } {
+    const fits = new Map(
+        VIEW_KINDS.filter(kind => kind !== otherByMonth(input.nature)).map(kind => [
+            kind,
+            fitChart(kind, input),
+        ])
+    );
+    const fitting = (kind: ViewKind): ReportChart | undefined => {
+        const fit = fits.get(kind);
+        return isFit(fit) ? fit.chart : undefined;
+    };
+    const views = VIEW_KINDS.flatMap(kind => fitting(kind) ?? []);
+    const chosen = mainChoice(preference, fits, () => rulesKind(view, input), input.months.length);
+    const main = fitting(chosen.main);
+    if (!main) {
+        throw new Error(`The main chart does not fit: ${chosen.main}`);
     }
-    return preferredChart(preference, input) ?? { ...byRules(), fallback: true };
+    return {
+        chart: chosen.unfit ? { ...main, fallback: true } : main,
+        charts: {
+            facts: chartFacts(input),
+            views,
+            main: chosen.main,
+            rule: chosen.rule,
+            ...(chosen.unfit ? { unfit: chosen.unfit } : {}),
+        },
+    };
 }
 
-function chooseChart(view: 'trend' | 'breakdown' | 'total', input: ChartInput): ReportChart {
+/** The main chart's kind, the rule that chose it, and the preference when it does not fit. */
+function mainChoice(
+    preference: ChartPreference,
+    fits: ReadonlyMap<ViewKind, Fit>,
+    byRules: () => ViewKind,
+    months: number
+): { main: ViewKind; rule: ChartRule; unfit?: ReportCharts['unfit'] } {
+    if (preference === 'auto') {
+        return { main: byRules(), rule: 'rules' };
+    }
+    const fit = fits.get(preference);
+    if (!fit || isFit(fit)) {
+        return { main: preference, rule: 'preference' };
+    }
+    const unfit = { kind: preference, reason: fit.reason };
+    // A chart by month of one month shows nothing the parts do not.
+    const closest =
+        preference === 'table'
+            ? undefined
+            : CLOSEST[preference].find(
+                  kind => isFit(fits.get(kind)) && (!isByMonth(kind) || months >= 2)
+              );
+    return closest
+        ? { main: closest, rule: 'closest', unfit }
+        : { main: byRules(), rule: 'rules', unfit };
+}
+
+/** The chart by month a report of the other nature has: a line for activity, bars for a position. */
+function otherByMonth(nature: ReportNature): ViewKind {
+    return nature === 'activity' ? 'line' : 'bar';
+}
+
+function isByMonth(kind: ViewKind): boolean {
+    return kind === 'bar' || kind === 'line';
+}
+
+function chartFacts({ nature, root, net, rows, months, total }: ChartInput): ChartFacts {
+    const drawn = rows.filter(hasAmount);
+    return {
+        rows: drawn.length,
+        negative: drawn.filter(row => new Amount(row.amount).lt(0)).length,
+        mixed: root.type === 'MIXED' || drawn.some(row => row.type !== root.type),
+        months: months.length,
+        previous: total.previous !== undefined,
+        net: net !== undefined,
+        permanent: nature === 'position',
+    };
+}
+
+/**
+ * The rules' chart: by month for a trend (bars for activity, a line for positions), else a
+ * breakdown chart (a donut of a few parts of one whole, else ranked bars), else the table.
+ */
+function rulesKind(view: 'trend' | 'breakdown' | 'total', input: ChartInput): ViewKind {
     const { nature, root, rows, series, months } = input;
     if (view === 'trend' && months.length > 0) {
         // A chart whose every value is zero shows nothing, as charts leave out empty rows.
-        return hasValues(series)
-            ? { kind: nature === 'activity' ? 'bar' : 'line', series }
-            : { kind: 'none' };
+        if (!hasValues(series)) {
+            return 'table';
+        }
+        return nature === 'activity' ? 'bar' : 'line';
     }
     // Charts draw only rows with an amount in the period.
     const drawn = rows.filter(hasAmount);
     if (view === 'breakdown' && drawn.length >= 2) {
         // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
         const donut = drawn.length <= MAX_DONUT_ROWS && isComposition(drawn, root.type);
-        return { kind: donut ? 'donut' : 'ranked-bar', rows: drawn.map(row => row.id) };
+        return donut ? 'donut' : 'ranked-bar';
     }
-    return { kind: 'none' };
+    return 'table';
 }
 
-/** The preferred chart, or `undefined` when it does not fit the report. */
-function preferredChart(
-    preference: Exclude<ChartPreference, 'auto'>,
-    input: ChartInput
-): ReportChart | undefined {
+/** A chart of the report, or the reason it does not fit. */
+function fitChart(kind: ViewKind, input: ChartInput): Fit {
     const { nature, root, total, net, rows, series, months } = input;
-    switch (preference) {
+    const drawn = rows.filter(hasAmount);
+    const ids = (parts: ReportRow[]) => parts.map(row => row.id);
+    switch (kind) {
         case 'table':
-            return { kind: 'none' };
-        case 'pie': {
-            const drawn = rows.filter(hasAmount);
-            return drawn.length >= 2 && isComposition(drawn, root.type)
-                ? { kind: 'pie', rows: drawn.map(row => row.id) }
-                : undefined;
-        }
+            return { chart: { kind: 'none' } };
+        case 'bar':
+        case 'line':
+            if (months.length === 0) {
+                return { reason: { code: 'few_months' } };
+            }
+            return hasValues(series)
+                ? { chart: { kind, series } }
+                : { reason: { code: 'no_amounts' } };
         case 'area':
-            return months.length >= 2 && hasValues(series) ? { kind: 'area', series } : undefined;
+            if (months.length < 2) {
+                return { reason: { code: 'few_months' } };
+            }
+            return hasValues(series)
+                ? { chart: { kind: 'area', series } }
+                : { reason: { code: 'no_amounts' } };
         case 'stacked':
             // The sides of a net result are each in their own sense, so they do not stack up to it.
-            return !net && months.length >= 2 && rows.filter(hasAmount).length >= 2
-                ? { kind: 'stacked', series: stackedSeries(input) }
-                : undefined;
+            if (net) {
+                return { reason: { code: 'net_result' } };
+            }
+            if (months.length < 2) {
+                return { reason: { code: 'few_months' } };
+            }
+            return drawn.length >= 2
+                ? { chart: { kind: 'stacked', series: stackedSeries(input) } }
+                : { reason: { code: 'few_parts' } };
+        case 'ranked-bar':
+            return drawn.length >= 2
+                ? { chart: { kind: 'ranked-bar', rows: ids(drawn) } }
+                : { reason: { code: 'few_parts' } };
+        case 'donut':
+        case 'pie': {
+            const reason = compositionReason(drawn, root.type, net !== undefined);
+            if (reason) {
+                return { reason };
+            }
+            if (kind === 'donut' && drawn.length > MAX_DONUT_ROWS) {
+                return { reason: { code: 'too_many_parts' } };
+            }
+            return { chart: { kind, rows: ids(drawn) } };
+        }
         case 'compare': {
+            if (total.previous === undefined) {
+                return { reason: { code: 'no_previous' } };
+            }
             const compared = rows.filter(
                 row => hasAmount(row) || !new Amount(row.previous ?? 0).eq(0)
             );
-            return total.previous !== undefined && compared.length > 0
-                ? { kind: 'compare', rows: compared.map(row => row.id) }
-                : undefined;
+            return compared.length > 0
+                ? { chart: { kind: 'compare', rows: ids(compared) } }
+                : { reason: { code: 'no_amounts' } };
         }
         case 'waterfall': {
+            let chart: ReportChart | undefined;
             if (net) {
                 // Incoming, minus each Outgoing account, is the net result.
                 const outgoing = rows.find(row => row.kind === 'outgoing')?.children ?? [];
@@ -702,19 +920,42 @@ function preferredChart(
                     row,
                     amount: new Amount(row.amount).times(-1),
                 }));
-                return bridge(net.incoming.amount, steps, total.amount, 'OUTGOING');
-            }
-            if (nature === 'position' && total.previous !== undefined) {
+                chart = bridge(net.incoming.amount, steps, total.amount, 'OUTGOING');
+            } else if (nature !== 'position') {
+                return { reason: { code: 'not_a_bridge' } };
+            } else if (total.previous === undefined) {
+                return { reason: { code: 'no_previous' } };
+            } else {
                 // The previous position, plus each part's change, is the position.
                 const steps = rows.map(row => ({
                     row,
                     amount: new Amount(row.amount).minus(row.previous ?? 0),
                 }));
-                return bridge(total.previous, steps, total.amount, root.type);
+                chart = bridge(total.previous, steps, total.amount, root.type);
             }
-            return undefined;
+            return chart ? { chart } : { reason: { code: 'no_change' } };
         }
     }
+}
+
+/** Why parts are no slices of one whole, or `undefined` when they are. */
+function compositionReason(
+    drawn: ReportRow[],
+    rootType: NodeType,
+    net: boolean
+): UnfitReason | undefined {
+    if (net) {
+        return { code: 'net_result' };
+    }
+    if (drawn.length < 2) {
+        return { code: 'few_parts' };
+    }
+    // Rows are sorted by size, so this is the largest part below zero.
+    const negative = drawn.find(row => new Amount(row.amount).lt(0));
+    if (negative) {
+        return { code: 'negative_part', rowId: negative.id };
+    }
+    return isComposition(drawn, rootType) ? undefined : { code: 'mixed_parts' };
 }
 
 /** Parts of one type, each positive, that add up to a whole. */

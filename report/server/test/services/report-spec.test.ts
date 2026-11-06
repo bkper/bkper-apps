@@ -253,15 +253,27 @@ describe('buildReportSpec', () => {
         expect(element(built, 'BreakdownTable').props.months).toEqual(['2026-10', '2026-11']);
     });
 
-    it('leaves the chart out when the report has none', async () => {
+    it('leaves the chart out when the report has none, and offers the charts that fit', async () => {
         const built = await spec(intent('g-expenses', 'last_month', { view: 'total' }));
+        expect(Object.values(built.elements).map(part => part.type)).toEqual([
+            'Report',
+            'Answer',
+            'Visualizations',
+            'BreakdownTable',
+            'Source',
+        ]);
+        expect(built.elements[built.root].type).toBe('Report');
+        expect(element(built, 'Visualizations').props.main).toBe('table');
+    });
+
+    it('leaves the charts out when only the table fits', async () => {
+        const built = await spec(intent('g-card', 'last_year', { monthly: true }));
         expect(Object.values(built.elements).map(part => part.type)).toEqual([
             'Report',
             'Answer',
             'BreakdownTable',
             'Source',
         ]);
-        expect(built.elements[built.root].type).toBe('Report');
     });
 
     it('binds expanding rows and opening the query in Bkper', async () => {
@@ -428,6 +440,87 @@ describe('buildReportSpec', () => {
             steps: [{ rowId: 'g-banks', label: 'Banks', color: 'blue', value: '3949.75' }],
             end: { label: `As of ${isolate('Nov 5, 2026')}`, color: 'blue', value: '7849.25' },
         });
+    });
+
+    it('offers every other chart that fits, with the data the preferred chart would have', async () => {
+        const request = intent('g-expenses', '2026', { monthly: true });
+        const built = await spec(request);
+        const views = element(built, 'Visualizations');
+        expect(views.on).toEqual({ select: { action: 'selectChart' } });
+        expect(views.props.label).toBe('Charts');
+        expect(views.props.main).toBe('bar');
+        expect(views.props.views.map(view => [view.kind, view.name])).toEqual([
+            ['bar', 'By month'],
+            ['area', 'Area'],
+            ['stacked', 'Stacked'],
+            ['ranked-bar', 'Ranked'],
+            ['donut', 'Donut'],
+            ['pie', 'Pie'],
+            ['compare', 'Compared'],
+            ['table', 'Table'],
+        ]);
+        // The main chart is the Chart, and the table has no chart.
+        expect(views.props.views.filter(view => !view.chart).map(view => view.kind)).toEqual([
+            'bar',
+            'table',
+        ]);
+        expect(views.props.unfit).toBeUndefined();
+        for (const kind of ['area', 'stacked', 'pie', 'compare'] as const) {
+            const preferred = await spec({ ...request, chart: kind });
+            expect(views.props.views.find(view => view.kind === kind)?.chart, kind).toEqual(
+                element(preferred, 'Chart').props
+            );
+        }
+        const pie = element(await spec({ ...request, chart: 'pie' }), 'Visualizations').props;
+        expect(pie.main).toBe('pie');
+        expect(pie.views.find(view => view.kind === 'bar')?.chart).toEqual(
+            element(built, 'Chart').props
+        );
+    });
+
+    it('dims the preferred chart that does not fit, naming the part and its amount', async () => {
+        const snapshot = await fixtureSnapshot();
+        snapshot.accounts['a-food'] = {
+            ...snapshot.accounts['a-food'],
+            name: 'IMPOSTOS',
+            months: snapshot.accounts['a-food'].months.map(month =>
+                month.month === '2026-10' ? { ...month, period: '-186.74' } : month
+            ),
+        };
+        snapshot.groups['g-expenses'].months = snapshot.groups['g-expenses'].months.map(month =>
+            month.month === '2026-10' ? { ...month, period: '813.26' } : month
+        );
+        const request = intent('g-expenses', 'last_month', { chart: 'pie' });
+        const english = element(await spec(request, 'en', snapshot), 'Visualizations').props;
+        expect(english.unfit).toEqual({
+            kind: 'pie',
+            name: 'Pie',
+            reason: t('chart_unfit_negative_part', 'en', {
+                name: isolate('IMPOSTOS'),
+                amount: isolate('-186.74'),
+            }),
+        });
+        expect(english.main).toBe('ranked-bar');
+        expect(english.views.map(view => view.kind)).not.toContain('pie');
+        const portuguese = element(await spec(request, 'pt-BR', snapshot), 'Visualizations');
+        expect(portuguese.props.unfit?.reason).toContain(isolate('-186,74'));
+    });
+
+    it('says why a preferred chart does not fit, in the words of that chart', async () => {
+        const reason = async (request: ReportIntent) =>
+            element(await spec(request), 'Visualizations').props.unfit?.reason;
+        expect(await reason(intent('net-result', 'last_month', { chart: 'pie' }))).toBe(
+            t('chart_unfit_pie_net_result', 'en')
+        );
+        expect(await reason(intent('net-result', '2026', { chart: 'stacked' }))).toBe(
+            t('chart_unfit_stacked_net_result', 'en')
+        );
+        expect(await reason(intent('g-expenses', 'all', { chart: 'compare' }))).toBe(
+            t('chart_unfit_no_previous', 'en')
+        );
+        expect(await reason(intent('g-expenses', 'last_month', { chart: 'waterfall' }))).toBe(
+            t('chart_unfit_not_a_bridge', 'en')
+        );
     });
 
     it('leaves the chart out of a table', async () => {

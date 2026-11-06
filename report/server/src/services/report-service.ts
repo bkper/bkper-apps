@@ -20,9 +20,14 @@ import {
 import {
     ReportError,
     buildReport,
+    viewKindOf,
+    type ChartFacts,
+    type ChartRule,
     type ReportChart,
+    type ReportCharts,
     type ReportData,
     type ReportStep,
+    type ViewKind,
 } from './report.js';
 import type { ReportIntent } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
@@ -52,6 +57,18 @@ export interface ReportServiceOptions {
     now?: () => Date;
 }
 
+/** How the report was shown: the facts of its data, the charts that fit them, and the main one. */
+export interface ReportTrace {
+    facts: ChartFacts;
+    chart: {
+        /** Every chart that fits, in the order a renderer offers them; `table` for none. */
+        fitting: ViewKind[];
+        main: ViewKind;
+        rule: ChartRule;
+        unfit?: ReportCharts['unfit'];
+    };
+}
+
 export interface ReportResult {
     spec: ReportSpec;
     intent: ReportIntent;
@@ -65,6 +82,7 @@ export interface ReportResult {
     chart: { kind: ReportChart['kind']; fallback: boolean };
     /** The request as a person would type it: the prompt, or the report's title and period. */
     text: string;
+    trace: ReportTrace;
 }
 
 /** The request is not a report of this Book; the suggestions are reports it can have. */
@@ -148,6 +166,14 @@ export async function createReport(
         dataAt: report.dataAt,
         chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: 'prompt' in request ? request.prompt : reportText(spec),
+        trace: reportTrace(report.charts),
+    };
+}
+
+function reportTrace({ facts, views, main, rule, unfit }: ReportCharts): ReportTrace {
+    return {
+        facts,
+        chart: { fitting: views.map(viewKindOf), main, rule, ...(unfit ? { unfit } : {}) },
     };
 }
 

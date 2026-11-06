@@ -6,10 +6,14 @@ import {
     type LiveQuery,
 } from '../../src/services/live-balances';
 import {
+    OTHER_PART,
     ReportError,
     buildReport,
+    viewKindOf,
+    type ReportChart,
     type ReportData,
     type ReportRow,
+    type ViewKind,
 } from '../../src/services/report';
 import type { ReportIntent } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
@@ -715,10 +719,10 @@ describe('buildReport: chart preference', () => {
         expect(net.chart).toEqual({ kind: 'compare', rows: ['outgoing'] });
     });
 
-    it('falls back from a comparison without a previous period', async () => {
+    it('falls back from a comparison without a previous period to the closest chart', async () => {
         const data = await report(intent('g-expenses', 'all', { chart: 'compare' }));
         expect(data.chart).toEqual({
-            kind: 'donut',
+            kind: 'ranked-bar',
             rows: ['a-rent', 'a-food', 'a-old'],
             fallback: true,
         });
@@ -839,11 +843,274 @@ describe('buildReport: chart preference', () => {
     it('falls back from a bridge for other activity or a position without a previous one', async () => {
         const expenses = await report(intent('g-expenses', 'last_month', { chart: 'waterfall' }));
         expect(expenses.chart).toEqual({
-            kind: 'donut',
+            kind: 'compare',
             rows: ['a-rent', 'a-food'],
             fallback: true,
         });
         const all = await report(intent('g-assets', 'all', { chart: 'waterfall' }));
-        expect(all.chart).toMatchObject({ kind: 'donut', fallback: true });
+        expect(all.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
     });
 });
+
+function kinds(data: ReportData): ViewKind[] {
+    return data.charts.views.map(viewKindOf);
+}
+
+function viewOf<K extends ReportChart['kind']>(
+    data: ReportData,
+    kind: K
+): Extract<ReportChart, { kind: K }> {
+    const view = data.charts.views.find(
+        (candidate): candidate is Extract<ReportChart, { kind: K }> => candidate.kind === kind
+    );
+    if (!view) {
+        throw new Error(`No ${kind} view among ${kinds(data).join(', ')}`);
+    }
+    return view;
+}
+
+describe('buildReport: chart views', () => {
+    it('computes every chart that fits an activity, with the facts it fits by', async () => {
+        const data = await report(intent('g-expenses', '2026', { monthly: true }));
+        expect(kinds(data)).toEqual([
+            'bar',
+            'area',
+            'stacked',
+            'ranked-bar',
+            'donut',
+            'pie',
+            'compare',
+            'table',
+        ]);
+        expect(data.charts.facts).toEqual({
+            rows: 2,
+            negative: 0,
+            mixed: false,
+            months: 11,
+            previous: true,
+            net: false,
+            permanent: false,
+        });
+        expect(data.charts).toMatchObject({ main: 'bar', rule: 'rules' });
+        expect(data.charts.unfit).toBeUndefined();
+        expect(viewOf(data, 'bar')).toEqual(data.chart);
+    });
+
+    it('computes the charts of a position, a bridge from the previous one among them', async () => {
+        const data = await report(intent('g-assets', 'today'));
+        expect(kinds(data)).toEqual([
+            'line',
+            'ranked-bar',
+            'donut',
+            'pie',
+            'compare',
+            'waterfall',
+            'table',
+        ]);
+        expect(data.charts.facts).toMatchObject({ months: 1, previous: true, permanent: true });
+        expect(data.charts.main).toBe('donut');
+    });
+
+    it('computes the charts of a net result: no pie, donut or stacked parts', async () => {
+        const data = await report(intent('net-result', '2026', { monthly: true }));
+        expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'waterfall', 'table']);
+        expect(data.charts.facts).toMatchObject({ rows: 2, mixed: true, net: true });
+    });
+
+    it('has only the table when no chart fits', async () => {
+        const data = await report(intent('g-card', 'last_year', { monthly: true }));
+        expect(kinds(data)).toEqual(['table']);
+        expect(data.charts).toMatchObject({ main: 'table', rule: 'rules' });
+    });
+
+    it('draws the preferred chart when it fits, and still offers the others', async () => {
+        const data = await report(intent('g-expenses', '2026', { monthly: true, chart: 'pie' }));
+        expect(data.chart.kind).toBe('pie');
+        expect(data.charts).toMatchObject({ main: 'pie', rule: 'preference' });
+        expect(kinds(data)).toContain('bar');
+        const table = await report(intent('g-expenses', '2026', { chart: 'table' }));
+        expect(table.chart).toEqual({ kind: 'none' });
+        expect(table.charts).toMatchObject({ main: 'table', rule: 'preference' });
+        expect(kinds(table)).toContain('donut');
+    });
+
+    it('tells why a pie cannot show a negative part, and draws the closest chart', async () => {
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+            '-186.74',
+        ]);
+        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), snapshot);
+        expect(data.charts.unfit).toEqual({
+            kind: 'pie',
+            reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
+        });
+        expect(data.charts.facts).toMatchObject({ rows: 3, negative: 1, mixed: false });
+        expect(kinds(data)).not.toContain('pie');
+        expect(kinds(data)).not.toContain('donut');
+        expect(data.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
+        expect(data.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
+    });
+
+    it('tells why a pie cannot show a net result or a mixed group', async () => {
+        const net = await report(intent('net-result', 'last_month', { chart: 'pie' }));
+        expect(net.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
+        expect(net.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
+        // Rent and Food count against the Incoming nature of the group.
+        const mixed = await report(intent('g-net', 'last_month', { chart: 'pie' }));
+        expect(mixed.charts.unfit).toEqual({
+            kind: 'pie',
+            reason: { code: 'negative_part', rowId: 'a-rent' },
+        });
+    });
+
+    it('tells why a pie cannot show parts of different types', async () => {
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', ['50']);
+        // Positive in the root's sense, but not Outgoing.
+        snapshot.accounts['g-expenses-extra-0'].type = 'ASSET';
+        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), snapshot);
+        expect(data.charts.unfit?.reason).toEqual({ code: 'mixed_parts' });
+        expect(data.charts.facts).toMatchObject({ negative: 0, mixed: true });
+    });
+
+    it('tells why a pie cannot show fewer than two parts', async () => {
+        const data = await report(intent('g-revenue', 'last_month', { chart: 'pie' }));
+        expect(data.charts.unfit?.reason).toEqual({ code: 'few_parts' });
+        // Nothing close fits, so the rules choose.
+        expect(data.charts).toMatchObject({ main: 'table', rule: 'rules' });
+    });
+
+    it('tells why stacked bars or areas need two months, and stacked bars no net result', async () => {
+        const month = await report(intent('g-expenses', 'last_month', { chart: 'stacked' }));
+        expect(month.charts.unfit).toEqual({ kind: 'stacked', reason: { code: 'few_months' } });
+        // A chart of one month by month shows nothing more than the parts.
+        expect(month.charts).toMatchObject({ main: 'donut', rule: 'closest' });
+        const area = await report(intent('g-expenses', 'last_month', { chart: 'area' }));
+        expect(area.charts.unfit).toEqual({ kind: 'area', reason: { code: 'few_months' } });
+        const net = await report(intent('net-result', '2026', { chart: 'stacked' }));
+        expect(net.charts.unfit).toEqual({ kind: 'stacked', reason: { code: 'net_result' } });
+        expect(net.charts).toMatchObject({ main: 'bar', rule: 'closest' });
+    });
+
+    it('tells why areas without amounts do not fit', async () => {
+        const data = await report(intent('g-card', 'last_year', { chart: 'area' }));
+        expect(data.charts.unfit).toEqual({ kind: 'area', reason: { code: 'no_amounts' } });
+    });
+
+    it('tells why a comparison or a bridge needs a previous period', async () => {
+        const compare = await report(intent('g-expenses', 'all', { chart: 'compare' }));
+        expect(compare.charts.unfit).toEqual({ kind: 'compare', reason: { code: 'no_previous' } });
+        expect(compare.charts.facts.previous).toBe(false);
+        const bridge = await report(intent('g-assets', 'all', { chart: 'waterfall' }));
+        expect(bridge.charts.unfit).toEqual({
+            kind: 'waterfall',
+            reason: { code: 'no_previous' },
+        });
+    });
+
+    it('tells why a bridge does not fit other activity', async () => {
+        const data = await report(intent('g-expenses', 'last_month', { chart: 'waterfall' }));
+        expect(data.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'not_a_bridge' } });
+        expect(data.charts).toMatchObject({ main: 'compare', rule: 'closest' });
+    });
+
+    it('tells why a bridge where nothing changed does not fit', async () => {
+        const data = await report(intent('g-card', 'today', { chart: 'waterfall' }));
+        expect(data.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'no_change' } });
+    });
+
+    it('adds up every view to its parent, to the cent', async () => {
+        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+            '300.01',
+            '-40.02',
+            '25.03',
+            '7.04',
+            '3.05',
+            '1.06',
+            '0.07',
+        ]);
+        const intents = [
+            intent('g-expenses', '2026', { monthly: true }),
+            intent('g-expenses', 'last_month'),
+            intent('g-expenses', 'this_month'),
+            intent('g-assets', 'today'),
+            intent('g-assets', '2026', { monthly: true }),
+            intent('g-net', 'last_12_months'),
+            intent('net-result', '2026', { monthly: true }),
+            intent('net-result', 'last_month'),
+        ];
+        for (const request of intents) {
+            const data = await report(request, snapshot);
+            for (const view of data.charts.views) {
+                const where = `${request.root} ${request.period} ${view.kind}`;
+                for (const problem of viewProblems(data, view)) {
+                    expect.fail(`${where}: ${problem}`);
+                }
+            }
+        }
+    });
+});
+
+/** What in a view does not add up to its parent: the root, or each side of a net result. */
+function viewProblems(data: ReportData, view: ReportChart): string[] {
+    const problems: string[] = [];
+    const net = data.root.id === 'net-result';
+    const rowOf = (id: string) => data.breakdown.find(row => row.id === id);
+    const rootMonths = data.months.map((_, i) =>
+        total(data.breakdown.map(row => row.months[i])).toFixed()
+    );
+    const same = (what: string, actual: Amount | string, expected: Amount | string | undefined) => {
+        if (expected === undefined || !new Amount(actual).eq(expected)) {
+            problems.push(`${what}: ${new Amount(actual).toFixed()} vs ${expected}`);
+        }
+    };
+    switch (view.kind) {
+        case 'bar':
+        case 'line':
+        case 'area':
+            for (const series of view.series) {
+                const expected = net
+                    ? series.id === 'net-result'
+                        ? data.net?.months
+                        : rowOf(series.id)?.months
+                    : rootMonths;
+                data.months.forEach((month, i) =>
+                    same(`${series.id} ${month}`, series.amounts[i], expected?.[i])
+                );
+            }
+            break;
+        case 'stacked':
+            data.months.forEach((month, i) =>
+                same(month, total(view.series.map(series => series.amounts[i])), rootMonths[i])
+            );
+            break;
+        case 'ranked-bar':
+        case 'donut':
+        case 'pie':
+        case 'compare': {
+            const rows = view.rows.map(id => rowOf(id));
+            if (rows.some(row => row === undefined)) {
+                problems.push('draws a row the breakdown lacks');
+            }
+            if (net) {
+                const side = (id: string) => new Amount(rowOf(id)?.amount ?? 0);
+                same('net', side('incoming').minus(side('outgoing')), data.answer.amount);
+            } else {
+                same('amount', total(rows.map(row => row?.amount)), data.answer.amount);
+                if (view.kind === 'compare') {
+                    same('previous', total(rows.map(row => row?.previous)), data.answer.previous);
+                }
+            }
+            break;
+        }
+        case 'waterfall':
+            same('end', view.end, data.answer.amount);
+            same('start', view.start, net ? data.net?.incoming.amount : data.answer.previous);
+            same('steps', total([view.start, ...view.steps.map(step => step.amount)]), view.end);
+            if (view.steps.filter(step => step.id === OTHER_PART).length > 1) {
+                problems.push('more than one rest');
+            }
+            break;
+        case 'none':
+            break;
+    }
+    return problems;
+}

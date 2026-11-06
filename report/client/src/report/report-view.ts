@@ -133,6 +133,7 @@ export class ReportView extends LitElement {
                 );
             }
             case 'Report':
+            case 'Visualizations':
                 return nothing;
         }
     }

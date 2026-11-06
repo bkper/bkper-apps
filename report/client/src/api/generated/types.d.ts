@@ -318,7 +318,7 @@ export interface components {
              */
             view?: "trend" | "breakdown" | "total";
             /**
-             * @description The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the one the report picks (see the response’s `chart`).
+             * @description The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).
              * @example pie
              * @enum {string}
              */
@@ -359,18 +359,19 @@ export interface components {
                  */
                 kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall";
                 /**
-                 * @description True when the intent’s `chart` does not fit this report, so `kind` is the chart the report picks instead.
+                 * @description True when the intent’s `chart` does not fit this report, so `kind` is the closest chart that fits, or the one the report picks (see `trace.chart`).
                  * @example false
                  */
                 fallback: boolean;
             };
+            trace: components["schemas"]["ReportTrace"];
             /**
              * @description The same report in the Report app, to open or share with the person.
              * @example https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year
              */
             url: string;
         };
-        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; for a net result, Incoming and Outgoing), `Chart` (when one fits), `BreakdownTable` (rows of subgroups and Accounts with amount, share and change, nested) and `Source`. Amounts and ratios are exact decimal strings; months and instants are ISO. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; for a net result, Incoming and Outgoing), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (rows of subgroups and Accounts with amount, share and change, nested) and `Source`. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -411,81 +412,31 @@ export interface components {
                 } | {
                     /** @enum {string} */
                     type: "Chart";
+                    props: components["schemas"]["ChartProps"];
+                } | {
+                    /** @enum {string} */
+                    type: "Visualizations";
                     props: {
-                        /** @enum {string} */
-                        kind: "bar" | "line" | "area";
                         label: string;
-                        months: string[];
-                        series: {
-                            id: string;
-                            label: string;
+                        /** @enum {string} */
+                        main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                        views: {
                             /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            /** @enum {boolean} */
-                            line?: true;
-                            values: string[];
+                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                            name: string;
+                            chart?: components["schemas"]["ChartProps"];
                         }[];
-                    } | {
-                        /** @enum {string} */
-                        kind: "stacked";
-                        label: string;
-                        months: string[];
-                        series: {
-                            id: string;
-                            label: string;
+                        unfit?: {
                             /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            values: string[];
-                        }[];
-                    } | {
-                        /** @enum {string} */
-                        kind: "ranked-bar" | "donut" | "pie";
-                        label: string;
-                        items: {
-                            rowId: string;
-                            label: string;
-                            /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            value: string;
-                        }[];
-                    } | {
-                        /** @enum {string} */
-                        kind: "compare";
-                        label: string;
-                        periods: {
-                            current: string;
-                            previous: string;
+                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                            name: string;
+                            reason: string;
                         };
-                        items: {
-                            rowId: string;
-                            label: string;
+                    };
+                    on?: {
+                        select: {
                             /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            value: string;
-                            previous: string;
-                        }[];
-                    } | {
-                        /** @enum {string} */
-                        kind: "waterfall";
-                        label: string;
-                        start: {
-                            label: string;
-                            /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            value: string;
-                        };
-                        steps: {
-                            rowId?: string;
-                            label: string;
-                            /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            value: string;
-                        }[];
-                        end: {
-                            label: string;
-                            /** @enum {string} */
-                            color: "blue" | "yellow" | "green" | "red" | "grey";
-                            value: string;
+                            action: "selectChart";
                         };
                     };
                 } | {
@@ -553,6 +504,83 @@ export interface components {
                 };
             };
         };
+        ChartProps: {
+            /** @enum {string} */
+            kind: "bar" | "line" | "area";
+            label: string;
+            months: string[];
+            series: {
+                id: string;
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                /** @enum {boolean} */
+                line?: true;
+                values: string[];
+            }[];
+        } | {
+            /** @enum {string} */
+            kind: "stacked";
+            label: string;
+            months: string[];
+            series: {
+                id: string;
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                values: string[];
+            }[];
+        } | {
+            /** @enum {string} */
+            kind: "ranked-bar" | "donut" | "pie";
+            label: string;
+            items: {
+                rowId: string;
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                value: string;
+            }[];
+        } | {
+            /** @enum {string} */
+            kind: "compare";
+            label: string;
+            periods: {
+                current: string;
+                previous: string;
+            };
+            items: {
+                rowId: string;
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                value: string;
+                previous: string;
+            }[];
+        } | {
+            /** @enum {string} */
+            kind: "waterfall";
+            label: string;
+            start: {
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                value: string;
+            };
+            steps: {
+                rowId?: string;
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                value: string;
+            }[];
+            end: {
+                label: string;
+                /** @enum {string} */
+                color: "blue" | "yellow" | "green" | "red" | "grey";
+                value: string;
+            };
+        };
         BreakdownRow: {
             id: string;
             /** @enum {string} */
@@ -566,6 +594,83 @@ export interface components {
             share?: string;
             months: string[];
             children: components["schemas"]["BreakdownRow"][];
+        };
+        /** @description How the report chose its charts, decided by code from the facts of its numbers. */
+        ReportTrace: {
+            /** @description The facts of the report’s numbers that decide which charts fit. */
+            facts: {
+                /**
+                 * @description Top-level parts with an amount in the period.
+                 * @example 6
+                 */
+                rows: number;
+                /**
+                 * @description Of those, the parts below zero, in the sense of the report.
+                 * @example 1
+                 */
+                negative: number;
+                /**
+                 * @description Whether the parts are of different types, as under a mixed group or in a net result.
+                 * @example false
+                 */
+                mixed: boolean;
+                /**
+                 * @description Months of the period.
+                 * @example 12
+                 */
+                months: number;
+                /**
+                 * @description Whether there is a previous period to compare with.
+                 * @example true
+                 */
+                previous: boolean;
+                /**
+                 * @description Whether the report is a net result (income versus expenses).
+                 * @example false
+                 */
+                net: boolean;
+                /**
+                 * @description Whether the report is a balance at the end of the period (Assets, Liabilities) rather than activity within it.
+                 * @example false
+                 */
+                permanent: boolean;
+            };
+            /** @description The charts that fit, and how the main one was chosen. */
+            chart: {
+                /** @description Every chart that fits the report, in the order to offer them; the spec’s `Visualizations` carries the data of each. */
+                fitting: ("bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table")[];
+                /**
+                 * @description The chart shown first.
+                 * @example donut
+                 * @enum {string}
+                 */
+                main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                /**
+                 * @description What chose `main`: `preference` (the intent’s `chart`, which fits), `closest` (the fitting chart closest to a preference that does not fit) or `rules` (the report’s own choice, with no preference or nothing close).
+                 * @example closest
+                 * @enum {string}
+                 */
+                rule: "preference" | "closest" | "rules";
+                /** @description The preferred chart, when it does not fit the report, and why; the spec shows it dimmed with the reason in words. */
+                unfit?: {
+                    /**
+                     * @description The chart the intent prefers.
+                     * @example donut
+                     * @enum {string}
+                     */
+                    kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                    reason: {
+                        /**
+                         * @description Why it does not fit: `net_result`, `negative_part` (a part below zero, `rowId`), `mixed_parts`, `few_parts`, `too_many_parts`, `few_months`, `no_amounts`, `no_previous`, `not_a_bridge` (a bridge of activity other than the net result) or `no_change`.
+                         * @example negative_part
+                         * @enum {string}
+                         */
+                        code: "net_result" | "negative_part" | "mixed_parts" | "few_parts" | "too_many_parts" | "few_months" | "no_amounts" | "no_previous" | "not_a_bridge" | "no_change";
+                        /** @description The breakdown row that is the reason. */
+                        rowId?: string;
+                    };
+                };
+            };
         };
         ReportErrorResponse: components["schemas"]["ErrorResponse"] & {
             /** @description With `not_a_report`: reports this Book can have, to offer the person instead. */
@@ -605,7 +710,9 @@ export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportResponse = components['schemas']['ReportResponse'];
 export type ReportSpec = components['schemas']['ReportSpec'];
+export type ChartProps = components['schemas']['ChartProps'];
 export type BreakdownRow = components['schemas']['BreakdownRow'];
+export type ReportTrace = components['schemas']['ReportTrace'];
 export type ReportErrorResponse = components['schemas']['ReportErrorResponse'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type $defs = Record<string, never>;

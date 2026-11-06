@@ -318,7 +318,11 @@ describe('buildReport: mixed groups and net result', () => {
             'outgoing 0 (prev 1000, change -1, share -)',
             '  Rent 0 (prev 1000, change -1, share -)',
         ]);
-        expect(data.chart.kind === 'bar' && data.chart.series.map(series => series.id)).toEqual([
+        // Nothing has an amount in any month, so there is no chart at all.
+        expect(data.chart).toEqual({ kind: 'none' });
+        const year = await report(intent('net-result', 'last_year', { monthly: true }));
+        expect(year.chart.kind === 'bar' && year.chart.series.map(series => series.id)).toEqual([
+            'outgoing',
             'net-result',
         ]);
     });
@@ -409,6 +413,15 @@ describe('buildReport: chart', () => {
         expect(breakdown.chart.kind).toBe('donut');
         const trend = await report(intent('g-expenses', 'last_month', { view: 'trend' }));
         expect(trend.chart.kind).toBe('bar');
+    });
+
+    it('draws no chart by month whose every value is zero, as charts leave out empty rows', async () => {
+        const empty = await report(intent('g-card', 'last_year', { monthly: true }));
+        expect(empty.months).toHaveLength(12);
+        expect(empty.chart).toEqual({ kind: 'none' });
+        // A single month with an amount is enough.
+        const expenses = await report(intent('g-expenses', 'last_year', { monthly: true }));
+        expect(expenses.chart.kind).toBe('bar');
     });
 
     it('needs two rows for a breakdown chart', async () => {
@@ -683,6 +696,11 @@ describe('buildReport: chart preference', () => {
             'outgoing',
             'net-result',
         ]);
+    });
+
+    it('falls back from areas whose every value is zero, to no chart', async () => {
+        const data = await report(intent('g-card', 'last_year', { monthly: true, chart: 'area' }));
+        expect(data.chart).toEqual({ kind: 'none', fallback: true });
     });
 
     it('falls back from areas for one month', async () => {

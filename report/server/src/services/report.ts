@@ -649,7 +649,10 @@ function reportChart(
 function chooseChart(view: 'trend' | 'breakdown' | 'total', input: ChartInput): ReportChart {
     const { nature, root, rows, series, months } = input;
     if (view === 'trend' && months.length > 0) {
-        return { kind: nature === 'activity' ? 'bar' : 'line', series };
+        // A chart whose every value is zero shows nothing, as charts leave out empty rows.
+        return hasValues(series)
+            ? { kind: nature === 'activity' ? 'bar' : 'line', series }
+            : { kind: 'none' };
     }
     // Charts draw only rows with an amount in the period.
     const drawn = rows.filter(hasAmount);
@@ -677,7 +680,7 @@ function preferredChart(
                 : undefined;
         }
         case 'area':
-            return months.length >= 2 ? { kind: 'area', series } : undefined;
+            return months.length >= 2 && hasValues(series) ? { kind: 'area', series } : undefined;
         case 'stacked':
             // The sides of a net result are each in their own sense, so they do not stack up to it.
             return !net && months.length >= 2 && rows.filter(hasAmount).length >= 2
@@ -813,6 +816,11 @@ function largestParts<T>(
 
 function hasAmount(row: ReportRow): boolean {
     return !new Amount(row.amount).eq(0);
+}
+
+/** Whether any series of a chart by month has an amount in any month. */
+function hasValues(series: ChartSeries[]): boolean {
+    return series.some(entry => entry.amounts.some(amount => !new Amount(amount).eq(0)));
 }
 
 function reportAmounts(measure: Measure): ReportAmounts {

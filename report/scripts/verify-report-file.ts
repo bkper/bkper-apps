@@ -439,7 +439,8 @@ function readingOrder(): string[] {
             }
         }
         parts.push({ start, end: text.data.length });
-        // Where each part shows, without its spaces; blank parts do not show.
+        // Where each part starts and ends showing, without its spaces: the boxes of its first
+        // and of its last line, which are one box unless it wraps. Blank parts do not show.
         const shown = parts.flatMap(part => {
             const piece = text.data.slice(part.start, part.end);
             const from = part.start + (piece.length - piece.trimStart().length);
@@ -450,8 +451,17 @@ function readingOrder(): string[] {
             const range = document.createRange();
             range.setStart(text, from);
             range.setEnd(text, to);
-            const box = range.getBoundingClientRect();
-            return box.width > 0 ? [{ ...part, box }] : [];
+            const rects = [...range.getClientRects()].filter(rect => rect.width > 0);
+            if (rects.length === 0) {
+                return [];
+            }
+            const lineBoxes = [rects[0].top, rects[rects.length - 1].top].map(top => {
+                const line = rects.filter(rect => Math.abs(rect.top - top) <= rect.height / 2);
+                const left = Math.min(...line.map(rect => rect.left));
+                const right = Math.max(...line.map(rect => rect.right));
+                return { top, left, right, height: Math.max(...line.map(rect => rect.height)) };
+            });
+            return [{ ...part, head: lineBoxes[0], tail: lineBoxes[1] }];
         });
         const sentence = shown.filter(part => !part.range);
         const ranges = shown.filter(part => part.range);
@@ -464,11 +474,11 @@ function readingOrder(): string[] {
             ),
         ];
         for (const [first, second] of pairs) {
-            const sameLine = Math.abs(first.box.top - second.box.top) <= first.box.height / 2;
+            const end = first.tail;
+            const next = second.head;
+            const sameLine = Math.abs(end.top - next.top) <= end.height / 2;
             const inOrder =
-                (second.rtl ?? rtl)
-                    ? second.box.right <= first.box.left + 1
-                    : second.box.left >= first.box.right - 1;
+                (second.rtl ?? rtl) ? next.right <= end.left + 1 : next.left >= end.right - 1;
             if (sameLine && !inOrder) {
                 failures.push(`Out of reading order: ${JSON.stringify(text.data)}`);
             }

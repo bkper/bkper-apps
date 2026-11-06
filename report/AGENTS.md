@@ -254,7 +254,11 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 
 ## Saved prompts
 
-The plural `/api/v1/books/{bookId}/reports` is the Book-shared shelf of original prompts, not computed reports. The singular `/report` remains unchanged and read-only. There is no shelf UI/store yet.
+The plural `/api/v1/books/{bookId}/reports` is the Book-shared shelf of original prompts, not computed reports. The singular `/report` remains unchanged and read-only. The client store and typed transport are wired; there is no shelf UI yet.
+
+- `SavedReports` (`client/src/state/saved-reports.ts`) holds the active Book's `items`, server `capabilities`, `loading`, pending `saving` prompt / `removing` id, and separate typed `loadError`, `saveError`, `removeError` reasons (the UI will localize them). `canList`, `canSave`, `canRemove` are UI hints, never authorization. `open` resets and reloads on Book changes; `load` retries/coalesces loads. `save()` saves only the shown report's source supplied by AppState, skips already saved prompts and coalesces repeated clicks; `remove(id)` is idempotent. One mutation at a time, confirmed changes merge immediately in id order, and failures leave items intact unless Book access is denied. Mutations invalidate older lists; session guards and abort signals drop late successes/errors even across A → B → A. Later explicit reloads follow KV's eventually consistent view.
+- `Reports.originalPrompt` belongs to the successfully shown output, survives chart choices and later typing, and is absent on intent restoration (including cached intents) and prefetched suggestions. Prompt-generated cache entries retain their actual original request, not later casing/spacing. `AppState` supplies this source to `savedReports`; never pass the input or a generated title to Save. With no source, Save is unavailable.
+- `AppState.openSavedReport(id)` reads the active shelf item and calls `Reports.runSaved(prompt)`: a fresh prompt-only singular `/report` request on every click, never a resolved intent or cached client result, including repeated clicks or text matching prefetched suggestions. Saved executions do not populate the client caches; normal typing and suggestion caches are unchanged. AppState starts shelf loads after auth alongside reports and Book details, wires Book navigation and source changes, and leaves first rendering unblocked.
 
 - `GET /reports` returns `{ reports: [{ id, prompt }], capabilities: { list, save, remove } }`. Every known non-`NONE` Book role may list: `OWNER`, `EDITOR`, `POSTER`, `RECORDER`, `VIEWER`. Unknown, missing and `NONE` roles are denied.
 - `POST /reports` accepts exactly `{ prompt }` and returns `{ report: { id, prompt } }` (200, also on an identical retry). `DELETE /reports/{reportId}` returns 204 even when absent. Only `OWNER` and `EDITOR` may save/remove, and either may remove any shelf item. These are additive v1 routes; no existing contracts are tightened.
@@ -445,6 +449,7 @@ shared/
 | Change how a report request runs | `server/src/services/report-service.ts`           |
 | Change the suggestions     | `server/src/services/suggestions.ts`                    |
 | Change saved-prompt persistence and role authorization | `server/src/services/saved-prompts.ts` |
+| Change the client saved-prompt shelf and pending/error state | `client/src/state/saved-reports.ts` |
 | Change API error mapping   | `server/src/api/errors.ts`                              |
 | Change periods or dates    | `server/src/services/periods.ts`                        |
 | Change the report intent   | `server/src/services/report-intent.ts`, `shared/src/report-intent.ts` |

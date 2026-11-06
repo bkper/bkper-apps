@@ -51,6 +51,8 @@ export interface ReportsOptions {
 interface Entry {
     promise: Promise<ReportResponse>;
     value?: ReportResponse;
+    /** Only a request actually made by prompt has an original prompt. */
+    prompt?: string;
 }
 
 /**
@@ -67,6 +69,7 @@ export class Reports extends Store {
     @reactive text = '';
     /** The last report that answered: shown until another one does. */
     @reactive report?: ReportResponse;
+    @reactive private source?: { report: ReportResponse; prompt: string };
     /**
      * The chart the person chose, from its previews, and the report it is for: it holds the
      * report, so showing another report drops the choice in the same change.
@@ -99,6 +102,11 @@ export class Reports extends Store {
         return this.choice?.report === this.report ? this.choice?.kind : undefined;
     }
 
+    /** The original request that produced the shown report, never the input or a restored title. */
+    get originalPrompt(): string | undefined {
+        return this.source?.report === this.report ? this.source?.prompt : undefined;
+    }
+
     get language(): string {
         return this.options.language;
     }
@@ -126,6 +134,7 @@ export class Reports extends Store {
         this.openBookId = bookId;
         this.cache = new Map();
         this.report = undefined;
+        this.source = undefined;
         this.choice = undefined;
         this.notice = undefined;
         this.suggestions = undefined;
@@ -174,6 +183,18 @@ export class Reports extends Store {
         this.run(suggestion.text, suggestion.intent);
     }
 
+    /**
+     * Open a saved original request against current data. Never reuse a client result or a
+     * resolved intent, including a suggestion with the same text or a repeated saved click.
+     */
+    runSaved(prompt: string): void {
+        this.clearTimer();
+        this.text = prompt;
+        this.route.setPrompt(prompt);
+        this.notice = undefined;
+        if (prompt.trim()) this.run(prompt, undefined, { fresh: true });
+    }
+
     /** The person chose another chart of the report shown: it shows with no new request. */
     chooseChart(kind: ChartKind): void {
         const report = this.report;
@@ -193,35 +214,44 @@ export class Reports extends Store {
     private run(
         text: string,
         intent?: ReportIntent,
-        { language = this.language, label = false }: { language?: string; label?: boolean } = {}
+        {
+            language = this.language,
+            label = false,
+            fresh = false,
+        }: {
+            language?: string;
+            label?: boolean;
+            fresh?: boolean;
+        } = {}
     ): void {
         const bookId = this.openBookId;
         if (!bookId) return;
         const key = intent ? intentKey(intent, language) : promptKey(text);
-        const cached = this.cache.get(key);
+        const cached = fresh ? undefined : this.cache.get(key);
         // The label replaces only the text the report was asked with, never later typing.
         const labelFor = label ? this.text : undefined;
         if (cached?.value) {
             this.cancel();
-            this.show(cached.value, labelFor);
+            this.show(cached.value, intent ? undefined : cached.prompt, labelFor);
             return;
         }
-        if (this.inFlight?.key === key) return;
+        if (!fresh && this.inFlight?.key === key) return;
         this.cancel();
         const sequence = this.sequence;
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
             const body: ReportRequest = intent ? { intent, language } : { prompt: text.trim() };
-            entry = this.request(key, bookId, body, controller.signal);
+            entry = this.request(key, bookId, body, controller.signal, !fresh);
             this.inFlight = { key, controller };
         }
+        const originalPrompt = intent ? undefined : entry.prompt;
         this.pending = true;
         entry.promise.then(
             report => {
                 if (sequence !== this.sequence) return;
                 this.inFlight = undefined;
-                this.show(report, labelFor);
+                this.show(report, originalPrompt, labelFor);
             },
             (error: unknown) => {
                 if (sequence !== this.sequence) return;
@@ -233,13 +263,20 @@ export class Reports extends Store {
     }
 
     /** Ask the API, remembering the answer by request and by intent; failures are forgotten. */
-    private request(key: string, bookId: string, body: ReportRequest, signal?: AbortSignal): Entry {
+    private request(
+        key: string,
+        bookId: string,
+        body: ReportRequest,
+        signal?: AbortSignal,
+        remember = true
+    ): Entry {
         const cache = this.cache;
         const entry: Entry = {
+            prompt: body.prompt,
             promise: this.api.report(bookId, body, { signal }).then(
                 report => {
                     entry.value = report;
-                    cache.set(intentKey(report.intent, report.language), entry);
+                    if (remember) cache.set(intentKey(report.intent, report.language), entry);
                     return report;
                 },
                 (error: unknown) => {
@@ -248,12 +285,13 @@ export class Reports extends Store {
                 }
             ),
         };
-        cache.set(key, entry);
+        if (remember) cache.set(key, entry);
         return entry;
     }
 
     /** Show a report; when the input still holds `labelFor`, its title and period replace it. */
-    private show(report: ReportResponse, labelFor?: string): void {
+    private show(report: ReportResponse, prompt?: string, labelFor?: string): void {
+        this.source = prompt === undefined ? undefined : { report, prompt };
         this.pending = false;
         this.notice = undefined;
         // The report first: its chart is then its main one, and dropping the choice changes nothing.

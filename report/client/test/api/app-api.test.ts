@@ -50,6 +50,133 @@ describe('createAppApi', () => {
     });
 });
 
+describe('saved-prompt API', () => {
+    const item = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
+    const shelf = { reports: [item], capabilities: { list: true, save: true, remove: true } };
+
+    it('uses encoded generated routes, prompt-only JSON, no-store and abort signals', async () => {
+        const requests: Request[] = [];
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async request => {
+                requests.push(request);
+                if (request.method === 'DELETE') return new Response(null, { status: 204 });
+                return jsonResponse(request.method === 'GET' ? shelf : { report: item });
+            },
+        });
+        const controller = new AbortController();
+        const options = { signal: controller.signal };
+        await expect(api.savedReports('book /1', options)).resolves.toEqual(shelf);
+        await expect(api.saveReport('book /1', { prompt: item.prompt }, options)).resolves.toEqual(
+            item
+        );
+        await expect(api.removeReport('book /1', item.id, options)).resolves.toBeUndefined();
+        const url = 'https://app.example.test/api/v1/books/book%20%2F1/reports';
+        expect(requests.map(request => [request.method, request.url])).toEqual([
+            ['GET', url],
+            ['POST', url],
+            ['DELETE', `${url}/${item.id}`],
+        ]);
+        expect(requests[0].cache).toBe('no-store');
+        expect(requests[1].headers.get('content-type')).toBe('application/json');
+        await expect(requests[1].json()).resolves.toEqual({ prompt: item.prompt });
+        controller.abort();
+        expect(requests.every(request => request.signal.aborted)).toBe(true);
+    });
+
+    it.each(['list', 'save', 'remove'] as const)(
+        'normalizes %s errors and propagates network/cancel failures',
+        async operation => {
+            let response = async (): Promise<Response> =>
+                jsonResponse(
+                    { success: false, error: { code: 'storage_error', message: 'Try again' } },
+                    502
+                );
+            const api = createAppApi({
+                baseUrl: 'https://app.example.test',
+                fetch: () => response(),
+            });
+            const call = (signal?: AbortSignal) =>
+                operation === 'list'
+                    ? api.savedReports('b', { signal })
+                    : operation === 'save'
+                      ? api.saveReport('b', { prompt: item.prompt }, { signal })
+                      : api.removeReport('b', item.id, { signal });
+            await expect(call()).rejects.toMatchObject({
+                name: 'AppApiError',
+                status: 502,
+                code: 'storage_error',
+                message: 'Try again',
+            });
+            response = async () => jsonResponse({ nonsense: true }, 403);
+            await expect(call()).rejects.toMatchObject({
+                name: 'AppApiError',
+                status: 403,
+                code: undefined,
+            });
+            const network = new TypeError('Offline');
+            response = async () => {
+                throw network;
+            };
+            await expect(call()).rejects.toBe(network);
+            response = async () => {
+                throw new DOMException('Cancelled', 'AbortError');
+            };
+            await expect(call()).rejects.toMatchObject({ name: 'AbortError' });
+        }
+    );
+
+    it.each(['list', 'save', 'remove'] as const)(
+        'cancels the actual %s transport',
+        async operation => {
+            const controller = new AbortController();
+            const api = createAppApi({
+                baseUrl: 'https://app.example.test',
+                fetch: request =>
+                    new Promise((_resolve, reject) => {
+                        request.signal.addEventListener('abort', () =>
+                            reject(new DOMException('cancelled', 'AbortError'))
+                        );
+                    }),
+            });
+            const options = { signal: controller.signal };
+            const result =
+                operation === 'list'
+                    ? api.savedReports('b', options)
+                    : operation === 'save'
+                      ? api.saveReport('b', { prompt: item.prompt }, options)
+                      : api.removeReport('b', item.id, options);
+            controller.abort();
+            await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+        }
+    );
+
+    it('does not mistake an empty non-success removal response for a 204', async () => {
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async () =>
+                new Response(null, { status: 403, headers: { 'content-length': '0' } }),
+        });
+        await expect(api.removeReport('b', item.id)).rejects.toMatchObject({
+            name: 'AppApiError',
+            status: 403,
+        });
+    });
+
+    it.each(['list', 'save'] as const)('rejects empty %s success payloads', async operation => {
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async () =>
+                new Response(null, { status: 200, headers: { 'content-length': '0' } }),
+        });
+        const result =
+            operation === 'list'
+                ? api.savedReports('b')
+                : api.saveReport('b', { prompt: item.prompt });
+        await expect(result).rejects.toBeInstanceOf(AppApiError);
+    });
+});
+
 describe('report API', () => {
     const intent = { root: 'net-result', period: '2011', monthly: false };
 

@@ -5,7 +5,7 @@ import {
 } from '../auth/auth-session';
 import { supportedLanguage } from 'report-shared/languages';
 import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
-import { createAppApi, type ReportResponse } from '../api/app-api';
+import { createAppApi, type AppApi, type ReportResponse } from '../api/app-api';
 import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
 import { AppUrlChange, BookHost, type HostPage } from './book-host';
@@ -13,6 +13,7 @@ import { Books } from './books';
 import { Reports, type ChartKind, type ReportApi } from './reports';
 import { Navigation, Route, type RoutePage } from './route';
 import { Strings } from './strings';
+import { SavedReports, type SavedReportsApi } from './saved-reports';
 
 export interface AppStateOptions {
     page?: RoutePage;
@@ -24,6 +25,7 @@ export interface AppStateOptions {
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
     createBookService?: (auth: AuthSession) => BookService;
     createReportApi?: (auth: AuthSession) => ReportApi;
+    createSavedReportsApi?: (auth: AuthSession) => SavedReportsApi;
     /** Loads the report renderer; by default its code-split bundle. */
     loadRenderer?: () => Promise<void>;
     /** Loads the strings of a language; by default its code-split chunk. */
@@ -38,6 +40,7 @@ export class AppState {
     readonly host: BookHost;
     readonly books: Books;
     readonly reports: Reports;
+    readonly savedReports: SavedReports;
     /** The language of the interface's texts. */
     readonly strings: Strings;
     private readonly auth: AuthSession;
@@ -60,6 +63,7 @@ export class AppState {
         this.auth = (options.createAuthSession ?? createAuthSession)({
             onLoginSuccess: () => {
                 // The report of the URL starts with the Book, not after it.
+                this.savedReports.open(this.route.bookId);
                 this.reports.open(this.route.bookId, this.route.prompt, this.routeState());
                 return this.books.load();
             },
@@ -67,10 +71,14 @@ export class AppState {
         });
         const bookService = (options.createBookService ?? createService)(this.auth);
         this.books = new Books(bookService, this.route, logger);
-        const api = (options.createReportApi ?? createReportApi)(this.auth);
+        const api = createReportApi(this.auth);
         const language = options.language ?? browserLanguage();
         this.strings = new Strings(language, options.loadStrings);
-        this.reports = new Reports(api, this.route, { language, logger });
+        this.reports = new Reports(options.createReportApi?.(this.auth) ?? api, this.route, {
+            language,
+            logger,
+        });
+        this.savedReports = new SavedReports(options.createSavedReportsApi?.(this.auth) ?? api);
         // Back or Forward, or Bkper changing the app's URL, shows what the URL selects.
         this.route.addEventListener('navigate', event => {
             if (!(event instanceof Navigation)) return;
@@ -80,6 +88,7 @@ export class AppState {
                 return;
             }
             void this.books.select(event.bookId);
+            this.savedReports.open(event.bookId);
             this.reports.open(event.bookId, event.prompt, state);
         });
         this.host.addEventListener('app-url-changed', event => {
@@ -89,7 +98,10 @@ export class AppState {
             this.synced = undefined;
             this.syncState();
         });
-        this.reports.addEventListener('change', () => this.syncState());
+        this.reports.addEventListener('change', () => {
+            this.savedReports.setSource(this.reports.bookId, this.reports.originalPrompt);
+            this.syncState();
+        });
     }
 
     /** The report the URL's state names, if it is a valid one. */
@@ -118,7 +130,15 @@ export class AppState {
     /** Open a Book, or the Book list without one. */
     readonly select = (bookId: string | undefined): void => {
         void this.books.select(bookId);
+        this.savedReports.open(bookId);
         this.reports.open(bookId);
+    };
+
+    /** Open the active shelf's original text through fresh prompt resolution, every time. */
+    readonly openSavedReport = (id: string): void => {
+        if (!this.savedReports.canList || this.savedReports.bookId !== this.reports.bookId) return;
+        const item = this.savedReports.items.find(report => report.id === id);
+        if (item) this.reports.runSaved(item.prompt);
     };
 
     /**
@@ -150,7 +170,7 @@ function createService(auth: AuthSession): BookService {
     return createBookService({ auth });
 }
 
-function createReportApi(auth: AuthSession): ReportApi {
+function createReportApi(auth: AuthSession): AppApi {
     return createAppApi({ fetch: request => auth.authenticatedFetch(request) });
 }
 

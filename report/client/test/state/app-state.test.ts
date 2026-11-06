@@ -7,6 +7,25 @@ import { AppState } from '../../src/state/app-state';
 import type { ReportApi } from '../../src/state/reports';
 import type { HostPage } from '../../src/state/book-host';
 import type { RoutePage } from '../../src/state/route';
+import type { SavedReportsApi } from '../../src/state/saved-reports';
+
+const SAVED = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
+function createShelfApi() {
+    const loaded: string[] = [];
+    const saved: { book: string; prompt: string }[] = [];
+    const api: SavedReportsApi = {
+        savedReports: async book => {
+            loaded.push(book);
+            return { reports: [SAVED], capabilities: { list: true, save: true, remove: true } };
+        },
+        saveReport: async (book, body) => {
+            saved.push({ book, prompt: body.prompt });
+            return { id: 'b'.repeat(64), prompt: body.prompt };
+        },
+        removeReport: async () => undefined,
+    };
+    return { api, loaded, saved };
+}
 
 const SAFE_ERROR = 'error_load_data';
 
@@ -68,11 +87,13 @@ function createApp(href: string, bookService = createBookService()) {
     const { page, goTo } = createPage(href);
     const auth: { callbacks?: AuthSessionCallbacks } = {};
     const reportApi = createReportApi();
+    const shelfApi = createShelfApi();
     const state = new AppState({
         page,
         embedded: false,
         language: 'en',
         createReportApi: () => reportApi.api,
+        createSavedReportsApi: () => shelfApi.api,
         loadRenderer: async () => undefined,
         loadStrings: async () => undefined,
         createAuthSession: callbacks => {
@@ -84,10 +105,37 @@ function createApp(href: string, bookService = createBookService()) {
     });
     state.connect();
     const signIn = async () => auth.callbacks?.onLoginSuccess?.();
-    return { state, page, goTo, signIn, auth, asked: reportApi.asked };
+    return { state, page, goTo, signIn, auth, asked: reportApi.asked, shelfApi };
 }
 
 describe('AppState', () => {
+    it('starts shelf loading only after auth without waiting for Book details or reports', async () => {
+        const { state, signIn, shelfApi, goTo, asked } = createApp(
+            'https://report.bkper.app/?book=book-1&q=expenses%20this%20year',
+            createBookService({ getBook: () => new Promise(() => undefined) })
+        );
+        expect(shelfApi.loaded).toEqual([]);
+        void signIn();
+        await vi.waitFor(() => expect(state.savedReports.items).toEqual([SAVED]));
+        expect(shelfApi.loaded).toEqual(['book-1']);
+        expect(asked).toEqual(['suggestions book-1', 'report book-1 expenses this year']);
+        state.openSavedReport(SAVED.id);
+        state.openSavedReport(SAVED.id);
+        expect(asked.slice(-2)).toEqual([
+            'report book-1 Expenses this year',
+            'report book-1 Expenses this year',
+        ]);
+        state.select('book-2');
+        expect(state.savedReports.bookId).toBe('book-2');
+        expect(state.savedReports.items).toEqual([]);
+        await vi.waitFor(() => expect(shelfApi.loaded).toEqual(['book-1', 'book-2']));
+        goTo('https://report.bkper.app/?book=book-3');
+        expect(state.savedReports.bookId).toBe('book-3');
+        state.select(undefined);
+        expect(state.savedReports.bookId).toBeUndefined();
+        expect(state.savedReports.items).toEqual([]);
+    });
+
     it('loads the Book picker after authentication succeeds', async () => {
         const { state, signIn } = createApp('https://report.bkper.app/');
 
@@ -396,6 +444,7 @@ describe('AppState', () => {
                 location: { origin: 'https://report.bkper.app' },
             });
             const { api, bodies } = answeringApi();
+            const shelfApi = createShelfApi();
             const auth: { callbacks?: AuthSessionCallbacks } = {};
             const app = new AppState({
                 page,
@@ -403,6 +452,7 @@ describe('AppState', () => {
                 embedded,
                 language: 'en',
                 createReportApi: () => api,
+                createSavedReportsApi: () => shelfApi.api,
                 loadRenderer: async () => undefined,
                 loadStrings: async () => undefined,
                 createAuthSession: callbacks => {
@@ -423,8 +473,34 @@ describe('AppState', () => {
             const sent = () =>
                 parent.postMessage.mock.calls.map(([message, origin]) => ({ message, origin }));
             const signIn = async () => auth.callbacks?.onLoginSuccess?.();
-            return { app, page, bodies, send, ready, sent, signIn };
+            return { app, page, bodies, send, ready, sent, signIn, shelfApi };
         }
+
+        it('wires only the shown original prompt to Save and never saves a restored title', async () => {
+            const { app, signIn, shelfApi, send } = embeddedApp(
+                `https://report.bkper.app/?book=b&q=Old%20URL%20text&state=${state(EXPENSES)}`
+            );
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report).toBeDefined());
+            expect(app.savedReports.canSave).toBe(false);
+            await app.savedReports.save();
+            expect(shelfApi.saved).toEqual([]);
+            app.reports.input('Receitas este ano');
+            app.reports.submit();
+            await vi.waitFor(() => expect(app.savedReports.canSave).toBe(true));
+            app.reports.chooseChart('pie');
+            app.reports.input('Not yet shown');
+            await app.savedReports.save();
+            expect(shelfApi.saved).toEqual([{ book: 'b', prompt: 'Receitas este ano' }]);
+            send({
+                type: 'bkper:app-url-changed',
+                url: `https://report.bkper.app/?book=b&state=${state(REVENUE)}`,
+            });
+            await vi.waitFor(() => expect(app.reports.originalPrompt).toBeUndefined());
+            expect(app.savedReports.canSave).toBe(false);
+            expect(shelfApi.loaded).toEqual(['b']);
+            app.reports.input('');
+        });
 
         it('opens the report of the state in its URL by intent, without AI', async () => {
             const { app, bodies, signIn } = embeddedApp(

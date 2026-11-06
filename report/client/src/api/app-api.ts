@@ -7,6 +7,10 @@ export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type ReportResponse = components['schemas']['ReportResponse'];
+export type SavedPrompt = components['schemas']['SavedPrompt'];
+export type SavedPromptsResponse = components['schemas']['SavedPromptsResponse'];
+export type SavePromptRequest = components['schemas']['SavePromptRequest'];
+export type SavedPromptCapabilities = SavedPromptsResponse['capabilities'];
 
 export interface RequestOptions {
     /** Cancels the request; it then rejects with the `AbortError` of `fetch`. */
@@ -115,6 +119,48 @@ export function createAppApi(options: AppApiOptions) {
                 throw toAppApiError(error, response);
             }
             return requireData(data, response).suggestions;
+        },
+
+        /** Original prompts shared by the Book, with freshly authorized capabilities. */
+        async savedReports(
+            bookId: string,
+            options: RequestOptions = {}
+        ): Promise<SavedPromptsResponse> {
+            const { data, error, response } = await client.GET('/api/v1/books/{bookId}/reports', {
+                params: { path: { bookId } },
+                cache: 'no-store',
+                signal: options.signal,
+            });
+            if (!response.ok) throw toAppApiError(error, response);
+            return requireData(data, response);
+        },
+
+        /** Saves only original request text, never a resolved report or chart choice. */
+        async saveReport(
+            bookId: string,
+            body: SavePromptRequest,
+            options: RequestOptions = {}
+        ): Promise<SavedPrompt> {
+            const { data, error, response } = await client.POST('/api/v1/books/{bookId}/reports', {
+                params: { path: { bookId } },
+                body: { prompt: body.prompt },
+                signal: options.signal,
+            });
+            if (!response.ok) throw toAppApiError(error, response);
+            return requireData(data, response).report;
+        },
+
+        /** Idempotent removal of app metadata only; 204 has no JSON body. */
+        async removeReport(
+            bookId: string,
+            reportId: string,
+            options: RequestOptions = {}
+        ): Promise<void> {
+            const { error, response } = await client.DELETE(
+                '/api/v1/books/{bookId}/reports/{reportId}',
+                { params: { path: { bookId, reportId } }, signal: options.signal }
+            );
+            if (!response.ok) throw toAppApiError(error, response);
         },
 
         /**

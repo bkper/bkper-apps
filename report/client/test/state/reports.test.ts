@@ -429,6 +429,132 @@ describe('Reports', () => {
         expect(reports.chart).toBeUndefined();
     });
 
+    it('keeps only the original prompt of the shown output across chart changes and later typing', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.input('  Despesas   este ano  ');
+        reports.submit();
+        expect(reports.originalPrompt).toBeUndefined();
+        calls[0].resolve(withMain(response('Despesas', '2026'), 'bar'));
+        await settle();
+        expect(reports.originalPrompt).toBe('Despesas   este ano');
+        reports.chooseChart('pie');
+        expect(reports.originalPrompt).toBe('Despesas   este ano');
+        reports.input('Receitas este mês');
+        reports.submit();
+        expect(reports.originalPrompt).toBe('Despesas   este ano');
+        calls[1].reject(new Error('failed'));
+        await settle();
+        expect(reports.originalPrompt).toBe('Despesas   este ano');
+        reports.input('Receitas este mês');
+        reports.submit();
+        calls[2].resolve(withMain(response('Receitas'), 'bar'));
+        await settle();
+        expect(reports.originalPrompt).toBe('Receitas este mês');
+        reports.open('book-2');
+        expect(reports.originalPrompt).toBeUndefined();
+    });
+
+    it('never labels a restored intent or its generated title as an original prompt', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1', 'Untrusted URL text', { intent: SUGGESTIONS[0].intent });
+        calls[0].resolve(withMain(response('Net result', '2011'), 'bar'));
+        await settle();
+        expect(reports.text).toBe('Net result 2011');
+        expect(reports.originalPrompt).toBeUndefined();
+        reports.chooseChart('pie');
+        expect(reports.originalPrompt).toBeUndefined();
+        reports.input('Net result this year');
+        reports.submit();
+        calls[1].resolve(withMain(response('Net result', '2026'), 'bar'));
+        await settle();
+        expect(reports.originalPrompt).toBe('Net result this year');
+        // Even an intent answered by a previously prompt-generated cache entry has no source.
+        reports.openState({ intent: SUGGESTIONS[0].intent, language: 'en' });
+        expect(reports.originalPrompt).toBeUndefined();
+    });
+
+    it('runs saved text fresh every time, bypassing suggested, prompt and intent caches', async () => {
+        const { reports, calls, intentCalls, prompts } = createReports();
+        reports.open('book-1');
+        await settle();
+        intentCalls().forEach(call => call.resolve(withMain(response('Prefetched'), 'bar')));
+        await settle();
+        reports.choose(SUGGESTIONS[0]);
+        reports.chooseChart('pie');
+        reports.runSaved(SUGGESTIONS[0].text);
+        expect(prompts()).toEqual([SUGGESTIONS[0].text]);
+        expect(calls.at(-1)?.body).toEqual({ prompt: SUGGESTIONS[0].text });
+        calls.at(-1)?.resolve(withMain(response('Fresh one'), 'bar'));
+        await settle();
+        expect(title(reports.report)).toBe('Fresh one');
+        expect(reports.chart).toBeUndefined();
+        expect(reports.originalPrompt).toBe(SUGGESTIONS[0].text);
+        reports.runSaved(SUGGESTIONS[0].text);
+        const old = calls.at(-1)!;
+        reports.runSaved(SUGGESTIONS[0].text);
+        expect(old.signal?.aborted).toBe(true);
+        expect(prompts()).toEqual(Array(3).fill(SUGGESTIONS[0].text));
+        calls.at(-1)?.resolve(withMain(response('Fresh latest'), 'bar'));
+        await settle();
+        old.resolve(withMain(response('Stale saved response'), 'bar'));
+        await settle();
+        expect(title(reports.report)).toBe('Fresh latest');
+        expect(reports.pending).toBe(false);
+    });
+
+    it('bypasses an existing typed-prompt cache and retries failed saved execution fresh', async () => {
+        const { reports, calls, prompts } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.input('Expenses this year');
+        reports.submit();
+        calls[0].resolve(withMain(response('Typed earlier'), 'bar'));
+        await settle();
+        reports.runSaved('Expenses this year');
+        expect(prompts()).toEqual(['Expenses this year', 'Expenses this year']);
+        expect(calls[1].body).toEqual({ prompt: 'Expenses this year' });
+        calls[1].reject(new AppApiError('not a report', 422, 'not_a_report'));
+        await settle();
+        expect(title(reports.report)).toBe('Typed earlier');
+        expect(reports.notice).toBe('hint_not_a_report');
+        reports.runSaved('Expenses this year');
+        expect(calls[2].body).toEqual({ prompt: 'Expenses this year' });
+        calls[2].resolve(withMain(response('Latest'), 'bar'));
+        await settle();
+        expect(title(reports.report)).toBe('Latest');
+        expect(reports.notice).toBeUndefined();
+    });
+
+    it('retains a cached prompt result’s real source rather than later casing or suggestion text', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.input('Expenses   this year');
+        reports.submit();
+        calls[0].resolve(withMain(response('Expenses'), 'bar'));
+        await settle();
+        reports.input(' EXPENSES this YEAR ');
+        reports.submit();
+        expect(calls).toHaveLength(1);
+        expect(reports.originalPrompt).toBe('Expenses   this year');
+    });
+
+    it('cancels saved execution across Books without replaying its output or resolved intent', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('a');
+        reports.runSaved('Expenses this year');
+        const old = calls[0];
+        reports.open('b');
+        reports.runSaved('Expenses this year');
+        calls[1].resolve(withMain(response('Book B'), 'bar'));
+        await settle();
+        old.resolve(withMain(response('Book A'), 'bar'));
+        await settle();
+        expect(old.signal?.aborted).toBe(true);
+        expect(title(reports.report)).toBe('Book B');
+        expect(calls[1].body).toEqual({ prompt: 'Expenses this year' });
+        expect(reports.originalPrompt).toBe('Expenses this year');
+    });
+
     describe('opened by state', () => {
         const STATE = {
             intent: { root: 'g-1', period: '2011', monthly: true, chart: 'stacked' as const },

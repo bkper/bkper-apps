@@ -2,7 +2,7 @@
 
 Type what you want to know about your Book, in your own language, and see the report as you type.
 
-> **Report only reads your Book.** It never creates, changes or deletes anything in it.
+> **Your financial data stays unchanged.** Report only reads your Book. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
 
 ## What it does
 
@@ -22,6 +22,16 @@ Every number is computed from your Book's balances by fixed rules, never by AI. 
 3. Pick one of the suggested reports, or type your own request. There is no button: the report appears and updates as you type. Press **Enter** to ask at once.
 
 The address of the page keeps your report, so you can bookmark it or send its link to someone who also has access to the Book. In a Book, the Book's own address keeps it, so reloading the Book, or coming back to it, opens the same report. Whoever opens the link sees the report with the Book's latest balances.
+
+## Save a request for everyone in the Book
+
+After your report appears, click **Save** once. Its original request joins the row above the input, shared with the Book's collaborators. You save the **question, not a screenshot**: no amounts, resolved dates or separately selected chart are saved.
+
+Click a saved request to build it again from current data, even if you have just opened it. Relative dates roll forward: _expenses last month_ reads October when opened in November, and November when opened in December. Balances may still be up to a minute behind. Each saved click understands the request again and uses your Bkper AI allowance.
+
+Owners and editors can save requests and remove any saved request. Viewers and posters can open shared requests but cannot change the shelf. Recorders can see the saved requests, but their role does not permit viewing financial reports. Removing a request does not delete financial data or a report you already opened. Shared changes can take a moment to appear for another person; reopen Report to reload the shelf.
+
+Save uses the request that produced the report on screen, not a later draft you are typing. Reports restored from a report link or opened from a suggestion have no original typed request to save; type your own request to save one. To keep a chart choice in the saved request, name the chart in your words.
 
 ## What you can ask
 
@@ -78,7 +88,7 @@ Charts that do not fit and that you did not ask for are simply not offered. A re
 - **Periods in whole months.** Report understands months, quarters and years: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today. It does not report custom date ranges such as a single week.
 - **Hashtags.** Add `#hashtags` to your request to include only the transactions that have all of them. These reports take a moment longer.
 - **Up to a minute behind.** Report keeps your Book's balances for up to 60 seconds to answer quickly, so a transaction you posted in the last minute may not show yet.
-- **Your requests stay private.** Report sends what you type to Bkper AI only to understand it, and keeps no copy of it. Typed requests use your Bkper AI allowance; suggested reports do not. A report's link contains its request, so anyone you share the link with sees what you typed.
+- **You choose what to share.** Report sends your request to Bkper AI to understand it. Saving explicitly keeps its original text in the Book's shared shelf, visible to all its collaborators; do not save text you do not want to share with them. Typed requests and saved-request clicks use your Bkper AI allowance; suggested reports do not. A report's link also contains its request, so anyone you share the link with sees what you typed.
 - **Who can use it.** Anyone who can view the Book can see its reports.
 
 ## Reports in Bkper Agent
@@ -89,7 +99,7 @@ When the Agent is open in Bkper, such as in your Book, the link opens the report
 
 ## API access
 
-Report exposes an authenticated API, used by the web app and the Bkper Agent, for scripts and integrations. It only reads Books.
+Report exposes an authenticated API, used by the web app and the Bkper Agent, for scripts and integrations. Financial reporting only reads Books; saved requests write only app metadata.
 
 ```txt
 Production: https://report.bkper.app
@@ -106,6 +116,8 @@ curl -X POST \
   -d '{"prompt": "expenses by category this year", "format": "html"}' \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
+
+The shared shelf uses `GET /api/v1/books/<bookId>/reports` to list, `POST` on the same path with `{ "prompt": "your original request" }` to save, and `DELETE /api/v1/books/<bookId>/reports/<id>` to remove. Book permissions are checked on every call. To execute a saved request, send its `prompt` to the singular `/report` endpoint above; do not reuse a previously resolved intent if relative dates must roll forward.
 
 ## Learn more
 

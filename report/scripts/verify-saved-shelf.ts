@@ -2,13 +2,16 @@
  * Mock-only browser verification of the saved-prompt shelf in an expanded Book panel.
  * Run with the Vite client running: npx tsx scripts/verify-saved-shelf.ts
  * Screenshots: /tmp/report-saved-shelf (override with --screenshots=<directory>).
- * Every auth, app API and Bkper request is intercepted; no real Book or KV is accessed.
+ * Eight layout scenarios stub the API; a two-collaborator scenario bridges the browsers
+ * to real app routes/services with isolated KV, snapshots and decision responses.
+ * Every auth and Bkper request is intercepted; no real Book or KV is accessed.
  */
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
+import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
 
 const APP = 'http://localhost:5207';
 const HOST = 'https://bkper.app';
@@ -335,6 +338,159 @@ try {
                 scenarios++;
                 await context.close();
             }
+    // Independent browser contexts share only the real saved-prompt service's isolated KV.
+    // They do not share browser state, report caches or a mocked shelf response.
+    const workflow = await savedWorkflow();
+    const owner = workflow.session('browser-owner', 'OWNER');
+    const editor = workflow.session('browser-editor', 'EDITOR');
+    const collaborators = await Promise.all(
+        [owner, editor].map(async session => {
+            const context = await browser.newContext({
+                viewport: { width: 1100, height: 800 },
+                reducedMotion: 'reduce',
+            });
+            const errors: string[] = [];
+            const page = await context.newPage();
+            page.on('pageerror', error => errors.push(error.message));
+            page.on('console', message => {
+                if (
+                    message.type() === 'error' &&
+                    !message.text().includes('403') &&
+                    !message.text().includes('Blocked autofocusing')
+                )
+                    errors.push(message.text());
+            });
+            await context.route('**/*', async route => {
+                const req = route.request();
+                const url = new URL(req.url());
+                if (req.url() === themeUrl)
+                    return route.fulfill({ contentType: 'text/javascript', body: themeScript });
+                if (url.origin === HOST)
+                    return route.fulfill({
+                        contentType: 'text/html',
+                        body: `<!doctype html><html><body style="margin:0"><iframe title="Report in Book" src="${APP}/?book=fixture-a" style="border:0;width:100%;height:100dvh"></iframe></body></html>`,
+                    });
+                if (url.origin === APP && url.pathname === '/auth/refresh')
+                    return route.fulfill({ json: { accessToken: 'fixture-only' } });
+                if (url.origin === 'https://api.bkper.app') {
+                    assert.equal(req.method(), 'GET', 'Financial data is read-only');
+                    return route.fulfill({
+                        json: {
+                            id: 'fixture-a',
+                            name: 'Isolated Studio',
+                            permission: session.identity.permission,
+                        },
+                    });
+                }
+                if (url.origin === APP && url.pathname.startsWith('/api/')) {
+                    const response = await session.request(
+                        new Request(req.url(), {
+                            method: req.method(),
+                            headers: { 'Content-Type': 'application/json' },
+                            ...(req.postData() ? { body: req.postData()! } : {}),
+                        })
+                    );
+                    return route.fulfill({
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers),
+                        body: await response.text(),
+                    });
+                }
+                if (url.origin === APP && req.method() === 'GET') return route.continue();
+                errors.push(`Unexpected network: ${req.method()} ${url.origin}${url.pathname}`);
+                return route.abort();
+            });
+            await page.goto(`${HOST}/books/fixture-a/transactions?app=report`);
+            const panel = page.frames().find(frame => frame.url().startsWith(APP));
+            assert(panel);
+            const frame = page.frameLocator('iframe');
+            await frame.locator('report-suggestions wa-button').first().waitFor();
+            return { context, page, panel, frame, shelf: frame.locator('report-shelf'), errors };
+        })
+    );
+    const [a, b] = collaborators;
+    const captureWorkflow = async (name: string) => {
+        await b.page.screenshot({ path: join(screenshots, `workflow-${name}.png`) });
+        screenshotCount++;
+    };
+    const field = a.frame.locator('wa-input.prompt input');
+    await field.fill(WORKFLOW_PROMPT);
+    await field.press('Enter');
+    await a.shelf.locator('.save:not([disabled])').waitFor();
+    // A chart chosen after resolution is not part of the saved request.
+    await a.frame.locator('report-view .preview').filter({ hasText: 'Ranked' }).click();
+    await field.fill('Draft');
+    await a.shelf.locator('.save').click();
+    await a.shelf.locator('.saved-prompt').waitFor();
+    await b.panel.goto(b.panel.url());
+    await b.shelf.locator('.saved-prompt').waitFor();
+    assert.equal(await b.shelf.locator('.saved-prompt').count(), 1);
+    assert.deepEqual(
+        workflow.savedValues().map(([, value]) => value),
+        [JSON.stringify(WORKFLOW_PROMPT)]
+    );
+    const decisionStart = workflow.decisions.length;
+    const open = async (month: string) => {
+        const responsePromise = b.page.waitForResponse(
+            response =>
+                response.url().endsWith('/report') &&
+                response.request().postDataJSON()?.prompt === WORKFLOW_PROMPT
+        );
+        await b.shelf.locator('.saved-prompt').click();
+        const response = await responsePromise;
+        assert.equal(response.status(), 200);
+        const body = (await response.json()) as ReportResponse;
+        assert(body.query.includes(`after:${month}-01`));
+        await b.frame.locator('report-view').waitFor();
+        return body;
+    };
+    await open('2026-10');
+    await open('2026-10');
+    await captureWorkflow('shared');
+    workflow.advance();
+    await open('2026-11');
+    assert.equal(
+        workflow.decisions.length,
+        decisionStart + 3,
+        'Every click resolves the original prompt'
+    );
+    assert.deepEqual(
+        workflow.decisions.slice(-3).map(item => item.state.today),
+        ['2026-11-05', '2026-11-05', '2026-12-05']
+    );
+    await captureWorkflow('rolling-period');
+    await b.panel.goto(`${APP}/?book=fixture-b`);
+    await b.frame.locator('report-suggestions wa-button').first().waitFor();
+    assert.equal(await b.shelf.locator('.saved-prompt').count(), 0);
+    await captureWorkflow('other-book');
+    await b.panel.goto(`${APP}/?book=fixture-a`);
+    await b.shelf.locator('.saved-prompt').waitFor();
+    await open('2026-11');
+    owner.identity.permission = 'VIEWER';
+    await a.shelf.locator('.remove').click();
+    await a.shelf.locator('[role="alert"]').waitFor();
+    assert.equal(await a.shelf.locator('.saved-prompt').count(), 1);
+    await a.shelf.locator('.reload').click();
+    await a.shelf.locator('.remove').waitFor({ state: 'detached' });
+    await a.page.screenshot({ path: join(screenshots, 'workflow-downgraded.png') });
+    screenshotCount++;
+    owner.identity.permission = 'EDITOR';
+    await a.shelf.locator('.reload').click();
+    await a.shelf.locator('.remove').waitFor();
+    await a.shelf.locator('.remove').click();
+    await a.shelf.locator('.saved-prompt').waitFor({ state: 'detached' });
+    await b.panel.goto(b.panel.url());
+    await b.frame.locator('report-suggestions wa-button').first().waitFor();
+    assert.equal(await b.shelf.locator('.saved-prompt').count(), 0);
+    await captureWorkflow('removed');
+    for (const collaborator of collaborators) {
+        assert.deepEqual(collaborator.errors, [], 'No unexpected browser/network errors');
+        await collaborator.context.close();
+    }
+    scenarios++;
+    console.log(
+        'PASS real route/service workflow: two browsers, shared reload/reopen, fresh prompt clicks, rolling dates, cross-Book isolation, downgrade and recovery'
+    );
 } finally {
     await browser.close();
 }

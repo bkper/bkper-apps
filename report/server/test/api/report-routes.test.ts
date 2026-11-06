@@ -223,6 +223,26 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
     });
 
+    it('draws the chart an intent prefers, and tells when it does not fit', async () => {
+        const test = harness();
+        const ask = async (chart: string) => {
+            const intent = { root: 'g-expenses', period: '2026-10', monthly: false, chart };
+            const response = await post(test, { intent });
+            expect(response.status).toBe(200);
+            const body = (await response.json()) as { intent: unknown; chart: unknown };
+            expect(body.intent).toEqual(intent);
+            return body.chart;
+        };
+
+        expect(await ask('pie')).toEqual({ kind: 'pie', fallback: false });
+        expect(await ask('table')).toEqual({ kind: 'none', fallback: false });
+        expect(await ask('stacked')).toEqual({ kind: 'donut', fallback: true });
+        const invalid = await post(test, {
+            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'donut' },
+        });
+        expect(invalid.status).toBe(400);
+    });
+
     it('builds a report by prompt with one Bkper AI decision', async () => {
         const test = harness({ jev: { root: 'Revenue', period: '2026-10', language: 'es' } });
         const response = await post(test, { prompt: 'ingresos de octubre' });

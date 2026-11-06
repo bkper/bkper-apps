@@ -298,7 +298,7 @@ export interface components {
             text: string;
             intent: components["schemas"]["ReportIntent"];
         };
-        /** @description Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
+        /** @description Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
         ReportIntent: {
             /**
              * @description Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses (every Incoming root versus every Outgoing root).
@@ -317,6 +317,12 @@ export interface components {
              * @enum {string}
              */
             view?: "trend" | "breakdown" | "total";
+            /**
+             * @description The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the one the report picks (see the response’s `chart`).
+             * @example pie
+             * @enum {string}
+             */
+            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table";
             /**
              * @description Only transactions with all these hashtags, without `#`.
              * @example [
@@ -344,6 +350,20 @@ export interface components {
              * @example 2026-11-05T14:03:12.345Z
              */
             dataAt: string;
+            /** @description The chart drawn, and whether the one asked for fit. */
+            chart: {
+                /**
+                 * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the previous period); `waterfall` (a bridge); `none` for no chart.
+                 * @example pie
+                 * @enum {string}
+                 */
+                kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall";
+                /**
+                 * @description True when the intent’s `chart` does not fit this report, so `kind` is the chart the report picks instead.
+                 * @example false
+                 */
+                fallback: boolean;
+            };
             /**
              * @description The same report in the Report app, to open or share with the person.
              * @example https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year
@@ -393,7 +413,7 @@ export interface components {
                     type: "Chart";
                     props: {
                         /** @enum {string} */
-                        kind: "bar" | "line";
+                        kind: "bar" | "line" | "area";
                         label: string;
                         months: string[];
                         series: {
@@ -407,7 +427,19 @@ export interface components {
                         }[];
                     } | {
                         /** @enum {string} */
-                        kind: "ranked-bar" | "donut";
+                        kind: "stacked";
+                        label: string;
+                        months: string[];
+                        series: {
+                            id: string;
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            values: string[];
+                        }[];
+                    } | {
+                        /** @enum {string} */
+                        kind: "ranked-bar" | "donut" | "pie";
                         label: string;
                         items: {
                             rowId: string;
@@ -416,6 +448,45 @@ export interface components {
                             color: "blue" | "yellow" | "green" | "red" | "grey";
                             value: string;
                         }[];
+                    } | {
+                        /** @enum {string} */
+                        kind: "compare";
+                        label: string;
+                        periods: {
+                            current: string;
+                            previous: string;
+                        };
+                        items: {
+                            rowId: string;
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            value: string;
+                            previous: string;
+                        }[];
+                    } | {
+                        /** @enum {string} */
+                        kind: "waterfall";
+                        label: string;
+                        start: {
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            value: string;
+                        };
+                        steps: {
+                            rowId?: string;
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            value: string;
+                        }[];
+                        end: {
+                            label: string;
+                            /** @enum {string} */
+                            color: "blue" | "yellow" | "green" | "red" | "grey";
+                            value: string;
+                        };
                     };
                 } | {
                     /** @enum {string} */

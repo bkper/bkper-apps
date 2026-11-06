@@ -9,6 +9,22 @@ export const REPORT_VIEWS = ['trend', 'breakdown', 'total'] as const;
 export type ReportView = (typeof REPORT_VIEWS)[number];
 
 /**
+ * The chart a person may prefer. `auto` (or none) leaves it to the rules; any other is drawn
+ * when it fits the report, else the rules choose. `table` draws no chart.
+ */
+export const REPORT_CHARTS = [
+    'auto',
+    'pie',
+    'stacked',
+    'area',
+    'compare',
+    'waterfall',
+    'table',
+] as const;
+
+export type ChartPreference = (typeof REPORT_CHARTS)[number];
+
+/**
  * A hashtag name without `#`. It goes into a Bkper query verbatim, so it excludes whitespace,
  * quotes and the separators Bkper splits hashtags on.
  */
@@ -24,6 +40,8 @@ export const ReportIntentSchema = z.object({
     monthly: z.boolean(),
     /** The layout the request named, if any. */
     view: z.enum(REPORT_VIEWS).optional(),
+    /** The chart the person prefers; left out, `auto`. */
+    chart: z.enum(REPORT_CHARTS).optional(),
     /** Limit to transactions with all these hashtags. */
     hashtags: z.array(z.string().max(100).regex(HASHTAG_PATTERN)).max(10).optional(),
 });

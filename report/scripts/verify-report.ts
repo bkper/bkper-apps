@@ -16,7 +16,12 @@
  *   several months;
  * - that every breakdown, remainder included, adds up to its parent, and that a net result is
  *   Incoming minus Outgoing, in total, in the previous period and in every month;
- * - that charts draw no row without an amount.
+ * - that charts draw no row without an amount;
+ * - the charts a person may prefer, for every root and the net result: each series of stacked
+ *   bars in every month, and that they add up to the root; each part of a comparison, now and
+ *   before; each step of a bridge, its start and its end, and that the steps add up to the end;
+ *   the rest (`other`) of stacked bars and bridges as what the CLI leaves after the parts shown.
+ *   A chart that does not fit falls back to the rules, which the summary counts.
  *
  * The CLI shows raw balances (credit minus debit), negated for permanent accounts, so Liability
  * and Outgoing come out negative; reports show them as Bkper charts do, by credit nature. A CLI
@@ -28,8 +33,17 @@ import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
 import { readLiveBalances } from '../server/src/services/live-balances.ts';
 import type { DateRange } from '../server/src/services/periods.ts';
-import { buildReport, type ReportData, type ReportRow } from '../server/src/services/report.ts';
-import { NET_RESULT_ROOT, type ReportIntent } from '../server/src/services/report-intent.ts';
+import {
+    OTHER_PART,
+    buildReport,
+    type ReportData,
+    type ReportRow,
+} from '../server/src/services/report.ts';
+import {
+    NET_RESULT_ROOT,
+    REPORT_CHARTS,
+    type ReportIntent,
+} from '../server/src/services/report-intent.ts';
 import type { Snapshot, SnapshotNode } from '../server/src/services/snapshot.ts';
 import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
@@ -130,6 +144,7 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
     const lastYear = range.lastMonth.slice(0, 4);
     const quarter = `${lastYear}-Q${Math.ceil(Number(range.lastMonth.slice(5)) / 3)}`;
     const roots = [...snapshot.roots, NET_RESULT_ROOT];
+    const charts = REPORT_CHARTS.filter(chart => chart !== 'auto');
     const intents: ReportIntent[] = roots.flatMap(root => [
         { root, period: firstYear, monthly: false },
         { root, period: lastYear, monthly: true },
@@ -137,6 +152,10 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
         { root, period: range.lastMonth, monthly: false },
         { root, period: 'this_month', monthly: false },
         { root, period: 'today', monthly: false },
+        ...charts.map(chart => ({ root, period: lastYear, monthly: false, chart })),
+        { root, period: quarter, monthly: false, chart: 'stacked' as const },
+        { root, period: range.lastMonth, monthly: false, chart: 'compare' as const },
+        { root, period: range.lastMonth, monthly: false, chart: 'waterfall' as const },
     ]);
     for (const hashtag of hashtags) {
         for (const root of roots) {
@@ -200,29 +219,29 @@ async function verifyReport(
     };
     const cliTotal = (rows: Map<string, CliRow[]> | undefined, node: SnapshotNode) =>
         shown(node, rows?.get(node.name)?.[0]?.total ?? new Amount(0));
+    // Sums the CLI amounts of the Book's Incoming and Outgoing accounts, in total or in a month.
+    const sides = (
+        rows: Map<string, CliRow[]> | undefined,
+        pick: (row: CliRow) => Amount | undefined = row => row.total
+    ) => {
+        let incoming = new Amount(0);
+        let outgoing = new Amount(0);
+        for (const account of Object.values(snapshot.accounts)) {
+            const row = rows?.get(account.name)?.[0];
+            if (!row) {
+                continue;
+            }
+            const amount = shown(account, pick(row) ?? new Amount(0));
+            if (account.type === 'INCOMING') {
+                incoming = incoming.plus(amount);
+            } else if (account.type === 'OUTGOING') {
+                outgoing = outgoing.plus(amount);
+            }
+        }
+        return { incoming, outgoing, net: incoming.minus(outgoing) };
+    };
 
     if (report.root.id === NET_RESULT_ROOT) {
-        // Sums the CLI amounts of the Book's Incoming and Outgoing accounts, in total or in a month.
-        const sides = (
-            rows: Map<string, CliRow[]> | undefined,
-            pick: (row: CliRow) => Amount | undefined = row => row.total
-        ) => {
-            let incoming = new Amount(0);
-            let outgoing = new Amount(0);
-            for (const account of Object.values(snapshot.accounts)) {
-                const row = rows?.get(account.name)?.[0];
-                if (!row) {
-                    continue;
-                }
-                const amount = shown(account, pick(row) ?? new Amount(0));
-                if (account.type === 'INCOMING') {
-                    incoming = incoming.plus(amount);
-                } else if (account.type === 'OUTGOING') {
-                    outgoing = outgoing.plus(amount);
-                }
-            }
-            return { incoming, outgoing, net: incoming.minus(outgoing) };
-        };
         const incomingRow = report.breakdown.find(row => row.kind === 'incoming');
         const outgoingRow = report.breakdown.find(row => row.kind === 'outgoing');
         const now = sides(current);
@@ -293,7 +312,9 @@ async function verifyReport(
             const series = cliSeries(report, months, cumulative);
             report.months.forEach((month, i) => {
                 const amount =
-                    report.chart.kind === 'bar' || report.chart.kind === 'line'
+                    report.chart.kind === 'bar' ||
+                    report.chart.kind === 'line' ||
+                    report.chart.kind === 'area'
                         ? report.chart.series[0].amounts[i]
                         : undefined;
                 const expected = series.get(month);
@@ -303,17 +324,168 @@ async function verifyReport(
             });
         }
     }
+    problems.push(
+        ...chartProblems(report, snapshot, {
+            current,
+            previous,
+            cumulative,
+            cliTotal,
+            sides,
+            same,
+        })
+    );
     problems.push(...unbalanced(report));
 
     const rowCount = countRows(report.breakdown);
     const remainders = countRows(report.breakdown, row => row.kind === 'other');
+    const chart = report.intent.chart
+        ? ` [${report.intent.chart} → ${report.chart.kind}${report.chart.fallback ? ', fallback' : ''}]`
+        : '';
     check(
         problems.length === 0,
-        `${label}: ${report.answer.amount}` +
+        `${label}${chart}: ${report.answer.amount}` +
             (report.answer.previous === undefined ? '' : ` (prev ${report.answer.previous})`) +
             `, ${rowCount} rows${remainders ? ` (${remainders} remainder)` : ''} — ${report.query}` +
             (problems.length ? `\n         ${problems.slice(0, 4).join('\n         ')}` : '')
     );
+}
+
+interface ChartCheck {
+    current: Map<string, CliRow[]>;
+    previous?: Map<string, CliRow[]>;
+    /** The report's CLI table lists running totals rather than activity. */
+    cumulative: boolean;
+    /** A node's CLI amount, in the sign Bkper shows for it. */
+    cliTotal(rows: Map<string, CliRow[]> | undefined, node: SnapshotNode): Amount;
+    /** CLI Incoming, Outgoing and net result over the Book's accounts. */
+    sides(rows: Map<string, CliRow[]> | undefined): {
+        incoming: Amount;
+        outgoing: Amount;
+        net: Amount;
+    };
+    same(what: string, actual: string | undefined, expected: Amount): void;
+}
+
+/**
+ * Cross-checks the data of the charts a person may prefer against the CLI: stacked series in
+ * every month, compared parts now and before, and every bar of a bridge. The rest (`other`)
+ * is checked as what the CLI leaves after the parts shown.
+ */
+function chartProblems(report: ReportData, snapshot: Snapshot, cli: ChartCheck): string[] {
+    const problems: string[] = [];
+    const { chart } = report;
+    const { current, previous, same } = cli;
+    const net = report.root.id === NET_RESULT_ROOT;
+    const root = net ? undefined : snapshot.groups[report.root.id];
+    const nodeOf = (id: string): SnapshotNode | undefined =>
+        snapshot.groups[id] ?? snapshot.accounts[id];
+    // In the report's sense: the root's, or for a net result each side's (Outgoing positive).
+    const inSense = (node: SnapshotNode, amount: Amount) =>
+        root && node.credit !== root.credit ? amount.times(-1) : amount;
+    const total = (rows: Map<string, CliRow[]> | undefined, node: SnapshotNode) =>
+        inSense(node, cli.cliTotal(rows, node));
+    const month = (node: SnapshotNode, at: string) => {
+        const months = current.get(node.name)?.[0]?.months ?? new Map<string, Amount>();
+        const amount = cliSeries(report, months, cli.cumulative).get(at) ?? new Amount(0);
+        return inSense(node, shown(node, amount));
+    };
+    const sum = (values: (string | Amount)[]) =>
+        values.reduce<Amount>((result, value) => result.plus(value), new Amount(0));
+
+    if (report.intent.chart === 'table' && chart.kind !== 'none') {
+        problems.push(`A table draws a ${chart.kind} chart`);
+    }
+    if (chart.kind === 'pie') {
+        for (const id of chart.rows) {
+            const row = report.breakdown.find(candidate => candidate.id === id);
+            if (!row || !new Amount(row.amount).gt(0)) {
+                problems.push(`The pie draws ${id}, not a positive part`);
+            }
+        }
+    }
+    if (chart.kind === 'stacked') {
+        if (!root || report.months.length < 2) {
+            problems.push('Stacked bars of a net result or of one month');
+        } else if (report.nature === 'position' || !cli.cumulative) {
+            report.months.forEach((at, i) => {
+                for (const series of chart.series.filter(entry => entry.id !== OTHER_PART)) {
+                    const node = nodeOf(series.id);
+                    if (!node) {
+                        problems.push(`stacked ${series.id}: not a group or account`);
+                    } else {
+                        same(`stacked ${series.name} ${at}`, series.amounts[i], month(node, at));
+                    }
+                }
+                // With the rest, the series add up to the root.
+                same(
+                    `stacked total ${at}`,
+                    sum(chart.series.map(series => series.amounts[i])).toFixed(),
+                    month(root, at)
+                );
+            });
+        }
+    }
+    if (chart.kind === 'compare') {
+        if (!previous) {
+            problems.push('A comparison without a previous period');
+        }
+        for (const id of chart.rows) {
+            const row = report.breakdown.find(candidate => candidate.id === id);
+            if (!row) {
+                problems.push(`The comparison draws ${id}, not a row`);
+                continue;
+            }
+            if (new Amount(row.amount).eq(0) && new Amount(row.previous ?? 0).eq(0)) {
+                problems.push(`The comparison draws ${id}, a row without an amount`);
+            }
+            const node = row.kind === 'group' || row.kind === 'account' ? nodeOf(id) : undefined;
+            const side = row.kind === 'incoming' || row.kind === 'outgoing' ? row.kind : undefined;
+            if (node) {
+                same(`compare ${row.name}`, row.amount, total(current, node));
+                same(`compare ${row.name} previous`, row.previous, total(previous, node));
+            } else if (side) {
+                same(`compare ${side}`, row.amount, cli.sides(current)[side]);
+                same(`compare ${side} previous`, row.previous, cli.sides(previous)[side]);
+            }
+        }
+    }
+    if (chart.kind === 'waterfall') {
+        if (!sum([chart.start, ...chart.steps.map(step => step.amount)]).eq(chart.end)) {
+            problems.push('The steps of the bridge do not add up to its end');
+        }
+        let start: Amount;
+        let end: Amount;
+        let step: (node: SnapshotNode) => Amount;
+        if (net) {
+            const now = cli.sides(current);
+            start = now.incoming;
+            end = now.net;
+            step = node => cli.cliTotal(current, node).times(-1);
+        } else if (root && report.nature === 'position' && previous) {
+            start = total(previous, root);
+            end = total(current, root);
+            step = node => total(current, node).minus(total(previous, node));
+        } else {
+            problems.push('A bridge of activity other than the net result, or without a previous');
+            return problems;
+        }
+        same('bridge start', chart.start, start);
+        same('bridge end', chart.end, end);
+        let shownSteps = new Amount(0);
+        for (const entry of chart.steps.filter(entry => entry.id !== OTHER_PART)) {
+            const node = nodeOf(entry.id);
+            if (!node) {
+                problems.push(`bridge ${entry.id}: not a group or account`);
+                continue;
+            }
+            const expected = step(node);
+            shownSteps = shownSteps.plus(expected);
+            same(`bridge ${entry.name}`, entry.amount, expected);
+        }
+        const other = chart.steps.find(entry => entry.id === OTHER_PART);
+        same('bridge other', other?.amount ?? '0', end.minus(start).minus(shownSteps));
+    }
+    return problems;
 }
 
 /** CLI amounts by month of the report: activity in each month, or the position at its end. */
@@ -398,7 +570,7 @@ function unbalanced(report: ReportData): string[] {
             }
             checkRows(row.id, row.amount, row.previous, row.children);
         }
-        if (report.chart.kind === 'bar') {
+        if (report.chart.kind === 'bar' || report.chart.kind === 'area') {
             for (const series of report.chart.series) {
                 const expected =
                     series.id === NET_RESULT_ROOT ? report.net?.months : side(series.id)?.months;
@@ -409,7 +581,11 @@ function unbalanced(report: ReportData): string[] {
         }
     }
     // Charts draw only rows with an amount.
-    if (report.chart.kind === 'ranked-bar' || report.chart.kind === 'donut') {
+    if (
+        report.chart.kind === 'ranked-bar' ||
+        report.chart.kind === 'donut' ||
+        report.chart.kind === 'pie'
+    ) {
         for (const id of report.chart.rows) {
             const row = report.breakdown.find(candidate => candidate.id === id);
             if (!row || new Amount(row.amount).eq(0)) {
@@ -417,7 +593,10 @@ function unbalanced(report: ReportData): string[] {
             }
         }
     }
-    if (report.chart.kind === 'bar' && report.root.id === NET_RESULT_ROOT) {
+    if (
+        (report.chart.kind === 'bar' || report.chart.kind === 'area') &&
+        report.root.id === NET_RESULT_ROOT
+    ) {
         for (const series of report.chart.series.filter(entry => entry.id !== NET_RESULT_ROOT)) {
             if (new Amount(side(series.id)?.amount ?? 0).eq(0)) {
                 problems.push(`The chart draws ${series.id}, a side without an amount`);

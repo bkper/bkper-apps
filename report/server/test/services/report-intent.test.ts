@@ -13,6 +13,7 @@ describe('ReportIntentSchema', () => {
             period: '2026-03',
             monthly: true,
             view: 'breakdown',
+            chart: 'waterfall',
             hashtags: ['travel', 'viagem_2026', 'ação'],
         };
         expect(ReportIntentSchema.parse(intent)).toEqual(intent);
@@ -29,6 +30,17 @@ describe('ReportIntentSchema', () => {
             ReportIntentSchema.safeParse({ root: 'a', period: 'ytd', monthly: false, view: 'pie' })
                 .success
         ).toBe(false);
+    });
+
+    it('accepts every chart a person may prefer, and only those', () => {
+        for (const chart of ['auto', 'pie', 'stacked', 'area', 'compare', 'waterfall', 'table']) {
+            const intent = { root: 'a', period: 'ytd', monthly: false, chart };
+            expect(ReportIntentSchema.parse(intent), chart).toEqual(intent);
+        }
+        for (const chart of ['donut', 'bar', '', 'PIE']) {
+            const intent = { root: 'a', period: 'ytd', monthly: false, chart };
+            expect(ReportIntentSchema.safeParse(intent).success, chart).toBe(false);
+        }
     });
 
     it('requires a root, a period and monthly', () => {

@@ -77,6 +77,24 @@ describe('<report-view>', () => {
         }
     });
 
+    it('renders the report without a chart it cannot draw yet', async () => {
+        const spec = gallerySpec(galleryIds()[0]);
+        const chart = {
+            type: 'Chart' as const,
+            props: {
+                kind: 'waterfall' as const,
+                label: 'Bridge',
+                start: { label: 'Incoming', color: 'green' as const, value: '5000' },
+                steps: [{ label: 'Other', color: 'red' as const, value: '-1000' }],
+                end: { label: 'Net result', color: 'grey' as const, value: '4000' },
+            },
+        };
+        const view = await mount({ ...spec, elements: { ...spec.elements, chart } });
+        expect(root(view).querySelector('.chart')).toBeNull();
+        expect(root(view).querySelector('.answer')).not.toBeNull();
+        expect(root(view).querySelector('.breakdown-section')).not.toBeNull();
+    });
+
     it('formats amounts and ratios in the report locale', async () => {
         const spec = gallerySpec('net-result-by-month-pt');
         const view = await mount(spec);

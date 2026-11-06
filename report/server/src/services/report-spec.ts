@@ -18,12 +18,14 @@ import { t, textDirection, type StringKey } from 'report-shared/strings';
 import { addDays, type DateRange, type IsoDate, type RelativePeriod } from './periods.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
 import {
+    OTHER_PART,
     TYPE_COLORS,
     type ChartSeries,
     type ReportAmounts,
     type ReportData,
     type ReportRow,
     type RowKind,
+    type WaterfallStep,
 } from './report.js';
 
 const RELATIVE_PERIOD_LABELS = {
@@ -179,6 +181,8 @@ function chartElement(
             return undefined;
         case 'bar':
         case 'line':
+        case 'area':
+        case 'stacked':
             return {
                 type: 'Chart',
                 props: {
@@ -190,16 +194,14 @@ function chartElement(
             };
         case 'ranked-bar':
         case 'donut':
+        case 'pie':
             return {
                 type: 'Chart',
                 props: {
                     kind: chart.kind,
                     label: fill('chart_breakdown', lang, { name: title }),
                     items: chart.rows.map(id => {
-                        const row = report.breakdown.find(candidate => candidate.id === id);
-                        if (!row) {
-                            throw new Error(`The chart shows a row the breakdown lacks: ${id}`);
-                        }
+                        const row = breakdownRowOf(report, id);
                         return {
                             rowId: row.id,
                             label: labels.row(row.kind, row.name),
@@ -209,12 +211,91 @@ function chartElement(
                     }),
                 },
             };
+        case 'compare': {
+            const previous = report.previous;
+            if (!previous) {
+                throw new Error('A comparison without a previous period');
+            }
+            return {
+                type: 'Chart',
+                props: {
+                    kind: 'compare',
+                    label: fill('chart_breakdown', lang, { name: title }),
+                    periods: {
+                        current: labels.period(report),
+                        previous:
+                            report.nature === 'position'
+                                ? labels.asOf(previous.before)
+                                : labels.previous(report, previous),
+                    },
+                    items: chart.rows.map(id => {
+                        const row = breakdownRowOf(report, id);
+                        return {
+                            rowId: row.id,
+                            label: labels.row(row.kind, row.name),
+                            color: row.color,
+                            value: row.amount,
+                            previous: row.previous ?? '0',
+                        };
+                    }),
+                },
+            };
+        }
+        case 'waterfall': {
+            const net = report.root.id === NET_RESULT_ROOT;
+            // Incoming to the net result, or the previous position to the position.
+            const start = net
+                ? labels.row('incoming')
+                : report.previous && labels.asOf(report.previous.before);
+            if (start === undefined) {
+                throw new Error('A bridge of a position without a previous one');
+            }
+            return {
+                type: 'Chart',
+                props: {
+                    kind: 'waterfall',
+                    label: fill('chart_breakdown', lang, { name: title }),
+                    start: {
+                        label: start,
+                        color: net ? TYPE_COLORS.INCOMING : report.root.color,
+                        value: chart.start,
+                    },
+                    steps: chart.steps.map(step => waterfallStep(step, labels)),
+                    end: {
+                        label: net ? title : labels.period(report),
+                        color: report.root.color,
+                        value: chart.end,
+                    },
+                },
+            };
+        }
     }
 }
 
-/** A series of the root, by its name, or of a side of the net result, or the net result itself. */
+function breakdownRowOf(report: ReportData, id: string): ReportRow {
+    const row = report.breakdown.find(candidate => candidate.id === id);
+    if (!row) {
+        throw new Error(`The chart shows a row the breakdown lacks: ${id}`);
+    }
+    return row;
+}
+
+function waterfallStep(step: WaterfallStep, labels: Labels) {
+    return {
+        ...(step.id === OTHER_PART ? {} : { rowId: step.id }),
+        label: labels.row(step.kind, step.name),
+        color: step.color,
+        value: step.amount,
+    };
+}
+
+/**
+ * A series of the root or a breakdown row, by its name; of a side of the net result; of the
+ * net result itself; or of the rest of the rows (`other`).
+ */
 function chartSeries(series: ChartSeries, title: string, labels: Labels) {
-    const kind = series.id === 'incoming' || series.id === 'outgoing' ? series.id : 'group';
+    const named = ['incoming', 'outgoing', OTHER_PART] as const;
+    const kind = named.find(id => id === series.id) ?? 'group';
     return {
         id: series.id,
         label: series.id === NET_RESULT_ROOT ? title : labels.row(kind, series.name),
@@ -328,7 +409,8 @@ class Labels {
         return this.day.formatRange(utc(after), utc(lastDay(before)));
     }
 
-    private asOf(before: IsoDate): string {
+    /** The date of a position at the start of `before`. */
+    asOf(before: IsoDate): string {
         return fill('position_as_of', this.lang, { date: this.date(lastDay(before)) });
     }
 

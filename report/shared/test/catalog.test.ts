@@ -187,6 +187,79 @@ describe('validateReportSpec', () => {
         expect(issuesOf(spec)).toEqual([]);
     });
 
+    const months = ['2026-09', '2026-10'];
+    const series = (id: string, values = ['1000', '1234.5']) => ({
+        id,
+        label: id,
+        color: 'red' as const,
+        values,
+    });
+    const item = (rowId: string, value: string) => ({
+        rowId,
+        label: rowId,
+        color: 'red' as const,
+        value,
+    });
+    const charts: Record<string, unknown> = {
+        bar: { kind: 'bar', label: 'By month', months, series: [series('g-1')] },
+        line: { kind: 'line', label: 'By month', months, series: [series('g-1')] },
+        area: { kind: 'area', label: 'By month', months, series: [series('g-1')] },
+        stacked: {
+            kind: 'stacked',
+            label: 'By month',
+            months,
+            series: [series('a-1', ['600', '1000']), series('other', ['400', '234.5'])],
+        },
+        'ranked-bar': { kind: 'ranked-bar', label: 'Parts', items: [item('a-1', '-3')] },
+        donut: { kind: 'donut', label: 'Parts', items: [item('a-1', '3'), item('a-2', '1')] },
+        pie: { kind: 'pie', label: 'Parts', items: [item('a-1', '3'), item('a-2', '1')] },
+        compare: {
+            kind: 'compare',
+            label: 'Parts',
+            periods: { current: 'October 2026', previous: 'September 2026' },
+            items: [{ ...item('a-1', '3'), previous: '0' }],
+        },
+        waterfall: {
+            kind: 'waterfall',
+            label: 'Bridge',
+            start: { label: 'Incoming', color: 'green', value: '5000' },
+            steps: [item('a-1', '-1000'), { label: 'Other', color: 'red', value: '-50.25' }],
+            end: { label: 'Net result', color: 'grey', value: '3949.75' },
+        },
+    };
+    const withChart = (props: unknown) => {
+        const spec = validSpec();
+        return { ...spec, elements: { ...spec.elements, chart: { type: 'Chart', props } } };
+    };
+
+    it.each(Object.keys(charts))('accepts a %s chart', kind => {
+        expect(issuesOf(withChart(charts[kind]))).toEqual([]);
+    });
+
+    it('rejects charts that miss what their kind needs', () => {
+        const invalid = [
+            { ...(charts.stacked as object), series: [series('a-1')] },
+            {
+                ...(charts.stacked as object),
+                months: ['2026-10'],
+                series: [series('a-1', ['1']), series('a-2', ['2'])],
+            },
+            {
+                ...(charts.stacked as object),
+                series: [{ ...series('a-1'), line: true }, series('a-2')],
+            },
+            { ...(charts.compare as object), items: [item('a-1', '3')] },
+            { ...(charts.compare as object), periods: undefined },
+            { ...(charts.waterfall as object), steps: [] },
+            { ...(charts.waterfall as object), end: undefined },
+            { ...(charts.pie as object), items: [{ ...item('a-1', '3'), previous: '1' }] },
+            { kind: 'table', label: 'None' },
+        ];
+        for (const props of invalid) {
+            expect(issuesOf(withChart(props)), JSON.stringify(props)).not.toEqual([]);
+        }
+    });
+
     it('rejects a total whose months do not match the months', () => {
         const spec = changed(spec => {
             const table = spec.elements.breakdown;

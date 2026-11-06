@@ -67,6 +67,16 @@ describe('buildReportSpec', () => {
             intent('g-net', 'this_month'),
             intent('net-result', 'last_12_months', { monthly: true }),
             intent('net-result', '2026-10'),
+            intent('g-expenses', 'last_month', { chart: 'pie' }),
+            intent('g-expenses', 'this_year', { chart: 'stacked' }),
+            intent('g-assets', '2026-Q4', { chart: 'area' }),
+            intent('net-result', 'last_12_months', { chart: 'area' }),
+            intent('g-expenses', 'this_month', { chart: 'compare' }),
+            intent('g-assets', 'today', { chart: 'compare' }),
+            intent('net-result', 'this_month', { chart: 'waterfall' }),
+            intent('g-assets', 'today', { chart: 'waterfall' }),
+            intent('g-expenses', 'last_month', { chart: 'table' }),
+            intent('g-net', 'last_month', { chart: 'pie' }),
         ];
         for (const lang of ['en', 'pt-BR', 'ja', 'ar', 'sw', 'mni-Mtei']) {
             for (const request of intents) {
@@ -310,5 +320,95 @@ describe('buildReportSpec', () => {
         expect(element(quarter, 'Report').props.subtitle).toBe(
             t('period_quarter', 'ar-EG', { quarter: isolate('٣'), year: isolate('٢٠٢٦') })
         );
+    });
+
+    it('draws a pie of the parts like a donut', async () => {
+        const built = await spec(intent('g-expenses', 'last_month', { chart: 'pie' }));
+        expect(element(built, 'Chart').props).toEqual({
+            kind: 'pie',
+            label: `Breakdown of ${isolate('Expenses')}`,
+            items: [
+                { rowId: 'a-rent', label: 'Rent', color: 'red', value: '1000' },
+                { rowId: 'a-food', label: 'Food', color: 'red', value: '200.5' },
+            ],
+        });
+    });
+
+    it('stacks a series for each part, and names the rest Other', async () => {
+        const snapshot = await fixtureSnapshot();
+        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
+        const built = await spec(
+            intent('g-expenses', 'this_year', { chart: 'stacked' }),
+            'en',
+            snapshot
+        );
+        const chart = element(built, 'Chart').props;
+        expect(chart).toMatchObject({
+            kind: 'stacked',
+            label: `${isolate('Expenses')} by month`,
+            months: element(built, 'BreakdownTable').props.months,
+        });
+        expect('series' in chart && chart.series.map(series => [series.id, series.label])).toEqual([
+            ['a-rent', 'Rent'],
+            ['other', 'Other'],
+        ]);
+    });
+
+    it('draws areas by month', async () => {
+        const built = await spec(intent('g-assets', '2026-Q4', { chart: 'area' }));
+        expect(element(built, 'Chart').props).toMatchObject({
+            kind: 'area',
+            months: ['2026-10', '2026-11'],
+            series: [{ id: 'g-assets', label: 'Assets', values: ['3899.5', '7849.25'] }],
+        });
+    });
+
+    it('compares each part with the previous period, naming both periods', async () => {
+        const built = await spec(intent('g-expenses', 'this_month', { chart: 'compare' }));
+        expect(element(built, 'Chart').props).toEqual({
+            kind: 'compare',
+            label: `Breakdown of ${isolate('Expenses')}`,
+            periods: { current: 'This month', previous: `Oct 1${TO}5, 2026` },
+            items: [
+                { rowId: 'a-rent', label: 'Rent', color: 'red', value: '1000', previous: '1000' },
+                { rowId: 'a-food', label: 'Food', color: 'red', value: '50.25', previous: '0' },
+            ],
+        });
+        const position = await spec(intent('g-assets', 'today', { chart: 'compare' }));
+        const chart = element(position, 'Chart').props;
+        expect('periods' in chart && chart.periods).toEqual({
+            current: `As of ${isolate('Nov 5, 2026')}`,
+            previous: `As of ${isolate('Oct 31, 2026')}`,
+        });
+    });
+
+    it('bridges Incoming to the net result', async () => {
+        const built = await spec(intent('net-result', 'this_month', { chart: 'waterfall' }));
+        expect(element(built, 'Chart').props).toEqual({
+            kind: 'waterfall',
+            label: `Breakdown of ${isolate('Net result')}`,
+            start: { label: 'Incoming', color: 'green', value: '5000' },
+            steps: [
+                { rowId: 'a-rent', label: 'Rent', color: 'red', value: '-1000' },
+                { rowId: 'a-food', label: 'Food', color: 'red', value: '-50.25' },
+            ],
+            end: { label: 'Net result', color: 'grey', value: '3949.75' },
+        });
+    });
+
+    it('bridges a position from one date to the other', async () => {
+        const built = await spec(intent('g-assets', 'today', { chart: 'waterfall' }));
+        expect(element(built, 'Chart').props).toEqual({
+            kind: 'waterfall',
+            label: `Breakdown of ${isolate('Assets')}`,
+            start: { label: `As of ${isolate('Oct 31, 2026')}`, color: 'blue', value: '3899.5' },
+            steps: [{ rowId: 'g-banks', label: 'Banks', color: 'blue', value: '3949.75' }],
+            end: { label: `As of ${isolate('Nov 5, 2026')}`, color: 'blue', value: '7849.25' },
+        });
+    });
+
+    it('leaves the chart out of a table', async () => {
+        const built = await spec(intent('g-expenses', '2026', { monthly: true, chart: 'table' }));
+        expect(Object.values(built.elements).some(part => part.type === 'Chart')).toBe(false);
     });
 });

@@ -72,6 +72,7 @@ export const AnswerProps = z.strictObject({
 });
 
 const ChartSeries = z.strictObject({
+    /** A breakdown row, the root, a side of a net result or the net result; `other` for the rest. */
     id: z.string().min(1),
     label: Text,
     color: Color,
@@ -89,31 +90,83 @@ const ChartItem = z.strictObject({
     value: Decimal,
 });
 
+const CompareItem = z.strictObject({
+    rowId: z.string().min(1),
+    label: Text,
+    color: Color,
+    /** The amount in the period. */
+    value: Decimal,
+    /** The amount in the previous period, or the position at its end. */
+    previous: Decimal,
+});
+
+/** The first or last bar of a bridge, standing on zero. */
+const WaterfallBar = z.strictObject({ label: Text, color: Color, value: Decimal });
+
+/** A floating bar of a bridge: what it adds to the bars before it, negative when it lowers them. */
+const WaterfallStep = z.strictObject({
+    /** The breakdown row, at any depth; absent for the smaller parts together. */
+    rowId: z.string().min(1).optional(),
+    label: Text,
+    color: Color,
+    value: Decimal,
+});
+
+function oneValuePerMonth(
+    chart: { months: string[]; series: { values: string[] }[] },
+    context: z.RefinementCtx
+): void {
+    chart.series.forEach((series, index) => {
+        if (series.values.length !== chart.months.length) {
+            context.addIssue({
+                code: 'custom',
+                path: ['series', index, 'values'],
+                message: 'Needs one value per month of the months',
+            });
+        }
+    });
+}
+
 export const ChartProps = z.discriminatedUnion('kind', [
-    /** By month: bars for activity, a line for positions. */
+    /** By month: bars for activity, a line for positions, or areas. */
     z
         .strictObject({
-            kind: z.enum(['bar', 'line']),
+            kind: z.enum(['bar', 'line', 'area']),
             label: Text,
             months: z.array(IsoMonth).min(1),
             series: z.array(ChartSeries).min(1),
         })
-        .superRefine((chart, context) => {
-            chart.series.forEach((series, index) => {
-                if (series.values.length !== chart.months.length) {
-                    context.addIssue({
-                        code: 'custom',
-                        path: ['series', index, 'values'],
-                        message: 'Needs one value per month of the months',
-                    });
-                }
-            });
-        }),
+        .superRefine(oneValuePerMonth),
+    /** By month, the parts stacked: in every month the series add up to the report's amount. */
+    z
+        .strictObject({
+            kind: z.literal('stacked'),
+            label: Text,
+            months: z.array(IsoMonth).min(2),
+            series: z.array(ChartSeries.omit({ line: true })).min(2),
+        })
+        .superRefine(oneValuePerMonth),
     /** The top breakdown rows, in breakdown order. */
     z.strictObject({
-        kind: z.enum(['ranked-bar', 'donut']),
+        kind: z.enum(['ranked-bar', 'donut', 'pie']),
         label: Text,
         items: z.array(ChartItem).min(1),
+    }),
+    /** Each breakdown row in the period and in the previous one, side by side. */
+    z.strictObject({
+        kind: z.literal('compare'),
+        label: Text,
+        /** The names of the period and the previous one, for the legend. */
+        periods: z.strictObject({ current: Text, previous: Text }),
+        items: z.array(CompareItem).min(1),
+    }),
+    /** A bridge: `start`, plus every step, makes `end`. */
+    z.strictObject({
+        kind: z.literal('waterfall'),
+        label: Text,
+        start: WaterfallBar,
+        steps: z.array(WaterfallStep).min(1),
+        end: WaterfallBar,
     }),
 ]);
 
@@ -267,7 +320,8 @@ export const reportCatalog = defineCatalog(reportSchema, {
         },
         Chart: {
             props: ChartProps,
-            description: 'The amount by month, or its largest parts.',
+            description:
+                'The amount by month, its largest parts, the parts against the previous period, or a bridge to the amount.',
         },
         BreakdownTable: {
             props: BreakdownTableProps,

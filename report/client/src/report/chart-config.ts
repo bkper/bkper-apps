@@ -55,20 +55,41 @@ function valueLabel(name: string, value: string): string {
     return `${isolate(name)}: ${isolate(value)}`;
 }
 
-export function chartConfig(chart: ChartProps, context: ChartContext): ChartView {
-    return 'months' in chart ? byMonth(chart, context) : breakdown(chart, context);
+/**
+ * The configuration of a chart, or `undefined` for a kind this renderer does not draw yet:
+ * areas draw as lines, stacked parts as bars side by side, a pie as a donut.
+ */
+export function chartConfig(chart: ChartProps, context: ChartContext): ChartView | undefined {
+    switch (chart.kind) {
+        case 'bar':
+        case 'stacked':
+            return byMonth(chart, 'bar', context);
+        case 'line':
+        case 'area':
+            return byMonth(chart, 'line', context);
+        case 'ranked-bar':
+        case 'donut':
+        case 'pie':
+            return breakdown(chart, context);
+        case 'compare':
+        case 'waterfall':
+            return undefined;
+    }
 }
 
-function byMonth(chart: Extract<ChartProps, { months: string[] }>, context: ChartContext) {
+function byMonth(
+    chart: Extract<ChartProps, { months: string[] }>,
+    element: 'bar' | 'line',
+    context: ChartContext
+) {
     const { format, highlight } = context;
-    const element = chart.kind;
     const stood = highlight && chart.series.find(series => series.id === highlight.id);
     // Charts leave out rows without an amount in the period, even when highlighted.
     const drawn = highlight && ReportFormat.plot(highlight.amount) !== 0 ? highlight : undefined;
     const series: Series[] = chart.series.map(entry => ({
         label: entry.label,
         color: entry.color,
-        line: entry.line === true,
+        line: 'line' in entry && entry.line === true,
         values: entry.values,
         emphasis: !drawn ? 'normal' : entry === stood ? 'strong' : 'faded',
     }));
@@ -159,9 +180,12 @@ function monthDataset(chart: 'bar' | 'line', series: Series): Dataset {
     };
 }
 
-function breakdown(chart: Extract<ChartProps, { items: unknown[] }>, context: ChartContext) {
+function breakdown(
+    chart: Extract<ChartProps, { kind: 'ranked-bar' | 'donut' | 'pie' }>,
+    context: ChartContext
+) {
     const { format, highlight } = context;
-    const donut = chart.kind === 'donut';
+    const donut = chart.kind !== 'ranked-bar';
     const element: ChartElement = donut ? 'doughnut' : 'bar';
     // Rows the chart does not draw, such as rows without an amount, highlight nothing in it.
     const top = highlight && topRow(context.rows, highlight.id)?.id;

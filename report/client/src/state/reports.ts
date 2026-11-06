@@ -295,7 +295,10 @@ function promptKey(text: string): string {
 function intentKey(intent: ReportIntent, language: string): string {
     const { root, period, monthly, view, hashtags } = intent;
     const tags = hashtags?.length ? [...hashtags].sort() : undefined;
-    return `intent:${language}:${JSON.stringify([root, period, monthly, view ?? null, tags ?? null])}`;
+    // No chart is the same as `auto`.
+    const chart = intent.chart === 'auto' ? undefined : intent.chart;
+    const parts = [root, period, monthly, view ?? null, tags ?? null, chart ?? null];
+    return `intent:${language}:${JSON.stringify(parts)}`;
 }
 
 function isAbort(error: unknown): boolean {

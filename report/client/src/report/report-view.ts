@@ -59,7 +59,11 @@ export class ReportView extends LitElement {
     private lastOpened?: string;
 
     private format?: ReportFormat;
-    private chartView?: { chart: PropsOf<'Chart'>; highlight?: string; view: ChartView };
+    private chartView?: {
+        chart: PropsOf<'Chart'>;
+        highlight?: string;
+        view: ChartView | undefined;
+    };
 
     render() {
         const spec = this.spec;
@@ -101,12 +105,10 @@ export class ReportView extends LitElement {
         switch (element.type) {
             case 'Answer':
                 return renderAnswer(element.props, format, report.title);
-            case 'Chart':
-                return renderChart(
-                    this.chartFor(element.props, format, rows, highlight),
-                    element.props.label,
-                    report.dir
-                );
+            case 'Chart': {
+                const view = this.chartFor(element.props, format, rows, highlight);
+                return view ? renderChart(view, element.props.label, report.dir) : nothing;
+            }
             case 'BreakdownTable':
                 return html`<section class="breakdown-section" aria-label=${element.props.label}>
                     ${renderBreakdown(element.props, {
@@ -176,7 +178,7 @@ export class ReportView extends LitElement {
         format: ReportFormat,
         rows: BreakdownRow[],
         highlight: BreakdownRow | undefined
-    ): ChartView {
+    ): ChartView | undefined {
         const cached = this.chartView;
         if (cached?.chart === chart && cached.highlight === highlight?.id) {
             return cached.view;
@@ -194,7 +196,7 @@ export class ReportView extends LitElement {
         }
         const { items, kind } = chart.props;
         const colors =
-            kind === 'donut'
+            kind === 'donut' || kind === 'pie'
                 ? shades(items.map(item => item.color))
                 : items.map(item => typeColor(item.color, 'medium'));
         return new Map(items.map((item, index) => [item.rowId, colors[index]]));

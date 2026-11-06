@@ -2,6 +2,7 @@ import { z } from '@hono/zod-openapi';
 import { ReportSpecSchema } from 'report-shared/catalog';
 import { supportedLanguage } from 'report-shared/languages';
 import type { ZodType } from 'zod';
+import { CHART_KINDS } from '../services/report.js';
 import { ReportIntentSchema } from '../services/report-intent.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -116,6 +117,11 @@ const IntentSchema = ReportIntentSchema.extend({
         description:
             'The layout asked for: `trend` (over time), `breakdown` (by subgroups and Accounts) or `total` (the amount alone). Left out, the report picks one.',
     }),
+    chart: shape.chart.meta({
+        description:
+            'The chart the person asked for: `pie` (the parts of the total), `stacked` (the parts by month), `area` (by month), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the one the report picks (see the response’s `chart`).',
+        example: 'pie',
+    }),
     hashtags: shape.hashtags.meta({
         description: 'Only transactions with all these hashtags, without `#`.',
         example: ['travel'],
@@ -123,7 +129,7 @@ const IntentSchema = ReportIntentSchema.extend({
 }).meta({
     id: 'ReportIntent',
     description:
-        'Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view and hashtags. Take it from a suggestion or from an earlier report’s `intent`.',
+        'Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`.',
 });
 
 export const SuggestionSchema = z
@@ -202,6 +208,20 @@ export const ReportResponseSchema = z
                 'When the balances were read (ISO 8601); they may be up to 60 seconds old.',
             example: '2026-11-05T14:03:12.345Z',
         }),
+        chart: z
+            .object({
+                kind: z.enum(CHART_KINDS).openapi({
+                    description:
+                        'The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the previous period); `waterfall` (a bridge); `none` for no chart.',
+                    example: 'pie',
+                }),
+                fallback: z.boolean().openapi({
+                    description:
+                        'True when the intent’s `chart` does not fit this report, so `kind` is the chart the report picks instead.',
+                    example: false,
+                }),
+            })
+            .openapi({ description: 'The chart drawn, and whether the one asked for fit.' }),
         url: z.string().openapi({
             description: 'The same report in the Report app, to open or share with the person.',
             example: 'https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year',

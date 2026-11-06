@@ -34,7 +34,7 @@ import {
     type IsoMonth,
     type ReportNature,
 } from './periods.js';
-import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
+import { NET_RESULT_ROOT, type ChartPreference, type ReportIntent } from './report-intent.js';
 import {
     periodAmount,
     positionAmount,
@@ -90,6 +90,7 @@ export interface ReportRow extends ReportAmounts {
 }
 
 export interface ChartSeries {
+    /** The root, a side of a net result, the net result, or a breakdown row; `other` for the rest. */
     id: string;
     name?: string;
     type: NodeType;
@@ -100,12 +101,55 @@ export interface ChartSeries {
     amounts: string[];
 }
 
-export type ReportChart =
+/** Every chart a report may have; `none` for no chart. */
+export const CHART_KINDS = [
+    'none',
+    'bar',
+    'line',
+    'area',
+    'stacked',
+    'ranked-bar',
+    'donut',
+    'pie',
+    'compare',
+    'waterfall',
+] as const satisfies readonly ReportChart['kind'][];
+
+/** A part of a bridge: the change a breakdown row brings, or the rest of them (`other`). */
+export interface WaterfallStep {
+    /** The breakdown row's id, at any depth; `other` for the smaller parts together. */
+    id: string;
+    kind: RowKind;
+    name?: string;
+    type: NodeType;
+    color: TypeColor;
+    /** What the part adds to the bar before it: negative when it lowers it. */
+    amount: string;
+}
+
+export type ReportChart = (
     | { kind: 'none' }
-    /** By month: bars for activity, a line for positions. */
-    | { kind: 'bar' | 'line'; series: ChartSeries[] }
+    /** By month: bars for activity, a line for positions, or areas. */
+    | { kind: 'bar' | 'line' | 'area'; series: ChartSeries[] }
+    /**
+     * By month, a series for each of the largest breakdown rows and one for the rest (`other`),
+     * stacked: in every month they add up to the root.
+     */
+    | { kind: 'stacked'; series: ChartSeries[] }
     /** The top breakdown rows with an amount, by id, in breakdown order. */
-    | { kind: 'ranked-bar' | 'donut'; rows: string[] };
+    | { kind: 'ranked-bar' | 'donut' | 'pie'; rows: string[] }
+    /** The top breakdown rows with an amount in the period or the previous one, by id. */
+    | { kind: 'compare'; rows: string[] }
+    /**
+     * A bridge from `start` to `end`, which `start` plus every step makes exactly: Incoming to
+     * the net result through each Outgoing account, or the previous position to the position
+     * through each part's change.
+     */
+    | { kind: 'waterfall'; start: string; steps: WaterfallStep[]; end: string }
+) & {
+    /** The intent preferred a chart that does not fit the report, so the rules chose this one. */
+    fallback?: true;
+};
 
 export interface ReportData {
     book: { id: string; name: string; timeZone?: string; fractionDigits?: number };
@@ -158,6 +202,15 @@ export class ReportError extends Error {
 }
 
 const MAX_DONUT_ROWS = 6;
+
+/** Series of stacked bars, the rest included, so the chart stays readable. */
+const MAX_STACKED_SERIES = 6;
+
+/** Steps of a bridge, the rest included. */
+const MAX_WATERFALL_STEPS = 8;
+
+/** The id of the part of a chart that holds the smaller parts together. */
+export const OTHER_PART = 'other';
 
 /**
  * Computes the report of an intent from a snapshot, or returns the live query it needs.
@@ -226,7 +279,15 @@ export function buildReport(
             answer: reportAmounts(report.total),
             ...(report.net ? { net: report.net } : {}),
             months,
-            chart: chooseChart(view, nature, report.root.type, report.rows, report.series, months),
+            chart: reportChart(intent.chart ?? 'auto', view, {
+                nature,
+                root: report.root,
+                total: reportAmounts(report.total),
+                net: report.net,
+                rows: report.rows,
+                series: report.series,
+                months,
+            }),
             breakdown: report.rows,
             query,
             url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
@@ -560,28 +621,198 @@ function byRank(a: Line, b: Line): number {
     );
 }
 
-function chooseChart(
+/** What a chart is drawn from. */
+interface ChartInput {
+    nature: ReportNature;
+    root: ReportData['root'];
+    total: ReportAmounts;
+    net?: ReportData['net'];
+    rows: ReportRow[];
+    /** The series of a chart by month: the root, or the sides of a net result and the net result. */
+    series: ChartSeries[];
+    months: IsoMonth[];
+}
+
+/** The chart the person prefers when it fits the report, else the chart of the rules. */
+function reportChart(
+    preference: ChartPreference,
     view: 'trend' | 'breakdown' | 'total',
-    nature: ReportNature,
-    rootType: NodeType,
-    rows: ReportRow[],
-    series: ChartSeries[],
-    months: IsoMonth[]
+    input: ChartInput
 ): ReportChart {
+    const byRules = (): ReportChart => chooseChart(view, input);
+    if (preference === 'auto') {
+        return byRules();
+    }
+    return preferredChart(preference, input) ?? { ...byRules(), fallback: true };
+}
+
+function chooseChart(view: 'trend' | 'breakdown' | 'total', input: ChartInput): ReportChart {
+    const { nature, root, rows, series, months } = input;
     if (view === 'trend' && months.length > 0) {
         return { kind: nature === 'activity' ? 'bar' : 'line', series };
     }
     // Charts draw only rows with an amount in the period.
-    const drawn = rows.filter(row => !new Amount(row.amount).eq(0));
+    const drawn = rows.filter(hasAmount);
     if (view === 'breakdown' && drawn.length >= 2) {
         // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
-        const donut =
-            drawn.length <= MAX_DONUT_ROWS &&
-            rootType !== 'MIXED' &&
-            drawn.every(row => row.type === rootType && new Amount(row.amount).gt(0));
+        const donut = drawn.length <= MAX_DONUT_ROWS && isComposition(drawn, root.type);
         return { kind: donut ? 'donut' : 'ranked-bar', rows: drawn.map(row => row.id) };
     }
     return { kind: 'none' };
+}
+
+/** The preferred chart, or `undefined` when it does not fit the report. */
+function preferredChart(
+    preference: Exclude<ChartPreference, 'auto'>,
+    input: ChartInput
+): ReportChart | undefined {
+    const { nature, root, total, net, rows, series, months } = input;
+    switch (preference) {
+        case 'table':
+            return { kind: 'none' };
+        case 'pie': {
+            const drawn = rows.filter(hasAmount);
+            return drawn.length >= 2 && isComposition(drawn, root.type)
+                ? { kind: 'pie', rows: drawn.map(row => row.id) }
+                : undefined;
+        }
+        case 'area':
+            return months.length >= 2 ? { kind: 'area', series } : undefined;
+        case 'stacked':
+            // The sides of a net result are each in their own sense, so they do not stack up to it.
+            return !net && months.length >= 2 && rows.filter(hasAmount).length >= 2
+                ? { kind: 'stacked', series: stackedSeries(input) }
+                : undefined;
+        case 'compare': {
+            const compared = rows.filter(
+                row => hasAmount(row) || !new Amount(row.previous ?? 0).eq(0)
+            );
+            return total.previous !== undefined && compared.length > 0
+                ? { kind: 'compare', rows: compared.map(row => row.id) }
+                : undefined;
+        }
+        case 'waterfall': {
+            if (net) {
+                // Incoming, minus each Outgoing account, is the net result.
+                const outgoing = rows.find(row => row.kind === 'outgoing')?.children ?? [];
+                const steps = outgoing.map(row => ({
+                    row,
+                    amount: new Amount(row.amount).times(-1),
+                }));
+                return bridge(net.incoming.amount, steps, total.amount, 'OUTGOING');
+            }
+            if (nature === 'position' && total.previous !== undefined) {
+                // The previous position, plus each part's change, is the position.
+                const steps = rows.map(row => ({
+                    row,
+                    amount: new Amount(row.amount).minus(row.previous ?? 0),
+                }));
+                return bridge(total.previous, steps, total.amount, root.type);
+            }
+            return undefined;
+        }
+    }
+}
+
+/** Parts of one type, each positive, that add up to a whole. */
+function isComposition(rows: ReportRow[], rootType: NodeType): boolean {
+    return (
+        rootType !== 'MIXED' &&
+        rows.every(row => row.type === rootType && new Amount(row.amount).gt(0))
+    );
+}
+
+/** A series for each of the largest rows, and one for the rest, adding up to the root each month. */
+function stackedSeries({ root, rows, months }: ChartInput): ChartSeries[] {
+    const sumMonths = (parts: ReportRow[]) =>
+        months.map((_, i) => parts.reduce((sum, row) => sum.plus(row.months[i]), new Amount(0)));
+    const { top, rest } = largestParts(
+        rows.filter(row => row.kind !== 'other' && hasAmount(row)),
+        rows,
+        MAX_STACKED_SERIES,
+        parts => sumMonths(parts).every(month => month.eq(0))
+    );
+    const series: ChartSeries[] = top.map(row => ({
+        id: row.id,
+        ...(row.name === undefined ? {} : { name: row.name }),
+        type: row.type,
+        color: row.color,
+        amounts: row.months,
+    }));
+    const other = sumMonths(rest);
+    if (!other.every(month => month.eq(0))) {
+        series.push({
+            id: OTHER_PART,
+            type: root.type,
+            color: root.color,
+            amounts: other.map(decimal),
+        });
+    }
+    return series;
+}
+
+/**
+ * A bridge from `start` to `end` through the largest steps and the rest together; `undefined`
+ * when nothing changes. The steps of every row make `end` from `start` exactly.
+ */
+function bridge(
+    start: string,
+    steps: { row: ReportRow; amount: Amount }[],
+    end: string,
+    restType: NodeType
+): ReportChart | undefined {
+    const sumSteps = (parts: typeof steps) =>
+        parts.reduce((sum, step) => sum.plus(step.amount), new Amount(0));
+    if (!sumSteps(steps).plus(start).eq(end)) {
+        throw new Error('The steps of the bridge do not add up to its end');
+    }
+    const { top, rest } = largestParts(
+        steps
+            .filter(step => step.row.kind !== 'other' && !step.amount.eq(0))
+            .sort((a, b) => b.amount.abs().cmp(a.amount.abs())),
+        steps,
+        MAX_WATERFALL_STEPS,
+        parts => sumSteps(parts).eq(0)
+    );
+    const bars: WaterfallStep[] = top.map(({ row, amount }) => ({
+        id: row.id,
+        kind: row.kind,
+        ...(row.name === undefined ? {} : { name: row.name }),
+        type: row.type,
+        color: row.color,
+        amount: decimal(amount),
+    }));
+    const other = sumSteps(rest);
+    if (!other.eq(0)) {
+        bars.push({
+            id: OTHER_PART,
+            kind: 'other',
+            type: restType,
+            color: TYPE_COLORS[restType],
+            amount: decimal(other),
+        });
+    }
+    return bars.length > 0 ? { kind: 'waterfall', start, steps: bars, end } : undefined;
+}
+
+/**
+ * The largest candidates, in their order, each a part of its own, and every other item as the
+ * rest: at most `max` parts, the rest counting as one unless it is zero.
+ */
+function largestParts<T>(
+    candidates: T[],
+    all: T[],
+    max: number,
+    isZeroRest: (rest: T[]) => boolean
+): { top: T[]; rest: T[] } {
+    const restOf = (top: T[]) => all.filter(item => !top.includes(item));
+    const fits = candidates.length + (isZeroRest(restOf(candidates)) ? 0 : 1) <= max;
+    const top = fits ? candidates : candidates.slice(0, max - 1);
+    return { top, rest: restOf(top) };
+}
+
+function hasAmount(row: ReportRow): boolean {
+    return !new Amount(row.amount).eq(0);
 }
 
 function reportAmounts(measure: Measure): ReportAmounts {

@@ -38,6 +38,7 @@ function response(title: string): ReportResponse {
         language: 'en',
         query: 'q',
         dataAt: '2026-11-05T00:00:00Z',
+        chart: { kind: 'none', fallback: false },
         url: 'https://report.bkper.app/',
     };
 }
@@ -279,6 +280,26 @@ describe('Reports', () => {
         expect(title(reports.report)).toBe('Net');
         expect(reports.pending).toBe(false);
         expect(prompts()).toEqual(['net result 2011', 'other report']);
+    });
+
+    it('remembers reports of one intent with different charts apart', async () => {
+        const { reports, calls, intentCalls } = createReports();
+        reports.open('book-1');
+        await settle();
+        reports.input('net result 2011 as a pie');
+        reports.submit();
+        calls.at(-1)?.resolve({
+            ...response('Pie'),
+            intent: { ...SUGGESTIONS[0].intent, chart: 'pie' },
+            language: 'pt',
+        });
+        await settle();
+
+        reports.choose(SUGGESTIONS[0]);
+        intentCalls()[0].resolve({ ...response('Net'), language: 'pt' });
+        await settle();
+
+        expect(title(reports.report)).toBe('Net');
     });
 
     it('answers a typed suggestion text from memory', async () => {

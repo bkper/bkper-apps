@@ -12,11 +12,15 @@ function view(id: string, highlight?: string): ChartView {
     const rows = elementOf(spec, 'BreakdownTable').props.rows;
     const find = (list: BreakdownRow[]): BreakdownRow | undefined =>
         list.map(row => (row.id === highlight ? row : find(row.children))).find(Boolean);
-    return chartConfig(elementOf(spec, 'Chart').props, {
+    const chart = chartConfig(elementOf(spec, 'Chart').props, {
         format: new ReportFormat(elementOf(spec, 'Report').props.locale, 2),
         rows,
         highlight: highlight === undefined ? undefined : find(rows),
     });
+    if (!chart) {
+        throw new Error(`No chart drawn for ${id}`);
+    }
+    return chart;
 }
 
 function datasets(chart: ChartView) {

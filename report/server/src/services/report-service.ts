@@ -17,7 +17,13 @@ import {
     type LiveBalances,
     type LiveQuery,
 } from './live-balances.js';
-import { ReportError, buildReport, type ReportData, type ReportStep } from './report.js';
+import {
+    ReportError,
+    buildReport,
+    type ReportChart,
+    type ReportData,
+    type ReportStep,
+} from './report.js';
 import type { ReportIntent } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
@@ -55,6 +61,8 @@ export interface ReportResult {
     query: string;
     /** When the balances were read, as an ISO instant. */
     dataAt: string;
+    /** The chart drawn, and whether it is the rules' because the intent's `chart` does not fit. */
+    chart: { kind: ReportChart['kind']; fallback: boolean };
     /** The request as a person would type it: the prompt, or the report's title and period. */
     text: string;
 }
@@ -138,6 +146,7 @@ export async function createReport(
         language,
         query: report.query,
         dataAt: report.dataAt,
+        chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: 'prompt' in request ? request.prompt : reportText(spec),
     };
 }

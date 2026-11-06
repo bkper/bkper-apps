@@ -1,6 +1,6 @@
 import { t } from 'report-shared/strings';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ReportResponse, Suggestion } from '../../../src/api/app-api';
+import { AppApiError, type ReportResponse, type Suggestion } from '../../../src/api/app-api';
 import '../../../src/web-awesome';
 import { ReportPage } from '../../../src/components/report-page/report-page-view';
 import '../../../src/report/index';
@@ -35,7 +35,13 @@ function report(title: string): ReportResponse {
 }
 
 function createPage(
-    options: { language?: string; href?: string; content?: HTMLElement } = {}
+    options: {
+        language?: string;
+        href?: string;
+        content?: HTMLElement;
+        api?: ReportApi;
+        getBook?: () => Promise<{ id: string; name: string }>;
+    } = {}
 ): ReportPage {
     const href = options.href ?? 'https://report.bkper.app/?book=book-1';
     const page: RoutePage = {
@@ -48,7 +54,7 @@ function createPage(
         addEventListener: () => undefined,
         removeEventListener: () => undefined,
     };
-    const api: ReportApi = {
+    const api: ReportApi = options.api ?? {
         suggestions: async () => SUGGESTIONS,
         report: async () => report('Net result'),
     };
@@ -64,6 +70,10 @@ function createPage(
             refresh: async () => undefined,
         }),
         createReportApi: () => api,
+        createBookService: () => ({
+            listBooksDirect: async () => [],
+            getBook: options.getBook ?? (async () => ({ id: 'book-1', name: 'Main Book' })),
+        }),
         loadRenderer: async () => undefined,
         logger: { error: () => undefined },
     });
@@ -238,6 +248,36 @@ describe('ReportPage', () => {
         const alert = shadow(view).querySelector('.notice');
         expect(alert?.getAttribute('role')).toBe('alert');
         expect(alert?.textContent).toContain('Bkper AI allowance');
+    });
+
+    it('shows one clear error for a Book that cannot be read', async () => {
+        const notFound = new AppApiError('Not found', 404, 'book_not_found');
+        const view = createPage({
+            api: {
+                suggestions: async () => Promise.reject(notFound),
+                report: async () => Promise.reject(notFound),
+            },
+            getBook: async () => Promise.reject(new Error('Book NOT found!')),
+        });
+        void view.state.books.select('book-1');
+        view.state.reports.open('book-1');
+        await settle(view);
+
+        const notices = shadow(view).querySelectorAll('.notice');
+        expect(notices).toHaveLength(1);
+        expect(notices[0].getAttribute('role')).toBe('alert');
+        expect(notices[0].textContent?.trim()).toBe(t('error_book_not_found', 'en'));
+    });
+
+    it('says the Book did not load when nothing more precise is known', async () => {
+        const view = createPage({ getBook: async () => Promise.reject(new Error('offline')) });
+        await view.state.books.select('book-1');
+        await view.updateComplete;
+
+        const notices = shadow(view).querySelectorAll('.notice');
+        expect(notices).toHaveLength(1);
+        expect(notices[0].getAttribute('role')).toBe('alert');
+        expect(notices[0].textContent?.trim()).toBe(t('error_book_load', 'en'));
     });
 
     it('shows the progress line only while a report is on its way', async () => {

@@ -2,10 +2,9 @@ import type WaInput from '@awesome.me/webawesome-pro/dist/components/input/input
 import { LitElement, html, nothing, svg, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
-import { t, textDirection } from 'report-shared/strings';
+import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { ReportResponse } from '../../api/app-api';
 import type { AppState } from '../../state/app-state';
-import type { Notice } from '../../state/reports';
 import { watch } from '../../state/store';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import '../report-suggestions';
@@ -14,8 +13,9 @@ import { reportPageCSS } from './report-page-css';
 export type ReportPageState = Pick<AppState, 'route' | 'books' | 'reports' | 'strings'>;
 
 /** Notices that say something failed, rather than hint. */
-const ALERTS: ReadonlySet<Notice> = new Set<Notice>([
+const ALERTS: ReadonlySet<StringKey> = new Set<StringKey>([
     'error_ai_allowance_exhausted',
+    'error_book_load',
     'error_book_not_found',
     'error_forbidden',
     'error_upstream',
@@ -104,13 +104,11 @@ export class ReportPage extends LitElement {
                 </main>
                 <div class="dock">
                     ${
-                        open && books.selectedBookError
-                            ? html`<p class="notice alert" role="alert">
-                                  ${t(books.selectedBookError, lang)}
-                              </p>`
+                        // One message at a time: the API's says why the Book cannot be read.
+                        open
+                            ? this.renderNotice(reports.notice ?? books.selectedBookError, lang)
                             : nothing
                     }
-                    ${open ? this.renderNotice(reports.notice, lang) : nothing}
                     ${
                         open && reports.showsSuggestions
                             ? html`<report-suggestions
@@ -151,7 +149,7 @@ export class ReportPage extends LitElement {
         `;
     }
 
-    private renderNotice(notice: Notice | undefined, lang: string) {
+    private renderNotice(notice: StringKey | null | undefined, lang: string) {
         if (!notice) return nothing;
         const alert = ALERTS.has(notice);
         return html`<p class="notice ${alert ? 'alert' : ''}" role=${alert ? 'alert' : 'status'}>

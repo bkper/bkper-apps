@@ -5,7 +5,8 @@
  * Self-contained: no app state and no network. It registers the Web Awesome components it
  * draws with; the page provides the Web Awesome theme and `@bkper/web-design` tokens. Rows
  * open in place (`expandRow`), hovering or opening a row highlights it in the chart, and the
- * link to Bkper (`openInBkper`) fires `report-open-in-bkper` (see `events.ts`).
+ * link to Bkper (`openInBkper`) fires `report-open-in-bkper` (see `events.ts`); a host that
+ * cannot navigate gives a plain `link` instead.
  */
 import '@awesome.me/webawesome-pro/dist/components/bar-chart/bar-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/doughnut-chart/doughnut-chart.js';
@@ -33,6 +34,7 @@ import {
     type BreakdownRow,
     type PropsOf,
     type ReportElement,
+    type ReportLink,
     type ReportSpec,
 } from './spec-types.js';
 
@@ -44,6 +46,12 @@ export class ReportView extends LitElement {
 
     /** The spec to render, as the app API returns it. */
     @property({ attribute: false }) spec?: ReportSpec;
+
+    /**
+     * A plain link the Source shows, such as a report file's link to the Report app, where the
+     * host cannot handle the spec's `openInBkper` action.
+     */
+    @property({ attribute: false }) link?: ReportLink;
 
     /** Rows open in place, kept across specs so a changed report keeps them open. */
     @state() private expanded: ReadonlySet<string> = new Set();
@@ -116,7 +124,8 @@ export class ReportView extends LitElement {
                 return renderSource(
                     element.props,
                     format,
-                    open ? event => this.open(event, { url: open.params.url }) : undefined
+                    open ? event => this.open(event, { url: open.params.url }) : undefined,
+                    this.link
                 );
             }
             case 'Report':

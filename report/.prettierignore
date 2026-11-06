@@ -9,3 +9,6 @@ server/test/api/openapi.snapshot.json
 
 # Generated report specs (scripts/generate-report-specs.ts)
 client/dev/specs/
+
+# Generated report file bundle (npm run build:report-file)
+server/src/generated/

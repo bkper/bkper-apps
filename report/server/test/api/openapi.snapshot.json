@@ -158,11 +158,18 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "The report",
+                        "description": "The report: a json-render spec with its intent, language, query and link (`format: spec`), or one self-contained HTML file (`format: html`)",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ReportResponse"
+                                }
+                            },
+                            "text/html": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "A self-contained HTML document of the report, in `language`: every script and style inline, nothing to load, rows that open in place, and a link to the report in the Report app.",
+                                    "example": "<!doctype html>\n<html lang=\"en\" dir=\"ltr\">…"
                                 }
                             }
                         }
@@ -1171,9 +1178,10 @@
                 "format": {
                     "type": "string",
                     "enum": [
-                        "spec"
+                        "spec",
+                        "html"
                     ],
-                    "description": "What to return; `spec` (the default) is a json-render spec."
+                    "description": "What to return: `spec` (the default), a json-render spec with the report’s intent, language, query and link; or `html`, one self-contained HTML file of the report that loads nothing and links to the Report app."
                 }
             },
             "additionalProperties": false,

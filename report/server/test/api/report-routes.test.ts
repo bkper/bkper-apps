@@ -1,6 +1,7 @@
 import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
-import { validateReportSpec } from 'report-shared/catalog';
+import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
+import type { ReportFileData } from 'report-shared/report-file';
 import { describe, expect, it } from 'vitest';
 import { AppContext } from '../../src/app-context';
 import { createDecisionClient } from '../../src/services/decision-client';
@@ -121,6 +122,16 @@ function harness(
     return state;
 }
 
+function elementOf<T extends ReportElement['type']>(spec: ReportSpec, type: T) {
+    const element = Object.values(spec.elements).find(
+        (candidate): candidate is Extract<ReportElement, { type: T }> => candidate.type === type
+    );
+    if (!element) {
+        throw new Error(`No ${type} in the spec`);
+    }
+    return element;
+}
+
 async function post(test: Harness, body: unknown, init: RequestInit & { url?: string } = {}) {
     const { url, ...rest } = init;
     return test.app.request(
@@ -238,6 +249,29 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
     });
 
+    it('returns a self-contained HTML file of the report that links to the Report app', async () => {
+        const test = harness();
+        const intent = { root: 'g-expenses', period: '2026-10', monthly: false };
+        const response = await post(test, { intent, language: 'en', format: 'html' });
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Content-Type')).toMatch(/^text\/html; charset=utf-8$/i);
+        const html = await response.text();
+        expect(html).toMatch(/^<!doctype html>/i);
+        expect(html).toContain('<title>Expenses · October 2026</title>');
+        const data = JSON.parse(
+            /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(html)?.[1] ??
+                ''
+        ) as ReportFileData;
+        expect(validateReportSpec(data.spec).valid).toBe(true);
+        expect(elementOf(data.spec, 'Source').on).toBeUndefined();
+        expect(data.link).toEqual({
+            url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+October+2026`,
+            label: 'Open in Report',
+        });
+        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
+    });
+
     it('reads a hashtag report with one live balances query', async () => {
         const test = harness({ jev: { root: 'Expenses', period: 'last_month' } });
         const response = await post(test, { prompt: 'expenses last month #trip' });
@@ -278,7 +312,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             { prompt: 'x', intent: { root: 'r', period: 'all', monthly: false } },
             'Send exactly one of `prompt` or `intent`.',
         ],
-        [{ prompt: 'expenses', format: 'html' }, 'format: '],
+        [{ prompt: 'expenses', format: 'pdf' }, 'format: '],
         [{ intent: { root: 'g-expenses', period: 'soon', monthly: false } }, 'intent.period: '],
     ])('tells what is invalid in %j', async (body, message) => {
         const response = await post(harness(), body);

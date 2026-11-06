@@ -1,16 +1,18 @@
 /** The Source of a report: the Book, the exact dates and query, and when balances were read. */
 import { html, nothing } from 'lit';
 import type { ReportFormat } from './format.js';
-import type { PropsOf } from './spec-types.js';
+import type { PropsOf, ReportLink } from './spec-types.js';
 
 /**
  * @param onOpen Handles the link to Bkper; without it, as where the report cannot navigate, the
  *   link is left out.
+ * @param link A plain link the host adds, such as a report file's link to the Report app.
  */
 export function renderSource(
     source: PropsOf<'Source'>,
     format: ReportFormat,
-    onOpen?: (event: MouseEvent) => void
+    onOpen?: (event: MouseEvent) => void,
+    link?: ReportLink
 ) {
     const { labels } = source;
     return html`
@@ -37,6 +39,11 @@ export function renderSource(
                         ? html`<a href=${source.url} target="_blank" rel="noopener" @click=${onOpen}
                               >${labels.open}</a
                           >`
+                        : nothing
+                }
+                ${
+                    link
+                        ? html`<a href=${link.url} target="_blank" rel="noopener">${link.label}</a>`
                         : nothing
                 }
             </p>

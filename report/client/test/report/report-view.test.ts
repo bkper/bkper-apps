@@ -217,6 +217,32 @@ describe('<report-view>', () => {
         expect(text(view, '.source code')).toEqual([elementOf(spec, 'Source').props.query]);
     });
 
+    it('shows the plain link its host gives, without the action to Bkper', async () => {
+        const spec = gallerySpec('expenses-by-month');
+        const source = elementOf(spec, 'Source');
+        const view = document.createElement('report-view');
+        view.spec = {
+            ...spec,
+            elements: { ...spec.elements, source: { type: 'Source', props: source.props } },
+        };
+        view.link = { url: 'https://report.bkper.app/?book=b&q=expenses', label: 'Open in Report' };
+        document.body.append(view);
+        views.push(view);
+        await view.updateComplete;
+        const links = [...root(view).querySelectorAll<HTMLAnchorElement>('.source a')];
+        expect(links.map(link => [link.getAttribute('href'), link.textContent?.trim()])).toEqual([
+            ['https://report.bkper.app/?book=b&q=expenses', 'Open in Report'],
+        ]);
+        const opened: string[] = [];
+        const handle = (event: CustomEvent<{ url: string }>) => opened.push(event.detail.url);
+        document.body.addEventListener(OPEN_IN_BKPER, handle);
+        const click = new Event('click', { bubbles: true, cancelable: true });
+        links[0]?.dispatchEvent(click);
+        document.body.removeEventListener(OPEN_IN_BKPER, handle);
+        expect(opened).toEqual([]);
+        expect(click.defaultPrevented).toBe(false);
+    });
+
     it('shows the empty label when no row has balances', async () => {
         const view = await mount(gallerySpec('card-empty'));
         expect(text(view, '.breakdown-empty')).toEqual(['No balances in this period.']);

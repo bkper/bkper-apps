@@ -167,13 +167,14 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description The report */
+                /** @description The report: a json-render spec with its intent, language, query and link (`format: spec`), or one self-contained HTML file (`format: html`) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": components["schemas"]["ReportResponse"];
+                        "text/html": string;
                     };
                 };
                 /** @description Invalid request */
@@ -472,10 +473,10 @@ export interface components {
              */
             language?: string;
             /**
-             * @description What to return; `spec` (the default) is a json-render spec.
+             * @description What to return: `spec` (the default), a json-render spec with the report’s intent, language, query and link; or `html`, one self-contained HTML file of the report that loads nothing and links to the Report app.
              * @enum {string}
              */
-            format?: "spec";
+            format?: "spec" | "html";
         };
     };
     responses: never;

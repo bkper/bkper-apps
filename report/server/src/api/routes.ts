@@ -1,8 +1,10 @@
 import { createRoute } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { supportedLanguage } from 'report-shared/languages';
+import { t } from 'report-shared/strings';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext, AppEnv } from '../app-context.js';
+import { buildReportFile } from '../services/report-file.js';
 import { createReport, DEFAULT_LANGUAGE, type ReportRequest } from '../services/report-service.js';
 import type { Snapshot } from '../services/snapshot.js';
 import { loadSnapshot } from '../services/snapshot-loader.js';
@@ -19,6 +21,7 @@ import {
     jsonResponse,
     PingResponseSchema,
     ReportErrorResponseSchema,
+    ReportFileSchema,
     EXACTLY_ONE_REQUEST,
     ReportRequestSchema,
     type ReportRequestBody,
@@ -69,7 +72,14 @@ const reportRoute = createRoute({
         },
     },
     responses: {
-        200: jsonResponse('The report', ReportResponseSchema),
+        200: {
+            description:
+                'The report: a json-render spec with its intent, language, query and link (`format: spec`), or one self-contained HTML file (`format: html`)',
+            content: {
+                'application/json': { schema: ReportResponseSchema },
+                'text/html': { schema: ReportFileSchema },
+            },
+        },
         422: jsonResponse(
             'Not a report of this Book (`not_a_report`, with suggestions), a period that has not started (`future_period`) or an unknown root (`unknown_root`)',
             ReportErrorResponseSchema
@@ -119,7 +129,17 @@ export function registerApiRoutes(app: App): void {
             }
         );
         const { text, ...report } = result;
-        return c.json({ ...report, url: reportAppUrl(c.req.url, bookId, text) }, 200);
+        const url = reportAppUrl(c.req.url, bookId, text);
+        if (body.format === 'html') {
+            const file = await context.timing.measure('render', async () =>
+                buildReportFile(report.spec, {
+                    url,
+                    label: t('source_open_in_report', report.language),
+                })
+            );
+            return c.html(file, 200);
+        }
+        return c.json({ ...report, url }, 200);
     });
 
     app.doc('/openapi.json', openApiDocumentConfig);

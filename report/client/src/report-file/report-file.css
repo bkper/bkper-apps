@@ -1,0 +1,17 @@
+/* Load Web Awesome first; @bkper/web-design maps Bkper tokens to Web Awesome tokens. */
+@import '@awesome.me/webawesome-pro/dist/styles/themes/default.css';
+@import '@bkper/web-design';
+
+body {
+    margin: 0;
+    background: var(--bkper-color-background);
+    color: var(--bkper-color-text);
+    font-family: var(--bkper-font-family);
+}
+
+report-view {
+    box-sizing: border-box;
+    max-inline-size: 60rem;
+    margin-inline: auto;
+    padding: var(--wa-space-xl) var(--wa-space-l);
+}

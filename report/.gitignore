@@ -37,3 +37,6 @@ Thumbs.db
 .env
 # Report specs of live Books (scripts/generate-report-specs.ts <bookId>)
 client/dev/specs/local/
+
+# Report file bundle (npm run build:report-file)
+server/src/generated/

@@ -100,8 +100,9 @@ export const ReportRequestSchema = z
         }),
         intent: IntentSchema.optional(),
         language: LanguageSchema.optional(),
-        format: z.enum(['spec']).optional().openapi({
-            description: 'What to return; `spec` (the default) is a json-render spec.',
+        format: z.enum(['spec', 'html']).optional().openapi({
+            description:
+                'What to return: `spec` (the default), a json-render spec with the report’s intent, language, query and link; or `html`, one self-contained HTML file of the report that loads nothing and links to the Report app.',
         }),
     })
     .refine(body => (body.prompt === undefined) !== (body.intent === undefined), {
@@ -136,6 +137,12 @@ export const ReportResponseSchema = z
         }),
     })
     .openapi('ReportResponse');
+
+export const ReportFileSchema = z.string().openapi({
+    description:
+        'A self-contained HTML document of the report, in `language`: every script and style inline, nothing to load, rows that open in place, and a link to the report in the Report app.',
+    example: '<!doctype html>\n<html lang="en" dir="ltr">…',
+});
 
 export const ReportErrorResponseSchema = ErrorResponseSchema.extend({
     suggestions: z

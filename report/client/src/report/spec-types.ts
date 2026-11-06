@@ -8,6 +8,12 @@ export type { BreakdownRow, ReportElement, ReportSpec } from 'report-shared/cata
 
 export type PropsOf<T extends ReportComponent> = Extract<ReportElement, { type: T }>['props'];
 
+/** A plain link to open the report elsewhere, with its text in the report's language. */
+export interface ReportLink {
+    url: string;
+    label: string;
+}
+
 /** A Bkper type color: Asset blue, Liability yellow, Incoming green, Outgoing red, mixed grey. */
 export type TypeColor = BreakdownRow['color'];
 

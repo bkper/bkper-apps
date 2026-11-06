@@ -117,10 +117,13 @@ export function createAppApi(options: AppApiOptions) {
             return requireData(data, response).suggestions;
         },
 
-        /** A report of the Book, by `prompt` (one AI decision) or by `intent` (no AI). */
+        /**
+         * A report of the Book, by `prompt` (one AI decision) or by `intent` (no AI), as a spec:
+         * the web client renders it, so it never asks for the HTML file.
+         */
         async report(
             bookId: string,
-            body: ReportRequest,
+            body: Omit<ReportRequest, 'format'>,
             options: RequestOptions = {}
         ): Promise<ReportResponse> {
             const { data, error, response } = await client.POST('/api/v1/books/{bookId}/report', {
@@ -132,7 +135,11 @@ export function createAppApi(options: AppApiOptions) {
                 const suggestions = 'suggestions' in error ? error.suggestions : undefined;
                 throw toAppApiError(error, response, suggestions);
             }
-            return requireData(data, response);
+            const report = requireData(data, response);
+            if (typeof report === 'string') {
+                throw new AppApiError('Server API returned a report file', response.status);
+            }
+            return report;
         },
     };
 }

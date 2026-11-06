@@ -6,6 +6,7 @@
         "clean": "rimraf node_modules dist",
         "dev": "vite dev",
         "build": "vite build",
+        "build:report-file": "vite build -c vite.report-file.config.ts",
         "test": "vitest run",
         "typecheck": "tsc --noEmit"
     },

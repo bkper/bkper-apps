@@ -5,4 +5,4 @@
 export { ReportView } from './report-view.js';
 export { EXPAND_ROW, OPEN_IN_BKPER } from './events.js';
 export type { ExpandRowDetail, OpenInBkperDetail } from './events.js';
-export type { ReportSpec } from './spec-types.js';
+export type { ReportLink, ReportSpec } from './spec-types.js';

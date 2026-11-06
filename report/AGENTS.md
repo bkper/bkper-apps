@@ -229,7 +229,7 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 `server/src/api/routes.ts` adapts HTTP; `server/src/services/report-service.ts` (`createReport`) and `suggestions.ts` (`buildSuggestions`) hold the behavior.
 
 - `GET /api/v1/books/{bookId}/suggestions?language=` — up to 3 example requests (`SUGGESTION_COUNT`), each with its intent, chosen by fixed rules from the snapshot: the net result, the largest Outgoing root by month, the largest permanent root's position, then other roots. Roots without movements are left out, and periods anchor to the data (this year, or the last year with movements). It also warms the snapshot.
-- `POST /api/v1/books/{bookId}/report` — body of exactly one of `prompt` (one Jev decision) or `intent` (no AI), with optional `language` and `format` (`spec` only for now). Returns `{ spec, intent, language, query, dataAt, url }`. The plural `/reports` is kept free for saved or shared reports.
+- `POST /api/v1/books/{bookId}/report` — body of exactly one of `prompt` (one Jev decision) or `intent` (no AI), with optional `language` and `format`. `spec` (the default) returns `{ spec, intent, language, query, dataAt, url }`; `html` returns the report file (`text/html`, see Report file). Errors stay JSON. The plural `/reports` is kept free for saved or shared reports.
 - Order of work: `getUser`, then the KV snapshot (its key needs the user, and Dispatch passes no identity), then Jev, whose options come from the snapshot. A prompt with `#hashtags` starts its live balances query before asking Jev, so both run in parallel. Jev answers in ~0.3 s when called often but ~1 s after some idle seconds; that, not the app, is most of the prompt path's p95.
 - Language: the `language` field (any BCP 47 tag of a Bkper language, `supportedLanguage`), else the one Jev is sure of, else `Accept-Language`, else `en`.
 - `url` opens the request in the Report app (`?book=&q=`), on the preview host when the API was called there, else production. `q` is the prompt, or the report's title and period for an intent.
@@ -248,9 +248,20 @@ When the snapshot cannot answer, `buildReport` returns `{ liveQuery }` instead o
 - The breakdown is a plain table with disclosure buttons, not `wa-data-grid`: the grid would more than double the renderer's size (about 600 KB minified) and it would hide the row hover the chart follows. `wa-icon` fetches its SVGs, which a strict content security policy blocks, so the chevron is inline SVG.
 - Rows open in place when the spec binds `expandRow`. Hovering or focusing a row, or else the row opened last, highlights it in the chart: its top-level item in a breakdown chart, its series in a net result, or its months added to a chart by month; the rest fades. A row the chart does not draw (no amount in the period) highlights nothing. The table's swatches are the legend of breakdown charts.
 - A series with `line` is drawn as a line over the bars of `wa-bar-chart` (Chart.js mixed datasets, no extra component). The table's `total` is a `tfoot` row.
-- Events (`events.ts`), bubbling and composed: `report-expand-row` (`{ rowId, expanded }`) and `report-open-in-bkper` (`{ url }`, cancelable: cancel it to navigate another way). The link to Bkper shows only when the spec binds `openInBkper`.
+- Events (`events.ts`), bubbling and composed: `report-expand-row` (`{ rowId, expanded }`) and `report-open-in-bkper` (`{ url }`, cancelable: cancel it to navigate another way). The link to Bkper shows only when the spec binds `openInBkper`; a host that cannot navigate sets `link` (`{ url, label }`) instead, a plain link in the Source.
 
 `http://localhost:5207/dev/report.html` is a development-only gallery of recorded specs (`?only=<id>,…`, `?width=<css length>`; the `bkper_theme` cookie picks light or dark). `npx tsx scripts/generate-report-specs.ts` rebuilds those specs (`client/dev/specs/*.json`, which the renderer tests read) with the real report and spec builders from made-up Books shaped like recorded payloads: `scripts/fixtures/studio-book.ts`, a balanced design studio, and the server test Book. Rerun it when the report data or the spec changes. With Book ids it reads live Books, read-only, into `client/dev/specs/local/`, which Git ignores so real Book data is never committed.
+
+## Report file
+
+`format: "html"` returns one self-contained HTML file of the report, for the Bkper Agent, which shows a published HTML file in an `<iframe sandbox="allow-scripts">` whose `srcdoc` starts with its Content-Security-Policy (`default-src 'none'`, inline scripts and styles only; bkper-clients `packages/agent/client/src/file-views.ts`). So the file loads nothing: no network, fonts or icons.
+
+- `npm run build:report-file` (`client/vite.report-file.config.ts`) bundles `client/src/report-file/` alone, the renderer with the Web Awesome theme and `@bkper/web-design` tokens, into one classic script and one stylesheet, written as `server/src/generated/report-file-bundle.ts` (Git and Prettier ignore it). The build fails if either holds text that would end its inline element. `postinstall`, `dev`, `build` and `check:generate` run it before anything imports the server; rerun it after changing the renderer while `npm run dev` runs.
+- `buildReportFile(spec, link)` (`server/src/services/report-file.ts`) writes the document around that bundle, held in the Worker's memory: `lang` and `dir`, `<meta charset>`, the same policy, a `<title>` of the report's title and period, and the data (`ReportFileData`, `report-shared/report-file`) as a JSON script with `<`, U+2028 and U+2029 escaped. Nothing is bundled per request; `render` in `Server-Timing` includes it.
+- The file cannot open Bkper in place, so the Source drops `openInBkper` and links to the same report in the Report app (the response's `url`, `source_open_in_report`). The file follows the viewer's light or dark color scheme (`prefers-color-scheme`); rows open in place and charts show tooltips offline.
+- The bundle is ~330 KB and stays under 400 KB (a test); the Agent shows HTML files up to 1 MB, so report data has the rest.
+
+`npx tsx scripts/verify-report-file.ts [--screenshots=<dir>] [<file.html>...]` opens report files in headless Chromium exactly as the Agent frames them, with every request blocked, and fails on any request, policy violation or console error, or when the answer, the chart, its tooltip, the link or opening a row do not work; in light and dark. Without files it writes one per recorded spec; files saved from the local Worker end with the live-reload script `bkper app dev` adds to HTML, which it leaves out. It needs Playwright's headless shell: `npx playwright-core install chromium-headless-shell`.
 
 ## Web client
 
@@ -317,20 +328,23 @@ client/src/
 ├── auth/          — @bkper/web-auth session boundary
 ├── services/      — bkper-js orchestration for the browser
 ├── api/           — Typed /api/v1 client and generated OpenAPI types
-└── report/        — <report-view>: the self-contained report renderer
+├── report/        — <report-view>: the self-contained report renderer
+└── report-file/   — The report file's script and page styles, bundled alone for the Worker
 client/dev/        — Development-only pages served by vite dev, and recorded report specs
 
 server/src/
 ├── index.ts      — Worker composition, middleware, health, static assets
 ├── api/          — HTTP API routes, OpenAPI schemas, API error responses
-└── services/     — App behavior and Bkper SDK orchestration
+├── services/     — App behavior and Bkper SDK orchestration
+└── generated/    — The report file bundle (`npm run build:report-file`, not in Git)
 
 shared/
 ├── catalog/en.json  — English strings with translator context
 └── src/
     ├── catalog.ts   — json-render report catalog, spec types and validation
     ├── strings.ts   — t(key, lang, params) with English fallback
-    └── languages.ts — The 133 Bkper languages, with native and English names
+    ├── languages.ts — The 133 Bkper languages, with native and English names
+    └── report-file.ts — The data a report file carries for its script
 ```
 
 ## Key files
@@ -361,6 +375,7 @@ shared/
 | Add a Server-Timing metric | `server/src/services/timing.ts`                         |
 | Change the report spec     | `server/src/services/report-spec.ts`                    |
 | Change how reports render  | `client/src/report/`                                    |
+| Change the report file     | `client/src/report-file/`, `server/src/services/report-file.ts` |
 | Rebuild the recorded specs | `scripts/generate-report-specs.ts`                      |
 | Change report components   | `shared/src/catalog.ts`                                 |
 | Add or change a string     | `shared/catalog/en.json`                                |

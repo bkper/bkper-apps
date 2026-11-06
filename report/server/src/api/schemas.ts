@@ -120,7 +120,7 @@ const IntentSchema = ReportIntentSchema.extend({
     }),
     chart: shape.chart.meta({
         description:
-            'The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report falls back to the closest chart that fits, else to the one the report picks, and the report shows it dimmed with why (see the response’s `chart` and `trace`).',
+            'The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `waterfall` (a bridge: from Incoming to the net result through each Outgoing Account, or from the previous position through each part’s change), `table` (no chart) or `auto`. Left out or `auto`, the report picks one; a chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (see the response’s `chart` and `trace.chart`).',
         example: 'pie',
     }),
     hashtags: shape.hashtags.meta({
@@ -163,7 +163,7 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: z.string().trim().min(1).max(1000).optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.',
             example: 'show my expenses by category this year',
         }),
         intent: IntentSchema.optional(),
@@ -173,7 +173,7 @@ export const ReportRequestSchema = z
         }),
         format: z.enum(['spec', 'html']).optional().openapi({
             description:
-                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time and link.',
+                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.',
             example: 'html',
         }),
     })
@@ -366,7 +366,7 @@ export const ReportResponseSchema = z
 
 export const ReportFileSchema = z.string().openapi({
     description:
-        'With `format: html`: a self-contained, interactive HTML document of the report, in `language`. Every script and style is inline and it loads nothing, so it works in a sandboxed frame: the chart shows tooltips, rows open in place, and a link opens the report in the Report app (shown by the Bkper Agent in a Book, in place of the Agent).',
+        'With `format: html`: a self-contained, interactive HTML document of the report, in `language`. Every script and style is inline and it loads nothing, so it works in a sandboxed frame: the chart shows tooltips, previews of every other chart that fits show it in place, rows open in place, and a link opens the report, as the chart chosen, in the Report app (shown by the Bkper Agent in a Book, in place of the Agent). It carries no trace.',
     example: '<!doctype html>\n<html lang="en" dir="ltr">…',
 });
 

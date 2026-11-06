@@ -81,7 +81,7 @@ export interface ReportResult {
     query: string;
     /** When the balances were read, as an ISO instant. */
     dataAt: string;
-    /** The chart drawn, and whether it is the rules' because the intent's `chart` does not fit. */
+    /** The chart drawn, and whether it stands in for the intent's `chart`, which does not fit. */
     chart: { kind: ReportChart['kind']; fallback: boolean };
     /** The request as a person would type it: the prompt, or the report's title and period. */
     text: string;

@@ -68,9 +68,9 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`.',
         '',
-        'With `format: spec` (the default) the report is JSON: its spec, intent, language, query, data time, chart and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.',
+        'With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.',
         '',
-        'Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only reads the prompt to choose the group, period, view and chart among the options the Book has.',
+        'Numbers are computed by deterministic code from the Book’s balances, which may be up to 60 seconds old; AI only recognizes in the prompt the group and period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
     request: {
         params: BookParamsSchema,
@@ -82,7 +82,7 @@ const reportRoute = createRoute({
     responses: {
         200: {
             description:
-                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query and link (`format: spec`)',
+                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query, chart, trace and link (`format: spec`)',
             content: {
                 'application/json': { schema: ReportResponseSchema },
                 'text/html': { schema: ReportFileSchema },

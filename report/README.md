@@ -9,11 +9,11 @@ Type what you want to know about your Book, in your own language, and see the re
 Report turns a short request, such as _expenses by category this year_, into a financial report of your Book:
 
 - **The answer first**: the amount, the same amount in the previous comparable period, and the change.
-- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)).
+- **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)). Under it, small previews of every other chart that fits the same numbers: click one to see it instead.
 - **A breakdown table** of the group's subgroups and Accounts, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
 - **The source**: the exact Bkper query, the period and when the balances were read, with a link to open the same query in your Book.
 
-Every number is computed from your Book's balances by fixed rules, never by AI. AI only reads your request to choose which group, period, view and chart you mean.
+Every number is computed from your Book's balances by fixed rules, never by AI. AI only recognizes what your request is about: the group, the period, and whether you ask about months, parts, an earlier period or a step-by-step bridge, or name a chart. Fixed rules then decide the report and its chart.
 
 ## How to use it
 
@@ -45,23 +45,30 @@ When your request names no period, Report shows activity for this year and balan
 
 ## Charts
 
-Report picks the chart that fits your request. To see another, name it in your request, in any language:
+Report picks the chart that fits your request, and shows every other chart that fits the same numbers as small previews under it. Click a preview, or move to it with the arrow keys and press **Enter**, to see the report as that chart at once. The report's address keeps the chart you chose, so its link, reloading it or coming back to it shows that chart.
+
+To start with another chart, name it in your request, in any language:
 
 | Ask for | You see |
 | --- | --- |
-| a pie | Each part's share of the total, as slices |
+| a pie, a donut | Each part's share of the total, as slices |
+| bars, a line | The amounts month by month; or bars of the parts, largest first |
 | stacked by month | The parts piled on each other, month by month |
 | an area chart | The amounts over time, as a filled area |
 | versus last year, compared with the month before | Each part in this period beside the previous one |
 | a bridge, a waterfall | From a starting amount, step by step, to the final one: from income, through each expense, to the net result; or from the balance at the start of the period, through each part's change, to the balance at its end |
 | just the numbers, no chart | The answer and the breakdown table, without a chart |
 
-A chart that does not fit the report shows as the chart Report would pick instead. For example:
+### When a chart is dimmed
 
-- **A pie** needs two or more parts, all positive and of one kind, so not income versus expenses.
-- **Stacked** and **area** charts need a period of two or more months. Stacked also needs two or more parts, and does not fit income versus expenses.
-- **A comparison** needs a previous period, so not all time.
-- **A bridge** fits income versus expenses, and balances such as assets except over all time. It does not fit a single activity group, such as expenses alone.
+A chart you ask for that does not fit your numbers is not drawn: it shows first among the previews, dimmed, with the reason, such as _A pie can't show Taxes (-186.74)_. The report shows the closest chart that fits instead. A chart fits when:
+
+- **A pie** has two or more parts, all positive and of one kind, so not income versus expenses. **A donut** also has at most six.
+- **Stacked** and **area** charts have a period of two or more months. Stacked also needs two or more parts, and does not fit income versus expenses.
+- **A comparison** has a previous period, so not all time.
+- **A bridge** is income versus expenses, or balances such as assets, except over all time. It does not fit a single activity group, such as expenses alone, or amounts that did not change.
+
+Charts that do not fit and that you did not ask for are simply not offered. A report with nothing to chart shows only its numbers.
 
 ## Good to know
 
@@ -74,7 +81,7 @@ A chart that does not fit the report shows as the chart Report would pick instea
 
 ## Reports in Bkper Agent
 
-Ask the Bkper Agent for a report in your own words, such as _show my expenses by category this year_. It asks Report on your behalf and shows you the same interactive report, with an **Open in Report** link.
+Ask the Bkper Agent for a report in your own words, such as _show my expenses by category this year_. It asks Report on your behalf and shows you the same interactive report, with its chart previews and an **Open in Report** link. Choosing another chart there changes nothing in your Book; the link then opens the report as that chart.
 
 When the Agent is open in Bkper, such as in your Book, the link opens the report in Report in the Book, in place of the Agent, where you can keep asking. Report needs to be installed in that Book. Where the Agent cannot open it there, such as when the Agent is opened on its own, the link opens Report in a new tab.
 

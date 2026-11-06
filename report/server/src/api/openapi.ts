@@ -8,7 +8,7 @@ When a person asks to see a report of a Book (expenses, revenue, income versus e
 { "prompt": "<the person's request, in their own words and language>", "format": "html" }
 \`\`\`
 
-and give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart, a breakdown table whose rows open in place, and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:
+and give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart with small previews of every other chart that fits, to switch to in place, a breakdown table whose rows open in place, and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:
 
 \`\`\`bash
 bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"show my expenses by category this year","format":"html"}' > report.html
@@ -21,7 +21,7 @@ Prefer this to computing balances yourself: numbers are computed by deterministi
 - One top-level (root) group of the Book, such as Expenses or Assets, broken down into its subgroups and Accounts; or income versus expenses (the net result). Not a single subgroup or Account: ask for its root group and the breakdown includes it.
 - A period in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a year, a quarter or a month, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data.
 - By month, or a breakdown, a trend or a total.
-- A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, a bridge (waterfall) or no chart. Keep it in the prompt as they said it; a chart that does not fit the report falls back to the one the report picks.
+- A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, a bridge (waterfall) or no chart. Keep it in the prompt as they said it. A chart that does not fit the numbers (such as a pie with a part below zero) is not drawn: the report shows the closest chart that fits and the asked-for one dimmed with why. Every chart that fits is offered as a preview in the report, so there is no need to ask again for another chart.
 - \`#hashtags\`: only transactions with all of them.
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.

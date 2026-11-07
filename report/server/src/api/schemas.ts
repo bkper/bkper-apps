@@ -178,7 +178,7 @@ export const SuggestionSchema = z
 export const SuggestionsResponseSchema = z
     .object({
         suggestions: z.array(SuggestionSchema).openapi({
-            description: 'Up to three reports, chosen from the Book’s own groups and data.',
+            description: 'Up to three reports, chosen from the Book’s own groups and Accounts.',
         }),
     })
     .openapi('SuggestionsResponse');

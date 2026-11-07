@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     MAX_PERIOD_OPTIONS,
+    RECENT_YEARS,
     addDays,
     buildPeriodOptions,
     defaultPeriod,
@@ -173,19 +174,8 @@ describe('resolvePeriod', () => {
         });
     });
 
-    it('resolves all time to everything up to today, whatever the data range', () => {
-        expect(
-            resolvePeriod('all', {
-                today,
-                dataRange: { firstMonth: '2019-04', lastMonth: '2027-02' },
-            })
-        ).toEqual({ before: '2026-11-06' });
-        expect(
-            resolvePeriod('all', {
-                today,
-                dataRange: { firstMonth: '2010-10', lastMonth: '2011-12' },
-            })
-        ).toEqual({ before: '2026-11-06' });
+    it('resolves all time to everything up to today', () => {
+        expect(resolvePeriod('all', { today })).toEqual({ before: '2026-11-06' });
     });
 
     it('rejects unknown periods', () => {
@@ -319,8 +309,8 @@ describe('buildPeriodOptions', () => {
     const today = '2026-11-05';
     const ids = (options: { id: string }[]) => options.map(option => option.id);
 
-    it('offers the relative periods even without data', () => {
-        expect(ids(buildPeriodOptions({ today }))).toEqual([
+    it('offers the relative periods first', () => {
+        expect(ids(buildPeriodOptions({ today })).slice(0, 10)).toEqual([
             'today',
             'this_month',
             'last_month',
@@ -334,69 +324,46 @@ describe('buildPeriodOptions', () => {
         ]);
     });
 
-    it('adds each year, quarter and month within the data range, most recent first', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: { firstMonth: '2025-11', lastMonth: '2026-02' },
-        });
-        expect(ids(options).slice(10)).toEqual([
-            '2026',
-            '2025',
-            '2026-Q1',
-            '2025-Q4',
-            '2026-02',
-            '2026-01',
-            '2025-12',
-            '2025-11',
-        ]);
+    it('offers every year of a fixed range up to this one, whatever the Book holds', () => {
+        const optionIds = ids(buildPeriodOptions({ today }));
+        const years = optionIds.filter(id => /^\d{4}$/.test(id));
+        expect(RECENT_YEARS).toBe(20);
+        expect(years).toHaveLength(RECENT_YEARS);
+        expect(years[0]).toBe('2026');
+        expect(years.at(-1)).toBe('2007');
+        expect(optionIds.slice(10, 12)).toEqual(['2026', '2025']);
+        expect(optionIds).not.toContain('2006');
+        expect(optionIds).not.toContain('2027');
     });
 
-    it('offers only the years, quarters and months that have movements', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: {
-                firstMonth: '2024-11',
-                lastMonth: '2026-02',
-                activeMonths: ['2024-11', '2026-01', '2026-02'],
-            },
-        });
-        expect(ids(options).slice(10)).toEqual([
-            '2026',
-            '2024',
-            '2026-Q1',
-            '2024-Q4',
-            '2026-02',
-            '2026-01',
-            '2024-11',
-        ]);
+    it('fills the option limit with the most recent quarters and months, up to today', () => {
+        const options = buildPeriodOptions({ today });
+        const optionIds = ids(options);
+        expect(options).toHaveLength(MAX_PERIOD_OPTIONS);
+        expect(MAX_PERIOD_OPTIONS).toBe(255);
+        const months = optionIds.filter(id => /^\d{4}-\d{2}$/.test(id));
+        const quarters = optionIds.filter(id => /^\d{4}-Q\d$/.test(id));
+        expect(months[0]).toBe('2026-11');
+        expect(quarters[0]).toBe('2026-Q4');
+        expect(optionIds).not.toContain('2026-12');
+        // Quarters, then months, each contiguous back from the most recent one.
+        expect(optionIds.indexOf(quarters.at(-1) ?? '')).toBeLessThan(optionIds.indexOf(months[0]));
+        expect(months).toEqual([...months].sort().reverse());
+        expect(quarters).toEqual([...quarters].sort().reverse());
+        expect(months.at(-1)).toBe('2012-12');
+        expect(quarters.at(-1)).toBe('2012-Q4');
     });
 
-    it('keeps months and quarters when a few movements are far in the past', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: {
-                firstMonth: '1900-01',
-                lastMonth: '2026-10',
-                activeMonths: ['1900-01', '2026-09', '2026-10'],
-            },
-        });
-        expect(ids(options).slice(10)).toEqual([
-            '2026',
-            '1900',
-            '2026-Q4',
-            '2026-Q3',
-            '1900-Q1',
-            '2026-10',
-            '2026-09',
-            '1900-01',
-        ]);
+    it('moves with today', () => {
+        const optionIds = ids(buildPeriodOptions({ today: '2018-06-15' }));
+        expect(optionIds).toContain('2018-06');
+        expect(optionIds).toContain('1999');
+        expect(optionIds).not.toContain('2018-07');
+        expect(optionIds).not.toContain('2019');
     });
 
     it('describes each option with its dates, end inclusive', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: { firstMonth: '2026-02', lastMonth: '2026-02' },
-        });
+        const options = buildPeriodOptions({ today });
         const description = (id: string) => options.find(option => option.id === id)?.description;
         expect(description('last_quarter')).toBe('last quarter, 2026-07-01 to 2026-09-30');
         expect(description('today')).toBe('today, 2026-11-05');
@@ -408,37 +375,12 @@ describe('buildPeriodOptions', () => {
     });
 
     it('offers only valid, resolvable period ids', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: { firstMonth: '2020-01', lastMonth: '2026-11' },
-        });
+        const options = buildPeriodOptions({ today });
         for (const option of options) {
             expect(isPeriodId(option.id)).toBe(true);
             expect(resolvePeriod(option.id, { today })).toBeDefined();
         }
         expect(new Set(ids(options)).size).toBe(options.length);
-    });
-
-    it('caps long histories at the option limit, keeping every year and the most recent quarters and months', () => {
-        const options = buildPeriodOptions({
-            today,
-            dataRange: { firstMonth: '2000-01', lastMonth: '2026-11' },
-        });
-        const optionIds = ids(options);
-        expect(options).toHaveLength(MAX_PERIOD_OPTIONS);
-        expect(MAX_PERIOD_OPTIONS).toBe(255);
-        expect(optionIds).toContain('2000');
-        expect(optionIds).toContain('2026-11');
-        expect(optionIds).toContain('2026-Q4');
-        expect(optionIds).not.toContain('2000-01');
-        expect(optionIds).not.toContain('2000-Q1');
-
-        const months = optionIds.filter(id => /^\d{4}-\d{2}$/.test(id));
-        const quarters = optionIds.filter(id => /^\d{4}-Q\d$/.test(id));
-        expect(months[0]).toBe('2026-11');
-        expect(quarters[0]).toBe('2026-Q4');
-        // The kept months are contiguous from the most recent one.
-        expect(months).toEqual([...months].sort().reverse());
     });
 });
 

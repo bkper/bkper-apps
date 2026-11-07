@@ -31,6 +31,7 @@ import {
 import {
     addDays,
     isoMonth,
+    isPlausibleYear,
     previousPeriod,
     resolvePeriod,
     type DateRange,
@@ -442,6 +443,36 @@ function balancesQuery(filter: string, range: DateRange): string {
     return `${filter} ${after}before:${range.before} by:m`;
 }
 
+/**
+ * The one query of a report's history: its first subject's root over its whole history by
+ * month, up to today, with the report's hashtags, where it finds the last month it had
+ * movements. A target is read from its root's answer, as the report reads it; never several
+ * roots in one query, as unbounded multi-group queries are slow and can fail.
+ */
+export function historyQuery(plan: ReportPlan, snapshot: Snapshot): string {
+    const [{ root }] = planSubjects(plan, snapshot);
+    return [
+        nodeFilter(rootNode(snapshot, root)),
+        ...tags(plan.hashtags),
+        `before:${addDays(snapshot.today, 1)}`,
+        'by:m',
+    ].join(' ');
+}
+
+/**
+ * The groups and accounts a report is of, each with the root whose answers hold it: its node,
+ * its targets side by side, or the roots of a net result Report calculates.
+ */
+export function planSubjects(plan: ReportPlan, snapshot: Snapshot): SideBySideTarget[] {
+    if (plan.targets) {
+        return plan.targets;
+    }
+    if (plan.node) {
+        return [{ node: plan.node, root: plan.roots[0] }];
+    }
+    return plan.roots.map(root => ({ node: rootNode(snapshot, root), root }));
+}
+
 function tags(hashtags: string[]): string[] {
     return hashtags.map(tag => `#${tag}`);
 }
@@ -472,7 +503,7 @@ export function buildReport(
         ])
     );
     assertAccountsRead(snapshot, plan, sources);
-    const months = reportMonths(period.range, snapshot);
+    const months = reportMonths(period.range, [...sources.values()]);
     const reader = new RowReader(snapshot, nature, period, months);
     const { after, before } = period.range;
     const dates =
@@ -792,15 +823,27 @@ function currentPeriodOf(id: string): string {
     return id.length === 4 ? 'this_year' : 'this_month';
 }
 
-/** Months from the start of the range (or of the data) to its last day. */
-function reportMonths(range: DateRange, snapshot: Snapshot): IsoMonth[] {
-    const first = range.after?.slice(0, 7) ?? snapshot.dataRange?.firstMonth;
+/**
+ * Months from the start of the range to its last day; without a start (all time), from the
+ * first month Bkper answers the report's queries with, in a plausible year.
+ */
+function reportMonths(range: DateRange, sources: RootSource[]): IsoMonth[] {
+    const first = range.after?.slice(0, 7) ?? firstMonth(sources.map(source => source.current));
     const last = addDays(range.before, -1).slice(0, 7);
     const months: IsoMonth[] = [];
     for (let month = first; month !== undefined && month <= last; month = nextMonth(month)) {
         months.push(month);
     }
     return months;
+}
+
+/** The first month with a bucket in any of the answers, in a plausible year. */
+function firstMonth(answers: QueryBalances[]): IsoMonth | undefined {
+    return answers
+        .flatMap(answer => [...Object.values(answer.groups), ...Object.values(answer.accounts)])
+        .flatMap(node => node.months.map(({ month }) => month))
+        .filter(month => isPlausibleYear(Number(month.slice(0, 4))))
+        .sort()[0];
 }
 
 function nextMonth(month: IsoMonth): IsoMonth {

@@ -12,10 +12,11 @@
  * periods: the app caches each exact query for 60 seconds. Prompts are each sent once: Bkper AI
  * caches identical requests for 15 minutes, so a rerun within that time measures the cache.
  *
- * Samples are `cold` when the snapshot (the Book's map, also cached for 60 seconds) had expired,
- * `warm` when it was cached and the report's balances were read from Bkper, and `cached` when
- * they were too. With `--cold`, it then waits for the caches to expire before each of that many
- * rounds, alternating the intent and prompt paths. Uses your `bkper auth token`; the app never
+ * Samples are `cold` when the snapshot (the Book's map, also cached for 60 seconds) had expired
+ * and was loaded from Bkper (`book` in `Server-Timing`), `warm` when it was cached and the
+ * report's balances were read from Bkper (`balances`), and `cached` when they were too. With
+ * `--cold`, it then waits for the caches to expire before each of that many rounds, alternating
+ * the intent and prompt paths. Uses your `bkper auth token`; the app never
  * writes to a Book.
  *
  * `--flow` measures instead what a person experiences (`measure-api/flow.ts`): opening each Book
@@ -46,8 +47,7 @@ interface Sample {
     metrics: Record<string, number>;
 }
 
-/** How long the app caches a snapshot and balances, and a little longer, to be sure they expired. */
-const SNAPSHOT_TTL_MS = 60_000;
+/** A little longer than the app caches a snapshot and balances (60 s), to be sure they expired. */
 const SNAPSHOT_EXPIRY_MS = 65_000;
 
 /** The periods intents are asked for, after each suggestion's own. */
@@ -111,7 +111,6 @@ async function main(): Promise<void> {
         })
     );
     const samples: Sample[] = [];
-    const loadedAt = new Map<string, number>();
 
     async function call(path: Path, book: string, body?: unknown): Promise<unknown> {
         const url = `${base}/api/v1/books/${book}/${path === 'suggestions' ? 'suggestions' : 'report'}`;
@@ -124,13 +123,8 @@ async function main(): Promise<void> {
             ...(body ? { body: JSON.stringify(body) } : {}),
         });
         const metrics = readTiming(response.headers.get('Server-Timing'));
-        // `balances` adds up the snapshot's and the report's queries, so the snapshot is cold
-        // when it read balances and has expired since this script last saw it loaded.
-        const cold =
-            'balances' in metrics && Date.now() - (loadedAt.get(book) ?? 0) > SNAPSHOT_TTL_MS;
-        if (cold) {
-            loadedAt.set(book, Date.now());
-        }
+        // `book` is the snapshot loaded from Bkper, `balances` the report's own queries.
+        const cold = 'book' in metrics;
         const cache: Cache = cold ? 'cold' : 'balances' in metrics ? 'warm' : 'cached';
         samples.push({ path, cache, status: response.status, metrics });
         const json: unknown = await response.json();

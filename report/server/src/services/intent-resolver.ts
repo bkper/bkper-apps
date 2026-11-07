@@ -28,12 +28,22 @@ import {
     type ReportView,
 } from './report-intent.js';
 import { HASHTAG, findPromptNames, type PromptName } from './prompt-names.js';
-import { lastActiveMonth, type Snapshot, type SnapshotNode } from './snapshot.js';
+import type { Snapshot } from './snapshot.js';
 import type { Timing } from './timing.js';
 
 export type IntentResolution =
-    /** `language` is present only when the model is sure of it. */
-    | { recognized: true; intent: ReportIntent; language?: string; trace: IntentTrace }
+    /**
+     * `language` is present only when the model is sure of it. `defaultPeriod` when the request
+     * names no period (or the model is unsure of it), so the intent's period is the default one,
+     * which the report moves to the last year with movements when it has none.
+     */
+    | {
+          recognized: true;
+          intent: ReportIntent;
+          language?: string;
+          trace: IntentTrace;
+          defaultPeriod?: true;
+      }
     | { recognized: false; language?: string };
 
 interface ChoiceAnswer {
@@ -237,15 +247,17 @@ export function readIntent(
         ...(target === undefined ? {} : { target }),
     }));
     const subject = first ?? { root };
+    const named = namedPeriod(answers.period);
     const intent = ReportIntentSchema.parse({
         ...subject,
         ...(alongside.length > 0 ? { alongside } : {}),
-        period: readPeriod(
-            answers.period,
-            trend,
-            snapshot,
-            periodNodes(subject.root, names, snapshot)
-        ),
+        period:
+            named ??
+            defaultPeriod({
+                nature: periodNature(subject.root, names, snapshot),
+                trend,
+                today: snapshot.today,
+            }),
         monthly,
         ...(view ? { view } : {}),
         ...(chart ? { chart } : {}),
@@ -255,19 +267,26 @@ export function readIntent(
     if (names.length > 0) {
         trace.names = names.map(({ name }) => name);
     }
-    return { recognized: true, intent, ...languageField, trace };
+    return {
+        recognized: true,
+        intent,
+        ...languageField,
+        trace,
+        ...(named === undefined ? { defaultPeriod: true as const } : {}),
+    };
 }
 
-/** The nature and months a default period is read from: the names written, else the root's. */
-type PeriodNodes = Pick<SnapshotNode, 'permanent' | 'activeMonths'>[];
-
-function periodNodes(root: string, names: PromptName[], snapshot: Snapshot): PeriodNodes {
-    if (names.length > 0) {
-        return names;
-    }
-    return root === NET_RESULT_ROOT
-        ? snapshot.roots.map(id => snapshot.groups[id]).filter(group => !group.permanent)
-        : [snapshot.groups[root]];
+/**
+ * The nature of a default period: of the first name written, else of the root (a position for
+ * a permanent root group or account in no group; a net result is activity).
+ */
+function periodNature(root: string, names: PromptName[], snapshot: Snapshot): ReportNature {
+    const node =
+        names[0] ??
+        (root === NET_RESULT_ROOT
+            ? undefined
+            : (snapshot.groups[root] ?? snapshot.ungrouped[root]));
+    return node?.permanent ? 'position' : 'activity';
 }
 
 function readJudgments(answers: IntentAnswers): Judgments {
@@ -306,23 +325,11 @@ function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
     };
 }
 
-/**
- * The period Jev is sure of, else the default period of the nodes: a position when the first
- * is one (a net result's activity roots never are), from the last month any of them moved.
- */
-function readPeriod(answer: ChoiceAnswer, trend: boolean, snapshot: Snapshot, nodes: PeriodNodes) {
-    if (
-        answer.choice !== UNSPECIFIED &&
+/** The period Jev is sure of, when the request names one. */
+function namedPeriod(answer: ChoiceAnswer): string | undefined {
+    return answer.choice !== UNSPECIFIED &&
         answer.confidence >= THRESHOLDS.period &&
         isPeriodId(answer.choice)
-    ) {
-        return answer.choice;
-    }
-    const nature: ReportNature = nodes[0]?.permanent ? 'position' : 'activity';
-    return defaultPeriod({
-        nature,
-        trend,
-        today: snapshot.today,
-        lastActiveMonth: lastActiveMonth(nodes),
-    });
+        ? answer.choice
+        : undefined;
 }

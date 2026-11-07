@@ -7,7 +7,7 @@
  * `Owner` is in no group: it only balances the movements of the others.
  */
 import { BalancesReport, Book } from 'bkper-js';
-import { buildSnapshot, snapshotQueries, type Snapshot } from '../../src/services/snapshot';
+import { buildSnapshot, type Snapshot } from '../../src/services/snapshot';
 import type { QueryBalances } from '../../src/services/balances';
 import { readQueryBalances } from '../../src/services/balances';
 import { FakeLedger, type LedgerTransaction } from './ledger';
@@ -137,14 +137,7 @@ export async function ledgerSnapshot(
     const book = new Book(ledger.book);
     const groups = await book.getGroups();
     const accounts = await book.getAccounts();
-    const roots = groups
-        .filter(group => !group.hasParent())
-        .map(group => ({ name: group.getName() ?? '' }));
-    const results = snapshotQueries(roots, today).map(query => ({
-        query,
-        report: new BalancesReport(book, ledger.balances(query.query)),
-    }));
-    return buildSnapshot({ book, groups, accounts, results, today, dataAt });
+    return buildSnapshot({ book, groups, accounts, today, dataAt });
 }
 
 /** The snapshot of the fixture Book. */

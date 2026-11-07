@@ -196,7 +196,9 @@ describe('GET /api/v1/books/{bookId}/names', () => {
             kind: 'account',
             root: 'a-owner',
         });
-        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'total']);
+        // The map is the Book's structure: loaded once, with no balances query.
+        expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'total']);
+        expect(test.queries).toEqual([]);
 
         // The same cached map serves the suggestions: the Book is read once.
         const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
@@ -225,7 +227,8 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
             text: 'Net result this year',
             intent: { root: 'net-result', period: 'this_year', monthly: false },
         });
-        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'total']);
+        expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'total']);
+        expect(test.queries).toEqual([]);
 
         const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
         expect(warm.status).toBe(200);
@@ -277,7 +280,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
         expect(typeof body.dataAt).toBe('string');
         expect(validateReportSpec(body.spec).valid).toBe(true);
-        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
+        expect(timings(response)).toEqual([
+            'user',
+            'kv',
+            'book',
+            'balances',
+            'compute',
+            'render',
+            'total',
+        ]);
         expect(test.queries).toEqual([
             "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
             "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
@@ -473,7 +484,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 language: 'en',
             });
         }
-        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
+        expect(timings(response)).toEqual([
+            'user',
+            'kv',
+            'book',
+            'balances',
+            'compute',
+            'render',
+            'total',
+        ]);
     });
 
     it('builds a report of a target from its root’s queries, titled by the target', async () => {
@@ -692,7 +711,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(response.status).toBe(status);
         expect(await response.json()).toMatchObject({ error: { code } });
         expect(test.jevCalls).toBe(0);
-        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'total']);
+        expect(timings(response)).toEqual(['user', 'kv', 'book', 'total']);
     });
 
     it('requires a permission that can read balances', async () => {

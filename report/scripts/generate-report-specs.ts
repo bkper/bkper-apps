@@ -21,7 +21,8 @@ import { BalancesReport, Bkper, Book } from 'bkper-js';
 import type { ReportSpec } from 'report-shared/catalog';
 import { addAllLocales } from 'report-shared/locales';
 import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
-import { buildReport, planQueries, planReport } from '../server/src/services/report.ts';
+import { readReport } from '../server/src/services/default-period.ts';
+import { buildReport } from '../server/src/services/report.ts';
 import { NET_RESULT_ROOT, type ReportIntent } from '../server/src/services/report-intent.ts';
 import { buildReportSpec } from '../server/src/services/report-spec.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
@@ -46,6 +47,8 @@ interface Case {
     id: string;
     intent: ReportIntent;
     lang: string;
+    /** The intent's period is the default one, as for a request that names none. */
+    defaultPeriod?: boolean;
 }
 
 export interface GalleryEntry {
@@ -228,8 +231,11 @@ async function entries(
     read: BalancesReader
 ): Promise<GalleryEntry[]> {
     const built: GalleryEntry[] = [];
-    for (const { id, intent, lang } of cases) {
-        const balances = await read(planQueries(planReport(intent, snapshot)));
+    for (const { id, lang, ...asked } of cases) {
+        const { intent, balances } = await readReport(asked.intent, snapshot, {
+            loadBalances: read,
+            defaultPeriod: asked.defaultPeriod,
+        });
         const report = buildReport(intent, snapshot, balances);
         built.push({ id, intent, lang, spec: buildReportSpec(report, lang) });
     }
@@ -240,21 +246,24 @@ function ledgerReader(ledger: FakeLedger, dataAt?: Date): BalancesReader {
     return async queries => queries.map(query => ledgerBalances(ledger, query, dataAt));
 }
 
-/** Suggested reports, and a breakdown of each root in the last year with data. */
+/**
+ * Suggested reports, and a breakdown of each root in its default period: this year (or its
+ * last year with movements) for activity, today for a position.
+ */
 function liveCases(snapshot: Snapshot): Case[] {
     const suggested = buildSuggestions(snapshot, 'en').map((suggestion, index) => ({
         id: `suggestion-${index + 1}`,
         intent: suggestion.intent,
         lang: 'en',
     }));
-    const year = snapshot.dataRange?.lastMonth.slice(0, 4);
-    const breakdowns = year
-        ? snapshot.roots.map(root => ({
-              id: `breakdown-${root}`,
-              intent: intent(root, year, { view: 'breakdown' }),
-              lang: 'en',
-          }))
-        : [];
+    const breakdowns = snapshot.roots.map(root => ({
+        id: `breakdown-${root}`,
+        intent: intent(root, snapshot.groups[root].permanent ? 'today' : 'this_year', {
+            view: 'breakdown',
+        }),
+        lang: 'en',
+        defaultPeriod: true,
+    }));
     return [...suggested, ...breakdowns];
 }
 

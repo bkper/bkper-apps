@@ -13,14 +13,20 @@
  * report checks the chart. Each miss prints its trace: every judgment with its score, and the
  * rule that chose the chart.
  *
+ * A request that names no period reads its default one, as the Worker does: when that has no
+ * movements, the report's own queries and one of its history, read-only, move it to the last
+ * year with movements, so the intent's period is checked as the Worker reads it.
+ *
  * The model calls use `BKPER_AI_TOKEN` when set, else your `bkper auth token`, and are labelled
  * `bkper-ai-source: report-eval-intent`. Bkper AI caches identical requests for 15 minutes, so
  * a repeated run measures the cache: change nothing and rerun only to check accuracy.
  * Tune the questions, never the expected answers.
  */
 import { execFileSync } from 'node:child_process';
-import { Bkper } from 'bkper-js';
+import { Bkper, type Book } from 'bkper-js';
+import { readQueryBalances } from '../server/src/services/balances.ts';
 import { createDecisionClient, decide } from '../server/src/services/decision-client.ts';
+import { readReport } from '../server/src/services/default-period.ts';
 import {
     THRESHOLDS,
     UNSPECIFIED,
@@ -919,6 +925,35 @@ function targetNames(snapshot: Snapshot, intent: ReportIntent | undefined): stri
     );
 }
 
+/**
+ * The intent as the Worker reads it: a default period with no movements moves to the last year
+ * with them. A report the Book cannot have keeps the intent as resolved.
+ */
+async function readPeriod(
+    intent: ReportIntent,
+    snapshot: Snapshot,
+    book: Book,
+    defaultPeriod: boolean | undefined
+): Promise<ReportIntent> {
+    if (!defaultPeriod) {
+        return intent;
+    }
+    try {
+        const read = await readReport(intent, snapshot, {
+            defaultPeriod,
+            loadBalances: queries =>
+                Promise.all(
+                    queries.map(async query =>
+                        readQueryBalances(query, await book.getBalancesReport(query), new Date())
+                    )
+                ),
+        });
+        return read.intent;
+    } catch {
+        return intent;
+    }
+}
+
 async function main(): Promise<void> {
     const only = process.argv
         .filter(arg => arg.startsWith('--only='))
@@ -929,6 +964,7 @@ async function main(): Promise<void> {
     const bkper = new Bkper({ oauthTokenProvider: async () => bkperToken });
     const kv = new MemoryStore();
     const snapshots = {} as Record<BookKey, Snapshot>;
+    const books = {} as Record<BookKey, Book>;
     const userId = await currentUserId(bkper, new ServerTiming());
     for (const key of Object.keys(BOOKS) as BookKey[]) {
         snapshots[key] = await loadSnapshot(BOOKS[key], {
@@ -937,6 +973,7 @@ async function main(): Promise<void> {
             kv,
             timing: new ServerTiming(),
         });
+        books[key] = await bkper.getBook(BOOKS[key]);
     }
     const client = createDecisionClient({
         apiKey: aiToken,
@@ -969,7 +1006,14 @@ async function main(): Promise<void> {
         const isReport = !([] as string[]).concat(test.root).includes(NONE);
         const sure = (answer: { choice: string; confidence: number }, threshold: number) =>
             answer.confidence >= threshold ? answer.choice : UNSPECIFIED;
-        const intent = resolution.recognized ? resolution.intent : undefined;
+        const intent = resolution.recognized
+            ? await readPeriod(
+                  resolution.intent,
+                  snapshot,
+                  books[test.book],
+                  resolution.defaultPeriod
+              )
+            : undefined;
         const got = {
             root: rootName(snapshot, intent?.root),
             targets: targetNames(snapshot, intent),

@@ -267,7 +267,10 @@ describe('readIntent', () => {
 
     it('reads this year for activity and today for a position when no period is named', async () => {
         const unnamed = { period: sure('unspecified') };
-        expect(await read(unnamed)).toMatchObject({ intent: { period: 'this_year' } });
+        expect(await read(unnamed)).toMatchObject({
+            intent: { period: 'this_year' },
+            defaultPeriod: true,
+        });
         expect(await read({ ...unnamed, root: sure('Assets') })).toMatchObject({
             intent: { period: 'today' },
         });
@@ -280,15 +283,19 @@ describe('readIntent', () => {
         const result = await read({
             period: { choice: '2026-Q3', confidence: THRESHOLDS.period - 0.01 },
         });
-        expect(result).toMatchObject({ intent: { period: 'this_year' } });
+        expect(result).toMatchObject({ intent: { period: 'this_year' }, defaultPeriod: true });
     });
 
-    it('anchors the default period to the last year with movements', async () => {
+    it('leaves moving a default period to the report, as the map holds no dates', async () => {
+        // The report reads the last year with movements when this one has none.
         const later = await laterSnapshot();
         const unnamed = { period: sure('unspecified') };
-        expect(await read(unnamed, later)).toMatchObject({ intent: { period: '2026' } });
+        expect(await read(unnamed, later)).toMatchObject({
+            intent: { period: 'this_year' },
+            defaultPeriod: true,
+        });
         expect(await read({ ...unnamed, root: sure('net-result') }, later)).toMatchObject({
-            intent: { period: '2026' },
+            intent: { period: 'this_year' },
         });
         expect(await read({ ...unnamed, root: sure('Assets') }, later)).toMatchObject({
             intent: { period: 'today' },
@@ -303,7 +310,7 @@ describe('readIntent', () => {
         });
         expect(
             await read({ ...overTime, root: sure('Assets') }, await laterSnapshot())
-        ).toMatchObject({ intent: { period: '2026' } });
+        ).toMatchObject({ intent: { period: 'last_12_months' }, defaultPeriod: true });
     });
 
     it('anchors a root without movements to this year or today', async () => {
@@ -394,13 +401,16 @@ describe('readIntent with names the request writes', () => {
         expect(await named('cash and banks', unnamed)).toMatchObject({
             intent: { period: 'today' },
         });
-        // Food last moved in November 2026: read years later, its last year with movements.
+        // Food last moved in November 2026: read years later, the report moves its period.
         const later = await laterSnapshot();
-        expect(await named('food', unnamed, later)).toMatchObject({ intent: { period: '2026' } });
-        expect(await named('food by month', { ...unnamed, over_time: yes }, later)).toMatchObject({
-            intent: { period: '2026', monthly: true },
+        expect(await named('food', unnamed, later)).toMatchObject({
+            intent: { period: 'this_year' },
+            defaultPeriod: true,
         });
-        // An account in no group has no months in the map: this year, or today for a position.
+        expect(await named('food by month', { ...unnamed, over_time: yes }, later)).toMatchObject({
+            intent: { period: 'last_12_months', monthly: true },
+        });
+        // An account in no group: this year, or today for a position.
         expect(await named('owner', unnamed)).toMatchObject({ intent: { period: 'today' } });
     });
 

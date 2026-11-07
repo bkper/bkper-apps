@@ -262,8 +262,7 @@ function descendantNames(root: SnapshotGroup, snapshot: Snapshot): string[] {
 }
 
 function periodCriteria(snapshot: Snapshot): Criteria {
-    const { today, dataRange } = snapshot;
-    const options = buildPeriodOptions({ today, dataRange }).slice(0, MAX_CHOICE_OPTIONS - 1);
+    const options = buildPeriodOptions({ today: snapshot.today }).slice(0, MAX_CHOICE_OPTIONS - 1);
     return {
         ...Object.fromEntries(options.map(option => [option.id, option.description])),
         [UNSPECIFIED]: UNSPECIFIED_PERIOD_CRITERION,

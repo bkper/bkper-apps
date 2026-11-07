@@ -28,7 +28,7 @@ interface GroupSpec {
     accounts?: string[];
 }
 
-/** A map of groups and accounts, in Book order, with no movements. */
+/** A map of groups and accounts, in Book order. */
 function mapOf(
     groups: GroupSpec[],
     accounts: Record<string, string>,
@@ -38,7 +38,6 @@ function mapOf(
         type,
         credit: type === 'INCOMING' || type === 'LIABILITY',
         permanent: type === 'ASSET' || type === 'LIABILITY',
-        activeMonths: [],
     });
     const account = (id: string, name: string): SnapshotAccount => ({
         id,
@@ -69,10 +68,7 @@ function mapOf(
             Object.entries(accounts).map(([id, name]) => [id, account(id, name)])
         ),
         ungrouped: Object.fromEntries(
-            Object.entries(ungrouped).map(([id, name]) => {
-                const { activeMonths: _, ...rest } = account(id, name);
-                return [id, rest];
-            })
+            Object.entries(ungrouped).map(([id, name]) => [id, account(id, name)])
         ),
     };
 }
@@ -214,13 +210,12 @@ describe('findPromptNames', () => {
         ]);
     });
 
-    it('carries the nature and the months of what it found', async () => {
+    it('carries the nature of what it found', async () => {
         const [food, banks] = findPromptNames('food and banks', await fixtureSnapshot());
-        expect(food).toMatchObject({ permanent: false, activeMonths: ['2026-10', '2026-11'] });
+        expect(food).toMatchObject({ permanent: false });
         expect(banks).toMatchObject({ permanent: true });
-        expect(banks.activeMonths.length).toBeGreaterThan(0);
         const [owner] = findPromptNames('owner', await fixtureSnapshot());
-        expect(owner).toMatchObject({ permanent: true, activeMonths: [] });
+        expect(owner).toMatchObject({ permanent: true });
     });
 
     it('finds nothing in a request that names nothing of the Book, or a renamed name', async () => {
@@ -243,9 +238,9 @@ describe('bookNames', () => {
             { id: 'g-card', name: 'Card', kind: 'group', root: 'g-card' },
             { id: 'a-card', name: 'Credit Card', kind: 'account', root: 'g-card' },
             { id: 'g-expenses', name: 'Expenses', kind: 'group', root: 'g-expenses' },
-            { id: 'a-rent', name: 'Rent', kind: 'account', root: 'g-expenses' },
             { id: 'a-food', name: 'Food', kind: 'account', root: 'g-expenses' },
             { id: 'a-old', name: 'Old Supplier', kind: 'account', root: 'g-expenses' },
+            { id: 'a-rent', name: 'Rent', kind: 'account', root: 'g-expenses' },
             { id: 'g-revenue', name: 'Revenue', kind: 'group', root: 'g-revenue' },
             { id: 'a-salary', name: 'Salary', kind: 'account', root: 'g-revenue' },
             { id: 'g-net', name: 'Net income', kind: 'group', root: 'g-net' },

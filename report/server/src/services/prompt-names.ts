@@ -37,7 +37,6 @@ import {
     type NameKind,
 } from 'report-shared/names';
 import type { BookName } from 'report-shared/name-index';
-import type { IsoMonth } from './periods.js';
 import type { Snapshot } from './snapshot.js';
 
 export { HASHTAG } from 'report-shared/names';
@@ -56,8 +55,6 @@ export interface PromptName {
     target?: string;
     /** Position to a date (Asset, Liability) rather than activity in a period. */
     permanent: boolean;
-    /** The months it had movements in, as the map knows them (none for an account in no group). */
-    activeMonths: IsoMonth[];
 }
 
 /** A group or account of the map, in Book order. */
@@ -68,7 +65,6 @@ export interface MapName {
     /** A group's root, or the roots that hold an account, in Book order (itself when in no group). */
     roots: string[];
     permanent: boolean;
-    activeMonths: IsoMonth[];
 }
 
 interface Candidate extends MapName {
@@ -106,7 +102,6 @@ export function findPromptNames(prompt: string, snapshot: Snapshot): PromptName[
             root,
             ...(candidate.id === root ? {} : { target: candidate.id }),
             permanent: candidate.permanent,
-            activeMonths: candidate.activeMonths,
         };
     });
 }
@@ -139,7 +134,7 @@ export function mapNames(snapshot: Snapshot): MapName[] {
                 return;
             }
             groups.add(id);
-            names.push(mapName('group', group, [root], group.activeMonths));
+            names.push(mapName('group', group, [root]));
             group.groups.forEach(visit);
             for (const accountId of group.accounts) {
                 const account = snapshot.accounts[accountId];
@@ -149,7 +144,7 @@ export function mapNames(snapshot: Snapshot): MapName[] {
                         known.roots.push(root);
                     }
                 } else if (account) {
-                    const name = mapName('account', account, [root], account.activeMonths);
+                    const name = mapName('account', account, [root]);
                     accounts.set(accountId, name);
                     names.push(name);
                 }
@@ -158,7 +153,7 @@ export function mapNames(snapshot: Snapshot): MapName[] {
         visit(root);
     }
     for (const account of Object.values(snapshot.ungrouped)) {
-        names.push(mapName('account', account, [account.id], []));
+        names.push(mapName('account', account, [account.id]));
     }
     return names;
 }
@@ -166,10 +161,9 @@ export function mapNames(snapshot: Snapshot): MapName[] {
 function mapName(
     kind: NameKind,
     { id, name, permanent }: { id: string; name: string; permanent: boolean },
-    roots: string[],
-    activeMonths: IsoMonth[]
+    roots: string[]
 ): MapName {
-    return { id, kind, name, roots, permanent, activeMonths };
+    return { id, kind, name, roots, permanent };
 }
 
 /** Every writable name of the map by folded name, in Book order, and the longest folded name. */

@@ -46,8 +46,15 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
-import { readQueryBalances } from '../server/src/services/balances.ts';
-import { addDays, type DateRange } from '../server/src/services/periods.ts';
+import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
+import { readReport } from '../server/src/services/default-period.ts';
+import {
+    addDays,
+    defaultPeriod,
+    isPlausibleYear,
+    type DateRange,
+    type ReportNature,
+} from '../server/src/services/periods.ts';
 import {
     MissingBalancesError,
     ReportError,
@@ -208,8 +215,8 @@ function check(ok: boolean, message: string): void {
     console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${message}`);
 }
 
-function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
-    const range = snapshot.dataRange;
+function intentsFor(snapshot: Snapshot, history: History, hashtags: string[]): ReportIntent[] {
+    const range = history.range;
     if (!range) {
         return [];
     }
@@ -230,7 +237,7 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
         { root, period: range.lastMonth, monthly: false, chart: 'compare' as const },
         { root, period: range.lastMonth, monthly: false, chart: 'waterfall' as const },
     ]);
-    const targets = targetsOf(snapshot, lastYear);
+    const targets = targetsOf(snapshot, history, lastYear);
     for (const target of targets) {
         intents.push(
             { ...target, period: lastYear, monthly: true },
@@ -328,7 +335,11 @@ const UNGROUPED_TARGETS = 3;
  * Targets of reports: every subgroup and the busiest accounts of each root, under it, and a few
  * accounts in no group, each a root of its own.
  */
-function targetsOf(snapshot: Snapshot, year: string): Pick<ReportIntent, 'root' | 'target'>[] {
+function targetsOf(
+    snapshot: Snapshot,
+    history: History,
+    year: string
+): Pick<ReportIntent, 'root' | 'target'>[] {
     const targets: Pick<ReportIntent, 'root' | 'target'>[] = [];
     for (const root of snapshot.roots) {
         const groups: string[] = [];
@@ -343,7 +354,9 @@ function targetsOf(snapshot: Snapshot, year: string): Pick<ReportIntent, 'root' 
         };
         collect(root);
         const busy = (id: string) =>
-            snapshot.accounts[id].activeMonths.filter(month => month.startsWith(year)).length;
+            [...(history.months.get(snapshot.accounts[id].name) ?? [])].filter(month =>
+                month.startsWith(year)
+            ).length;
         const busiest = [...accounts]
             .filter(id => busy(id) > 0)
             .sort((a, b) => busy(b) - busy(a))
@@ -398,7 +411,6 @@ async function expectedNet(cli: Cli, bookId: string, snapshot: Snapshot): Promis
                 }
             }
         }
-        // Bkper leaves archived accounts at zero out of balances, so the map does too.
         return new Set(
             accounts
                 .filter(account => snapshot.accounts[account.id] !== undefined)
@@ -436,6 +448,142 @@ async function expectedNet(cli: Cli, bookId: string, snapshot: Snapshot): Promis
               outgoing: outgoing.map(group => group.id),
           }
         : { kind: 'none' };
+}
+
+/**
+ * The months with movements of the Book, from the CLI apart from the app: each root's activity
+ * by month over its whole history up to today, as amounts in each month by row name.
+ */
+interface History {
+    /** By root id: the months any group or account of the root has an amount in. */
+    roots: Map<string, Set<string>>;
+    /** By group or account name: the months it has an amount in. */
+    months: Map<string, Set<string>>;
+    /** First and last months with movements in any root. */
+    range?: { firstMonth: string; lastMonth: string };
+}
+
+async function bookHistory(cli: Cli, bookId: string, snapshot: Snapshot): Promise<History> {
+    const history: History = { roots: new Map(), months: new Map() };
+    const tomorrow = addDays(snapshot.today, 1);
+    const all = new Set<string>();
+    await Promise.all(
+        snapshot.roots.map(async id => {
+            // The CLI lists activity in each month of a query with `after:`.
+            const query = `group:${quote(snapshot.groups[id].name)} after:1000-01-01 before:${tomorrow} by:m`;
+            const root = new Set<string>();
+            for (const [name, rows] of cliRows(await cli.balances(bookId, query), false)) {
+                const moved = rows.flatMap(row =>
+                    [...row.months]
+                        .filter(([month, amount]) => !amount.eq(0) && plausible(month))
+                        .map(([month]) => month)
+                );
+                const known = history.months.get(name) ?? new Set<string>();
+                moved.forEach(month => (known.add(month), root.add(month), all.add(month)));
+                history.months.set(name, known);
+            }
+            history.roots.set(id, root);
+        })
+    );
+    const months = [...all].sort();
+    if (months.length > 0) {
+        history.range = { firstMonth: months[0], lastMonth: months[months.length - 1] };
+    }
+    return history;
+}
+
+function plausible(month: string): boolean {
+    return isPlausibleYear(Number(month.slice(0, 4)));
+}
+
+/** Reads the balances of queries from Bkper, as the Worker does, counting them. */
+function balancesReader(book: Book, count: { queries: number }) {
+    return (queries: string[]): Promise<QueryBalances[]> => {
+        count.queries += queries.length;
+        return Promise.all(
+            queries.map(async query => {
+                const asked = new Date();
+                return readQueryBalances(query, await book.getBalancesReport(query), asked);
+            })
+        );
+    };
+}
+
+/**
+ * Reports of requests that name no period, read as the Worker reads them: each root's (and the
+ * net result's) default period, this year for activity or today for a position, and the last
+ * 12 months by month. Checks that the period read is the default one when it has movements,
+ * else the last year with movements by the CLI's history, and that only a default period
+ * without movements reads one more query, of the history, before the report of that year.
+ */
+async function defaultPeriodReports(
+    snapshot: Snapshot,
+    history: History,
+    net: ExpectedNet,
+    book: Book
+): Promise<{ label: string; report: ReportData }[]> {
+    const subjects: { root: string; months: Set<string>; nature: ReportNature }[] = [
+        ...snapshot.roots.map(root => ({
+            root,
+            months: history.roots.get(root) ?? new Set<string>(),
+            nature: (snapshot.groups[root].permanent ? 'position' : 'activity') as ReportNature,
+        })),
+        ...(net.kind === 'none'
+            ? []
+            : [
+                  {
+                      root: NET_RESULT_ROOT,
+                      months: new Set(
+                          (net.kind === 'group'
+                              ? [net.id]
+                              : [...net.incoming, ...net.outgoing]
+                          ).flatMap(root => [...(history.roots.get(root) ?? [])])
+                      ),
+                      nature: 'activity' as ReportNature,
+                  },
+              ]),
+    ];
+    const reports: { label: string; report: ReportData }[] = [];
+    for (const { root, months, nature } of subjects) {
+        for (const trend of [false, true]) {
+            const today = snapshot.today;
+            const asked = defaultPeriod({ nature, trend, today });
+            const intent: ReportIntent = { root, period: asked, monthly: trend };
+            const last = [...months].sort().at(-1);
+            const expected = defaultPeriod({ nature, trend, today, lastActiveMonth: last });
+            const count = { queries: 0 };
+            const read = await readReport(intent, snapshot, {
+                loadBalances: balancesReader(book, count),
+                defaultPeriod: true,
+            });
+            const own = planQueries(planReport(intent, snapshot)).length;
+            const inPeriod = [...months].some(month => inRange(month, intent, snapshot));
+            const expectedQueries =
+                asked === 'today' || inPeriod
+                    ? own
+                    : own +
+                      1 +
+                      (expected === asked
+                          ? 0
+                          : planQueries(planReport({ ...intent, period: expected }, snapshot))
+                                .length);
+            const label = `${nodeOf(snapshot, root)?.name ?? root} default ${asked}${trend ? ' monthly' : ''}`;
+            check(
+                read.intent.period === expected && count.queries === expectedQueries,
+                `${label}: reads ${read.intent.period} (last movement ${last ?? 'none'}), ` +
+                    `${count.queries} queries`
+            );
+            reports.push({ label, report: buildReport(read.intent, snapshot, read.balances) });
+        }
+    }
+    return reports;
+}
+
+/** Whether a month is within an intent's period, as the CLI's history lists months. */
+function inRange(month: string, intent: ReportIntent, snapshot: Snapshot): boolean {
+    const { range } = planReport(intent, snapshot).period;
+    const last = addDays(range.before, -1).slice(0, 7);
+    return (range.after === undefined || month >= range.after.slice(0, 7)) && month <= last;
 }
 
 async function computeReport(
@@ -1086,15 +1234,16 @@ async function verifyBook(
     });
     const book = await bkper.getBook(bookId);
     const net = await expectedNet(cli, bookId, snapshot);
+    const history = await bookHistory(cli, bookId, snapshot);
     console.log(
-        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}, net result: ${net.kind}`
+        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${history.range?.firstMonth}..${history.range?.lastMonth}, net result: ${net.kind}`
     );
     const queryTimes: number[] = [];
     const computeTimes: number[] = [];
     let queryCount = 0;
     const reports: { label: string; report: ReportData }[] = [];
     // One at a time, so the times are of the calculation alone.
-    for (const intent of intentsFor(snapshot, hashtags)) {
+    for (const intent of intentsFor(snapshot, history, hashtags)) {
         const target = intent.target === undefined ? undefined : nodeOf(snapshot, intent.target);
         const alongside = (intent.alongside ?? []).map(
             subject => nodeOf(snapshot, subject.target ?? subject.root)?.name ?? subject.root
@@ -1149,6 +1298,7 @@ async function verifyBook(
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
+    reports.push(...(await defaultPeriodReports(snapshot, history, net, book)));
     const mixed = mixedOf(snapshot);
     if (mixed) {
         let reason: string | undefined;

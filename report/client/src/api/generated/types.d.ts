@@ -622,7 +622,7 @@ export interface components {
             };
         };
         SuggestionsResponse: {
-            /** @description Up to three reports, chosen from the Book’s own groups and data. */
+            /** @description Up to three reports, chosen from the Book’s own groups and Accounts. */
             suggestions: components["schemas"]["Suggestion"][];
         };
         /** @description A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI. */

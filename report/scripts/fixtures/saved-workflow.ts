@@ -155,7 +155,7 @@ export async function savedWorkflow() {
         authorizations,
         failWrites: (fail: boolean) => (failWrite = fail),
         advance: () => {
-            // The ledger has no movements after November 5, so its map stays the same.
+            // The map is the Book's structure, which a new day does not change.
             today = '2026-12-05';
             for (const identity of sessions) seed(identity);
         },

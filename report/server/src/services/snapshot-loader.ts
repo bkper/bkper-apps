@@ -1,10 +1,10 @@
 /**
  * Loads the snapshot (the map) of a Book for the current user: from KV when a recent one
- * exists, otherwise from Bkper, with every root's query in parallel.
+ * exists, otherwise from Bkper, with one `getBook` call and no balances query.
  */
 import type { Bkper } from 'bkper-js';
 import { todayInTimeZone } from './periods.js';
-import { buildSnapshot, snapshotQueries, type Snapshot } from './snapshot.js';
+import { buildSnapshot, type Snapshot } from './snapshot.js';
 import type { Timing } from './timing.js';
 
 /** How long a snapshot is reused; the map may be this much behind the Book. */
@@ -29,10 +29,10 @@ export interface SnapshotLoaderOptions {
 
 /**
  * One snapshot per user and Book: a cached snapshot is only served to the user it was read for.
- * `v3` snapshots hold the accounts in no group, which `v2` ones lack.
+ * `v4` snapshots are the Book's structure alone; `v3` ones held the months with movements.
  */
 export function snapshotKey(userId: string, bookId: string): string {
-    return `snapshot:v3:${userId}:${bookId}`;
+    return `snapshot:v4:${userId}:${bookId}`;
 }
 
 /** The id of the current user, which every cache key needs: Dispatch passes no identity. */
@@ -60,7 +60,7 @@ export async function loadSnapshot(
     }
 
     const now = options.now?.() ?? new Date();
-    const snapshot = await timing.measure('balances', () => readSnapshot(bkper, bookId, now));
+    const snapshot = await timing.measure('book', () => readSnapshot(bkper, bookId, now));
     const store = kv.put(key, JSON.stringify(snapshot), { expirationTtl: SNAPSHOT_TTL_SECONDS });
     if (options.defer) {
         options.defer(store);
@@ -80,14 +80,5 @@ async function readSnapshot(
     const groups = await book.getGroups();
     const accounts = await book.getAccounts();
     const today = todayInTimeZone(now, book.getTimeZone());
-    const roots = groups
-        .filter(group => !group.hasParent())
-        .map(group => ({ name: group.getName() ?? '' }));
-    const results = await Promise.all(
-        snapshotQueries(roots, today).map(async query => ({
-            query,
-            report: await book.getBalancesReport(query.query),
-        }))
-    );
-    return buildSnapshot({ book, groups, accounts, results, today, dataAt: now });
+    return buildSnapshot({ book, groups, accounts, today, dataAt: now });
 }

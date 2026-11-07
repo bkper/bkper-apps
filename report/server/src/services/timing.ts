@@ -1,8 +1,10 @@
 /**
- * Where a request spends its time, reported in the `Server-Timing` response header; `total`
- * is the whole request in the Worker.
+ * Where a request spends its time, reported in the `Server-Timing` response header: `book` is
+ * loading the Book's map from Bkper, `balances` its balances queries, and `total` the whole
+ * request in the Worker.
  */
-export type TimingMetric = 'user' | 'kv' | 'balances' | 'jev' | 'compute' | 'render' | 'total';
+export type TimingMetric =
+    'user' | 'kv' | 'book' | 'balances' | 'jev' | 'compute' | 'render' | 'total';
 
 export interface Timing {
     /** Runs `work`, adding its duration to `metric`, whether it succeeds or fails. */

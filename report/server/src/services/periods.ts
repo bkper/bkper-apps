@@ -29,20 +29,8 @@ export interface DateRange {
     before: IsoDate;
 }
 
-/**
- * First and last months with balances in the Book, both inclusive, in plausible calendar years
- * (see {@link isPlausibleYear}).
- */
-export interface DataRange {
-    firstMonth: IsoMonth;
-    lastMonth: IsoMonth;
-    /** Every month with movements within the range, ascending; absent in older snapshots. */
-    activeMonths?: IsoMonth[];
-}
-
 export interface PeriodContext {
     today: IsoDate;
-    dataRange?: DataRange;
 }
 
 export interface PeriodOption {
@@ -58,6 +46,12 @@ export { RELATIVE_PERIODS, PERIOD_ID_PATTERN, type RelativePeriod };
 
 /** Upper bound of options in a single choice. */
 export const MAX_PERIOD_OPTIONS = 255;
+
+/**
+ * The calendar years a request may name, this one included: whatever the Book's data, so the
+ * options need no balances query. Older years read the default period.
+ */
+export const RECENT_YEARS = 20;
 
 const RELATIVE_LABELS: Record<RelativePeriod, string> = {
     today: 'today',
@@ -96,7 +90,7 @@ export function isoMonth(year: number, monthOfYear: number): IsoMonth {
 
 /**
  * A year a period can name (the years {@link PERIOD_ID_PATTERN} accepts). Movements outside
- * it, such as a typo dated 0012, still count in totals but never shape the period options.
+ * it, such as a typo dated 0012, still count in totals but never shape a default period.
  */
 export function isPlausibleYear(year: number): boolean {
     return year >= 1000 && year <= 2999;
@@ -111,14 +105,18 @@ export interface DefaultPeriodContext {
     /** The request asks how amounts evolve over time. */
     trend: boolean;
     today: IsoDate;
-    /** The last month the report's groups had movements; absent when they never had. */
+    /**
+     * The last month the report's groups and accounts had movements, when known: a report
+     * whose default period has none finds it with one query of their history.
+     */
     lastActiveMonth?: IsoMonth;
 }
 
 /**
  * The period of a request that names none. Activity reads this year, a position today, and a
- * trend the last 12 months. When activity or a trend would have no movements, it reads the
- * last year that has them instead, so a Book with old data still shows its data.
+ * trend the last 12 months. Given the last month with movements, activity or a trend that
+ * would have none reads the last year that has them instead, so a Book with old data still
+ * shows its data.
  */
 export function defaultPeriod(context: DefaultPeriodContext): string {
     const { nature, trend, today, lastActiveMonth } = context;
@@ -259,16 +257,12 @@ export function previousPeriod(
 }
 
 /**
- * Every period a request may choose: the relative periods, then each year, quarter and month
- * within the data range, most recent first. Long histories keep every year and the most
- * recent quarters and months that fit in {@link MAX_PERIOD_OPTIONS}.
+ * Every period a request may choose: the relative periods, then each year of the last
+ * {@link RECENT_YEARS}, and their quarters and months, most recent first, up to today's. Every
+ * year is kept, and the most recent quarters and months that fit in {@link MAX_PERIOD_OPTIONS}.
  */
 export function buildPeriodOptions(context: PeriodContext): PeriodOption[] {
     const relative = RELATIVE_PERIODS.map(id => option(id, context));
-    const range = context.dataRange;
-    if (!range) {
-        return relative;
-    }
     const years: CalendarPeriod[] = [];
     const quarters: CalendarPeriod[] = [];
     const months: CalendarPeriod[] = [];
@@ -279,7 +273,8 @@ export function buildPeriodOptions(context: PeriodContext): PeriodOption[] {
             list.push(period);
         }
     };
-    for (const month of candidateMonths(range)) {
+    const current = monthIndexOfDate(context.today);
+    for (let month = current; month >= yearStart(current) - 12 * (RECENT_YEARS - 1); month--) {
         const { year, monthOfYear } = monthParts(month);
         if (!isPlausibleYear(year)) {
             continue;
@@ -368,18 +363,6 @@ function monthParts(index: number): { year: number; monthOfYear: number } {
 function monthStart(index: number): IsoDate {
     const { year, monthOfYear } = monthParts(index);
     return `${isoMonth(year, monthOfYear)}-01`;
-}
-
-/** Month indexes to offer, most recent first: the active months, else every month in the range. */
-function candidateMonths(range: DataRange): number[] {
-    if (range.activeMonths) {
-        return [...new Set(range.activeMonths.map(parseMonth))].sort((a, b) => b - a);
-    }
-    const months: number[] = [];
-    for (let month = parseMonth(range.lastMonth); month >= parseMonth(range.firstMonth); month--) {
-        months.push(month);
-    }
-    return months;
 }
 
 function quarterStart(month: number): number {

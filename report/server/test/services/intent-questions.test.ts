@@ -29,7 +29,6 @@ function wideSnapshot(base: Snapshot, roots: number, accounts: number): Snapshot
         type: 'OUTGOING' as const,
         credit: false,
         permanent: false,
-        activeMonths: [],
     };
     for (let r = 0; r < roots; r++) {
         const ids = Array.from({ length: accounts }, (_, a) => `r${r}-a${a}`);
@@ -111,19 +110,24 @@ describe('buildIntentRequest', () => {
     it('offers every period option and unspecified', async () => {
         const snapshot = await fixtureSnapshot();
         const { request } = buildIntentRequest('expenses', snapshot);
-        const options = buildPeriodOptions({ today: TODAY, dataRange: snapshot.dataRange });
+        // The fixed range of years fills the choice: the oldest month gives way to unspecified.
+        const options = buildPeriodOptions({ today: TODAY }).slice(0, -1);
         expect(request.questions.period.criteria).toEqual({
             ...Object.fromEntries(options.map(option => [option.id, option.description])),
             [UNSPECIFIED]: expect.any(String),
         });
     });
 
-    it('keeps the period choice within 255 options', async () => {
-        const snapshot: Snapshot = {
-            ...(await fixtureSnapshot()),
-            dataRange: { firstMonth: '1990-01', lastMonth: '2026-11' },
-        };
+    it('offers the same periods whatever the Book holds, within 255 options', async () => {
+        const snapshot = await fixtureSnapshot();
         const { request } = buildIntentRequest('expenses', snapshot);
+        const empty = buildIntentRequest('expenses', {
+            ...snapshot,
+            roots: [],
+            groups: {},
+            accounts: {},
+        }).request;
+        expect(empty.questions.period).toEqual(request.questions.period);
         const ids = Object.keys(request.questions.period.criteria);
         expect(ids).toHaveLength(255);
         expect(ids.at(-1)).toBe(UNSPECIFIED);

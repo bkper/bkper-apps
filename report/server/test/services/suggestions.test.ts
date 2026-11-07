@@ -38,21 +38,11 @@ describe('buildSuggestions', () => {
         ]);
     });
 
-    it('anchors periods to the last year with movements when this year has none', async () => {
-        expect(buildSuggestions(await laterSnapshot(), 'en')).toEqual([
-            {
-                text: 'Net result in 2026',
-                intent: { root: 'net-result', period: '2026', monthly: false },
-            },
-            {
-                text: 'Expenses by month in 2026',
-                intent: { root: 'g-expenses', period: '2026', monthly: true },
-            },
-            {
-                text: 'Assets at the end of 2026',
-                intent: { root: 'g-assets', period: '2026', monthly: false },
-            },
-        ]);
+    it('suggests this year and today, as the map holds no dates of movements', async () => {
+        // Years after the fixture's last movements, the suggestions are the same.
+        expect(buildSuggestions(await laterSnapshot(), 'en')).toEqual(
+            buildSuggestions(await fixtureSnapshot(), 'en')
+        );
     });
 
     it('suggests only reports the Book can have', async () => {
@@ -66,24 +56,38 @@ describe('buildSuggestions', () => {
         }
     });
 
-    it('ranks roots of a kind by their months with movements, reading no amounts', async () => {
+    it('ranks roots of a kind by how many accounts they hold, reading no amounts', async () => {
         const snapshot = await fixtureSnapshot();
         snapshot.groups['g-net'].type = 'INCOMING';
         const order = (roots: string[]) =>
             buildSuggestions({ ...snapshot, roots }, 'en').map(suggestion => suggestion.text);
-        // Net income's accounts moved in seven months this year, Revenue's in two. Both are
-        // Incoming, so the Book has no net result.
+        // Net income holds three accounts, Revenue one. Both are Incoming, so the Book has no
+        // net result.
         expect(order(['g-revenue', 'g-net'])).toEqual([
             'Net income by month this year',
             'Revenue this year',
         ]);
-        snapshot.accounts['a-rent'].activeMonths = [];
-        snapshot.accounts['a-food'].activeMonths = [];
-        // As busy as each other, they keep Book order.
+        // Archived accounts do not count: as large as each other, they keep Book order.
+        snapshot.accounts['a-rent'].archived = true;
+        snapshot.accounts['a-food'].archived = true;
         expect(order(['g-revenue', 'g-net'])).toEqual([
             'Revenue by month this year',
             'Net income this year',
         ]);
+    });
+
+    it('counts the accounts of subgroups, each once', async () => {
+        const snapshot = await fixtureSnapshot();
+        // Assets holds Cash and, through Banks, Bank A and Bank B; Card holds Credit Card.
+        const texts = (roots: string[]) =>
+            buildSuggestions({ ...snapshot, roots }, 'en').map(suggestion => suggestion.text);
+        snapshot.groups['g-card'].type = 'ASSET';
+        expect(texts(['g-card', 'g-assets'])).toEqual(['Assets today', 'Card today']);
+        // Three accounts each, once listed twice: a tie keeps Book order.
+        snapshot.groups['g-card'].accounts = ['a-card', 'a-card', 'a-bank-a', 'a-cash'];
+        expect(texts(['g-assets', 'g-card'])).toEqual(['Assets today', 'Card today']);
+        snapshot.groups['g-card'].accounts.push('a-bank-b');
+        expect(texts(['g-assets', 'g-card'])).toEqual(['Card today', 'Assets today']);
     });
 
     it('fills three suggestions with other roots when the Book has no positions', async () => {
@@ -114,20 +118,20 @@ describe('buildSuggestions', () => {
         expect(texts(shared)).not.toContain('Net result this year');
     });
 
-    it('leaves out roots without movements and the net result without both sides', async () => {
-        // Card has no movements; Expenses alone has nothing to net against.
-        expect(buildSuggestions(await withRoots('g-card', 'g-assets', 'g-expenses'), 'en')).toEqual(
-            [
-                {
-                    text: 'Expenses by month this year',
-                    intent: { root: 'g-expenses', period: 'this_year', monthly: true },
-                },
-                {
-                    text: 'Assets today',
-                    intent: { root: 'g-assets', period: 'today', monthly: false },
-                },
-            ]
-        );
-        expect(buildSuggestions(await withRoots('g-card'), 'en')).toEqual([]);
+    it('leaves out roots without accounts and the net result without both sides', async () => {
+        // Card holds no account here; Expenses alone has nothing to net against.
+        const snapshot = await withRoots('g-card', 'g-assets', 'g-expenses');
+        snapshot.groups['g-card'] = { ...snapshot.groups['g-card'], accounts: [] };
+        expect(buildSuggestions(snapshot, 'en')).toEqual([
+            {
+                text: 'Expenses by month this year',
+                intent: { root: 'g-expenses', period: 'this_year', monthly: true },
+            },
+            {
+                text: 'Assets today',
+                intent: { root: 'g-assets', period: 'today', monthly: false },
+            },
+        ]);
+        expect(buildSuggestions({ ...snapshot, roots: ['g-card'] }, 'en')).toEqual([]);
     });
 });

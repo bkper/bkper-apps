@@ -3,25 +3,26 @@
  * request, whose options come from the Book snapshot (its map), turns into an intent.
  *
  * The intent names the report's balances queries (its period and the previous one, per
- * root), which run in parallel; every amount of the report comes from their responses.
+ * root), which run in parallel; every amount of the report comes from their responses. A
+ * request that names no period reads the default one, and only when that has no movements,
+ * one query of the report's history and the report of its last year with them
+ * (`default-period.ts`).
  */
 import type { ReportSpec } from 'report-shared/catalog';
 import { reportText } from 'report-shared/report-state';
 import type { DecisionClient } from './decision-client.js';
+import { readReport, type ReadReport } from './default-period.js';
 import { resolveIntent, type IntentTrace } from './intent-resolver.js';
 import type { QueryBalances } from './balances.js';
 import {
     ReportError,
     buildReport,
-    planQueries,
-    planReport,
     viewKindOf,
     type ChartFacts,
     type ChartRule,
     type ReportChart,
     type ReportCharts,
     type ReportData,
-    type ReportPlan,
     type ViewKind,
 } from './report.js';
 import type { ReportIntent } from './report-intent.js';
@@ -100,6 +101,7 @@ export async function createReport(
     let intent: ReportIntent;
     let intentTrace: IntentTrace | undefined;
     let detected: string | undefined;
+    let defaultPeriod = false;
     if ('intent' in request) {
         intent = request.intent;
     } else {
@@ -113,21 +115,25 @@ export async function createReport(
         }
         intent = resolution.intent;
         intentTrace = resolution.trace;
+        defaultPeriod = resolution.defaultPeriod === true;
     }
     const language = languages.requested ?? detected ?? languages.accepted ?? DEFAULT_LANGUAGE;
 
-    let plan: ReportPlan;
+    let read: ReadReport;
     try {
-        plan = planReport(intent, snapshot);
+        read = await readReport(intent, snapshot, {
+            loadBalances: options.loadBalances,
+            defaultPeriod,
+        });
     } catch (error) {
         if (error instanceof ReportError && error.reason === 'no_activity_roots') {
             throw notAReport(snapshot, language);
         }
         throw error;
     }
-    const balances = await options.loadBalances(planQueries(plan));
+    intent = read.intent;
     const report: ReportData = await timing.measure('compute', async () =>
-        buildReport(intent, snapshot, balances)
+        buildReport(read.intent, snapshot, read.balances)
     );
 
     const spec = await timing.measure('render', async () => buildReportSpec(report, language));

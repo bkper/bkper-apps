@@ -53,6 +53,7 @@
     "error_no_net_result": "Ce Livre n'a aucun groupe combinant les revenus et les dépenses. Ajoutez-en un dans Bkper pour voir son résultat net.",
     "error_unexpected": "Une erreur s'est produite. Veuillez réessayer.",
     "error_unknown_root": "Ce groupe n'est pas un groupe de premier niveau de ce Livre.",
+    "error_unknown_target": "Ce groupe ou ce compte n'est plus là où ce rapport l'avait trouvé dans le Livre.",
     "error_upstream": "Bkper n'a pas répondu. Réessayez dans un instant.",
     "hint_not_a_report": "Cela ne ressemble pas à un rapport de ce Livre. Indiquez un groupe et une période, ou choisissez une suggestion.",
     "input_label": "Demande de rapport",

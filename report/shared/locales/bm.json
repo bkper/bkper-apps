@@ -53,6 +53,7 @@
     "error_no_net_result": "Kunnafoni kaye in tɛ Kɔnti jɛkulu si ye min bɛ sɔrɔ ni sɔrɔ bɛɛ ka nɔfɛ. Kɛ kelen fara Bkper kɔnɔ walasa ka netiri ye.",
     "error_unexpected": "Fɛn dɔ ye cogo jugu ta. I ka a ɲini tugun.",
     "error_unknown_root": "O Kɔnti jɛkulu tɛ nin Kunnafoni kaye sanfɛla jɛkulu ye.",
+    "error_unknown_target": "Jɛkulu walima kɔnti in tɛ yen tugun ni raporo in y'a sɔrɔ cogo min na Kunnafoni kaye kɔnɔ.",
     "error_upstream": "Bkper ma jaabi. I ka segin ka kɛ ni waati dɔɔnin ye.",
     "hint_not_a_report": "A tɛ i n'a fɔ nin Kunnafoni kaye kunnafoni sɛbɛn. Kɔnti jɛkulu dɔ ni waati dɔ tɔgɔ fɔ, walima laadilikan dɔ sugandi.",
     "input_label": "Rapɔri ɲinini",

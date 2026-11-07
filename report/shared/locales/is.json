@@ -53,6 +53,7 @@
     "error_no_net_result": "Þessi bók er ekki með hóp sem sameinar tekjur og gjöld. Bættu einum við í Bkper til að sjá nettóniðurstöðuna.",
     "error_unexpected": "Eitthvað fór úrskeiðis. Reyndu aftur.",
     "error_unknown_root": "Þessi hópur er ekki efsta stigs hópur í þessari bók.",
+    "error_unknown_target": "Sá hópur eða reikningur er ekki lengur þar sem skýrslan fann hann í bókinni.",
     "error_upstream": "Bkper svaraði ekki. Reyndu aftur eftir augnablik.",
     "hint_not_a_report": "Þetta lítur ekki út eins og skýrsla úr þessari Bók. Nefndu hóp og tímabil eða veldu tillögu.",
     "input_label": "Beiðni um skýrslu",

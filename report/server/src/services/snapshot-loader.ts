@@ -27,9 +27,12 @@ export interface SnapshotLoaderOptions {
     defer?: (task: Promise<unknown>) => void;
 }
 
-/** One snapshot per user and Book: a cached snapshot is only served to the user it was read for. */
+/**
+ * One snapshot per user and Book: a cached snapshot is only served to the user it was read for.
+ * `v3` snapshots hold the accounts in no group, which `v2` ones lack.
+ */
 export function snapshotKey(userId: string, bookId: string): string {
-    return `snapshot:v2:${userId}:${bookId}`;
+    return `snapshot:v3:${userId}:${bookId}`;
 }
 
 /** The id of the current user, which every cache key needs: Dispatch passes no identity. */

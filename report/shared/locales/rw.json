@@ -53,6 +53,7 @@
     "error_no_net_result": "Iki Gitabo cya konti nta Itsinda gifite rihuriza hamwe inyungu n'ibiyikoreshwa. Ongeramo rimwe muri Bkper kugira ngo urebe umusaruro rusange.",
     "error_unexpected": "Hari ikitagenze neza. Ongera ugerageze.",
     "error_unknown_root": "Iryo tsinda si itsinda rikuru ry'iki Gitabo cya konti.",
+    "error_unknown_target": "Iryo tsinda cyangwa konti ntikiri aho iyi raporo yabisanze mu Gitabo cya konti.",
     "error_upstream": "Bkper ntiyasubije. Ongera ugerageze nyuma y'akanya gato.",
     "hint_not_a_report": "Ibi ntibisa na raporo y'iki Gitabo cya konti. Andika itsinda n'igihe, cyangwa uhitemo icyifuzo.",
     "input_label": "Gusaba raporo",

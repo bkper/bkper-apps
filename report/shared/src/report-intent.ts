@@ -6,7 +6,7 @@
 /** The `root` of a net result report: every Incoming root versus every Outgoing root. */
 export const NET_RESULT_ROOT = 'net-result';
 
-/** The longest root group id an intent accepts. */
+/** The longest root or target id an intent accepts. */
 export const MAX_ROOT_LENGTH = 200;
 
 export const REPORT_VIEWS = ['trend', 'breakdown', 'total'] as const;
@@ -66,8 +66,10 @@ export const PERIOD_ID_PATTERN = new RegExp(
 
 /** What to report, fully resolved, as plain data. */
 export interface ReportIntentData {
-    /** Root group id, or {@link NET_RESULT_ROOT}. */
+    /** Root group id, the id of an account in no group, or {@link NET_RESULT_ROOT}. */
     root: string;
+    /** A group or account under the root group to report instead of the whole root. */
+    target?: string;
     /** A period id, see {@link PERIOD_ID_PATTERN}. */
     period: string;
     monthly: boolean;

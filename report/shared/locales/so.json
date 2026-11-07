@@ -53,6 +53,7 @@
     "error_no_net_result": "Buugan xisaabta ma laha Kooxda akoonnada oo isku daraysa dakhliga iyo kharashyada. Ku dar mid Bkper si aad u aragto natiijada saafiga ah.",
     "error_unexpected": "Wax qalad ah ayaa dhacay. Mar kale isku day.",
     "error_unknown_root": "Kooxdaas ma aha kooxda heerka ugu sarreeya ee Buug xisaabkan.",
+    "error_unknown_target": "Kooxdaas ama akoonkaas hadda ma joogo meeshii warbixintan ka heshay Buugga xisaab.",
     "error_upstream": "Bkper ma uusan jawaabin. Isku day mar kale daqiiqad ka dib.",
     "hint_not_a_report": "Tani uma eka warbixin Buug xisaab kan ah. Qor Kooxda akoonnada iyo muddo, ama dooro talo.",
     "input_label": "Codsiga warbixinta",

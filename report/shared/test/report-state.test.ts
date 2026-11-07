@@ -74,6 +74,33 @@ describe('report state', () => {
         expect(roundTrip(state)).toEqual(state);
     });
 
+    it('round-trips a target under its root', () => {
+        const state: ReportState = {
+            intent: {
+                root: 'grupo-ÿ.com/é|x',
+                target: '5687803178385408',
+                period: '2017-Q4',
+                monthly: true,
+                chart: 'line',
+                hashtags: ['viagem'],
+            },
+            language: 'ar',
+        };
+        expect(roundTrip(state)).toEqual(state);
+        // A state of the same report without a target is the one written before targets.
+        const { target: _target, ...root } = state.intent;
+        expect(encodeReportState({ intent: root })?.[0]).toBe('1');
+        expect(encodeReportState(state)?.[0]).toBe('2');
+    });
+
+    it('opens states written before targets, unchanged, as the whole root', () => {
+        for (const state of ['1MGJwLjIwMTcucHQuLjE5MTAwMg', '1MXRhLjIwMTcuLi4xOTEwMDI']) {
+            const decoded = decodeReportState(state);
+            expect(decoded?.intent.target).toBeUndefined();
+            expect(decoded && encodeReportState(decoded)).toBe(state);
+        }
+    });
+
     it('leaves out no chart and auto alike, so both open the rules’ chart', () => {
         const intent = { root: 'r', period: '2018', monthly: false };
         expect(encodeReportState({ intent: { ...intent, chart: 'auto' } })).toBe(
@@ -104,6 +131,29 @@ describe('report state', () => {
         expect(encodeReportState({ intent: { ...intent, period: '2018-13' } })).toBeUndefined();
         expect(encodeReportState({ intent: { ...intent, hashtags: ['a b'] } })).toBeUndefined();
         expect(encodeReportState({ intent, language: 'xx-unknown' })).toBeUndefined();
+        expect(encodeReportState({ intent: { ...intent, target: '' } })).toBeUndefined();
+        // A target is written before the root, so it cannot hold the separator.
+        expect(encodeReportState({ intent: { ...intent, target: 'a.b' } })).toBeUndefined();
+        expect(
+            encodeReportState({ intent: { ...intent, target: 't'.repeat(201) } })
+        ).toBeUndefined();
+    });
+
+    it('fits a target and its root in the length limit, or gives no state', () => {
+        // Bkper ids are at most 16 digits today.
+        const intent = {
+            root: '5694067388186624',
+            target: '5687803178385408',
+            period: 'last_12_months',
+            monthly: true,
+            view: 'trend' as const,
+            chart: 'stacked' as const,
+            hashtags: ['viagem', 'trip_2019'],
+        };
+        expect(roundTrip({ intent, language: 'pt' })).toEqual({ intent, language: 'pt' });
+        expect(encodeReportState({ intent: { ...intent, target: 't'.repeat(80) } })).toBe(
+            undefined
+        );
     });
 
     it('ignores states that are not one it wrote', () => {
@@ -127,6 +177,11 @@ describe('report state', () => {
             '1' + base64url('0_a.2018..a,,b.r'),
             '1' + base64url('0_a.2018...' + 'r'.repeat(201)),
             '1' + base64url('0_a.2018..' + Array(11).fill('t').join(',') + '.r'),
+            // A target state has a target, and a state without one is written as before.
+            '2' + base64url('0_a.2018....r'),
+            '2' + base64url('0_a.2018...t'),
+            '2' + base64url('0_a.2018...t.'),
+            '2' + base64url('0_a.2018...' + 't'.repeat(201) + '.r'),
             '1AA',
             '1_w',
         ];

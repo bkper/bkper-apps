@@ -53,6 +53,7 @@
     "error_no_net_result": "Bhuku remahesabhu iri harina Boka rinosanganisa mari inopinda nemari inobuda. Wedzera rimwe muBkper kuti uone mhedzisiro yakachena.",
     "error_unexpected": "Pane chakaenda zvisiri nane. Edza zvakare.",
     "error_unknown_root": "Boka iro haisi boka repamusoro reBhuku remahesabhu iri.",
+    "error_unknown_target": "Boka iri kana account iyi haichafi iri pakaiwanikwa nereport iyi muBhuku remahesabhu.",
     "error_upstream": "Bkper haina kupindura. Edza zvakare mushure menguva pfupi.",
     "hint_not_a_report": "Izvi hazvitaridzi sechirevo cheBhuku remahesabhu iri. Nyora Boka nenguva, kana sarudza zvakakurudzirwa.",
     "input_label": "Chikumbiro chereport",

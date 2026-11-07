@@ -53,6 +53,7 @@
     "error_no_net_result": "Phau ntawv teev nyiaj no tsis muaj pawg uas muab nyiaj tau los thiab nyiaj siv sib xyaw. Ntxiv ib pawg hauv Bkper kom pom qhov tshwm sim net.",
     "error_unexpected": "Muaj yam tsis raug. Sim dua.",
     "error_unknown_root": "Pawg ntawd tsis yog pawg theem siab ntawm Phau ntawv teev nyiaj no.",
+    "error_unknown_target": "Pawg lossis account ntawd tsis nyob qhov chaw uas daim ntawv qhia no pom hauv Phau ntawv teev nyiaj lawm.",
     "error_upstream": "Bkper tsis teb. Sim dua ib pliag ntxiv.",
     "hint_not_a_report": "Qhov no zoo li tsis yog daim ntawv qhia ntawm Phau ntawv teev nyiaj no. Qhia ib Pawg thiab ib lub sijhawm, los yog xaiv ib qho lus qhia.",
     "input_label": "Daim ntawv thov qhia txog",

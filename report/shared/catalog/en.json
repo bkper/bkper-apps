@@ -134,6 +134,11 @@
         "role": "message",
         "context": "Error shown when a report asks for a Group that is not a top-level (root) Group of the Book. Reports start at a top-level Group, such as Expenses or Assets."
     },
+    "error_unknown_target": {
+        "text": "That group or account is no longer where this report found it in the Book.",
+        "role": "message",
+        "context": "Error shown when a saved or shared report names a Group or Account of the Book that was deleted, or moved out of the top-level Group the report reads it from. A Book is a Bkper ledger. One short sentence."
+    },
     "report_net_result": {
         "text": "Net result",
         "role": "title",

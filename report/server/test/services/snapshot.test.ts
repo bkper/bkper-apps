@@ -86,6 +86,21 @@ describe('buildSnapshot', () => {
         expect(Object.keys(accounts)).toHaveLength(8);
     });
 
+    it('keeps the accounts in no group apart, with their nature and no months', async () => {
+        const { accounts, ungrouped } = await build();
+        expect(ungrouped).toEqual({
+            'a-owner': {
+                id: 'a-owner',
+                name: 'Owner',
+                type: 'LIABILITY',
+                credit: true,
+                permanent: true,
+                archived: false,
+            },
+        });
+        expect(accounts['a-owner']).toBeUndefined();
+    });
+
     it('holds the months each group and account had movements in, and no amounts', async () => {
         const { groups, accounts } = await build();
         expect(groups['g-expenses'].activeMonths).toEqual([

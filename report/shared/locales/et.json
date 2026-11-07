@@ -53,6 +53,7 @@
     "error_no_net_result": "Selles Raamatus pole gruppi, mis ühendaks tulud ja kulud. Lisa Bkperis selline, et näha neto tulemust.",
     "error_unexpected": "Midagi läks valesti. Proovi uuesti.",
     "error_unknown_root": "See grupp ei ole selle Raamatu ülemise taseme grupp.",
+    "error_unknown_target": "See grupp või konto ei asu enam seal, kust see aruanne selle Raamatus leidis.",
     "error_upstream": "Bkper ei vastanud. Proovi hetke pärast uuesti.",
     "hint_not_a_report": "See ei tundu selle Raamatu aruandena. Nimeta grupp ja periood või vali soovitus.",
     "input_label": "Aruande päring",

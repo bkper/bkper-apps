@@ -53,6 +53,7 @@
     "error_no_net_result": "Den här Boken har ingen grupp som kombinerar intäkter och kostnader. Lägg till en i Bkper för att se nettoresultatet.",
     "error_unexpected": "Något gick fel. Försök igen.",
     "error_unknown_root": "Den gruppen är inte en toppnivågrupp i den här Boken.",
+    "error_unknown_target": "Den gruppen eller det kontot finns inte längre där rapporten hittade det i Boken.",
     "error_upstream": "Bkper svarade inte. Försök igen om en stund.",
     "hint_not_a_report": "Det där ser inte ut som en rapport för den här Boken. Ange en grupp och en period, eller välj ett förslag.",
     "input_label": "Rapportförfrågan",

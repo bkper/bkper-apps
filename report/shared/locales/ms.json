@@ -53,6 +53,7 @@
     "error_no_net_result": "Buku ini tiada kumpulan yang menggabungkan pendapatan dan perbelanjaan. Tambah satu dalam Bkper untuk melihat hasil bersihnya.",
     "error_unexpected": "Sesuatu telah berlaku. Cuba lagi.",
     "error_unknown_root": "Kumpulan itu bukan kumpulan peringkat teratas Buku ini.",
+    "error_unknown_target": "Kumpulan atau akaun itu tidak lagi berada di tempat laporan ini menemuinya dalam Buku.",
     "error_upstream": "Bkper tidak memberi respons. Cuba lagi sebentar lagi.",
     "hint_not_a_report": "Ini tidak kelihatan seperti laporan Buku ini. Namakan kumpulan dan tempoh, atau pilih cadangan.",
     "input_label": "Permintaan laporan",

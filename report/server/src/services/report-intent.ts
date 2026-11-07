@@ -16,8 +16,10 @@ export { NET_RESULT_ROOT, REPORT_CHARTS, REPORT_VIEWS, type ChartPreference, typ
 
 /** What to report, fully resolved: the report is computed from this alone. */
 export const ReportIntentSchema = z.object({
-    /** Root group id, or {@link NET_RESULT_ROOT}. */
+    /** Root group id, the id of an account in no group, or {@link NET_RESULT_ROOT}. */
     root: z.string().min(1).max(MAX_ROOT_LENGTH),
+    /** A group or account under the root group, by id, to report instead of the whole root. */
+    target: z.string().min(1).max(MAX_ROOT_LENGTH).optional(),
     /** A period id; see `periods.ts`. */
     period: z.string().regex(PERIOD_ID_PATTERN),
     /** Whether to show the period by month. */

@@ -7,7 +7,8 @@
  *
  * The snapshot is the Book's map: it holds no amounts. For each Book it times cold loads (no
  * cache) and a warm load, checks the snapshot tree against `bkper group list` and
- * `bkper account list`, and checks the months each group and account had movements in against
+ * `bkper account list` (and the accounts in no group, with their type, against the accounts
+ * the CLI lists without groups), and checks the months each group and account had movements in against
  * `bkper balance list` by month: every month with a balance in the CLI is one, and each is a
  * month the CLI lists (a month whose movements net to zero shows zero there). Uses your
  * `bkper auth token`; never writes to a Book.
@@ -41,6 +42,7 @@ interface CliGroup {
 interface CliAccount {
     id: string;
     name: string;
+    type?: string;
     archived?: boolean;
     groups?: { id: string }[];
 }
@@ -101,7 +103,8 @@ async function verifyBook(bkper: Bkper, bookId: string, now: () => Date): Promis
     const sorted = [...timings].sort((a, b) => a - b);
     console.log(
         `  "${snapshot.book.name}": ${snapshot.roots.length} roots, ${Object.keys(snapshot.groups).length} groups, ` +
-            `${Object.keys(snapshot.accounts).length} accounts, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}, ` +
+            `${Object.keys(snapshot.accounts).length} accounts, ` +
+            `${Object.keys(snapshot.ungrouped).length} in no group, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}, ` +
             `${Math.round(JSON.stringify(snapshot).length / 1024)} KiB; cold median ${Math.round(sorted[Math.floor(sorted.length / 2)])} ms`
     );
 
@@ -145,6 +148,22 @@ function verifyTree(bookId: string, snapshot: Snapshot): void {
                 (leftOut.length ? ` (+${leftOut.length} archived left out by Bkper)` : '')
         );
     }
+    const ungrouped = accounts.filter(account => !account.groups?.length);
+    check(
+        sameSet(
+            Object.keys(snapshot.ungrouped),
+            ungrouped.map(account => account.id)
+        ) &&
+            ungrouped.every(account => {
+                const node = snapshot.ungrouped[account.id];
+                return (
+                    node.name === account.name &&
+                    node.type === account.type &&
+                    node.archived === (account.archived ?? false)
+                );
+            }),
+        `${ungrouped.length} accounts in no group, with their names, types and archived flags`
+    );
 }
 
 /** Checks each root's groups' and accounts' months with movements against the CLI by month. */

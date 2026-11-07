@@ -53,6 +53,7 @@
     "error_no_net_result": "此账簿没有合并收入和支出的分组。请在 Bkper 中添加一个,以查看其净结果。",
     "error_unexpected": "出了点问题,请重试。",
     "error_unknown_root": "该分组不是此账簿的顶级分组。",
+    "error_unknown_target": "该分组或账户已不在此报表在账簿中找到它的位置。",
     "error_upstream": "Bkper 没有响应,请稍后重试。",
     "hint_not_a_report": "这看起来不像此账簿的报表。请输入分组和时间段,或选择一条建议。",
     "input_label": "报表请求",

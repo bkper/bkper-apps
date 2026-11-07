@@ -53,6 +53,7 @@
     "error_no_net_result": "Ta Księga nie ma grupy łączącej przychody i wydatki. Dodaj ją w Bkper, aby zobaczyć wynik netto.",
     "error_unexpected": "Coś poszło nie tak. Spróbuj ponownie.",
     "error_unknown_root": "Ta grupa nie jest grupą najwyższego poziomu tej Księgi.",
+    "error_unknown_target": "Ta grupa lub to konto nie znajduje się już tam, gdzie raport znalazł je w Księdze.",
     "error_upstream": "Bkper nie odpowiedział. Spróbuj ponownie za chwilę.",
     "hint_not_a_report": "To nie wygląda na raport z tej Księgi. Podaj grupę i okres albo wybierz podpowiedź.",
     "input_label": "Prośba o raport",

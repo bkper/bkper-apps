@@ -53,6 +53,7 @@
     "error_no_net_result": "እዚ መዝገብ ሕሳብ ኣታውን ወጻእን ዘጣምር ጉጅለ የብሉን። ጽሩይ ውጽኢቱ ንምርኣይ ኣብ Bkper ሓደ ወስኽ።",
     "error_unexpected": "ገለ ጌጋ ኣጋጢሙ። ደጊምካ ፈትን።",
     "error_unknown_root": "እቲ ጉጅለ ናይዚ መዝገብ ሕሳብ ላዕለዋይ ደረጃ ጉጅለ ኣይኮነን።",
+    "error_unknown_target": "እቲ ጉጅለ ወይ ሕሳብ እዚ ጸብጻብ ኣብ መዝገብ ሕሳብ ዝረኸቦ ቦታ ሕጂ የለን።",
     "error_upstream": "Bkper ኣይመለሰን። ድሕሪ sometime ቁሩብ ደጊምካ ፈትን።",
     "hint_not_a_report": "እዚ ሪፖርት ናይዚ መዝገብ ሕሳብ ዘይመስል እዩ። ጉጅለን ግዜን ጸሓፍ፡ ወይ ሓሳብ ምረጽ።",
     "input_label": "ሕቶ ጸብጻብ",

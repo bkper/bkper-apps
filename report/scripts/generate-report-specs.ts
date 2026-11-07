@@ -165,6 +165,16 @@ const LEDGER_CASES: Case[] = [
         lang: 'ar',
     },
     { id: 'card-empty', intent: intent('g-card', 'last_year'), lang: 'en' },
+    {
+        id: 'banks-target-today',
+        intent: intent('g-assets', 'today', { target: 'g-banks' }),
+        lang: 'en',
+    },
+    {
+        id: 'rent-account-by-month',
+        intent: intent('g-expenses', 'this_year', { monthly: true, target: 'a-rent' }),
+        lang: 'en',
+    },
     { id: 'expenses-this-year-he', intent: intent('g-expenses', 'this_year'), lang: 'he' },
     {
         id: 'mixed-pie-fallback',

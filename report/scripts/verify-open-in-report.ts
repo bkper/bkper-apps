@@ -3,7 +3,10 @@
  * the real report file, from the running app's API, in the Agent's file frame, and the real
  * Report app, in the Book's panel. Read-only, with your `bkper auth token`.
  *
- *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] <bookId>
+ *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--intent=<json>] <bookId>
+ *
+ * The file is of the Book's first suggestion, or of `--intent`, such as a target's
+ * (`{"root":"<group id>","target":"<account id>","period":"this_year","monthly":true}`).
  *
  * Needs the app running locally (`npm run dev`: `--app` defaults to the client at
  * http://localhost:5207, `--api` to the Worker at http://localhost:8809) and Playwright's
@@ -174,12 +177,17 @@ async function api(base: string, token: string, path: string, body?: unknown): P
     return response;
 }
 
-/** The report file the API gives the Agent for the Book's first suggestion. */
-async function reportFile(base: string, token: string, bookId: string): Promise<ReportFile> {
+/** The report file the API gives the Agent for an intent, else the Book's first suggestion. */
+async function reportFile(
+    base: string,
+    token: string,
+    bookId: string,
+    asked?: unknown
+): Promise<ReportFile> {
     const { suggestions } = (await (
         await api(base, token, `/api/v1/books/${bookId}/suggestions?language=en`)
     ).json()) as { suggestions?: { intent: unknown }[] };
-    const intent = suggestions?.[0]?.intent;
+    const intent = asked ?? suggestions?.[0]?.intent;
     if (!intent) throw new Error('The Book has no suggestions');
     const response = await api(base, token, `/api/v1/books/${bookId}/report`, {
         intent,
@@ -251,7 +259,7 @@ async function main(): Promise<void> {
     const [bookId] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
     if (!bookId) {
         throw new Error(
-            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] <bookId>'
+            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--intent=<json>] <bookId>'
         );
     }
     const token = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
@@ -263,7 +271,13 @@ async function main(): Promise<void> {
     const menuUrl =
         appOrigin + menu.slice(new URL(menu.replace(/\$\{[^}]+\}/g, 'x')).origin.length);
 
-    const file = await reportFile(apiBase, token, bookId);
+    const intent = option('intent', '');
+    const file = await reportFile(
+        apiBase,
+        token,
+        bookId,
+        intent ? (JSON.parse(intent) as unknown) : undefined
+    );
     const open = file.data.open;
     const fileState = open && decodeReportState(open.state);
     if (!open || !fileState)

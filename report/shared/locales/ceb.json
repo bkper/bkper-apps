@@ -53,6 +53,7 @@
     "error_no_net_result": "Kini nga Libro walay grupo nga naghiusa sa kita ug gasto. Pagdugang ug usa sa Bkper aron makita ang net result niini.",
     "error_unexpected": "Naay sayop nga nahitabo. Sulayi pag-usab.",
     "error_unknown_root": "Kanang grupo dili top-level nga grupo niining Libro.",
+    "error_unknown_target": "Kanang grupo o account wala na kung asa kini nakaplagi niining report sa Libro.",
     "error_upstream": "Wala motubag ang Bkper. Sulayi pag-usab sa makadiyot.",
     "hint_not_a_report": "Dili kini murag report sa kini nga Libro. Ngalani ang usa ka grupo ug usa ka panahon, o pili ug sugyot.",
     "input_label": "Hangyo sa report",

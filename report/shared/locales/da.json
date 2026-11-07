@@ -53,6 +53,7 @@
     "error_no_net_result": "Dette Regnskab har ingen gruppe, der kombinerer indtægter og udgifter. Tilføj en i Bkper for at se nettoresultatet.",
     "error_unexpected": "Noget gik galt. Prøv igen.",
     "error_unknown_root": "Den gruppe er ikke en topgruppe i dette Regnskab.",
+    "error_unknown_target": "Den gruppe eller konto er ikke længere dér, hvor denne rapport fandt den i Regnskabet.",
     "error_upstream": "Bkper svarede ikke. Prøv igen om et øjeblik.",
     "hint_not_a_report": "Det ligner ikke en rapport fra dette Regnskab. Angiv en gruppe og en periode, eller vælg et forslag.",
     "input_label": "Rapportanmodning",

@@ -53,6 +53,7 @@
     "error_no_net_result": "Buku la ndalama ili alibe gulu lophatikiza ndalama zolowa ndi zotuluka. Onjezani limodzi mu Bkper kuti muone zotsatira zake zonse.",
     "error_unexpected": "Pali cholakwika. Yeseninso.",
     "error_unknown_root": "Gulu limenelo si gulu lapamwamba la Buku la ndalama ili.",
+    "error_unknown_target": "Gulu kapena akaunti iyo siili komwe lipoti ili linaipeza mu Buku la ndalama.",
     "error_upstream": "Bkper sinayankhe. Yesaninso pakanthawi pang'ono.",
     "hint_not_a_report": "Izi sizikuoneka ngati lipoti la Buku la ndalama ili. Tchulani gulu ndi nthawi, kapena sankhani lingaliro.",
     "input_label": "Pempho la lipoti",

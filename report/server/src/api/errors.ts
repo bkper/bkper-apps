@@ -2,7 +2,7 @@ import { BkperError } from 'bkper-js';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HTTPException } from 'hono/http-exception';
 import { BkperAiError } from '../services/decision-client.js';
-import { ReportError } from '../services/report.js';
+import { MissingBalancesError, ReportError } from '../services/report.js';
 import { NotAReportError } from '../services/report-service.js';
 import type { Suggestion } from '../services/suggestions.js';
 import { SavedPromptsError } from '../services/saved-prompts.js';
@@ -17,6 +17,7 @@ export type ApiErrorCode =
     | 'not_a_report'
     | 'future_period'
     | 'unknown_root'
+    | 'unknown_target'
     | 'no_net_result'
     | 'ai_allowance_exhausted'
     | 'upstream_error'
@@ -46,7 +47,10 @@ const HTTP_CODES: Partial<Record<number, ApiErrorCode>> = {
 
 const REPORT_ERROR_MESSAGES = {
     future_period: 'The period has not started yet.',
-    unknown_root: 'The intent names no root group of this Book, nor `net-result`.',
+    unknown_root:
+        'The intent names no root group of this Book, no Account in no group, nor `net-result`.',
+    unknown_target:
+        'The intent’s target is no group or Account under its root group. Take the intent of a suggestion or of an earlier report, or send the person’s words as `prompt`.',
     no_net_result:
         'This Book has no net result: no group combines its Incoming and Outgoing groups. Tell the person to add one in Bkper (a top-level group holding the income and expense groups), or ask for one of its groups.',
 } as const;
@@ -83,6 +87,9 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
     }
     if (error instanceof ReportError && error.reason !== 'no_activity_roots') {
         return respond(422, error.reason, REPORT_ERROR_MESSAGES[error.reason]);
+    }
+    if (error instanceof MissingBalancesError) {
+        return respond(502, 'upstream_error', 'Bkper failed to answer.');
     }
     if (error instanceof BkperAiError) {
         return error.code === 'usage_limit_exceeded'

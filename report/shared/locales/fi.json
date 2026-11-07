@@ -53,6 +53,7 @@
     "error_no_net_result": "Tässä Kirjassa ei ole ryhmää, joka yhdistää tulot ja menot. Lisää sellainen Bkperissä nähdäksesi nettotuloksen.",
     "error_unexpected": "Jokin meni pieleen. Yritä uudelleen.",
     "error_unknown_root": "Tuo ryhmä ei ole tämän Kirjan ylimmän tason ryhmä.",
+    "error_unknown_target": "Tämä ryhmä tai tili ei ole enää siellä, mistä tämä raportti sen Kirjasta löysi.",
     "error_upstream": "Bkper ei vastannut. Yritä hetken kuluttua uudelleen.",
     "hint_not_a_report": "Tämä ei näytä tämän Kirjan raportilta. Nimeä ryhmä ja ajanjakso tai valitse ehdotus.",
     "input_label": "Raporttipyyntö",

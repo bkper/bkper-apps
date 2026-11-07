@@ -125,7 +125,7 @@ describe('loadSnapshot', () => {
         await kv.put('snapshot:v1:user-1:book-1', JSON.stringify({ stale: true }));
         const snapshot = await loadSnapshot('book-1', options(new FakeBkper(), kv));
         expect(snapshot).not.toHaveProperty('stale');
-        expect(snapshotKey('user-1', 'book-1')).toBe('snapshot:v2:user-1:book-1');
+        expect(snapshotKey('user-1', 'book-1')).toBe('snapshot:v3:user-1:book-1');
     });
 
     it('fails without caching when a query fails', async () => {

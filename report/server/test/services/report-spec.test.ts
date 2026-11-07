@@ -249,6 +249,24 @@ describe('buildReportSpec', () => {
         expect(element(group, 'Source').props.calculated).toBeUndefined();
     });
 
+    it('titles a target by its name and breaks it down, but an account, which has no parts', async () => {
+        const banks = await spec(intent('g-assets', 'today', { target: 'g-banks' }));
+        expect(element(banks, 'Report').props.title).toBe('Banks');
+        expect(labels(element(banks, 'BreakdownTable').props.rows)).toEqual(['Bank A']);
+
+        for (const request of [
+            intent('g-expenses', '2026', { monthly: true, target: 'a-rent' }),
+            intent('a-owner', 'today'),
+        ]) {
+            const account = await spec(request);
+            const types = Object.values(account.elements).map(candidate => candidate.type);
+            expect(types).not.toContain('BreakdownTable');
+            expect(types).toContain('Answer');
+            expect(validateReportSpec(account).valid).toBe(true);
+        }
+        expect(element(await spec(intent('a-owner', 'today')), 'Report').props.title).toBe('Owner');
+    });
+
     it('keeps Bkper names verbatim and nests rows like the report', async () => {
         const built = await spec(intent('g-assets', 'today'));
         expect(labels(element(built, 'BreakdownTable').props.rows)).toEqual([

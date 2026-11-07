@@ -53,6 +53,7 @@
     "error_no_net_result": "Questo libro contabile non ha un gruppo che combini entrate e uscite. Aggiungine uno in Bkper per vedere il suo risultato netto.",
     "error_unexpected": "Qualcosa è andato storto. Riprova.",
     "error_unknown_root": "Quel gruppo non è un gruppo di primo livello di questo libro contabile.",
+    "error_unknown_target": "Quel gruppo o conto non si trova più dove questo report l'aveva trovato nel Libro contabile.",
     "error_upstream": "Bkper non ha risposto. Riprova tra un momento.",
     "hint_not_a_report": "Questa non sembra una richiesta di report di questo Libro contabile. Indica un gruppo e un periodo, oppure scegli un suggerimento.",
     "input_label": "Richiesta di report",

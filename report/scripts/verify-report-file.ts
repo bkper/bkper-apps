@@ -375,7 +375,8 @@ async function checkChoice(
                 chartTop: chart ? chart.top + scrollY : undefined,
                 chartBottom: chart ? chart.bottom + scrollY : undefined,
                 height: chart?.height ?? 0,
-                tableTop: (table?.top ?? 0) + scrollY,
+                // A report of an account has no table: an account has no parts.
+                tableTop: table ? table.top + scrollY : undefined,
             };
         });
     const initial = await layout();
@@ -406,7 +407,11 @@ async function checkChoice(
         if (position.chartTop !== undefined && position.bottom > position.chartTop) {
             failures.push('The previews are not above the chart');
         }
-        if (position.chartBottom !== undefined && position.tableTop < position.chartBottom) {
+        if (
+            position.chartBottom !== undefined &&
+            position.tableTop !== undefined &&
+            position.tableTop < position.chartBottom
+        ) {
             failures.push('The breakdown table is not below the chart');
         }
     }

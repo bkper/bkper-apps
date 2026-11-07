@@ -53,6 +53,7 @@
     "error_no_net_result": "Aquest Llibre no té cap grup que combini ingressos i despeses. Afegeix-ne un a Bkper per veure'n el resultat net.",
     "error_unexpected": "Alguna cosa ha anat malament. Torna-ho a provar.",
     "error_unknown_root": "Aquest grup no és un grup de nivell superior d'aquest Llibre.",
+    "error_unknown_target": "Aquest grup o compte ja no és on aquest informe el va trobar al Llibre.",
     "error_upstream": "Bkper no ha respost. Torna-ho a provar d'aquí a un moment.",
     "hint_not_a_report": "Això no sembla un informe d'aquest Llibre. Indica un grup i un període, o tria un suggeriment.",
     "input_label": "Sol·licitud d'informe",

@@ -53,6 +53,7 @@
     "error_no_net_result": "Hierdie Boek het geen groep wat inkomste en uitgawes kombineer nie. Voeg een in Bkper by om die netto resultaat te sien.",
     "error_unexpected": "Iets het skeefgeloop. Probeer weer.",
     "error_unknown_root": "Daardie groep is nie 'n topvlak-groep van hierdie Boek nie.",
+    "error_unknown_target": "Daardie groep of rekening is nie meer waar hierdie verslag dit in die Boek gevind het nie.",
     "error_upstream": "Bkper het nie gereageer nie. Probeer oor 'n oomblik weer.",
     "hint_not_a_report": "Dit lyk nie na 'n verslag van hierdie Boek nie. Noem 'n groep en 'n tydperk, of kies 'n voorstel.",
     "input_label": "Verslagversoek",

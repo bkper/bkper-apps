@@ -53,6 +53,7 @@
     "error_no_net_result": "Liv kont sa a pa gen gwoup ki konbine revni ak depans. Ajoute youn nan Bkper pou w wè rezilta nèt li.",
     "error_unexpected": "Gen yon bagay ki pa mache. Eseye ankò.",
     "error_unknown_root": "Gwoup sa a pa yon gwoup nivo siperyè nan Liv kont sa a.",
+    "error_unknown_target": "Gwoup oswa kont sa a pa nan kote rapò sa a te jwenn li nan Liv kont la ankò.",
     "error_upstream": "Bkper pa reponn. Eseye ankò nan yon ti moman.",
     "hint_not_a_report": "Sa a pa sanble yon rapò Liv kont sa a. Site yon gwoup ak yon peryòd, oswa chwazi yon sijesyon.",
     "input_label": "Demann rapò",

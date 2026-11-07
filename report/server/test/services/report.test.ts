@@ -2,6 +2,7 @@ import { Amount } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
 import type { QueryBalances } from '../../src/services/balances';
 import {
+    MissingBalancesError,
     ReportError,
     buildReport,
     planQueries,
@@ -319,6 +320,189 @@ describe('buildReport: position', () => {
             kind: 'line',
             series: [{ id: 'g-assets', amounts: ['3899.5', '7849.25'] }],
         });
+    });
+});
+
+describe('buildReport: a target under its root', () => {
+    const plan = async (request: ReportIntent, ledger: FakeLedger = fixtureLedger()) =>
+        planQueries(planReport(request, await ledgerSnapshot(ledger)));
+
+    it('reads a nested group from its root’s queries, with no query of its own', async () => {
+        const request = intent('g-assets', 'today', { target: 'g-banks' });
+        expect(await plan(request)).toEqual(await plan(intent('g-assets', 'today')));
+
+        const data = await report(request);
+        expect(data.nature).toBe('position');
+        expect(data.root).toEqual({ id: 'g-banks', name: 'Banks', type: 'ASSET', color: 'blue' });
+        expect(data.account).toBeUndefined();
+        expect(data.answer).toEqual({ amount: '7749.25', previous: '3799.5', change: '1.0395' });
+        // Bank B has no amount in either period.
+        expect(rows(data.breakdown)).toEqual([
+            'Bank A 7749.25 (prev 3799.5, change 1.0395, share 1)',
+        ]);
+        // The link to Bkper shows the target's own transactions.
+        expect(data.query).toBe("group:'Banks' before:2026-11-06");
+        expect(data.url).toContain(encodeURIComponent("group:'Banks' before:2026-11-06"));
+    });
+
+    it('reads an account by month from its root’s queries', async () => {
+        const request = intent('g-expenses', '2026', { monthly: true, target: 'a-rent' });
+        expect(await plan(request)).toEqual([
+            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
+            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
+        ]);
+
+        const data = await report(request);
+        expect(data.nature).toBe('activity');
+        expect(data.root).toEqual({ id: 'a-rent', name: 'Rent', type: 'OUTGOING', color: 'red' });
+        expect(data.account).toBe(true);
+        expect(data.answer).toEqual({ amount: '3000', previous: '1000', change: '2' });
+        expect(data.breakdown).toEqual([]);
+        expect(data.query).toBe("account:'Rent' after:2026-01-01 before:2026-11-06");
+        expect(data.chart).toEqual({
+            kind: 'bar',
+            series: [
+                {
+                    id: 'a-rent',
+                    name: 'Rent',
+                    type: 'OUTGOING',
+                    color: 'red',
+                    amounts: ['0', '0', '0', '0', '0', '0', '0', '1000', '0', '1000', '1000'],
+                },
+            ],
+        });
+        // An account has no parts to slice, rank or compare.
+        expect(kinds(data)).toEqual(['bar', 'area', 'table']);
+    });
+
+    it('reads an account the same from any root that holds it', async () => {
+        const expenses = await report(intent('g-expenses', 'last_month', { target: 'a-rent' }));
+        const net = await report(intent('g-net', 'last_month', { target: 'a-rent' }));
+        expect(await plan(intent('g-net', 'last_month', { target: 'a-rent' }))).toEqual([
+            "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Net income' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        expect(net.answer).toEqual(expenses.answer);
+        expect(net.answer).toEqual({ amount: '1000', previous: '0' });
+        expect(net.query).toBe(expenses.query);
+    });
+
+    it('shows each amount as a query of the target alone returns it', async () => {
+        const ledger = fixtureLedger();
+        const cases = [
+            { request: intent('g-assets', '2026-Q4', { target: 'g-banks' }), name: 'Banks' },
+            { request: intent('g-expenses', 'this_month', { target: 'a-food' }), name: 'Food' },
+        ];
+        for (const { request, name } of cases) {
+            const data = await report(request, ledger);
+            const own = ledgerBalances(ledger, `${data.query} by:m`);
+            const node = own.groups[name] ?? own.accounts[name];
+            expect(data.answer.amount).toBe(
+                data.nature === 'position' ? node.cumulative : node.period
+            );
+        }
+    });
+
+    it('filters the root’s queries by the hashtags', async () => {
+        const request = intent('g-expenses', 'last_month', {
+            target: 'a-food',
+            hashtags: ['trip'],
+        });
+        expect(await plan(request)).toEqual([
+            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        const data = await report(request);
+        expect(data.answer).toEqual({ amount: '200.5', previous: '0' });
+        expect(data.query).toBe("account:'Food' #trip after:2026-10-01 before:2026-11-01");
+        const rent = await report({ ...request, target: 'a-rent' });
+        expect(rent.answer).toEqual({ amount: '0', previous: '0' });
+    });
+
+    it('reads a position with hashtags from the start, as for its root', async () => {
+        const request = intent('g-assets', '2026-Q4', {
+            monthly: true,
+            target: 'a-bank-a',
+            hashtags: ['trip'],
+        });
+        expect(await plan(request)).toEqual([
+            "group:'Assets' #trip before:2026-11-06 by:m",
+            "group:'Assets' #trip before:2026-10-01 by:m",
+        ]);
+        const data = await report(request);
+        expect(data.answer).toMatchObject({ amount: '-1200.5', previous: '0' });
+        expect(data.chart).toMatchObject({
+            kind: 'line',
+            series: [{ id: 'a-bank-a', amounts: ['-200.5', '-1200.5'] }],
+        });
+    });
+
+    it('reads an account in no group with a query of its own', async () => {
+        const request = intent('a-owner', '2026', { monthly: true });
+        expect(await plan(request)).toEqual([
+            "account:'Owner' after:2026-01-01 before:2026-11-06 by:m",
+            "account:'Owner' before:2026-01-01 by:m",
+        ]);
+        const data = await report(request);
+        expect(data.nature).toBe('position');
+        expect(data.root).toEqual({
+            id: 'a-owner',
+            name: 'Owner',
+            type: 'LIABILITY',
+            color: 'yellow',
+        });
+        expect(data.answer).toEqual({ amount: '2110', previous: '1110', change: '0.9009' });
+        expect(data.breakdown).toEqual([]);
+        expect(data.query).toBe("account:'Owner' before:2026-11-06");
+        expect(data.chart).toMatchObject({
+            kind: 'line',
+            series: [
+                { id: 'a-owner', amounts: [...Array(7).fill('1110'), ...Array(4).fill('2110')] },
+            ],
+        });
+    });
+
+    it('never shows zero for an account in no group that Bkper’s answer leaves out', async () => {
+        // Bkper answers no balances at all when it does not find an account by its name, as
+        // for some accounts of older Books; one it finds comes back, at zero or not.
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const request = intent('a-owner', 'last_month');
+        const balances = balancesOf(request, snapshot, ledger);
+        delete balances[0].accounts.Owner;
+        expect(() => buildReport(request, snapshot, balances)).toThrow(MissingBalancesError);
+
+        // An archived account Bkper leaves out at zero is zero.
+        snapshot.ungrouped['a-owner'].archived = true;
+        expect(buildReport(request, snapshot, balances).answer.amount).toBe('0');
+    });
+
+    it('rejects a target that is not under its root', async () => {
+        const snapshot = await fixtureSnapshot();
+        const targets: [string, string][] = [
+            ['g-expenses', 'missing'],
+            // In the Book, under another root.
+            ['g-expenses', 'a-salary'],
+            ['g-expenses', 'g-banks'],
+            // The root itself, which an intent names without a target.
+            ['g-assets', 'g-assets'],
+            ['net-result', 'a-rent'],
+            ['a-owner', 'a-owner'],
+            ['g-expenses', 'a-owner'],
+        ];
+        for (const [root, target] of targets) {
+            expect(
+                () => planReport(intent(root, 'last_month', { target }), snapshot),
+                `${root} ${target}`
+            ).toThrow(expect.objectContaining({ reason: 'unknown_target' }));
+        }
+    });
+
+    it('rejects an account in a group as a root', async () => {
+        const snapshot = await fixtureSnapshot();
+        expect(() => planReport(intent('a-rent', 'last_month'), snapshot)).toThrow(
+            expect.objectContaining({ reason: 'unknown_root' })
+        );
     });
 });
 

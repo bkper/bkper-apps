@@ -53,6 +53,7 @@
     "error_no_net_result": "Buku ini tidak memiliki grup yang menggabungkan pendapatan dan beban. Tambahkan satu di Bkper untuk melihat hasil bersihnya.",
     "error_unexpected": "Terjadi kesalahan. Coba lagi.",
     "error_unknown_root": "Grup itu bukan grup tingkat teratas dari Buku ini.",
+    "error_unknown_target": "Grup atau akun itu tidak lagi berada di tempat laporan ini menemukannya di Buku.",
     "error_upstream": "Bkper tidak merespons. Coba lagi sebentar lagi.",
     "hint_not_a_report": "Ini tidak tampak seperti laporan Buku ini. Sebutkan grup dan periode, atau pilih salah satu saran.",
     "input_label": "Permintaan laporan",

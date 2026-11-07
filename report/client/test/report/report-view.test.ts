@@ -78,8 +78,22 @@ describe('<report-view>', () => {
             if (Object.values(spec.elements).some(element => element.type === 'Chart')) {
                 expected.push(expect.stringContaining('chart'));
             }
-            expect(order, id).toEqual([...expected, 'breakdown-section', 'source']);
+            // A report of an account has no table: an account has no parts.
+            if (Object.values(spec.elements).some(element => element.type === 'BreakdownTable')) {
+                expected.push('breakdown-section');
+            }
+            expect(order, id).toEqual([...expected, 'source']);
         }
+    });
+
+    it('shows a report of an account without a table of parts, and of a group with its own', async () => {
+        const account = await mount(gallerySpec('rent-account-by-month'));
+        expect(root(account).querySelector('.breakdown-section')).toBeNull();
+        expect(root(account).querySelector('.report-header h1')?.textContent).toBe('Rent');
+        expect(root(account).querySelector('.chart')).not.toBeNull();
+        const group = await mount(gallerySpec('banks-target-today'));
+        expect(root(group).querySelector('.report-header h1')?.textContent).toBe('Banks');
+        expect(root(group).querySelectorAll('.breakdown-section tbody tr')).toHaveLength(1);
     });
 
     it('draws every chart kind with its Web Awesome chart, and no chart for a table', async () => {

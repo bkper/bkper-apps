@@ -53,6 +53,7 @@
     "error_no_net_result": "Nid oes gan y Llyfr cyfrifon hwn grŵp sy'n cyfuno incwm a threuliau. Ychwanegwch un yn Bkper i weld ei ganlyniad net.",
     "error_unexpected": "Aeth rhywbeth o'i le. Rhowch gynnig arall arni.",
     "error_unknown_root": "Nid yw'r grŵp hwnnw'n grŵp lefel uchaf yn y Llyfr cyfrifon hwn.",
+    "error_unknown_target": "Nid yw'r grŵp neu'r cyfrif hwnnw bellach lle daeth yr adroddiad hwn o hyd iddo yn y Llyfr cyfrifon.",
     "error_upstream": "Ni wnaeth Bkper ymateb. Rhowch gynnig arall arni ymhen ychydig.",
     "hint_not_a_report": "Nid yw hyn yn edrych fel adroddiad o'r Llyfr cyfrifon hwn. Enwch grŵp a chyfnod, neu dewiswch awgrym.",
     "input_label": "Cais am adroddiad",

@@ -53,6 +53,7 @@
     "error_no_net_result": "Stu Libru cuntabile ùn hà nisun gruppu chì cumbina i ricavi è e spese. Aghjunghje unu in Bkper per vede u risultatu nettu.",
     "error_unexpected": "Qualcosa hè andatu male. Prova torna.",
     "error_unknown_root": "Quessu gruppu ùn hè micca un gruppu di primu livellu di stu Libru cuntabile.",
+    "error_unknown_target": "Quellu gruppu o contu ùn hè più induve stu raportu l'avia trovu in u Libru cuntabile.",
     "error_upstream": "Bkper ùn hà micca risposu. Prova torna in un mumentu.",
     "hint_not_a_report": "Ùn pare micca un raportu di stu Libru cuntabile. Scrivi un gruppu è un periodu, o sceglie un suggerimentu.",
     "input_label": "Dumanda di raportu",

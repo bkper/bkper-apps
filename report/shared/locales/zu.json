@@ -53,6 +53,7 @@
     "error_no_net_result": "Leli Ibhuku alinaso Iqembu elihlanganisa imali engenayo nezindleko. Engeza elilodwa ku-Bkper ukuze ubone umphumela oyinet.",
     "error_unexpected": "Kukhona okungahambanga kahle. Zama futhi.",
     "error_unknown_root": "Leli qembu akulona iqembu eliphezulu kule Bhuku.",
+    "error_unknown_target": "Leli qembu noma i-akhawunti ayisekho lapho le ripoti yayithole khona e-Ibhuku.",
     "error_upstream": "I-Bkper ayizange iphendule. Zama futhi ngemuva kwesikhashana.",
     "hint_not_a_report": "Lokhu akubukeki njengombiko walelo Bhuku. Bhala iqembu nesikhathi, noma ukhethe isincomo.",
     "input_label": "Isicelo sombiko",

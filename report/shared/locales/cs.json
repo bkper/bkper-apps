@@ -53,6 +53,7 @@
     "error_no_net_result": "Tato Kniha nemá skupinu, která by spojovala příjmy a výdaje. Přidejte ji v Bkper, abyste viděli čistý výsledek.",
     "error_unexpected": "Něco se pokazilo. Zkuste to znovu.",
     "error_unknown_root": "Tato skupina není skupinou nejvyšší úrovně této Knihy.",
+    "error_unknown_target": "Tato skupina nebo účet už není tam, kde je tento report našel v Knize.",
     "error_upstream": "Bkper neodpověděl. Zkuste to znovu za chvíli.",
     "hint_not_a_report": "Tohle nevypadá jako přehled této Knihy. Zadejte skupinu a období, nebo vyberte návrh.",
     "input_label": "Požadavek na report",

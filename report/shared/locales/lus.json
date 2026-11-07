@@ -53,6 +53,7 @@
     "error_no_net_result": "He Ledger-ah hian income leh expense hmangkawm Pawl a awm lo. A net result en turin Bkper-ah pakhat belhrawh.",
     "error_unexpected": "Engemaw a tha ral a. Intih leh rawh.",
     "error_unknown_root": "Chu Pawl chu he Ledger hi top-level Pawl a ni lo.",
+    "error_unknown_target": "Chu Pawl emaw Account chu he report hian Ledger-ah a hmuh nachâng hmunah a awm tawh lo.",
     "error_upstream": "Bkper chuan a chhân lo. Chawlhkar hnuah ti nawn rawh.",
     "hint_not_a_report": "He hi he Ledger report ang a ni lo. Pawl leh hun chhut la, emaw suggestion pakhat thlang rawh.",
     "input_label": "Report dilna",

@@ -53,6 +53,7 @@
     "error_no_net_result": "Tsy misy vondrona mampiray ny fidiram-bola sy ny fandaniana ao amin'ity Bokin'ny kaonty ity. Ampidiro ao Bkper iray hahitana ny vokatra net.",
     "error_unexpected": "Nisy zavatra tsy nety. Andramo indray.",
     "error_unknown_root": "Tsy vondrona ambony indrindra amin'ity Bokin'ny kaonty ity ilay vondrona.",
+    "error_unknown_target": "Tsy eo amin'ny toerana nahitan'ity tatitra ity azy ao amin'ny Bokin'ny kaonty intsony io Vondrona na kaonty io.",
     "error_upstream": "Tsy namaly i Bkper. Andramo indray afaka kelikely.",
     "hint_not_a_report": "Tsy toa tatitra momba ity Bokin'ny kaonty ity izany. Ataovy ny vondrona sy ny vanim-potoana, na misafidiana soso-kevitra.",
     "input_label": "Fangatahana tatitra",

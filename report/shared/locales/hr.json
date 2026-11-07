@@ -53,6 +53,7 @@
     "error_no_net_result": "Ova knjiga nema grupu koja kombinira prihode i rashode. Dodaj je u Bkperu da vidiš njezin neto rezultat.",
     "error_unexpected": "Nešto je pošlo po zlu. Pokušaj ponovo.",
     "error_unknown_root": "Ta grupa nije grupa najviše razine u ovoj knjizi.",
+    "error_unknown_target": "Ta grupa ili račun više nije na mjestu na kojem ga je ovo izvješće pronašlo u Knjizi.",
     "error_upstream": "Bkper nije odgovorio. Pokušaj ponovno za trenutak.",
     "hint_not_a_report": "Ovo ne izgleda kao izvještaj ove Knjige. Navedi grupu i razdoblje ili odaberi prijedlog.",
     "input_label": "Zahtjev za izvješće",

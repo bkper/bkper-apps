@@ -53,6 +53,7 @@
     "error_no_net_result": "Hic Liber rationum gregem non habet qui reditus et impensas coniungat. Adde unum in Bkper ut eventum eius purum videas.",
     "error_unexpected": "Aliquid erravit. Iterum conare.",
     "error_unknown_root": "Ille grex non est grex summi gradus huius Libri rationum.",
+    "error_unknown_target": "Grex vel ratio illa non iam est ubi haec relatio eam in Libro rationum invenerat.",
     "error_upstream": "Bkper non respondit. Paulo post iterum tenta.",
     "hint_not_a_report": "Hoc non videtur relatio huius Libri rationum. Nomina gregem et tempus, aut elige suggestionem.",
     "input_label": "Petitio relationis",

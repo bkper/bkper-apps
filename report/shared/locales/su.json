@@ -53,6 +53,7 @@
     "error_no_net_result": "Buku ieu teu ngagaduhan Grup anu ngagabungkeun panghasilan jeung biaya. Tambihkeun hiji dina Bkper pikeun ningali hasil bersihna.",
     "error_unexpected": "Aya nu salah. Cobian deui.",
     "error_unknown_root": "Grup éta lain grup tingkat luhur Buku ieu.",
+    "error_unknown_target": "Grup atawa akun éta geus teu aya deui di tempat laporan ieu manggihanana dina Buku.",
     "error_upstream": "Bkper henteu ngabales. Cobian deui sakedap.",
     "hint_not_a_report": "Ieu sigana lain laporan tina Buku ieu. Sebutkeun grup jeung période, atawa pilih saran.",
     "input_label": "Pamundut laporan",

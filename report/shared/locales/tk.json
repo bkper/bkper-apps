@@ -53,6 +53,7 @@
     "error_no_net_result": "Bu hasap kitabynda girdejini we çykdajylary birleşdirýän topar ýok. Arassa netijäni görmek üçin Bkper-de bir topar goşuň.",
     "error_unexpected": "Nämedir ýalňyşlyk boldy. Gaýtadan synanyşyň.",
     "error_unknown_root": "Bu topar şu Hasap kitabynyň iň ýokary derejeli topary däl.",
+    "error_unknown_target": "Bu topar ýa-da hasap bu hasabatyň Hasap kitabynda tapan ýerinde indi ýok.",
     "error_upstream": "Bkper jogap bermedi. Birazdan ýene synanyşyň.",
     "hint_not_a_report": "Bu şu Hasap kitabynyň hasabatyna meňzemeýär. Topar bilen döwri ýazyň ýa-da teklip saýlaň.",
     "input_label": "Hasabat haýyşy",

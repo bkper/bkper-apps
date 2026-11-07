@@ -53,6 +53,7 @@
     "error_no_net_result": "Šioje knygoje nėra grupės, jungiančios pajamas ir išlaidas. Pridėkite ją Bkper, kad matytumėte grynąjį rezultatą.",
     "error_unexpected": "Kažkas nepavyko. Bandykite dar kartą.",
     "error_unknown_root": "Ši grupė nėra aukščiausio lygio šios Knygos grupė.",
+    "error_unknown_target": "Ši grupė ar sąskaita nebėra ten, kur ją šioje ataskaitoje rado Knygoje.",
     "error_upstream": "Bkper neatsakė. Pabandykite dar kartą po akimirkos.",
     "hint_not_a_report": "Tai nepanašu į šios Knygos ataskaitą. Nurodykite grupę ir laikotarpį arba pasirinkite pasiūlymą.",
     "input_label": "Ataskaitos užklausa",

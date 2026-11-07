@@ -33,6 +33,7 @@ const NOTICES: Partial<Record<string, Notice>> = {
     forbidden: 'error_forbidden',
     future_period: 'error_future_period',
     unknown_root: 'error_unknown_root',
+    unknown_target: 'error_unknown_target',
     no_net_result: 'error_no_net_result',
     upstream_error: 'error_upstream',
 };
@@ -428,11 +429,19 @@ function promptKey(text: string): string {
 }
 
 function intentKey(intent: ReportIntent, language: string): string {
-    const { root, period, monthly, view, hashtags } = intent;
+    const { root, target, period, monthly, view, hashtags } = intent;
     const tags = hashtags?.length ? [...hashtags].sort() : undefined;
     // No chart is the same as `auto`.
     const chart = intent.chart === 'auto' ? undefined : intent.chart;
-    const parts = [root, period, monthly, view ?? null, tags ?? null, chart ?? null];
+    const parts = [
+        root,
+        target ?? null,
+        period,
+        monthly,
+        view ?? null,
+        tags ?? null,
+        chart ?? null,
+    ];
     return `intent:${language}:${JSON.stringify(parts)}`;
 }
 

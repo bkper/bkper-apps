@@ -53,6 +53,7 @@
     "error_no_net_result": "Bu Kitobda daromad va xarajatlarni birlashtiradigan guruh yo‘q. Sof natijani ko‘rish uchun Bkper’da bittasini qo‘shing.",
     "error_unexpected": "Nimadir xato ketdi. Qayta urinib ko‘ring.",
     "error_unknown_root": "Bu guruh ushbu Kitobning yuqori darajali guruhi emas.",
+    "error_unknown_target": "Bu guruh yoki hisob endi hisobot uni Kitobda topgan joyda yo‘q.",
     "error_upstream": "Bkper javob bermadi. Birozdan so‘ng qayta urinib ko‘ring.",
     "hint_not_a_report": "Bu ushbu Kitob hisobotiga o‘xshamaydi. Guruh va davrni kiriting yoki taklifni tanlang.",
     "input_label": "Hisobot so‘rovi",

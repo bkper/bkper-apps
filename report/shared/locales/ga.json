@@ -53,6 +53,7 @@
     "error_no_net_result": "Níl aon ghrúpa sa Leabhar cuntas seo a chomhcheanglaíonn ioncam agus costais. Cuir ceann leis in Bkper chun an toradh glan a fheiceáil.",
     "error_unexpected": "Chuaigh rud éigin cearr. Bain triail eile as.",
     "error_unknown_root": "Ní grúpa uachtarach den Leabhar cuntas seo an grúpa sin.",
+    "error_unknown_target": "Níl an grúpa nó an cuntas sin san áit inar aimsigh an tuarascáil seo é sa Leabhar cuntas a thuilleadh.",
     "error_upstream": "Níor fhreagair Bkper. Bain triail eile as i gceann tamaill.",
     "hint_not_a_report": "Ní léir gur tuarascáil den Leabhar cuntas seo é sin. Ainmnigh grúpa agus tréimhse, nó roghnaigh moladh.",
     "input_label": "Iarratas ar thuairisc",

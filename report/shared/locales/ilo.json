@@ -53,6 +53,7 @@
     "error_no_net_result": "Awan ti grupo daytoy a Libro a mangtipon kadagiti sapul ken gastos. Mangikabil iti maysa idiay Bkper tapno makita ti net a resultana.",
     "error_unexpected": "Adda napaay. Padasenyo manen.",
     "error_unknown_root": "Dayta a Grupo ket saan a kangrunaan a grupo daytoy a Libro.",
+    "error_unknown_target": "Dayta a Grupo wenno akount saanen a adda sadiay nakasarakan daytoy a report iti Libro.",
     "error_upstream": "Saan a simmagot ti Bkper. Padasenyo manen iti sumaruno a sangapanit.",
     "hint_not_a_report": "Saan a kasla report daytoy ti Libro. Ibagayo ti grupo ken panawen, wenno agpili iti suhestion.",
     "input_label": "Kiddaw a report",

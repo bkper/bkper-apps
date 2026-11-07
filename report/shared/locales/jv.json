@@ -53,6 +53,7 @@
     "error_no_net_result": "Buku iki ora duwe grup sing nggabungake pemasukan lan pengeluaran. Tambahake siji ing Bkper kanggo ndeleng asil bersihe.",
     "error_unexpected": "Ana sing salah. Cobanen maneh.",
     "error_unknown_root": "Grup kuwi dudu grup tingkat paling dhuwur ing Buku iki.",
+    "error_unknown_target": "Grup utawa akun iku wis ora ana ing panggonan ing ngendi laporan iki nemokake ing Buku.",
     "error_upstream": "Bkper ora nanggapi. Coba maneh sedhela engkas.",
     "hint_not_a_report": "Iki ora katon kaya laporan Buku iki. Sebutake grup lan wektu, utawa pilih saran.",
     "input_label": "Panyuwunan laporan",

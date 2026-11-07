@@ -53,6 +53,7 @@
     "error_no_net_result": "Dan il-Ktieb m'għandux grupp li jgħaqqad id-dħul u l-infiq. Żid wieħed f'Bkper biex tara r-riżultat nett tiegħu.",
     "error_unexpected": "Ġara xi ħaġa żbaljata. Erġa' pprova.",
     "error_unknown_root": "Dak il-grupp m'huwiex grupp ta' livell ta' fuq ta' dan il-Ktieb.",
+    "error_unknown_target": "Dak il-grupp jew il-kont m'għadux fejn dan ir-rapport sab fil-Ktieb.",
     "error_upstream": "Bkper ma wieġebx. Erġa' pprova wara ftit.",
     "hint_not_a_report": "Din ma tidhirx rapport ta' dan il-Ktieb. Semmi grupp u perjodu, jew agħżel suġġeriment.",
     "input_label": "Talba għal rapport",

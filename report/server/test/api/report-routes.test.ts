@@ -430,6 +430,62 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
     });
 
+    it('builds a report of a target from its root’s queries, titled by the target', async () => {
+        const test = harness();
+        const intent = { root: 'g-assets', target: 'g-banks', period: 'today', monthly: false };
+        const response = await post(test, { intent, language: 'en' });
+
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
+        expect(body).toMatchObject({ intent, query: "group:'Banks' before:2026-11-06" });
+        expect(elementOf(body.spec, 'Report').props.title).toBe('Banks');
+        expect(elementOf(body.spec, 'Answer').props.amount).toBe('7749.25');
+        expect(test.queries).toEqual([
+            "group:'Assets' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Assets' before:2026-11-01 by:m",
+        ]);
+
+        // The report file opens the same target again.
+        const file = await post(test, { intent, language: 'en', format: 'html' });
+        const data = JSON.parse(
+            /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
+                await file.text()
+            )?.[1] ?? ''
+        ) as ReportFileData;
+        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+    });
+
+    it('builds a report of an account in no group with a query of its own', async () => {
+        const test = harness();
+        const response = await post(test, {
+            intent: { root: 'a-owner', period: 'today', monthly: false },
+        });
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+            query: "account:'Owner' before:2026-11-06",
+        });
+        expect(test.queries).toEqual([
+            "account:'Owner' after:2026-11-05 before:2026-11-06 by:m",
+            "account:'Owner' before:2026-11-01 by:m",
+        ]);
+    });
+
+    it('answers upstream_error, never zero, when Bkper does not find an account by its name', async () => {
+        const ledger = fixtureLedger();
+        const answer = ledger.balances.bind(ledger);
+        // Bkper answers no balances at all for an account it does not find.
+        ledger.balances = query =>
+            query.startsWith('account:') ? { periodicity: 'MONTHLY' } : answer(query);
+        const test = harness({ bkper: new FakeBkper({ ledger }) });
+        const response = await post(test, {
+            intent: { root: 'a-owner', period: 'today', monthly: false },
+        });
+
+        expect(response.status).toBe(502);
+        expect(await response.json()).toMatchObject({ error: { code: 'upstream_error' } });
+    });
+
     it('reads a hashtag report with queries filtered by its hashtags', async () => {
         const test = harness({ jev: { root: 'Expenses', period: 'last_month' } });
         const response = await post(test, { prompt: 'expenses last month #trip' });
@@ -498,11 +554,17 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     it.each([
         ['future_period', { root: 'g-expenses', period: '2099', monthly: false }],
         ['unknown_root', { root: 'g-missing', period: 'this_year', monthly: false }],
+        [
+            'unknown_target',
+            { root: 'g-expenses', target: 'a-salary', period: 'this_year', monthly: false },
+        ],
     ])('answers %s for an intent the Book cannot have', async (code, intent) => {
-        const response = await post(harness(), { intent });
+        const test = harness();
+        const response = await post(test, { intent });
 
         expect(response.status).toBe(422);
         expect(await response.json()).toMatchObject({ error: { code } });
+        expect(test.queries).toEqual([]);
     });
 
     it.each([

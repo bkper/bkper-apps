@@ -11,6 +11,12 @@
  *
  * - the answer, as Bkper's balance of the root; for a net result Report calculates, the
  *   Incoming roots minus the Outgoing roots of the CLI, in total, before and in every month;
+ * - reports of targets (subgroups and accounts under each root, read from the root's own
+ *   queries, with no query of their own, and accounts in no group, read with a query of their
+ *   own): every amount as above, against the CLI's query of the target alone; an account under
+ *   a root against its row in the CLI's query of the root, as Bkper does not find some accounts
+ *   of older Books by name (`account:'<name>'` answers nothing), and an account in no group
+ *   Bkper does not find so is no report, never a zero;
  * - every row of the breakdown, at any depth, as Bkper's own balance of its group or account,
  *   now, before and in each month: no sign changed, no remainder; and that every group or
  *   account the CLI lists with an amount is a row, so nothing Bkper returns is hidden;
@@ -34,8 +40,9 @@ import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
 import { readQueryBalances } from '../server/src/services/balances.ts';
-import type { DateRange } from '../server/src/services/periods.ts';
+import { addDays, type DateRange } from '../server/src/services/periods.ts';
 import {
+    MissingBalancesError,
     ReportError,
     buildReport,
     planQueries,
@@ -50,7 +57,7 @@ import {
     REPORT_CHARTS,
     type ReportIntent,
 } from '../server/src/services/report-intent.ts';
-import type { Snapshot } from '../server/src/services/snapshot.ts';
+import { quote, type Snapshot } from '../server/src/services/snapshot.ts';
 import {
     currentUserId,
     loadSnapshot,
@@ -162,9 +169,17 @@ function shown(nature: Nature, cli: Amount): Amount {
     return nature.credit === nature.permanent ? cli.times(-1) : cli;
 }
 
+/** A group, an account or an account in no group of the map, by id. */
+function nodeOf(
+    snapshot: Snapshot,
+    id: string
+): { name: string; credit: boolean; permanent: boolean } | undefined {
+    return snapshot.groups[id] ?? snapshot.accounts[id] ?? snapshot.ungrouped[id];
+}
+
 /** A row's nature: its group's or account's in the map, else that of its type. */
 function natureOf(snapshot: Snapshot, row: { id: string; type: string }): Nature {
-    const node = snapshot.groups[row.id] ?? snapshot.accounts[row.id];
+    const node = nodeOf(snapshot, row.id);
     if (node) {
         return { credit: node.credit, permanent: node.permanent };
     }
@@ -207,13 +222,60 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
         { root, period: range.lastMonth, monthly: false, chart: 'compare' as const },
         { root, period: range.lastMonth, monthly: false, chart: 'waterfall' as const },
     ]);
+    const targets = targetsOf(snapshot, lastYear);
+    for (const target of targets) {
+        intents.push(
+            { ...target, period: lastYear, monthly: true },
+            { ...target, period: quarter, monthly: false },
+            { ...target, period: range.lastMonth, monthly: false, chart: 'compare' },
+            { ...target, period: 'today', monthly: false }
+        );
+    }
     for (const hashtag of hashtags) {
-        for (const root of roots) {
-            intents.push({ root, period: 'all', monthly: false, hashtags: [hashtag] });
-            intents.push({ root, period: lastYear, monthly: true, hashtags: [hashtag] });
+        for (const root of [...roots, ...targets]) {
+            const target = typeof root === 'string' ? { root } : root;
+            intents.push({ ...target, period: 'all', monthly: false, hashtags: [hashtag] });
+            intents.push({ ...target, period: lastYear, monthly: true, hashtags: [hashtag] });
         }
     }
     return intents;
+}
+
+/** Accounts of a root read for its targets, the busiest in the year first. */
+const ACCOUNT_TARGETS = 2;
+/** Accounts in no group read, the first in the Book. */
+const UNGROUPED_TARGETS = 3;
+
+/**
+ * Targets of reports: every subgroup and the busiest accounts of each root, under it, and a few
+ * accounts in no group, each a root of its own.
+ */
+function targetsOf(snapshot: Snapshot, year: string): Pick<ReportIntent, 'root' | 'target'>[] {
+    const targets: Pick<ReportIntent, 'root' | 'target'>[] = [];
+    for (const root of snapshot.roots) {
+        const groups: string[] = [];
+        const accounts = new Set<string>();
+        const collect = (id: string): void => {
+            const group = snapshot.groups[id];
+            group.accounts.forEach(account => accounts.add(account));
+            group.groups.forEach(child => {
+                groups.push(child);
+                collect(child);
+            });
+        };
+        collect(root);
+        const busy = (id: string) =>
+            snapshot.accounts[id].activeMonths.filter(month => month.startsWith(year)).length;
+        const busiest = [...accounts]
+            .filter(id => busy(id) > 0)
+            .sort((a, b) => busy(b) - busy(a))
+            .slice(0, ACCOUNT_TARGETS);
+        targets.push(...[...groups, ...busiest].map(target => ({ root, target })));
+    }
+    const ungrouped = Object.values(snapshot.ungrouped)
+        .filter(account => !account.archived)
+        .slice(0, UNGROUPED_TARGETS);
+    return [...targets, ...ungrouped.map(account => ({ root: account.id }))];
 }
 
 /**
@@ -317,8 +379,22 @@ async function computeReport(
     return { report, computeMs: performance.now() - start, queriesMs, queries: queries.length };
 }
 
-function withDates(report: ReportData, range: DateRange): string {
-    const filter = report.query.replace(/ (after:\S+ )?before:\S+$/, '');
+/**
+ * The CLI query a report is checked against: the report's own, but for an account under a
+ * root, whose root's query lists it, as Bkper does not find some accounts by name.
+ */
+function cliQuery(report: ReportData, snapshot: Snapshot): string {
+    const { root, target } = report.intent;
+    const account = target === undefined ? undefined : snapshot.accounts[target];
+    if (!account) {
+        return report.query;
+    }
+    const own = `account:${quote(account.name)}`;
+    return `group:${quote(snapshot.groups[root].name)}${report.query.slice(own.length)}`;
+}
+
+function withDates(report: ReportData, query: string, range: DateRange): string {
+    const filter = query.replace(/ (after:\S+ )?before:\S+$/, '');
     return report.nature === 'position' || range.after === undefined
         ? `${filter} before:${range.before}`
         : `${filter} after:${range.after} before:${range.before}`;
@@ -333,6 +409,8 @@ interface CliCheck {
     cumulative: boolean;
     /** Whether the report and the CLI table both have amounts by month to compare. */
     byMonth: boolean;
+    /** Whether the CLI table is of the report's own group or account, not of its root's. */
+    own: boolean;
     /** The CLI amount of a group or account by name, in the sign Bkper shows for it. */
     total(rows: CliTable | undefined, name: string, nature: Nature): Amount;
     /** The CLI amount of a group or account by name in a month of the report. */
@@ -351,9 +429,12 @@ async function verifyReport(
     const read = async (query: string) =>
         cliRows(await cli.balances(bookId, query), !query.includes('after:'));
     const cumulative = !report.query.includes('after:');
+    const query = cliQuery(report, snapshot);
     const [current, previous] = await Promise.all([
-        read(report.query),
-        report.previous ? read(withDates(report, report.previous)) : Promise.resolve(undefined),
+        read(query),
+        report.previous
+            ? read(withDates(report, query, report.previous))
+            : Promise.resolve(undefined),
     ]);
     const problems: string[] = [];
     const same = (what: string, actual: string | undefined, expected: Amount) => {
@@ -374,19 +455,25 @@ async function verifyReport(
         previous,
         cumulative,
         byMonth,
+        own: query === report.query,
         total,
         month,
         same,
     };
 
     problems.push(...netProblems(report, net));
+    problems.push(...targetProblems(report, snapshot));
     if (report.calculated) {
         problems.push(...calculatedProblems(report, cliCheck));
     } else {
-        const root = snapshot.groups[report.root.id];
-        same('answer', report.answer.amount, total(current, root.name, root));
-        if (previous) {
-            same('previous', report.answer.previous, total(previous, root.name, root));
+        const root = nodeOf(snapshot, report.root.id);
+        if (!root) {
+            problems.push(`${report.root.id}: the report is of nothing in the map`);
+        } else {
+            same('answer', report.answer.amount, total(current, root.name, root));
+            if (previous) {
+                same('previous', report.answer.previous, total(previous, root.name, root));
+            }
         }
     }
     problems.push(...rowProblems(report, cliCheck));
@@ -411,6 +498,28 @@ async function verifyReport(
             `, ${rowCount} rows — ${report.query}` +
             (problems.length ? `\n         ${problems.slice(0, 4).join('\n         ')}` : '')
     );
+}
+
+/**
+ * Whether a report of a target is of the target, read from its root's queries alone, with none
+ * of its own; and an account in no group from queries of that account alone.
+ */
+function targetProblems(report: ReportData, snapshot: Snapshot): string[] {
+    const { intent } = report;
+    const queries = planQueries(planReport(intent, snapshot));
+    if (intent.target !== undefined) {
+        const root = planQueries(planReport({ ...intent, target: undefined }, snapshot));
+        return [
+            ...(report.root.id === intent.target ? [] : ['The report is not of its target']),
+            ...(queries.join() === root.join() ? [] : ['A target reads queries its root does not']),
+        ];
+    }
+    const account = snapshot.ungrouped[intent.root];
+    if (account) {
+        const own = queries.every(query => query.startsWith(`account:${quote(account.name)} `));
+        return own ? [] : ['An account in no group is not read with queries of its own'];
+    }
+    return [];
 }
 
 /** Whether a net result comes from where the Book's groups and accounts say it must. */
@@ -521,8 +630,9 @@ function rowProblems(report: ReportData, cli: CliCheck): string[] {
     report.breakdown.forEach(visit);
     const roots = report.calculated
         ? snapshot.roots.map(id => snapshot.groups[id].name)
-        : [snapshot.groups[report.root.id].name];
-    for (const table of [current, previous]) {
+        : [nodeOf(snapshot, report.root.id)?.name ?? report.root.id];
+    // The CLI table of a root lists more than an account under it holds, which is nothing.
+    for (const table of cli.own ? [current, previous] : []) {
         for (const [name, rows] of table ?? []) {
             if (!names.has(name) && !roots.includes(name) && !rows[0].total.eq(0)) {
                 problems.push(`${name}: Bkper returns it with an amount, but it is not a row`);
@@ -579,7 +689,7 @@ function choiceProblems(report: ReportData): string[] {
 function chartProblems(report: ReportData, chart: ReportChart, cli: CliCheck): string[] {
     const problems: string[] = [];
     const { snapshot, current, total, same } = cli;
-    const root = report.calculated ? undefined : snapshot.groups[report.root.id];
+    const root = report.calculated ? undefined : nodeOf(snapshot, report.root.id);
     const rowOf = (id: string) => report.breakdown.find(row => row.id === id);
     const sum = (values: string[]) =>
         values.reduce<Amount>((result, value) => result.plus(value), new Amount(0));
@@ -592,9 +702,9 @@ function chartProblems(report: ReportData, chart: ReportChart, cli: CliCheck): s
                 }
                 continue;
             }
-            const node = snapshot.groups[series.id];
+            const node = nodeOf(snapshot, series.id);
             if (!node) {
-                problems.push(`${series.id}: a series of no root group`);
+                problems.push(`${series.id}: a series of nothing in the map`);
             } else if (cli.byMonth) {
                 report.months.forEach((at, i) =>
                     same(`${series.name} ${at}`, series.amounts[i], cli.month(node.name, node, at))
@@ -725,8 +835,11 @@ async function verifyBook(
     const reports: { label: string; report: ReportData }[] = [];
     // One at a time, so the times are of the calculation alone.
     for (const intent of intentsFor(snapshot, hashtags)) {
+        const target = intent.target === undefined ? undefined : nodeOf(snapshot, intent.target);
         const label =
-            `${snapshot.groups[intent.root]?.name ?? intent.root} ${intent.period}` +
+            `${nodeOf(snapshot, intent.root)?.name ?? intent.root}` +
+            (target ? ` › ${target.name}` : '') +
+            ` ${intent.period}` +
             (intent.monthly ? ' monthly' : '') +
             (intent.chart ? ` ${intent.chart}` : '') +
             (intent.hashtags ? ` #${intent.hashtags.join(' #')}` : '');
@@ -741,6 +854,18 @@ async function verifyBook(
             queryCount += queries;
             reports.push({ label, report });
         } catch (error) {
+            // Bkper does not find some accounts of older Books by their name: a report of
+            // one in no group fails rather than show zero, and the CLI finds nothing either.
+            const ungrouped = snapshot.ungrouped[intent.root];
+            if (error instanceof MissingBalancesError && ungrouped) {
+                const own = `account:${quote(ungrouped.name)} before:${addDays(snapshot.today, 1)}`;
+                const rows = cliRows(await cli.balances(bookId, own), true);
+                check(
+                    !rows.has(ungrouped.name),
+                    `${label}: no report, as Bkper does not find ${ungrouped.name} by its name`
+                );
+                continue;
+            }
             // A Book whose groups give no net result has none, and says so.
             if (
                 error instanceof ReportError &&

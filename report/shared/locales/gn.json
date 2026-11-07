@@ -53,6 +53,7 @@
     "error_no_net_result": "Ko Kuatia rembiapo noñembyatýi aty ohasáva ingreso ha gasto. Embojoapy peteĩ Bkper-pe ehecha hag̃ua resultado neto.",
     "error_unexpected": "Oiko peteĩ jejavy. Eha'ã jey.",
     "error_unknown_root": "Upe aty ndaha'éi aty mba'e ijyvatevéva ko Kuatia rembiapo pegua.",
+    "error_unknown_target": "Upe aty térã cuenta ndaipóri mo'ãvéima ápe ko mba'egueru ojuhúva Kuatia rembiapo-pe.",
     "error_upstream": "Bkper ndoikuaái ñembohovái. Eha'ãmi jey mbovy'ive rire.",
     "hint_not_a_report": "Kóva ndojogua peteĩ marandu ko Kuatia rembiapo rehegua. Emoñe'ẽ peteĩ Aty ha peteĩ ára, térã eiporavo peteĩ ñe'ẽme'ẽ.",
     "input_label": "Marandu jerure",

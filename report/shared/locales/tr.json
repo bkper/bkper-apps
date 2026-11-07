@@ -53,6 +53,7 @@
     "error_no_net_result": "Bu Defter'de gelir ve giderleri birleştiren bir Grup yok. Net sonucunu görmek için Bkper'de bir tane ekleyin.",
     "error_unexpected": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "error_unknown_root": "Bu grup, bu Defterin üst düzey grubu değil.",
+    "error_unknown_target": "Bu grup veya hesap, bu raporun Defter içinde bulduğu yerde artık değil.",
     "error_upstream": "Bkper yanıt vermedi. Biraz sonra tekrar deneyin.",
     "hint_not_a_report": "Bu, bu Defterin bir raporuna benzemiyor. Bir grup ve bir dönem yazın ya da bir öneri seçin.",
     "input_label": "Rapor isteği",

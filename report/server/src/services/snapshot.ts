@@ -44,6 +44,12 @@ export interface SnapshotAccount extends SnapshotNode {
     archived: boolean;
 }
 
+/**
+ * An account in no group: a root of its own, which a report reads with a query of its own.
+ * The map knows its nature, not its months: no root's query reads it.
+ */
+export type UngroupedAccount = Omit<SnapshotAccount, 'activeMonths'>;
+
 export interface Snapshot {
     book: {
         id: string;
@@ -64,6 +70,8 @@ export interface Snapshot {
     groups: Record<string, SnapshotGroup>;
     /** Accounts by id; an account in several groups appears once. */
     accounts: Record<string, SnapshotAccount>;
+    /** Accounts in no group, by id. */
+    ungrouped: Record<string, UngroupedAccount>;
 }
 
 /** The balances query of a root group over its history. */
@@ -119,6 +127,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
         roots: [],
         groups: {},
         accounts: {},
+        ungrouped: {},
     };
     const active = new Set<IsoMonth>();
 
@@ -134,6 +143,21 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
                     active.add(month);
                 }
             }
+        }
+    }
+
+    for (const account of input.accounts) {
+        // The Book payload lists each account's groups, so this needs no further request.
+        if ((account.json().groups ?? []).length === 0) {
+            const id = account.getId() ?? '';
+            snapshot.ungrouped[id] = {
+                id,
+                name: account.getName() ?? '',
+                type: account.getType(),
+                credit: account.isCredit() ?? false,
+                permanent: account.isPermanent() ?? false,
+                archived: account.isArchived() ?? false,
+            };
         }
     }
 

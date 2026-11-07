@@ -1399,6 +1399,343 @@
         }
     },
     {
+        "id": "banks-target-today",
+        "intent": {
+            "root": "g-assets",
+            "period": "today",
+            "monthly": false,
+            "target": "g-banks"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Banks",
+                        "subtitle": "As of ⁨Nov 5, 2026⁩",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "views",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Banks",
+                        "amount": "8136.49",
+                        "color": "blue",
+                        "previous": "4186.74",
+                        "change": "0.9434",
+                        "comparison": "vs. ⁨Oct 31, 2026⁩"
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "table",
+                        "views": [
+                            {
+                                "kind": "line",
+                                "name": "Line",
+                                "chart": {
+                                    "kind": "line",
+                                    "label": "⁨Banks⁩ by month",
+                                    "months": [
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "values": [
+                                                "8136.49"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "Breakdown of ⁨Banks⁩",
+                                    "periods": {
+                                        "current": "As of ⁨Nov 5, 2026⁩",
+                                        "previous": "As of ⁨Oct 31, 2026⁩"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-bank-a",
+                                            "label": "Bank A",
+                                            "color": "blue",
+                                            "value": "8136.49",
+                                            "previous": "4186.74"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "Breakdown",
+                        "months": [
+                            "2026-11"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "a-bank-a",
+                                "kind": "account",
+                                "label": "Bank A",
+                                "color": "blue",
+                                "amount": "8136.49",
+                                "previous": "4186.74",
+                                "change": "0.9434",
+                                "share": "1",
+                                "months": [
+                                    "8136.49"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "As of ⁨Nov 5, 2026⁩",
+                        "query": "group:'Banks' before:2026-11-06",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A2026-11-06",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A2026-11-06"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "rent-account-by-month",
+        "intent": {
+            "root": "g-expenses",
+            "period": "this_year",
+            "monthly": true,
+            "target": "a-rent"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "Rent",
+                        "subtitle": "This year",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer",
+                        "chart",
+                        "views",
+                        "source"
+                    ]
+                },
+                "answer": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Rent",
+                        "amount": "3000",
+                        "color": "red",
+                        "previous": "1000",
+                        "change": "2",
+                        "comparison": "vs. ⁨Jan 1 – Nov 5, 2025⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "bar",
+                        "label": "⁨Rent⁩ by month",
+                        "months": [
+                            "2026-01",
+                            "2026-02",
+                            "2026-03",
+                            "2026-04",
+                            "2026-05",
+                            "2026-06",
+                            "2026-07",
+                            "2026-08",
+                            "2026-09",
+                            "2026-10",
+                            "2026-11"
+                        ],
+                        "series": [
+                            {
+                                "id": "a-rent",
+                                "label": "Rent",
+                                "color": "red",
+                                "values": [
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "1000",
+                                    "0",
+                                    "1000",
+                                    "1000"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month"
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Area",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨Rent⁩ by month",
+                                    "months": [
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "1000",
+                                                "0",
+                                                "1000",
+                                                "1000"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "Jan 1 – Nov 5, 2026",
+                        "query": "account:'Rent' after:2026-01-01 before:2026-11-06",
+                        "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A2026-01-01%20before%3A2026-11-06",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A2026-01-01%20before%3A2026-11-06"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
         "id": "expenses-this-year-he",
         "intent": {
             "root": "g-expenses",

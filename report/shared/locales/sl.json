@@ -53,6 +53,7 @@
     "error_no_net_result": "Ta Knjiga nima skupine, ki združuje prihodke in odhodke. Dodajte jo v Bkper, da vidite neto rezultat.",
     "error_unexpected": "Nekaj je šlo narobe. Poskusite znova.",
     "error_unknown_root": "Ta skupina ni skupina najvišje ravni v tej Knjigi.",
+    "error_unknown_target": "Ta skupina ali račun ni več tam, kjer ju je poročilo našlo v Knjigi.",
     "error_upstream": "Bkper se ni odzval. Poskusite znova čez trenutek.",
     "hint_not_a_report": "To ne izgleda kot poročilo te Knjige. Navedite skupino in obdobje ali izberite predlog.",
     "input_label": "Zahteva za poročilo",

@@ -53,6 +53,7 @@
     "error_no_net_result": "Ĉi tiu Libro ne havas grupon, kiu kombinas enspezojn kaj elspezojn. Aldonu unu en Bkper por vidi ĝian netan rezulton.",
     "error_unexpected": "Io misfunkciis. Provu denove.",
     "error_unknown_root": "Tiu grupo ne estas supranivela grupo de ĉi tiu Libro.",
+    "error_unknown_target": "Tiu grupo aŭ konto ne plu estas tie, kie ĉi tiu raporto trovis ĝin en la Libro.",
     "error_upstream": "Bkper ne respondis. Reprovu post momento.",
     "hint_not_a_report": "Tio ne aspektas kiel raporto pri ĉi tiu Libro. Nomu grupon kaj periodon, aŭ elektu proponon.",
     "input_label": "Peto pri raporto",

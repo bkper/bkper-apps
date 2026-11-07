@@ -53,6 +53,7 @@
     "error_no_net_result": "Kitaabni herregaa kun garee galii fi baasii walitti makuu hin qabu. Bu'aa isaa dhuma argachuuf Bkper keessatti tokko dabali.",
     "error_unexpected": "Wanti tokko dogoggore. Irra deebi'ii yaali.",
     "error_unknown_root": "Garaan sun garee sadarkaa ol aanaa Kitaaba herregaa kanaa miti.",
+    "error_unknown_target": "Garee ykn herregni sun iddoo gabaasni kun Kitaaba herregaa keessatti itti argate sana irra hin jiru.",
     "error_upstream": "Bkper deebii hin kennine. Yeroo muraasa booda irra deebi'ii yaali.",
     "hint_not_a_report": "Kun gabaasa Kitaaba herregaa kanaa fakkaatu miti. Garee fi yeroo ibsi, yookaan yaada filadhu.",
     "input_label": "Gaaffii gabaasaa",

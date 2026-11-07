@@ -53,6 +53,7 @@
     "error_no_net_result": "Puku ye ya ditshepetšo ga e na sehlopha seo se kopanyago letseno le ditshenyegelo. Oketša se tee go Bkper o bone sephetho sa net.",
     "error_unexpected": "Go diregile phošo. Leka gape.",
     "error_unknown_root": "Sehlopha seo ga se sehlopha sa maemo a godimo sa Puku ye ya ditshepetšo.",
+    "error_unknown_target": "Sehlopha goba akhaonto yeo ga e sa le moo pego ye e e hweditšego go Puku ya ditshepetšo.",
     "error_upstream": "Bkper ga se a araba. Leka gape ka nako e nyenyane.",
     "hint_not_a_report": "Se ga se bonagale e le pego ya Puku ye ya ditshepetšo. Bolela sehlopha le nako, goba kgetha tshišinyo.",
     "input_label": "Kgopelo ya pego",

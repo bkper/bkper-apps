@@ -53,6 +53,7 @@
     "error_no_net_result": "Dizze Boekhâlding hat gjin groep dy't ynkomsten en útjeften kombinearret. Foegje der ien ta yn Bkper om it netto resultaat te sjen.",
     "error_unexpected": "Der gie wat mis. Probearje it opnij.",
     "error_unknown_root": "Dy groep is gjin haadgroep fan dizze Boekhâlding.",
+    "error_unknown_target": "Dy groep of rekken is net mear wêr't dit rapport it yn de Boekhâlding fûn.",
     "error_upstream": "Bkper antwurde net. Besykje it oer in momint opnij.",
     "hint_not_a_report": "Dit liket net op in rapport fan dizze Boekhâlding. Neam in groep en in perioade, of kies in suggestje.",
     "input_label": "Rapportoanfraach",

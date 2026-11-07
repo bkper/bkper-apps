@@ -53,6 +53,7 @@
     "error_no_net_result": "This Book has no group that combines income and expenses. Add one in Bkper to see its net result.",
     "error_unexpected": "Something went wrong. Try again.",
     "error_unknown_root": "That group isn't a top-level group of this Book.",
+    "error_unknown_target": "That group or account is no longer where this report found it in the Book.",
     "error_upstream": "Bkper didn't respond. Try again in a moment.",
     "hint_not_a_report": "That doesn't look like a report of this Book. Name a group and a period, or pick a suggestion.",
     "input_label": "Report request",

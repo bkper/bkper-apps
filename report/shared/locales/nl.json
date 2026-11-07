@@ -53,6 +53,7 @@
     "error_no_net_result": "Dit Boek heeft geen groep die inkomsten en uitgaven combineert. Voeg er een toe in Bkper om het nettoresultaat te zien.",
     "error_unexpected": "Er is iets misgegaan. Probeer het opnieuw.",
     "error_unknown_root": "Die groep is geen hoofdgroep van dit boek.",
+    "error_unknown_target": "Die groep of dat account staat niet meer waar deze rapportage het in het Boek vond.",
     "error_upstream": "Bkper reageerde niet. Probeer het zo meteen opnieuw.",
     "hint_not_a_report": "Dit lijkt niet op een rapport van dit Boek. Noem een groep en een periode, of kies een suggestie.",
     "input_label": "Rapportverzoek",

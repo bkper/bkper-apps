@@ -53,6 +53,7 @@
     "error_no_net_result": "Akontaabu nwoma yi nni kuw a ɛka sika a aba ne sika a ɛfiri adi ano. Fa baako ka ho wɔ Bkper mu na hu ne nsonsonoe a aka.",
     "error_unexpected": "Biribi akɔ basaa. Fa bio sɔ hwɛ.",
     "error_unknown_root": "Kuw no nyɛ saa Akontaabu nwoma yi kuw a ɛwɔ soro koraa.",
+    "error_unknown_target": "Kuw anaa akontaa no nni baabi a amanneɛbɔ yi hunuu no wɔ Akontaabu nwoma no mu bio.",
     "error_upstream": "Bkper annye ano. San sɔ hwɛ akyiri yi.",
     "hint_not_a_report": "Ɛnyɛ sɛ ɛyɛ amanneɛbɔ a ɛfa Akontaabu nwoma yi ho. Ka kuw ne bere bi, anaa yi nyansahyɛ bi.",
     "input_label": "Amanneɛbɔ abisadeɛ",

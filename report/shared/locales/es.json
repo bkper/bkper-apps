@@ -53,6 +53,7 @@
     "error_no_net_result": "Este Libro no tiene ningún grupo que combine ingresos y gastos. Añade uno en Bkper para ver su resultado neto.",
     "error_unexpected": "Algo salió mal. Inténtalo de nuevo.",
     "error_unknown_root": "Ese grupo no es un grupo de nivel superior de este Libro.",
+    "error_unknown_target": "Ese grupo o cuenta ya no está donde este informe lo encontró en el Libro.",
     "error_upstream": "Bkper no ha respondido. Inténtalo de nuevo en un momento.",
     "hint_not_a_report": "Eso no parece un informe de este Libro. Indica un grupo y un periodo, o elige una sugerencia.",
     "input_label": "Solicitud de informe",

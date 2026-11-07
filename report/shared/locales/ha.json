@@ -53,6 +53,7 @@
     "error_no_net_result": "Wannan Littafin lissafi ba shi da rukunin da ya haɗa kuɗin shiga da kashewa. Ƙara ɗaya a Bkper don ganin sakamakon net.",
     "error_unexpected": "Wani abu ya faru ba daidai ba. A sake gwadawa.",
     "error_unknown_root": "Wannan rukuni ba rukunin matakin farko na wannan Littafin lissafi ba ne.",
+    "error_unknown_target": "Wannan rukuni ko asusun ba ya nan inda wannan rahoto ya same shi a cikin Littafin lissafi.",
     "error_upstream": "Bkper bai amsa ba. Sake gwadawa nan da ɗan lokaci.",
     "hint_not_a_report": "Wannan bai yi kama da rahoto na wannan Littafin lissafi ba. A ambaci rukuni da lokaci, ko a zaɓi shawara.",
     "input_label": "Buƙatar rahoto",

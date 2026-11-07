@@ -53,6 +53,7 @@
     "error_no_net_result": "Denne regnskapsboken har ingen gruppe som kombinerer inntekter og utgifter. Legg til en i Bkper for å se nettoresultatet.",
     "error_unexpected": "Noe gikk galt. Prøv igjen.",
     "error_unknown_root": "Den gruppen er ikke en toppnivågruppe i denne regnskapsboken.",
+    "error_unknown_target": "Den gruppen eller kontoen er ikke lenger der denne rapporten fant den i Regnskapsboken.",
     "error_upstream": "Bkper svarte ikke. Prøv igjen om et øyeblikk.",
     "hint_not_a_report": "Dette ser ikke ut som en rapport fra denne Regnskapsboken. Oppgi en gruppe og en periode, eller velg et forslag.",
     "input_label": "Rapportforespørsel",

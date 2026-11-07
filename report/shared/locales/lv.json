@@ -53,6 +53,7 @@
     "error_no_net_result": "Šajā grāmatā nav grupas, kas apvieno ieņēmumus un izdevumus. Pievienojiet to Bkper, lai redzētu neto rezultātu.",
     "error_unexpected": "Radās kļūda. Mēģiniet vēlreiz.",
     "error_unknown_root": "Šī grupa nav šīs grāmatas augšējā līmeņa grupa.",
+    "error_unknown_target": "Šī grupa vai konts vairs nav tur, kur šis pārskats to atrada Grāmatā.",
     "error_upstream": "Bkper neatbildēja. Mēģiniet vēlreiz pēc brīža.",
     "hint_not_a_report": "Tas neizskatās pēc šīs Grāmatas pārskata. Norādiet grupu un periodu vai izvēlieties ieteikumu.",
     "input_label": "Pārskata pieprasījums",

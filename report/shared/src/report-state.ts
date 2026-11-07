@@ -3,10 +3,14 @@
  * letters, digits, `_` and `-`, the opaque app state Bkper keeps in a Book's URL
  * (`appState`), so a link, Back or a reload opens the same report again, by intent.
  *
- * The state names the root by its group id, which stays valid when the group is renamed. It
- * is a version, then the base64url of `<monthly><view><chart>.<period>.<language>.<hashtags>.<root>`:
- * one letter each for the month flag, the view and the chart, hashtags joined by `,` (neither
- * `.` nor `,` can be in a hashtag), and the root last, so it may hold anything.
+ * The state names the root and the target by their ids, which stay valid when they are
+ * renamed. It is a version, then the base64url of
+ * `<monthly><view><chart>.<period>.<language>.<hashtags>.<root>`: one letter each for the
+ * month flag, the view and the chart, hashtags joined by `,` (neither `.` nor `,` can be in a
+ * hashtag), and the root last, so it may hold anything. A report of a target under its root
+ * is version `2`, with the target before the root: `….<hashtags>.<target>.<root>`, so a target
+ * cannot hold a `.`. Every other report keeps version `1`, so states written before open the
+ * same report.
  */
 import type { ReportSpec } from './catalog';
 import { withoutIsolates } from './bidi';
@@ -31,7 +35,9 @@ const STATE_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 /** The menu URL's expression, which older Bkper versions leave in the URL unreplaced. */
 const STATE_EXPRESSION = '${app.state}';
 
+/** The version of a state without a target, and of one with a target. */
 const VERSION = '1';
+const TARGET_VERSION = '2';
 
 /** Each letter names one value forever: states written before must open the same report. */
 const VIEW_CODES: Record<ReportView | 'none', string> = {
@@ -82,34 +88,40 @@ export function encodeReportState({ intent, language }: ReportState): string | u
         language ?? '',
         // No hashtags and an empty list are alike.
         (intent.hashtags ?? []).join(','),
+        ...(intent.target === undefined ? [] : [intent.target]),
         intent.root,
     ].join('.');
     const bytes = utf8(text);
-    const state = bytes && VERSION + toBase64url(bytes);
+    const version = intent.target === undefined ? VERSION : TARGET_VERSION;
+    const state = bytes && version + toBase64url(bytes);
     return state && state.length <= MAX_STATE_LENGTH ? state : undefined;
 }
 
 /** The report a state names, or `undefined` for anything but a state this module wrote. */
 export function decodeReportState(state: string): ReportState | undefined {
-    if (!STATE_PATTERN.test(state) || state[0] !== VERSION) return undefined;
+    const version = state[0];
+    if (!STATE_PATTERN.test(state) || (version !== VERSION && version !== TARGET_VERSION)) {
+        return undefined;
+    }
     const bytes = fromBase64url(state.slice(1));
     const text = bytes && fromUtf8(bytes);
     if (text === undefined) return undefined;
     const fields: string[] = [];
     let rest = text;
-    for (let index = 0; index < 4; index++) {
+    for (let index = 0; index < (version === TARGET_VERSION ? 5 : 4); index++) {
         const dot = rest.indexOf('.');
         if (dot < 0) return undefined;
         fields.push(rest.slice(0, dot));
         rest = rest.slice(dot + 1);
     }
-    const [flags, period, language, hashtags] = fields;
+    const [flags, period, language, hashtags, target] = fields;
     if (flags.length !== 3 || (flags[0] !== '0' && flags[0] !== '1')) return undefined;
     const view = codeOf(VIEW_CODES, flags[1]);
     const chart = codeOf(CHART_CODES, flags[2]);
     if (view === undefined || chart === undefined) return undefined;
     const intent: ReportIntentData = {
         root: rest,
+        ...(target !== undefined ? { target } : {}),
         period,
         monthly: flags[0] === '1',
         ...(view !== 'none' ? { view } : {}),
@@ -138,10 +150,12 @@ export function reportText(spec: ReportSpec): string {
 }
 
 function validIntent(intent: ReportIntentData): boolean {
-    const { root, period, hashtags } = intent;
+    const { root, target, period, hashtags } = intent;
     return (
         root.length > 0 &&
         root.length <= MAX_ROOT_LENGTH &&
+        (target === undefined ||
+            (target.length > 0 && target.length <= MAX_ROOT_LENGTH && !target.includes('.'))) &&
         PERIOD_ID_PATTERN.test(period) &&
         (hashtags === undefined ||
             (hashtags.length <= MAX_HASHTAGS &&

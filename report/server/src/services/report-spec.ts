@@ -95,36 +95,10 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
     if (views) {
         elements.views = views;
     }
-    elements.breakdown = {
-        type: 'BreakdownTable',
-        props: {
-            label: t('breakdown_label', lang),
-            months: report.months,
-            columns: {
-                name: t('breakdown_column_name', lang),
-                amount: t('breakdown_column_amount', lang),
-                share: t('breakdown_column_share', lang),
-                change: t('breakdown_column_change', lang),
-                trend: t('breakdown_column_trend', lang),
-            },
-            expandLabel: t('breakdown_expand', lang),
-            collapseLabel: t('breakdown_collapse', lang),
-            emptyLabel: t('breakdown_empty', lang),
-            rows: report.breakdown.map(row => breakdownRow(row)),
-            // A net result Report calculates totals its roots, which are the rows.
-            ...(report.calculated
-                ? {
-                      total: {
-                          label: title,
-                          color: report.root.color,
-                          ...amounts(report.answer),
-                          months: report.calculated.months,
-                      },
-                  }
-                : {}),
-        },
-        on: { expand: { action: 'expandRow' } },
-    };
+    // An account has no parts: a table of them would only say it has none.
+    if (!report.account) {
+        elements.breakdown = breakdownTable(report, title, lang);
+    }
     elements.source = {
         type: 'Source',
         props: {
@@ -174,6 +148,44 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
         throw new Error(`Invalid report spec: ${validation.issues.join('; ')}`);
     }
     return validation.spec;
+}
+
+/** The table of the rows Bkper returns under the report's group, nested. */
+function breakdownTable(
+    report: ReportData,
+    title: string,
+    lang: string
+): Extract<ReportElement, { type: 'BreakdownTable' }> {
+    return {
+        type: 'BreakdownTable',
+        props: {
+            label: t('breakdown_label', lang),
+            months: report.months,
+            columns: {
+                name: t('breakdown_column_name', lang),
+                amount: t('breakdown_column_amount', lang),
+                share: t('breakdown_column_share', lang),
+                change: t('breakdown_column_change', lang),
+                trend: t('breakdown_column_trend', lang),
+            },
+            expandLabel: t('breakdown_expand', lang),
+            collapseLabel: t('breakdown_collapse', lang),
+            emptyLabel: t('breakdown_empty', lang),
+            rows: report.breakdown.map(row => breakdownRow(row)),
+            // A net result Report calculates totals its roots, which are the rows.
+            ...(report.calculated
+                ? {
+                      total: {
+                          label: title,
+                          color: report.root.color,
+                          ...amounts(report.answer),
+                          months: report.calculated.months,
+                      },
+                  }
+                : {}),
+        },
+        on: { expand: { action: 'expandRow' } },
+    };
 }
 
 function answerProps(

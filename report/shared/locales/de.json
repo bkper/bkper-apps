@@ -53,6 +53,7 @@
     "error_no_net_result": "Dieses Buch hat keine Gruppe, die Einnahmen und Ausgaben zusammenfasst. Fügen Sie in Bkper eine hinzu, um das Nettoergebnis zu sehen.",
     "error_unexpected": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
     "error_unknown_root": "Diese Gruppe ist keine oberste Gruppe dieses Buchs.",
+    "error_unknown_target": "Diese Gruppe oder dieses Konto befindet sich nicht mehr dort, wo dieser Bericht sie bzw. es im Buch gefunden hat.",
     "error_upstream": "Bkper hat nicht geantwortet. Versuchen Sie es in einem Moment erneut.",
     "hint_not_a_report": "Das sieht nicht nach einem Bericht dieses Buchs aus. Nennen Sie eine Gruppe und einen Zeitraum oder wählen Sie einen Vorschlag.",
     "input_label": "Berichtsanfrage",

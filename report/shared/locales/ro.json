@@ -53,6 +53,7 @@
     "error_no_net_result": "Acest Registru nu are niciun Grup care să combine veniturile și cheltuielile. Adăugați unul în Bkper pentru a vedea rezultatul net.",
     "error_unexpected": "Ceva nu a funcționat. Încercați din nou.",
     "error_unknown_root": "Acel grup nu este un grup de nivel superior al acestui Registru.",
+    "error_unknown_target": "Acel grup sau acel cont nu se mai află unde l-a găsit acest raport în Registru.",
     "error_upstream": "Bkper nu a răspuns. Încercați din nou peste puțin timp.",
     "hint_not_a_report": "Aceasta nu pare un raport al acestui Registru. Indicați un grup și o perioadă sau alegeți o sugestie.",
     "input_label": "Solicitare de raport",

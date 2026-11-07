@@ -53,6 +53,7 @@
     "error_no_net_result": "Bu Kitabda gəlir və xərcləri birləşdirən qrup yoxdur. Xalis nəticəni görmək üçün Bkper-də bir qrup əlavə et.",
     "error_unexpected": "Nəsə səhv getdi. Yenidən cəhd edin.",
     "error_unknown_root": "Bu qrup bu Kitabın üst səviyyəli qrupu deyil.",
+    "error_unknown_target": "Həmin qrup və ya hesab artıq bu hesabatın Kitabda onu tapdığı yerdə deyil.",
     "error_upstream": "Bkper cavab vermədi. Bir az sonra yenidən cəhd edin.",
     "hint_not_a_report": "Bu, bu Kitabın hesabatına oxşamır. Qrup və dövr göstərin, ya da təklifdən birini seçin.",
     "input_label": "Hesabat sorğusu",

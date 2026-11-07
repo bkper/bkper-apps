@@ -53,6 +53,7 @@
     "error_no_net_result": "Ekitabo kino tekirina kibinja ekigatta ensimbi eziyingira n'ezifuluma. Tekamu kimu mu Bkper olabe ky'afunye ddala.",
     "error_unexpected": "Waliwo ekitaagenze bulungi. Gezaako nate.",
     "error_unknown_root": "Ekibinja ekyo si kibinja eky'oku ntikko mu Kitabo kino.",
+    "error_unknown_target": "Ekibinja oba akawunti ekyo tekikyaali we lipoota eno gye yakisanga mu Kitabo.",
     "error_upstream": "Bkper teyanukudde. Gezaako nate mu kaseera katono.",
     "hint_not_a_report": "Kino tekirabika ng'alipoota ya Ekitabo kino. Singa ekibinja n'ekiseera, oba londa ku bye tukuwa.",
     "input_label": "Okusaba lipoota",

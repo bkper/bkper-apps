@@ -312,6 +312,27 @@ describe('Reports', () => {
         expect(title(reports.report)).toBe('Net');
     });
 
+    it('remembers reports of one root with different targets apart', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        const root = { intent: SUGGESTIONS[1].intent, language: 'pt' };
+        const target = { intent: { ...root.intent, target: 'a-rent' }, language: 'pt' };
+        reports.open('book-1', '', root);
+        calls[0].resolve({ ...response('Despesas'), intent: root.intent, language: 'pt' });
+        await settle();
+
+        reports.openState(target);
+        expect(calls).toHaveLength(2);
+        expect(calls[1].body).toEqual({ intent: target.intent, language: 'pt' });
+        calls[1].resolve({ ...response('Rent'), intent: target.intent, language: 'pt' });
+        await settle();
+        expect(title(reports.report)).toBe('Rent');
+
+        reports.openState(root);
+        reports.openState(target);
+        expect(calls).toHaveLength(2);
+        expect(title(reports.report)).toBe('Rent');
+    });
+
     it('answers a typed suggestion text from memory', async () => {
         const { reports, intentCalls, prompts } = createReports();
         reports.open('book-1');

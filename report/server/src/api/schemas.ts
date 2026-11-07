@@ -36,6 +36,7 @@ export const ErrorResponseSchema = z
                         '`not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion),',
                         '`future_period` (422, the period has not started),',
                         '`unknown_root` (422, the intent names no root group of the Book),',
+                        '`unknown_target` (422, the intent’s `target` is no group or Account under its root group),',
                         '`no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, which the person can add in Bkper),',
                         '`ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work),',
                         '`upstream_error` (502, Bkper or Bkper AI failed: try again) or',
@@ -107,8 +108,13 @@ const { shape } = ReportIntentSchema;
 const IntentSchema = ReportIntentSchema.extend({
     root: shape.root.meta({
         description:
-            'Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses: the net result Bkper calculates for the root group that combines Incoming and Outgoing groups; without one, the Incoming roots minus the Outgoing roots, labelled as calculated by Report, when each root is purely Incoming or Outgoing and no two share an Account.',
+            'Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses: the net result Bkper calculates for the root group that combines Incoming and Outgoing groups; without one, the Incoming roots minus the Outgoing roots, labelled as calculated by Report, when each root is purely Incoming or Outgoing and no two share an Account. Also the id of an Account in no group (`bkper account list`), reported alone.',
         example: 'net-result',
+    }),
+    target: shape.target.meta({
+        description:
+            'Id of a group or Account under the root group, at any depth (`bkper group list`, `bkper account list`), to report instead of the whole root: its own Bkper balance and its own subgroups and Accounts, read from the root’s balances. Left out, the root. Not with `net-result` or an Account in no group.',
+        example: '5687803178385408',
     }),
     period: shape.period.meta({
         description:
@@ -132,7 +138,7 @@ const IntentSchema = ReportIntentSchema.extend({
 }).meta({
     id: 'ReportIntent',
     description:
-        'Exactly what to report, with no AI needed: a root group or `net-result`, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`.',
+        'Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`.',
 });
 
 export const SuggestionSchema = z

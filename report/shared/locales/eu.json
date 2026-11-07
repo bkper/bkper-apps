@@ -53,6 +53,7 @@
     "error_no_net_result": "Liburu honek ez du diru-sarrerak eta gastuak biltzen dituen talderik. Gehitu bat Bkper-en emaitza garbia ikusteko.",
     "error_unexpected": "Zerbait gaizki atera da. Saiatu berriro.",
     "error_unknown_root": "Talde hori ez da Liburu honetako goi-mailako talde bat.",
+    "error_unknown_target": "Talde edo kontu hori ez dago jada txosten honek Liburuan aurkitu zuen lekuan.",
     "error_upstream": "Bkper-ek ez du erantzun. Saiatu berriro une batean.",
     "hint_not_a_report": "Ez dirudi liburu honen txosten bat denik. Izendatu talde bat eta aldi bat, edo aukeratu iradokizun bat.",
     "input_label": "Txosten-eskaera",

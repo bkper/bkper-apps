@@ -53,6 +53,7 @@
     "error_no_net_result": "Ebben a főkönyvben nincs olyan csoport, amely egyesíti a bevételeket és a kiadásokat. Hozzon létre egyet a Bkperben a nettó eredmény megtekintéséhez.",
     "error_unexpected": "Valami hiba történt. Próbálja újra.",
     "error_unknown_root": "Ez a csoport nem legfelső szintű csoport ebben a főkönyvben.",
+    "error_unknown_target": "Ez a csoport vagy fiók már nem ott található a Főkönyvben, ahol ez a jelentés megtalálta.",
     "error_upstream": "A Bkper nem válaszolt. Próbálja újra néhány pillanat múlva.",
     "hint_not_a_report": "Ez nem tűnik a jelen Főkönyv jelentésének. Adjon meg egy csoportot és egy időszakot, vagy válasszon egy javaslatot.",
     "input_label": "Jelentéskérés",

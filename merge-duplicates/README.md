@@ -144,28 +144,3 @@ Learning requires Owner or Editor permission and updates the visible `merge_dupl
 See the [OpenAPI specification](https://merge-duplicates.bkper.app/openapi.json) for complete request and response schemas.
 
 </details>
-
-## Local development and performance logging
-
-Authenticate once, install dependencies, and start the Vite client and local Worker together:
-
-```bash
-bkper auth login
-bun install
-bun run dev
-```
-
-Open the app using the `Open app` URL printed by `bkper app dev`. The local endpoints are:
-
-- Client with hot reload: `http://localhost:5206`
-- Worker and API: `http://localhost:8806`
-- Health check: `http://localhost:8806/health`
-- OpenAPI: `http://localhost:5206/openapi.json`
-
-Browser DevTools reports Book loading, transaction listing, API analysis, and total durations under the `[merge-duplicates:performance]` prefix. The Worker terminal emits JSON performance events for each analysis and Jev batch. These events include only counts, byte sizes, durations, phase names, safe error codes, and a request correlation ID; transaction and Account contents are never logged.
-
-Run the deterministic verification before deployment:
-
-```bash
-bun run check
-```

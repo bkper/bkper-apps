@@ -187,6 +187,46 @@ After creating drafts, Extractor Bot stores a `transactions_summary` file proper
 
 </details>
 
+## API access
+
+<details>
+<summary><strong>Endpoints and examples</strong></summary>
+
+Apps, scripts, and agents can extract transactions from documents and descriptions through the public API, without recording anything in the book.
+
+```text
+Production: https://parser-bot.bkper.app
+Preview:    https://parser-bot-preview.bkper.app
+OpenAPI:    https://parser-bot.bkper.app/openapi.json
+```
+
+All requests require a Bkper OAuth bearer token for a user with view access to the book and to any other book an extraction targets; no installation is required. The API reads but never writes: results are unrecorded draft suggestions without transaction IDs, and recording them is up to the caller. Extraction does not find accounts; ask [Bookbot's API](https://bkper.com/apps/bookbot) for them.
+
+| Operation | Route | Effect |
+|---|---|---|
+| Extract transactions | `POST /api/v1/parse` | Returns extracted transactions and file properties, without changing the book |
+
+Send a `file`, a `transaction`, or both. A file can be a file already in the book (by `id`) or base64 `content`, and its document type is detected as for uploads. A transaction alone supplies a description or attachment to extract a missing amount and date from. The response lists `transactions` with their target `bookId`, optional `fileProperties`, and an outcome: `parsed`, `empty`, or `error`.
+
+Minimal extraction example:
+
+```bash
+# Run `bkper auth login` first if needed
+TOKEN="$(bkper auth token)"
+
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{ "bookId": "<book-id>", "file": { "id": "<file-id>" } }' \
+  https://parser-bot.bkper.app/api/v1/parse
+```
+
+Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request parser-bot /api/v1/parse -d '<json>'`.
+
+See the [OpenAPI specification](https://parser-bot.bkper.app/openapi.json) for complete request and response schemas.
+
+</details>
+
 ## Learn more
 
 - [Bookbot](https://bkper.com/apps/bookbot) — finds accounts for your transactions

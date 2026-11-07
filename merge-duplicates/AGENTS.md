@@ -183,9 +183,15 @@ There are no event subscriptions, KV bindings, app secrets, custom prompt overri
 - Worker: `8806`
 
 ```bash
+bkper auth login   # once
+bun install
 bun run dev
 bun run check
 ```
+
+Open the app with the `Open app` URL printed by `bkper app dev`. The Worker health check is `http://localhost:8806/health`, and the local OpenAPI is `http://localhost:5206/openapi.json`.
+
+Browser DevTools reports Book loading, transaction listing, API analysis, and total durations under the `[merge-duplicates:performance]` prefix. The Worker terminal emits JSON performance events for each analysis and Jev batch. These events include only counts, byte sizes, durations, phase names, safe error codes, and a request correlation ID; never log transaction or Account contents.
 
 Do not sync, deploy, install, publish, or run any command that writes to a live Book without separate explicit approval.
 

@@ -2,7 +2,7 @@
 
 Finds the right accounts for your transactions. Bookbot looks at how you recorded similar transactions before and suggests the missing From or To account, and the custom properties they always share.
 
-Apps, scripts, and agents ask Bookbot for accounts through its discovery API.
+Apps, scripts, and agents ask Bookbot for accounts through its [API](#api-access).
 
 Bookbot never posts transactions and never replaces an account or property you already set.
 
@@ -59,27 +59,6 @@ agent_discovery_examples: |-
 
 Set the property on an **account** for account-specific formats, an **account group** for shared formats, or the **book** as a general fallback. Bookbot uses the first non-empty value in account → first matching group → book order; values are not combined. When no account is known yet, only the book value applies. Custom examples replace the built-in examples.
 
-## Discovery API
-
-Apps, scripts, and agents can ask Bookbot for accounts without creating anything in the book:
-
-- `POST /api/v1/discovery` — one transaction
-- `POST /api/v1/discovery/batch` — several transactions, processed in order
-
-Each item names the target book and a draft transaction, and can include the source account to enable property copying. Bookbot returns the transaction with its suggestions and an outcome: `changed`, `no_change`, `no_match`, or `error`. The API reads your book but never writes to it; recording the drafts is up to the caller.
-
-Calls are made as a signed-in Bkper user with read access to every target book; no installation is required. For example, with the Bkper CLI:
-
-```bash
-bkper app api request bookbot /api/v1/discovery -d '{
-  "itemId": "1",
-  "bookId": "<bookId>",
-  "transaction": { "description": "Monthly rent", "creditAccount": { "id": "<accountId>" } }
-}'
-```
-
-The full contract is published at [bookbot.bkper.app/openapi.json](https://bookbot.bkper.app/openapi.json).
-
 ## AI allowance behavior
 
 Discovery uses Bkper AI to pick out the key terms of a description, with Gemini Flash Lite and minimal reasoning. Inference runs with the allowance of the signed-in user, or of the installation principal for event-driven re-checks, and is attributed to Bookbot. For Business and Professional subscriptions, the Bkper AI allowance may be shared across the domain. The Bkper AI usage dashboard shows the usage attributed to Bookbot.
@@ -117,6 +96,51 @@ Bookbot's suggestions are recorded on drafts as internal properties (suffixed wi
 | `agent_debit_account_id_` | ID of the suggested debit account |
 | `agent_description_part_` | The key term that matched during discovery |
 | `agent_discovered_properties_` | Keys of the properties copied from history |
+
+</details>
+
+## API access
+
+<details>
+<summary><strong>Endpoints and examples</strong></summary>
+
+Apps, scripts, and agents can ask Bookbot for accounts through the public API.
+
+```text
+Production: https://bookbot.bkper.app
+Preview:    https://bookbot-preview.bkper.app
+OpenAPI:    https://bookbot.bkper.app/openapi.json
+```
+
+All requests require a Bkper OAuth bearer token for a user with view access to every target book; no installation is required. The API reads your book but never writes to it: recording the suggested drafts is up to the caller.
+
+| Operation | Route | Effect |
+|---|---|---|
+| Discover one transaction | `POST /api/v1/discovery` | Returns the transaction with suggested accounts and properties, without changing the book |
+| Discover several transactions | `POST /api/v1/discovery/batch` | Same as above for several items, processed in order |
+
+Each item names the target book and a draft transaction, and can include the source account to enable property copying. Each result has an outcome: `changed`, `no_change`, `no_match`, or `error`.
+
+Minimal discovery example:
+
+```bash
+# Run `bkper auth login` first if needed
+TOKEN="$(bkper auth token)"
+
+curl -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "itemId": "1",
+    "bookId": "<book-id>",
+    "transaction": { "description": "Monthly rent", "creditAccount": { "id": "<account-id>" } }
+  }' \
+  https://bookbot.bkper.app/api/v1/discovery
+```
+
+Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request bookbot /api/v1/discovery -d '<json>'`.
+
+See the [OpenAPI specification](https://bookbot.bkper.app/openapi.json) for complete request and response schemas.
 
 </details>
 

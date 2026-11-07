@@ -1,21 +1,28 @@
 /**
- * Translates the app's strings (`shared/catalog/en.json`) into every Bkper language with a Bkper
- * AI language model, and writes `shared/locales/{lang}.json` with the modules that load them.
+ * Checks and records the app's strings in every Bkper language, `shared/locales/{lang}.json`,
+ * and writes the modules that load them. Bkper AI is called only with `--ai`.
  *
- *     npm run translate -- [--keys=a,b] [--languages=pt,es] [--force] [--dry-run]
+ *     npm run translate -- [--keys=a,b] [--languages=pt,es] [--dry-run]
+ *     npm run translate -- --ai [--keys=a,b] [--languages=pt,es] [--force] [--dry-run]
  *                          [--model=claude-sonnet] [--batch=44] [--concurrency=8]
  *
- * One call per key and batch of up to `--batch` languages (a strict JSON answer for all 132 at
- * once is more than the model accepts), with the key's text, role, context and placeholders,
- * each language's native name and tone (`translate/tones.ts`), and the Bkper words the text uses
- * (`translate/glossary.ts`); the instructions are `translate/prompt.md`. Every text is checked
- * (`translation.ts`) before it is written. Only texts that are missing or whose source changed
- * are translated (`translate/sources.json`); `--force` translates the selected ones again.
+ * By default nothing is called: the texts are the ones written in the locales (by a coding
+ * agent or a person, following `translate/prompt.md`, `translate/tones.ts` and
+ * `translate/glossary.ts`). Every selected text is checked (`translation.ts`), and only when all
+ * pass are the pending ones recorded in `translate/sources.json`; a missing or invalid text fails
+ * the run and records nothing. `--dry-run` lists the pending texts.
  *
- * Up to `--concurrency` calls (at most 8) run at once; throttled or failed calls and rejected
- * texts are retried. Calls use your `bkper auth token` and are labelled
- * `bkper-ai-source: report-translate`. Every run also writes `shared/locales/en.json` from the
- * catalog and `shared/src/locales.ts` and `shared/src/locale-loader.ts` from the languages.
+ * With `--ai`, a Bkper AI language model translates the pending texts: one call per key and
+ * batch of up to `--batch` languages (a strict JSON answer for all 132 at once is more than the
+ * model accepts), with the key's text, role, context and placeholders, each language's native
+ * name and tone, and the Bkper words the text uses; the instructions are `translate/prompt.md`.
+ * Every text is checked before it is written. Only texts that are missing or whose source
+ * changed are translated; `--force` translates the selected ones again. Up to `--concurrency`
+ * calls (at most 8) run at once; throttled or failed calls and rejected texts are retried. Calls
+ * use your `bkper auth token` and are labelled `bkper-ai-source: report-translate`.
+ *
+ * Every run also writes `shared/locales/en.json` from the catalog and `shared/src/locales.ts`
+ * and `shared/src/locale-loader.ts` from the languages.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -33,6 +40,7 @@ import {
     localeLoaderModule,
     parseAnswer,
     pendingLanguages,
+    recordTexts,
     requestBody,
     retryable,
     runPool,
@@ -62,6 +70,7 @@ const TIMEOUT_MS = 240_000;
 
 const { values: args } = parseArgs({
     options: {
+        ai: { type: 'boolean', default: false },
         keys: { type: 'string' },
         languages: { type: 'string' },
         force: { type: 'boolean', default: false },
@@ -113,8 +122,17 @@ const pending = keys
             : pendingLanguages(key, catalog[key], locales, allSources, languages, GLOSSARY),
     }))
     .filter(entry => entry.languages.length > 0);
-const tasks = buildTasks(catalog, pending, GLOSSARY, positive(args.batch, 'batch'));
 const texts = pending.reduce((sum, entry) => sum + entry.languages.length, 0);
+if (!args.ai) {
+    if (args['dry-run']) {
+        console.log(`${texts} texts pending: ${pending.length} keys.`);
+        for (const entry of pending)
+            console.log(`  ${entry.key}: ${entry.languages.map(l => l.code).join(', ')}`);
+        process.exit(0);
+    }
+    process.exit(record());
+}
+const tasks = buildTasks(catalog, pending, GLOSSARY, positive(args.batch, 'batch'));
 console.log(`${texts} texts to translate: ${pending.length} keys, ${tasks.length} calls.`);
 if (args['dry-run'] || tasks.length === 0) process.exit(0);
 
@@ -177,6 +195,30 @@ console.log(
 );
 if (stopped) console.error(`Stopped: ${stopped}`);
 process.exit(left.length || stopped ? 1 : 0);
+
+/** Checks the selected texts as written and records the pending ones; the exit code. */
+function record(): number {
+    const { recorded, problems } = recordTexts(
+        catalog,
+        keys,
+        locales,
+        allSources,
+        languages,
+        GLOSSARY
+    );
+    if (problems.length) {
+        for (const problem of problems) console.error(`✗ ${problem}`);
+        console.error(`${problems.length} texts missing or invalid: nothing recorded.`);
+        return 1;
+    }
+    for (const { key, code, text, hash } of recorded) {
+        locales[code][key] = text;
+        allSources[code][key] = hash;
+    }
+    saveAll([...new Set(recorded.map(text => text.code))]);
+    console.log(`${recorded.length} texts recorded, every selected text checked.`);
+    return 0;
+}
 
 type Outcome =
     | { translations: Record<string, string>; rejected: Record<string, string> }

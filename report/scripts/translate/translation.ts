@@ -122,6 +122,49 @@ export function pendingLanguages(
     );
 }
 
+export interface RecordedText {
+    key: string;
+    code: string;
+    /** The text, trimmed. */
+    text: string;
+    /** Its source hash, for `sources.json`. */
+    hash: string;
+}
+
+/**
+ * Checks texts written directly into the locales, without Bkper AI: every text of `keys` in
+ * `languages` must pass `translationError`, recorded or not. `recorded` holds the pending ones
+ * (`pendingLanguages`) with their source hashes; record them only when there are no `problems`.
+ */
+export function recordTexts(
+    catalog: Catalog,
+    keys: readonly string[],
+    locales: Record<string, Locale>,
+    sources: Record<string, Sources>,
+    languages: TargetLanguage[],
+    glossary: Glossary
+): { recorded: RecordedText[]; problems: string[] } {
+    const recorded: RecordedText[] = [];
+    const problems: string[] = [];
+    for (const language of languages) {
+        for (const key of keys) {
+            const written = locales[language.code]?.[key];
+            const error =
+                written === undefined ? 'missing' : translationError(catalog[key].text, written);
+            if (written === undefined || error) {
+                problems.push(`${key}/${language.code}: ${error}`);
+                continue;
+            }
+            const text = written.trim();
+            const hash = sourceHash(catalog[key], glossary, language);
+            if (sources[language.code]?.[key] !== hash || written !== text) {
+                recorded.push({ key, code: language.code, text, hash });
+            }
+        }
+    }
+    return { recorded, problems };
+}
+
 /**
  * One task per key and batch of at most `batchSize` of its pending languages: an answer for
  * every language at once would be too large for one structured answer.

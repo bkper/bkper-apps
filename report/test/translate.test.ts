@@ -8,6 +8,7 @@ import {
     localeLoaderModule,
     parseAnswer,
     pendingLanguages,
+    recordTexts,
     requestBody,
     retryable,
     runPool,
@@ -98,6 +99,75 @@ describe('pendingLanguages', () => {
         expect(
             pendingLanguages('books_back', entry, locales, stale, [PT], GLOSSARY).map(l => l.code)
         ).toEqual(['pt']);
+    });
+});
+
+describe('recordTexts', () => {
+    const footer = CATALOG.source_footer;
+
+    it('records the source hash of every pending text that passes the checks, trimmed', () => {
+        const locales = {
+            pt: { books_back: ' Livros ', source_footer: 'Calculado dos saldos de {book}' },
+            ja: { books_back: '帳簿', source_footer: '{book}の残高から計算' },
+        };
+        const sources = { ja: { books_back: sourceHash(CATALOG.books_back, GLOSSARY, JA) } };
+        const result = recordTexts(
+            CATALOG,
+            Object.keys(CATALOG),
+            locales,
+            sources,
+            [PT, JA],
+            GLOSSARY
+        );
+        expect(result.problems).toEqual([]);
+        expect(result.recorded).toEqual([
+            {
+                key: 'books_back',
+                code: 'pt',
+                text: 'Livros',
+                hash: sourceHash(CATALOG.books_back, GLOSSARY, PT),
+            },
+            {
+                key: 'source_footer',
+                code: 'pt',
+                text: 'Calculado dos saldos de {book}',
+                hash: sourceHash(footer, GLOSSARY, PT),
+            },
+            {
+                key: 'source_footer',
+                code: 'ja',
+                text: '{book}の残高から計算',
+                hash: sourceHash(footer, GLOSSARY, JA),
+            },
+        ]);
+    });
+
+    it('fails every selected text that is missing or invalid, even one already recorded', () => {
+        const locales = {
+            pt: { books_back: 'Livros', source_footer: 'Calculado dos saldos de {livro}' },
+            ja: { source_footer: ' ' },
+        };
+        const sources = { pt: { source_footer: sourceHash(footer, GLOSSARY, PT) } };
+        const result = recordTexts(
+            CATALOG,
+            Object.keys(CATALOG),
+            locales,
+            sources,
+            [PT, JA],
+            GLOSSARY
+        );
+        expect(result.problems).toEqual([
+            'source_footer/pt: placeholders differ from the English',
+            'books_back/ja: missing',
+            'source_footer/ja: empty',
+        ]);
+    });
+
+    it('checks only the selected keys and languages', () => {
+        const locales = { pt: { books_back: 'Livros' }, ja: {} };
+        const result = recordTexts(CATALOG, ['books_back'], locales, {}, [PT], GLOSSARY);
+        expect(result.problems).toEqual([]);
+        expect(result.recorded.map(text => `${text.key}/${text.code}`)).toEqual(['books_back/pt']);
     });
 });
 

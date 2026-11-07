@@ -2,7 +2,10 @@
  * Checks that an agent who knows only this app's README and OpenAPI document calls the report
  * API as intended for a person's report request.
  *
- *     npx tsx scripts/check-agent-docs.ts [--spec-url=<url>/openapi.json] [--model=<id>]
+ *     npx tsx scripts/check-agent-docs.ts --ai [--spec-url=<url>/openapi.json] [--model=<id>]
+ *
+ * It calls Bkper AI, so it runs only with `--ai`; without it, it only says so. By default, a
+ * coding agent reviews the README and the OpenAPI texts itself instead.
  *
  * A Bkper AI language model plays a fresh agent with a shell, the Bkper CLI and a way to
  * publish files, which has already run `bkper app list -b <book>`, `bkper app get report`
@@ -35,10 +38,19 @@ const REQUESTS = [
 
 const { values: args } = parseArgs({
     options: {
+        ai: { type: 'boolean', default: false },
         'spec-url': { type: 'string' },
         model: { type: 'string', default: 'claude-sonnet' },
     },
 });
+
+if (!args.ai) {
+    console.error(
+        'This check asks a Bkper AI language model: run it with --ai to call Bkper AI.\n' +
+            'Without it, review README.md, bkper.yaml and server/src/api/ yourself.'
+    );
+    process.exit(2);
+}
 
 const root = new URL('..', import.meta.url);
 const readme = readFileSync(new URL('README.md', root), 'utf8');

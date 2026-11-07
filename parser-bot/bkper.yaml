@@ -1,8 +1,8 @@
-# Registered 2026-11-03, published 2026-11-04. Since the 2026-11-05 handover, Parser Bot reads documents and learns from extraction corrections.
+# Registered 2026-11-03, published 2026-11-04. Since the 2026-11-05 handover, Extractor Bot reads documents and learns from extraction corrections.
 # Sync, deploy, install, or publish only with separate explicit approval.
 id: parser-bot
-name: Parser Bot
-description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.
+name: Extractor Bot
+description: Extract draft transactions from invoices, receipts, statements, and other documents, and learn from your corrections.
 
 logoUrl: https://raw.githubusercontent.com/bkper/bkper-apps/main/parser-bot/assets/logo-light.svg
 logoUrlDark: https://raw.githubusercontent.com/bkper/bkper-apps/main/parser-bot/assets/logo-dark.svg

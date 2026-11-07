@@ -1,10 +1,10 @@
-# Parser Bot design
+# Extractor Bot design
 
-Parser Bot reads documents, statements, attachments and descriptions. It extracts transaction fields and file metadata, asks Bookbot for Accounts, records unposted drafts, and learns from extraction corrections.
+Extractor Bot reads documents, statements, attachments and descriptions. It extracts transaction fields and file metadata, asks Bookbot for Accounts, records unposted drafts, and learns from extraction corrections.
 
-Parser Bot started as a copy of the legacy Bookbot Worker. Account discovery and rediscovery belong to [Bookbot](../../bookbot/docs/DESIGN.md); Parser Bot calls Bookbot's API and has no discovery code of its own.
+Extractor Bot started as a copy of the legacy Bookbot Worker. Account discovery and rediscovery belong to [Bookbot](../../bookbot/docs/DESIGN.md); Extractor Bot calls Bookbot's API and has no discovery code of its own.
 
-Rules, responsibilities, events, properties, the parse API and known current behavior are in [AGENTS.md](../AGENTS.md). The discovery API Parser Bot consumes is in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md). The contract for external parsers is in [TRANSACTIONS_EXTRACTOR_API.md](TRANSACTIONS_EXTRACTOR_API.md).
+Rules, responsibilities, events, properties, the parse API and known current behavior are in [AGENTS.md](../AGENTS.md). The discovery API Extractor Bot consumes is in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md). The contract for external parsers is in [TRANSACTIONS_EXTRACTOR_API.md](TRANSACTIONS_EXTRACTOR_API.md).
 
 ## Flow
 
@@ -26,10 +26,10 @@ Bkper Agent, scripts and other apps
 ## Design choices
 
 - **Read-only API.** `/api/v1/parse` reads and extracts but never writes. Event handlers own persistence.
-- **Discovery outage does not discard parsing.** When Bookbot fails or is unreachable, Parser Bot still records the parsed items as unposted drafts, keeps supplied fields, and reports the discovery failure as a `warning`. A valid no-match also produces drafts. Authorization or persistence failures still block that target write.
+- **Discovery outage does not discard parsing.** When Bookbot fails or is unreachable, Extractor Bot still records the parsed items as unposted drafts, keeps supplied fields, and reports the discovery failure as a `warning`. A valid no-match also produces drafts. Authorization or persistence failures still block that target write.
 - **No blind reprocessing.** Files that already have `transactions_summary` are skipped, and the summary lists only native transaction IDs that were actually recorded. Replays and retries must not duplicate drafts or overwrite later user corrections.
 - **Compatible connectors.** External parser contracts and property names stay compatible. Top-level group context is sent only when the parser URL is configured on that group.
-- **No posting.** Parser Bot never posts. Drafts do not affect balances until a user posts them.
+- **No posting.** Extractor Bot never posts. Drafts do not affect balances until a user posts them.
 
 ## What tests must cover
 

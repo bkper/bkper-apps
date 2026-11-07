@@ -14,7 +14,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 | Bookbot | Platform app (Cloudflare Workers); finds accounts: discovery API and rediscovery of drafts; never sync from the legacy repository | `bookbot/` |
-| Parser Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; published | `parser-bot/` |
+| Extractor Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; published | `parser-bot/` |
 | Report | Platform app (Vite + Cloudflare Workers); read-only financial reports from a typed request | `report/` |
 
 ## Plans
@@ -39,7 +39,7 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 | merge-duplicates | `5206` | `8806` |
 | report | `5207` | `8809` |
 
-### Bookbot and Parser Bot
+### Bookbot and Extractor Bot
 
 | App | Worker | Inspector |
 | --- | --- | --- |

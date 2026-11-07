@@ -1,21 +1,21 @@
-# Parser Bot — Platform App
+# Extractor Bot — Platform App
 
 ## Status and safety
 
 Read the responsibilities, events, properties and parse API below before changing behavior or ownership.
 
-This directory is the Parser Bot Platform app, started from the legacy Bookbot extraction automation. It is published, deployed to production and preview, and installed by Bkper wherever Bookbot is installed. It handles file, created, posted/updated (learning), deleted and audit events, and serves the read-only parse API. File-import and transaction-created handlers call Bookbot's discovery API; Parser Bot has no local discovery or rediscovery. Parser Bot is distinct from the managed conversational Bkper Agent.
+This directory is the Extractor Bot Platform app, started from the legacy Bookbot extraction automation. It is published, deployed to production and preview, and installed by Bkper wherever Bookbot is installed. It handles file, created, posted/updated (learning), deleted and audit events, and serves the read-only parse API. File-import and transaction-created handlers call Bookbot's discovery API; Extractor Bot has no local discovery or rediscovery. Extractor Bot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy`. Never use `wrangler deploy`.
 - `bkper.yaml` here is the source of truth for the live `parser-bot` registration.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
-- The README is Parser Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
+- The README is Extractor Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
 - Keep README content public-facing; development information belongs here.
-- Existing technical names and `agent_*` properties stay unchanged.
+- Existing technical names and `agent_*` properties stay unchanged. The public name is Extractor Bot; the app id `parser-bot`, directory, URLs, `agent_parser_*` properties, `/api/v1/parse` and code names still say parser.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
-- Parser Bot consumes Bookbot discovery through its API and has no local discovery code. Do not reintroduce it.
+- Extractor Bot consumes Bookbot discovery through its API and has no local discovery code. Do not reintroduce it.
 
 ## Refactoring rules
 
@@ -27,18 +27,18 @@ This directory is the Parser Bot Platform app, started from the legacy Bookbot e
 
 ## Rules
 
-- Preserve Bkper's zero-sum model. Parser Bot never posts transactions; unresolved results remain unposted drafts.
+- Preserve Bkper's zero-sum model. Extractor Bot never posts transactions; unresolved results remain unposted drafts.
 - AI suggests or extracts. Deterministic application code validates, merges, and controls financial writes.
 - Reusable APIs return results without Book writes; Book reads and inference are allowed. Event adapters or explicitly authorized callers own persistence.
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
 - Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication.
-- Bookbot discovery: Parser Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Parser Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Bookbot Worker is only a rollback target and is never called). The address is one constant. Bookbot's discovery API contract is in [Bookbot's AGENTS.md](../bookbot/AGENTS.md).
+- Bookbot discovery: Extractor Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Extractor Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Bookbot Worker is only a rollback target and is never called). The address is one constant. Bookbot's discovery API contract is in [Bookbot's AGENTS.md](../bookbot/AGENTS.md).
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance, including Bookbot's `agent_credit_account_id_` and `agent_debit_account_id_` read by statement learning.
 - Do not log credentials, document content, transaction descriptions, or private Book data.
 
 ## Responsibilities
 
-Parser Bot owns:
+Extractor Bot owns:
 
 - File classification and transaction extraction for one transaction, multiple transactions, and file metadata.
 - Amount and date extraction from descriptions.
@@ -47,7 +47,7 @@ Parser Bot owns:
 - Extraction provenance, correction learning, statement flags, and audit processing.
 - Coordinating transaction-created events: extract, call Bookbot discovery, then perform the single draft update. Bookbot does not separately enrich the same event.
 
-Parser Bot does not implement discovery. Its duplicated discovery code was removed; discovery runs only in Bookbot.
+Extractor Bot does not implement discovery. Its duplicated discovery code was removed; discovery runs only in Bookbot.
 
 ## Events
 
@@ -145,4 +145,4 @@ Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving 
 
 The source/fixture owner confirmed redistribution rights and that document fixtures are synthetic. The monorepo MIT license covers Bkper-owned source; dependencies retain their own licenses. No private repository history, credentials, operational rollout plan, or generated build output belongs in this public source snapshot. Re-review the final tree and dependency notices before any publication.
 
-Parser Bot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`). Keep `bun.lock` committed and in sync with `package.json`.
+Extractor Bot uses its own ignored `node_modules` installation (`bun install --frozen-lockfile --ignore-scripts`). Keep `bun.lock` committed and in sync with `package.json`.

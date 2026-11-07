@@ -4,11 +4,14 @@
  * Screenshots: /tmp/report-switch (override with --screenshots=<directory>).
  *
  * The API is stubbed with recorded specs (client/dev/specs/studio.json); no Book, Worker or KV
- * is read. At desktop and phone widths, light and dark, it changes reports with the
+ * is read. At desktop and phone widths, light and dark, and with reports hundreds of rows tall on a
+ * 2x screen (a snapshot larger than the browser takes is captured smaller, then shown scaled
+ * up), it changes reports with the
  * suggestions, the saved prompts, quick successive clicks and a typed request, and checks every
- * view transition as the browser captures it: scoped to the report (the input stays live and
- * still), the next report in place with its chart drawn at its size (not still blank, nor the
- * last chart's drawing in the next one's box), its snapshot as tall as the report, both
+ * view transition as the browser captures it: scoped to the report's scroll area (the input
+ * stays live and still), the next report in place with its chart drawn at its size (not still
+ * blank, nor the last chart's drawing in the next one's box), its snapshot as tall as the visible
+ * area however tall the report, both
  * snapshots at their own size from the top (never scaled to the box), a prefetched report within 150 ms of the click, and the last report clicked shown
  * at the end. A chart chosen from the previews shows within 50 ms, with no transition; with
  * reduced motion, reports change with none. It saves the frames of one change per layout.
@@ -58,6 +61,8 @@ const fixtures = ORDER.map(id => {
     return fixture;
 });
 const byIntent = new Map(fixtures.map(fixture => [JSON.stringify(fixture.intent), fixture]));
+/** Reports hundreds of rows tall, on a 2x screen. */
+let tall = false;
 assert.equal(byIntent.size, fixtures.length, 'Each recorded report has its own intent');
 
 const themeUrl =
@@ -69,8 +74,9 @@ const themeScript = await themeResponse.text();
 /** The page as a view transition captures it, read in the app's frame. */
 interface PageState {
     title: string;
-    /** The report's height, and its new snapshot's while a transition scoped to it runs. */
+    /** The report's height, the visible scroll area's, and its new snapshot's while a transition scoped to it runs. */
     height: number;
+    areaHeight: number;
     snapshotHeight: number;
     /** How the old and new snapshots fit their box: `object-fit` and `object-position`. */
     snapshotFit: string[];
@@ -119,16 +125,18 @@ const RECORD_TRANSITIONS = `(() => {
         const host = report?.querySelector('.chart > *');
         const chart = host?.chart;
         const input = page?.querySelector('wa-input');
-        const snapshot = view ? parseFloat(getComputedStyle(view, '::view-transition-new(root)').height) : NaN;
+        const area = page?.querySelector('.scroll');
+        const snapshot = area ? parseFloat(getComputedStyle(area, '::view-transition-new(root)').height) : NaN;
         const fit = part => {
-            const style = getComputedStyle(view, part);
+            const style = getComputedStyle(area, part);
             return style.objectFit + ' ' + style.objectPosition;
         };
         return {
             title: report?.querySelector('h1')?.textContent?.trim() ?? '',
             height: view ? view.getBoundingClientRect().height : 0,
+            areaHeight: area ? area.getBoundingClientRect().height : 0,
             snapshotHeight: snapshot,
-            snapshotFit: view
+            snapshotFit: area
                 ? ['::view-transition-old(root)', '::view-transition-new(root)'].map(fit)
                 : [],
             chart: host ? {
@@ -215,6 +223,10 @@ try {
             await suggestions(name, width, theme);
             await savedPrompts(name, width, theme);
         }
+    // Reports hundreds of rows tall on a 2x screen, as large Books have.
+    tall = true;
+    await suggestions('1100-dark-tall-2x', 1100, 'dark');
+    tall = false;
     await reducedMotion();
 } finally {
     await browser.close();
@@ -369,7 +381,7 @@ function checkRecord(
     memory: boolean
 ): void {
     transitions++;
-    check(record.scope === 'report-view', `${label}: transition scoped to ${record.scope}`);
+    check(record.scope === 'main', `${label}: transition scoped to ${record.scope}`);
     if (record.skipped) return;
     const captured = record.captured;
     if (!captured || record.ready === undefined) {
@@ -398,9 +410,10 @@ function checkRecord(
     }
     const after = record.after?.chart;
     check(!after || drawnAtSize(after), `${label}: its chart is not drawn at its size at the end`);
+    // Never larger than the screen: a whole tall report is captured smaller, then scaled up.
     check(
-        Math.abs(captured.snapshotHeight - captured.height) <= 1,
-        `${label}: the next report's snapshot is ${Math.round(captured.snapshotHeight)} px tall, the report ${Math.round(captured.height)} px`
+        Math.abs(captured.snapshotHeight - captured.areaHeight) <= 1,
+        `${label}: the next report's snapshot is ${Math.round(captured.snapshotHeight)} px tall, the visible area ${Math.round(captured.areaHeight)} px (the report ${Math.round(captured.height)} px)`
     );
     // Browsers scale snapshots to fit the transition's box by default, which stretched the old
     // report while the next one was prepared: each keeps its own size, from the top.
@@ -470,6 +483,7 @@ async function open(
 ) {
     const context = await browser.newContext({
         viewport: { width, height: 800 },
+        deviceScaleFactor: tall ? 2 : 1,
         colorScheme: theme,
         reducedMotion,
         locale: 'en-US',
@@ -535,7 +549,7 @@ async function open(
                     ? fixtures.find(item => body.prompt?.endsWith(` ${item.id}`))
                     : byIntent.get(JSON.stringify(body.intent));
                 assert(fixture, `A recorded report for ${JSON.stringify(body)}`);
-                return json(responseOf(fixture));
+                return json(responseOf(tall ? tallOf(fixture) : fixture));
             }
             throw new Error(`Unmocked API: ${req.method()} ${path}`);
         }
@@ -610,6 +624,25 @@ function responseOf(fixture: Fixture): ReportResponse {
         },
         url: `${APP}/?book=fixture-book`,
     };
+}
+
+/** The report with its breakdown repeated 60 times, each row under its own id. */
+function tallOf(fixture: Fixture): Fixture {
+    const copy = structuredClone(fixture);
+    for (const element of Object.values(copy.spec.elements)) {
+        if (element.type !== 'BreakdownTable') continue;
+        const rows = element.props.rows;
+        element.props.rows = Array.from({ length: 60 }, (_, index) =>
+            rows.map(row => renamed(structuredClone(row), index))
+        ).flat();
+    }
+    return copy;
+}
+
+function renamed<T extends { id: string; children?: T[] }>(row: T, index: number): T {
+    row.id = `${row.id}-${index}`;
+    row.children?.forEach(child => renamed(child, index));
+    return row;
 }
 
 function titleOf(fixture: Fixture): string {

@@ -318,11 +318,22 @@ describe('ReportPage', () => {
         await settle(view);
         const shown = shadow(view).querySelector('report-view');
         if (!shown) throw new Error('No report');
-        // A browser with view transitions scoped to an element, and a chart still to draw.
+        // A browser with view transitions scoped to an element, and a chart still to draw. The
+        // transition runs on the scroll area, never larger than the screen: a whole tall report
+        // is captured smaller than it is, then shown scaled up.
         const drawn = deferred<void>();
         let captured: Promise<void> | undefined;
+        let onReport = false;
         Object.assign(shown, {
             chartDrawn: () => drawn.promise,
+            startViewTransition: () => {
+                onReport = true;
+                throw new Error('Scoped to the whole report');
+            },
+        });
+        const area = shadow(view).querySelector('.scroll');
+        if (!area) throw new Error('No scroll area');
+        Object.assign(area, {
             startViewTransition: (update: () => Promise<void>) => {
                 captured = update();
                 return {
@@ -342,6 +353,7 @@ describe('ReportPage', () => {
         await settle(view);
 
         expect(captured).toBeDefined();
+        expect(onReport).toBe(false);
         expect(shown.spec).toEqual(report('Taxes').spec);
         expect(done).toBe(false);
         drawn.resolve();

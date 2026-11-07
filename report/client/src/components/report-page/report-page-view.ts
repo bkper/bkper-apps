@@ -354,14 +354,16 @@ export class ReportPage extends LitElement {
     private follow(): void {
         const next = this.state.reports.report;
         if (next === this.shown || this.morphing) return;
-        const area = this.reportArea;
-        const morph = area && this.shown && next ? morphOf(area) : undefined;
+        // The visible scroll area, never larger than the screen: a report taller than the
+        // largest snapshot the browser takes is captured smaller, then shown scaled up.
+        const area = this.scroller;
+        const morph = area && this.reportArea && this.shown && next ? morphOf(area) : undefined;
         if (!area || !morph) {
             this.shown = next;
             return;
         }
         this.morphing = true;
-        // Scoped to the report, the page keeps drawing while the transition waits, so it captures
+        // Scoped to the area, the page keeps drawing while the transition waits, so it captures
         // the next report with its chart drawn; over the whole page nothing draws until then.
         const scoped = isViewTransitionScope(area);
         const transition = morph(async () => {
@@ -395,8 +397,8 @@ function isViewTransitionScope(target: object): target is ViewTransitionScope {
 }
 
 /**
- * How to change the report with a view transition: scoped to the report where the browser can,
- * so the input stays live and still; else over the whole page; none without support or when
+ * How to change the report with a view transition: scoped to its scroll area where the browser
+ * can, so the input stays live and still; else over the whole page; none without support or when
  * the person prefers reduced motion.
  */
 function morphOf(area: HTMLElement): ViewTransitionScope['startViewTransition'] | undefined {

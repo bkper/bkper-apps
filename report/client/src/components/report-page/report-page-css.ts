@@ -163,8 +163,8 @@ export const reportPageCSS = css`
         font-size: var(--wa-font-size-s);
     }
 
-    /* The report changes in place with a short view transition scoped to it (see follow). */
-    .report::view-transition-group(*) {
+    /* The report changes in place with a short view transition scoped to its scroll area (see follow). */
+    .scroll::view-transition-group(*) {
         animation-duration: var(--wa-transition-slow);
         animation-timing-function: var(--wa-transition-easing);
     }
@@ -174,8 +174,8 @@ export const reportPageCSS = css`
      * height changes (and while the next one is prepared) the last report showed scaled up.
      * Each snapshot keeps its own size, from the top.
      */
-    .report::view-transition-old(*),
-    .report::view-transition-new(*) {
+    .scroll::view-transition-old(*),
+    .scroll::view-transition-new(*) {
         object-fit: none;
         object-position: top;
     }

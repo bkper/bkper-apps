@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildReport } from '../../src/services/report';
+import { buildReport, planQueries, planReport } from '../../src/services/report';
 import type { Snapshot } from '../../src/services/snapshot';
 import { buildSuggestions } from '../../src/services/suggestions';
-import { fixtureSnapshot } from '../fixtures/snapshot-book';
+import { fixtureLedger, fixtureSnapshot, ledgerBalances } from '../fixtures/snapshot-book';
 
 /** The fixture read years later: its last movements, in November 2026, are then old. */
 async function laterSnapshot(): Promise<Snapshot> {
@@ -49,12 +49,35 @@ describe('buildSuggestions', () => {
         ]);
     });
 
-    it('suggests only reports every suggestion can build from the snapshot', async () => {
+    it('suggests only reports the Book can have', async () => {
+        const ledger = fixtureLedger();
         for (const snapshot of [await fixtureSnapshot(), await laterSnapshot()]) {
             for (const { intent } of buildSuggestions(snapshot, 'en')) {
-                expect(buildReport(intent, snapshot)).toHaveProperty('report');
+                const queries = planQueries(planReport(intent, snapshot));
+                const balances = queries.map(query => ledgerBalances(ledger, query));
+                expect(buildReport(intent, snapshot, balances).answer.amount).toBeDefined();
             }
         }
+    });
+
+    it('ranks roots of a kind by their months with movements, reading no amounts', async () => {
+        const snapshot = await fixtureSnapshot();
+        snapshot.groups['g-net'].type = 'INCOMING';
+        const order = (roots: string[]) =>
+            buildSuggestions({ ...snapshot, roots }, 'en').map(suggestion => suggestion.text);
+        // Net income's accounts moved in seven months this year, Revenue's in two.
+        expect(order(['g-revenue', 'g-net'])).toEqual([
+            'Net result this year',
+            'Net income by month this year',
+            'Revenue this year',
+        ]);
+        snapshot.accounts['a-rent'].activeMonths = [];
+        snapshot.accounts['a-food'].activeMonths = [];
+        // As busy as each other, they keep Book order.
+        expect(order(['g-revenue', 'g-net'])).toEqual([
+            'Revenue by month this year',
+            'Net income this year',
+        ]);
     });
 
     it('fills three suggestions with other roots when the Book has no positions', async () => {

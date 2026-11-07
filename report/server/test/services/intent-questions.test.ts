@@ -29,8 +29,7 @@ function wideSnapshot(base: Snapshot, roots: number, accounts: number): Snapshot
         type: 'OUTGOING' as const,
         credit: false,
         permanent: false,
-        months: [],
-        windows: [],
+        activeMonths: [],
     };
     for (let r = 0; r < roots; r++) {
         const ids = Array.from({ length: accounts }, (_, a) => `r${r}-a${a}`);

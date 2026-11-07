@@ -3,26 +3,39 @@ import { isolate } from 'report-shared/bidi';
 import { addAllLocales } from 'report-shared/locales';
 import { addLocale, t } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
-import { buildReport, type ReportData } from '../../src/services/report';
+import { buildReport, planQueries, planReport, type ReportData } from '../../src/services/report';
 import type { ReportIntent } from '../../src/services/report-intent';
 import { buildReportSpec } from '../../src/services/report-spec';
 import type { Snapshot } from '../../src/services/snapshot';
-import { fixtureSnapshot } from '../fixtures/snapshot-book';
+import type { FakeLedger } from '../fixtures/ledger';
+import {
+    fixtureLedger,
+    fixtureSnapshot,
+    ledgerBalances,
+    ledgerSnapshot,
+} from '../fixtures/snapshot-book';
 
 function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
     return { root, period, monthly: false, ...extra };
 }
 
-async function report(request: ReportIntent, snapshot?: Snapshot): Promise<ReportData> {
-    const step = buildReport(request, snapshot ?? (await fixtureSnapshot()));
-    if (!('report' in step)) {
-        throw new Error(`Needs a live query: ${step.liveQuery.query}`);
-    }
-    return step.report;
+/** The report of an intent on a ledger (the fixture's by default), and its map unless given. */
+async function report(
+    request: ReportIntent,
+    snapshot?: Snapshot,
+    ledger: FakeLedger = fixtureLedger()
+): Promise<ReportData> {
+    const map = snapshot ?? (await ledgerSnapshot(ledger));
+    const queries = planQueries(planReport(request, map));
+    return buildReport(
+        request,
+        map,
+        queries.map(query => ledgerBalances(ledger, query))
+    );
 }
 
-async function spec(request: ReportIntent, lang = 'en', snapshot?: Snapshot) {
-    return buildReportSpec(await report(request, snapshot), lang);
+async function spec(request: ReportIntent, lang = 'en', snapshot?: Snapshot, ledger?: FakeLedger) {
+    return buildReportSpec(await report(request, snapshot, ledger), lang);
 }
 
 function element<T extends ReportElement['type']>(
@@ -479,19 +492,29 @@ describe('buildReportSpec', () => {
     });
 
     it('dims the preferred chart that does not fit, naming the part and its amount', async () => {
-        const snapshot = await fixtureSnapshot();
-        snapshot.accounts['a-food'] = {
-            ...snapshot.accounts['a-food'],
-            name: 'IMPOSTOS',
-            months: snapshot.accounts['a-food'].months.map(month =>
-                month.month === '2026-10' ? { ...month, period: '-186.74' } : month
-            ),
-        };
-        snapshot.groups['g-expenses'].months = snapshot.groups['g-expenses'].months.map(month =>
-            month.month === '2026-10' ? { ...month, period: '813.26' } : month
-        );
+        // A refund of taxes in October: the account shows below zero, as in Bkper.
+        const ledger = fixtureLedger();
+        const food = ledger.book.accounts?.find(account => account.name === 'Food');
+        if (food) {
+            food.name = 'IMPOSTOS';
+        }
+        for (const transaction of ledger.transactions) {
+            if (transaction.to === 'Food') {
+                transaction.to = 'IMPOSTOS';
+            }
+        }
+        ledger.transactions.push({
+            date: '2026-10-20',
+            from: 'IMPOSTOS',
+            to: 'Bank A',
+            amount: '387.24',
+        });
+        const snapshot = await ledgerSnapshot(ledger);
         const request = intent('g-expenses', 'last_month', { chart: 'pie' });
-        const english = element(await spec(request, 'en', snapshot), 'Visualizations').props;
+        const english = element(
+            await spec(request, 'en', snapshot, ledger),
+            'Visualizations'
+        ).props;
         expect(english.unfit).toEqual({
             kind: 'pie',
             name: 'Pie',
@@ -502,7 +525,10 @@ describe('buildReportSpec', () => {
         });
         expect(english.main).toBe('ranked-bar');
         expect(english.views.map(view => view.kind)).not.toContain('pie');
-        const portuguese = element(await spec(request, 'pt-BR', snapshot), 'Visualizations');
+        const portuguese = element(
+            await spec(request, 'pt-BR', snapshot, ledger),
+            'Visualizations'
+        );
         expect(portuguese.props.unfit?.reason).toContain(isolate('-186,74'));
     });
 

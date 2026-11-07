@@ -1,54 +1,24 @@
 /**
- * Book snapshot: the root groups of a Book, their subgroups and accounts, and the balances
- * every report is computed from.
+ * Book snapshot: the Book's map. Its root groups, their subgroups and accounts, their natures,
+ * and the months each had movements in, which default periods, period options and
+ * suggestions are chosen from. It holds no amounts: every amount a report shows comes from a
+ * balances query of the report's own period (`report.ts`).
  *
- * Each root group is read with one monthly query over its full history up to today, so the
- * last month holds the month to date. Roots that report activity (Incoming, Outgoing) also
- * get a few partial-month windows, which complete the comparisons of the current periods
- * (this month against the same days of last month, and so on). Amounts are decimal strings
- * with the sign Bkper shows people: bkper-js representative balances, by credit nature.
+ * Each root group is read with one monthly query over its full history up to today, the
+ * only way Bkper tells which months had movements, and in which order it lists the children.
  */
-import {
-    Amount,
-    type Account,
-    type BalancesContainer,
-    type BalancesReport,
-    type Book,
-    type Group,
-} from 'bkper-js';
+import type { Account, BalancesContainer, BalancesReport, Book, Group } from 'bkper-js';
 import {
     addDays,
     isoMonth,
     isPlausibleYear,
-    previousPeriod,
     type DataRange,
-    type DateRange,
     type IsoDate,
     type IsoMonth,
 } from './periods.js';
 
 /** Group nature: an account type, or mixed (Asset with Liability, Incoming with Outgoing). */
 export type NodeType = 'ASSET' | 'LIABILITY' | 'INCOMING' | 'OUTGOING' | 'MIXED';
-
-/** Balances of one month that has movements, or the month of `before` in the query. */
-export interface MonthBalance {
-    month: IsoMonth;
-    /** Activity within the month. */
-    period: string;
-    /** Position at the end of the month (at the end of today, for the current month). */
-    cumulative: string;
-}
-
-/** A partial month: from the first of a month up to, not including, a later day of it. */
-export interface PartialMonth {
-    after: IsoDate;
-    before: IsoDate;
-}
-
-/** Activity within a {@link PartialMonth}. */
-export interface PartialMonthBalance extends PartialMonth {
-    period: string;
-}
 
 export interface SnapshotNode {
     id: string;
@@ -58,10 +28,8 @@ export interface SnapshotNode {
     credit: boolean;
     /** Position to a date (Asset, Liability) rather than activity in a period. */
     permanent: boolean;
-    /** Months in ascending order; a missing month had no movement. */
-    months: MonthBalance[];
-    /** The comparison windows; empty outside roots that report activity. */
-    windows: PartialMonthBalance[];
+    /** The months with movements, ascending. */
+    activeMonths: IsoMonth[];
 }
 
 export interface SnapshotGroup extends SnapshotNode {
@@ -85,9 +53,9 @@ export interface Snapshot {
         fractionDigits?: number;
         permission: string;
     };
-    /** The Book's today when the balances were read; every period of this snapshot is relative to it. */
+    /** The Book's today when the map was read; every period of a report is relative to it. */
     today: IsoDate;
-    /** When the balances were read, as an ISO instant. */
+    /** When the map was read, as an ISO instant. */
     dataAt: string;
     /** First and last months with movements in any root group; absent for a Book without movements. */
     dataRange?: DataRange;
@@ -98,54 +66,19 @@ export interface Snapshot {
     accounts: Record<string, SnapshotAccount>;
 }
 
-/** One balances query: a root group over its history, or a root group within a window. */
+/** The balances query of a root group over its history. */
 export interface SnapshotQuery {
     root: string;
     query: string;
-    window?: PartialMonth;
 }
 
-/** Current periods whose comparison may end in the middle of a month. */
-const TO_DATE_PERIODS = ['this_month', 'this_quarter', 'this_year', 'last_12_months'] as const;
-
-/**
- * The partial-month windows that complete the comparisons of the current periods: the
- * comparison's last month, when it ends before that month does.
- */
-export function comparisonWindows(today: IsoDate): PartialMonth[] {
-    const windows = new Map<string, PartialMonth>();
-    for (const id of TO_DATE_PERIODS) {
-        const previous = previousPeriod(id, 'activity', { today });
-        if (previous && !isMonthStart(previous.before)) {
-            const after = `${previous.before.slice(0, 7)}-01`;
-            windows.set(after, { after, before: previous.before });
-        }
-    }
-    return [...windows.values()];
-}
-
-/** The queries of a snapshot: every root by month up to today, plus windows for activity roots. */
-export function snapshotQueries(
-    roots: { name: string; permanent: boolean }[],
-    today: IsoDate
-): SnapshotQuery[] {
+/** The queries of a snapshot: every root by month up to today. */
+export function snapshotQueries(roots: { name: string }[], today: IsoDate): SnapshotQuery[] {
     const tomorrow = addDays(today, 1);
-    const windows = comparisonWindows(today);
-    return roots.flatMap(root => {
-        const group = `group:${quote(root.name)}`;
-        const history = { root: root.name, query: `${group} before:${tomorrow} by:m` };
-        if (root.permanent) {
-            return [history];
-        }
-        return [
-            history,
-            ...windows.map(window => ({
-                root: root.name,
-                query: `${group} after:${window.after} before:${window.before}`,
-                window,
-            })),
-        ];
-    });
+    return roots.map(root => ({
+        root: root.name,
+        query: `group:${quote(root.name)} before:${tomorrow} by:m`,
+    }));
 }
 
 /** Bkper reads a name in single quotes, or in double quotes when it contains a single quote. */
@@ -188,30 +121,20 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
         accounts: {},
     };
     const active = new Set<IsoMonth>();
-    const windows = new Map<string, PartialMonth[]>();
 
-    for (const { query, report } of results) {
+    for (const { report } of results) {
         for (const container of report.getBalancesContainers()) {
             if (container.isFromAccount()) {
                 continue;
             }
-            const root = addGroup(snapshot, lookup, container, undefined, query.window);
-            if (query.window) {
-                windows.set(root, [...(windows.get(root) ?? []), query.window]);
-                continue;
-            }
+            const root = addGroup(snapshot, lookup, container, undefined);
             snapshot.roots.push(root);
-            for (const balance of container.getBalances()) {
-                const moved = !balance.getPeriodDebit().eq(0) || !balance.getPeriodCredit().eq(0);
-                if (moved && isPlausibleYear(balance.getYear())) {
-                    active.add(isoMonth(balance.getYear(), balance.getMonth()));
+            for (const month of snapshot.groups[root].activeMonths) {
+                if (isPlausibleYear(Number(month.slice(0, 4)))) {
+                    active.add(month);
                 }
             }
         }
-    }
-
-    for (const [root, rootWindows] of windows) {
-        completeWindows(snapshot, snapshot.groups[root], rootWindows);
     }
 
     const months = [...active].sort();
@@ -229,8 +152,7 @@ function addGroup(
     snapshot: Snapshot,
     lookup: Lookup,
     container: BalancesContainer,
-    parent: string | undefined,
-    window: PartialMonth | undefined
+    parent: string | undefined
 ): string {
     const group = lookup.group(container.getName());
     const id = group.getId() ?? '';
@@ -246,30 +168,22 @@ function addGroup(
             ...(parent === undefined ? {} : { parent }),
             groups: [],
             accounts: [],
-            months: [],
-            windows: [],
+            activeMonths: activeMonths(container),
         };
         snapshot.groups[id] = node;
     }
-    addBalances(node, container, window);
 
     for (const child of container.getBalancesContainers()) {
         if (child.isFromAccount()) {
-            const accountId = addAccount(snapshot, lookup, child, window);
-            addOnce(node.accounts, accountId);
+            addOnce(node.accounts, addAccount(snapshot, lookup, child));
         } else {
-            addOnce(node.groups, addGroup(snapshot, lookup, child, id, window));
+            addOnce(node.groups, addGroup(snapshot, lookup, child, id));
         }
     }
     return id;
 }
 
-function addAccount(
-    snapshot: Snapshot,
-    lookup: Lookup,
-    container: BalancesContainer,
-    window: PartialMonth | undefined
-): string {
+function addAccount(snapshot: Snapshot, lookup: Lookup, container: BalancesContainer): string {
     const account = lookup.account(container.getName());
     const id = account.getId() ?? '';
     let node = snapshot.accounts[id];
@@ -281,54 +195,20 @@ function addAccount(
             credit: container.isCredit() ?? false,
             permanent: container.isPermanent(),
             archived: account.isArchived() ?? false,
-            months: [],
-            windows: [],
+            activeMonths: activeMonths(container),
         };
         snapshot.accounts[id] = node;
     }
-    addBalances(node, container, window);
     return id;
 }
 
-/** An account under several roots gets the same balances from each query; keep the first. */
-function addBalances(
-    node: SnapshotNode,
-    container: BalancesContainer,
-    window: PartialMonth | undefined
-): void {
-    if (window) {
-        if (!node.windows.some(w => w.after === window.after)) {
-            node.windows.push({ ...window, period: decimal(container.getPeriodBalance()) });
-        }
-        return;
-    }
-    if (node.months.length > 0) {
-        return;
-    }
-    node.months = container
+/** The months a group or an account had movements in: debits or credits, even if they net to zero. */
+function activeMonths(container: BalancesContainer): IsoMonth[] {
+    return container
         .getBalances()
-        .map(balance => ({
-            month: isoMonth(balance.getYear(), balance.getMonth()),
-            period: decimal(balance.getPeriodBalance()),
-            cumulative: decimal(balance.getCumulativeBalance()),
-        }))
-        .sort((a, b) => a.month.localeCompare(b.month));
-}
-
-/** Bkper may leave accounts without movements out of a window: they had none in it. */
-function completeWindows(snapshot: Snapshot, group: SnapshotGroup, windows: PartialMonth[]): void {
-    const nodes: SnapshotNode[] = [group, ...group.accounts.map(id => snapshot.accounts[id])];
-    for (const node of nodes) {
-        for (const window of windows) {
-            if (!node.windows.some(w => w.after === window.after)) {
-                node.windows.push({ ...window, period: '0' });
-            }
-        }
-        node.windows.sort((a, b) => b.after.localeCompare(a.after));
-    }
-    for (const child of group.groups) {
-        completeWindows(snapshot, snapshot.groups[child], windows);
-    }
+        .filter(balance => !balance.getPeriodDebit().eq(0) || !balance.getPeriodCredit().eq(0))
+        .map(balance => isoMonth(balance.getYear(), balance.getMonth()))
+        .sort();
 }
 
 function addOnce(ids: string[], id: string): void {
@@ -364,74 +244,10 @@ class Lookup {
     }
 }
 
-/**
- * Activity of a node within a range, or `undefined` when the snapshot cannot answer it.
- *
- * The range must start a month (or be open). It ends at a month start, at or after
- * tomorrow (the month to date), or at the end of one of the {@link comparisonWindows}.
- * Nothing is dated after today in a snapshot.
- */
-export function periodAmount(
-    node: SnapshotNode,
-    range: DateRange,
-    snapshot: Pick<Snapshot, 'today'>
-): Amount | undefined {
-    const { after, before } = range;
-    if (after !== undefined && !isMonthStart(after)) {
-        return undefined;
-    }
-    const first = after?.slice(0, 7);
-    const last = before.slice(0, 7);
-    const inRange = (month: MonthBalance) => first === undefined || month.month >= first;
-    let total = sum(node.months.filter(month => inRange(month) && month.month < last));
-    if (isMonthStart(before)) {
-        return total;
-    }
-    if (before >= addDays(snapshot.today, 1)) {
-        const toDate = node.months.find(month => month.month === last);
-        return toDate ? total.plus(toDate.period) : total;
-    }
-    const window = node.windows.find(w => w.before === before && w.after.startsWith(last));
-    return window ? total.plus(window.period) : undefined;
-}
-
-/**
- * Position of a node at the start of `before`, or `undefined` when the snapshot cannot
- * answer it: `before` must start a month, or be tomorrow or later (the position today).
- */
-export function positionAmount(
-    node: SnapshotNode,
-    before: IsoDate,
-    snapshot: Pick<Snapshot, 'today'>
-): Amount | undefined {
-    const today = before >= addDays(snapshot.today, 1);
-    if (!today && !isMonthStart(before)) {
-        return undefined;
-    }
-    const end = before.slice(0, 7);
-    const last = node.months.filter(month => today || month.month < end).at(-1);
-    return new Amount(last?.cumulative ?? 0);
-}
-
 /** The last month any of the nodes had movements; `undefined` when none ever had. */
 export function lastActiveMonth(nodes: SnapshotNode[]): IsoMonth | undefined {
     return nodes
-        .flatMap(node => node.months)
-        .filter(month => month.period !== '0')
-        .map(month => month.month)
+        .flatMap(node => node.activeMonths)
         .sort()
         .at(-1);
-}
-
-function sum(months: MonthBalance[]): Amount {
-    return months.reduce((total, month) => total.plus(month.period), new Amount(0));
-}
-
-function isMonthStart(date: IsoDate): boolean {
-    return date.endsWith('-01');
-}
-
-/** Plain decimal notation; zero has no sign. */
-function decimal(amount: Amount): string {
-    return amount.eq(0) ? '0' : amount.toFixed();
 }

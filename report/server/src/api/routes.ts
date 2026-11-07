@@ -6,8 +6,9 @@ import { HTTPException } from 'hono/http-exception';
 import type { AppContext, AppEnv } from '../app-context.js';
 import { buildReportFile, reportFileOpen } from '../services/report-file.js';
 import { createReport, DEFAULT_LANGUAGE, type ReportRequest } from '../services/report-service.js';
+import { loadBalances } from '../services/balances-loader.js';
 import type { Snapshot } from '../services/snapshot.js';
-import { loadSnapshot } from '../services/snapshot-loader.js';
+import { currentUserId, loadSnapshot } from '../services/snapshot-loader.js';
 import { buildSuggestions } from '../services/suggestions.js';
 import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
@@ -175,7 +176,7 @@ export function registerApiRoutes(app: App): void {
         const context = c.var.appContext;
         const { bookId } = c.req.valid('param');
         const { language } = c.req.valid('query');
-        const snapshot = await readableSnapshot(context, bookId);
+        const { snapshot } = await readableSnapshot(context, bookId);
         const lang =
             (language && supportedLanguage(language)) ??
             acceptedLanguage(c.req.header('Accept-Language')) ??
@@ -190,7 +191,7 @@ export function registerApiRoutes(app: App): void {
         const context = c.var.appContext;
         const { bookId } = c.req.valid('param');
         const body = c.req.valid('json');
-        const snapshot = await readableSnapshot(context, bookId);
+        const { snapshot, userId } = await readableSnapshot(context, bookId);
         const result = await createReport(
             snapshot,
             reportRequest(body),
@@ -200,7 +201,15 @@ export function registerApiRoutes(app: App): void {
             },
             {
                 decisions: context.decisions,
-                readBalances: query => context.readBalances(snapshot.book, query),
+                loadBalances: queries =>
+                    loadBalances(queries, {
+                        userId,
+                        bookId,
+                        kv: context.env.KV,
+                        timing: context.timing,
+                        read: query => context.readBalances(snapshot.book, query),
+                        defer: context.defer,
+                    }),
                 timing: context.timing,
             }
         );
@@ -266,14 +275,19 @@ function reportRequest({ prompt, intent }: ReportRequestBody): ReportRequest {
     throw new HTTPException(400, { message: EXACTLY_ONE_REQUEST });
 }
 
-/** The Book snapshot, for a user who may read the Book's balances. */
-async function readableSnapshot(context: AppContext, bookId: string): Promise<Snapshot> {
+/** The Book snapshot, for a user who may read the Book's balances, and that user. */
+async function readableSnapshot(
+    context: AppContext,
+    bookId: string
+): Promise<{ snapshot: Snapshot; userId: string }> {
+    const userId = await currentUserId(context.bkper, context.timing);
     const snapshot = await loadSnapshot(bookId, {
+        userId,
         bkper: context.bkper,
         kv: context.env.KV,
         timing: context.timing,
         defer: context.defer,
     });
     requireViewPermission(snapshot.book.permission);
-    return snapshot;
+    return { snapshot, userId };
 }

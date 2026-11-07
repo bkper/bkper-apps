@@ -1,13 +1,16 @@
 /**
- * A small Book and its balances, shaped like the payloads recorded from the Bkper API
- * (`GET /v5/books/{id}?loadAccounts=true&loadGroups=true` and `GET /v5/books/{id}/balances`):
- * raw decimal strings (credit minus debit), sparse months, `day: 0` monthly buckets, and a
- * zero bucket for the month of `before` in activity groups. The amounts are made up.
+ * A small Book, shaped like the payload recorded from the Bkper API
+ * (`GET /v5/books/{id}?loadAccounts=true&loadGroups=true`), and its made-up transactions in a
+ * {@link FakeLedger}, which answers every balances query as the Bkper API does.
  *
- * Today is 2026-11-05 in the Book time zone, so every query ends before 2026-11-06.
+ * Today is 2026-11-05 in the Book time zone, so current periods end before 2026-11-06.
+ * `Owner` is in no group: it only balances the movements of the others.
  */
-import { Amount, BalancesReport, Book } from 'bkper-js';
+import { BalancesReport, Book } from 'bkper-js';
 import { buildSnapshot, snapshotQueries, type Snapshot } from '../../src/services/snapshot';
+import type { QueryBalances } from '../../src/services/balances';
+import { readQueryBalances } from '../../src/services/balances';
+import { FakeLedger, type LedgerTransaction } from './ledger';
 
 export const TODAY = '2026-11-05';
 
@@ -38,6 +41,7 @@ export const bookPayload: bkper.Book = {
         account('a-food', 'Food', 'OUTGOING', ['g-expenses', 'g-net']),
         account('a-old', 'Old Supplier', 'OUTGOING', ['g-expenses'], true),
         account('a-salary', 'Salary', 'INCOMING', ['g-revenue', 'g-net']),
+        account('a-owner', 'Owner', 'LIABILITY', []),
     ],
 };
 
@@ -79,267 +83,61 @@ function account(
     };
 }
 
-/** Monthly buckets from `[year, month, raw period balance]`, with running cumulative balances. */
-function months(entries: [number, number, string][]): bkper.Balance[] {
-    let cumulative = new Amount(0);
-    return entries.map(([year, month, period]) => {
-        const amount = new Amount(period);
-        cumulative = cumulative.plus(amount);
-        return {
-            year,
-            month,
-            day: 0,
-            fuzzyDate: year * 10000 + month * 100,
-            periodBalance: period,
-            cumulativeBalance: cumulative.toFixed(),
-            periodCredit: amount.gt(0) ? period : '0',
-            periodDebit: amount.lt(0) ? amount.abs().toFixed() : '0',
-            cumulativeCredit: '0',
-            cumulativeDebit: '0',
-        };
-    });
-}
-
-function accountBalances(
-    name: string,
-    nature: { credit: boolean; permanent: boolean },
-    balances: bkper.Balance[],
-    archived = false
-): bkper.AccountBalances {
-    const last = balances[balances.length - 1];
-    return {
-        name,
-        normalizedName: name.toLowerCase().replace(/ /g, '_'),
-        ...nature,
-        archived,
-        empty: balances.length === 0,
-        balances,
-        periodBalance: last?.cumulativeBalance ?? '0',
-        cumulativeBalance: last?.cumulativeBalance ?? '0',
-    };
-}
-
-function windowBalances(name: string, credit: boolean, period: string): bkper.AccountBalances {
-    return {
-        name,
-        normalizedName: name.toLowerCase().replace(/ /g, '_'),
-        credit,
-        permanent: false,
-        archived: false,
-        empty: false,
-        periodBalance: period,
-        cumulativeBalance: period,
-    };
-}
-
-const outgoing = { credit: false, permanent: false };
-const incoming = { credit: true, permanent: false };
-const asset = { credit: false, permanent: true };
-
-const rent = months([
-    [2025, 11, '-1000'],
-    [2026, 8, '-1000'],
-    [2026, 10, '-1000'],
-    [2026, 11, '-1000'],
-]);
-const food = months([
-    [2026, 10, '-200.5'],
-    [2026, 11, '-50.25'],
-]);
-const salary = months([
-    [2026, 10, '5000'],
-    [2026, 11, '5000'],
-]);
-
-/** Balances payloads by exact query. */
-export const balancesPayloads: Record<string, bkper.Balances> = {
-    "group:'Assets' before:2026-11-06 by:m": {
-        periodicity: 'MONTHLY',
-        groupBalances: [
-            {
-                name: 'Assets',
-                normalizedName: 'assets',
-                ...asset,
-                balances: months([
-                    [2024, 3, '-100'],
-                    [2026, 10, '-3799.5'],
-                    [2026, 11, '-3949.75'],
-                ]),
-                groupBalances: [
-                    {
-                        name: 'Banks',
-                        normalizedName: 'banks',
-                        ...asset,
-                        balances: months([
-                            [2026, 10, '-3799.5'],
-                            [2026, 11, '-3949.75'],
-                        ]),
-                        accountBalances: [
-                            accountBalances(
-                                'Bank A',
-                                asset,
-                                months([
-                                    [2026, 10, '-3799.5'],
-                                    [2026, 11, '-3949.75'],
-                                ])
-                            ),
-                            accountBalances('Bank B', asset, []),
-                        ],
-                    },
-                ],
-                accountBalances: [accountBalances('Cash', asset, months([[2024, 3, '-100']]))],
-            },
-        ],
-    },
-    "group:'Card' before:2026-11-06 by:m": {
-        periodicity: 'MONTHLY',
-        groupBalances: [
-            {
-                name: 'Card',
-                normalizedName: 'card',
-                credit: true,
-                permanent: true,
-                balances: [],
-                accountBalances: [
-                    accountBalances('Credit Card', { credit: true, permanent: true }, []),
-                ],
-            },
-        ],
-    },
-    "group:'Expenses' before:2026-11-06 by:m": {
-        periodicity: 'MONTHLY',
-        groupBalances: [
-            {
-                name: 'Expenses',
-                normalizedName: 'expenses',
-                ...outgoing,
-                balances: months([
-                    [2024, 3, '-10'],
-                    [2025, 11, '-1000'],
-                    [2026, 8, '-1000'],
-                    [2026, 10, '-1200.5'],
-                    [2026, 11, '-1050.25'],
-                ]),
-                accountBalances: [
-                    accountBalances('Rent', outgoing, rent),
-                    accountBalances('Food', outgoing, food),
-                    accountBalances('Old Supplier', outgoing, months([[2024, 3, '-10']]), true),
-                ],
-            },
-        ],
-    },
-    "group:'Revenue' before:2026-11-06 by:m": {
-        periodicity: 'MONTHLY',
-        groupBalances: [
-            {
-                name: 'Revenue',
-                normalizedName: 'revenue',
-                ...incoming,
-                balances: months([
-                    [2026, 10, '5000'],
-                    [2026, 11, '5000'],
-                ]),
-                accountBalances: [accountBalances('Salary', incoming, salary)],
-            },
-        ],
-    },
-    "group:'Net income' before:2026-11-06 by:m": {
-        periodicity: 'MONTHLY',
-        groupBalances: [
-            {
-                name: 'Net income',
-                normalizedName: 'net_income',
-                ...incoming,
-                balances: months([
-                    [2025, 11, '-1000'],
-                    [2026, 8, '-1000'],
-                    [2026, 10, '3799.5'],
-                    [2026, 11, '3949.75'],
-                ]),
-                accountBalances: [
-                    accountBalances('Rent', outgoing, rent),
-                    accountBalances('Food', outgoing, food),
-                    accountBalances('Salary', incoming, salary),
-                ],
-            },
-        ],
-    },
-    ...windowPayloads('2026-10-01', '2026-10-06', { rent: '-1000', food: '0', salary: '5000' }),
-    ...windowPayloads('2026-08-01', '2026-08-06', { rent: '0', food: '0', salary: '0' }),
-    ...windowPayloads('2025-11-01', '2025-11-06', { rent: '-1000', food: '0', salary: '0' }),
-};
-
-function windowPayloads(
-    after: string,
-    before: string,
-    raw: { rent: string; food: string; salary: string }
-): Record<string, bkper.Balances> {
-    const sum = (...values: string[]) =>
-        values.reduce((total, value) => total.plus(value), new Amount(0)).toFixed();
-    const range = `after:${after} before:${before}`;
-    const expenses = sum(raw.rent, raw.food);
-    return {
-        [`group:'Expenses' ${range}`]: {
-            groupBalances: [
-                {
-                    name: 'Expenses',
-                    ...outgoing,
-                    periodBalance: expenses,
-                    cumulativeBalance: expenses,
-                    accountBalances: [
-                        windowBalances('Rent', false, raw.rent),
-                        // Like Bkper, windows may leave out accounts without movements.
-                        ...(raw.food === '0' ? [] : [windowBalances('Food', false, raw.food)]),
-                    ],
-                },
-            ],
-        },
-        [`group:'Revenue' ${range}`]: {
-            groupBalances: [
-                {
-                    name: 'Revenue',
-                    ...incoming,
-                    periodBalance: raw.salary,
-                    cumulativeBalance: raw.salary,
-                    accountBalances: [windowBalances('Salary', true, raw.salary)],
-                },
-            ],
-        },
-        [`group:'Net income' ${range}`]: {
-            groupBalances: [
-                {
-                    name: 'Net income',
-                    ...incoming,
-                    periodBalance: sum(expenses, raw.salary),
-                    cumulativeBalance: sum(expenses, raw.salary),
-                    accountBalances: [
-                        windowBalances('Rent', false, raw.rent),
-                        windowBalances('Food', false, raw.food),
-                        windowBalances('Salary', true, raw.salary),
-                    ],
-                },
-            ],
-        },
-    };
-}
+/** Every transaction of the fixture Book, `from >> to`. */
+export const transactions: LedgerTransaction[] = [
+    { date: '2024-03-10', from: 'Owner', to: 'Cash', amount: '100' },
+    { date: '2024-03-15', from: 'Owner', to: 'Old Supplier', amount: '10' },
+    { date: '2025-11-02', from: 'Owner', to: 'Rent', amount: '1000' },
+    { date: '2026-08-20', from: 'Owner', to: 'Rent', amount: '1000' },
+    { date: '2026-10-03', from: 'Bank A', to: 'Rent', amount: '1000' },
+    { date: '2026-10-05', from: 'Salary', to: 'Bank A', amount: '5000' },
+    { date: '2026-10-15', from: 'Bank A', to: 'Food', amount: '200.5', hashtags: ['trip'] },
+    { date: '2026-11-03', from: 'Bank A', to: 'Rent', amount: '1000', hashtags: ['trip'] },
+    { date: '2026-11-04', from: 'Bank A', to: 'Food', amount: '50.25' },
+    { date: '2026-11-05', from: 'Salary', to: 'Bank A', amount: '5000' },
+];
 
 /** When the fixture balances were read. */
 export const DATA_AT = new Date('2026-11-05T15:00:00Z');
 
-/** The snapshot of the fixture Book, built from its recorded payloads. */
-export async function fixtureSnapshot(): Promise<Snapshot> {
-    const book = new Book(bookPayload);
+/** A fresh ledger of the fixture Book, which a test may change. */
+export function fixtureLedger(): FakeLedger {
+    return new FakeLedger(structuredClone(bookPayload), structuredClone(transactions));
+}
+
+/** The balances of a query of the ledger, as the app reads them. */
+export function ledgerBalances(
+    ledger: FakeLedger,
+    query: string,
+    dataAt: Date = DATA_AT
+): QueryBalances {
+    return readQueryBalances(
+        query,
+        new BalancesReport(new Book(ledger.book), ledger.balances(query)),
+        dataAt
+    );
+}
+
+/** The snapshot (the Book's map) of a ledger, built by the app's snapshot code. */
+export async function ledgerSnapshot(
+    ledger: FakeLedger,
+    today = TODAY,
+    dataAt = DATA_AT
+): Promise<Snapshot> {
+    const book = new Book(ledger.book);
     const groups = await book.getGroups();
     const accounts = await book.getAccounts();
     const roots = groups
         .filter(group => !group.hasParent())
-        .map(group => ({ name: group.getName() ?? '', permanent: group.isPermanent() ?? false }));
-    const results = snapshotQueries(roots, TODAY).map(query => {
-        const payload = balancesPayloads[query.query];
-        if (!payload) {
-            throw new Error(`No recorded balances for ${query.query}`);
-        }
-        return { query, report: new BalancesReport(book, payload) };
-    });
-    return buildSnapshot({ book, groups, accounts, results, today: TODAY, dataAt: DATA_AT });
+        .map(group => ({ name: group.getName() ?? '' }));
+    const results = snapshotQueries(roots, today).map(query => ({
+        query,
+        report: new BalancesReport(book, ledger.balances(query.query)),
+    }));
+    return buildSnapshot({ book, groups, accounts, results, today, dataAt });
+}
+
+/** The snapshot of the fixture Book. */
+export async function fixtureSnapshot(): Promise<Snapshot> {
+    return ledgerSnapshot(fixtureLedger());
 }

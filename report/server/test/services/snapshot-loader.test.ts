@@ -2,6 +2,7 @@ import { BalancesReport, Book, User } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
 import {
     SNAPSHOT_TTL_SECONDS,
+    currentUserId,
     loadSnapshot,
     snapshotKey,
     type SnapshotLoaderOptions,
@@ -9,7 +10,7 @@ import {
 } from '../../src/services/snapshot-loader';
 import { ServerTiming } from '../../src/services/timing';
 import { createTestEnv } from '../test-env';
-import { balancesPayloads, bookPayload } from '../fixtures/snapshot-book';
+import { bookPayload, fixtureLedger } from '../fixtures/snapshot-book';
 
 /** 2026-11-05 at noon in São Paulo, the Book time zone. */
 const NOW = new Date('2026-11-05T15:00:00Z');
@@ -20,6 +21,8 @@ class FakeBkper {
     /** Queries started while others were still running. */
     maxInFlight = 0;
     private inFlight = 0;
+
+    private readonly ledger = fixtureLedger();
 
     constructor(private readonly userId = 'user-1') {}
 
@@ -36,11 +39,7 @@ class FakeBkper {
             this.maxInFlight = Math.max(this.maxInFlight, this.inFlight);
             await new Promise(resolve => setTimeout(resolve, 1));
             this.inFlight--;
-            const payload = balancesPayloads[query];
-            if (!payload) {
-                throw new Error(`Unexpected query: ${query}`);
-            }
-            return new BalancesReport(book, payload);
+            return new BalancesReport(book, this.ledger.balances(query));
         };
         return book;
     }
@@ -48,11 +47,12 @@ class FakeBkper {
 
 function options(
     bkper: FakeBkper,
-    kv: SnapshotStore = createTestEnv().KV
+    kv: SnapshotStore = createTestEnv().KV,
+    userId = 'user-1'
 ): SnapshotLoaderOptions & {
     timing: ServerTiming;
 } {
-    return { bkper, kv, timing: new ServerTiming(), now: () => NOW };
+    return { userId, bkper, kv, timing: new ServerTiming(), now: () => NOW };
 }
 
 describe('loadSnapshot', () => {
@@ -61,8 +61,8 @@ describe('loadSnapshot', () => {
         const snapshot = await loadSnapshot('book-1', options(bkper));
 
         expect(bkper.bookLoads).toEqual([{ id: 'book-1', accounts: true, groups: true }]);
-        // 2 position roots + 3 activity roots, each with 3 comparison windows.
-        expect(bkper.queries).toHaveLength(2 + 3 * 4);
+        // One query per root, whatever its nature.
+        expect(bkper.queries).toHaveLength(5);
         expect(bkper.maxInFlight).toBe(bkper.queries.length);
         expect(bkper.queries).toContain("group:'Assets' before:2026-11-06 by:m");
         expect(snapshot.today).toBe('2026-11-05');
@@ -91,9 +91,9 @@ describe('loadSnapshot', () => {
 
     it('does not share a snapshot between users', async () => {
         const kv = createTestEnv().KV;
-        await loadSnapshot('book-1', options(new FakeBkper('user-1'), kv));
-        const other = new FakeBkper('user-2');
-        await loadSnapshot('book-1', options(other, kv));
+        await loadSnapshot('book-1', options(new FakeBkper(), kv, 'user-1'));
+        const other = new FakeBkper();
+        await loadSnapshot('book-1', options(other, kv, 'user-2'));
         expect(other.bookLoads).toHaveLength(1);
         expect(snapshotKey('user-1', 'book-1')).not.toBe(snapshotKey('user-2', 'book-1'));
     });
@@ -110,16 +110,22 @@ describe('loadSnapshot', () => {
         expect(await kv.get(snapshotKey('user-1', 'book-1'))).not.toBeNull();
     });
 
-    it('reports user, kv and balances timings', async () => {
+    it('reports kv and balances timings', async () => {
         const cold = options(new FakeBkper());
         await loadSnapshot('book-1', cold);
-        expect(cold.timing.header()).toMatch(
-            /^user;dur=[\d.]+, kv;dur=[\d.]+, balances;dur=[\d.]+$/
-        );
+        expect(cold.timing.header()).toMatch(/^kv;dur=[\d.]+, balances;dur=[\d.]+$/);
 
         const warm = options(new FakeBkper(), cold.kv);
         await loadSnapshot('book-1', warm);
-        expect(warm.timing.header()).toMatch(/^user;dur=[\d.]+, kv;dur=[\d.]+$/);
+        expect(warm.timing.header()).toMatch(/^kv;dur=[\d.]+$/);
+    });
+
+    it('does not read a snapshot cached in the shape that held amounts', async () => {
+        const kv = createTestEnv().KV;
+        await kv.put('snapshot:v1:user-1:book-1', JSON.stringify({ stale: true }));
+        const snapshot = await loadSnapshot('book-1', options(new FakeBkper(), kv));
+        expect(snapshot).not.toHaveProperty('stale');
+        expect(snapshotKey('user-1', 'book-1')).toBe('snapshot:v2:user-1:book-1');
     });
 
     it('fails without caching when a query fails', async () => {
@@ -135,5 +141,18 @@ describe('loadSnapshot', () => {
         };
         await expect(loadSnapshot('book-1', options(bkper, kv))).rejects.toThrow('upstream');
         expect(await kv.get(snapshotKey('user-1', 'book-1'))).toBeNull();
+    });
+});
+
+describe('currentUserId', () => {
+    it('identifies the user every cache key is for, measured as user', async () => {
+        const timing = new ServerTiming();
+        expect(await currentUserId(new FakeBkper('user-7'), timing)).toBe('user-7');
+        expect(timing.header()).toMatch(/^user;dur=[\d.]+$/);
+    });
+
+    it('fails for a user without an id', async () => {
+        const bkper = { getUser: async () => new User({}) };
+        await expect(currentUserId(bkper, new ServerTiming())).rejects.toThrow('no id');
     });
 });

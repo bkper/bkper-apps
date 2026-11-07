@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppContext } from '../../src/app-context';
 import { createDecisionClient } from '../../src/services/decision-client';
 import { createApp } from '../../src/index';
-import { balancesPayloads, bookPayload } from '../fixtures/snapshot-book';
+import { bookPayload, fixtureLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
 
 const BOOK = 'book-1';
@@ -24,6 +24,7 @@ afterAll(() => vi.useRealTimers());
 /** Reads the fixture Book; the Report app never writes to a Book, so nothing else is faked. */
 class FakeBkper {
     bookLoads = 0;
+    readonly ledger = fixtureLedger();
 
     constructor(
         private readonly options: { permission?: bkper.Permission; failure?: BkperError } = {}
@@ -42,7 +43,7 @@ class FakeBkper {
         payload.permission = this.options.permission ?? 'VIEWER';
         const book = new Book(payload);
         book.getBalancesReport = async (query: string) =>
-            new BalancesReport(book, balancesPayloads[query]);
+            new BalancesReport(book, this.ledger.balances(query));
         return book;
     }
 
@@ -100,7 +101,6 @@ function harness(
     options: {
         bkper?: FakeBkper;
         jev?: JevAnswers | (() => Response);
-        balances?: bkper.Balances;
     } = {}
 ): Harness {
     const jev = options.jev ?? { root: 'Expenses', period: '2026-10', language: 'en' };
@@ -119,10 +119,10 @@ function harness(
                 }),
                 readBalances: async (book, query) => {
                     state.queries.push(query);
-                    return new BalancesReport(new Book({ id: book.id }), {
-                        periodicity: 'DAILY',
-                        groupBalances: options.balances?.groupBalances ?? [],
-                    });
+                    return new BalancesReport(
+                        new Book({ id: book.id }),
+                        state.bkper.ledger.balances(query)
+                    );
                 },
             });
         }),
@@ -225,6 +225,30 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(typeof body.dataAt).toBe('string');
         expect(validateReportSpec(body.spec).valid).toBe(true);
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
+        expect(test.queries).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+    });
+
+    it('reuses the balances of the same queries within a minute, for the same user', async () => {
+        const test = harness();
+        const october = { root: 'g-expenses', period: '2026-10', monthly: false };
+        const first = await post(test, { intent: october });
+        // Last month is October too: the same queries.
+        const again = await post(test, { intent: { ...october, period: 'last_month' } });
+        // September is October's previous period: only its own previous one is read.
+        await post(test, { intent: { ...october, period: '2026-09' } });
+
+        expect([first.status, again.status]).toEqual([200, 200]);
+        expect(test.queries).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' after:2026-08-01 before:2026-09-01 by:m",
+        ]);
+        expect(((await again.json()) as { dataAt: string }).dataAt).toBe(
+            ((await first.json()) as { dataAt: string }).dataAt
+        );
     });
 
     it('draws the chart an intent prefers, and tells when it does not fit', async () => {
@@ -336,12 +360,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'render', 'total']);
     });
 
-    it('reads a hashtag report with one live balances query', async () => {
+    it('reads a hashtag report with queries filtered by its hashtags', async () => {
         const test = harness({ jev: { root: 'Expenses', period: 'last_month' } });
         const response = await post(test, { prompt: 'expenses last month #trip' });
 
         expect(response.status).toBe(200);
-        expect(test.queries).toEqual([expect.stringContaining('#trip before:2026-11-06 by:d')]);
+        expect(test.queries).toEqual([
+            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+        ]);
         expect(await response.json()).toMatchObject({
             intent: { hashtags: ['trip'] },
             query: "group:'Expenses' #trip after:2026-10-01 before:2026-11-01",

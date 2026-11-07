@@ -1,14 +1,12 @@
-import { Amount, BalancesReport, Book } from 'bkper-js';
+import { Amount } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
-import {
-    readLiveBalances,
-    type LiveBalances,
-    type LiveQuery,
-} from '../../src/services/live-balances';
+import type { QueryBalances } from '../../src/services/balances';
 import {
     OTHER_PART,
     ReportError,
     buildReport,
+    planQueries,
+    planReport,
     viewKindOf,
     type ReportChart,
     type ReportData,
@@ -17,24 +15,36 @@ import {
 } from '../../src/services/report';
 import type { ReportIntent } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
-import { DATA_AT, bookPayload, fixtureSnapshot } from '../fixtures/snapshot-book';
-
-const LIVE_AT = new Date('2026-11-05T15:00:30Z');
+import type { FakeLedger } from '../fixtures/ledger';
+import {
+    DATA_AT,
+    fixtureLedger,
+    fixtureSnapshot,
+    ledgerBalances,
+    ledgerSnapshot,
+} from '../fixtures/snapshot-book';
 
 function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
     return { root, period, monthly: false, ...extra };
 }
 
+/** The balances of every query a report plans, read from the ledger as Bkper answers them. */
+function balancesOf(
+    request: ReportIntent,
+    snapshot: Snapshot,
+    ledger: FakeLedger
+): QueryBalances[] {
+    return planQueries(planReport(request, snapshot)).map(query => ledgerBalances(ledger, query));
+}
+
+/** The report of an intent on a ledger (the fixture's by default), and its map unless given. */
 async function report(
     request: ReportIntent,
-    snapshot?: Snapshot,
-    live?: LiveBalances
+    ledger: FakeLedger = fixtureLedger(),
+    snapshot?: Snapshot
 ): Promise<ReportData> {
-    const step = buildReport(request, snapshot ?? (await fixtureSnapshot()), live);
-    if (!('report' in step)) {
-        throw new Error(`Needs a live query: ${step.liveQuery.query}`);
-    }
-    return step.report;
+    const map = snapshot ?? (await ledgerSnapshot(ledger));
+    return buildReport(request, map, balancesOf(request, map, ledger));
 }
 
 /** Name, amount, previous and change of each row, children indented. */
@@ -46,50 +56,124 @@ function rows(breakdown: ReportRow[], depth = 0): string[] {
     ]);
 }
 
-function day(date: string, period: string): bkper.Balance {
-    const [year, month, dayOfMonth] = date.split('-').map(Number);
-    return { year, month, day: dayOfMonth, periodBalance: period, cumulativeBalance: '0' };
-}
+describe('planReport', () => {
+    const queries = async (request: ReportIntent) =>
+        planQueries(planReport(request, await fixtureSnapshot()));
 
-/** A `by:d` result for Expenses, raw (credit minus debit) like the Bkper API. */
-const expensesByDay: bkper.Balances = {
-    periodicity: 'DAILY',
-    groupBalances: [
-        {
-            name: 'Expenses',
-            credit: false,
-            permanent: false,
-            balances: [
-                day('2026-10-02', '-30'),
-                day('2026-11-04', '-12.5'),
-                day('2026-11-05', '-7.25'),
-            ],
-            accountBalances: [
-                {
-                    name: 'Food',
-                    credit: false,
-                    permanent: false,
-                    balances: [day('2026-10-02', '-30'), day('2026-11-05', '-7.25')],
-                },
-                {
-                    name: 'Rent',
-                    credit: false,
-                    permanent: false,
-                    balances: [day('2026-11-04', '-12.5')],
-                },
-            ],
-        },
-    ],
-};
+    it('reads a root for the period and for the previous one, by month', async () => {
+        expect(await queries(intent('g-expenses', 'last_month'))).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        // A comparison ending in the middle of a month is an ordinary period query.
+        expect(await queries(intent('g-expenses', 'this_month'))).toEqual([
+            "group:'Expenses' after:2026-11-01 before:2026-11-06 by:m",
+            "group:'Expenses' after:2026-10-01 before:2026-10-06 by:m",
+        ]);
+        expect(await queries(intent('g-expenses', 'today'))).toEqual([
+            "group:'Expenses' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Expenses' after:2026-11-04 before:2026-11-05 by:m",
+        ]);
+        expect(await queries(intent('g-expenses', 'all'))).toEqual([
+            "group:'Expenses' before:2026-11-06 by:m",
+        ]);
+    });
 
-function live(query: LiveQuery, snapshot: Snapshot, payload = expensesByDay): LiveBalances {
-    return readLiveBalances(
-        query,
-        new BalancesReport(new Book(bookPayload), payload),
-        snapshot,
-        LIVE_AT
-    );
-}
+    it('reads a position at the end of the period and of the previous one', async () => {
+        expect(await queries(intent('g-assets', 'today'))).toEqual([
+            "group:'Assets' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Assets' before:2026-11-01 by:m",
+        ]);
+        expect(await queries(intent('g-assets', '2025'))).toEqual([
+            "group:'Assets' after:2025-01-01 before:2026-01-01 by:m",
+            "group:'Assets' before:2025-01-01 by:m",
+        ]);
+    });
+
+    it('reads each activity root of a net result with a query of its own', async () => {
+        expect(await queries(intent('net-result', 'last_month'))).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Revenue' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Revenue' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Net income' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+    });
+
+    it('filters the queries by the hashtags', async () => {
+        expect(
+            await queries(intent('g-expenses', 'last_month', { hashtags: ['trip', 'q4'] }))
+        ).toEqual([
+            "group:'Expenses' #trip #q4 after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip #q4 after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+    });
+
+    it('reads a position with hashtags from the start, as Bkper starts it at after: unfiltered', async () => {
+        expect(await queries(intent('g-assets', '2026-Q4', { hashtags: ['trip'] }))).toEqual([
+            "group:'Assets' #trip before:2026-11-06 by:m",
+            "group:'Assets' #trip before:2026-10-01 by:m",
+        ]);
+    });
+});
+
+describe('buildReport: amounts as Bkper returns them', () => {
+    /** The balances of a report's queries, with one group's changed as a test wants. */
+    async function changed(
+        request: ReportIntent,
+        change: (balances: QueryBalances) => void
+    ): Promise<ReportData> {
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const balances = balancesOf(request, snapshot, ledger);
+        balances.forEach(change);
+        return buildReport(request, snapshot, balances);
+    }
+
+    it('takes the total of a period from its period balance, never from its months', async () => {
+        const request = intent('g-expenses', '2026', { monthly: true });
+        const data = await changed(request, balances => {
+            if (balances.query.includes('after:2026-01-01')) {
+                balances.groups.Expenses.period = '9999.99';
+            }
+        });
+        expect(data.answer.amount).toBe('9999.99');
+        // The months still show their own balances.
+        expect(data.chart.kind === 'bar' && data.chart.series[0].amounts.slice(-2)).toEqual([
+            '1200.5',
+            '1050.25',
+        ]);
+    });
+
+    it('takes a position from the cumulative balance at the end of each period', async () => {
+        const data = await changed(intent('g-assets', 'today'), balances => {
+            balances.groups.Assets.cumulative = balances.query.includes('after:')
+                ? '123.45'
+                : '67.89';
+        });
+        expect(data.answer).toMatchObject({ amount: '123.45', previous: '67.89' });
+    });
+
+    it('fails when a planned query was not read', async () => {
+        const snapshot = await fixtureSnapshot();
+        expect(() => buildReport(intent('g-expenses', 'last_month'), snapshot, [])).toThrow(
+            'The balances of a report query were not read'
+        );
+    });
+
+    it('dates the report with its oldest balances', async () => {
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const request = intent('g-expenses', 'last_month');
+        const [current, previous] = planQueries(planReport(request, snapshot));
+        const data = buildReport(request, snapshot, [
+            ledgerBalances(ledger, current, new Date('2026-11-05T15:00:40Z')),
+            ledgerBalances(ledger, previous, new Date('2026-11-05T15:00:10Z')),
+        ]);
+        expect(data.dataAt).toBe('2026-11-05T15:00:10.000Z');
+    });
+});
 
 describe('buildReport: activity', () => {
     it('reports a whole month with its breakdown, previous month and exact query', async () => {
@@ -182,8 +266,8 @@ describe('buildReport: activity', () => {
 
     it('rejects a period that has not started', async () => {
         const snapshot = await fixtureSnapshot();
-        expect(() => buildReport(intent('g-expenses', '2027'), snapshot)).toThrow(ReportError);
-        expect(() => buildReport(intent('g-expenses', '2026-12'), snapshot)).toThrow(
+        expect(() => planReport(intent('g-expenses', '2027'), snapshot)).toThrow(ReportError);
+        expect(() => planReport(intent('g-expenses', '2026-12'), snapshot)).toThrow(
             expect.objectContaining({ reason: 'future_period' })
         );
     });
@@ -191,7 +275,7 @@ describe('buildReport: activity', () => {
     it('rejects a root that is not a root group of the Book', async () => {
         const snapshot = await fixtureSnapshot();
         for (const root of ['g-banks', 'missing']) {
-            expect(() => buildReport(intent(root, 'last_month'), snapshot)).toThrow(
+            expect(() => planReport(intent(root, 'last_month'), snapshot)).toThrow(
                 expect.objectContaining({ reason: 'unknown_root' })
             );
         }
@@ -334,7 +418,7 @@ describe('buildReport: mixed groups and net result', () => {
     it('rejects a net result in a Book without activity roots', async () => {
         const snapshot = await fixtureSnapshot();
         snapshot.roots = snapshot.roots.filter(id => snapshot.groups[id].permanent);
-        expect(() => buildReport(intent('net-result', 'last_month'), snapshot)).toThrow(
+        expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
             expect.objectContaining({ reason: 'no_activity_roots' })
         );
     });
@@ -342,9 +426,10 @@ describe('buildReport: mixed groups and net result', () => {
 
 describe('buildReport: remainder', () => {
     it('adds the amount Bkper left out of the children, so the breakdown adds up', async () => {
-        const snapshot = await fixtureSnapshot();
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
         snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
-        const data = await report(intent('g-expenses', 'this_month'), snapshot);
+        const data = await report(intent('g-expenses', 'this_month'), ledger, snapshot);
         expect(rows(data.breakdown)).toEqual([
             'Rent 1000 (prev 1000, change 0, share 0.9522)',
             'other 50.25 (prev 0, change -, share 0.0478)',
@@ -358,29 +443,29 @@ describe('buildReport: remainder', () => {
     });
 });
 
-/** Adds an Expenses account that moved only in September 2026, and the move to its group. */
-function withSeptemberOnly(snapshot: Snapshot): Snapshot {
-    const id = 'a-september';
-    snapshot.accounts[id] = {
-        ...snapshot.accounts['a-food'],
-        id,
+/** Adds an Expenses account that moved only in September 2026. */
+function withSeptemberOnly(ledger: FakeLedger): FakeLedger {
+    ledger.addAccount({
+        id: 'a-september',
         name: 'September Only',
-        months: [{ month: '2026-09', period: '5', cumulative: '5' }],
-        windows: [],
-    };
-    const expenses = snapshot.groups['g-expenses'];
-    expenses.accounts.push(id);
-    expenses.months = [...expenses.months, { month: '2026-09', period: '5', cumulative: '0' }].sort(
-        (a, b) => a.month.localeCompare(b.month)
-    );
-    return snapshot;
+        type: 'OUTGOING',
+        groups: ['g-expenses'],
+    });
+    ledger.transactions.push({
+        date: '2026-09-10',
+        from: 'Owner',
+        to: 'September Only',
+        amount: '5',
+    });
+    return ledger;
 }
 
 describe('buildReport: rows without amount', () => {
     it('keeps them in the table, last, and leaves them out of breakdown charts', async () => {
-        const snapshot = withSeptemberOnly(await fixtureSnapshot());
+        const ledger = withSeptemberOnly(fixtureLedger());
+        const snapshot = await ledgerSnapshot(ledger);
         snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-september'];
-        const data = await report(intent('g-expenses', 'last_month'), snapshot);
+        const data = await report(intent('g-expenses', 'last_month'), ledger, snapshot);
         expect(rows(data.breakdown)).toEqual([
             'Rent 1000 (prev 0, change -, share 0.833)',
             'other 200.5 (prev 0, change -, share 0.167)',
@@ -390,14 +475,18 @@ describe('buildReport: rows without amount', () => {
     });
 
     it('needs two rows with amounts for a breakdown chart', async () => {
-        const snapshot = withSeptemberOnly(await fixtureSnapshot());
-        const expenses = snapshot.groups['g-expenses'];
-        expenses.accounts = ['a-rent', 'a-september'];
-        expenses.months = expenses.months.map(month =>
-            month.month === '2026-10' ? { ...month, period: '1000' } : month
+        const ledger = withSeptemberOnly(fixtureLedger());
+        ledger.transactions.splice(
+            ledger.transactions.findIndex(
+                transaction => transaction.to === 'Food' && transaction.date === '2026-10-15'
+            ),
+            1
         );
+        const snapshot = await ledgerSnapshot(ledger);
+        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-september'];
         const data = await report(
             intent('g-expenses', 'last_month', { view: 'breakdown' }),
+            ledger,
             snapshot
         );
         expect(data.breakdown.map(row => row.name)).toEqual(['Rent', 'September Only']);
@@ -435,156 +524,89 @@ describe('buildReport: chart', () => {
     });
 
     it('ranks more than six rows in bars', async () => {
-        const snapshot = await fixtureSnapshot();
-        const expenses = snapshot.groups['g-expenses'];
-        for (let i = 0; i < 6; i++) {
-            const id = `a-extra-${i}`;
-            const months = [{ month: '2026-10', period: '1', cumulative: '1' }];
-            snapshot.accounts[id] = {
-                ...snapshot.accounts['a-food'],
-                id,
-                name: `Extra ${i}`,
-                months,
-            };
-            expenses.accounts.push(id);
-        }
-        expenses.months = expenses.months.map(month =>
-            month.month === '2026-10' ? { ...month, period: '1206.5' } : month
-        );
-        const data = await report(intent('g-expenses', 'last_month'), snapshot);
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
+            '1',
+            '1',
+            '1',
+            '1',
+            '1',
+            '1',
+        ]);
+        const data = await report(intent('g-expenses', 'last_month'), ledger);
         expect(data.breakdown).toHaveLength(8);
         expect(data.breakdown.every(row => row.kind === 'account')).toBe(true);
         expect(data.chart.kind).toBe('ranked-bar');
     });
 });
 
-describe('buildReport: live balances', () => {
-    it('asks for one live query by day when the snapshot cannot answer the period', async () => {
-        const snapshot = await fixtureSnapshot();
-        const step = buildReport(intent('g-expenses', 'today'), snapshot);
-        expect(step).toEqual({
-            liveQuery: {
-                query: "group:'Expenses' after:2026-11-04 before:2026-11-06 by:d",
-                after: '2026-11-04',
-                before: '2026-11-06',
-                hashtags: [],
-            },
-        });
-        if (!('liveQuery' in step)) {
-            return;
-        }
-        const data = await report(
-            intent('g-expenses', 'today'),
-            snapshot,
-            live(step.liveQuery, snapshot)
-        );
+describe('buildReport: any period and hashtags', () => {
+    it('reads today like any other period, against yesterday', async () => {
+        const data = await report(intent('g-expenses', 'today'));
+        expect(data.period).toEqual({ id: 'today', after: '2026-11-05', before: '2026-11-06' });
         expect(data.previous).toEqual({ after: '2026-11-04', before: '2026-11-05' });
-        expect(data.answer).toEqual({ amount: '7.25', previous: '12.5', change: '-0.42' });
-        expect(rows(data.breakdown)).toEqual([
-            'Food 7.25 (prev 0, change -, share 1)',
-            'Rent 0 (prev 12.5, change -1, share 0)',
-        ]);
+        expect(data.answer).toEqual({ amount: '0', previous: '50.25', change: '-1' });
+        expect(rows(data.breakdown)).toEqual(['Food 0 (prev 50.25, change -1, share -)']);
         expect(data.query).toBe("group:'Expenses' after:2026-11-05 before:2026-11-06");
     });
 
-    it('reads a net result today live from every activity root', async () => {
-        const snapshot = await fixtureSnapshot();
-        const step = buildReport(intent('net-result', 'today'), snapshot);
-        expect('liveQuery' in step && step.liveQuery.query).toBe(
-            "(group:'Expenses' OR group:'Revenue' OR group:'Net income') after:2026-11-04 before:2026-11-06 by:d"
-        );
-    });
-
-    it('reads hashtag reports only from the hashtag query, never from the snapshot', async () => {
-        const snapshot = await fixtureSnapshot();
-        const request = intent('g-expenses', 'last_month', { hashtags: ['trip'] });
-        const step = buildReport(request, snapshot);
-        expect(step).toEqual({
-            liveQuery: {
-                query:
-                    "(group:'Assets' OR group:'Card' OR group:'Expenses' OR group:'Revenue' OR group:'Net income') " +
-                    '#trip before:2026-11-06 by:d',
-                before: '2026-11-06',
-                hashtags: ['trip'],
-            },
+    it('reads a net result today from each activity root', async () => {
+        const data = await report(intent('net-result', 'today'));
+        expect(data.net).toMatchObject({
+            incoming: { amount: '5000', previous: '0' },
+            outgoing: { amount: '0', previous: '50.25' },
         });
-        if (!('liveQuery' in step)) {
-            return;
-        }
-        const data = await report(request, snapshot, live(step.liveQuery, snapshot));
-        expect(data.answer).toEqual({ amount: '30', previous: '0' });
-        expect(rows(data.breakdown)).toEqual(['Food 30 (prev 0, change -, share 1)']);
+        expect(data.answer).toMatchObject({ amount: '5000', previous: '-50.25' });
+    });
+
+    it('reads hashtag reports from queries filtered by the hashtags', async () => {
+        const data = await report(intent('g-expenses', 'last_month', { hashtags: ['trip'] }));
+        expect(data.answer).toEqual({ amount: '200.5', previous: '0' });
+        expect(rows(data.breakdown)).toEqual(['Food 200.5 (prev 0, change -, share 1)']);
         expect(data.query).toBe("group:'Expenses' #trip after:2026-10-01 before:2026-11-01");
-        expect(data.dataAt).toBe(LIVE_AT.toISOString());
+        const month = await report(intent('g-expenses', 'this_month', { hashtags: ['trip'] }));
+        expect(month.answer).toEqual({ amount: '1000', previous: '0' });
     });
 
-    it('answers any period with hashtags from the full history by day', async () => {
-        const snapshot = await fixtureSnapshot();
-        const request = intent('g-expenses', 'this_month', { hashtags: ['trip'] });
-        const step = buildReport(request, snapshot);
-        if (!('liveQuery' in step)) {
-            throw new Error('Expected a live query');
-        }
-        const data = await report(request, snapshot, live(step.liveQuery, snapshot));
-        expect(data.answer).toEqual({ amount: '19.75', previous: '30', change: '-0.3417' });
-    });
-
-    it('rejects live balances read for other hashtags', async () => {
-        const snapshot = await fixtureSnapshot();
-        const other = live({ query: 'q', before: '2026-11-06', hashtags: ['other'] }, snapshot);
-        expect(() =>
-            buildReport(intent('g-expenses', 'last_month', { hashtags: ['trip'] }), snapshot, other)
-        ).toThrow('The live balances were read for other hashtags');
+    it('reads a position with hashtags from the cumulative balance of its movements', async () => {
+        const data = await report(intent('g-assets', 'today', { hashtags: ['trip'] }));
+        // Bank A paid both #trip transactions, 200.5 in October and 1000 in November.
+        expect(data.answer).toEqual({ amount: '-1200.5', previous: '-200.5', change: '-4.9875' });
+        const quarter = await report(
+            intent('g-assets', '2026-Q4', { monthly: true, hashtags: ['trip'] })
+        );
+        expect(quarter.months).toEqual(['2026-10', '2026-11']);
+        expect(quarter.chart).toMatchObject({
+            kind: 'line',
+            series: [{ amounts: ['-200.5', '-1200.5'] }],
+        });
+        expect(quarter.answer).toMatchObject({ amount: '-1200.5', previous: '0' });
     });
 });
 
 /**
- * Adds accounts to a group, each moving `amount` in `month` (in the sign Bkper shows), and the
- * moves to the group, so its children still add up to it.
+ * Adds accounts to a group, each moving `amount` in `month` (in the sign Bkper shows) with
+ * `Owner`, which is in no group, on the first of the month.
  */
 function withAccounts(
-    snapshot: Snapshot,
+    ledger: FakeLedger,
     groupId: string,
     month: string,
     amounts: string[]
-): Snapshot {
-    const group = snapshot.groups[groupId];
-    const model = snapshot.accounts[group.accounts[0]];
+): FakeLedger {
+    const type = groupId === 'g-assets' ? 'ASSET' : 'OUTGOING';
     amounts.forEach((amount, i) => {
-        const id = `${groupId}-extra-${i}`;
-        snapshot.accounts[id] = {
-            ...model,
-            id,
-            name: `Extra ${i}`,
-            months: [{ month, period: amount, cumulative: amount }],
-            // No moves in the partial months current periods compare with.
-            windows: model.windows.map(window => ({ ...window, period: '0' })),
-        };
-        group.accounts.push(id);
-        const months = group.months.some(entry => entry.month === month)
-            ? group.months
-            : [...group.months, { month, period: '0', cumulative: '0' }].sort((a, b) =>
-                  a.month.localeCompare(b.month)
-              );
-        let carried = new Amount(0);
-        group.months = months.map(entry => {
-            const cumulative = new Amount(entry.cumulative);
-            if (entry.month < month) {
-                carried = cumulative;
-                return entry;
-            }
-            if (entry.month === month) {
-                const period = new Amount(entry.period).plus(amount);
-                return {
-                    month: entry.month,
-                    period: period.toFixed(),
-                    cumulative: carried.plus(period).toFixed(),
-                };
-            }
-            return { ...entry, cumulative: cumulative.plus(amount).toFixed() };
+        const name = `Extra ${i}`;
+        ledger.addAccount({ id: `${groupId}-extra-${i}`, name, type, groups: [groupId] });
+        // Both types have a debit nature: what arrives in the account shows positive.
+        const value = new Amount(amount);
+        ledger.transactions.push({
+            date: `${month}-01`,
+            from: value.gt(0) ? 'Owner' : name,
+            to: value.gt(0) ? name : 'Owner',
+            amount: value.abs().toFixed(),
         });
     });
-    return snapshot;
+    return ledger;
 }
 
 function total(values: (string | undefined)[]): Amount {
@@ -646,7 +668,7 @@ describe('buildReport: chart preference', () => {
     });
 
     it('stacks the largest parts and the rest as other, adding up to the root each month', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '300',
             '-40',
             '25',
@@ -655,8 +677,8 @@ describe('buildReport: chart preference', () => {
             '1.01',
         ]);
         const request = intent('g-expenses', '2026', { monthly: true });
-        const data = await report({ ...request, chart: 'stacked' }, snapshot);
-        const byRules = await report(request, snapshot);
+        const data = await report({ ...request, chart: 'stacked' }, ledger);
+        const byRules = await report(request, ledger);
         if (data.chart.kind !== 'stacked' || byRules.chart.kind !== 'bar') {
             throw new Error(`Unexpected charts ${data.chart.kind} and ${byRules.chart.kind}`);
         }
@@ -757,7 +779,7 @@ describe('buildReport: chart preference', () => {
     });
 
     it('bridges a net result to the cent with the smallest Outgoing accounts as other', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '300.01',
             '-40.02',
             '25.03',
@@ -769,7 +791,7 @@ describe('buildReport: chart preference', () => {
         ]);
         const data = await report(
             intent('net-result', 'last_month', { chart: 'waterfall' }),
-            snapshot
+            ledger
         );
         if (data.chart.kind !== 'waterfall') {
             throw new Error(`Unexpected chart ${data.chart.kind}`);
@@ -807,7 +829,7 @@ describe('buildReport: chart preference', () => {
     });
 
     it('bridges a position to the cent with the smallest changes as other', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-assets', '2026-11', [
+        const ledger = withAccounts(fixtureLedger(), 'g-assets', '2026-11', [
             '10.01',
             '-20.02',
             '30.03',
@@ -817,7 +839,7 @@ describe('buildReport: chart preference', () => {
             '70.07',
             '0.01',
         ]);
-        const data = await report(intent('g-assets', 'today', { chart: 'waterfall' }), snapshot);
+        const data = await report(intent('g-assets', 'today', { chart: 'waterfall' }), ledger);
         if (data.chart.kind !== 'waterfall') {
             throw new Error(`Unexpected chart ${data.chart.kind}`);
         }
@@ -935,10 +957,8 @@ describe('buildReport: chart views', () => {
     });
 
     it('tells why a pie cannot show a negative part, and draws the closest chart', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
-            '-186.74',
-        ]);
-        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), snapshot);
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['-186.74']);
+        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), ledger);
         expect(data.charts.unfit).toEqual({
             kind: 'pie',
             reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
@@ -963,10 +983,15 @@ describe('buildReport: chart views', () => {
     });
 
     it('tells why a pie cannot show parts of different types', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', ['50']);
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['50']);
+        const snapshot = await ledgerSnapshot(ledger);
         // Positive in the root's sense, but not Outgoing.
         snapshot.accounts['g-expenses-extra-0'].type = 'ASSET';
-        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), snapshot);
+        const data = await report(
+            intent('g-expenses', 'last_month', { chart: 'pie' }),
+            ledger,
+            snapshot
+        );
         expect(data.charts.unfit?.reason).toEqual({ code: 'mixed_parts' });
         expect(data.charts.facts).toMatchObject({ negative: 0, mixed: true });
     });
@@ -1018,7 +1043,7 @@ describe('buildReport: chart views', () => {
     });
 
     it('adds up every view to its parent, to the cent', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '300.01',
             '-40.02',
             '25.03',
@@ -1038,7 +1063,7 @@ describe('buildReport: chart views', () => {
             intent('net-result', 'last_month'),
         ];
         for (const request of intents) {
-            const data = await report(request, snapshot);
+            const data = await report(request, ledger);
             for (const view of data.charts.views) {
                 const where = `${request.root} ${request.period} ${view.kind}`;
                 for (const problem of viewProblems(data, view)) {
@@ -1075,13 +1100,8 @@ describe('buildReport: every chart a person may prefer', () => {
         const few = await report(intent('g-revenue', '2026', { chart: 'ranked-bar' }));
         expect(few.charts.unfit).toEqual({ kind: 'ranked-bar', reason: { code: 'few_parts' } });
         expect(few.charts).toMatchObject({ main: 'bar', rule: 'closest' });
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
-            '-186.74',
-        ]);
-        const donut = await report(
-            intent('g-expenses', 'last_month', { chart: 'donut' }),
-            snapshot
-        );
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['-186.74']);
+        const donut = await report(intent('g-expenses', 'last_month', { chart: 'donut' }), ledger);
         expect(donut.charts.unfit).toEqual({
             kind: 'donut',
             reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
@@ -1101,7 +1121,7 @@ describe('buildReport: a composition asked for', () => {
     });
 
     it('draws a pie of more parts than a donut holds, where the rules alone rank them', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '6',
             '5',
             '4',
@@ -1110,21 +1130,19 @@ describe('buildReport: a composition asked for', () => {
         ]);
         const asked = await report(
             intent('g-expenses', 'last_month', { view: 'breakdown' }),
-            snapshot
+            ledger
         );
         expect(asked.charts.facts).toMatchObject({ rows: 7, negative: 0 });
         expect(asked.chart.kind).toBe('pie');
-        const unasked = await report(intent('g-expenses', 'last_month'), snapshot);
+        const unasked = await report(intent('g-expenses', 'last_month'), ledger);
         expect(unasked.chart.kind).toBe('ranked-bar');
     });
 
     it('ranks parts that are no slices of one whole in bars, with no reason given', async () => {
-        const snapshot = withAccounts(await fixtureSnapshot(), 'g-expenses', '2026-10', [
-            '-186.74',
-        ]);
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['-186.74']);
         const data = await report(
             intent('g-expenses', 'last_month', { view: 'breakdown' }),
-            snapshot
+            ledger
         );
         expect(data.chart).toMatchObject({ kind: 'ranked-bar' });
         expect(data.chart.fallback).toBeUndefined();

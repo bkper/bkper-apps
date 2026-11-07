@@ -28,7 +28,11 @@ import {
 import { extractHashtags, readIntent } from '../server/src/services/intent-resolver.ts';
 import { NET_RESULT_ROOT, type ChartPreference } from '../server/src/services/report-intent.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
-import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
+import {
+    currentUserId,
+    loadSnapshot,
+    type SnapshotStore,
+} from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const BOOKS = {
@@ -715,8 +719,14 @@ async function main(): Promise<void> {
     const bkper = new Bkper({ oauthTokenProvider: async () => bkperToken });
     const kv = new MemoryStore();
     const snapshots = {} as Record<BookKey, Snapshot>;
+    const userId = await currentUserId(bkper, new ServerTiming());
     for (const key of Object.keys(BOOKS) as BookKey[]) {
-        snapshots[key] = await loadSnapshot(BOOKS[key], { bkper, kv, timing: new ServerTiming() });
+        snapshots[key] = await loadSnapshot(BOOKS[key], {
+            userId,
+            bkper,
+            kv,
+            timing: new ServerTiming(),
+        });
     }
     const client = createDecisionClient({
         apiKey: aiToken,

@@ -1,13 +1,13 @@
 /**
- * Loads the snapshot of a Book for the current user: from KV when a recent one exists,
- * otherwise from Bkper, with every balances query in parallel.
+ * Loads the snapshot (the map) of a Book for the current user: from KV when a recent one
+ * exists, otherwise from Bkper, with every root's query in parallel.
  */
 import type { Bkper } from 'bkper-js';
 import { todayInTimeZone } from './periods.js';
 import { buildSnapshot, snapshotQueries, type Snapshot } from './snapshot.js';
 import type { Timing } from './timing.js';
 
-/** How long a snapshot is reused; balances may be this much behind the Book. */
+/** How long a snapshot is reused; the map may be this much behind the Book. */
 export const SNAPSHOT_TTL_SECONDS = 60;
 
 /** The part of Workers KV the cache uses. */
@@ -17,7 +17,9 @@ export interface SnapshotStore {
 }
 
 export interface SnapshotLoaderOptions {
-    bkper: Pick<Bkper, 'getUser' | 'getBook'>;
+    /** The current user, whose cache entries these are (see {@link currentUserId}). */
+    userId: string;
+    bkper: Pick<Bkper, 'getBook'>;
     kv: SnapshotStore;
     timing: Timing;
     now?: () => Date;
@@ -27,7 +29,20 @@ export interface SnapshotLoaderOptions {
 
 /** One snapshot per user and Book: a cached snapshot is only served to the user it was read for. */
 export function snapshotKey(userId: string, bookId: string): string {
-    return `snapshot:v1:${userId}:${bookId}`;
+    return `snapshot:v2:${userId}:${bookId}`;
+}
+
+/** The id of the current user, which every cache key needs: Dispatch passes no identity. */
+export async function currentUserId(
+    bkper: Pick<Bkper, 'getUser'>,
+    timing: Timing
+): Promise<string> {
+    const user = await timing.measure('user', () => bkper.getUser());
+    const userId = user.getId();
+    if (!userId) {
+        throw new Error('The current user has no id');
+    }
+    return userId;
 }
 
 export async function loadSnapshot(
@@ -35,12 +50,7 @@ export async function loadSnapshot(
     options: SnapshotLoaderOptions
 ): Promise<Snapshot> {
     const { bkper, kv, timing } = options;
-    const user = await timing.measure('user', () => bkper.getUser());
-    const userId = user.getId();
-    if (!userId) {
-        throw new Error('The current user has no id');
-    }
-    const key = snapshotKey(userId, bookId);
+    const key = snapshotKey(options.userId, bookId);
     const cached = await timing.measure('kv', () => kv.get(key));
     if (cached !== null) {
         return JSON.parse(cached) as Snapshot;
@@ -69,7 +79,7 @@ async function readSnapshot(
     const today = todayInTimeZone(now, book.getTimeZone());
     const roots = groups
         .filter(group => !group.hasParent())
-        .map(group => ({ name: group.getName() ?? '', permanent: group.isPermanent() ?? false }));
+        .map(group => ({ name: group.getName() ?? '' }));
     const results = await Promise.all(
         snapshotQueries(roots, today).map(async query => ({
             query,

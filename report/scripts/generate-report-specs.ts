@@ -1,32 +1,44 @@
 /**
  * Builds the report specs the renderer's gallery (`client/dev/report.html`) and component tests
- * read, with the app's own report and spec builders, from recorded Book snapshots.
+ * read, with the app's own report and spec builders, from Book snapshots and the balances of
+ * each report's own queries.
  *
  *     npx tsx scripts/generate-report-specs.ts               # committed specs
  *     npx tsx scripts/generate-report-specs.ts <bookId> ...  # live Books, kept local
  *
  * Without arguments it writes `client/dev/specs/<book>.json` from the made-up Books shaped like
- * recorded Bkper payloads: the studio (`scripts/fixtures/studio-book.ts`) and the server test
- * Book. With Book ids it reads their snapshots read-only with your `bkper auth token` and writes
- * the specs to `client/dev/specs/local/`, which Git ignores, so real Book data is never
- * committed. Every spec covers a chart kind, a nature or a language the renderer must handle.
+ * recorded Bkper payloads, whose fake ledgers answer balances queries as Bkper does: the studio
+ * (`scripts/fixtures/studio-book.ts`) and the server test Book. With Book ids it reads their
+ * snapshots and balances read-only with your `bkper auth token` and writes the specs to
+ * `client/dev/specs/local/`, which Git ignores, so real Book data is never committed. Every spec
+ * covers a chart kind, a nature or a language the renderer must handle.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Bkper } from 'bkper-js';
+import { BalancesReport, Bkper, Book } from 'bkper-js';
 import type { ReportSpec } from 'report-shared/catalog';
 import { addAllLocales } from 'report-shared/locales';
-import { buildReport } from '../server/src/services/report.ts';
+import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
+import { buildReport, planQueries, planReport } from '../server/src/services/report.ts';
 import { NET_RESULT_ROOT, type ReportIntent } from '../server/src/services/report-intent.ts';
 import { buildReportSpec } from '../server/src/services/report-spec.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
-import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
+import {
+    currentUserId,
+    loadSnapshot,
+    type SnapshotStore,
+} from '../server/src/services/snapshot-loader.ts';
 import { buildSuggestions } from '../server/src/services/suggestions.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
-import { fixtureSnapshot } from '../server/test/fixtures/snapshot-book.ts';
-import { studioSnapshot } from './fixtures/studio-book.ts';
+import type { FakeLedger } from '../server/test/fixtures/ledger.ts';
+import {
+    fixtureLedger,
+    ledgerBalances,
+    ledgerSnapshot,
+} from '../server/test/fixtures/snapshot-book.ts';
+import { STUDIO_DATA_AT, studioLedger, studioSnapshot } from './fixtures/studio-book.ts';
 
 const SPECS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../client/dev/specs');
 
@@ -171,15 +183,25 @@ const LEDGER_CASES: Case[] = [
     },
 ];
 
-function entries(snapshot: Snapshot, cases: Case[]): GalleryEntry[] {
-    return cases.flatMap(({ id, intent, lang }) => {
-        const step = buildReport(intent, snapshot);
-        if (!('report' in step)) {
-            console.warn(`Skipped ${id}: needs the live query ${step.liveQuery.query}`);
-            return [];
-        }
-        return [{ id, intent, lang, spec: buildReportSpec(step.report, lang) }];
-    });
+/** Reads the balances of each query, as the Worker does. */
+type BalancesReader = (queries: string[]) => Promise<QueryBalances[]>;
+
+async function entries(
+    snapshot: Snapshot,
+    cases: Case[],
+    read: BalancesReader
+): Promise<GalleryEntry[]> {
+    const built: GalleryEntry[] = [];
+    for (const { id, intent, lang } of cases) {
+        const balances = await read(planQueries(planReport(intent, snapshot)));
+        const report = buildReport(intent, snapshot, balances);
+        built.push({ id, intent, lang, spec: buildReportSpec(report, lang) });
+    }
+    return built;
+}
+
+function ledgerReader(ledger: FakeLedger, dataAt?: Date): BalancesReader {
+    return async queries => queries.map(query => ledgerBalances(ledger, query, dataAt));
 }
 
 /** Suggested reports, and a breakdown of each root in the last year with data. */
@@ -221,21 +243,44 @@ async function main(): Promise<void> {
     addAllLocales();
     const bookIds = process.argv.slice(2);
     if (bookIds.length === 0) {
-        await write(join(SPECS_DIR, 'studio.json'), entries(await studioSnapshot(), STUDIO_CASES));
-        await write(join(SPECS_DIR, 'ledger.json'), entries(await fixtureSnapshot(), LEDGER_CASES));
+        const studio = studioLedger();
+        const ledger = fixtureLedger();
+        await write(
+            join(SPECS_DIR, 'studio.json'),
+            await entries(
+                await studioSnapshot(studio),
+                STUDIO_CASES,
+                ledgerReader(studio, STUDIO_DATA_AT)
+            )
+        );
+        await write(
+            join(SPECS_DIR, 'ledger.json'),
+            await entries(await ledgerSnapshot(ledger), LEDGER_CASES, ledgerReader(ledger))
+        );
         return;
     }
     const token = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
     const bkper = new Bkper({ oauthTokenProvider: async () => token });
+    const timing = new ServerTiming();
+    const userId = await currentUserId(bkper, timing);
     for (const bookId of bookIds) {
         const snapshot = await loadSnapshot(bookId, {
+            userId,
             bkper,
             kv: new MemoryStore(),
-            timing: new ServerTiming(),
+            timing,
         });
+        const book = new Book({ id: bookId }, bkper.getConfig());
+        const read: BalancesReader = queries =>
+            Promise.all(
+                queries.map(async query => {
+                    const asked = new Date();
+                    return readQueryBalances(query, await book.getBalancesReport(query), asked);
+                })
+            );
         await write(
             join(SPECS_DIR, 'local', `${bookId}.json`),
-            entries(snapshot, liveCases(snapshot))
+            await entries(snapshot, liveCases(snapshot), read)
         );
     }
 }

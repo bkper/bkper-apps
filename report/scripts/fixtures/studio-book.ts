@@ -1,24 +1,22 @@
 /**
- * A made-up design studio's Book, two years of balances shaped like the payloads recorded from
- * the Bkper API (`GET /v5/books/{id}` with accounts and groups, and one
- * `group:'<root>' before:<tomorrow> by:m` balances query per root group): raw decimal strings
- * (credit minus debit), `day: 0` monthly buckets with running cumulative balances.
+ * A made-up design studio's Book: its groups and accounts, shaped like the payload recorded
+ * from the Bkper API (`GET /v5/books/{id}` with accounts and groups), and two years of
+ * transactions in a fake ledger that answers balances queries as the Bkper API does.
  *
  * Every month balances: Checking receives the revenue and pays expenses, taxes, loan
- * repayments and transfers, so all accounts add up to zero, as in any Bkper Book.
+ * repayments and transfers, each on the 15th, so all accounts add up to zero, as in any
+ * Bkper Book.
  *
- * Today is 2025-12-31, the last day of the data, so no current period needs a partial-month
- * comparison window.
+ * Today is 2025-12-31, the last day of the data.
  */
-import { Amount, BalancesReport, Book } from 'bkper-js';
-import {
-    buildSnapshot,
-    snapshotQueries,
-    type Snapshot,
-} from '../../server/src/services/snapshot.ts';
+import { Amount } from 'bkper-js';
+import type { Snapshot } from '../../server/src/services/snapshot.ts';
+import { FakeLedger, type LedgerTransaction } from '../../server/test/fixtures/ledger.ts';
+import { ledgerSnapshot } from '../../server/test/fixtures/snapshot-book.ts';
 
 export const STUDIO_TODAY = '2025-12-31';
-const DATA_AT = new Date('2025-12-31T21:00:00Z');
+/** When the studio's balances were read. */
+export const STUDIO_DATA_AT = new Date('2025-12-31T21:00:00Z');
 const MONTHS = 24;
 const FIRST_YEAR = 2024;
 
@@ -208,28 +206,6 @@ function bookPayload(): bkper.Book {
     };
 }
 
-/** Raw monthly balances (credit minus debit) with running cumulative balances. */
-function monthlyBalances(raw: Amount[]): bkper.Balance[] {
-    let cumulative = new Amount(0);
-    return raw.map((period, index) => {
-        cumulative = cumulative.plus(period);
-        const year = FIRST_YEAR + Math.floor(index / 12);
-        const month = (index % 12) + 1;
-        return {
-            year,
-            month,
-            day: 0,
-            fuzzyDate: year * 10000 + month * 100,
-            periodBalance: period.toFixed(),
-            cumulativeBalance: cumulative.toFixed(),
-            periodCredit: period.gt(0) ? period.toFixed() : '0',
-            periodDebit: period.lt(0) ? period.abs().toFixed() : '0',
-            cumulativeCredit: '0',
-            cumulativeDebit: '0',
-        };
-    });
-}
-
 function accountRaw(account: AccountSpec): Amount[] {
     const sign = credit(account.type) ? 1 : -1;
     return Array.from({ length: MONTHS }, (_, month) =>
@@ -243,45 +219,6 @@ function sum(series: Amount[][]): Amount[] {
     );
 }
 
-interface GroupBalances {
-    balances: bkper.GroupBalances;
-    raw: Amount[];
-}
-
-function groupBalances(group: GroupSpec): GroupBalances {
-    const children = (group.groups ?? []).map(groupBalances);
-    const accounts = group.accounts.map(account => ({ account, raw: accountRaw(account) }));
-    const raw = sum([...children.map(child => child.raw), ...accounts.map(entry => entry.raw)]);
-    const nature = { credit: credit(group.type), permanent: permanent(group.type) };
-    return {
-        raw,
-        balances: {
-            name: group.name,
-            normalizedName: id(group.name),
-            ...nature,
-            balances: monthlyBalances(raw),
-            ...(children.length > 0
-                ? { groupBalances: children.map(child => child.balances) }
-                : {}),
-            accountBalances: accounts.map(({ account, raw: accountRaw }) => {
-                const balances = monthlyBalances(accountRaw);
-                const last = balances[balances.length - 1].cumulativeBalance;
-                return {
-                    name: account.name,
-                    normalizedName: id(account.name),
-                    credit: credit(account.type),
-                    permanent: permanent(account.type),
-                    archived: false,
-                    empty: false,
-                    balances,
-                    periodBalance: last,
-                    cumulativeBalance: last,
-                };
-            }),
-        },
-    };
-}
-
 /** Every month, the raw balances of all accounts add up to zero. */
 function assertBalanced(): void {
     const accounts = allGroups(ROOTS).flatMap(([group]) => group.accounts);
@@ -292,27 +229,42 @@ function assertBalanced(): void {
     });
 }
 
-/** The snapshot of the studio's Book, built by the app's snapshot code from its payloads. */
-export async function studioSnapshot(): Promise<Snapshot> {
-    const book = new Book(bookPayload());
-    const groups = await book.getGroups();
-    const accounts = await book.getAccounts();
-    const roots = groups
-        .filter(group => !group.hasParent())
-        .map(group => ({ name: group.getName() ?? '', permanent: group.isPermanent() ?? false }));
-    assertBalanced();
-    const payloads = new Map<string, bkper.Balances>(
-        ROOTS.map(root => [
-            root.name,
-            { periodicity: 'MONTHLY', groupBalances: [groupBalances(root).balances] },
-        ])
+/**
+ * Each account's movement of each month, with Checking: credited (`from`) when its raw
+ * balance goes up, debited (`to`) when it goes down. Checking gets the rest, so its raw
+ * balance is minus all the others'.
+ */
+function studioTransactions(): LedgerTransaction[] {
+    const accounts = allGroups(ROOTS)
+        .flatMap(([group]) => group.accounts)
+        .filter(account => account.name !== 'Checking');
+    return accounts.flatMap(account =>
+        accountRaw(account).flatMap((raw, index): LedgerTransaction[] => {
+            if (raw.eq(0)) {
+                return [];
+            }
+            const year = FIRST_YEAR + Math.floor(index / 12);
+            const month = String((index % 12) + 1).padStart(2, '0');
+            const credited = raw.gt(0);
+            return [
+                {
+                    date: `${year}-${month}-15`,
+                    from: credited ? account.name : 'Checking',
+                    to: credited ? 'Checking' : account.name,
+                    amount: raw.abs().toFixed(),
+                },
+            ];
+        })
     );
-    const results = snapshotQueries(roots, STUDIO_TODAY).map(query => {
-        const payload = payloads.get(query.root);
-        if (!payload || query.window) {
-            throw new Error(`No balances for ${query.query}`);
-        }
-        return { query, report: new BalancesReport(book, payload) };
-    });
-    return buildSnapshot({ book, groups, accounts, results, today: STUDIO_TODAY, dataAt: DATA_AT });
+}
+
+/** The studio's Book and its transactions. */
+export function studioLedger(): FakeLedger {
+    assertBalanced();
+    return new FakeLedger(bookPayload(), studioTransactions());
+}
+
+/** The snapshot (the map) of the studio's Book, built by the app's snapshot code. */
+export async function studioSnapshot(ledger: FakeLedger = studioLedger()): Promise<Snapshot> {
+    return ledgerSnapshot(ledger, STUDIO_TODAY, STUDIO_DATA_AT);
 }

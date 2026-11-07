@@ -86,7 +86,7 @@ Charts that do not fit and that you did not ask for are simply not offered. A re
 
 - **Top-level groups only.** A report starts from a top-level group, not from a single subgroup or Account. Ask for the group that holds it and open its row in the breakdown.
 - **Periods in whole months.** Report understands months, quarters and years: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today. It does not report custom date ranges such as a single week.
-- **Hashtags.** Add `#hashtags` to your request to include only the transactions that have all of them. These reports take a moment longer.
+- **Hashtags.** Add `#hashtags` to your request to include only the transactions that have all of them.
 - **Up to a minute behind.** Report keeps your Book's balances for up to 60 seconds to answer quickly, so a transaction you posted in the last minute may not show yet.
 - **You choose what to share.** Report sends your request to Bkper AI to understand it. Saving explicitly keeps its original text in the Book's shared shelf, visible to all its collaborators; do not save text you do not want to share with them. Typed requests and saved-request clicks use your Bkper AI allowance; suggested reports do not. A report's link also contains its request, so anyone you share the link with sees what you typed.
 - **Who can use it.** Anyone who can view the Book can see its reports.

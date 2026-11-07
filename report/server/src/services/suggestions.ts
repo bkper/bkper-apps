@@ -2,22 +2,15 @@
  * Suggested reports: a few example requests for a Book, each with the intent it stands for,
  * so picking one builds the report without asking the decision model.
  *
- * They are chosen by fixed rules from the snapshot, among the reports the Book supports:
- * roots without movements are left out, and periods are anchored to the data, so a Book
- * whose movements are years old suggests its last year with movements.
+ * They are chosen by fixed rules from the snapshot (the Book's map, which holds no amounts),
+ * among the reports the Book supports: roots without movements are left out, and periods are
+ * anchored to the data, so a Book whose movements are years old suggests its last year with
+ * movements.
  */
-import { Amount } from 'bkper-js';
 import { t, type StringKey } from 'report-shared/strings';
-import { defaultPeriod, resolvePeriod, type IsoMonth } from './periods.js';
+import { addDays, defaultPeriod, resolvePeriod, type IsoMonth } from './periods.js';
 import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
-import {
-    lastActiveMonth,
-    periodAmount,
-    positionAmount,
-    type NodeType,
-    type Snapshot,
-    type SnapshotGroup,
-} from './snapshot.js';
+import { lastActiveMonth, type NodeType, type Snapshot, type SnapshotGroup } from './snapshot.js';
 
 export interface Suggestion {
     /** The request as a person would type it, in the requested language. */
@@ -30,9 +23,9 @@ export const SUGGESTION_COUNT = 3;
 
 /**
  * Up to {@link SUGGESTION_COUNT} suggestions, in this order of preference: the net result,
- * the largest Outgoing root by month, the largest Asset (or other permanent) root's
- * position, the largest Incoming root, then the other roots by size. Each root is suggested
- * once.
+ * the busiest Outgoing root by month, the busiest Asset (or other permanent) root's
+ * position, the busiest Incoming root, then the other roots, busiest first. Each root is
+ * suggested once.
  */
 export function buildSuggestions(snapshot: Snapshot, lang: string): Suggestion[] {
     const roots = snapshot.roots
@@ -51,7 +44,7 @@ export function buildSuggestions(snapshot: Snapshot, lang: string): Suggestion[]
     const sized = (roots: SuggestedRoot[], type: NodeType) =>
         [...roots].sort(
             (a, b) =>
-                Number(b.group.type === type) - Number(a.group.type === type) || b.size.cmp(a.size)
+                Number(b.group.type === type) - Number(a.group.type === type) || b.size - a.size
         );
     const ordered: { root: SuggestedRoot; monthly: boolean }[] = [
         ...sized(activity, 'OUTGOING')
@@ -86,8 +79,11 @@ interface SuggestedRoot {
     group: SnapshotGroup;
     /** `today`, `this_year` or a year `YYYY`. */
     period: string;
-    /** How large the root is in the period, to rank roots of the same kind. */
-    size: Amount;
+    /**
+     * How busy the root is in the period: its accounts' months with movements, to rank roots
+     * of the same kind without reading amounts.
+     */
+    size: number;
 }
 
 interface ActiveRoot {
@@ -106,8 +102,9 @@ function activityRoot(snapshot: Snapshot, { group, last }: ActiveRoot): Suggeste
         lastActiveMonth: last,
     });
     const range = resolvePeriod(period, { today });
-    const amount = range && periodAmount(group, range, snapshot);
-    return { group, period, size: amount?.abs() ?? new Amount(0) };
+    const from = range?.after?.slice(0, 7) ?? '';
+    const to = addDays(range?.before ?? today, -1).slice(0, 7);
+    return { group, period, size: busyMonths(snapshot, group, from, to) };
 }
 
 /** Today when the root moved this year; otherwise the end of its last year with movements. */
@@ -116,8 +113,29 @@ function positionRoot(snapshot: Snapshot, { group, last }: ActiveRoot): Suggeste
     const year = last.slice(0, 4);
     const period = year === today.slice(0, 4) ? 'today' : year;
     const before = resolvePeriod(period, { today })?.before ?? today;
-    const amount = positionAmount(group, before, snapshot);
-    return { group, period, size: amount?.abs() ?? new Amount(0) };
+    return {
+        group,
+        period,
+        size: busyMonths(snapshot, group, '', addDays(before, -1).slice(0, 7)),
+    };
+}
+
+/** The months with movements of each account under a group, from `first` to `last`, counted. */
+function busyMonths(
+    snapshot: Snapshot,
+    group: SnapshotGroup,
+    first: IsoMonth,
+    last: IsoMonth
+): number {
+    const accounts = new Set<string>();
+    const collect = (node: SnapshotGroup): void => {
+        node.accounts.forEach(id => accounts.add(id));
+        node.groups.forEach(id => collect(snapshot.groups[id]));
+    };
+    collect(group);
+    return [...accounts]
+        .flatMap(id => snapshot.accounts[id].activeMonths)
+        .filter(month => month >= first && month <= last).length;
 }
 
 function rootSuggestion(root: SuggestedRoot, monthly: boolean, lang: string): Suggestion {

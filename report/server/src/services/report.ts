@@ -1,30 +1,33 @@
 /**
- * Report calculation: an intent and a Book snapshot become the numbers of a report.
+ * Report calculation: an intent, a Book snapshot (the Book's map) and the balances of the
+ * report's own Bkper queries become the numbers of a report.
  *
- * Every amount is a decimal string computed here from Bkper balances, with the sign Bkper
- * charts show (Outgoing and Liability positive). Rows are expressed in their root's sense:
- * a child whose credit nature differs from the root's counts with the opposite sign, as in
- * mixed groups, so every breakdown adds up to its parent. When Bkper leaves accounts out of
- * a group's balances, a remainder row (`kind: 'other'`) keeps the breakdown adding up. A net
- * result breaks down into its Incoming and Outgoing sides, both positive as Bkper shows them,
- * and Incoming minus Outgoing is the net result. Rows without an amount in the period stay in
- * the breakdown, last, but charts leave them out.
+ * {@link planReport} names the queries a report reads: for each of its roots, one of the
+ * period, `group:'<root>' after:<start> before:<end> by:m`, and one of the previous period,
+ * the same way. Their caller runs them, in parallel, and {@link buildReport} reads every amount
+ * from their responses: totals from a group's or account's period balance (activity) or
+ * cumulative balance (position), months from its monthly balances. Months are never added up
+ * into totals.
  *
- * A report reads the snapshot, except when it filters by hashtags or the snapshot cannot
- * answer its period: then {@link buildReport} asks for one live balances query instead, and
- * computes the report once its result is passed back.
+ * Every amount is a decimal string with the sign Bkper charts show (Outgoing and Liability
+ * positive). Rows are expressed in their root's sense: a child whose credit nature differs
+ * from the root's counts with the opposite sign, as in mixed groups, so every breakdown adds
+ * up to its parent. When Bkper leaves accounts out of a group's balances, a remainder row
+ * (`kind: 'other'`) keeps the breakdown adding up. A net result breaks down into its Incoming
+ * and Outgoing sides, both positive as Bkper shows them, and Incoming minus Outgoing is the
+ * net result. Rows without an amount in the period stay in the breakdown, last, but charts
+ * leave them out.
  */
 import { Amount } from 'bkper-js';
 import { VIEW_KINDS, type ViewKind } from 'report-shared/catalog';
 import {
-    groupsFilter,
-    hashtagQuery,
-    livePeriodAmount,
-    livePositionAmount,
-    rangeQuery,
-    type LiveBalances,
-    type LiveQuery,
-} from './live-balances.js';
+    accountBalances,
+    groupBalances,
+    monthPeriod,
+    monthPosition,
+    type NodeBalances,
+    type QueryBalances,
+} from './balances.js';
 import {
     addDays,
     isoMonth,
@@ -42,8 +45,7 @@ import {
     type ReportView,
 } from './report-intent.js';
 import {
-    periodAmount,
-    positionAmount,
+    quote,
     type NodeType,
     type Snapshot,
     type SnapshotGroup,
@@ -273,9 +275,6 @@ export interface ReportData {
     dataAt: string;
 }
 
-/** A report, or the one live balances query it needs first. */
-export type ReportStep = { report: ReportData } | { liveQuery: LiveQuery };
-
 export type ReportErrorReason = 'unknown_root' | 'future_period' | 'no_activity_roots';
 
 /** The intent asks for a report this Book cannot have. */
@@ -300,51 +299,103 @@ const MAX_WATERFALL_STEPS = 8;
 /** The id of the part of a chart that holds the smaller parts together. */
 export const OTHER_PART = 'other';
 
+/** The balances queries of one root: of the report's period, and of the previous one. */
+export interface RootQueries {
+    root: string;
+    current: string;
+    previous?: string;
+}
+
+/** What a report reads: its nature, its period, and the queries that answer it. */
+export interface ReportPlan {
+    nature: ReportNature;
+    period: ReportPeriod;
+    /** The root group ids: the root, or every activity root of a net result. */
+    roots: string[];
+    hashtags: string[];
+    /** One entry per root: never several roots in one query. */
+    queries: RootQueries[];
+}
+
 /**
- * Computes the report of an intent from a snapshot, or returns the live query it needs.
- *
- * Pass the result of that query as `live` to compute the report. With hashtags, the live
- * query is {@link hashtagQuery}, which a caller may start as soon as it knows the hashtags.
+ * The balances queries a report reads, or a {@link ReportError} when the Book cannot have it.
+ * Hashtags filter every query. A position with hashtags reads from the start of the data:
+ * under `after:`, Bkper's cumulative balance starts from the balance of every movement, with
+ * the hashtags or not.
  */
-export function buildReport(
-    intent: ReportIntent,
-    snapshot: Snapshot,
-    live?: LiveBalances
-): ReportStep {
+export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan {
     const net = intent.root === NET_RESULT_ROOT;
     const roots = reportRoots(intent.root, snapshot);
     const nature: ReportNature =
         !net && snapshot.groups[roots[0]].permanent ? 'position' : 'activity';
     const period = reportPeriod(intent.period, nature, snapshot.today);
     const hashtags = intent.hashtags ?? [];
-    if (live && !sameHashtags(live.hashtags, hashtags)) {
-        throw new Error('The live balances were read for other hashtags');
-    }
-    if (hashtags.length > 0 && !live) {
-        return { liveQuery: hashtagQuery(snapshot, hashtags) };
-    }
+    const current =
+        nature === 'position' && hashtags.length > 0
+            ? { before: period.range.before }
+            : period.range;
+    const queries = roots.map(root => {
+        const filter = [`group:${quote(snapshot.groups[root].name)}`, ...tags(hashtags)].join(' ');
+        return {
+            root,
+            current: balancesQuery(filter, current),
+            ...(period.previous ? { previous: balancesQuery(filter, period.previous) } : {}),
+        };
+    });
+    return { nature, period, roots, hashtags, queries };
+}
 
-    const amounts = new Amounts(snapshot, live, hashtags.length > 0);
+/** Every query of a plan, each once, in order. */
+export function planQueries(plan: ReportPlan): string[] {
+    return [
+        ...new Set(
+            plan.queries.flatMap(({ current, previous }) => [current, previous ?? []].flat())
+        ),
+    ];
+}
+
+/** A query of a period by month: activity within it, positions at its end. */
+function balancesQuery(filter: string, range: DateRange): string {
+    const after = range.after === undefined ? '' : `after:${range.after} `;
+    return `${filter} ${after}before:${range.before} by:m`;
+}
+
+function tags(hashtags: string[]): string[] {
+    return hashtags.map(tag => `#${tag}`);
+}
+
+/**
+ * Computes the report of an intent from the balances of its {@link planReport} queries, which
+ * the caller has read; it throws when one is missing.
+ */
+export function buildReport(
+    intent: ReportIntent,
+    snapshot: Snapshot,
+    balances: QueryBalances[]
+): ReportData {
+    const plan = planReport(intent, snapshot);
+    const { nature, period, roots, hashtags } = plan;
+    const byQuery = new Map(balances.map(entry => [entry.query, entry]));
+    const read = (query: string): QueryBalances => {
+        const entry = byQuery.get(query);
+        if (!entry) {
+            throw new Error(`The balances of a report query were not read: ${query}`);
+        }
+        return entry;
+    };
+    const sources = plan.queries.map(({ current, previous }) => ({
+        current: read(current),
+        ...(previous ? { previous: read(previous) } : {}),
+    }));
     const months = reportMonths(period.range, snapshot);
-    const measure = measurer(amounts, nature, period, months);
+    const measure = measurer(sources, nature, period, months);
+    const net = intent.root === NET_RESULT_ROOT;
     const report = net
         ? netResultReport(snapshot, roots, measure)
         : rootReport(snapshot, snapshot.groups[roots[0]], measure);
 
     const { after, before } = period.range;
-    if (amounts.missing) {
-        if (live || nature === 'position' || after === undefined) {
-            throw new Error('The balances read cannot answer this report');
-        }
-        return {
-            liveQuery: rangeQuery(snapshot, roots, {
-                after: period.previous?.after ?? after,
-                before,
-            }),
-        };
-    }
-
-    const filter = [groupsFilter(snapshot, roots), ...hashtags.map(tag => `#${tag}`)].join(' ');
+    const filter = [groupsFilter(snapshot, roots), ...tags(hashtags)].join(' ');
     const dates =
         nature === 'position' || after === undefined
             ? `before:${before}`
@@ -361,30 +412,37 @@ export function buildReport(
         months,
     });
     return {
-        report: {
-            book: {
-                id: snapshot.book.id,
-                name: snapshot.book.name,
-                timeZone: snapshot.book.timeZone,
-                fractionDigits: snapshot.book.fractionDigits,
-            },
-            intent,
-            nature,
-            root: report.root,
-            period: { id: period.id, ...period.range },
-            ...(period.previous ? { previous: period.previous } : {}),
-            answer: reportAmounts(report.total),
-            ...(report.net ? { net: report.net } : {}),
-            months,
-            chart: charts.chart,
-            charts: charts.charts,
-            breakdown: report.rows,
-            query,
-            url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
-            // Hashtag reports read only live balances; others may also read the snapshot's.
-            dataAt: hashtags.length > 0 && live ? live.dataAt : snapshot.dataAt,
+        book: {
+            id: snapshot.book.id,
+            name: snapshot.book.name,
+            timeZone: snapshot.book.timeZone,
+            fractionDigits: snapshot.book.fractionDigits,
         },
+        intent,
+        nature,
+        root: report.root,
+        period: { id: period.id, ...period.range },
+        ...(period.previous ? { previous: period.previous } : {}),
+        answer: reportAmounts(report.total),
+        ...(report.net ? { net: report.net } : {}),
+        months,
+        chart: charts.chart,
+        charts: charts.charts,
+        breakdown: report.rows,
+        query,
+        url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
+        // The oldest of the balances read: none is older than this.
+        dataAt: sources
+            .flatMap(source => [source.current, source.previous ?? []].flat())
+            .map(entry => entry.dataAt)
+            .sort()[0],
     };
+}
+
+/** A query filter for transactions in any of the groups, for the report's link to Bkper. */
+function groupsFilter(snapshot: Snapshot, groupIds: string[]): string {
+    const filters = groupIds.map(id => `group:${quote(snapshot.groups[id].name)}`);
+    return filters.length === 1 ? filters[0] : `(${filters.join(' OR ')})`;
 }
 
 /** The root group ids a report reads: the root, or every activity root for a net result. */
@@ -405,7 +463,7 @@ function reportRoots(root: string, snapshot: Snapshot): string[] {
     return [root];
 }
 
-interface ReportPeriod {
+export interface ReportPeriod {
     id: string;
     range: DateRange;
     previous?: DateRange;
@@ -454,35 +512,6 @@ function nextMonth(month: IsoMonth): IsoMonth {
     return monthOfYear === 12 ? isoMonth(year + 1, 1) : isoMonth(year, monthOfYear + 1);
 }
 
-/** Reads amounts from the live balances or the snapshot, noting what neither can answer. */
-class Amounts {
-    missing = false;
-
-    constructor(
-        private readonly snapshot: Snapshot,
-        private readonly live: LiveBalances | undefined,
-        /** Hashtag reports read only the live balances: the snapshot has no hashtags. */
-        private readonly liveOnly: boolean
-    ) {}
-
-    period(node: SnapshotNode, range: DateRange): Amount {
-        const snapshot = this.liveOnly ? undefined : periodAmount(node, range, this.snapshot);
-        return this.found(snapshot ?? (this.live && livePeriodAmount(this.live, node, range)));
-    }
-
-    position(node: SnapshotNode, before: IsoDate): Amount {
-        const snapshot = this.liveOnly ? undefined : positionAmount(node, before, this.snapshot);
-        return this.found(snapshot ?? (this.live && livePositionAmount(this.live, node, before)));
-    }
-
-    private found(amount: Amount | undefined): Amount {
-        if (!amount) {
-            this.missing = true;
-        }
-        return amount ?? new Amount(0);
-    }
-}
-
 /** The amounts of a node in the period, the previous period and each month. */
 interface Measure {
     amount: Amount;
@@ -499,38 +528,63 @@ interface Measurer {
 /** `1` when a node has its root's credit nature, `-1` when it counts against it. */
 type Sign = 1 | -1;
 
+/** The balances a report reads: for each root, of the period and of the previous one. */
+interface BalancesSource {
+    current: QueryBalances;
+    previous?: QueryBalances;
+}
+
+/**
+ * Measures nodes from the balances read. A node reads its own balances, as Bkper returns them;
+ * one Bkper left out of every response has none. An account under several roots of a net
+ * result reads the first root's, the same in each.
+ */
 function measurer(
-    amounts: Amounts,
+    sources: BalancesSource[],
     nature: ReportNature,
     period: ReportPeriod,
     months: IsoMonth[]
 ): Measurer {
-    const { range, previous } = period;
-    const segments = months.map(month => ({
-        after: maxDate(range.after, `${month}-01`),
-        before: minDate(range.before, `${nextMonth(month)}-01`),
-    }));
+    const find = (
+        node: SnapshotNode,
+        pick: (source: BalancesSource) => QueryBalances | undefined
+    ) => {
+        for (const source of sources) {
+            const balances = pick(source);
+            const found =
+                balances &&
+                (isGroup(node)
+                    ? groupBalances(balances, node.name)
+                    : accountBalances(balances, node.name));
+            if (found) {
+                return found;
+            }
+        }
+        return undefined;
+    };
+    const total = (balances: NodeBalances | undefined): Amount =>
+        new Amount((nature === 'activity' ? balances?.period : balances?.cumulative) ?? 0);
+    const month = (balances: NodeBalances | undefined, at: IsoMonth): Amount =>
+        new Amount(nature === 'activity' ? monthPeriod(balances, at) : monthPosition(balances, at));
     const of = (node: SnapshotNode, sign: Sign): Measure => {
-        const measure: Measure =
-            nature === 'activity'
-                ? {
-                      amount: amounts.period(node, range),
-                      ...(previous ? { previous: amounts.period(node, previous) } : {}),
-                      months: segments.map(segment => amounts.period(node, segment)),
-                  }
-                : {
-                      amount: amounts.position(node, range.before),
-                      ...(previous ? { previous: amounts.position(node, previous.before) } : {}),
-                      months: segments.map(segment => amounts.position(node, segment.before)),
-                  };
+        const current = find(node, source => source.current);
+        const measure: Measure = {
+            amount: total(current),
+            ...(period.previous ? { previous: total(find(node, source => source.previous)) } : {}),
+            months: months.map(at => month(current, at)),
+        };
         return sign === 1 ? measure : scale(measure, -1);
     };
     const zero = (): Measure => ({
         amount: new Amount(0),
-        ...(previous ? { previous: new Amount(0) } : {}),
+        ...(period.previous ? { previous: new Amount(0) } : {}),
         months: months.map(() => new Amount(0)),
     });
     return { of, zero };
+}
+
+function isGroup(node: SnapshotNode): node is SnapshotGroup {
+    return 'accounts' in node;
 }
 
 function signOf(node: SnapshotNode, rootCredit: boolean): Sign {
@@ -1131,16 +1185,4 @@ function ratio(numerator: Amount, denominator: Amount): string {
 /** Plain decimal notation; zero has no sign. */
 function decimal(amount: Amount): string {
     return amount.eq(0) ? '0' : amount.toFixed();
-}
-
-function sameHashtags(a: string[], b: string[]): boolean {
-    return [...a].sort().join(' ') === [...b].sort().join(' ');
-}
-
-function maxDate(a: IsoDate | undefined, b: IsoDate): IsoDate {
-    return a !== undefined && a > b ? a : b;
-}
-
-function minDate(a: IsoDate, b: IsoDate): IsoDate {
-    return a < b ? a : b;
 }

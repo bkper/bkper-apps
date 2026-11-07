@@ -1,4 +1,3 @@
-import { BalancesReport, Book } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { ReportError } from '../../src/services/report';
@@ -11,7 +10,7 @@ import {
 import type { Snapshot } from '../../src/services/snapshot';
 import { buildSuggestions } from '../../src/services/suggestions';
 import { ServerTiming } from '../../src/services/timing';
-import { bookPayload, fixtureSnapshot } from '../fixtures/snapshot-book';
+import { fixtureLedger, fixtureSnapshot, ledgerBalances } from '../fixtures/snapshot-book';
 
 const NOW = new Date('2026-11-05T16:00:00Z');
 
@@ -47,27 +46,6 @@ function jevBody(answers: JevAnswers) {
     };
 }
 
-/** Bkper balances by day: the Expenses' Food account on a few days. */
-function expensesByDay(): bkper.Balances {
-    const day = (date: string, period: string): bkper.Balance => {
-        const [year, month, dayOfMonth] = date.split('-').map(Number);
-        return { year, month, day: dayOfMonth, periodBalance: period, cumulativeBalance: '0' };
-    };
-    const balances = [day('2026-10-02', '-30'), day('2026-11-05', '-7.25')];
-    return {
-        periodicity: 'DAILY',
-        groupBalances: [
-            {
-                name: 'Expenses',
-                credit: false,
-                permanent: false,
-                balances,
-                accountBalances: [{ name: 'Food', credit: false, permanent: false, balances }],
-            },
-        ],
-    };
-}
-
 interface Harness {
     options: ReportServiceOptions & { timing: ServerTiming };
     jevCalls: number;
@@ -76,10 +54,8 @@ interface Harness {
     events: string[];
 }
 
-function harness(
-    answers: JevAnswers | (() => Response) = { root: 'Expenses' },
-    balances: bkper.Balances = expensesByDay()
-): Harness {
+function harness(answers: JevAnswers | (() => Response) = { root: 'Expenses' }): Harness {
+    const ledger = fixtureLedger();
     const state: Harness = {
         jevCalls: 0,
         queries: [],
@@ -96,13 +72,12 @@ function harness(
                         : Response.json(jevBody(answers));
                 },
             }),
-            readBalances: async query => {
-                state.queries.push(query);
+            loadBalances: async queries => {
+                state.queries.push(...queries);
                 state.events.push('balances');
-                return new BalancesReport(new Book(bookPayload), balances);
+                return queries.map(query => ledgerBalances(ledger, query, NOW));
             },
             timing: new ServerTiming(),
-            now: () => NOW,
         },
     };
     return state;
@@ -126,11 +101,16 @@ describe('createReport by intent', () => {
         );
 
         expect(test.jevCalls).toBe(0);
-        expect(test.queries).toEqual([]);
+        // The period and the previous one, together.
+        expect(test.queries).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
         expect(result.intent).toEqual(intent('g-expenses', '2026-10'));
         expect(result.language).toBe('pt');
         expect(result.query).toBe("group:'Expenses' after:2026-10-01 before:2026-11-01");
-        expect(result.dataAt).toBe('2026-11-05T15:00:00.000Z');
+        expect(result.dataAt).toBe(NOW.toISOString());
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '1200.5' } });
         expect(result.spec.elements[result.spec.root]).toMatchObject({
             type: 'Report',
             props: { title: 'Expenses', locale: 'pt' },
@@ -166,7 +146,7 @@ describe('createReport by intent', () => {
         expect(none.language).toBe('en');
     });
 
-    it('runs the one live query a hashtag intent needs', async () => {
+    it('filters the queries of a hashtag intent by its hashtags', async () => {
         const test = harness();
         const result = await createReport(
             await fixtureSnapshot(),
@@ -176,14 +156,14 @@ describe('createReport by intent', () => {
         );
 
         expect(test.queries).toEqual([
-            "(group:'Assets' OR group:'Card' OR group:'Expenses' OR group:'Revenue' OR group:'Net income') #trip before:2026-11-06 by:d",
+            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
         ]);
         expect(result.query).toBe("group:'Expenses' #trip after:2026-10-01 before:2026-11-01");
-        expect(result.dataAt).toBe(NOW.toISOString());
-        expect(test.options.timing.header()).toContain('balances;dur=');
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
-    it('reads periods the snapshot cannot answer, such as today, live', async () => {
+    it('reads today with ordinary period queries', async () => {
         const test = harness();
         const result = await createReport(
             await fixtureSnapshot(),
@@ -192,7 +172,10 @@ describe('createReport by intent', () => {
             test.options
         );
 
-        expect(test.queries).toEqual(["group:'Expenses' after:2026-11-04 before:2026-11-06 by:d"]);
+        expect(test.queries).toEqual([
+            "group:'Expenses' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Expenses' after:2026-11-04 before:2026-11-05 by:m",
+        ]);
         expect(result.query).toBe("group:'Expenses' after:2026-11-05 before:2026-11-06");
     });
 
@@ -314,7 +297,7 @@ describe('createReport by prompt', () => {
         expect(result.language).toBe('fr');
     });
 
-    it('starts the hashtag query while Jev is still answering', async () => {
+    it('reads the balances of the period Jev chose, after it answers', async () => {
         const test = harness({ root: 'Expenses', period: 'last_month' });
         const result = await createReport(
             await fixtureSnapshot(),
@@ -323,10 +306,13 @@ describe('createReport by prompt', () => {
             test.options
         );
 
-        expect(test.events).toEqual(['balances', 'jev']);
-        expect(test.queries).toHaveLength(1);
+        expect(test.events).toEqual(['jev', 'balances']);
+        expect(test.queries).toEqual([
+            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+        ]);
         expect(result.intent).toEqual(intent('g-expenses', 'last_month', { hashtags: ['trip'] }));
-        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '30' } });
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
     it('returns suggestions in the detected language when the prompt is not a report', async () => {

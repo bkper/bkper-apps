@@ -3,31 +3,29 @@
  *
  *     npx tsx scripts/verify-snapshot.ts [--today=YYYY-MM-DD] <bookId> [<bookId> ...]
  *
- * `--today` reads the Books as of an earlier day, so Books with old data also exercise the
- * current periods and their partial-month comparisons.
+ * `--today` reads the Books as of an earlier day, as the snapshot of that day holds them.
  *
- * For each Book it times cold loads (no cache) and a warm load, checks the snapshot tree
- * against `bkper group list` and `bkper account list`, and checks root and account amounts
- * against `bkper balance list --trial` for the last year with data, the current year to
- * date, and positions. Uses your `bkper auth token`; never writes to a Book.
+ * The snapshot is the Book's map: it holds no amounts. For each Book it times cold loads (no
+ * cache) and a warm load, checks the snapshot tree against `bkper group list` and
+ * `bkper account list`, and checks the months each group and account had movements in against
+ * `bkper balance list` by month: every month with a balance in the CLI is one, and each is a
+ * month the CLI lists (a month whose movements net to zero shows zero there). Uses your
+ * `bkper auth token`; never writes to a Book.
  */
 import { execFileSync } from 'node:child_process';
 import { Amount, Bkper } from 'bkper-js';
+import { addDays, isPlausibleYear } from '../server/src/services/periods.ts';
 import {
-    addDays,
-    previousPeriod,
-    resolvePeriod,
-    type DateRange,
-} from '../server/src/services/periods.ts';
-import {
-    periodAmount,
-    positionAmount,
     quote,
     type Snapshot,
     type SnapshotGroup,
     type SnapshotNode,
 } from '../server/src/services/snapshot.ts';
-import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
+import {
+    currentUserId,
+    loadSnapshot,
+    type SnapshotStore,
+} from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const COLD_LOADS = 3;
@@ -71,12 +69,19 @@ function check(ok: boolean, message: string): void {
 }
 
 async function verifyBook(bkper: Bkper, bookId: string, now: () => Date): Promise<void> {
+    const userId = await currentUserId(bkper, new ServerTiming());
     const timings: number[] = [];
     let snapshot: Snapshot | undefined;
     for (let i = 0; i < COLD_LOADS; i++) {
         const timing = new ServerTiming();
         const start = performance.now();
-        snapshot = await loadSnapshot(bookId, { bkper, kv: new MemoryStore(), timing, now });
+        snapshot = await loadSnapshot(bookId, {
+            userId,
+            bkper,
+            kv: new MemoryStore(),
+            timing,
+            now,
+        });
         const elapsed = performance.now() - start;
         timings.push(elapsed);
         console.log(`  cold load ${i + 1}: ${Math.round(elapsed)} ms (${timing.header()})`);
@@ -85,10 +90,10 @@ async function verifyBook(bkper: Bkper, bookId: string, now: () => Date): Promis
         return;
     }
     const store = new MemoryStore();
-    await loadSnapshot(bookId, { bkper, kv: store, timing: new ServerTiming() });
+    await loadSnapshot(bookId, { userId, bkper, kv: store, timing: new ServerTiming() });
     const warmTiming = new ServerTiming();
     const warmStart = performance.now();
-    await loadSnapshot(bookId, { bkper, kv: store, timing: warmTiming });
+    await loadSnapshot(bookId, { userId, bkper, kv: store, timing: warmTiming });
     console.log(
         `  warm load: ${Math.round(performance.now() - warmStart)} ms (${warmTiming.header()})`
     );
@@ -101,7 +106,7 @@ async function verifyBook(bkper: Bkper, bookId: string, now: () => Date): Promis
     );
 
     verifyTree(bookId, snapshot);
-    verifyAmounts(bookId, snapshot);
+    verifyActiveMonths(bookId, snapshot);
 }
 
 function verifyTree(bookId: string, snapshot: Snapshot): void {
@@ -142,86 +147,63 @@ function verifyTree(bookId: string, snapshot: Snapshot): void {
     }
 }
 
-function verifyAmounts(bookId: string, snapshot: Snapshot): void {
-    const context = { today: snapshot.today };
-    const range = snapshot.dataRange;
-    const years = range
-        ? [...new Set([range.firstMonth, range.lastMonth].map(m => m.slice(0, 4)))]
-        : [];
-    const periods: [string, DateRange | undefined][] = [
-        ...years.map((year): [string, DateRange | undefined] => [
-            `year ${year}`,
-            resolvePeriod(year, context),
-        ]),
-        ['this year to date', resolvePeriod('this_year', context)],
-        ['this year, previous', previousPeriod('this_year', 'activity', context)],
-        ['this month, previous', previousPeriod('this_month', 'activity', context)],
-        ['this quarter, previous', previousPeriod('this_quarter', 'activity', context)],
-        ['last 12 months, previous', previousPeriod('last_12_months', 'activity', context)],
-    ];
-    const positions = [
-        ...years.map(year => `${Number(year) + 1}-01-01`),
-        addDays(snapshot.today, 1),
-    ];
-
-    // A snapshot holds nothing dated after its today, unlike the live ledger.
-    const tomorrow = addDays(snapshot.today, 1);
-    const inSnapshot = (before: string) => before <= tomorrow;
-
+/** Checks each root's groups' and accounts' months with movements against the CLI by month. */
+function verifyActiveMonths(bookId: string, snapshot: Snapshot): void {
     for (const id of snapshot.roots) {
         const root = snapshot.groups[id];
-        if (root.permanent) {
-            for (const before of positions.filter(inSnapshot)) {
-                compare(bookId, snapshot, root, { before }, `position before ${before}`);
-            }
-            continue;
+        // The CLI lists activity in each month of a query with `after:`.
+        const query = `group:${quote(root.name)} after:1000-01-01 before:${addDays(snapshot.today, 1)} by:m`;
+        const [header = [], ...lines] = JSON.parse(
+            cli(['balance', 'list', '-b', bookId, '-q', query, '--expanded', '10'])
+        ) as (string | number)[][];
+        const columns = header
+            .map((cell, index) => ({ month: String(cell).slice(0, 7), index }))
+            .filter(({ month }) => /^\d{4}-\d{2}$/.test(month));
+        const listed = new Set(columns.map(column => column.month));
+        const moved = new Map<string, Set<string>>();
+        for (const line of lines) {
+            moved.set(
+                String(line[0]).trim(),
+                new Set(
+                    columns
+                        .filter(({ index }) => !new Amount(String(line[index] ?? 0)).eq(0))
+                        .map(column => column.month)
+                )
+            );
         }
-        for (const [label, period] of periods) {
-            if (period && inSnapshot(period.before)) {
-                compare(bookId, snapshot, root, period, label);
+        const nodes = subtree(snapshot, root);
+        const problems: string[] = [];
+        let netZero = 0;
+        for (const node of nodes) {
+            const active = new Set(
+                node.activeMonths.filter(month => isPlausibleYear(Number(month.slice(0, 4))))
+            );
+            const missing = [...(moved.get(node.name) ?? [])].filter(month => !active.has(month));
+            const unlisted = [...active].filter(month => !listed.has(month));
+            netZero += [...active].filter(month => !moved.get(node.name)?.has(month)).length;
+            if (missing.length || unlisted.length) {
+                problems.push(
+                    `${node.name}: ${missing.length ? `misses ${missing.slice(0, 3).join(', ')}` : ''}` +
+                        `${unlisted.length ? ` has ${unlisted.slice(0, 3).join(', ')} the CLI does not list` : ''}`
+                );
             }
         }
+        check(
+            problems.length === 0,
+            `${root.name}: months with movements of ${nodes.length} groups and accounts, last ${root.activeMonths.at(-1) ?? 'none'}` +
+                (netZero ? ` (${netZero} netting to zero)` : '') +
+                (problems.length ? ` — ${problems.slice(0, 3).join('; ')}` : '')
+        );
     }
 }
 
-/** Compares a root and its accounts with `bkper balance list --trial`, shown with the credit-nature sign. */
-function compare(
-    bookId: string,
-    snapshot: Snapshot,
-    root: SnapshotGroup,
-    range: DateRange,
-    label: string
-): void {
-    const query = `group:${quote(root.name)}${range.after ? ` after:${range.after}` : ''} before:${range.before}`;
-    const rows = JSON.parse(
-        cli(['balance', 'list', '-b', bookId, '-q', query, '--trial', '--expanded', '1'])
-    ) as (string | number)[][];
-    const expected = new Map<string, Amount>();
-    for (const [name, debit, credit] of rows.slice(1)) {
-        expected.set(String(name).trim(), new Amount(String(credit)).minus(String(debit)));
-    }
-    const amount = (node: SnapshotNode) =>
-        range.after === undefined
-            ? positionAmount(node, range.before, snapshot)
-            : periodAmount(node, range, snapshot);
-
-    const nodes = [root, ...root.accounts.map(account => snapshot.accounts[account])];
-    const mismatches: string[] = [];
-    for (const node of nodes) {
-        const raw = expected.get(node.name) ?? new Amount(0);
-        const shown = node.credit ? raw : raw.times(-1);
-        const actual = amount(node);
-        if (!actual || !actual.eq(shown)) {
-            mismatches.push(
-                `${node.name}: snapshot ${actual?.toString()} vs CLI ${shown.toString()}`
-            );
-        }
-    }
-    check(
-        mismatches.length === 0,
-        `${root.name} ${label}: ${amount(root)?.toString()} (${nodes.length - 1} accounts)` +
-            (mismatches.length ? ` — ${mismatches.slice(0, 3).join('; ')}` : '')
-    );
+/** A group and every group and account under it. */
+function subtree(snapshot: Snapshot, group: SnapshotGroup): SnapshotNode[] {
+    return [
+        group,
+        ...group.accounts.map(id => snapshot.accounts[id]),
+        ...group.groups.flatMap(id => subtree(snapshot, snapshot.groups[id])),
+    ];
 }
 
 async function main(): Promise<void> {

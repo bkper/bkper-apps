@@ -5,8 +5,9 @@
  *
  * For each Book it loads the snapshot (as of `--today`, when given, so Books with old data also
  * exercise current periods and today's activity), builds reports for several intents within the
- * Book's data range, runs the one live query a report asks for, and compares to the cent with
- * `bkper balance list` over the report's exact query and its previous period:
+ * Book's data range from the balances of each report's own queries (its period and the previous
+ * one, per root, in parallel, as the Worker runs them), and compares every amount shown to the
+ * cent with `bkper balance list` over the report's exact query and its previous period:
  *
  * - the answer, and Incoming and Outgoing for a net result over the unique accounts, both in
  *   the answer and in the breakdown's Incoming and Outgoing rows;
@@ -34,11 +35,13 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
-import { readLiveBalances } from '../server/src/services/live-balances.ts';
+import { readQueryBalances } from '../server/src/services/balances.ts';
 import type { DateRange } from '../server/src/services/periods.ts';
 import {
     OTHER_PART,
     buildReport,
+    planQueries,
+    planReport,
     viewKindOf,
     type ReportChart,
     type ReportData,
@@ -50,7 +53,11 @@ import {
     type ReportIntent,
 } from '../server/src/services/report-intent.ts';
 import type { Snapshot, SnapshotNode } from '../server/src/services/snapshot.ts';
-import { loadSnapshot, type SnapshotStore } from '../server/src/services/snapshot-loader.ts';
+import {
+    currentUserId,
+    loadSnapshot,
+    type SnapshotStore,
+} from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const CLI_CONCURRENCY = 6;
@@ -175,24 +182,19 @@ async function computeReport(
     intent: ReportIntent,
     snapshot: Snapshot,
     book: Book
-): Promise<{ report: ReportData; computeMs: number; liveMs?: number }> {
+): Promise<{ report: ReportData; computeMs: number; queriesMs: number; queries: number }> {
+    const queries = planQueries(planReport(intent, snapshot));
     let start = performance.now();
-    let step = buildReport(intent, snapshot);
-    let computeMs = performance.now() - start;
-    if ('report' in step) {
-        return { report: step.report, computeMs };
-    }
-    const query = step.liveQuery;
+    const balances = await Promise.all(
+        queries.map(async query => {
+            const asked = new Date();
+            return readQueryBalances(query, await book.getBalancesReport(query), asked);
+        })
+    );
+    const queriesMs = performance.now() - start;
     start = performance.now();
-    const result = await book.getBalancesReport(query.query);
-    const liveMs = performance.now() - start;
-    start = performance.now();
-    step = buildReport(intent, snapshot, readLiveBalances(query, result, snapshot, new Date()));
-    computeMs += performance.now() - start;
-    if (!('report' in step)) {
-        throw new Error(`A second live query was asked for: ${step.liveQuery.query}`);
-    }
-    return { report: step.report, computeMs, liveMs };
+    const report = buildReport(intent, snapshot, balances);
+    return { report, computeMs: performance.now() - start, queriesMs, queries: queries.length };
 }
 
 function withDates(report: ReportData, range: DateRange): string {
@@ -690,18 +692,21 @@ async function verifyBook(
     now: () => Date,
     hashtags: string[]
 ): Promise<void> {
+    const timing = new ServerTiming();
     const snapshot = await loadSnapshot(bookId, {
+        userId: await currentUserId(bkper, timing),
         bkper,
         kv: new MemoryStore(),
-        timing: new ServerTiming(),
+        timing,
         now,
     });
     const book = await bkper.getBook(bookId);
     console.log(
         `Book "${snapshot.book.name}" today ${snapshot.today}, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}`
     );
-    const liveTimes: number[] = [];
+    const queryTimes: number[] = [];
     const computeTimes: number[] = [];
+    let queryCount = 0;
     const reports: { label: string; report: ReportData }[] = [];
     // One at a time, so the times are of the calculation alone.
     for (const intent of intentsFor(snapshot, hashtags)) {
@@ -710,12 +715,15 @@ async function verifyBook(
             (intent.monthly ? ' monthly' : '') +
             (intent.hashtags ? ` #${intent.hashtags.join(' #')}` : '');
         try {
-            const { report, computeMs, liveMs } = await computeReport(intent, snapshot, book);
+            const { report, computeMs, queriesMs, queries } = await computeReport(
+                intent,
+                snapshot,
+                book
+            );
             computeTimes.push(computeMs);
-            if (liveMs !== undefined) {
-                liveTimes.push(liveMs);
-            }
-            reports.push({ label: label + (liveMs === undefined ? '' : ' [live]'), report });
+            queryTimes.push(queriesMs);
+            queryCount += queries;
+            reports.push({ label, report });
         } catch (error) {
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -730,7 +738,7 @@ async function verifyBook(
     const max = (values: number[]) => Math.round(Math.max(0, ...values) * 10) / 10;
     console.log(
         `  ${reports.length} reports; compute median ${median(computeTimes)} ms, max ${max(computeTimes)} ms; ` +
-            `${liveTimes.length} live queries, median ${median(liveTimes)} ms, max ${Math.round(max(liveTimes))} ms`
+            `${queryCount} balances queries, each report's in parallel: median ${median(queryTimes)} ms, max ${Math.round(max(queryTimes))} ms`
     );
 }
 

@@ -3,7 +3,8 @@
  * Run with the Vite client running: npx tsx scripts/verify-saved-shelf.ts
  * Screenshots: /tmp/report-saved-shelf (override with --screenshots=<directory>).
  * Eight layout scenarios stub the API; a two-collaborator scenario bridges the browsers
- * to real app routes/services with isolated KV, snapshots and decision responses.
+ * to real app routes/services with isolated KV, snapshots and decision responses, and
+ * completes a Book name into a report that it saves and another collaborator reopens.
  * Every auth and Bkper request is intercepted; no real Book or KV is accessed.
  */
 import assert from 'node:assert/strict';
@@ -531,13 +532,60 @@ try {
     await b.frame.locator('report-suggestions wa-button').first().waitFor();
     assert.equal(await b.shelf.locator('.saved-prompt').count(), 0);
     await captureWorkflow('removed');
+
+    // A name completed from the Book's names is what the report, the saved text and its
+    // reopening by another collaborator are of.
+    const NAMED_PROMPT = 'Food last month';
+    await field.fill('');
+    await field.pressSequentially('Fo');
+    await a.frame.locator('[role="option"]').filter({ hasText: 'Food' }).first().waitFor();
+    await a.page.screenshot({ path: join(screenshots, 'workflow-completion.png') });
+    screenshotCount++;
+    await field.press('Tab');
+    assert.equal(await field.inputValue(), 'Food ', 'Tab writes the Book’s name and a space');
+    assert.equal(await a.frame.locator('[role="option"]').count(), 0);
+    const namedResponse = a.page.waitForResponse(
+        response =>
+            response.url().endsWith('/report') &&
+            response.request().postDataJSON()?.prompt === NAMED_PROMPT
+    );
+    await field.pressSequentially('last month');
+    await field.press('Enter');
+    const named = (await (await namedResponse).json()) as ReportResponse;
+    assert.deepEqual(named.intent, {
+        root: 'g-expenses',
+        target: 'a-food',
+        period: 'last_month',
+        monthly: false,
+    });
+    assert.equal(named.query, "account:'Food' after:2026-11-01 before:2026-12-01");
+    await a.frame.locator('report-view').getByText('50.25').first().waitFor();
+    await a.shelf.locator('.save:not([disabled])').click();
+    await a.shelf.locator('.saved-prompt').waitFor();
+    assert.deepEqual(
+        workflow.savedValues().map(([, value]) => value),
+        [JSON.stringify(NAMED_PROMPT)]
+    );
+    await b.panel.goto(b.panel.url());
+    await b.shelf.locator('.saved-prompt').waitFor();
+    const reopenedResponse = b.page.waitForResponse(
+        response =>
+            response.url().endsWith('/report') &&
+            response.request().postDataJSON()?.prompt === NAMED_PROMPT
+    );
+    await b.shelf.locator('.saved-prompt').click();
+    const reopened = (await (await reopenedResponse).json()) as ReportResponse;
+    assert.deepEqual(reopened.intent, named.intent);
+    assert.equal(reopened.query, named.query);
+    await b.frame.locator('report-view').getByText('50.25').first().waitFor();
+    await captureWorkflow('named-reopened');
     for (const collaborator of collaborators) {
         assert.deepEqual(collaborator.errors, [], 'No unexpected browser/network errors');
         await collaborator.context.close();
     }
     scenarios++;
     console.log(
-        'PASS real route/service workflow: two browsers, shared reload/reopen, saved clicks within and after a minute, rolling dates, cross-Book isolation, downgrade and recovery'
+        'PASS real route/service workflow: two browsers, shared reload/reopen, saved clicks within and after a minute, rolling dates, cross-Book isolation, downgrade and recovery, a completed name reported, saved and reopened'
     );
 } finally {
     await browser.close();

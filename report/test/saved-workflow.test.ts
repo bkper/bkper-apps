@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyCompletion } from 'report-shared/name-index';
 import { reportText } from 'report-shared/report-state';
 import { savedWorkflow, WORKFLOW_PROMPT } from '../scripts/fixtures/saved-workflow';
 import type { AuthSessionCallbacks } from '../client/src/auth/auth-session';
@@ -64,6 +65,7 @@ async function client(session: Session, href = 'http://localhost:5207/?book=fixt
         }),
         createReportApi: () => session.api,
         createSavedReportsApi: () => session.api,
+        createBookNamesApi: () => session.api,
         loadRenderer: async () => undefined,
         loadStrings: async () => undefined,
         now: () => clock.now,
@@ -99,9 +101,50 @@ function isIntentBody(body: unknown): boolean {
 }
 
 function answer(report: ReportResponse) {
-    const element = Object.values(report.spec.elements).find(item => item.type === 'Answer');
-    if (!element || element.type !== 'Answer') throw new Error('Missing answer');
+    const [first] = answers(report);
+    if (!first) throw new Error('Missing answer');
+    return first;
+}
+
+function answers(report: ReportResponse) {
+    return Object.values(report.spec.elements).flatMap(item =>
+        item.type === 'Answer' ? [item.props] : []
+    );
+}
+
+function breakdown(report: ReportResponse) {
+    const element = report.spec.elements.breakdown;
+    if (element?.type !== 'BreakdownTable') throw new Error('Missing breakdown');
     return element.props;
+}
+
+/** The session's API, counting the routes each client calls. */
+function counted(session: Session, calls: string[]): Session {
+    const request = (input: Request) => {
+        calls.push(`${input.method} ${new URL(input.url).pathname}`);
+        return session.request(input);
+    };
+    return {
+        ...session,
+        request,
+        api: createAppApi({ baseUrl: 'http://fixture.invalid', fetch: request }),
+    };
+}
+
+/**
+ * Type `typed` after `text` and accept the completion of `name` from the client's names, as
+ * Tab does: the request with the name written as the Book writes it, the rest kept.
+ */
+function completeName(state: AppState, text: string, typed: string, name: string): string {
+    const request = text + typed;
+    state.reports.input(request);
+    const offered = state.names.complete(request, request.length);
+    const completion = offered.find(item => item.text === name);
+    if (!completion) throw new Error(`${name} is not offered for "${typed}"`);
+    const applied = applyCompletion(request, completion);
+    expect(applied.caret).toBe(applied.text.length);
+    state.reports.input(applied.text);
+    return applied.text;
 }
 
 describe('saved-prompt route/service and independent app clients', () => {
@@ -331,6 +374,147 @@ describe('saved-prompt route/service and independent app clients', () => {
         await a.state.savedReports.remove(item.id);
         await b.state.savedReports.load();
         expect(b.state.savedReports.items).toEqual([]);
+        a.state.disconnect();
+        b.state.disconnect();
+    });
+});
+
+describe('completed names, through the real routes, reports, the shelf and other clients', () => {
+    it('completes a name into a report of it, saves its text and reopens it elsewhere', async () => {
+        const fixture = await savedWorkflow();
+        const ownerCalls: string[] = [];
+        const editorCalls: string[] = [];
+        const owner = counted(fixture.session('owner', 'OWNER'), ownerCalls);
+        const editor = counted(fixture.session('editor', 'EDITOR'), editorCalls);
+        const a = await client(owner);
+        await a.state.names.loaded;
+
+        // Group or Account, at most five, the shortest first; from memory, with no request.
+        const before = ownerCalls.length;
+        expect(
+            a.state.names
+                .complete('Re', 2)
+                .map(({ text, name }) => [text, name.kind, name.id, name.root])
+        ).toEqual([
+            ['Rent', 'account', 'a-rent', 'g-expenses'],
+            ['Revenue', 'group', 'g-revenue', 'g-revenue'],
+        ]);
+        let text = completeName(a.state, '', 'fo', 'Food');
+        expect(text).toBe('Food ');
+        text += 'last month';
+        a.state.reports.input(text);
+        expect(ownerCalls.slice(before)).toEqual([]);
+
+        // The debounce asks for the completed request, as for typing.
+        await vi.waitFor(() => expect(a.state.reports.originalPrompt).toBe('Food last month'));
+        const named = a.state.reports.report!;
+        expect(named.intent).toEqual({
+            root: 'g-expenses',
+            target: 'a-food',
+            period: 'last_month',
+            monthly: false,
+        });
+        expect(named.trace.names).toEqual(['Food']);
+        expect(named.spec.elements[named.spec.root].props).toMatchObject({ title: 'Food' });
+        expect(answer(named)).toMatchObject({ amount: '200.5', label: 'Food' });
+        expect(named.query).toBe("account:'Food' after:2026-10-01 before:2026-11-01");
+        // Names complete only the text; Jev gets the same single decision request.
+        expect(fixture.decisions.map(item => item.state)).toEqual([
+            { request: 'Food last month', today: '2026-11-05' },
+        ]);
+
+        await a.state.savedReports.save();
+        const [item] = a.state.savedReports.items;
+        expect(item.prompt).toBe('Food last month');
+        expect(fixture.savedValues().map(([, value]) => value)).toEqual([
+            JSON.stringify('Food last month'),
+        ]);
+
+        // Another collaborator reopens the text: the same Account, from its own query.
+        const b = await client(editor);
+        expect(b.state.savedReports.items).toEqual([item]);
+        const reopened = await click(b.state, item.id);
+        expect(reopened.intent).toEqual(named.intent);
+        expect(answer(reopened).amount).toBe('200.5');
+        expect(b.state.reports.originalPrompt).toBe('Food last month');
+        const asked = fixture.requests.filter(request => request.session === 'editor').length;
+        b.state.openSavedReport(item.id);
+        expect(b.state.reports.report).toBe(reopened);
+        expect(fixture.requests.filter(request => request.session === 'editor')).toHaveLength(
+            asked
+        );
+
+        // After a minute, the text is read again and the period rolls forward.
+        fixture.advance();
+        clock.now += CACHE_MS;
+        const later = await click(b.state, item.id);
+        expect(later.intent).toEqual(named.intent);
+        expect(later.query).toBe("account:'Food' after:2026-11-01 before:2026-12-01");
+        expect(answer(later).amount).toBe('50.25');
+        // Each client asked for the names once, and again only when typing after a minute.
+        expect(ownerCalls.filter(call => call.endsWith('/names'))).toHaveLength(1);
+        expect(editorCalls.filter(call => call.endsWith('/names'))).toHaveLength(2);
+        a.state.disconnect();
+        b.state.disconnect();
+    });
+
+    it('completes two names into a report of both side by side, never added up', async () => {
+        const fixture = await savedWorkflow();
+        const owner = fixture.session('owner', 'OWNER');
+        const viewer = fixture.session('viewer', 'VIEWER');
+        const a = await client(owner);
+        await a.state.names.loaded;
+        let text = completeName(a.state, '', 'Fo', 'Food');
+        text = completeName(a.state, `${text}versus `, 're', 'Rent');
+        expect(text).toBe('Food versus Rent ');
+        a.state.reports.input(`${text}last month`);
+        await vi.waitFor(() =>
+            expect(a.state.reports.originalPrompt).toBe('Food versus Rent last month')
+        );
+        const shown = a.state.reports.report!;
+        expect(shown.intent).toMatchObject({
+            root: 'g-expenses',
+            target: 'a-food',
+            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+            period: 'last_month',
+        });
+        expect(shown.trace.names).toEqual(['Food', 'Rent']);
+        expect(shown.query).toBe(
+            "(account:'Food' OR account:'Rent') after:2026-10-01 before:2026-11-01"
+        );
+        // Each its own Bkper balance; nothing for them together (their group is 1200.5).
+        expect(answers(shown).map(({ label, amount }) => [label, amount])).toEqual([
+            ['Food', '200.5'],
+            ['Rent', '1000'],
+        ]);
+        const table = breakdown(shown);
+        expect(table.total).toBeUndefined();
+        expect(table.rows.map(row => [row.label, row.amount, row.share])).toEqual([
+            ['Food', '200.5', undefined],
+            ['Rent', '1000', undefined],
+        ]);
+        expect(shown.trace.chart.fitting).not.toContain('donut');
+        expect(shown.trace.chart.fitting).not.toContain('pie');
+        expect(shown.trace.chart.fitting).not.toContain('stacked');
+
+        await a.state.savedReports.save();
+        const [item] = a.state.savedReports.items;
+        expect(item.prompt).toBe('Food versus Rent last month');
+
+        // "and" or "versus": the same report, reopened from the saved text by a viewer.
+        const b = await client(viewer);
+        b.state.reports.input('Food and Rent last month');
+        b.state.reports.submit();
+        await vi.waitFor(() =>
+            expect(b.state.reports.originalPrompt).toBe('Food and Rent last month')
+        );
+        const typed = b.state.reports.report!;
+        const reopened = await click(b.state, item.id);
+        expect(reopened.intent).toEqual(typed.intent);
+        expect(reopened.query).toBe(shown.query);
+        expect(answers(reopened)).toEqual(answers(typed));
+        expect(b.state.savedReports.canSave).toBe(false);
+        expect(fixture.savedValues()).toHaveLength(1);
         a.state.disconnect();
         b.state.disconnect();
     });

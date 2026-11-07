@@ -54,6 +54,12 @@ Write the way you would ask a colleague, in any language:
 
 **Name any group or Account** of your Book, as your Book writes it (case and accents aside), and the report is of it, wherever it sits. Name several, such as _Food and Rent_ or _Food versus Rent_, to see them side by side, each with its own balance; Report never adds them up, so there is no total. To see their total, add a group that holds them in Bkper and ask for it. Names side by side must all be balances (assets and liabilities) or all activity (income and expenses).
 
+### Names as you type
+
+As you type two or more letters of a word, Report suggests up to five groups and Accounts of your Book whose name, or a word of it, starts with them, each marked **Group** or **Account**. Case and accents do not matter. Press **Tab**, or click or tap one, to write its name exactly as your Book writes it; the rest of your request stays as you typed it. Use **↑** and **↓** to move through them and **Enter** to take the highlighted one; with none highlighted, **Enter** asks for the report as usual. **Escape** hides the suggestions, and a second **Escape** clears the request. Suggest as many names as you like in one request, such as _Food versus Rent_.
+
+The suggestions come from your Book's names, loaded once when Report opens, so they appear without waiting and need no AI. They only write text: a name typed by hand, saved, or in a link works the same. A group or Account added or renamed in your Book can take up to two minutes to be suggested.
+
 When your request names no group or Account, Report starts from the **top-level group** your request is about, such as Expenses or Assets, or from **income versus expenses** (the net result). The report's title always names what it shows. Activity groups (incoming and outgoing) show what moved within the period; balance groups (assets and liabilities) show the balance at the end of it.
 
 ### The net result

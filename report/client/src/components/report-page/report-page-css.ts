@@ -105,6 +105,64 @@ export const reportPageCSS = css`
         color: var(--wa-color-danger-on-quiet);
     }
 
+    /*
+     * The names completing the word typed: a list over the report, above the dock, so the input
+     * and what sits on it stay in view. The measures of the Book's input suggestions (those of a
+     * Web Awesome dropdown), aligned with the input, as wide as a name needs on wide pages.
+     */
+    .listbox {
+        box-sizing: border-box;
+        inline-size: min(
+            calc(var(--wa-space-scale) * 28rem),
+            calc(100cqi - 2 * var(--bkper-spacing-small))
+        );
+        max-block-size: var(--auto-size-available-height, none);
+        margin-inline: var(--bkper-spacing-small);
+        padding: var(--wa-space-2xs);
+        overflow-y: auto;
+        border: var(--wa-border-style) var(--wa-border-width-s) var(--wa-color-surface-border);
+        border-radius: var(--wa-border-radius-m);
+        background-color: var(--wa-color-surface-raised);
+        box-shadow: var(--wa-shadow-m);
+        font-size: var(--bkper-font-size-medium);
+    }
+
+    /* As tall as the input, so a finger hits one name. */
+    .option {
+        display: flex;
+        align-items: center;
+        gap: var(--wa-space-m);
+        min-block-size: var(--wa-form-control-height);
+        padding-inline: var(--wa-space-m);
+        border-radius: var(--wa-border-radius-s);
+        color: var(--wa-color-text-normal);
+        line-height: var(--wa-line-height-condensed);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .option:hover {
+        background-color: var(--wa-color-neutral-fill-quiet);
+    }
+
+    .option.active {
+        background-color: var(--wa-color-neutral-fill-normal);
+    }
+
+    .name {
+        flex: 1;
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .kind {
+        flex: none;
+        color: var(--wa-color-text-quiet);
+        font-size: var(--wa-font-size-s);
+    }
+
     /* The report changes in place with a short view transition scoped to it (see follow). */
     .report::view-transition-group(*) {
         animation-duration: var(--wa-transition-slow);

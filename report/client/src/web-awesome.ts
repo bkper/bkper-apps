@@ -5,5 +5,6 @@ import '@awesome.me/webawesome-pro/dist/components/button-group/button-group.js'
 import '@awesome.me/webawesome-pro/dist/components/callout/callout.js';
 import '@awesome.me/webawesome-pro/dist/components/spinner/spinner.js';
 import '@awesome.me/webawesome-pro/dist/components/input/input.js';
+import '@awesome.me/webawesome-pro/dist/components/popup/popup.js';
 import '@awesome.me/webawesome-pro/dist/components/progress-bar/progress-bar.js';
 import '@awesome.me/webawesome-pro/dist/components/skeleton/skeleton.js';

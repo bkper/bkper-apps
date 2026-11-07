@@ -7,6 +7,7 @@ describe('Web Awesome setup', () => {
         expect(customElements.get('wa-callout')).toBeDefined();
         expect(customElements.get('wa-spinner')).toBeDefined();
         expect(customElements.get('wa-input')).toBeDefined();
+        expect(customElements.get('wa-popup')).toBeDefined();
         expect(customElements.get('wa-progress-bar')).toBeDefined();
         expect(customElements.get('wa-skeleton')).toBeDefined();
     });

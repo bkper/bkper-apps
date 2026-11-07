@@ -19,6 +19,21 @@
         "role": "placeholder",
         "context": "Placeholder text inside the empty report input. The report builds itself as the person types, with no submit button. The example is a typical request: the expenses of the Book, month by month, in the current year. Keep it short and lowercase after the first word, without ending punctuation."
     },
+    "completion_label": {
+        "text": "Names in this Book",
+        "role": "label",
+        "context": "Accessible name of the short list that opens above the report request input while the person types, offering the names of the Book's groups and accounts that complete the word being typed. Choosing one writes that exact name into the request. Short noun phrase."
+    },
+    "completion_group": {
+        "text": "Group",
+        "role": "label",
+        "context": "Small tag beside a name in the list that completes the word typed in the report request: this name is a Group of the Book, not an Account. One word, a noun."
+    },
+    "completion_account": {
+        "text": "Account",
+        "role": "label",
+        "context": "Small tag beside a name in the list that completes the word typed in the report request: this name is an Account of the Book, not a Group. One word, a noun."
+    },
     "suggestions_label": {
         "text": "Suggestions",
         "role": "label",

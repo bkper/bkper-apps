@@ -1,15 +1,21 @@
 import { t } from 'report-shared/strings';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppApiError, type ReportResponse, type Suggestion } from '../../../src/api/app-api';
+import {
+    AppApiError,
+    type BookName,
+    type ReportResponse,
+    type Suggestion,
+} from '../../../src/api/app-api';
 import '../../../src/web-awesome';
 import { ReportPage } from '../../../src/components/report-page/report-page-view';
 import { SELECT_CHART } from '../../../src/report/index';
 import { CHOOSE_SUGGESTION } from '../../../src/components/report-suggestions';
 import { AppState } from '../../../src/state/app-state';
 import { CACHE_MS } from '../../../src/state/cache-window';
-import type { ReportApi } from '../../../src/state/reports';
+import { DEBOUNCE_MS, type ReportApi } from '../../../src/state/reports';
 import type { RoutePage } from '../../../src/state/route';
 import type { SavedReportsApi } from '../../../src/state/saved-reports';
+import type { BookNamesApi } from '../../../src/state/book-names';
 
 beforeEach(() => vi.stubGlobal('matchMedia', window.matchMedia.bind(window)));
 afterEach(() => vi.unstubAllGlobals());
@@ -60,6 +66,8 @@ function createPage(
         shelfApi?: SavedReportsApi;
         getBook?: () => Promise<{ id: string; name: string }>;
         now?: () => number;
+        names?: BookName[];
+        namesApi?: BookNamesApi;
     } = {}
 ): ReportPage {
     const href = options.href ?? 'https://report.bkper.app/?book=book-1';
@@ -90,6 +98,7 @@ function createPage(
         }),
         createReportApi: () => api,
         createSavedReportsApi: () => options.shelfApi ?? emptyShelf(),
+        createBookNamesApi: () => options.namesApi ?? { names: async () => options.names ?? [] },
         createBookService: () => ({
             listBooksDirect: async () => [],
             getBook: options.getBook ?? (async () => ({ id: 'book-1', name: 'Main Book' })),
@@ -669,5 +678,363 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(control(view, '.saved-prompt').getAttribute('title')).toBe(prompt);
         expect(control(view, '.saved-prompt').querySelector('bdi')?.textContent).toBe(prompt);
         expect(control(view, '.remove').getAttribute('aria-label')).toContain(prompt);
+    });
+});
+
+const NAMES: BookName[] = [
+    { id: 'g-exp', name: 'Despesas', kind: 'group', root: 'g-exp' },
+    { id: 'g-dev', name: 'Dívidas', kind: 'group', root: 'g-dev' },
+    { id: 'a-food', name: 'Refeições', kind: 'account', root: 'g-exp' },
+    { id: 'a-card', name: 'Credit Card', kind: 'account', root: 'g-dev' },
+    { id: 'a-car', name: 'Car', kind: 'account', root: 'g-exp' },
+    { id: 'a-cash', name: 'Cash', kind: 'account', root: 'g-exp' },
+];
+
+/** The `<input>` inside the page's `wa-input`. */
+function native(view: ReportPage): HTMLInputElement {
+    const field = input(view).shadowRoot?.querySelector('input');
+    if (!field) throw new Error('The input has not rendered');
+    return field;
+}
+
+/** Type `marked` into the input, its caret at `|` (else at the end), as the browser does. */
+async function type(view: ReportPage, marked: string, composing = false) {
+    const caret = marked.includes('|') ? marked.indexOf('|') : marked.length;
+    const field = native(view);
+    field.value = marked.replace('|', '');
+    field.setSelectionRange(caret, caret);
+    field.dispatchEvent(
+        new InputEvent('input', { bubbles: true, composed: true, isComposing: composing })
+    );
+    await view.updateComplete;
+}
+
+function press(view: ReportPage, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        ...init,
+    });
+    native(view).dispatchEvent(event);
+    return event;
+}
+
+function listbox(view: ReportPage) {
+    return shadow(view).querySelector<HTMLElement>('[role="listbox"]');
+}
+
+function options(view: ReportPage): HTMLElement[] {
+    return Array.from(shadow(view).querySelectorAll<HTMLElement>('[role="option"]'));
+}
+
+/** Each option offered: its name, then its kind, as read. */
+function offered(view: ReportPage): string[] {
+    return options(view).map(option => option.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+}
+
+/** The input's text with `|` at its caret. */
+function caretText(view: ReportPage): string {
+    const field = native(view);
+    const at = field.selectionStart ?? field.value.length;
+    return `${field.value.slice(0, at)}|${field.value.slice(at)}`;
+}
+
+async function completing(names = NAMES, language = 'en') {
+    const report = vi.fn<ReportApi['report']>(async () => reportOf('Despesas'));
+    const view = createPage({
+        names,
+        language,
+        api: { suggestions: async () => SUGGESTIONS, report },
+    });
+    await ready(view);
+    await view.state.names.loaded;
+    await input(view).updateComplete;
+    native(view).focus();
+    report.mockClear();
+    return { view, report };
+}
+
+function reportOf(title: string): ReportResponse {
+    return report(title);
+}
+
+describe('Completing Book names in ReportPage', () => {
+    afterEach(() => document.body.replaceChildren());
+
+    it('lists the names completing the word at the caret, as a listbox the input controls', async () => {
+        const { view } = await completing();
+        const field = native(view);
+        expect(field.getAttribute('role')).toBe('combobox');
+        expect(field.getAttribute('aria-autocomplete')).toBe('list');
+        expect(field.getAttribute('aria-expanded')).toBe('false');
+
+        await type(view, 'despesas com ca');
+
+        expect(offered(view)).toEqual(['Car Account', 'Cash Account', 'Credit Card Account']);
+        expect(listbox(view)?.getAttribute('aria-label')).toBe(t('completion_label', 'en'));
+        expect(field.getAttribute('aria-expanded')).toBe('true');
+        expect(field.ariaControlsElements).toEqual([listbox(view)]);
+        // Nothing is highlighted until the person browses: Enter still runs the report.
+        expect(field.ariaActiveDescendantElement).toBeNull();
+        expect(options(view).map(option => option.getAttribute('aria-selected'))).toEqual([
+            'false',
+            'false',
+            'false',
+        ]);
+        expect(shadow(view).querySelector('wa-popup')?.active).toBe(true);
+    });
+
+    it('tells a Group from an Account, in the interface language, names in their own direction', async () => {
+        const { view } = await completing(NAMES, 'ar');
+        await view.state.strings.load();
+        await type(view, 'تقرير de');
+
+        const [option] = options(view);
+        expect(option.querySelector('bdi')?.textContent).toBe('Despesas');
+        expect(option.textContent).toContain(t('completion_group', 'ar'));
+        expect(t('completion_group', 'ar')).not.toBe(t('completion_group', 'en'));
+        await type(view, 'تقرير refe');
+        expect(options(view)[0].textContent).toContain(t('completion_account', 'ar'));
+        expect(shadow(view).querySelector('.page')?.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('shows nothing before two characters, after a space or for no real match', async () => {
+        const { view } = await completing();
+        for (const text of ['c', 'despesas ', 'ash', 'despesas #ca', 'ca|sh']) {
+            await type(view, text);
+            expect(offered(view), text).toEqual([]);
+            expect(native(view).getAttribute('aria-expanded')).toBe('false');
+        }
+    });
+
+    it('browses with the arrow keys and accepts the highlighted name on Enter, without running the report', async () => {
+        const { view, report } = await completing();
+        await type(view, 'despesas com ca');
+
+        expect(press(view, 'ArrowDown').defaultPrevented).toBe(true);
+        await view.updateComplete;
+        expect(native(view).ariaActiveDescendantElement).toBe(options(view)[0]);
+        expect(options(view)[0].getAttribute('aria-selected')).toBe('true');
+        press(view, 'ArrowDown');
+        press(view, 'ArrowDown');
+        press(view, 'ArrowDown');
+        await view.updateComplete;
+        expect(native(view).ariaActiveDescendantElement).toBe(options(view)[0]);
+        press(view, 'ArrowUp');
+        await view.updateComplete;
+        expect(native(view).ariaActiveDescendantElement).toBe(options(view)[2]);
+
+        expect(press(view, 'Enter').defaultPrevented).toBe(true);
+        await view.updateComplete;
+
+        expect(caretText(view)).toBe('despesas com Credit Card |');
+        expect(view.state.reports.text).toBe('despesas com Credit Card ');
+        expect(view.state.route.prompt).toBe('despesas com Credit Card ');
+        expect(offered(view)).toEqual([]);
+        expect(native(view).getAttribute('aria-expanded')).toBe('false');
+        expect(native(view).ariaActiveDescendantElement).toBeNull();
+        expect(report).not.toHaveBeenCalled();
+        expect(view.state.reports.pending).toBe(false);
+    });
+
+    it('runs the report on Enter when no name is highlighted, and closes the list', async () => {
+        const { view, report } = await completing();
+        await type(view, 'despesas com ca');
+
+        expect(press(view, 'Enter').defaultPrevented).toBe(false);
+        await view.updateComplete;
+
+        expect(report).toHaveBeenCalledWith(
+            'book-1',
+            { prompt: 'despesas com ca' },
+            expect.anything()
+        );
+        expect(view.state.reports.text).toBe('despesas com ca');
+        expect(offered(view)).toEqual([]);
+    });
+
+    it('accepts the first name, or the highlighted one, on Tab; Tab moves on when nothing shows', async () => {
+        const { view } = await completing();
+        await type(view, 'despesas com ca');
+        expect(press(view, 'Tab').defaultPrevented).toBe(true);
+        await view.updateComplete;
+        expect(caretText(view)).toBe('despesas com Car |');
+
+        await type(view, 'despesas com Car e refe');
+        press(view, 'ArrowDown');
+        press(view, 'Tab');
+        await view.updateComplete;
+        expect(caretText(view)).toBe('despesas com Car e Refeições |');
+
+        expect(press(view, 'Tab').defaultPrevented).toBe(false);
+        await type(view, 'despesas com ca');
+        expect(press(view, 'Tab', { shiftKey: true }).defaultPrevented).toBe(false);
+    });
+
+    it('accepts a name on click or tap, keeping the focus and the rest of the request', async () => {
+        const { view } = await completing();
+        await type(view, 'despesas com refe| em 2026, #viagem');
+        expect(offered(view)).toEqual(['Refeições Account']);
+
+        const option = options(view)[0];
+        const down = new MouseEvent('mousedown', {
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+        });
+        option.dispatchEvent(down);
+        expect(down.defaultPrevented).toBe(true);
+        const pointer = new Event('pointerdown', {
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+        });
+        option.dispatchEvent(pointer);
+        expect(pointer.defaultPrevented).toBe(true);
+        option.click();
+        await view.updateComplete;
+
+        expect(caretText(view)).toBe('despesas com Refeições| em 2026, #viagem');
+        expect(view.state.reports.text).toBe('despesas com Refeições em 2026, #viagem');
+        expect(shadow(view).activeElement).toBe(input(view));
+    });
+
+    it('completes several names in one request, wherever the caret is', async () => {
+        const { view } = await completing();
+        await type(view, 'cred');
+        press(view, 'Tab');
+        await view.updateComplete;
+        await type(view, `${native(view).value}e refei`);
+        press(view, 'Tab');
+        await view.updateComplete;
+        expect(caretText(view)).toBe('Credit Card e Refeições |');
+
+        await type(view, 'Credit Card e Refeições versus div| em 2026');
+        press(view, 'Tab');
+        await view.updateComplete;
+        expect(caretText(view)).toBe('Credit Card e Refeições versus Dívidas| em 2026');
+    });
+
+    it('lets the debounce run the report of the request a name completed', async () => {
+        const { view, report } = await completing();
+        await type(view, 'despesas com refe');
+        press(view, 'Tab');
+        await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS + 50));
+
+        expect(report).toHaveBeenCalledTimes(1);
+        expect(report.mock.calls[0][1]).toEqual({ prompt: 'despesas com Refeições' });
+    });
+
+    it('dismisses the names on Escape first, then clears the request as before', async () => {
+        const { view } = await completing();
+        await type(view, 'despesas com ca');
+
+        expect(press(view, 'Escape').defaultPrevented).toBe(true);
+        await view.updateComplete;
+        expect(offered(view)).toEqual([]);
+        expect(view.state.reports.text).toBe('despesas com ca');
+
+        // Focusing again does not bring them back; typing does.
+        native(view).dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }));
+        await view.updateComplete;
+        expect(offered(view)).toEqual([]);
+
+        press(view, 'Escape');
+        await view.updateComplete;
+        expect(view.state.reports.text).toBe('');
+        expect(view.state.route.prompt).toBe('');
+
+        await type(view, 'despesas com ca');
+        expect(offered(view)).toHaveLength(3);
+    });
+
+    it('waits for an input method to finish composing before completing or handling keys', async () => {
+        const { view, report } = await completing();
+        // Composition events: happy-dom has no CompositionEvent, and nothing here reads its data.
+        native(view).dispatchEvent(
+            new Event('compositionstart', { bubbles: true, composed: true })
+        );
+        await type(view, 'despesas com ca', true);
+        expect(offered(view)).toEqual([]);
+        // An input while composing completes nothing, even when the event does not say so.
+        await type(view, 'despesas com ca');
+        expect(offered(view)).toEqual([]);
+
+        native(view).dispatchEvent(new Event('compositionend', { bubbles: true, composed: true }));
+        await view.updateComplete;
+        expect(offered(view)).toHaveLength(3);
+
+        // The Enter that confirms a composition neither accepts nor runs anything.
+        press(view, 'ArrowDown');
+        const confirm = press(view, 'Enter', { isComposing: true });
+        const safari = press(view, 'Enter', { keyCode: 229 });
+        await view.updateComplete;
+        expect(confirm.defaultPrevented || safari.defaultPrevented).toBe(false);
+        expect(view.state.reports.text).toBe('despesas com ca');
+        expect(report).not.toHaveBeenCalled();
+        expect(offered(view)).toHaveLength(3);
+    });
+
+    it('follows the caret, and closes when the input loses focus', async () => {
+        const { view } = await completing();
+        await type(view, 'ca e refe');
+        expect(offered(view)).toEqual(['Refeições Account']);
+
+        native(view).setSelectionRange(2, 2);
+        native(view).dispatchEvent(
+            new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true, composed: true })
+        );
+        await view.updateComplete;
+        expect(offered(view)).toEqual(['Car Account', 'Cash Account', 'Credit Card Account']);
+
+        native(view).setSelectionRange(0, 2);
+        input(view).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+        await view.updateComplete;
+        expect(offered(view)).toEqual([]);
+
+        await type(view, 'ca e refe');
+        native(view).dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true }));
+        await view.updateComplete;
+        expect(offered(view)).toEqual([]);
+    });
+
+    it('keeps the clear button and the shelf working, closing the names when the request changes elsewhere', async () => {
+        const { view } = await completing();
+        await type(view, 'despesas com ca');
+        const shelf = shadow(view).querySelector('report-shelf');
+        expect(shelf?.contains(listbox(view))).toBe(false);
+        expect(shelf?.shadowRoot?.querySelector('[role="listbox"]')).toBeNull();
+
+        const field = input(view);
+        await field.updateComplete;
+        field.shadowRoot?.querySelector<HTMLButtonElement>('[part~="clear-button"]')?.click();
+        await field.updateComplete;
+        await settle(view);
+        expect(view.state.reports.text).toBe('');
+        expect(offered(view)).toEqual([]);
+
+        await type(view, 'despesas com ca');
+        view.state.reports.choose(SUGGESTIONS[0]);
+        await settle(view);
+        expect(offered(view)).toEqual([]);
+        expect(native(view).getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('offers the names that arrive while typing', async () => {
+        const names = deferred<BookName[]>();
+        const view = createPage({ namesApi: { names: () => names.promise } });
+        await ready(view);
+        await input(view).updateComplete;
+        native(view).focus();
+        await type(view, 'despesas com ca');
+        expect(offered(view)).toEqual([]);
+
+        names.resolve(NAMES);
+        await view.state.names.loaded;
+        await view.updateComplete;
+        await view.updateComplete;
+        expect(offered(view)).toHaveLength(3);
     });
 });

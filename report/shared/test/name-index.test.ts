@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_COMPLETIONS, NameIndex, type BookName } from '../src/name-index';
+import { applyCompletion, MAX_COMPLETIONS, NameIndex, type BookName } from '../src/name-index';
 
 let id = 0;
 const group = (name: string, root?: string): BookName => {
@@ -170,5 +170,42 @@ describe('NameIndex', () => {
             'Conta corrente 1232 ← conta corrente 123',
             'Conta corrente 1233 ← conta corrente 123',
         ]);
+    });
+});
+
+describe('applyCompletion', () => {
+    /** The request after completing at `|` with the first name offered, `|` its caret. */
+    function accept(index: NameIndex, marked: string): string {
+        const caret = marked.indexOf('|');
+        const text = marked.replace('|', '');
+        const [completion] = index.complete(text, caret);
+        const applied = applyCompletion(text, completion);
+        return `${applied.text.slice(0, applied.caret)}|${applied.text.slice(applied.caret)}`;
+    }
+
+    it('replaces only the text completed, keeping the rest of the request as it is', () => {
+        expect(accept(BOOK, 'despesas com refei| em  2026, #viagem')).toBe(
+            'despesas com Refeições| em  2026, #viagem'
+        );
+        expect(accept(BOOK, 'show credit ca|, cash')).toBe('show Credit Card|, cash');
+    });
+
+    it('adds a space after a name that ends the request, so typing goes on', () => {
+        expect(accept(BOOK, 'show refei|')).toBe('show Refeições |');
+        const applied = applyCompletion('net in', BOOK.complete('net in', 6)[0]);
+        expect(applied).toEqual({ text: 'Net income ', caret: 11 });
+    });
+
+    it('completes several names in one request, each where the caret is', () => {
+        let request = 'credit ca';
+        request = applyCompletion(request, BOOK.complete(request, request.length)[0]).text;
+        request += 'and refei';
+        request = applyCompletion(request, BOOK.complete(request, request.length)[0]).text;
+        expect(request).toBe('Credit Card and Refeições ');
+        const middle = 'refei and Cash';
+        expect(applyCompletion(middle, BOOK.complete(middle, 5)[0])).toEqual({
+            text: 'Refeições and Cash',
+            caret: 9,
+        });
     });
 });

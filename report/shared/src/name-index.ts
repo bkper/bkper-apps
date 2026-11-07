@@ -57,6 +57,26 @@ export interface NameCompletion {
     to: number;
 }
 
+/** A request with a completion applied, and the caret after the name. */
+export interface AppliedCompletion {
+    text: string;
+    caret: number;
+}
+
+/**
+ * The request with `completion` in place of the text it completes, and the caret after the
+ * name: the rest of the request stays exactly as it is. A name that ends the request is
+ * followed by a space, so typing goes on with the next word.
+ */
+export function applyCompletion(request: string, completion: NameCompletion): AppliedCompletion {
+    const rest = request.slice(completion.to);
+    const name = rest === '' ? `${completion.text} ` : completion.text;
+    return {
+        text: request.slice(0, completion.from) + name + rest,
+        caret: completion.from + name.length,
+    };
+}
+
 interface Indexed {
     name: BookName;
     kind: NameKind;

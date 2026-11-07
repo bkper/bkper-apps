@@ -2,6 +2,7 @@ import type WaInput from '@awesome.me/webawesome-pro/dist/components/input/input
 import { LitElement, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
+import type { NameCompletion, NameIndex } from 'report-shared/name-index';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { ReportResponse } from '../../api/app-api';
 import type { AppState } from '../../state/app-state';
@@ -10,11 +11,12 @@ import type { SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import { OPEN_SAVED_REPORT } from '../report-shelf';
 import '../report-shelf';
+import { NameCompletionController, type Caret } from './name-completion';
 import { reportPageCSS } from './report-page-css';
 
 export type ReportPageState = Pick<
     AppState,
-    'route' | 'books' | 'reports' | 'strings' | 'savedReports' | 'openSavedReport'
+    'route' | 'books' | 'reports' | 'strings' | 'savedReports' | 'openSavedReport' | 'names'
 >;
 
 /** Notices that say something failed, rather than hint. */
@@ -46,9 +48,19 @@ export class ReportPage extends LitElement {
     @query('wa-input') private input?: WaInput;
     @query('.report') private reportArea?: HTMLElement;
     @query('.scroll') private scroller?: HTMLElement;
+    @query('.dock') private dock?: HTMLElement;
+    @query('[role="listbox"]') private listbox?: HTMLElement;
     private morphing = false;
     /** The input has had focus since the Book opened. */
     private focused = false;
+    /** The Book's names completing the word at the caret, as the person types. */
+    private readonly completion = new NameCompletionController(this, applied =>
+        this.acceptCompletion(applied.text, applied.caret)
+    );
+    /** An input method is composing text: nothing completes until it ends. */
+    private composing = false;
+    /** The names the completions shown were found in. */
+    private completedFrom?: NameIndex;
 
     constructor() {
         super();
@@ -57,6 +69,7 @@ export class ReportPage extends LitElement {
             this.state.books,
             this.state.reports,
             this.state.strings,
+            this.state.names,
         ]);
     }
 
@@ -67,6 +80,12 @@ export class ReportPage extends LitElement {
 
     protected willUpdate(): void {
         this.follow();
+        // The names belong to the request they complete: another request closes them.
+        this.completion.follow(this.state.reports.text);
+        // Names that arrive, or change, while the person types complete the word at the caret.
+        if (this.completedFrom !== this.state.names.index && this.inputFocused) {
+            this.complete(false);
+        }
     }
 
     protected updated(changed: PropertyValues): void {
@@ -84,6 +103,12 @@ export class ReportPage extends LitElement {
             this.focused = true;
             void this.focusInput();
         }
+        this.describeCombobox();
+    }
+
+    protected firstUpdated(): void {
+        // The `<input>` renders with the `wa-input`, after the page.
+        void this.input?.updateComplete.then(() => this.describeCombobox());
     }
 
     render() {
@@ -109,6 +134,7 @@ export class ReportPage extends LitElement {
                         }
                     </div>
                 </main>
+                ${this.renderCompletions(lang)}
                 <div class="dock">
                     ${
                         // One message at a time: the API's says why the Book cannot be read.
@@ -141,6 +167,12 @@ export class ReportPage extends LitElement {
                             .value=${live(reports.text)}
                             @input=${this.onInput}
                             @keydown=${this.onKeyDown}
+                            @keyup=${this.onKeyUp}
+                            @click=${this.onCaretMove}
+                            @focusin=${this.onFocus}
+                            @focusout=${this.onBlur}
+                            @compositionstart=${this.onCompositionStart}
+                            @compositionend=${this.onCompositionEnd}
                         ></wa-input>
                         <wa-progress-bar
                             class="progress ${reports.pending ? 'active' : ''}"
@@ -154,6 +186,48 @@ export class ReportPage extends LitElement {
         `;
     }
 
+    /**
+     * The names completing the word at the caret: a listbox above the input and what sits on it
+     * (the shelf, a notice), so the input and the shelf stay in view and usable. The input stays
+     * focused (a list-autocomplete combobox, `aria-activedescendant`); a press on a name keeps
+     * the focus, so a tap does not close the on-screen keyboard.
+     */
+    private renderCompletions(lang: string) {
+        const { items, active, open } = this.completion;
+        return html`<wa-popup
+            class="completions"
+            placement="top-start"
+            distance="4"
+            shift
+            auto-size="vertical"
+            .anchor=${this.dock}
+            ?active=${open}
+        >
+            <div
+                class="listbox"
+                role="listbox"
+                aria-label=${t('completion_label', lang)}
+                @pointerdown=${keepFocus}
+                @mousedown=${keepFocus}
+            >
+                ${items.map((item, index) => this.renderCompletion(item, index === active, index, lang))}
+            </div>
+        </wa-popup>`;
+    }
+
+    private renderCompletion(item: NameCompletion, active: boolean, index: number, lang: string) {
+        const kind = item.name.kind === 'group' ? 'completion_group' : 'completion_account';
+        return html`<div
+            class="option ${active ? 'active' : ''}"
+            role="option"
+            aria-selected=${active ? 'true' : 'false'}
+            @click=${() => this.completion.choose(index)}
+        >
+            <bdi class="name">${item.text}</bdi>
+            <span class="kind">${t(kind, lang)}</span>
+        </div>`;
+    }
+
     private renderNotice(notice: StringKey | null | undefined, lang: string) {
         if (!notice) return nothing;
         const alert = ALERTS.has(notice);
@@ -162,16 +236,98 @@ export class ReportPage extends LitElement {
         </p>`;
     }
 
-    private onInput = () => this.state.reports.input(this.input?.value ?? '');
+    private onInput = (event: Event) => {
+        this.state.reports.input(this.input?.value ?? '');
+        if (this.composing || (event instanceof InputEvent && event.isComposing)) {
+            this.completion.close();
+        } else this.complete(true);
+    };
 
     private onKeyDown = (event: KeyboardEvent) => {
-        if (event.isComposing) return;
+        // The keys that confirm an input method's text are its own (Safari says so with 229).
+        if (event.isComposing || event.keyCode === 229) return;
+        if (this.completion.keydown(event)) return;
         if (event.key === 'Enter') this.state.reports.submit();
         else if (event.key === 'Escape' && this.state.reports.text) {
             event.preventDefault();
             this.state.reports.input('');
         }
     };
+
+    /** Keys that move the caret: the word at it may complete another name. */
+    private onKeyUp = (event: KeyboardEvent) => {
+        if (CARET_KEYS.has(event.key) && !this.composing) this.complete(true);
+    };
+
+    private onCaretMove = () => {
+        if (!this.composing) this.complete(true);
+    };
+
+    private onFocus = () => {
+        if (!this.composing) this.complete(false);
+    };
+
+    private onBlur = () => this.completion.close();
+
+    private onCompositionStart = () => {
+        this.composing = true;
+        this.completion.close();
+    };
+
+    private onCompositionEnd = () => {
+        this.composing = false;
+        this.complete(true);
+    };
+
+    /** Find the names completing the word at the caret, from memory; `moved` by the person. */
+    private complete(moved: boolean): void {
+        const { names } = this.state;
+        this.completedFrom = names.index;
+        this.completion.update(names, this.caret(), moved);
+    }
+
+    /** The input's text and selection, while it has the focus. */
+    private caret(): Caret | undefined {
+        const field = this.input?.input;
+        if (!field || !this.inputFocused) return undefined;
+        const start = field.selectionStart ?? field.value.length;
+        return { text: field.value, start, end: field.selectionEnd ?? start };
+    }
+
+    private get inputFocused(): boolean {
+        return !!this.input && this.shadowRoot?.activeElement === this.input;
+    }
+
+    /**
+     * Write the request a name completed into the input, the caret after the name, at once, so
+     * the next keystroke lands after it; then ask for its report as typing does.
+     */
+    private acceptCompletion(text: string, caret: number): void {
+        const field = this.input;
+        if (field?.input) {
+            field.input.value = text;
+            field.input.setSelectionRange(caret, caret);
+            field.value = text;
+        }
+        this.state.reports.input(text);
+        if (field && !this.inputFocused) field.focus();
+    }
+
+    /**
+     * The input as a list-autocomplete combobox. Its `<input>` is in the shadow root of the
+     * `wa-input`, so the listbox and its options, in the page's, are referred to as elements.
+     */
+    private describeCombobox(): void {
+        const field = this.input?.input;
+        if (!field) return;
+        const { open } = this.completion;
+        field.setAttribute('role', 'combobox');
+        field.setAttribute('aria-autocomplete', 'list');
+        field.setAttribute('aria-expanded', open ? 'true' : 'false');
+        field.ariaControlsElements = open && this.listbox ? [this.listbox] : null;
+        field.ariaActiveDescendantElement =
+            (open && this.listbox?.querySelector('[aria-selected="true"]')) || null;
+    }
 
     private onSelectChart = (event: HTMLElementEventMap[typeof SELECT_CHART]) =>
         this.state.reports.chooseChart(event.detail.kind);
@@ -215,6 +371,14 @@ export class ReportPage extends LitElement {
             this.requestUpdate();
         });
     }
+}
+
+/** Keys that move the caret in a single-line input. */
+const CARET_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
+/** A press on a name keeps the focus in the input (and the on-screen keyboard open). */
+function keepFocus(event: Event): void {
+    event.preventDefault();
 }
 
 interface ViewTransitionScope {

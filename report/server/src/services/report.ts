@@ -9,7 +9,8 @@
  * cumulative balance (position), months from its monthly balances. Months are never added up
  * into totals. A report of a target, a group or account under a root, reads it from its root's
  * responses, with no query of its own; an account in no group is a root of its own, read with
- * `account:'<name>' …`.
+ * `account:'<name>' …`. Several targets show side by side, each with its own amount, read from
+ * the queries of their roots, one per root: never added up, with no total and no shares.
  *
  * Every amount is a Bkper balance of one group or account, as Bkper returns it, with the sign
  * Bkper shows (Outgoing and Liability positive): no sign is changed and nothing is added up
@@ -41,6 +42,7 @@ import {
     NET_RESULT_ROOT,
     type ChartPreference,
     type ReportIntent,
+    type ReportSubjectData,
     type ReportView,
 } from './report-intent.js';
 import {
@@ -157,6 +159,7 @@ export const UNFIT_REASON_CODES = [
     'no_previous',
     'not_a_whole',
     'no_bridge',
+    'side_by_side',
     'not_a_bridge',
     'no_change',
 ] as const satisfies readonly (UnfitReason['code'] | 'not_a_bridge' | 'no_change')[];
@@ -188,7 +191,9 @@ export type UnfitReason =
     /** The parts Bkper returns do not make the root's amount, so they are no slices of it. */
     | { code: 'not_a_whole' }
     /** A bridge would show amounts that are no Bkper balances: reports draw none. */
-    | { code: 'no_bridge' };
+    | { code: 'no_bridge' }
+    /** Targets side by side are no parts of one whole: no slices, and nothing stacked. */
+    | { code: 'side_by_side' };
 
 /** The facts of a report that decide which charts fit it. */
 export interface ChartFacts {
@@ -206,6 +211,8 @@ export interface ChartFacts {
     net: boolean;
     /** A position of a permanent root (Asset, Liability). */
     permanent: boolean;
+    /** Targets side by side, which the rows are: no parts of one whole. */
+    sideBySide?: true;
 }
 
 /**
@@ -225,19 +232,51 @@ export interface ReportCharts {
     unfit?: { kind: ViewKind; reason: UnfitReason };
 }
 
-export interface ReportData {
+/** What a report is of, by id, name and type. */
+export interface ReportRoot {
+    id: string;
+    name?: string;
+    type: NodeType;
+    color: TypeColor;
+}
+
+/**
+ * What a report is of: one group or account, with its amount; or several side by side, each
+ * with its own amount and none for them together.
+ */
+export type ReportData = ReportBase &
+    (
+        | {
+              /**
+               * The root group, the intent's target under it, an account in no group, the
+               * group that combines Incoming and Outgoing for a net result, or a net result
+               * Report calculates (`net-result`, without a name).
+               */
+              root: ReportRoot;
+              /** The root's amount, as Bkper returns it; for a net result Report calculates, that net result. */
+              answer: ReportAmounts;
+              /** The report is of an account, which has no parts: its breakdown is empty. */
+              account?: true;
+              targets?: never;
+          }
+        | {
+              root?: never;
+              answer?: never;
+              account?: never;
+              /**
+               * The targets side by side, in the order asked for, each a row with its own Bkper
+               * balance and the rows Bkper lists under it; they are also the breakdown. Never
+               * added up: no total, and no share of one.
+               */
+              targets: ReportRow[];
+          }
+    );
+
+export interface ReportBase {
     book: { id: string; name: string; timeZone?: string; fractionDigits?: number };
     intent: ReportIntent;
     /** Activity within a period (Incoming, Outgoing, net result), or a position at its end (Asset, Liability). */
     nature: ReportNature;
-    /**
-     * What the report is of: the root group, the intent's target under it, an account in no
-     * group, the group that combines Incoming and Outgoing for a net result, or a net result
-     * Report calculates (`net-result`, without a name).
-     */
-    root: { id: string; name?: string; type: NodeType; color: TypeColor };
-    /** The report is of an account, which has no parts: its breakdown is empty. */
-    account?: true;
     /**
      * The period read. A calendar period that has not ended reads to date, as its current
      * period (the current year as `this_year`). A position is measured at `before`.
@@ -245,8 +284,6 @@ export interface ReportData {
     period: { id: string; after?: IsoDate; before: IsoDate };
     /** The period compared with; a position compares with the position at its `before`. */
     previous?: DateRange;
-    /** The root's amount, as Bkper returns it; for a net result Report calculates, that net result. */
-    answer: ReportAmounts;
     /**
      * A net result Report calculates, as no group of the Book combines Incoming and Outgoing
      * ({@link calculatedNetResult}): its amount in each of the {@link ReportData.months}. Its
@@ -271,6 +308,8 @@ export type ReportErrorReason =
     | 'unknown_root'
     /** The intent's target is no group or account under its root group. */
     | 'unknown_target'
+    /** Targets side by side are of both kinds: positions and activity. */
+    | 'mixed_targets'
     | 'future_period'
     | 'no_activity_roots'
     /** No group combines Incoming and Outgoing, and the activity roots are not simple. */
@@ -327,14 +366,23 @@ export interface CalculatedRoots {
     outgoing: string[];
 }
 
+/** A target among several side by side, and the root whose responses it is read from. */
+export interface SideBySideTarget {
+    node: ReportNode;
+    root: string;
+}
+
 /**
- * The roots a report reads, by id (the root group or the account in no group, or each root of
- * a net result Report calculates), and what the report is of: a node read from the responses
- * of its root (the root, the intent's target under it, or the group that combines Incoming and
- * Outgoing for a net result), or a net result Report calculates.
+ * The roots a report reads, by id (the root group or the account in no group, each root of
+ * a net result Report calculates, or the roots of targets side by side, each once), and what
+ * the report is of: a node read from the responses of its root (the root, the intent's target
+ * under it, or the group that combines Incoming and Outgoing for a net result), a net result
+ * Report calculates, or several targets side by side.
  */
 export type ReportSubject = { roots: string[] } & (
-    { node: ReportNode; calculated?: never } | { node?: never; calculated: CalculatedRoots }
+    | { node: ReportNode; calculated?: never; targets?: never }
+    | { node?: never; calculated: CalculatedRoots; targets?: never }
+    | { node?: never; calculated?: never; targets: SideBySideTarget[] }
 );
 
 /** What a report reads: its nature, its period, and the queries that answer it. */
@@ -354,7 +402,9 @@ export type ReportPlan = ReportSubject & {
  */
 export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan {
     const subject = reportSubject(intent, snapshot);
-    const nature: ReportNature = subject.node?.permanent ? 'position' : 'activity';
+    const nature: ReportNature = (subject.node ?? subject.targets?.[0].node)?.permanent
+        ? 'position'
+        : 'activity';
     const period = reportPeriod(intent.period, nature, snapshot.today);
     const hashtags = intent.hashtags ?? [];
     const current =
@@ -421,61 +471,90 @@ export function buildReport(
             { current: read(current), ...(previous ? { previous: read(previous) } : {}) },
         ])
     );
-    assertAccountRead(snapshot, plan, sources);
+    assertAccountsRead(snapshot, plan, sources);
     const months = reportMonths(period.range, snapshot);
     const reader = new RowReader(snapshot, nature, period, months);
-    const report = plan.node
-        ? nodeReport(plan.node, sourceOf(sources, roots[0]), reader)
-        : calculatedNetResult(snapshot, plan.calculated, sources, reader);
-
     const { after, before } = period.range;
-    const filter = [
-        plan.node ? nodeFilter(plan.node) : groupsFilter(snapshot, roots),
-        ...tags(hashtags),
-    ].join(' ');
     const dates =
         nature === 'position' || after === undefined
             ? `before:${before}`
             : `after:${after} before:${before}`;
-    const query = `${filter} ${dates}`;
     const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
+    const base = (filter: string): Omit<ReportBase, 'chart' | 'charts' | 'breakdown'> => {
+        const query = `${[filter, ...tags(hashtags)].join(' ')} ${dates}`;
+        return {
+            book: {
+                id: snapshot.book.id,
+                name: snapshot.book.name,
+                timeZone: snapshot.book.timeZone,
+                fractionDigits: snapshot.book.fractionDigits,
+            },
+            intent,
+            nature,
+            period: { id: period.id, ...period.range },
+            ...(period.previous ? { previous: period.previous } : {}),
+            months,
+            query,
+            url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
+            // The oldest of the balances read: none is older than this.
+            dataAt: [...sources.values()]
+                .flatMap(source => [source.current, source.previous ?? []].flat())
+                .map(entry => entry.dataAt)
+                .sort()[0],
+        };
+    };
+
+    if (plan.targets) {
+        const lines = plan.targets.map(({ node, root }) =>
+            nodeLine(node, sourceOf(sources, root), reader)
+        );
+        const targets = lines.map(line => toRow(line, undefined));
+        const types = new Set(lines.map(line => line.type));
+        const charts = reportCharts(intent.chart ?? 'auto', view, {
+            nature,
+            type: types.size === 1 ? lines[0].type : 'MIXED',
+            previous: period.previous !== undefined,
+            net: false,
+            sideBySide: true,
+            rows: targets,
+            series: lines.map(lineSeries),
+            months,
+        });
+        return {
+            ...base(`(${plan.targets.map(({ node }) => nodeFilter(node)).join(' OR ')})`),
+            targets,
+            chart: charts.chart,
+            charts: charts.charts,
+            breakdown: targets,
+        };
+    }
+
+    const report = plan.node
+        ? nodeReport(plan.node, sourceOf(sources, roots[0]), reader)
+        : calculatedNetResult(snapshot, plan.calculated, sources, reader);
+    const total = reportAmounts(report.total);
     const charts = reportCharts(intent.chart ?? 'auto', view, {
         nature,
-        root: report.root,
-        total: reportAmounts(report.total),
+        type: report.root.type,
+        total,
+        previous: total.previous !== undefined,
         net:
             plan.calculated !== undefined ||
             (report.root.type === 'MIXED' && nature === 'activity'),
+        sideBySide: false,
         rows: report.rows,
         series: report.series,
         months,
     });
     return {
-        book: {
-            id: snapshot.book.id,
-            name: snapshot.book.name,
-            timeZone: snapshot.book.timeZone,
-            fractionDigits: snapshot.book.fractionDigits,
-        },
-        intent,
-        nature,
+        ...base(plan.node ? nodeFilter(plan.node) : groupsFilter(snapshot, roots)),
         root: report.root,
         ...(plan.node?.kind === 'account' ? { account: true as const } : {}),
-        period: { id: period.id, ...period.range },
-        ...(period.previous ? { previous: period.previous } : {}),
-        answer: reportAmounts(report.total),
+        answer: total,
         ...(report.calculated ? { calculated: report.calculated } : {}),
-        months,
         chart: charts.chart,
         charts: charts.charts,
         breakdown: report.rows,
-        query,
-        url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
-        // The oldest of the balances read: none is older than this.
-        dataAt: [...sources.values()]
-            .flatMap(source => [source.current, source.previous ?? []].flat())
-            .map(entry => entry.dataAt)
-            .sort()[0],
     };
 }
 
@@ -483,21 +562,23 @@ export function buildReport(
  * An account in no group is read with a query of its own, whose answer holds it whenever Bkper
  * finds it, at zero or not, but for an archived one at zero, which Bkper leaves out.
  */
-function assertAccountRead(
+function assertAccountsRead(
     snapshot: Snapshot,
     plan: ReportPlan,
     sources: ReadonlyMap<string, RootSource>
 ): void {
-    const account =
-        plan.node && Object.hasOwn(snapshot.ungrouped, plan.node.id)
-            ? snapshot.ungrouped[plan.node.id]
+    const nodes = plan.targets?.map(({ node }) => node) ?? (plan.node ? [plan.node] : []);
+    for (const node of nodes) {
+        const account = Object.hasOwn(snapshot.ungrouped, node.id)
+            ? snapshot.ungrouped[node.id]
             : undefined;
-    if (
-        account &&
-        !account.archived &&
-        !accountBalances(sourceOf(sources, account.id).current, account.name)
-    ) {
-        throw new MissingBalancesError('Bkper did not find the account by its name');
+        if (
+            account &&
+            !account.archived &&
+            !accountBalances(sourceOf(sources, account.id).current, account.name)
+        ) {
+            throw new MissingBalancesError('Bkper did not find the account by its name');
+        }
     }
 }
 
@@ -509,10 +590,13 @@ function groupsFilter(snapshot: Snapshot, groupIds: string[]): string {
 
 /**
  * What a report reads and what it is of: the root, a target under it, an account in no group,
- * or a net result.
+ * a net result, or several of the others side by side.
  */
 function reportSubject(intent: ReportIntent, snapshot: Snapshot): ReportSubject {
-    const { root, target } = intent;
+    const { root, target, alongside } = intent;
+    if (alongside !== undefined) {
+        return sideBySide([{ root, target }, ...alongside], snapshot);
+    }
     if (root === NET_RESULT_ROOT) {
         if (target !== undefined) {
             throw unknownTarget();
@@ -537,20 +621,47 @@ function reportSubject(intent: ReportIntent, snapshot: Snapshot): ReportSubject 
                 );
         }
     }
+    return { roots: [root], node: subjectNode({ root, target }, snapshot) };
+}
+
+/**
+ * Several targets side by side, each once, in the order asked for, and their roots, each once:
+ * all positions or all activity. A target asked for again, even under another root, is the
+ * same; one target alone is its own report.
+ */
+function sideBySide(subjects: ReportSubjectData[], snapshot: Snapshot): ReportSubject {
+    const targets: SideBySideTarget[] = [];
+    for (const subject of subjects) {
+        if (subject.root === NET_RESULT_ROOT) {
+            throw unknownTarget();
+        }
+        const node = subjectNode(subject, snapshot);
+        if (!targets.some(known => known.node.id === node.id)) {
+            targets.push({ node, root: subject.root });
+        }
+    }
+    if (targets.length === 1) {
+        return { roots: [targets[0].root], node: targets[0].node };
+    }
+    if (new Set(targets.map(({ node }) => node.permanent)).size > 1) {
+        throw new ReportError('mixed_targets', 'Positions and activity side by side');
+    }
+    return { roots: [...new Set(targets.map(({ root }) => root))], targets };
+}
+
+/** The group or account a subject names: a root, an account in no group, or a target under a root. */
+function subjectNode({ root, target }: ReportSubjectData, snapshot: Snapshot): ReportNode {
     if (Object.hasOwn(snapshot.ungrouped, root)) {
         if (target !== undefined) {
             throw unknownTarget();
         }
-        return { roots: [root], node: accountNode(snapshot.ungrouped[root]) };
+        return accountNode(snapshot.ungrouped[root]);
     }
     if (!snapshot.roots.includes(root)) {
         throw new ReportError('unknown_root', 'Not a root group of the Book');
     }
     const group = snapshot.groups[root];
-    if (target === undefined) {
-        return { roots: [root], node: groupNode(group) };
-    }
-    return { roots: [root], node: targetNode(snapshot, group, target) };
+    return target === undefined ? groupNode(group) : targetNode(snapshot, group, target);
 }
 
 /** A group or account under a root group, at any depth, or a {@link ReportError}. */
@@ -814,31 +925,39 @@ interface Line {
 }
 
 interface ComputedReport {
-    root: ReportData['root'];
+    root: ReportRoot;
     total: Measure;
     calculated?: ReportData['calculated'];
     rows: ReportRow[];
     series: ChartSeries[];
 }
 
-/** The report of a group or an account, read from the responses of its root. */
-function nodeReport(node: ReportNode, source: RootSource, reader: RowReader): ComputedReport {
+/** The line of a group or an account, read from the responses of its root, by its id. */
+function nodeLine(node: ReportNode, source: RootSource, reader: RowReader): Line {
     const line =
         node.kind === 'group' ? reader.group(node.name, source) : reader.account(node.name, source);
-    const color = TYPE_COLORS[node.type];
+    return { ...line, id: node.id, type: node.type };
+}
+
+/** The series by month of a line. */
+function lineSeries(line: Line): ChartSeries {
     return {
-        root: { id: node.id, name: node.name, type: node.type, color },
+        id: line.id,
+        name: line.name,
+        type: line.type,
+        color: TYPE_COLORS[line.type],
+        amounts: line.measure.months.map(decimal),
+    };
+}
+
+/** The report of a group or an account, read from the responses of its root. */
+function nodeReport(node: ReportNode, source: RootSource, reader: RowReader): ComputedReport {
+    const line = nodeLine(node, source, reader);
+    return {
+        root: { id: node.id, name: node.name, type: node.type, color: TYPE_COLORS[node.type] },
         total: line.measure,
         rows: toRows(line.children, line),
-        series: [
-            {
-                id: node.id,
-                name: node.name,
-                type: node.type,
-                color,
-                amounts: line.measure.months.map(decimal),
-            },
-        ],
+        series: [lineSeries(line)],
     };
 }
 
@@ -884,20 +1003,15 @@ function calculatedNetResult(
         months: into.months.map((month, i) => month.minus(out.months[i])),
     };
     const net = { type: 'MIXED' as const, measure: total };
-    const series = (line: Line): ChartSeries => ({
-        id: line.id,
-        name: line.name,
-        type: line.type,
-        color: TYPE_COLORS[line.type],
-        amounts: line.measure.months.map(decimal),
-    });
     return {
         root: { id: NET_RESULT_ROOT, type: 'MIXED', color: TYPE_COLORS.MIXED },
         total,
         calculated: { months: total.months.map(decimal) },
         rows: [...toRows(incoming, net), ...toRows(outgoing, net)],
         series: [
-            ...[...incoming, ...outgoing].filter(line => !line.measure.amount.eq(0)).map(series),
+            ...[...incoming, ...outgoing]
+                .filter(line => !line.measure.amount.eq(0))
+                .map(lineSeries),
             {
                 id: NET_RESULT_ROOT,
                 type: 'MIXED',
@@ -914,17 +1028,27 @@ function toRows(lines: Line[], parent: Pick<Line, 'type' | 'measure'>): ReportRo
     return lines
         .filter(line => !isZero(line.measure))
         .sort(byRank)
-        .map(line => ({
-            id: line.id,
-            kind: line.kind,
-            name: line.name,
-            type: line.type,
-            color: TYPE_COLORS[line.type],
-            ...reportAmounts(line.measure),
-            ...(shareable ? { share: ratio(line.measure.amount, parent.measure.amount) } : {}),
-            months: line.measure.months.map(decimal),
-            children: toRows(line.children, line),
-        }));
+        .map(line => toRow(line, shareable ? parent.measure.amount : undefined));
+}
+
+/** A line as a row, with its share of the parent's amount when it has one. */
+function toRow(line: Line, parent: Amount | undefined): ReportRow {
+    return {
+        id: line.id,
+        kind: line.kind,
+        name: line.name,
+        type: line.type,
+        color: TYPE_COLORS[line.type],
+        ...reportAmounts(line.measure),
+        ...(parent ? { share: ratio(line.measure.amount, parent) } : {}),
+        months: line.measure.months.map(decimal),
+        children: toRows(line.children, line),
+    };
+}
+
+/** Largest first, by size whatever the sign; a stable sort keeps the order of a tie. */
+function bySize(a: ReportRow, b: ReportRow): number {
+    return new Amount(b.amount).abs().cmp(new Amount(a.amount).abs());
 }
 
 /** Largest first, by size whatever the sign; then rows without an amount. */
@@ -938,10 +1062,17 @@ function byRank(a: Line, b: Line): number {
 /** What a chart is drawn from. */
 interface ChartInput {
     nature: ReportNature;
-    root: ReportData['root'];
-    total: ReportAmounts;
+    /** The root's type; of targets side by side, theirs when they share one, else mixed. */
+    type: NodeType;
+    /** The root's amounts, which its parts may make; none for targets side by side. */
+    total?: ReportAmounts;
+    /** Whether there is a previous period to compare with. */
+    previous: boolean;
     /** A net result: of a group that combines Incoming and Outgoing, or calculated. */
     net: boolean;
+    /** Targets side by side, which the rows are: no parts of one whole. */
+    sideBySide: boolean;
+    /** The root's parts, or the targets side by side, in the order asked for. */
     rows: ReportRow[];
     /**
      * The series of a chart by month: the root, or the roots of a net result Report calculates
@@ -1057,16 +1188,18 @@ function isByMonth(kind: ViewKind): boolean {
     return kind === 'bar' || kind === 'line';
 }
 
-function chartFacts({ nature, root, net, rows, months, total }: ChartInput): ChartFacts {
+function chartFacts(input: ChartInput): ChartFacts {
+    const { nature, type, net, rows, months, previous, sideBySide } = input;
     const drawn = rows.filter(hasAmount);
     return {
         rows: drawn.length,
         negative: drawn.filter(row => new Amount(row.amount).lt(0)).length,
-        mixed: root.type === 'MIXED' || drawn.some(row => row.type !== root.type),
+        mixed: type === 'MIXED' || drawn.some(row => row.type !== type),
         months: months.length,
-        previous: total.previous !== undefined,
+        previous,
         net,
         permanent: nature === 'position',
+        ...(sideBySide ? { sideBySide: true as const } : {}),
     };
 }
 
@@ -1100,8 +1233,12 @@ function rulesKind(
 
 /** A chart of the report, or the reason it does not fit. */
 function fitChart(kind: ViewKind, input: ChartInput): Fit {
-    const { root, total, net, rows, series, months } = input;
+    const { type, total, net, rows, series, months, sideBySide } = input;
     const drawn = rows.filter(hasAmount);
+    // Targets side by side are no slices or stacked parts of one whole.
+    if (sideBySide && (kind === 'stacked' || kind === 'donut' || kind === 'pie')) {
+        return { reason: { code: 'side_by_side' } };
+    }
     const ids = (parts: ReportRow[]) => parts.map(row => row.id);
     switch (kind) {
         case 'table':
@@ -1128,16 +1265,23 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
                 : { chart: { kind: 'stacked', series: stackedSeries(input) } };
         }
         case 'ranked-bar':
+            // Parts come sorted by size; targets side by side, in the order asked for.
             return drawn.length >= 2
-                ? { chart: { kind: 'ranked-bar', rows: ids(drawn) } }
+                ? {
+                      chart: {
+                          kind: 'ranked-bar',
+                          rows: ids(sideBySide ? [...drawn].sort(bySize) : drawn),
+                      },
+                  }
                 : { reason: { code: 'few_parts' } };
         case 'donut':
         case 'pie': {
-            const reason = compositionReason(drawn, root.type, net);
+            const reason = compositionReason(drawn, type, net);
             if (reason) {
                 return { reason };
             }
             if (
+                !total ||
                 !isWhole(
                     drawn.map(row => row.amount),
                     total.amount
@@ -1151,7 +1295,7 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
             return { chart: { kind, rows: ids(drawn) } };
         }
         case 'compare': {
-            if (total.previous === undefined) {
+            if (!input.previous) {
                 return { reason: { code: 'no_previous' } };
             }
             const compared = rows.filter(
@@ -1211,7 +1355,7 @@ function stackedParts({ rows }: ChartInput): ReportRow[] {
 
 /** Why the parts do not stack up to the root in every month, or `undefined` when they do. */
 function stackedReason(input: ChartInput): UnfitReason | undefined {
-    const { root, net, months, series } = input;
+    const { type, net, months, series } = input;
     // A net result's parts are each in their own sense, so they do not stack up to it.
     if (net) {
         return { code: 'net_result' };
@@ -1223,7 +1367,7 @@ function stackedReason(input: ChartInput): UnfitReason | undefined {
     if (parts.length < 2) {
         return { code: 'few_parts' };
     }
-    if (root.type === 'MIXED' || parts.some(row => row.type !== root.type)) {
+    if (type === 'MIXED' || parts.some(row => row.type !== type)) {
         return { code: 'mixed_parts' };
     }
     if (parts.length > MAX_STACKED_PARTS) {

@@ -34,6 +34,7 @@ const NOTICES: Partial<Record<string, Notice>> = {
     future_period: 'error_future_period',
     unknown_root: 'error_unknown_root',
     unknown_target: 'error_unknown_target',
+    mixed_targets: 'error_mixed_targets',
     no_net_result: 'error_no_net_result',
     upstream_error: 'error_upstream',
 };
@@ -429,13 +430,15 @@ function promptKey(text: string): string {
 }
 
 function intentKey(intent: ReportIntent, language: string): string {
-    const { root, target, period, monthly, view, hashtags } = intent;
+    const { root, target, alongside, period, monthly, view, hashtags } = intent;
     const tags = hashtags?.length ? [...hashtags].sort() : undefined;
     // No chart is the same as `auto`.
     const chart = intent.chart === 'auto' ? undefined : intent.chart;
     const parts = [
         root,
         target ?? null,
+        // In order: the targets side by side show in it.
+        alongside?.map(subject => [subject.root, subject.target ?? null]) ?? null,
         period,
         monthly,
         view ?? null,

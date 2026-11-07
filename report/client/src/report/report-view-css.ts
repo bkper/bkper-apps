@@ -47,8 +47,25 @@ export const reportViewCSS = css`
         font-size: var(--wa-font-size-s);
     }
 
-    .report-header + .answer {
+    .report-header + .answer,
+    .report-header + .answers {
         margin-block-start: calc(-1 * var(--wa-space-m));
+    }
+
+    /* Targets side by side: an answer each, in a row that wraps, none for them together. */
+    .answers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--wa-space-l) var(--wa-space-2xl);
+    }
+
+    .answers .answer {
+        flex: 0 1 auto;
+        min-inline-size: 0;
+    }
+
+    .answers .answer-amount {
+        font-size: var(--wa-font-size-2xl);
     }
 
     .answer {

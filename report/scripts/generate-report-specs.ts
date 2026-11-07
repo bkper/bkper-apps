@@ -148,6 +148,23 @@ const STUDIO_CASES: Case[] = [
         intent: intent('g-expenses', '2025', { chart: 'table' }),
         lang: 'en',
     },
+    {
+        id: 'targets-by-month',
+        intent: intent('g-expenses', '2025', {
+            monthly: true,
+            target: 'g-people',
+            alongside: [{ root: 'g-expenses', target: 'g-office' }, { root: 'g-taxes' }],
+        }),
+        lang: 'en',
+    },
+    {
+        id: 'targets-compare-ar',
+        intent: intent('g-revenue', '2025', {
+            chart: 'compare',
+            alongside: [{ root: 'g-expenses' }],
+        }),
+        lang: 'ar',
+    },
 ];
 
 const LEDGER_CASES: Case[] = [
@@ -184,6 +201,15 @@ const LEDGER_CASES: Case[] = [
     {
         id: 'mixed-compare',
         intent: intent('g-net', 'last_month', { chart: 'compare' }),
+        lang: 'en',
+    },
+    {
+        id: 'targets-pie-unfit',
+        intent: intent('g-expenses', 'last_month', {
+            target: 'a-food',
+            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+            chart: 'pie',
+        }),
         lang: 'en',
     },
     {

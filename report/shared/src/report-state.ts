@@ -9,20 +9,25 @@
  * month flag, the view and the chart, hashtags joined by `,` (neither `.` nor `,` can be in a
  * hashtag), and the root last, so it may hold anything. A report of a target under its root
  * is version `2`, with the target before the root: `….<hashtags>.<target>.<root>`, so a target
- * cannot hold a `.`. Every other report keeps version `1`, so states written before open the
- * same report.
+ * cannot hold a `.`. A report of targets side by side is version `3`,
+ * `….<hashtags>.<alongside>.<target>.<root>`: the first target (empty for a root) and its root
+ * as in version `2`, after the others joined by `,`, each `<root>` or `<target>:<root>`, so
+ * their ids cannot hold a `.`, `,` or `:`. Every other report keeps version `1`, so states
+ * written before open the same report.
  */
 import type { ReportSpec } from './catalog';
 import { withoutIsolates } from './bidi';
 import { supportedLanguage } from './languages';
 import {
     HASHTAG_PATTERN,
+    MAX_ALONGSIDE,
     MAX_HASHTAGS,
     MAX_HASHTAG_LENGTH,
     MAX_ROOT_LENGTH,
     PERIOD_ID_PATTERN,
     type ChartPreference,
     type ReportIntentData,
+    type ReportSubjectData,
     type ReportView,
 } from './report-intent';
 
@@ -35,9 +40,17 @@ const STATE_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 /** The menu URL's expression, which older Bkper versions leave in the URL unreplaced. */
 const STATE_EXPRESSION = '${app.state}';
 
-/** The version of a state without a target, and of one with a target. */
+/** The version of a state without a target, of one with a target, and of targets side by side. */
 const VERSION = '1';
 const TARGET_VERSION = '2';
+const ALONGSIDE_VERSION = '3';
+
+/** The fields before the root, in each version. */
+const FIELDS: Record<string, number> = {
+    [VERSION]: 4,
+    [TARGET_VERSION]: 5,
+    [ALONGSIDE_VERSION]: 6,
+};
 
 /** Each letter names one value forever: states written before must open the same report. */
 const VIEW_CODES: Record<ReportView | 'none', string> = {
@@ -82,17 +95,35 @@ export function encodeReportState({ intent, language }: ReportState): string | u
         (intent.monthly ? '1' : '0') +
         VIEW_CODES[intent.view ?? 'none'] +
         CHART_CODES[intent.chart ?? 'auto'];
+    const { alongside, target } = intent;
     const text = [
         flags,
         intent.period,
         language ?? '',
         // No hashtags and an empty list are alike.
         (intent.hashtags ?? []).join(','),
-        ...(intent.target === undefined ? [] : [intent.target]),
+        ...(alongside === undefined
+            ? []
+            : [
+                  alongside
+                      .map(subject =>
+                          subject.target === undefined
+                              ? subject.root
+                              : `${subject.target}:${subject.root}`
+                      )
+                      .join(','),
+                  target ?? '',
+              ]),
+        ...(alongside === undefined && target !== undefined ? [target] : []),
         intent.root,
     ].join('.');
     const bytes = utf8(text);
-    const version = intent.target === undefined ? VERSION : TARGET_VERSION;
+    const version =
+        alongside !== undefined
+            ? ALONGSIDE_VERSION
+            : target === undefined
+              ? VERSION
+              : TARGET_VERSION;
     const state = bytes && version + toBase64url(bytes);
     return state && state.length <= MAX_STATE_LENGTH ? state : undefined;
 }
@@ -100,7 +131,8 @@ export function encodeReportState({ intent, language }: ReportState): string | u
 /** The report a state names, or `undefined` for anything but a state this module wrote. */
 export function decodeReportState(state: string): ReportState | undefined {
     const version = state[0];
-    if (!STATE_PATTERN.test(state) || (version !== VERSION && version !== TARGET_VERSION)) {
+    const count = Object.hasOwn(FIELDS, version) ? FIELDS[version] : undefined;
+    if (!STATE_PATTERN.test(state) || count === undefined) {
         return undefined;
     }
     const bytes = fromBase64url(state.slice(1));
@@ -108,13 +140,17 @@ export function decodeReportState(state: string): ReportState | undefined {
     if (text === undefined) return undefined;
     const fields: string[] = [];
     let rest = text;
-    for (let index = 0; index < (version === TARGET_VERSION ? 5 : 4); index++) {
+    for (let index = 0; index < count; index++) {
         const dot = rest.indexOf('.');
         if (dot < 0) return undefined;
         fields.push(rest.slice(0, dot));
         rest = rest.slice(dot + 1);
     }
-    const [flags, period, language, hashtags, target] = fields;
+    const [flags, period, language, hashtags, ...subjects] = fields;
+    const [alongside, target] =
+        version === ALONGSIDE_VERSION
+            ? [subjects[0], subjects[1] || undefined]
+            : [undefined, subjects[0]];
     if (flags.length !== 3 || (flags[0] !== '0' && flags[0] !== '1')) return undefined;
     const view = codeOf(VIEW_CODES, flags[1]);
     const chart = codeOf(CHART_CODES, flags[2]);
@@ -122,6 +158,7 @@ export function decodeReportState(state: string): ReportState | undefined {
     const intent: ReportIntentData = {
         root: rest,
         ...(target !== undefined ? { target } : {}),
+        ...(alongside !== undefined ? { alongside: alongside.split(',').map(subjectOf) } : {}),
         period,
         monthly: flags[0] === '1',
         ...(view !== 'none' ? { view } : {}),
@@ -149,13 +186,37 @@ export function reportText(spec: ReportSpec): string {
         : '';
 }
 
+/** A target alongside the first, as written: `<root>` or `<target>:<root>`. */
+function subjectOf(text: string): ReportSubjectData {
+    const colon = text.indexOf(':');
+    return colon < 0
+        ? { root: text }
+        : { root: text.slice(colon + 1), target: text.slice(0, colon) };
+}
+
+/** An id written between separators: never one of them. */
+function validId(id: string, separators: string): boolean {
+    return (
+        id.length > 0 &&
+        id.length <= MAX_ROOT_LENGTH &&
+        [...separators].every(separator => !id.includes(separator))
+    );
+}
+
 function validIntent(intent: ReportIntentData): boolean {
-    const { root, target, period, hashtags } = intent;
+    const { root, target, alongside, period, hashtags } = intent;
     return (
         root.length > 0 &&
         root.length <= MAX_ROOT_LENGTH &&
-        (target === undefined ||
-            (target.length > 0 && target.length <= MAX_ROOT_LENGTH && !target.includes('.'))) &&
+        (target === undefined || validId(target, '.')) &&
+        (alongside === undefined ||
+            (alongside.length > 0 &&
+                alongside.length <= MAX_ALONGSIDE &&
+                alongside.every(
+                    subject =>
+                        validId(subject.root, '.,:') &&
+                        (subject.target === undefined || validId(subject.target, '.,:'))
+                ))) &&
         PERIOD_ID_PATTERN.test(period) &&
         (hashtags === undefined ||
             (hashtags.length <= MAX_HASHTAGS &&

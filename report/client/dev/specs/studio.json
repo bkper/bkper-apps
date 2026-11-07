@@ -4065,7 +4065,7 @@
                                 "name": "月別",
                                 "chart": {
                                     "kind": "bar",
-                                    "label": "⁨Revenue⁩の月別推移",
+                                    "label": "⁨Revenue⁩(月別)",
                                     "months": [
                                         "2025-01",
                                         "2025-02",
@@ -4108,7 +4108,7 @@
                                 "name": "面グラフ",
                                 "chart": {
                                     "kind": "area",
-                                    "label": "⁨Revenue⁩の月別推移",
+                                    "label": "⁨Revenue⁩(月別)",
                                     "months": [
                                         "2025-01",
                                         "2025-02",
@@ -4151,7 +4151,7 @@
                                 "name": "積み上げ",
                                 "chart": {
                                     "kind": "stacked",
-                                    "label": "⁨Revenue⁩の月別推移",
+                                    "label": "⁨Revenue⁩(月別)",
                                     "months": [
                                         "2025-01",
                                         "2025-02",
@@ -6896,7 +6896,7 @@
                     "type": "Chart",
                     "props": {
                         "kind": "stacked",
-                        "label": "⁨Expenses⁩ לפי חודש",
+                        "label": "⁨Expenses⁩ לפי חודשים",
                         "months": [
                             "2025-01",
                             "2025-02",
@@ -7040,7 +7040,7 @@
                                 "name": "לפי חודש",
                                 "chart": {
                                     "kind": "bar",
-                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "label": "⁨Expenses⁩ לפי חודשים",
                                     "months": [
                                         "2025-01",
                                         "2025-02",
@@ -7083,7 +7083,7 @@
                                 "name": "שטח",
                                 "chart": {
                                     "kind": "area",
-                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "label": "⁨Expenses⁩ לפי חודשים",
                                     "months": [
                                         "2025-01",
                                         "2025-02",
@@ -13567,6 +13567,1535 @@
                             "action": "openInBkper",
                             "params": {
                                 "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "targets-by-month",
+        "intent": {
+            "root": "g-expenses",
+            "period": "2025",
+            "monthly": true,
+            "target": "g-people",
+            "alongside": [
+                {
+                    "root": "g-expenses",
+                    "target": "g-office"
+                },
+                {
+                    "root": "g-taxes"
+                }
+            ]
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩",
+                        "subtitle": "2025",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer-1",
+                        "answer-2",
+                        "answer-3",
+                        "chart",
+                        "views",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer-1": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "People",
+                        "amount": "190099.76",
+                        "color": "red",
+                        "previous": "173257.65",
+                        "change": "0.0972",
+                        "comparison": "vs. ⁨2024⁩"
+                    }
+                },
+                "answer-2": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Office",
+                        "amount": "47311.68",
+                        "color": "red",
+                        "previous": "47266.29",
+                        "change": "0.001",
+                        "comparison": "vs. ⁨2024⁩"
+                    }
+                },
+                "answer-3": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Taxes",
+                        "amount": "59487.29",
+                        "color": "red",
+                        "previous": "53877.92",
+                        "change": "0.1041",
+                        "comparison": "vs. ⁨2024⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "bar",
+                        "label": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ by month",
+                        "months": [
+                            "2025-01",
+                            "2025-02",
+                            "2025-03",
+                            "2025-04",
+                            "2025-05",
+                            "2025-06",
+                            "2025-07",
+                            "2025-08",
+                            "2025-09",
+                            "2025-10",
+                            "2025-11",
+                            "2025-12"
+                        ],
+                        "series": [
+                            {
+                                "id": "g-people",
+                                "label": "People",
+                                "color": "red",
+                                "values": [
+                                    "16359.49",
+                                    "15309.22",
+                                    "16171.31",
+                                    "15444.24",
+                                    "14668.44",
+                                    "15631.92",
+                                    "14727.97",
+                                    "15183.47",
+                                    "16350.37",
+                                    "15734.95",
+                                    "17037.18",
+                                    "17481.2"
+                                ]
+                            },
+                            {
+                                "id": "g-office",
+                                "label": "Office",
+                                "color": "red",
+                                "values": [
+                                    "4095.57",
+                                    "4028.24",
+                                    "4035.67",
+                                    "3984.32",
+                                    "3866.85",
+                                    "3874.42",
+                                    "3813.3",
+                                    "3795.64",
+                                    "3890.24",
+                                    "3890.62",
+                                    "3973.97",
+                                    "4062.84"
+                                ]
+                            },
+                            {
+                                "id": "g-taxes",
+                                "label": "Taxes",
+                                "color": "red",
+                                "values": [
+                                    "4614.93",
+                                    "4957.92",
+                                    "4917.32",
+                                    "4933.43",
+                                    "4981.3",
+                                    "4681.55",
+                                    "4659.02",
+                                    "4596.08",
+                                    "6831.78",
+                                    "4672.88",
+                                    "4751.38",
+                                    "4889.7"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month"
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Area",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ by month",
+                                    "months": [
+                                        "2025-01",
+                                        "2025-02",
+                                        "2025-03",
+                                        "2025-04",
+                                        "2025-05",
+                                        "2025-06",
+                                        "2025-07",
+                                        "2025-08",
+                                        "2025-09",
+                                        "2025-10",
+                                        "2025-11",
+                                        "2025-12"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-people",
+                                            "label": "People",
+                                            "color": "red",
+                                            "values": [
+                                                "16359.49",
+                                                "15309.22",
+                                                "16171.31",
+                                                "15444.24",
+                                                "14668.44",
+                                                "15631.92",
+                                                "14727.97",
+                                                "15183.47",
+                                                "16350.37",
+                                                "15734.95",
+                                                "17037.18",
+                                                "17481.2"
+                                            ]
+                                        },
+                                        {
+                                            "id": "g-office",
+                                            "label": "Office",
+                                            "color": "red",
+                                            "values": [
+                                                "4095.57",
+                                                "4028.24",
+                                                "4035.67",
+                                                "3984.32",
+                                                "3866.85",
+                                                "3874.42",
+                                                "3813.3",
+                                                "3795.64",
+                                                "3890.24",
+                                                "3890.62",
+                                                "3973.97",
+                                                "4062.84"
+                                            ]
+                                        },
+                                        {
+                                            "id": "g-taxes",
+                                            "label": "Taxes",
+                                            "color": "red",
+                                            "values": [
+                                                "4614.93",
+                                                "4957.92",
+                                                "4917.32",
+                                                "4933.43",
+                                                "4981.3",
+                                                "4681.55",
+                                                "4659.02",
+                                                "4596.08",
+                                                "6831.78",
+                                                "4672.88",
+                                                "4751.38",
+                                                "4889.7"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ side by side",
+                                    "items": [
+                                        {
+                                            "rowId": "g-people",
+                                            "label": "People",
+                                            "color": "red",
+                                            "value": "190099.76"
+                                        },
+                                        {
+                                            "rowId": "g-taxes",
+                                            "label": "Taxes",
+                                            "color": "red",
+                                            "value": "59487.29"
+                                        },
+                                        {
+                                            "rowId": "g-office",
+                                            "label": "Office",
+                                            "color": "red",
+                                            "value": "47311.68"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ side by side",
+                                    "periods": {
+                                        "current": "2025",
+                                        "previous": "2024"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "g-people",
+                                            "label": "People",
+                                            "color": "red",
+                                            "value": "190099.76",
+                                            "previous": "173257.65"
+                                        },
+                                        {
+                                            "rowId": "g-office",
+                                            "label": "Office",
+                                            "color": "red",
+                                            "value": "47311.68",
+                                            "previous": "47266.29"
+                                        },
+                                        {
+                                            "rowId": "g-taxes",
+                                            "label": "Taxes",
+                                            "color": "red",
+                                            "value": "59487.29",
+                                            "previous": "53877.92"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ side by side",
+                        "months": [
+                            "2025-01",
+                            "2025-02",
+                            "2025-03",
+                            "2025-04",
+                            "2025-05",
+                            "2025-06",
+                            "2025-07",
+                            "2025-08",
+                            "2025-09",
+                            "2025-10",
+                            "2025-11",
+                            "2025-12"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "g-people",
+                                "kind": "group",
+                                "label": "People",
+                                "color": "red",
+                                "amount": "190099.76",
+                                "previous": "173257.65",
+                                "change": "0.0972",
+                                "months": [
+                                    "16359.49",
+                                    "15309.22",
+                                    "16171.31",
+                                    "15444.24",
+                                    "14668.44",
+                                    "15631.92",
+                                    "14727.97",
+                                    "15183.47",
+                                    "16350.37",
+                                    "15734.95",
+                                    "17037.18",
+                                    "17481.2"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "a-salaries",
+                                        "kind": "account",
+                                        "label": "Salaries",
+                                        "color": "red",
+                                        "amount": "131659.67",
+                                        "previous": "120318.54",
+                                        "change": "0.0943",
+                                        "share": "0.6926",
+                                        "months": [
+                                            "10881.24",
+                                            "10023.27",
+                                            "11081.95",
+                                            "10785.11",
+                                            "10377.92",
+                                            "11473.31",
+                                            "10676.78",
+                                            "10898.75",
+                                            "11655.43",
+                                            "10681.08",
+                                            "11478.71",
+                                            "11646.12"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-contractors",
+                                        "kind": "account",
+                                        "label": "Contractors",
+                                        "color": "red",
+                                        "amount": "32565.72",
+                                        "previous": "29039.5",
+                                        "change": "0.1214",
+                                        "share": "0.1713",
+                                        "months": [
+                                            "3508.65",
+                                            "3125.49",
+                                            "2947.53",
+                                            "2632.68",
+                                            "2041.03",
+                                            "2040.29",
+                                            "1930.46",
+                                            "1985.38",
+                                            "2585.37",
+                                            "2819.38",
+                                            "3250.01",
+                                            "3699.45"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-benefits",
+                                        "kind": "account",
+                                        "label": "Benefits",
+                                        "color": "red",
+                                        "amount": "25874.37",
+                                        "previous": "23899.61",
+                                        "change": "0.0826",
+                                        "share": "0.1361",
+                                        "months": [
+                                            "1969.6",
+                                            "2160.46",
+                                            "2141.83",
+                                            "2026.45",
+                                            "2249.49",
+                                            "2118.32",
+                                            "2120.73",
+                                            "2299.34",
+                                            "2109.57",
+                                            "2234.49",
+                                            "2308.46",
+                                            "2135.63"
+                                        ],
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "g-office",
+                                "kind": "group",
+                                "label": "Office",
+                                "color": "red",
+                                "amount": "47311.68",
+                                "previous": "47266.29",
+                                "change": "0.001",
+                                "months": [
+                                    "4095.57",
+                                    "4028.24",
+                                    "4035.67",
+                                    "3984.32",
+                                    "3866.85",
+                                    "3874.42",
+                                    "3813.3",
+                                    "3795.64",
+                                    "3890.24",
+                                    "3890.62",
+                                    "3973.97",
+                                    "4062.84"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "a-rent",
+                                        "kind": "account",
+                                        "label": "Rent",
+                                        "color": "red",
+                                        "amount": "38400",
+                                        "previous": "38400",
+                                        "change": "0",
+                                        "share": "0.8116",
+                                        "months": [
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200",
+                                            "3200"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-utilities",
+                                        "kind": "account",
+                                        "label": "Utilities",
+                                        "color": "red",
+                                        "amount": "5535.5",
+                                        "previous": "5522.87",
+                                        "change": "0.0023",
+                                        "share": "0.117",
+                                        "months": [
+                                            "566.95",
+                                            "546.23",
+                                            "586.77",
+                                            "532.61",
+                                            "455.55",
+                                            "445.01",
+                                            "354.88",
+                                            "339",
+                                            "377.74",
+                                            "362.86",
+                                            "452.63",
+                                            "515.27"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-supplies",
+                                        "kind": "account",
+                                        "label": "Supplies",
+                                        "color": "red",
+                                        "amount": "3376.18",
+                                        "previous": "3343.42",
+                                        "change": "0.0098",
+                                        "share": "0.0714",
+                                        "months": [
+                                            "328.62",
+                                            "282.01",
+                                            "248.9",
+                                            "251.71",
+                                            "211.3",
+                                            "229.41",
+                                            "258.42",
+                                            "256.64",
+                                            "312.5",
+                                            "327.76",
+                                            "321.34",
+                                            "347.57"
+                                        ],
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "g-taxes",
+                                "kind": "group",
+                                "label": "Taxes",
+                                "color": "red",
+                                "amount": "59487.29",
+                                "previous": "53877.92",
+                                "change": "0.1041",
+                                "months": [
+                                    "4614.93",
+                                    "4957.92",
+                                    "4917.32",
+                                    "4933.43",
+                                    "4981.3",
+                                    "4681.55",
+                                    "4659.02",
+                                    "4596.08",
+                                    "6831.78",
+                                    "4672.88",
+                                    "4751.38",
+                                    "4889.7"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "a-income-tax",
+                                        "kind": "account",
+                                        "label": "Income tax",
+                                        "color": "red",
+                                        "amount": "26762.86",
+                                        "previous": "24003.57",
+                                        "change": "0.115",
+                                        "share": "0.4499",
+                                        "months": [
+                                            "2183.67",
+                                            "2413.66",
+                                            "2252.25",
+                                            "2385.53",
+                                            "2361.54",
+                                            "2115.5",
+                                            "2241.45",
+                                            "2090.07",
+                                            "2011.06",
+                                            "2246.18",
+                                            "2146.32",
+                                            "2315.63"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-payroll-tax",
+                                        "kind": "account",
+                                        "label": "Payroll tax",
+                                        "color": "red",
+                                        "amount": "18458.88",
+                                        "previous": "16971.91",
+                                        "change": "0.0876",
+                                        "share": "0.3103",
+                                        "months": [
+                                            "1477.52",
+                                            "1431.4",
+                                            "1581.9",
+                                            "1463.47",
+                                            "1506.78",
+                                            "1603.48",
+                                            "1467.3",
+                                            "1588.06",
+                                            "1599.32",
+                                            "1499.55",
+                                            "1657.23",
+                                            "1582.87"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-sales-tax",
+                                        "kind": "account",
+                                        "label": "Sales tax",
+                                        "color": "red",
+                                        "amount": "11865.55",
+                                        "previous": "10502.44",
+                                        "change": "0.1298",
+                                        "share": "0.1995",
+                                        "months": [
+                                            "953.74",
+                                            "1112.86",
+                                            "1083.17",
+                                            "1084.43",
+                                            "1112.98",
+                                            "962.57",
+                                            "950.27",
+                                            "917.95",
+                                            "821.4",
+                                            "927.15",
+                                            "947.83",
+                                            "991.2"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-property-tax",
+                                        "kind": "account",
+                                        "label": "Property tax",
+                                        "color": "red",
+                                        "amount": "2400",
+                                        "previous": "2400",
+                                        "change": "0",
+                                        "share": "0.0403",
+                                        "months": [
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "2400",
+                                            "0",
+                                            "0",
+                                            "0"
+                                        ],
+                                        "children": []
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Studio Norte⁩",
+                        "period": "Jan 1 – Dec 31, 2025",
+                        "query": "(group:'People' OR group:'Office' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "dataAt": "2025-12-31T21:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "targets-compare-ar",
+        "intent": {
+            "root": "g-revenue",
+            "period": "2025",
+            "monthly": false,
+            "chart": "compare",
+            "alongside": [
+                {
+                    "root": "g-expenses"
+                }
+            ]
+        },
+        "lang": "ar",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "⁨Revenue⁩ و⁨Expenses⁩",
+                        "subtitle": "2025",
+                        "locale": "ar",
+                        "dir": "rtl",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer-1",
+                        "answer-2",
+                        "chart",
+                        "views",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer-1": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Revenue",
+                        "amount": "400724.18",
+                        "color": "green",
+                        "previous": "343752.1",
+                        "change": "0.1657",
+                        "comparison": "مقابل ⁨2024⁩"
+                    }
+                },
+                "answer-2": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Expenses",
+                        "amount": "290865.53",
+                        "color": "red",
+                        "previous": "269573.05",
+                        "change": "0.079",
+                        "comparison": "مقابل ⁨2024⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "compare",
+                        "label": "⁨⁨Revenue⁩ و⁨Expenses⁩⁩ جنبًا إلى جنب",
+                        "periods": {
+                            "current": "2025",
+                            "previous": "2024"
+                        },
+                        "items": [
+                            {
+                                "rowId": "g-revenue",
+                                "label": "Revenue",
+                                "color": "green",
+                                "value": "400724.18",
+                                "previous": "343752.1"
+                            },
+                            {
+                                "rowId": "g-expenses",
+                                "label": "Expenses",
+                                "color": "red",
+                                "value": "290865.53",
+                                "previous": "269573.05"
+                            }
+                        ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "المخططات",
+                        "main": "compare",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "حسب الشهر",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨⁨Revenue⁩ و⁨Expenses⁩⁩ حسب الشهر",
+                                    "months": [
+                                        "2025-01",
+                                        "2025-02",
+                                        "2025-03",
+                                        "2025-04",
+                                        "2025-05",
+                                        "2025-06",
+                                        "2025-07",
+                                        "2025-08",
+                                        "2025-09",
+                                        "2025-10",
+                                        "2025-11",
+                                        "2025-12"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-revenue",
+                                            "label": "Revenue",
+                                            "color": "green",
+                                            "values": [
+                                                "32599.29",
+                                                "36182.98",
+                                                "34964.84",
+                                                "33815.22",
+                                                "34771.74",
+                                                "31094.79",
+                                                "31044.76",
+                                                "31789.25",
+                                                "30011.19",
+                                                "33552.56",
+                                                "35132.45",
+                                                "35765.11"
+                                            ]
+                                        },
+                                        {
+                                            "id": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "values": [
+                                                "25237.5",
+                                                "24174.06",
+                                                "24743.74",
+                                                "23429.19",
+                                                "22568.32",
+                                                "23242.48",
+                                                "22283.66",
+                                                "23210.88",
+                                                "24548.03",
+                                                "24442.61",
+                                                "26273.58",
+                                                "26711.48"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "area",
+                                "name": "مساحي",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨⁨Revenue⁩ و⁨Expenses⁩⁩ حسب الشهر",
+                                    "months": [
+                                        "2025-01",
+                                        "2025-02",
+                                        "2025-03",
+                                        "2025-04",
+                                        "2025-05",
+                                        "2025-06",
+                                        "2025-07",
+                                        "2025-08",
+                                        "2025-09",
+                                        "2025-10",
+                                        "2025-11",
+                                        "2025-12"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-revenue",
+                                            "label": "Revenue",
+                                            "color": "green",
+                                            "values": [
+                                                "32599.29",
+                                                "36182.98",
+                                                "34964.84",
+                                                "33815.22",
+                                                "34771.74",
+                                                "31094.79",
+                                                "31044.76",
+                                                "31789.25",
+                                                "30011.19",
+                                                "33552.56",
+                                                "35132.45",
+                                                "35765.11"
+                                            ]
+                                        },
+                                        {
+                                            "id": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "values": [
+                                                "25237.5",
+                                                "24174.06",
+                                                "24743.74",
+                                                "23429.19",
+                                                "22568.32",
+                                                "23242.48",
+                                                "22283.66",
+                                                "23210.88",
+                                                "24548.03",
+                                                "24442.61",
+                                                "26273.58",
+                                                "26711.48"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "مرتّب",
+                                "chart": {
+                                    "kind": "ranked-bar",
+                                    "label": "⁨⁨Revenue⁩ و⁨Expenses⁩⁩ جنبًا إلى جنب",
+                                    "items": [
+                                        {
+                                            "rowId": "g-revenue",
+                                            "label": "Revenue",
+                                            "color": "green",
+                                            "value": "400724.18"
+                                        },
+                                        {
+                                            "rowId": "g-expenses",
+                                            "label": "Expenses",
+                                            "color": "red",
+                                            "value": "290865.53"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "مقارنة"
+                            },
+                            {
+                                "kind": "table",
+                                "name": "جدول"
+                            }
+                        ]
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "⁨⁨Revenue⁩ و⁨Expenses⁩⁩ جنبًا إلى جنب",
+                        "months": [
+                            "2025-01",
+                            "2025-02",
+                            "2025-03",
+                            "2025-04",
+                            "2025-05",
+                            "2025-06",
+                            "2025-07",
+                            "2025-08",
+                            "2025-09",
+                            "2025-10",
+                            "2025-11",
+                            "2025-12"
+                        ],
+                        "columns": {
+                            "name": "الاسم",
+                            "amount": "المبلغ",
+                            "share": "النسبة",
+                            "change": "التغيّر",
+                            "trend": "حسب الشهر"
+                        },
+                        "expandLabel": "وسّع",
+                        "collapseLabel": "طيّ",
+                        "emptyLabel": "لا توجد أرصدة في هذه الفترة.",
+                        "rows": [
+                            {
+                                "id": "g-revenue",
+                                "kind": "group",
+                                "label": "Revenue",
+                                "color": "green",
+                                "amount": "400724.18",
+                                "previous": "343752.1",
+                                "change": "0.1657",
+                                "months": [
+                                    "32599.29",
+                                    "36182.98",
+                                    "34964.84",
+                                    "33815.22",
+                                    "34771.74",
+                                    "31094.79",
+                                    "31044.76",
+                                    "31789.25",
+                                    "30011.19",
+                                    "33552.56",
+                                    "35132.45",
+                                    "35765.11"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "a-design-projects",
+                                        "kind": "account",
+                                        "label": "Design projects",
+                                        "color": "green",
+                                        "amount": "263357.41",
+                                        "previous": "233102.43",
+                                        "change": "0.1298",
+                                        "share": "0.6572",
+                                        "months": [
+                                            "21168.37",
+                                            "24700.14",
+                                            "24041.03",
+                                            "24069.04",
+                                            "24702.72",
+                                            "21364.44",
+                                            "21091.32",
+                                            "20374.03",
+                                            "18231.04",
+                                            "20578.15",
+                                            "21037.25",
+                                            "21999.88"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-subscriptions",
+                                        "kind": "account",
+                                        "label": "Subscriptions",
+                                        "color": "green",
+                                        "amount": "98573.67",
+                                        "previous": "75826.14",
+                                        "change": "0.3",
+                                        "share": "0.246",
+                                        "months": [
+                                            "7221.19",
+                                            "7581.79",
+                                            "8020.33",
+                                            "7562.21",
+                                            "8146.64",
+                                            "8198.25",
+                                            "7922",
+                                            "8663.8",
+                                            "8455.89",
+                                            "8584.03",
+                                            "9288.43",
+                                            "8929.11"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-workshops",
+                                        "kind": "account",
+                                        "label": "Workshops",
+                                        "color": "green",
+                                        "amount": "36533.79",
+                                        "previous": "32951.88",
+                                        "change": "0.1087",
+                                        "share": "0.0912",
+                                        "months": [
+                                            "4043.5",
+                                            "3722.28",
+                                            "2728.06",
+                                            "2016.18",
+                                            "1736.1",
+                                            "1352.17",
+                                            "1845.54",
+                                            "2547.58",
+                                            "3129.94",
+                                            "4183.11",
+                                            "4593.55",
+                                            "4635.78"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-interest",
+                                        "kind": "account",
+                                        "label": "Interest",
+                                        "color": "green",
+                                        "amount": "2259.31",
+                                        "previous": "1871.65",
+                                        "change": "0.2071",
+                                        "share": "0.0056",
+                                        "months": [
+                                            "166.23",
+                                            "178.77",
+                                            "175.42",
+                                            "167.79",
+                                            "186.28",
+                                            "179.93",
+                                            "185.9",
+                                            "203.84",
+                                            "194.32",
+                                            "207.27",
+                                            "213.22",
+                                            "200.34"
+                                        ],
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "g-expenses",
+                                "kind": "group",
+                                "label": "Expenses",
+                                "color": "red",
+                                "amount": "290865.53",
+                                "previous": "269573.05",
+                                "change": "0.079",
+                                "months": [
+                                    "25237.5",
+                                    "24174.06",
+                                    "24743.74",
+                                    "23429.19",
+                                    "22568.32",
+                                    "23242.48",
+                                    "22283.66",
+                                    "23210.88",
+                                    "24548.03",
+                                    "24442.61",
+                                    "26273.58",
+                                    "26711.48"
+                                ],
+                                "children": [
+                                    {
+                                        "id": "g-people",
+                                        "kind": "group",
+                                        "label": "People",
+                                        "color": "red",
+                                        "amount": "190099.76",
+                                        "previous": "173257.65",
+                                        "change": "0.0972",
+                                        "share": "0.6536",
+                                        "months": [
+                                            "16359.49",
+                                            "15309.22",
+                                            "16171.31",
+                                            "15444.24",
+                                            "14668.44",
+                                            "15631.92",
+                                            "14727.97",
+                                            "15183.47",
+                                            "16350.37",
+                                            "15734.95",
+                                            "17037.18",
+                                            "17481.2"
+                                        ],
+                                        "children": [
+                                            {
+                                                "id": "a-salaries",
+                                                "kind": "account",
+                                                "label": "Salaries",
+                                                "color": "red",
+                                                "amount": "131659.67",
+                                                "previous": "120318.54",
+                                                "change": "0.0943",
+                                                "share": "0.6926",
+                                                "months": [
+                                                    "10881.24",
+                                                    "10023.27",
+                                                    "11081.95",
+                                                    "10785.11",
+                                                    "10377.92",
+                                                    "11473.31",
+                                                    "10676.78",
+                                                    "10898.75",
+                                                    "11655.43",
+                                                    "10681.08",
+                                                    "11478.71",
+                                                    "11646.12"
+                                                ],
+                                                "children": []
+                                            },
+                                            {
+                                                "id": "a-contractors",
+                                                "kind": "account",
+                                                "label": "Contractors",
+                                                "color": "red",
+                                                "amount": "32565.72",
+                                                "previous": "29039.5",
+                                                "change": "0.1214",
+                                                "share": "0.1713",
+                                                "months": [
+                                                    "3508.65",
+                                                    "3125.49",
+                                                    "2947.53",
+                                                    "2632.68",
+                                                    "2041.03",
+                                                    "2040.29",
+                                                    "1930.46",
+                                                    "1985.38",
+                                                    "2585.37",
+                                                    "2819.38",
+                                                    "3250.01",
+                                                    "3699.45"
+                                                ],
+                                                "children": []
+                                            },
+                                            {
+                                                "id": "a-benefits",
+                                                "kind": "account",
+                                                "label": "Benefits",
+                                                "color": "red",
+                                                "amount": "25874.37",
+                                                "previous": "23899.61",
+                                                "change": "0.0826",
+                                                "share": "0.1361",
+                                                "months": [
+                                                    "1969.6",
+                                                    "2160.46",
+                                                    "2141.83",
+                                                    "2026.45",
+                                                    "2249.49",
+                                                    "2118.32",
+                                                    "2120.73",
+                                                    "2299.34",
+                                                    "2109.57",
+                                                    "2234.49",
+                                                    "2308.46",
+                                                    "2135.63"
+                                                ],
+                                                "children": []
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "g-office",
+                                        "kind": "group",
+                                        "label": "Office",
+                                        "color": "red",
+                                        "amount": "47311.68",
+                                        "previous": "47266.29",
+                                        "change": "0.001",
+                                        "share": "0.1627",
+                                        "months": [
+                                            "4095.57",
+                                            "4028.24",
+                                            "4035.67",
+                                            "3984.32",
+                                            "3866.85",
+                                            "3874.42",
+                                            "3813.3",
+                                            "3795.64",
+                                            "3890.24",
+                                            "3890.62",
+                                            "3973.97",
+                                            "4062.84"
+                                        ],
+                                        "children": [
+                                            {
+                                                "id": "a-rent",
+                                                "kind": "account",
+                                                "label": "Rent",
+                                                "color": "red",
+                                                "amount": "38400",
+                                                "previous": "38400",
+                                                "change": "0",
+                                                "share": "0.8116",
+                                                "months": [
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200",
+                                                    "3200"
+                                                ],
+                                                "children": []
+                                            },
+                                            {
+                                                "id": "a-utilities",
+                                                "kind": "account",
+                                                "label": "Utilities",
+                                                "color": "red",
+                                                "amount": "5535.5",
+                                                "previous": "5522.87",
+                                                "change": "0.0023",
+                                                "share": "0.117",
+                                                "months": [
+                                                    "566.95",
+                                                    "546.23",
+                                                    "586.77",
+                                                    "532.61",
+                                                    "455.55",
+                                                    "445.01",
+                                                    "354.88",
+                                                    "339",
+                                                    "377.74",
+                                                    "362.86",
+                                                    "452.63",
+                                                    "515.27"
+                                                ],
+                                                "children": []
+                                            },
+                                            {
+                                                "id": "a-supplies",
+                                                "kind": "account",
+                                                "label": "Supplies",
+                                                "color": "red",
+                                                "amount": "3376.18",
+                                                "previous": "3343.42",
+                                                "change": "0.0098",
+                                                "share": "0.0714",
+                                                "months": [
+                                                    "328.62",
+                                                    "282.01",
+                                                    "248.9",
+                                                    "251.71",
+                                                    "211.3",
+                                                    "229.41",
+                                                    "258.42",
+                                                    "256.64",
+                                                    "312.5",
+                                                    "327.76",
+                                                    "321.34",
+                                                    "347.57"
+                                                ],
+                                                "children": []
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "a-marketing",
+                                        "kind": "account",
+                                        "label": "Marketing",
+                                        "color": "red",
+                                        "amount": "19671.15",
+                                        "previous": "17744.76",
+                                        "change": "0.1086",
+                                        "share": "0.0676",
+                                        "months": [
+                                            "2036.95",
+                                            "2205.16",
+                                            "1958.29",
+                                            "1728.46",
+                                            "1562.93",
+                                            "1171.67",
+                                            "1131.93",
+                                            "1171.72",
+                                            "1197.1",
+                                            "1607.38",
+                                            "1847.25",
+                                            "2052.31"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-software",
+                                        "kind": "account",
+                                        "label": "Software",
+                                        "color": "red",
+                                        "amount": "18881.36",
+                                        "previous": "16314.75",
+                                        "change": "0.1573",
+                                        "share": "0.0649",
+                                        "months": [
+                                            "1430.19",
+                                            "1501.63",
+                                            "1597.53",
+                                            "1482.7",
+                                            "1604.75",
+                                            "1601.76",
+                                            "1513.12",
+                                            "1657.13",
+                                            "1580.85",
+                                            "1579.06",
+                                            "1717.76",
+                                            "1614.88"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "a-travel",
+                                        "kind": "account",
+                                        "label": "Travel",
+                                        "color": "red",
+                                        "amount": "10160.05",
+                                        "previous": "10252.7",
+                                        "change": "-0.009",
+                                        "share": "0.0349",
+                                        "months": [
+                                            "915.96",
+                                            "728.39",
+                                            "583.64",
+                                            "387.15",
+                                            "468.5",
+                                            "570.21",
+                                            "702.15",
+                                            "1015.19",
+                                            "1140.17",
+                                            "1237.54",
+                                            "1308.05",
+                                            "1103.1"
+                                        ],
+                                        "children": []
+                                    },
+                                    {
+                                        "id": "g-admin",
+                                        "kind": "group",
+                                        "label": "Admin",
+                                        "color": "red",
+                                        "amount": "4741.53",
+                                        "previous": "4736.9",
+                                        "change": "0.001",
+                                        "share": "0.0163",
+                                        "months": [
+                                            "399.34",
+                                            "401.42",
+                                            "397.3",
+                                            "402.32",
+                                            "396.85",
+                                            "392.5",
+                                            "395.19",
+                                            "387.73",
+                                            "389.3",
+                                            "393.06",
+                                            "389.37",
+                                            "397.15"
+                                        ],
+                                        "children": [
+                                            {
+                                                "id": "a-insurance",
+                                                "kind": "account",
+                                                "label": "Insurance",
+                                                "color": "red",
+                                                "amount": "4080",
+                                                "previous": "4080",
+                                                "change": "0",
+                                                "share": "0.8605",
+                                                "months": [
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340",
+                                                    "340"
+                                                ],
+                                                "children": []
+                                            },
+                                            {
+                                                "id": "a-bank-fees",
+                                                "kind": "account",
+                                                "label": "Bank fees",
+                                                "color": "red",
+                                                "amount": "661.53",
+                                                "previous": "656.9",
+                                                "change": "0.007",
+                                                "share": "0.1395",
+                                                "months": [
+                                                    "59.34",
+                                                    "61.42",
+                                                    "57.3",
+                                                    "62.32",
+                                                    "56.85",
+                                                    "52.5",
+                                                    "55.19",
+                                                    "47.73",
+                                                    "49.3",
+                                                    "53.06",
+                                                    "49.37",
+                                                    "57.15"
+                                                ],
+                                                "children": []
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
+                        "period": "1‏/1‏/2025 – 31‏/12‏/2025",
+                        "query": "(group:'Revenue' OR group:'Expenses') after:2025-01-01 before:2026-01-01",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "dataAt": "2025-12-31T21:00:00.000Z",
+                        "labels": {
+                            "source": "المصدر",
+                            "period": "الفترة",
+                            "query": "استعلام",
+                            "dataAt": "وقت قراءة الأرصدة",
+                            "open": "افتح في Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20after%3A2025-01-01%20before%3A2026-01-01"
                             }
                         }
                     }

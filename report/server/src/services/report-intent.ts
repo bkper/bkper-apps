@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
     HASHTAG_PATTERN,
+    MAX_ALONGSIDE,
     MAX_HASHTAGS,
     MAX_HASHTAG_LENGTH,
     MAX_ROOT_LENGTH,
@@ -14,12 +15,22 @@ import {
 
 export { NET_RESULT_ROOT, REPORT_CHARTS, REPORT_VIEWS, type ChartPreference, type ReportView };
 
+const Id = z.string().min(1).max(MAX_ROOT_LENGTH);
+
+/** A root group or an account in no group, or a group or account under a root group. */
+export const ReportSubjectSchema = z.object({
+    root: Id,
+    target: Id.optional(),
+});
+
 /** What to report, fully resolved: the report is computed from this alone. */
 export const ReportIntentSchema = z.object({
     /** Root group id, the id of an account in no group, or {@link NET_RESULT_ROOT}. */
-    root: z.string().min(1).max(MAX_ROOT_LENGTH),
+    root: Id,
     /** A group or account under the root group, by id, to report instead of the whole root. */
-    target: z.string().min(1).max(MAX_ROOT_LENGTH).optional(),
+    target: Id.optional(),
+    /** More groups or accounts, each under its root, shown side by side with the first. */
+    alongside: z.array(ReportSubjectSchema).min(1).max(MAX_ALONGSIDE).optional(),
     /** A period id; see `periods.ts`. */
     period: z.string().regex(PERIOD_ID_PATTERN),
     /** Whether to show the period by month. */
@@ -36,3 +47,4 @@ export const ReportIntentSchema = z.object({
 });
 
 export type ReportIntent = z.infer<typeof ReportIntentSchema>;
+export type ReportSubjectData = z.infer<typeof ReportSubjectSchema>;

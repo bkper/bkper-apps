@@ -68,6 +68,7 @@ const UNFIT_REASONS = {
     no_previous: 'chart_unfit_no_previous',
     not_a_whole: 'chart_unfit_not_a_whole',
     no_bridge: 'chart_unfit_no_bridge',
+    side_by_side: 'chart_unfit_side_by_side',
     // Said of the chart it is about.
     net_result: 'chart_unfit_pie_net_result',
 } as const satisfies Record<UnfitReason['code'], StringKey>;
@@ -82,11 +83,22 @@ const STACKED_UNFIT_REASONS = {
 /** The spec of a report in a language; it always passes the catalog's validation. */
 export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
     const labels = new Labels(lang);
-    const title = report.root.name ?? t('report_net_result', lang);
+    const title = reportTitle(report, lang);
     const subtitle = labels.period(report);
-    const elements: Record<string, ReportElement> = {
-        answer: { type: 'Answer', props: answerProps(report, title, labels) },
-    };
+    // Targets side by side have an Answer each, in order, and none for them together.
+    const elements: Record<string, ReportElement> = report.targets
+        ? Object.fromEntries(
+              report.targets.map((row, index) => [
+                  `answer-${index + 1}`,
+                  { type: 'Answer', props: answerProps(report, row, labels) },
+              ])
+          )
+        : {
+              answer: {
+                  type: 'Answer',
+                  props: answerProps(report, { ...report.root, ...report.answer }, labels),
+              },
+          };
     const chart = chartProps(report.chart, report, title, labels);
     if (chart) {
         elements.chart = { type: 'Chart', props: chart };
@@ -150,7 +162,23 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
     return validation.spec;
 }
 
-/** The table of the rows Bkper returns under the report's group, nested. */
+/**
+ * The title of a report: the name of what it is of, or the names of its targets side by side
+ * as a list, each isolated, so names of either direction keep their order.
+ */
+function reportTitle(report: ReportData, lang: string): string {
+    if (report.targets) {
+        return new Intl.ListFormat(lang, { type: 'conjunction' }).format(
+            report.targets.map(row => isolate(row.name))
+        );
+    }
+    return report.root.name ?? t('report_net_result', lang);
+}
+
+/**
+ * The table of the rows Bkper returns under the report's group, nested; of targets side by
+ * side, the targets, each with the rows under it.
+ */
 function breakdownTable(
     report: ReportData,
     title: string,
@@ -159,7 +187,9 @@ function breakdownTable(
     return {
         type: 'BreakdownTable',
         props: {
-            label: t('breakdown_label', lang),
+            label: report.targets
+                ? fill('chart_side_by_side', lang, { names: title })
+                : t('breakdown_label', lang),
             months: report.months,
             columns: {
                 name: t('breakdown_column_name', lang),
@@ -173,7 +203,7 @@ function breakdownTable(
             emptyLabel: t('breakdown_empty', lang),
             rows: report.breakdown.map(row => breakdownRow(row)),
             // A net result Report calculates totals its roots, which are the rows.
-            ...(report.calculated
+            ...(report.calculated && report.root
                 ? {
                       total: {
                           label: title,
@@ -188,16 +218,17 @@ function breakdownTable(
     };
 }
 
+/** The Answer of what a report is of, or of one of its targets side by side. */
 function answerProps(
     report: ReportData,
-    title: string,
+    subject: ReportAmounts & { name?: string; color: ReportRow['color'] },
     labels: Labels
 ): Extract<ReportElement, { type: 'Answer' }>['props'] {
     const comparison = report.previous && labels.previous(report, report.previous);
     return {
-        label: title,
-        color: report.root.color,
-        ...amounts(report.answer),
+        label: subject.name ?? t('report_net_result', labels.lang),
+        color: subject.color,
+        ...amounts(subject),
         ...(comparison
             ? { comparison: fill('answer_compared_with', labels.lang, { period: comparison }) }
             : {}),
@@ -290,7 +321,7 @@ function chartProps(
         case 'pie':
             return {
                 kind: chart.kind,
-                label: fill('chart_breakdown', lang, { name: title }),
+                label: itemsLabel(report, title, lang),
                 items: chart.rows.map(id => {
                     const row = breakdownRowOf(report, id);
                     return {
@@ -308,7 +339,7 @@ function chartProps(
             }
             return {
                 kind: 'compare',
-                label: fill('chart_breakdown', lang, { name: title }),
+                label: itemsLabel(report, title, lang),
                 // Both by their dates, so they read alike: never `Last month` against
                 // `September 2026`.
                 periods: {
@@ -331,6 +362,13 @@ function chartProps(
             };
         }
     }
+}
+
+/** The label of a chart of the parts, or of targets side by side, which are no parts of one whole. */
+function itemsLabel(report: ReportData, title: string, lang: string): string {
+    return report.targets
+        ? fill('chart_side_by_side', lang, { names: title })
+        : fill('chart_breakdown', lang, { name: title });
 }
 
 function breakdownRowOf(report: ReportData, id: string): ReportRow {

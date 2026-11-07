@@ -104,6 +104,14 @@ describe('chartConfig', () => {
         ).toEqual([0, 1, 2, 3]);
     });
 
+    it('tells apart series of one type color by month, the first in its usual tone', () => {
+        const chart = view('targets-by-month');
+        const colors = datasets(chart).map(dataset => dataset.backgroundColor);
+        expect(colors[0]).toBe('var(--bkper-color-red-medium)');
+        expect(new Set(colors).size).toBe(colors.length);
+        expect(chart.legend).toBe(true);
+    });
+
     it('labels months with their year when the chart spans years', () => {
         const chart = view('net-income-last-12-months-ar');
         expect(chart.config.data.labels?.[0]).toBe(

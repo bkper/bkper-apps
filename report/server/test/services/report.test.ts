@@ -532,6 +532,285 @@ function sharedAccountLedger(): FakeLedger {
     return ledger;
 }
 
+describe('buildReport: targets side by side', () => {
+    const plan = async (request: ReportIntent, ledger: FakeLedger = fixtureLedger()) =>
+        planQueries(planReport(request, await ledgerSnapshot(ledger)));
+    /** Each target's name and amounts, in the order shown. */
+    const shown = (data: ReportData) =>
+        (data.targets ?? []).map(
+            row =>
+                `${row.name} ${row.amount} (prev ${row.previous ?? '-'}, share ${row.share ?? '-'})`
+        );
+    /** The amount a report of one subject alone shows. */
+    const alone = async (root: string, period: string, extra: Partial<ReportIntent> = {}) =>
+        (await report(intent(root, period, extra))).answer;
+
+    it('reads targets under one root from its queries, once, each with its own amount', async () => {
+        const request = intent('g-expenses', 'last_month', {
+            target: 'a-food',
+            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+        });
+        expect(await plan(request)).toEqual(await plan(intent('g-expenses', 'last_month')));
+
+        const data = await report(request);
+        expect(data.nature).toBe('activity');
+        // In the order asked for, not by size, with no share of a whole and no total.
+        expect(shown(data)).toEqual([
+            'Food 200.5 (prev 0, share -)',
+            'Rent 1000 (prev 0, share -)',
+        ]);
+        expect(data.root).toBeUndefined();
+        expect(data.answer).toBeUndefined();
+        expect(data.calculated).toBeUndefined();
+        expect(data.breakdown).toBe(data.targets);
+        expect(data.query).toBe(
+            "(account:'Food' OR account:'Rent') after:2026-10-01 before:2026-11-01"
+        );
+        for (const [row, target] of [
+            [data.targets?.[0], 'a-food'],
+            [data.targets?.[1], 'a-rent'],
+        ] as const) {
+            expect(row?.amount).toBe((await alone('g-expenses', 'last_month', { target })).amount);
+        }
+    });
+
+    it('shows the same report, in the order asked for, whichever comes first', async () => {
+        const forward = await report(
+            intent('g-expenses', '2026', {
+                target: 'a-food',
+                alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+            })
+        );
+        const backward = await report(
+            intent('g-expenses', '2026', {
+                target: 'a-rent',
+                alongside: [{ root: 'g-expenses', target: 'a-food' }],
+            })
+        );
+        expect(shown(backward)).toEqual([...shown(forward)].reverse());
+        // Ranked bars rank by size, whatever the order asked for.
+        expect(viewOf(forward, 'ranked-bar').rows).toEqual(['a-rent', 'a-food']);
+        expect(viewOf(backward, 'ranked-bar').rows).toEqual(['a-rent', 'a-food']);
+    });
+
+    it('reads targets of different roots with one query each, in parallel', async () => {
+        const request = intent('g-expenses', 'last_month', {
+            alongside: [{ root: 'g-revenue' }, { root: 'g-expenses', target: 'a-rent' }],
+        });
+        expect(await plan(request)).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Revenue' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Revenue' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        const data = await report(request);
+        // Expenses is Rent's parent: each is its own Bkper balance, side by side.
+        expect(shown(data)).toEqual([
+            'Expenses 1200.5 (prev 0, share -)',
+            'Revenue 5000 (prev 0, share -)',
+            'Rent 1000 (prev 0, share -)',
+        ]);
+        expect(data.targets?.[0].amount).toBe((await alone('g-expenses', 'last_month')).amount);
+        expect(data.targets?.[1].amount).toBe((await alone('g-revenue', 'last_month')).amount);
+        // A group keeps the rows Bkper lists under it, with their shares of it.
+        expect(rows(data.targets?.[0].children ?? [])).toEqual([
+            'Rent 1000 (prev 0, change -, share 0.833)',
+            'Food 200.5 (prev 0, change -, share 0.167)',
+        ]);
+        expect(data.query).toBe(
+            "(group:'Expenses' OR group:'Revenue' OR account:'Rent') after:2026-10-01 before:2026-11-01"
+        );
+    });
+
+    it('adds nothing up: no amount of the report is a sum of its targets', async () => {
+        const data = await report(
+            intent('g-expenses', '2026', {
+                monthly: true,
+                target: 'a-food',
+                alongside: [{ root: 'g-expenses', target: 'a-rent' }, { root: 'g-revenue' }],
+            })
+        );
+        const targets = data.targets ?? [];
+        expect(targets).toHaveLength(3);
+        // Every value one target has of its own, which a sum may equal by chance.
+        const own = new Set(
+            targets.flatMap(row => [row.amount, row.previous ?? '0', ...row.months])
+        );
+        const sums = new Set<string>();
+        const subsets = [
+            [0, 1],
+            [0, 2],
+            [1, 2],
+            [0, 1, 2],
+        ];
+        for (const subset of subsets) {
+            const part = subset.map(index => targets[index]);
+            const candidates = [
+                total(part.map(row => row.amount)),
+                total(part.map(row => row.previous)),
+                ...data.months.map((_, month) => total(part.map(row => row.months[month]))),
+            ];
+            candidates
+                .map(sum => sum.toFixed())
+                .filter(sum => !own.has(sum))
+                .forEach(sum => sums.add(sum));
+        }
+        expect(sums.size).toBeGreaterThan(0);
+        const shownAmounts = JSON.stringify(data, (key, value: unknown) =>
+            key === 'children' ? undefined : value
+        );
+        for (const sum of sums) {
+            expect(shownAmounts).not.toContain(`"${sum}"`);
+        }
+        // Each series by month is one target's own.
+        expect(data.chart).toMatchObject({ kind: 'bar' });
+        const series = data.chart.kind === 'bar' ? data.chart.series : [];
+        expect(series.map(entry => entry.id)).toEqual(['a-food', 'a-rent', 'g-revenue']);
+        expect(series.map(entry => entry.amounts)).toEqual(targets.map(row => row.months));
+    });
+
+    it('offers only charts that imply no whole', async () => {
+        const request = intent('g-expenses', '2026', {
+            monthly: true,
+            target: 'a-food',
+            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+        });
+        const data = await report(request);
+        expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'table']);
+        expect(data.charts.facts).toMatchObject({ rows: 2, sideBySide: true, net: false });
+        for (const chart of ['pie', 'donut', 'stacked'] as const) {
+            const preferred = await report({ ...request, chart });
+            expect(preferred.charts.unfit, chart).toEqual({
+                kind: chart,
+                reason: { code: 'side_by_side' },
+            });
+            expect(preferred.chart.fallback).toBe(true);
+        }
+        const bridge = await report({ ...request, chart: 'waterfall' });
+        expect(bridge.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'no_bridge' } });
+        expect(bridge.charts.main).toBe('compare');
+        // With no view or chart asked for, ranked bars of the targets.
+        expect((await report({ ...request, monthly: false })).charts.main).toBe('ranked-bar');
+    });
+
+    it('reads an account in no group and a root position side by side', async () => {
+        const request = intent('a-owner', 'today', { alongside: [{ root: 'g-card' }] });
+        // Each root's queries, exactly those of its own report.
+        expect(await plan(request)).toEqual([
+            ...(await plan(intent('a-owner', 'today'))),
+            ...(await plan(intent('g-card', 'today'))),
+        ]);
+        expect(await plan(request)).toEqual([
+            "account:'Owner' after:2026-11-05 before:2026-11-06 by:m",
+            "account:'Owner' before:2026-11-01 by:m",
+            "group:'Card' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Card' before:2026-11-01 by:m",
+        ]);
+        const data = await report(request);
+        expect(data.nature).toBe('position');
+        expect(data.targets?.map(row => row.amount)).toEqual([
+            (await alone('a-owner', 'today')).amount,
+            (await alone('g-card', 'today')).amount,
+        ]);
+        expect(data.query).toBe("(account:'Owner' OR group:'Card') before:2026-11-06");
+    });
+
+    it('filters every root’s queries by the hashtags', async () => {
+        const request = intent('g-expenses', 'last_month', {
+            target: 'a-food',
+            alongside: [{ root: 'g-revenue' }],
+            hashtags: ['trip'],
+        });
+        expect(await plan(request)).toEqual([
+            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Revenue' #trip after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Revenue' #trip after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        const data = await report(request);
+        expect(data.targets?.map(row => row.amount)).toEqual(['200.5', '0']);
+        expect(data.query).toBe(
+            "(account:'Food' OR group:'Revenue') #trip after:2026-10-01 before:2026-11-01"
+        );
+    });
+
+    it('shows a target asked for twice once, as the report of it alone', async () => {
+        const single = intent('g-expenses', 'last_month', { target: 'a-rent' });
+        // Rent is under Expenses and Net income: the same account, from either root.
+        const request = {
+            ...single,
+            alongside: [
+                { root: 'g-net', target: 'a-rent' },
+                { root: 'g-expenses', target: 'a-rent' },
+            ],
+        };
+        expect(await plan(request)).toEqual(await plan(single));
+        const data = await report(request);
+        const { intent: _intent, ...rest } = data;
+        const { intent: _single, ...own } = await report(single);
+        expect(rest).toEqual(own);
+
+        const repeated = await report({
+            ...intent('g-expenses', 'last_month'),
+            alongside: [{ root: 'g-revenue' }, { root: 'g-expenses' }],
+        });
+        expect(shown(repeated)).toEqual([
+            'Expenses 1200.5 (prev 0, share -)',
+            'Revenue 5000 (prev 0, share -)',
+        ]);
+    });
+
+    it('needs targets of one kind: activity or positions', async () => {
+        const snapshot = await fixtureSnapshot();
+        const mixed: ReportIntent[] = [
+            intent('g-expenses', 'last_month', { alongside: [{ root: 'g-assets' }] }),
+            intent('g-expenses', 'last_month', {
+                target: 'a-rent',
+                alongside: [{ root: 'g-assets', target: 'a-bank-a' }],
+            }),
+            intent('a-owner', 'last_month', { alongside: [{ root: 'g-revenue' }] }),
+        ];
+        for (const request of mixed) {
+            expect(() => planReport(request, snapshot)).toThrow(
+                expect.objectContaining({ reason: 'mixed_targets' })
+            );
+        }
+    });
+
+    it('rejects a net result or a target not under its root among them', async () => {
+        const snapshot = await fixtureSnapshot();
+        const cases: [ReportIntent, string][] = [
+            [
+                intent('net-result', 'last_month', { alongside: [{ root: 'g-expenses' }] }),
+                'unknown_target',
+            ],
+            [
+                intent('g-expenses', 'last_month', { alongside: [{ root: 'net-result' }] }),
+                'unknown_target',
+            ],
+            [
+                intent('g-expenses', 'last_month', {
+                    alongside: [{ root: 'g-expenses', target: 'a-salary' }],
+                }),
+                'unknown_target',
+            ],
+            [
+                intent('g-expenses', 'last_month', { alongside: [{ root: 'missing' }] }),
+                'unknown_root',
+            ],
+            [
+                intent('g-expenses', 'last_month', { alongside: [{ root: 'a-rent' }] }),
+                'unknown_root',
+            ],
+        ];
+        for (const [request, reason] of cases) {
+            expect(() => planReport(request, snapshot), JSON.stringify(request)).toThrow(
+                expect.objectContaining({ reason })
+            );
+        }
+    });
+});
+
 describe('buildReport: mixed groups', () => {
     it('shows the rows of a mixed group as Bkper returns them, without changing their signs', async () => {
         const data = await report(intent('g-net', 'last_month'));

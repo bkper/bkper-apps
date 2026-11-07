@@ -215,7 +215,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper) */
+                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper) */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -523,7 +523,7 @@ export interface components {
             success: false;
             error: {
                 /**
-                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `unknown_target` (422, the intent’s `target` is no group or Account under its root group), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, which the person can add in Bkper), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
+                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group), `mixed_targets` (422, the intent’s `alongside` mixes balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, which the person can add in Bkper), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
                  * @example book_not_found
                  */
                 code: string;
@@ -547,7 +547,7 @@ export interface components {
             text: string;
             intent: components["schemas"]["ReportIntent"];
         };
-        /** @description Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
+        /** @description Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
         ReportIntent: {
             /**
              * @description Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses: the net result Bkper calculates for the root group that combines Incoming and Outgoing groups; without one, the Incoming roots minus the Outgoing roots, labelled as calculated by Report, when each root is purely Incoming or Outgoing and no two share an Account. Also the id of an Account in no group (`bkper account list`), reported alone.
@@ -559,6 +559,8 @@ export interface components {
              * @example 5687803178385408
              */
             target?: string;
+            /** @description More groups or Accounts to show side by side with the first (`root` and `target`), in order: each with its own Bkper balance, never added up, with no total and no shares of one. All balances at a date (Asset, Liability) or all activity in a period (Incoming, Outgoing), else `mixed_targets`. One asked for twice shows once. Only charts that imply no whole fit: by month, area, ranked bars, compared and the table; a pie, donut or stacked chart shows dimmed with why. To show their total, the person adds a group that holds them in Bkper. Not with `net-result`. */
+            alongside?: components["schemas"]["ReportSubject"][];
             /**
              * @description The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Current periods end today; past ones are whole calendar periods.
              * @example this_year
@@ -584,6 +586,19 @@ export interface components {
              *     ]
              */
             hashtags?: string[];
+        };
+        /** @description A group or Account to show side by side: a root, or a `target` under it. */
+        ReportSubject: {
+            /**
+             * @description Id of a root (top-level) group of the Book, or of an Account in no group, as in `bkper group list` and `bkper account list`.
+             * @example 5687803178385408
+             */
+            root: string;
+            /**
+             * @description Id of a group or Account under the root group, at any depth, to show instead of the whole root. Left out, the root.
+             * @example 6235671829479424
+             */
+            target?: string;
         };
         /** @description The report, with `format: spec`. */
         ReportResponse: {
@@ -625,7 +640,7 @@ export interface components {
              */
             url: string;
         };
-        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -957,6 +972,11 @@ export interface components {
                  * @example false
                  */
                 permanent: boolean;
+                /**
+                 * @description Present when the report shows several groups or Accounts side by side (the parts are those), which are no parts of one whole.
+                 * @enum {boolean}
+                 */
+                sideBySide?: true;
             };
             /** @description The charts that fit, and how the main one was chosen. */
             chart: {
@@ -984,11 +1004,11 @@ export interface components {
                     kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
                     reason: {
                         /**
-                         * @description Why it does not fit: `net_result`, `negative_part` (a part below zero, `rowId`), `mixed_parts`, `few_parts`, `too_many_parts`, `few_months`, `no_amounts`, `no_previous`, `not_a_whole` (the parts Bkper returns do not add up to the total) or `no_bridge` (a bridge is never drawn). `not_a_bridge` and `no_change` are no longer given.
+                         * @description Why it does not fit: `net_result`, `negative_part` (a part below zero, `rowId`), `mixed_parts`, `few_parts`, `too_many_parts`, `few_months`, `no_amounts`, `no_previous`, `not_a_whole` (the parts Bkper returns do not add up to the total), `no_bridge` (a bridge is never drawn) or `side_by_side` (groups or Accounts side by side are no parts of one whole). `not_a_bridge` and `no_change` are no longer given.
                          * @example negative_part
                          * @enum {string}
                          */
-                        code: "net_result" | "negative_part" | "mixed_parts" | "few_parts" | "too_many_parts" | "few_months" | "no_amounts" | "no_previous" | "not_a_whole" | "no_bridge" | "not_a_bridge" | "no_change";
+                        code: "net_result" | "negative_part" | "mixed_parts" | "few_parts" | "too_many_parts" | "few_months" | "no_amounts" | "no_previous" | "not_a_whole" | "no_bridge" | "side_by_side" | "not_a_bridge" | "no_change";
                         /** @description The breakdown row that is the reason. */
                         rowId?: string;
                     };
@@ -1061,6 +1081,7 @@ export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
+export type ReportSubject = components['schemas']['ReportSubject'];
 export type ReportResponse = components['schemas']['ReportResponse'];
 export type ReportSpec = components['schemas']['ReportSpec'];
 export type ChartProps = components['schemas']['ChartProps'];

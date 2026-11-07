@@ -51,3 +51,23 @@ function shade(color: TypeColor, position: number): string {
     const percent = Math.round(weight * 100);
     return `color-mix(in srgb, ${typeColor(color, from)} ${percent}%, ${typeColor(color, to)})`;
 }
+
+/** Where the tones of series of one color go, after the first: far apart from each other. */
+const SERIES_SHADES = [0, 0.5, LIGHTEST_SHADE, 0.25, 0.7, 0.1];
+
+/**
+ * One color per series by month, so series of one type color stay apart: the first of each
+ * color in its tone, as alone; the others in tones far from it and from each other.
+ */
+export function seriesTones(colors: TypeColor[], tone: Exclude<Tone, 'low'>): string[] {
+    const first = tone === 'high' ? 0 : 0.5;
+    const positions = [first, ...SERIES_SHADES.filter(position => position !== first)];
+    const seen = new Map<TypeColor, number>();
+    return colors.map(color => {
+        const index = seen.get(color) ?? 0;
+        seen.set(color, index + 1);
+        return index === 0
+            ? typeColor(color, tone)
+            : shade(color, positions[index % positions.length]);
+    });
+}

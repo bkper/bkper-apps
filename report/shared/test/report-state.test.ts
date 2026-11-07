@@ -93,6 +93,57 @@ describe('report state', () => {
         expect(encodeReportState(state)?.[0]).toBe('2');
     });
 
+    it('round-trips targets side by side, in order, with or without a target each', () => {
+        for (const target of [undefined, '5687803178385408']) {
+            const state: ReportState = {
+                intent: {
+                    root: '5694067388186624',
+                    ...(target ? { target } : {}),
+                    alongside: [
+                        { root: '130003' },
+                        { root: '5694067388186624', target: '613367181' },
+                    ],
+                    period: 'this_year',
+                    monthly: false,
+                },
+                language: 'pt',
+            };
+            expect(roundTrip(state)).toEqual(state);
+            expect(encodeReportState(state)?.[0]).toBe('3');
+        }
+        const forward = encodeReportState({
+            intent: { root: 'a', alongside: [{ root: 'b' }], period: '2018', monthly: false },
+        });
+        const backward = encodeReportState({
+            intent: { root: 'b', alongside: [{ root: 'a' }], period: '2018', monthly: false },
+        });
+        expect(forward).not.toBe(backward);
+    });
+
+    it('fits two targets with their roots of Bkper ids, or gives no state', () => {
+        const id = (digit: string) => digit.repeat(16);
+        const intent = {
+            root: id('1'),
+            target: id('2'),
+            alongside: [{ root: id('1'), target: id('3') }],
+            period: 'this_year',
+            monthly: true,
+        };
+        const state = encodeReportState({ intent, language: 'pt' });
+        expect(state?.length).toBeLessThanOrEqual(MAX_STATE_LENGTH);
+        expect(decodeReportState(state ?? '')).toEqual({ intent, language: 'pt' });
+        // One more target under its root is longer than Bkper keeps: no state.
+        expect(
+            encodeReportState({
+                intent: {
+                    ...intent,
+                    alongside: [...intent.alongside, { root: id('1'), target: id('4') }],
+                },
+                language: 'pt',
+            })
+        ).toBeUndefined();
+    });
+
     it('opens states written before targets, unchanged, as the whole root', () => {
         for (const state of ['1MGJwLjIwMTcucHQuLjE5MTAwMg', '1MXRhLjIwMTcuLi4xOTEwMDI']) {
             const decoded = decodeReportState(state);
@@ -136,6 +187,29 @@ describe('report state', () => {
         expect(encodeReportState({ intent: { ...intent, target: 'a.b' } })).toBeUndefined();
         expect(
             encodeReportState({ intent: { ...intent, target: 't'.repeat(201) } })
+        ).toBeUndefined();
+        // Ids alongside are written between separators, so they cannot hold them.
+        for (const id of ['a.b', 'a,b', 'a:b', '']) {
+            expect(
+                encodeReportState({ intent: { ...intent, alongside: [{ root: id }] } }),
+                id
+            ).toBeUndefined();
+            expect(
+                encodeReportState({
+                    intent: { ...intent, alongside: [{ root: 'r', target: id }] },
+                }),
+                id
+            ).toBeUndefined();
+        }
+        expect(encodeReportState({ intent: { ...intent, alongside: [] } })).toBeUndefined();
+        expect(
+            encodeReportState({
+                intent: { ...intent, alongside: Array(6).fill({ root: 's' }) },
+            })
+        ).toBeUndefined();
+        // The first target is written before the root, so it cannot hold the separator.
+        expect(
+            encodeReportState({ intent: { ...intent, target: 'a.b', alongside: [{ root: 's' }] } })
         ).toBeUndefined();
     });
 
@@ -182,6 +256,15 @@ describe('report state', () => {
             '2' + base64url('0_a.2018...t'),
             '2' + base64url('0_a.2018...t.'),
             '2' + base64url('0_a.2018...' + 't'.repeat(201) + '.r'),
+            // Targets side by side have one at least alongside the first.
+            '3' + base64url('0_a.2018.....r'),
+            '3' + base64url('0_a.2018...s..'),
+            '3' + base64url('0_a.2018...s,.t.r'),
+            '3' + base64url('0_a.2018...:s..r'),
+            '3' + base64url('0_a.2018...t:..r'),
+            '3' + base64url('0_a.2018...a:b:c..r'),
+            '3' + base64url('0_a.2018...' + Array(6).fill('s').join(',') + '..r'),
+            '3' + base64url('0_a.2018...s.t'),
             '1AA',
             '1_w',
         ];

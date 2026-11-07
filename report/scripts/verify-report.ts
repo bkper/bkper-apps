@@ -17,6 +17,13 @@
  *   a root against its row in the CLI's query of the root, as Bkper does not find some accounts
  *   of older Books by name (`account:'<name>'` answers nothing), and an account in no group
  *   Bkper does not find so is no report, never a zero;
+ * - targets side by side (roots, a root with a group or account under it, groups or accounts
+ *   of different roots, positions, repeats, the reverse order and hashtags): that they read
+ *   exactly the queries of their roots, each once; that each is a row of its own, in the order
+ *   asked for, checked as a report of it alone is, with no total, no share and no
+ *   calculation, so nothing adds them up; that charts by month draw each target's own months,
+ *   ranked bars rank them by size, and no pie, donut or stacked chart fits; that one asked for
+ *   twice shows once; and that positions and activity together are `mixed_targets`;
  * - every row of the breakdown, at any depth, as Bkper's own balance of its group or account,
  *   now, before and in each month: no sign changed, no remainder; and that every group or
  *   account the CLI lists with an amount is a row, so nothing Bkper returns is hidden;
@@ -48,6 +55,7 @@ import {
     planQueries,
     planReport,
     viewKindOf,
+    type ReportAmounts,
     type ReportChart,
     type ReportData,
     type ReportRow,
@@ -238,7 +246,77 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
             intents.push({ ...target, period: lastYear, monthly: true, hashtags: [hashtag] });
         }
     }
+    for (const group of sideBySideOf(snapshot, targets)) {
+        const [first, ...alongside] = group;
+        const intent = { ...first, alongside };
+        intents.push(
+            { ...intent, period: lastYear, monthly: true },
+            { ...intent, period: quarter, monthly: false },
+            { ...intent, period: range.lastMonth, monthly: false, chart: 'compare' },
+            { ...intent, period: lastYear, monthly: false, chart: 'pie' },
+            { ...intent, period: lastYear, monthly: true, chart: 'stacked' },
+            { ...intent, period: 'today', monthly: false },
+            // The same targets the other way round.
+            {
+                ...group[group.length - 1],
+                alongside: group.slice(0, -1).reverse(),
+                period: lastYear,
+                monthly: false,
+            },
+            // A target asked for again shows once.
+            { ...intent, alongside: [...alongside, first], period: quarter, monthly: false },
+            ...hashtags.map(hashtag => ({
+                ...intent,
+                period: lastYear,
+                monthly: true,
+                hashtags: [hashtag],
+            }))
+        );
+    }
     return intents;
+}
+
+type Subject = Pick<ReportIntent, 'root' | 'target'>;
+
+/**
+ * Targets to show side by side, each of one kind: the activity roots; a root with each kind of
+ * target under it (a group, an account); targets under different roots; the position roots
+ * with an account in no group of their kind.
+ */
+function sideBySideOf(snapshot: Snapshot, targets: Subject[]): Subject[][] {
+    const permanent = (subject: Subject) =>
+        nodeOf(snapshot, subject.target ?? subject.root)?.permanent ?? false;
+    const roots = snapshot.roots.map(root => ({ root }));
+    const groups: Subject[][] = [];
+    for (const kind of [false, true]) {
+        const own = roots.filter(subject => permanent(subject) === kind);
+        const under = targets.filter(
+            subject => subject.target !== undefined && permanent(subject) === kind
+        );
+        const ungrouped = targets.filter(
+            subject => subject.target === undefined && permanent(subject) === kind
+        );
+        if (own.length >= 2) groups.push(own.slice(0, 3));
+        const [nested] = under;
+        if (nested) groups.push([{ root: nested.root }, nested]);
+        const other = under.find(subject => subject.root !== nested?.root);
+        if (nested && other) groups.push([nested, other]);
+        const account = under.find(
+            subject => snapshot.accounts[subject.target ?? ''] !== undefined
+        );
+        if (account && account !== nested) groups.push([nested ?? account, account]);
+        if (own[0] && ungrouped[0]) groups.push([own[0], ungrouped[0]]);
+    }
+    return groups.filter(group => group.length >= 2);
+}
+
+/** Targets of both kinds side by side, which no report shows. */
+function mixedOf(snapshot: Snapshot): ReportIntent | undefined {
+    const activity = snapshot.roots.find(root => !snapshot.groups[root].permanent);
+    const position = snapshot.roots.find(root => snapshot.groups[root].permanent);
+    return activity && position
+        ? { root: activity, alongside: [{ root: position }], period: 'this_year', monthly: false }
+        : undefined;
 }
 
 /** Accounts of a root read for its targets, the busiest in the year first. */
@@ -426,6 +504,9 @@ async function verifyReport(
     label: string,
     net: ExpectedNet
 ): Promise<void> {
+    if (!isOneSubject(report)) {
+        return verifySideBySide(cli, bookId, snapshot, report, label);
+    }
     const read = async (query: string) =>
         cliRows(await cli.balances(bookId, query), !query.includes('after:'));
     const cumulative = !report.query.includes('after:');
@@ -500,15 +581,194 @@ async function verifyReport(
     );
 }
 
+/** A report of one group or account, or of a net result: not of targets side by side. */
+type OneReport = Extract<ReportData, { answer: ReportAmounts }>;
+type SideBySideReport = Extract<ReportData, { targets: ReportRow[] }>;
+
+function isOneSubject(report: ReportData): report is OneReport {
+    return report.targets === undefined;
+}
+
+/** The targets of an intent side by side, each once, in order. */
+function subjectsOf(intent: ReportIntent, snapshot: Snapshot): Subject[] {
+    const all = [{ root: intent.root, target: intent.target }, ...(intent.alongside ?? [])];
+    const seen = new Set<string>();
+    return all.filter(subject => {
+        const id = subject.target ?? subject.root;
+        const first = !seen.has(id) && nodeOf(snapshot, id) !== undefined;
+        seen.add(id);
+        return first;
+    });
+}
+
+/**
+ * Targets side by side: each its own row, in the order asked for, checked against the CLI as a
+ * report of it alone is, from the queries of its root alone, each root once; no total, no
+ * share and nothing calculated, so nothing adds them up; and only charts that imply no whole.
+ */
+async function verifySideBySide(
+    cli: Cli,
+    bookId: string,
+    snapshot: Snapshot,
+    report: SideBySideReport,
+    label: string
+): Promise<void> {
+    const { intent, targets } = report;
+    const problems: string[] = [];
+    const subjects = subjectsOf(intent, snapshot);
+    const single = (subject: Subject): ReportIntent => ({
+        ...intent,
+        root: subject.root,
+        target: subject.target,
+        alongside: undefined,
+    });
+    const queries = planQueries(planReport(intent, snapshot));
+    const own = subjects.flatMap(subject => planQueries(planReport(single(subject), snapshot)));
+    if (queries.join() !== [...new Set(own)].join() || new Set(queries).size !== queries.length) {
+        problems.push('Targets side by side do not read exactly their roots’ queries, each once');
+    }
+    if (targets.map(row => row.id).join() !== subjects.map(s => s.target ?? s.root).join()) {
+        problems.push('The targets are not the rows, once each, in the order asked for');
+    }
+    if (report.answer !== undefined || report.calculated !== undefined) {
+        problems.push('Targets side by side have a total');
+    }
+    if (targets.some(row => row.share !== undefined)) {
+        problems.push('A target side by side has a share');
+    }
+    if (report.breakdown !== targets) {
+        problems.push('The breakdown is not the targets');
+    }
+    const dates = /(after:\S+ )?before:\S+$/.exec(report.query)?.[0] ?? '';
+    const tags = (intent.hashtags ?? []).map(tag => ` #${tag}`).join('');
+    await Promise.all(
+        subjects.map(async (subject, index) => {
+            const row = targets[index];
+            const node = nodeOf(snapshot, subject.target ?? subject.root);
+            if (!row || !node) return;
+            // An account under a root against its row in the CLI's query of the root, as Bkper
+            // does not find some accounts of older Books by name.
+            const id = subject.target ?? subject.root;
+            const account =
+                subject.target !== undefined && Object.hasOwn(snapshot.accounts, subject.target);
+            const kind = Object.hasOwn(snapshot.groups, id) ? 'group' : 'account';
+            const filter = account
+                ? `group:${quote(snapshot.groups[subject.root].name)}`
+                : `${kind}:${quote(node.name)}`;
+            const query = `${filter}${tags} ${dates}`;
+            const read = async (text: string) =>
+                cliRows(await cli.balances(bookId, text), !text.includes('after:'));
+            const [current, previous] = await Promise.all([
+                read(query),
+                report.previous
+                    ? read(withDates(report, query, report.previous))
+                    : Promise.resolve(undefined),
+            ]);
+            const cumulative = !report.query.includes('after:');
+            const byMonth =
+                report.months.length > 1 && (report.nature === 'position' || !cumulative);
+            const total = (rows: CliTable | undefined, name: string, nature: Nature) =>
+                shown(nature, rows?.get(name)?.[0]?.total ?? new Amount(0));
+            const same = (what: string, actual: string | undefined, expected: Amount) => {
+                if (actual === undefined || !new Amount(actual).eq(expected)) {
+                    problems.push(`${what}: report ${actual} vs CLI ${expected.toFixed()}`);
+                }
+            };
+            const month = (name: string, nature: Nature, at: string) => {
+                const months = current.get(name)?.[0]?.months ?? new Map<string, Amount>();
+                return shown(
+                    nature,
+                    cliSeries(report, months, cumulative).get(at) ?? new Amount(0)
+                );
+            };
+            const names = new Set<string>();
+            const visit = (entry: ReportRow) => {
+                names.add(entry.name);
+                const nature = natureOf(snapshot, entry);
+                same(entry.name, entry.amount, total(current, entry.name, nature));
+                if (previous) {
+                    same(
+                        `${entry.name} previous`,
+                        entry.previous,
+                        total(previous, entry.name, nature)
+                    );
+                }
+                if (byMonth) {
+                    report.months.forEach((at, i) =>
+                        same(`${entry.name} ${at}`, entry.months[i], month(entry.name, nature, at))
+                    );
+                }
+                entry.children.forEach(visit);
+            };
+            visit(row);
+            // The CLI table of the target alone lists nothing with an amount that is no row.
+            for (const table of account ? [] : [current, previous]) {
+                for (const [name, rows] of table ?? []) {
+                    if (!names.has(name) && !rows[0].total.eq(0)) {
+                        problems.push(
+                            `${name}: Bkper returns it with an amount, but it is not a row`
+                        );
+                    }
+                }
+            }
+        })
+    );
+    const kinds = report.charts.views.map(viewKindOf);
+    for (const whole of ['donut', 'pie', 'stacked', 'waterfall'] as const) {
+        if (kinds.includes(whole)) problems.push(`${whole} of targets side by side`);
+    }
+    const preferred = intent.chart;
+    if (
+        (preferred === 'pie' || preferred === 'donut' || preferred === 'stacked') &&
+        report.charts.unfit?.reason.code !== 'side_by_side'
+    ) {
+        problems.push(`A ${preferred} asked for is not unfit as side by side`);
+    }
+    for (const view of report.charts.views) {
+        if (view.kind === 'bar' || view.kind === 'line' || view.kind === 'area') {
+            const series = view.series.map(entry => `${entry.id}:${entry.amounts.join()}`);
+            const rows = targets.map(row => `${row.id}:${row.months.join()}`);
+            if (series.join('|') !== rows.join('|')) {
+                problems.push(`${view.kind}: the series are not each target’s own months`);
+            }
+        }
+        if (view.kind === 'ranked-bar') {
+            const ranked = targets
+                .filter(row => !new Amount(row.amount).eq(0))
+                .sort((a, b) => new Amount(b.amount).abs().cmp(new Amount(a.amount).abs()))
+                .map(row => row.id);
+            if (view.rows.join() !== ranked.join()) {
+                problems.push('ranked-bar: does not rank the targets with an amount by size');
+            }
+        }
+        if (view.kind === 'compare' && view.rows.some(id => !targets.some(row => row.id === id))) {
+            problems.push('compare: draws what is not a target');
+        }
+    }
+    problems.push(...choiceProblems(report));
+    const { charts } = report;
+    const unfit = charts.unfit ? `, ${charts.unfit.kind} unfit: ${charts.unfit.reason.code}` : '';
+    check(
+        problems.length === 0,
+        `${label} [${intent.chart ?? 'auto'} → ${charts.main} by ${charts.rule}${unfit}; ` +
+            `${charts.views.length} views]: ${targets.map(row => `${row.name} ${row.amount}`).join(' | ')}` +
+            ` — ${report.query}` +
+            (problems.length ? `\n         ${problems.slice(0, 4).join('\n         ')}` : '')
+    );
+}
+
 /**
  * Whether a report of a target is of the target, read from its root's queries alone, with none
  * of its own; and an account in no group from queries of that account alone.
  */
-function targetProblems(report: ReportData, snapshot: Snapshot): string[] {
+function targetProblems(report: OneReport, snapshot: Snapshot): string[] {
     const { intent } = report;
     const queries = planQueries(planReport(intent, snapshot));
     if (intent.target !== undefined) {
-        const root = planQueries(planReport({ ...intent, target: undefined }, snapshot));
+        // A target asked for again alongside is the report of it alone.
+        const root = planQueries(
+            planReport({ ...intent, target: undefined, alongside: undefined }, snapshot)
+        );
         return [
             ...(report.root.id === intent.target ? [] : ['The report is not of its target']),
             ...(queries.join() === root.join() ? [] : ['A target reads queries its root does not']),
@@ -523,7 +783,7 @@ function targetProblems(report: ReportData, snapshot: Snapshot): string[] {
 }
 
 /** Whether a net result comes from where the Book's groups and accounts say it must. */
-function netProblems(report: ReportData, net: ExpectedNet): string[] {
+function netProblems(report: OneReport, net: ExpectedNet): string[] {
     if (report.intent.root !== NET_RESULT_ROOT) {
         return report.calculated ? ['A report of a group is calculated by Report'] : [];
     }
@@ -546,7 +806,7 @@ function netProblems(report: ReportData, net: ExpectedNet): string[] {
  * Incoming roots minus its Outgoing roots, in total, before and in every month, with no
  * account under two roots.
  */
-function calculatedProblems(report: ReportData, cli: CliCheck): string[] {
+function calculatedProblems(report: OneReport, cli: CliCheck): string[] {
     const problems: string[] = [];
     const { snapshot, current, previous, total, same } = cli;
     const roots = report.breakdown.map(row => snapshot.groups[row.id]);
@@ -603,7 +863,7 @@ function calculatedProblems(report: ReportData, cli: CliCheck): string[] {
  * Every row, at any depth, is Bkper's own balance of its group or account, now, before and in
  * each month; and every group or account the CLI lists with an amount is a row.
  */
-function rowProblems(report: ReportData, cli: CliCheck): string[] {
+function rowProblems(report: OneReport, cli: CliCheck): string[] {
     const problems: string[] = [];
     const { snapshot, current, previous, total, same } = cli;
     const names = new Set<string>();
@@ -686,7 +946,7 @@ function choiceProblems(report: ReportData): string[] {
  * Cross-checks the data of a chart against the CLI: each month of a chart by month, breakdown
  * parts and their whole, stacked parts in every month and their whole, and compared parts.
  */
-function chartProblems(report: ReportData, chart: ReportChart, cli: CliCheck): string[] {
+function chartProblems(report: OneReport, chart: ReportChart, cli: CliCheck): string[] {
     const problems: string[] = [];
     const { snapshot, current, total, same } = cli;
     const root = report.calculated ? undefined : nodeOf(snapshot, report.root.id);
@@ -836,9 +1096,13 @@ async function verifyBook(
     // One at a time, so the times are of the calculation alone.
     for (const intent of intentsFor(snapshot, hashtags)) {
         const target = intent.target === undefined ? undefined : nodeOf(snapshot, intent.target);
+        const alongside = (intent.alongside ?? []).map(
+            subject => nodeOf(snapshot, subject.target ?? subject.root)?.name ?? subject.root
+        );
         const label =
             `${nodeOf(snapshot, intent.root)?.name ?? intent.root}` +
             (target ? ` › ${target.name}` : '') +
+            alongside.map(name => ` | ${name}`).join('') +
             ` ${intent.period}` +
             (intent.monthly ? ' monthly' : '') +
             (intent.chart ? ` ${intent.chart}` : '') +
@@ -856,13 +1120,20 @@ async function verifyBook(
         } catch (error) {
             // Bkper does not find some accounts of older Books by their name: a report of
             // one in no group fails rather than show zero, and the CLI finds nothing either.
-            const ungrouped = snapshot.ungrouped[intent.root];
-            if (error instanceof MissingBalancesError && ungrouped) {
-                const own = `account:${quote(ungrouped.name)} before:${addDays(snapshot.today, 1)}`;
-                const rows = cliRows(await cli.balances(bookId, own), true);
+            const ungrouped = subjectsOf(intent, snapshot)
+                .filter(subject => subject.target === undefined)
+                .map(subject => snapshot.ungrouped[subject.root])
+                .filter(account => account !== undefined);
+            if (error instanceof MissingBalancesError && ungrouped.length > 0) {
+                const found = await Promise.all(
+                    ungrouped.map(async account => {
+                        const own = `account:${quote(account.name)} before:${addDays(snapshot.today, 1)}`;
+                        return cliRows(await cli.balances(bookId, own), true).has(account.name);
+                    })
+                );
                 check(
-                    !rows.has(ungrouped.name),
-                    `${label}: no report, as Bkper does not find ${ungrouped.name} by its name`
+                    found.includes(false),
+                    `${label}: no report, as Bkper does not find ${ungrouped.map(account => account.name).join(' or ')} by its name`
                 );
                 continue;
             }
@@ -877,6 +1148,19 @@ async function verifyBook(
             }
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+    const mixed = mixedOf(snapshot);
+    if (mixed) {
+        let reason: string | undefined;
+        try {
+            planReport(mixed, snapshot);
+        } catch (error) {
+            reason = error instanceof ReportError ? error.reason : String(error);
+        }
+        check(
+            reason === 'mixed_targets',
+            `${nodeOf(snapshot, mixed.root)?.name} | ${nodeOf(snapshot, mixed.alongside?.[0].root ?? '')?.name}: positions and activity side by side are ${reason ?? 'a report'}`
+        );
     }
     await Promise.all(
         reports.map(({ label, report }) => verifyReport(cli, bookId, snapshot, report, label, net))

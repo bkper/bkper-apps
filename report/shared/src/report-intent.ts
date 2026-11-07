@@ -9,6 +9,9 @@ export const NET_RESULT_ROOT = 'net-result';
 /** The longest root or target id an intent accepts. */
 export const MAX_ROOT_LENGTH = 200;
 
+/** The most groups or accounts a report shows alongside its first, side by side. */
+export const MAX_ALONGSIDE = 5;
+
 export const REPORT_VIEWS = ['trend', 'breakdown', 'total'] as const;
 
 export type ReportView = (typeof REPORT_VIEWS)[number];
@@ -64,12 +67,25 @@ export const PERIOD_ID_PATTERN = new RegExp(
     `^(?:${RELATIVE_PERIODS.join('|')}|[12]\\d{3}(?:-Q[1-4]|-(?:0[1-9]|1[0-2]))?)$`
 );
 
+/** A group or account a report is of: a root group or an account in no group, or a target under a root group. */
+export interface ReportSubjectData {
+    /** Root group id, or the id of an account in no group. */
+    root: string;
+    /** A group or account under the root group to report instead of the whole root. */
+    target?: string;
+}
+
 /** What to report, fully resolved, as plain data. */
 export interface ReportIntentData {
     /** Root group id, the id of an account in no group, or {@link NET_RESULT_ROOT}. */
     root: string;
     /** A group or account under the root group to report instead of the whole root. */
     target?: string;
+    /**
+     * More groups or accounts to show side by side with the first (`root`, `target`), each
+     * with its own amount, in order; never added up.
+     */
+    alongside?: ReportSubjectData[];
     /** A period id, see {@link PERIOD_ID_PATTERN}. */
     period: string;
     monthly: boolean;

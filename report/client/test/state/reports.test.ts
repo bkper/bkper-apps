@@ -333,6 +333,43 @@ describe('Reports', () => {
         expect(title(reports.report)).toBe('Rent');
     });
 
+    it('remembers targets side by side apart from their first, and by their order', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        const first = { intent: { ...SUGGESTIONS[1].intent, target: 'a-food' }, language: 'pt' };
+        const both = {
+            intent: { ...first.intent, alongside: [{ root: first.intent.root, target: 'a-rent' }] },
+            language: 'pt',
+        };
+        const reversed = {
+            intent: {
+                ...first.intent,
+                target: 'a-rent',
+                alongside: [{ root: first.intent.root, target: 'a-food' }],
+            },
+            language: 'pt',
+        };
+        reports.open('book-1', '', first);
+        calls[0].resolve({ ...response('Food'), intent: first.intent, language: 'pt' });
+        await settle();
+
+        reports.openState(both);
+        expect(calls).toHaveLength(2);
+        expect(calls[1].body).toEqual({ intent: both.intent, language: 'pt' });
+        calls[1].resolve({ ...response('Food e Rent'), intent: both.intent, language: 'pt' });
+        await settle();
+        expect(title(reports.report)).toBe('Food e Rent');
+
+        reports.openState(reversed);
+        expect(calls).toHaveLength(3);
+        calls[2].resolve({ ...response('Rent e Food'), intent: reversed.intent, language: 'pt' });
+        await settle();
+
+        reports.openState(first);
+        reports.openState(both);
+        expect(calls).toHaveLength(3);
+        expect(title(reports.report)).toBe('Food e Rent');
+    });
+
     it('answers a typed suggestion text from memory', async () => {
         const { reports, intentCalls, prompts } = createReports();
         reports.open('book-1');
@@ -413,6 +450,16 @@ describe('Reports', () => {
 
         expect(reports.notice).toBe('error_no_net_result');
         expect(title(reports.report)).toBe('Expenses');
+    });
+
+    it('says why balances and activity cannot be side by side', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        const intent = { ...SUGGESTIONS[1].intent, alongside: [{ root: 'g-assets' }] };
+        reports.open('book-1', '', { intent, language: 'en' });
+        calls[0].reject(new AppApiError('Mixed', 422, 'mixed_targets'));
+        await settle();
+
+        expect(reports.notice).toBe('error_mixed_targets');
     });
 
     it('shows a quiet message for other failures, never the error', async () => {

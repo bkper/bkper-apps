@@ -1806,7 +1806,7 @@
                                 "name": "לפי חודש",
                                 "chart": {
                                     "kind": "bar",
-                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "label": "⁨Expenses⁩ לפי חודשים",
                                     "months": [
                                         "2026-01",
                                         "2026-02",
@@ -1847,7 +1847,7 @@
                                 "name": "שטח",
                                 "chart": {
                                     "kind": "area",
-                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "label": "⁨Expenses⁩ לפי חודשים",
                                     "months": [
                                         "2026-01",
                                         "2026-02",
@@ -1888,7 +1888,7 @@
                                 "name": "מוערם",
                                 "chart": {
                                     "kind": "stacked",
-                                    "label": "⁨Expenses⁩ לפי חודש",
+                                    "label": "⁨Expenses⁩ לפי חודשים",
                                     "months": [
                                         "2026-01",
                                         "2026-02",
@@ -2563,6 +2563,246 @@
                             "action": "openInBkper",
                             "params": {
                                 "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "id": "targets-pie-unfit",
+        "intent": {
+            "root": "g-expenses",
+            "period": "last_month",
+            "monthly": false,
+            "target": "a-food",
+            "alongside": [
+                {
+                    "root": "g-expenses",
+                    "target": "a-rent"
+                }
+            ],
+            "chart": "pie"
+        },
+        "lang": "en",
+        "spec": {
+            "root": "report",
+            "elements": {
+                "report": {
+                    "type": "Report",
+                    "props": {
+                        "title": "⁨Food⁩ and ⁨Rent⁩",
+                        "subtitle": "Last month",
+                        "locale": "en",
+                        "dir": "ltr",
+                        "fractionDigits": 2
+                    },
+                    "children": [
+                        "answer-1",
+                        "answer-2",
+                        "chart",
+                        "views",
+                        "breakdown",
+                        "source"
+                    ]
+                },
+                "answer-1": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Food",
+                        "amount": "-186.74",
+                        "color": "red",
+                        "previous": "0",
+                        "comparison": "vs. ⁨September 2026⁩"
+                    }
+                },
+                "answer-2": {
+                    "type": "Answer",
+                    "props": {
+                        "label": "Rent",
+                        "amount": "1000",
+                        "color": "red",
+                        "previous": "0",
+                        "comparison": "vs. ⁨September 2026⁩"
+                    }
+                },
+                "chart": {
+                    "type": "Chart",
+                    "props": {
+                        "kind": "ranked-bar",
+                        "label": "⁨⁨Food⁩ and ⁨Rent⁩⁩ side by side",
+                        "items": [
+                            {
+                                "rowId": "a-rent",
+                                "label": "Rent",
+                                "color": "red",
+                                "value": "1000"
+                            },
+                            {
+                                "rowId": "a-food",
+                                "label": "Food",
+                                "color": "red",
+                                "value": "-186.74"
+                            }
+                        ]
+                    }
+                },
+                "views": {
+                    "type": "Visualizations",
+                    "props": {
+                        "label": "Charts",
+                        "main": "ranked-bar",
+                        "views": [
+                            {
+                                "kind": "bar",
+                                "name": "By month",
+                                "chart": {
+                                    "kind": "bar",
+                                    "label": "⁨⁨Food⁩ and ⁨Rent⁩⁩ by month",
+                                    "months": [
+                                        "2026-10"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "values": [
+                                                "-186.74"
+                                            ]
+                                        },
+                                        {
+                                            "id": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "values": [
+                                                "1000"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "ranked-bar",
+                                "name": "Ranked"
+                            },
+                            {
+                                "kind": "compare",
+                                "name": "Compared",
+                                "chart": {
+                                    "kind": "compare",
+                                    "label": "⁨⁨Food⁩ and ⁨Rent⁩⁩ side by side",
+                                    "periods": {
+                                        "current": "October 2026",
+                                        "previous": "September 2026"
+                                    },
+                                    "items": [
+                                        {
+                                            "rowId": "a-food",
+                                            "label": "Food",
+                                            "color": "red",
+                                            "value": "-186.74",
+                                            "previous": "0"
+                                        },
+                                        {
+                                            "rowId": "a-rent",
+                                            "label": "Rent",
+                                            "color": "red",
+                                            "value": "1000",
+                                            "previous": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "table",
+                                "name": "Table"
+                            }
+                        ],
+                        "unfit": {
+                            "kind": "pie",
+                            "name": "Pie",
+                            "reason": "Side by side, they aren't parts of one total"
+                        }
+                    },
+                    "on": {
+                        "select": {
+                            "action": "selectChart"
+                        }
+                    }
+                },
+                "breakdown": {
+                    "type": "BreakdownTable",
+                    "props": {
+                        "label": "⁨⁨Food⁩ and ⁨Rent⁩⁩ side by side",
+                        "months": [
+                            "2026-10"
+                        ],
+                        "columns": {
+                            "name": "Name",
+                            "amount": "Amount",
+                            "share": "Share",
+                            "change": "Change",
+                            "trend": "By month"
+                        },
+                        "expandLabel": "Expand",
+                        "collapseLabel": "Collapse",
+                        "emptyLabel": "No balances in this period.",
+                        "rows": [
+                            {
+                                "id": "a-food",
+                                "kind": "account",
+                                "label": "Food",
+                                "color": "red",
+                                "amount": "-186.74",
+                                "previous": "0",
+                                "months": [
+                                    "-186.74"
+                                ],
+                                "children": []
+                            },
+                            {
+                                "id": "a-rent",
+                                "kind": "account",
+                                "label": "Rent",
+                                "color": "red",
+                                "amount": "1000",
+                                "previous": "0",
+                                "months": [
+                                    "1000"
+                                ],
+                                "children": []
+                            }
+                        ]
+                    },
+                    "on": {
+                        "expand": {
+                            "action": "expandRow"
+                        }
+                    }
+                },
+                "source": {
+                    "type": "Source",
+                    "props": {
+                        "footer": "Computed from the balances of ⁨Test Ledger⁩",
+                        "period": "Oct 1 – 31, 2026",
+                        "query": "(account:'Food' OR account:'Rent') after:2026-10-01 before:2026-11-01",
+                        "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "dataAt": "2026-11-05T15:00:00.000Z",
+                        "labels": {
+                            "source": "Source",
+                            "period": "Period",
+                            "query": "Query",
+                            "dataAt": "Balances read",
+                            "open": "Open in Bkper"
+                        }
+                    },
+                    "on": {
+                        "open": {
+                            "action": "openInBkper",
+                            "params": {
+                                "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20after%3A2026-10-01%20before%3A2026-11-01"
                             }
                         }
                     }

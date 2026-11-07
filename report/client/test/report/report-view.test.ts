@@ -71,7 +71,11 @@ describe('<report-view>', () => {
             const order = [...root(view).querySelectorAll('.report > *')].map(
                 node => node.className
             );
-            const expected = ['report-header', 'answer'];
+            // Targets side by side have an Answer each, together.
+            const answers = Object.values(spec.elements).filter(
+                element => element.type === 'Answer'
+            ).length;
+            const expected = ['report-header', answers > 1 ? 'answers' : 'answer'];
             if (Object.values(spec.elements).some(element => element.type === 'Visualizations')) {
                 expected.push('previews');
             }
@@ -94,6 +98,28 @@ describe('<report-view>', () => {
         const group = await mount(gallerySpec('banks-target-today'));
         expect(root(group).querySelector('.report-header h1')?.textContent).toBe('Banks');
         expect(root(group).querySelectorAll('.breakdown-section tbody tr')).toHaveLength(1);
+    });
+
+    it('shows targets side by side, an answer each in order, and no total', async () => {
+        const view = await mount(gallerySpec('targets-by-month'));
+        const answers = root(view).querySelectorAll('.answers > .answer');
+        expect([...answers].map(answer => answer.getAttribute('aria-label'))).toEqual([
+            'People',
+            'Office',
+            'Taxes',
+        ]);
+        expect(text(view, '.answers .answer-label')).toEqual(['People', 'Office', 'Taxes']);
+        expect(text(view, '.answers .answer-amount')).toHaveLength(3);
+        expect(root(view).querySelector('.breakdown tfoot')).toBeNull();
+        expect(text(view, '.breakdown > tbody > tr.row:not(.child) .row-label')).toEqual([
+            'People',
+            'Office',
+            'Taxes',
+        ]);
+        // Each target's series, told apart though all are expenses.
+        const chart = root(view).querySelector('wa-bar-chart');
+        const colors = chart?.config.data.datasets.map(dataset => dataset.backgroundColor);
+        expect(new Set(colors).size).toBe(3);
     });
 
     it('draws every chart kind with its Web Awesome chart, and no chart for a table', async () => {

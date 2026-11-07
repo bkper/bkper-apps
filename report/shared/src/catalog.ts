@@ -400,7 +400,8 @@ export const reportCatalog = defineCatalog(reportSchema, {
         },
         Answer: {
             props: AnswerProps,
-            description: 'The amount asked for, with its change from the previous period.',
+            description:
+                'The amount asked for, with its change from the previous period; one per group or account side by side, in order.',
         },
         Chart: {
             props: ChartProps,

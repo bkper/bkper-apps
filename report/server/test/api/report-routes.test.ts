@@ -455,6 +455,48 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
     });
 
+    it('shows targets side by side, one query per root, and opens them again by state', async () => {
+        const test = harness();
+        const intent = {
+            root: 'g-expenses',
+            target: 'a-food',
+            alongside: [{ root: 'g-revenue' }, { root: 'g-expenses', target: 'a-rent' }],
+            period: 'last_month',
+            monthly: false,
+        };
+        const response = await post(test, { intent, language: 'en' });
+
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
+        expect(body).toMatchObject({
+            intent,
+            query: "(account:'Food' OR group:'Revenue' OR account:'Rent') after:2026-10-01 before:2026-11-01",
+            trace: { facts: { sideBySide: true } },
+        });
+        const answers = Object.values(body.spec.elements).flatMap(element =>
+            element.type === 'Answer' ? [[element.props.label, element.props.amount]] : []
+        );
+        expect(answers).toEqual([
+            ['Food', '200.5'],
+            ['Revenue', '5000'],
+            ['Rent', '1000'],
+        ]);
+        expect([...test.queries].sort()).toEqual([
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Revenue' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Revenue' after:2026-10-01 before:2026-11-01 by:m",
+        ]);
+
+        const file = await post(test, { intent, language: 'en', format: 'html' });
+        const data = JSON.parse(
+            /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
+                await file.text()
+            )?.[1] ?? ''
+        ) as ReportFileData;
+        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+    });
+
     it('builds a report of an account in no group with a query of its own', async () => {
         const test = harness();
         const response = await post(test, {
@@ -557,6 +599,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         [
             'unknown_target',
             { root: 'g-expenses', target: 'a-salary', period: 'this_year', monthly: false },
+        ],
+        [
+            'mixed_targets',
+            {
+                root: 'g-expenses',
+                alongside: [{ root: 'g-assets' }],
+                period: 'this_year',
+                monthly: false,
+            },
         ],
     ])('answers %s for an intent the Book cannot have', async (code, intent) => {
         const test = harness();

@@ -95,7 +95,7 @@ const reportRoute = createRoute({
             },
         },
         422: jsonResponse(
-            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper)',
+            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper)',
             ReportErrorResponseSchema
         ),
         429: jsonResponse(

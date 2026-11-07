@@ -139,6 +139,11 @@
         "role": "message",
         "context": "Error shown when a saved or shared report names a Group or Account of the Book that was deleted, or moved out of the top-level Group the report reads it from. A Book is a Bkper ledger. One short sentence."
     },
+    "error_mixed_targets": {
+        "text": "Balances of assets or liabilities can't be side by side with income or expenses. Ask for them in separate reports.",
+        "role": "message",
+        "context": "Error shown when a report asks for several Groups or Accounts side by side, but some are of Asset or Liability Accounts (balances at a date) and others of Incoming or Outgoing Accounts (income or expenses within a period), which cannot be shown together. A Book is a Bkper ledger. Two short sentences."
+    },
     "report_net_result": {
         "text": "Net result",
         "role": "title",
@@ -233,7 +238,7 @@
         "role": "label",
         "context": "Accessible label of a chart showing a report's amount in each month of the period.",
         "placeholders": {
-            "name": "title of the report: the name of a Group of the Book, verbatim, or the translated words Net result"
+            "name": "title of the report: the name of a Group of the Book, verbatim, the names of several Groups or Accounts joined as a list, or the translated words Net result"
         }
     },
     "chart_breakdown": {
@@ -242,6 +247,14 @@
         "context": "Accessible label of a chart comparing the parts (sub-groups and Accounts) of a report's amount.",
         "placeholders": {
             "name": "title of the report: the name of a Group of the Book, verbatim, or the translated words Net result"
+        }
+    },
+    "chart_side_by_side": {
+        "text": "{names} side by side",
+        "role": "label",
+        "context": "Accessible label of a chart or table showing several Groups or Accounts of the Book next to each other, each with its own amount, never added up.",
+        "placeholders": {
+            "names": "names of the Groups or Accounts, verbatim, already joined as a list in the language, such as Food and Rent"
         }
     },
     "charts_label": {
@@ -367,6 +380,11 @@
         "text": "A bridge would show amounts that aren't Bkper balances",
         "role": "message",
         "context": "Why the bridge (waterfall) chart the person asked for is not shown: Report shows only balances that Bkper calculates, and the bars of a bridge would be sums Report makes itself. Shown under a dimmed preview. No ending punctuation."
+    },
+    "chart_unfit_side_by_side": {
+        "text": "Side by side, they aren't parts of one total",
+        "role": "message",
+        "context": "Why the pie, donut or stacked bar chart the person asked for is not shown: the report shows several Groups or Accounts side by side, each with its own amount, and they are not slices of one total. Shown under a dimmed preview. No ending punctuation."
     },
     "breakdown_label": {
         "text": "Breakdown",

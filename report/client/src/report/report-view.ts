@@ -1,6 +1,7 @@
 /**
  * `<report-view>` renders a report spec of the report catalog: the Report with its Answer,
  * Chart, Visualizations, BreakdownTable and Source, in the spec's order, language and direction.
+ * Several Answers, one per target side by side, show together, in order, where the first is.
  *
  * Self-contained: no app state and no network. It registers the Web Awesome components it
  * draws with; the page provides the Web Awesome theme and `@bkper/web-design` tokens. Rows
@@ -112,6 +113,12 @@ export class ReportView extends LitElement {
         const rows = table?.props.rows ?? [];
         const highlight = this.highlight(rows);
         const shown = this.shown(spec);
+        // Several Answers, of targets side by side, show together where the first one is.
+        const answers = root.children.flatMap(id => {
+            const element = spec.elements[id];
+            return element?.type === 'Answer' ? [element.props] : [];
+        });
+        const firstAnswer = root.children.find(id => spec.elements[id]?.type === 'Answer');
         return html`
             <article class="report" lang=${props.locale} dir=${props.dir}>
                 <header class="report-header">
@@ -120,6 +127,13 @@ export class ReportView extends LitElement {
                 </header>
                 ${root.children.map(id => {
                     const element = spec.elements[id];
+                    if (element?.type === 'Answer' && answers.length > 1) {
+                        return id === firstAnswer
+                            ? html`<div class="answers">
+                                  ${answers.map(answer => renderAnswer(answer, format, props.title))}
+                              </div>`
+                            : nothing;
+                    }
                     return element
                         ? this.renderElement(element, props, format, rows, highlight, shown)
                         : nothing;

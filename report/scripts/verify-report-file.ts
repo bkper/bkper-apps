@@ -190,10 +190,50 @@ async function open(page: Page, file: ReportFile): Promise<Frame> {
 
 async function check(page: Page, frame: Frame): Promise<string[]> {
     const failures: string[] = [];
+    // One answer per Answer of the spec: several for targets side by side, each its own.
     const answer = frame.locator('report-view .answer-amount');
-    await answer.waitFor({ timeout: 5000 });
-    if (!/\p{Nd}/u.test((await answer.textContent()) ?? '')) {
-        failures.push('The answer shows no amount');
+    await answer.first().waitFor({ timeout: 5000 });
+    const answers = await frame.evaluate(() => {
+        const data = document.getElementById('report-data')?.textContent ?? '{}';
+        const spec = JSON.parse(data) as { spec?: { elements?: Record<string, { type: string }> } };
+        return Object.values(spec.spec?.elements ?? {}).filter(element => element.type === 'Answer')
+            .length;
+    });
+    const amounts = await answer.allTextContents();
+    if (amounts.length !== answers || amounts.some(text => !/\p{Nd}/u.test(text))) {
+        failures.push(`${amounts.length} answers show amounts, not ${answers}`);
+    }
+    if (answers > 1) {
+        // Side by side: within the report, none over another.
+        const boxes = await frame.locator('report-view .answers > .answer').evaluateAll(elements =>
+            elements.map(element => {
+                const box = element.getBoundingClientRect();
+                const report = element.closest('.report')?.getBoundingClientRect();
+                return {
+                    left: box.left,
+                    right: box.right,
+                    top: box.top,
+                    bottom: box.bottom,
+                    inside:
+                        report !== undefined &&
+                        box.left >= report.left - 0.5 &&
+                        box.right <= report.right + 0.5,
+                };
+            })
+        );
+        const overlap = boxes.some((a, i) =>
+            boxes.some(
+                (b, j) =>
+                    i < j &&
+                    a.left < b.right - 0.5 &&
+                    b.left < a.right - 0.5 &&
+                    a.top < b.bottom - 0.5 &&
+                    b.top < a.bottom - 0.5
+            )
+        );
+        if (boxes.length !== answers || overlap || boxes.some(box => !box.inside)) {
+            failures.push('The answers side by side overlap or leave the report');
+        }
     }
     const hasChart = await frame.evaluate(() => {
         const data = document.getElementById('report-data')?.textContent ?? '{}';

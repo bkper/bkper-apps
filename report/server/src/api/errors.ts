@@ -18,6 +18,7 @@ export type ApiErrorCode =
     | 'future_period'
     | 'unknown_root'
     | 'unknown_target'
+    | 'mixed_targets'
     | 'no_net_result'
     | 'ai_allowance_exhausted'
     | 'upstream_error'
@@ -51,6 +52,8 @@ const REPORT_ERROR_MESSAGES = {
         'The intent names no root group of this Book, no Account in no group, nor `net-result`.',
     unknown_target:
         'The intent’s target is no group or Account under its root group. Take the intent of a suggestion or of an earlier report, or send the person’s words as `prompt`.',
+    mixed_targets:
+        'Balances at a date (Asset, Liability) and activity in a period (Incoming, Outgoing) cannot be side by side. Ask for them in separate reports.',
     no_net_result:
         'This Book has no net result: no group combines its Incoming and Outgoing groups. Tell the person to add one in Bkper (a top-level group holding the income and expense groups), or ask for one of its groups.',
 } as const;

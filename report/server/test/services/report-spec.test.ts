@@ -267,6 +267,78 @@ describe('buildReportSpec', () => {
         expect(element(await spec(intent('a-owner', 'today')), 'Report').props.title).toBe('Owner');
     });
 
+    it('shows targets side by side, each with its own Answer, and no total', async () => {
+        const request = intent('g-expenses', 'last_month', {
+            target: 'a-food',
+            alongside: [{ root: 'g-revenue' }],
+        });
+        const built = await spec(request);
+        expect(validateReportSpec(built).valid).toBe(true);
+        const report = element(built, 'Report');
+        expect(report.props.title).toBe(`${isolate('Food')} and ${isolate('Revenue')}`);
+        const answers = report.children
+            .map(id => built.elements[id])
+            .filter(
+                (candidate): candidate is Extract<ReportElement, { type: 'Answer' }> =>
+                    candidate?.type === 'Answer'
+            );
+        expect(answers.map(answer => answer.props)).toEqual([
+            {
+                label: 'Food',
+                color: 'red',
+                amount: '200.5',
+                previous: '0',
+                comparison: `vs. ${isolate('September 2026')}`,
+            },
+            {
+                label: 'Revenue',
+                color: 'green',
+                amount: '5000',
+                previous: '0',
+                comparison: `vs. ${isolate('September 2026')}`,
+            },
+        ]);
+        // The answers come first, in the order asked for.
+        expect(report.children.slice(0, 2)).toEqual(['answer-1', 'answer-2']);
+
+        const table = element(built, 'BreakdownTable').props;
+        expect(table.total).toBeUndefined();
+        expect(table.label).toBe(`${isolate(report.props.title)} side by side`);
+        expect(table.rows.map(row => [row.label, row.amount, row.share])).toEqual([
+            ['Food', '200.5', undefined],
+            ['Revenue', '5000', undefined],
+        ]);
+        const chart = element(built, 'Chart').props;
+        expect(chart).toMatchObject({
+            kind: 'ranked-bar',
+            label: `${isolate(report.props.title)} side by side`,
+        });
+        expect(element(built, 'Source').props.query).toBe(
+            "(account:'Food' OR group:'Revenue') after:2026-10-01 before:2026-11-01"
+        );
+        expect(element(built, 'Source').props.calculated).toBeUndefined();
+    });
+
+    it('says why a pie of targets side by side does not fit, in the report’s language', async () => {
+        const request = intent('g-expenses', '2026', {
+            target: 'a-food',
+            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+            chart: 'pie',
+        });
+        const unfit = element(await spec(request), 'Visualizations').props.unfit;
+        expect(unfit).toEqual({
+            kind: 'pie',
+            name: 'Pie',
+            reason: t('chart_unfit_side_by_side', 'en'),
+        });
+        addAllLocales();
+        const pt = element(await spec(request, 'pt'), 'Visualizations').props.unfit;
+        expect(pt?.reason).toBe(t('chart_unfit_side_by_side', 'pt'));
+        expect(element(await spec(request, 'pt'), 'Report').props.title).toBe(
+            `${isolate('Food')} e ${isolate('Rent')}`
+        );
+    });
+
     it('keeps Bkper names verbatim and nests rows like the report', async () => {
         const built = await spec(intent('g-assets', 'today'));
         expect(labels(element(built, 'BreakdownTable').props.rows)).toEqual([

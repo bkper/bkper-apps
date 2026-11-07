@@ -8,7 +8,7 @@
  */
 import type { ChartConfiguration, ChartDataset, Plugin } from 'chart.js';
 import { isolate } from 'report-shared/bidi';
-import { faded, hollow, shades, typeColor } from './colors.js';
+import { faded, hollow, seriesTones, shades, typeColor } from './colors.js';
 import { ReportFormat } from './format.js';
 import { findRow, topRow, type BreakdownRow, type PropsOf, type TypeColor } from './spec-types.js';
 
@@ -130,10 +130,20 @@ function byMonth(chart: ChartKind<'bar' | 'line' | 'area' | 'stacked'>, context:
         drawn !== undefined && (id === drawn.id || (stacked && id === topRow(rows, drawn.id)?.id));
     const stood = chart.series.find(series => standsFor(series.id));
     const stackShades = stacked ? shades(chart.series.map(series => series.color)) : [];
+    const isLine = (entry: (typeof chart.series)[number]) => 'line' in entry && entry.line === true;
+    // Series of one type color, such as targets side by side, each in a tone of its own.
+    const drawnAs = (lines: boolean) => {
+        const entries = chart.series.filter(entry => isLine(entry) === lines);
+        const tones = seriesTones(
+            entries.map(entry => entry.color),
+            element === 'line' || lines ? 'high' : 'medium'
+        );
+        return new Map(entries.map((entry, index) => [entry, tones[index]]));
+    };
+    const tones = new Map([...drawnAs(false), ...drawnAs(true)]);
     const series: Series[] = chart.series.map((entry, index) => {
-        const line = 'line' in entry && entry.line === true;
-        const tone = element === 'line' || line ? 'high' : 'medium';
-        const color = stacked ? stackShades[index] : typeColor(entry.color, tone);
+        const line = isLine(entry);
+        const color = stacked ? stackShades[index] : (tones.get(entry) ?? '');
         return {
             label: entry.label,
             color,

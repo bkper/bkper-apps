@@ -336,7 +336,10 @@ async function main(): Promise<void> {
         await agent.waitForFunction(() => 'showFile' in window);
         await agent.evaluate(html => Reflect.get(window, 'showFile')(html), file.html);
         const fileFrame = await frameOf(page, url => url === 'about:srcdoc');
-        await fileFrame.locator('report-view .answer-amount').waitFor({ timeout: TIMEOUT_MS });
+        await fileFrame
+            .locator('report-view .answer-amount')
+            .first()
+            .waitFor({ timeout: TIMEOUT_MS });
         await page.waitForTimeout(300);
         check((await log(agent, 'agentLog')).length === 0, 'the file sends nothing before a click');
 

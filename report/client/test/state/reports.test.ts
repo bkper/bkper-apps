@@ -367,6 +367,23 @@ describe('Reports', () => {
         expect(reports.showsSuggestions).toBe(true);
     });
 
+    it('says the Book has no net result and how to give it one, keeping the last report', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.input('expenses this year');
+        reports.submit();
+        calls[0].resolve(response('Expenses'));
+        await settle();
+
+        reports.input('net result');
+        reports.submit();
+        calls[1].reject(new AppApiError('No net result', 422, 'no_net_result'));
+        await settle();
+
+        expect(reports.notice).toBe('error_no_net_result');
+        expect(title(reports.report)).toBe('Expenses');
+    });
+
     it('shows a quiet message for other failures, never the error', async () => {
         const { reports, calls } = createReports();
         reports.open('book-1');

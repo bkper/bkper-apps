@@ -10,10 +10,10 @@ Report turns a short request, such as _expenses by category this year_, into a f
 
 - **The answer first**: the amount, the same amount in the previous comparable period, and the change.
 - **One chart** that fits the question: bars by month, a line for balances over time, ranked bars or a donut for a breakdown. Or the chart you ask for (see [Charts](#charts)). Above it, small previews of every chart that fits the same numbers: click one to see it instead. The previews stay in place when the chart's height changes.
-- **A breakdown table** of the group's subgroups and Accounts, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
+- **A breakdown table** of the group's subgroups and Accounts, as Bkper lists them, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
 - **The source**: the exact Bkper query, the period and when the balances were read, with a link to open the same query in your Book.
 
-Every number is computed from your Book's balances by fixed rules, never by AI. AI only recognizes what your request is about: the group, the period, and whether you ask about months, parts, an earlier period or a step-by-step bridge, or name a chart. Fixed rules then decide the report and its chart.
+Every amount is a balance Bkper calculates for one group or Account, shown as Bkper shows it: Report adds nothing up and changes no sign, with one labelled exception for the net result (see below). Numbers never come from AI. AI only recognizes what your request is about: the group, the period, and whether you ask about months, parts, an earlier period or a step-by-step bridge, or name a chart. Fixed rules then decide the report and its chart.
 
 ## How to use it
 
@@ -40,16 +40,19 @@ Write the way you would ask a colleague, in any language:
 | You type | You get |
 | --- | --- |
 | expenses by category this year | This year's expenses, broken down by their groups and Accounts |
-| income versus expenses last year | Last year's net result: incoming, outgoing and what is left |
+| income versus expenses last year | Last year's net result, and the groups that make it |
 | receitas por mês em 2025 | Revenue of each month of 2025 |
 | ¿cuánto tengo en mis cuentas hoy? | Your asset balances today, by Account |
 | 去年第四季度的支出 | Expenses in the fourth quarter of last year |
 | dettes à la fin de 2024 | What you owed at the end of 2024 |
 | #travel expenses this year | This year's expenses on transactions tagged `#travel` |
 | despesas por categoria em pizza | This year's expenses as a pie chart |
-| bridge from revenue to profit last year | Last year's net result as a waterfall, from income through each expense |
 
 A report always starts from one of the **top-level groups** of your Book, such as Expenses or Assets, or from **income versus expenses** (the net result). Activity groups (incoming and outgoing) show what moved within the period; balance groups (assets and liabilities) show the balance at the end of it.
+
+### The net result
+
+The net result comes from a group that holds both your income and your expense groups, such as _Profit and loss_: Bkper calculates it, and Report shows it with that group's name. If your Book has no such group, but each top-level income or expense group holds only income or only expenses, and no Account is in two of them, Report subtracts the expense groups from the income groups and says so: **Calculated by Report**, in the report and in files the Bkper Agent shares. Otherwise your Book has no net result yet; add a group that holds your income and expense groups in Bkper, and ask again.
 
 When your request names no period, Report shows activity for this year and balances for today. If your Book has no movements in that time, it shows the last year that has them.
 
@@ -66,7 +69,6 @@ To start with another chart, name it in your request, in any language:
 | stacked by month | The parts piled on each other, month by month |
 | an area chart | The amounts over time, as a filled area |
 | versus last year, compared with the month before | Each part in this period beside the previous one |
-| a bridge, a waterfall | From a starting amount, step by step, to the final one: from income, through each expense, to the net result; or from the balance at the start of the period, through each part's change, to the balance at its end |
 | just the numbers, no chart | The answer and the breakdown table, without a chart |
 
 ### When a chart is dimmed
@@ -75,10 +77,11 @@ The breakdown table always stays below the chart, so it has no preview card. You
 
 A chart you ask for that does not fit your numbers is not drawn: it shows first among the previews, dimmed, with the reason, such as _A pie can't show Taxes (-186.74)_. The report shows the closest chart that fits instead. A chart fits when:
 
-- **A pie** has two or more parts, all positive and of one kind, so not income versus expenses. **A donut** also has at most six.
-- **Stacked** and **area** charts have a period of two or more months. Stacked also needs two or more parts, and does not fit income versus expenses.
+- **A pie** has two or more parts, all positive and of one kind, so not income versus expenses, that add up to the total. **A donut** also has at most six.
+- **Stacked** and **area** charts have a period of two or more months. Stacked also needs two to six parts of one kind that add up to the total, and does not fit income versus expenses.
 - **A comparison** has a previous period, so not all time.
-- **A bridge** is income versus expenses, or balances such as assets, except over all time. It does not fit a single activity group, such as expenses alone, or amounts that did not change.
+
+Report draws no **bridge** (waterfall): its bars would be sums Report makes itself, not balances Bkper calculates. Ask for one and it shows dimmed, with the comparison instead.
 
 Charts that do not fit and that you did not ask for are simply not offered. A report with nothing to chart shows only its numbers.
 

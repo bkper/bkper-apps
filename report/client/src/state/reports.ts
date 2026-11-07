@@ -32,6 +32,7 @@ const NOTICES: Partial<Record<string, Notice>> = {
     forbidden: 'error_forbidden',
     future_period: 'error_future_period',
     unknown_root: 'error_unknown_root',
+    no_net_result: 'error_no_net_result',
     upstream_error: 'error_upstream',
 };
 

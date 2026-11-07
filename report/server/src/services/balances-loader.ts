@@ -24,12 +24,13 @@ export interface BalancesLoaderOptions {
 
 /**
  * One entry per user, Book and exact query: balances are only served to the user they were
- * read for. The query is hashed, as KV keys are limited to 512 bytes and names are not.
+ * read for. The query is hashed, as KV keys are limited to 512 bytes and names are not. `v2`
+ * entries hold each node's nature and each group's children, which `v1` ones lack.
  */
 export async function balancesKey(userId: string, bookId: string, query: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(query));
     const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0'));
-    return `balances:v1:${userId}:${bookId}:${hash.join('')}`;
+    return `balances:v2:${userId}:${bookId}:${hash.join('')}`;
 }
 
 /** The balances of each query, in query order; a query asked twice is read once. */

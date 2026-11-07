@@ -110,32 +110,28 @@ describe('<report-view>', () => {
     it('formats amounts and ratios in the report locale', async () => {
         const spec = gallerySpec('net-result-by-month-pt');
         const view = await mount(spec);
-        const answer = elementOf(spec, 'Answer').props;
         expect(text(view, '.answer-amount')).toEqual(['50.371,36']);
         expect(text(view, '.answer-comparison .change')).toEqual(['+148,1%']);
-        expect(text(view, '.part-amount')).toEqual(
-            (answer.parts ?? []).map(part => new ReportFormat('pt-BR', 2).amount(part.amount))
-        );
-        expect(text(view, 'tbody td.amount')).toEqual(['400.724,18', '350.352,82']);
+        expect(text(view, 'tbody td.amount')).toEqual(['400.724,18', '290.865,53', '59.487,29']);
     });
 
-    it('totals the Incoming and Outgoing rows of a net result with the net result', async () => {
+    it('totals the roots of a net result Report calculates, and says Report calculated it', async () => {
         const spec = gallerySpec('net-result-by-month-pt');
         const view = await mount(spec);
         const answer = elementOf(spec, 'Answer').props;
         const format = new ReportFormat('pt-BR', 2);
+        expect(text(view, '.answer-part')).toEqual([]);
         expect(text(view, 'tfoot th')).toEqual([elementOf(spec, 'Report').props.title]);
         expect(text(view, 'tfoot td.amount')).toEqual([format.amount(answer.amount)]);
         expect(text(view, 'tfoot td.change')).toEqual([format.change(answer.change ?? '')]);
-        // Outgoing changes the same way in the answer and in the table.
-        const outgoing = answer.parts?.find(part => part.id === 'outgoing');
-        expect(text(view, '.answer-part:last-child .change')).toEqual(
-            text(view, 'tr[data-row="outgoing"] td.change')
-        );
-        expect(outgoing?.change).toBe(
-            elementOf(spec, 'BreakdownTable').props.rows.find(row => row.id === 'outgoing')?.change
-        );
         expect(root(view).querySelectorAll('tfoot wa-sparkline')).toHaveLength(1);
+        const calculated = elementOf(spec, 'Source').props.calculated;
+        expect(calculated).toBeDefined();
+        expect(text(view, '.source-calculated dt')).toEqual([calculated?.label]);
+        expect(text(view, '.source-calculated dd')).toEqual([calculated?.note]);
+        // Bkper's own amounts say nothing of the kind.
+        const group = await mount(gallerySpec('net-result-group'));
+        expect(text(group, '.source-calculated')).toEqual([]);
     });
 
     it('lists a row without amount in the table, after the rows the chart draws', async () => {
@@ -415,14 +411,14 @@ describe('<report-view> chart previews', () => {
     });
 
     it('dims the chart asked for that does not fit, with why, and never shows it', async () => {
-        const spec = gallerySpec('mixed-pie-fallback');
+        const spec = gallerySpec('expenses-pie-negative');
         const view = await mount(spec);
         const unfit = root(view).querySelector<HTMLButtonElement>('.preview.unfit');
         expect(unfit?.getAttribute('aria-disabled')).toBe('true');
         expect(unfit?.getAttribute('aria-pressed')).toBeNull();
         // Its reason is visible, and part of what is read out.
         const reason = elementOf(spec, 'Visualizations').props.unfit?.reason;
-        expect(reason).toContain('Rent');
+        expect(reason).toContain('Food');
         expect(unfit?.querySelector('.preview-reason')?.textContent?.trim()).toBe(reason);
         expect(unfit?.textContent).toContain('Pie');
         const chosen: SelectChartDetail[] = [];

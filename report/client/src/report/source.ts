@@ -1,4 +1,7 @@
-/** The Source of a report: the Book, the exact dates and query, and when balances were read. */
+/**
+ * The Source of a report: whether Report calculated it, the Book, the exact dates and query,
+ * and when balances were read.
+ */
 import { html, nothing } from 'lit';
 import type { ReportFormat } from './format.js';
 import type { PropsOf, ReportLink } from './spec-types.js';
@@ -19,6 +22,14 @@ export function renderSource(
         <footer class="source">
             <h2 class="source-title">${labels.source}</h2>
             <dl class="source-facts">
+                ${
+                    source.calculated
+                        ? html`<div class="source-calculated">
+                              <dt>${source.calculated.label}</dt>
+                              <dd>${source.calculated.note}</dd>
+                          </div>`
+                        : nothing
+                }
                 <div>
                     <dt>${labels.period}</dt>
                     <dd>${source.period}</dd>

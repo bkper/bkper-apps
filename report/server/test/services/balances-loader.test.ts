@@ -86,7 +86,7 @@ describe('loadBalances', () => {
 
     it('keys entries by user, Book and exact query, within the KV key limit', async () => {
         const key = await balancesKey('user-1', 'book-1', LAST_MONTH);
-        expect(key).toMatch(/^balances:v1:user-1:book-1:[0-9a-f]{64}$/);
+        expect(key).toMatch(/^balances:v2:user-1:book-1:[0-9a-f]{64}$/);
         expect(await balancesKey('user-2', 'book-1', LAST_MONTH)).not.toBe(key);
         expect(await balancesKey('user-1', 'book-2', LAST_MONTH)).not.toBe(key);
         expect(await balancesKey('user-1', 'book-1', `${LAST_MONTH} `)).not.toBe(key);

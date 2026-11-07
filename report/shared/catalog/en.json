@@ -119,6 +119,11 @@
         "role": "message",
         "context": "Error shown when the request asks for a period in the future, such as next year, which has no balances yet."
     },
+    "error_no_net_result": {
+        "text": "This Book has no group that combines income and expenses. Add one in Bkper to see its net result.",
+        "role": "message",
+        "context": "Error shown when the person asks for the net result (income minus expenses) of a Book whose groups give none: no Bkper Group holds both its Incoming and its Outgoing groups, and Report does not calculate one from its other groups. The second sentence suggests creating such a Group in Bkper."
+    },
     "error_no_activity_roots": {
         "text": "This Book has no income or expense groups for a net result.",
         "role": "message",
@@ -218,21 +223,6 @@
             "period": "the earlier period or date, already formatted, such as 2025, Q2 2026, October 2026 or Jan 1 – Nov 5, 2025"
         }
     },
-    "row_other": {
-        "text": "Other",
-        "role": "label",
-        "context": "Row of a breakdown table and chart holding the part of a Group's amount not in any of its listed Accounts, so the rows add up to the Group's total. One short word."
-    },
-    "row_incoming": {
-        "text": "Incoming",
-        "role": "label",
-        "context": "Row and chart series of a net result report holding all Incoming Accounts: income, revenue, money coming in. Bkper's name for the Incoming Account type. One short word."
-    },
-    "row_outgoing": {
-        "text": "Outgoing",
-        "role": "label",
-        "context": "Row and chart series of a net result report holding all Outgoing Accounts: expenses, costs, money going out. Bkper's name for the Outgoing Account type. One short word."
-    },
     "chart_by_month": {
         "text": "{name} by month",
         "role": "label",
@@ -318,6 +308,11 @@
         "role": "message",
         "context": "Why the pie chart the person asked for is not shown: the parts are of different Bkper types (such as Assets and Liabilities, or Incoming and Outgoing), so they are not slices of one whole. Shown under a dimmed preview. No ending punctuation."
     },
+    "chart_unfit_stacked_mixed_parts": {
+        "text": "Parts of different types don't stack up",
+        "role": "message",
+        "context": "Why the stacked bar chart the person asked for is not shown: the parts are of different Bkper types (such as Assets and Liabilities), so piling them up makes no total. Shown under a dimmed preview. No ending punctuation."
+    },
     "chart_unfit_pie_net_result": {
         "text": "A pie can't show a net result",
         "role": "message",
@@ -338,6 +333,11 @@
         "role": "message",
         "context": "Why the donut chart the person asked for is not shown: more parts than a donut can show clearly. Shown under a dimmed preview. No ending punctuation."
     },
+    "chart_unfit_stacked_too_many_parts": {
+        "text": "There are too many parts to stack",
+        "role": "message",
+        "context": "Why the stacked bar chart the person asked for is not shown: the amount has more parts (Groups or Accounts) than stacked bars draw, each of its own. Shown under a dimmed preview. No ending punctuation."
+    },
     "chart_unfit_few_months": {
         "text": "The period has fewer than two months",
         "role": "message",
@@ -353,15 +353,15 @@
         "role": "message",
         "context": "Why the comparison or bridge chart the person asked for is not shown: the report has no previous period, as when it covers all time. Shown under a dimmed preview. No ending punctuation."
     },
-    "chart_unfit_not_a_bridge": {
-        "text": "A bridge needs income versus expenses, or a balance",
+    "chart_unfit_not_a_whole": {
+        "text": "The parts don't add up to the total",
         "role": "message",
-        "context": "Why the bridge (waterfall) chart the person asked for is not shown: it only fits a net result (income versus expenses) or the balances of Assets or Liabilities, not a single group of income or expenses. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the pie, donut or stacked bar chart the person asked for is not shown: the parts Bkper lists (Groups or Accounts) do not add up to the Group's own total, so they cannot be shown as slices of it. Shown under a dimmed preview. No ending punctuation."
     },
-    "chart_unfit_no_change": {
-        "text": "There are no steps between the two amounts",
+    "chart_unfit_no_bridge": {
+        "text": "A bridge would show amounts that aren't Bkper balances",
         "role": "message",
-        "context": "Why the bridge (waterfall) chart the person asked for is not shown: nothing changed between its starting and final amounts, so it has no steps. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the bridge (waterfall) chart the person asked for is not shown: Report shows only balances that Bkper calculates, and the bars of a bridge would be sums Report makes itself. Shown under a dimmed preview. No ending punctuation."
     },
     "breakdown_label": {
         "text": "Breakdown",
@@ -420,6 +420,16 @@
         "placeholders": {
             "book": "name of the Book, verbatim"
         }
+    },
+    "source_calculated": {
+        "text": "Calculated by Report",
+        "role": "label",
+        "context": "Label in the source notes at the end of a report: the net result (income minus expenses) shown was calculated by the Report app, not by Bkper. Report is the app's name. Short."
+    },
+    "source_calculated_note": {
+        "text": "Incoming groups minus Outgoing groups. Add a group that holds both, and Bkper calculates the net result.",
+        "role": "message",
+        "context": "Note after the label 'Calculated by Report' at the end of a report: how the app calculated the net result, from the Book's top-level Incoming and Outgoing Groups, and a suggestion to create a Bkper Group that holds both, so Bkper calculates the net result itself. Incoming and Outgoing are Bkper account types."
     },
     "source_period": {
         "text": "Period",

@@ -79,13 +79,20 @@ const expenses: GroupSpec = {
                 { name: 'Supplies', type: 'OUTGOING', amount: series(280, 0.2, 0, 2.5) },
             ],
         },
+        {
+            name: 'Admin',
+            type: 'OUTGOING',
+            accounts: [
+                { name: 'Insurance', type: 'OUTGOING', amount: () => 340 },
+                { name: 'Bank fees', type: 'OUTGOING', amount: series(55, 0.1, 0, 0.6) },
+            ],
+        },
     ],
+    // Six parts in all, so they stack by month.
     accounts: [
         { name: 'Software', type: 'OUTGOING', amount: series(1250, 0.02, 0.015, 0.2) },
         { name: 'Marketing', type: 'OUTGOING', amount: series(1400, 0.4, 0.01, 1.3) },
         { name: 'Travel', type: 'OUTGOING', amount: series(850, 0.5, 0, 2.9) },
-        { name: 'Insurance', type: 'OUTGOING', amount: () => 340 },
-        { name: 'Bank fees', type: 'OUTGOING', amount: series(55, 0.1, 0, 0.6) },
     ],
 };
 

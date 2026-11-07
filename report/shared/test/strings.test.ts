@@ -4,34 +4,34 @@ import { STRING_KEYS, addLocale, t, textDirection } from '../src/strings';
 
 describe('t', () => {
     it('reads the English text', () => {
-        expect(t('row_other', 'en')).toBe('Other');
+        expect(t('chart_name_pie', 'en')).toBe('Pie');
     });
 
     it('reads a language that has the key', () => {
-        addLocale('pt', { row_other: 'Outros' });
-        expect(t('row_other', 'pt')).toBe('Outros');
+        addLocale('pt', { chart_name_pie: 'Pizza' });
+        expect(t('chart_name_pie', 'pt')).toBe('Pizza');
     });
 
     it('falls back to English for a language without the key or without strings', () => {
-        addLocale('es', { row_other: 'Otros' });
-        expect(t('row_incoming', 'es')).toBe('Incoming');
-        expect(t('row_other', 'sw')).toBe('Other');
+        addLocale('es', { chart_name_pie: 'Tarta' });
+        expect(t('chart_name_area', 'es')).toBe('Area');
+        expect(t('chart_name_pie', 'sw')).toBe('Pie');
     });
 
     it('falls back to English for an empty translation', () => {
-        addLocale('fr', { row_other: '  ' });
-        expect(t('row_other', 'fr')).toBe('Other');
+        addLocale('fr', { chart_name_pie: '  ' });
+        expect(t('chart_name_pie', 'fr')).toBe('Pie');
     });
 
     it('falls back from a regional language to its base language', () => {
-        addLocale('de', { row_other: 'Sonstige' });
-        expect(t('row_other', 'de-AT')).toBe('Sonstige');
+        addLocale('de', { chart_name_pie: 'Kreis' });
+        expect(t('chart_name_pie', 'de-AT')).toBe('Kreis');
     });
 
     it('prefers the regional language when it has the key', () => {
-        addLocale('zh-CN', { row_other: '其他' });
-        addLocale('zh-TW', { row_other: '其他項目' });
-        expect(t('row_other', 'zh-TW')).toBe('其他項目');
+        addLocale('zh-CN', { chart_name_pie: '饼图' });
+        addLocale('zh-TW', { chart_name_pie: '圓餅圖' });
+        expect(t('chart_name_pie', 'zh-TW')).toBe('圓餅圖');
     });
 
     it('fills every placeholder, wherever the translation puts it', () => {

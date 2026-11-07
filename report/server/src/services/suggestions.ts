@@ -9,6 +9,7 @@
  */
 import { t, type StringKey } from 'report-shared/strings';
 import { addDays, defaultPeriod, resolvePeriod, type IsoMonth } from './periods.js';
+import { netResultOf } from './report.js';
 import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
 import { lastActiveMonth, type NodeType, type Snapshot, type SnapshotGroup } from './snapshot.js';
 
@@ -23,9 +24,9 @@ export const SUGGESTION_COUNT = 3;
 
 /**
  * Up to {@link SUGGESTION_COUNT} suggestions, in this order of preference: the net result,
- * the busiest Outgoing root by month, the busiest Asset (or other permanent) root's
- * position, the busiest Incoming root, then the other roots, busiest first. Each root is
- * suggested once.
+ * when the Book has one, the busiest Outgoing root by month, the busiest Asset (or other
+ * permanent) root's position, the busiest Incoming root, then the other roots, busiest first.
+ * Each root is suggested once: the group that combines Incoming and Outgoing as the net result.
  */
 export function buildSuggestions(snapshot: Snapshot, lang: string): Suggestion[] {
     const roots = snapshot.roots
@@ -58,14 +59,12 @@ export function buildSuggestions(snapshot: Snapshot, lang: string): Suggestion[]
     ];
 
     const suggestions: Suggestion[] = [];
-    const net = netResult(
-        snapshot,
-        roots.filter(root => !root.group.permanent).map(r => r.group)
-    );
+    const suggested = new Set<string>();
+    const net = netResult(snapshot);
     if (net) {
         suggestions.push(netSuggestion(net, lang));
+        net.roots.forEach(group => suggested.add(group.id));
     }
-    const suggested = new Set<string>();
     for (const { root, monthly } of ordered) {
         if (!suggested.has(root.group.id)) {
             suggested.add(root.group.id);
@@ -158,10 +157,18 @@ function rootSuggestion(root: SuggestedRoot, monthly: boolean, lang: string): Su
 }
 
 /**
- * The period of a net result, when the activity roots hold both Incoming and Outgoing
- * accounts with movements; otherwise there is nothing to net.
+ * The period of the Book's net result, and its group that combines Incoming and Outgoing,
+ * when it has one and it holds both Incoming and Outgoing accounts with movements; otherwise
+ * there is nothing to net.
  */
-function netResult(snapshot: Snapshot, activity: SnapshotGroup[]): { period: string } | undefined {
+function netResult(snapshot: Snapshot): { period: string; roots: SnapshotGroup[] } | undefined {
+    const net = netResultOf(snapshot);
+    if (net.kind === 'none') {
+        return undefined;
+    }
+    const activity = (net.kind === 'group' ? [net.group] : [...net.incoming, ...net.outgoing]).map(
+        id => snapshot.groups[id]
+    );
     const types = new Set<NodeType>();
     const collect = (group: SnapshotGroup): void => {
         group.accounts
@@ -180,7 +187,7 @@ function netResult(snapshot: Snapshot, activity: SnapshotGroup[]): { period: str
         today: snapshot.today,
         lastActiveMonth: lastActiveMonth(activity),
     });
-    return { period };
+    return { period, roots: net.kind === 'group' ? activity : [] };
 }
 
 function netSuggestion({ period }: { period: string }, lang: string): Suggestion {

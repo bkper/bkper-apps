@@ -14,14 +14,15 @@ and give them the returned file as it is: one self-contained, interactive HTML r
 bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"show my expenses by category this year","format":"html"}' > report.html
 \`\`\`
 
-Prefer this to computing balances yourself: numbers are computed by deterministic code from the Book's balances, the same way Bkper shows them. Send \`format: spec\` (the default) instead to read the report as JSON, for example to answer with its numbers in words.
+Prefer this to computing balances yourself: every amount is a Bkper balance of one group or Account, as Bkper shows it, read by deterministic code; Report adds nothing up, but for one labelled case below. Send \`format: spec\` (the default) instead to read the report as JSON, for example to answer with its numbers in words.
 
 ## What a request can ask
 
-- One top-level (root) group of the Book, such as Expenses or Assets, broken down into its subgroups and Accounts; or income versus expenses (the net result). Not a single subgroup or Account: ask for its root group and the breakdown includes it.
+- One top-level (root) group of the Book, such as Expenses or Assets, broken down into the subgroups and Accounts Bkper returns; or income versus expenses (the net result). Not a single subgroup or Account: ask for its root group and the breakdown includes it.
+- The net result comes from the group that combines the Book's Incoming and Outgoing groups, as Bkper calculates it. Without one, when each activity root is only Incoming or only Outgoing and no two share an Account, Report subtracts the Outgoing roots from the Incoming roots and labels the result "Calculated by Report". Otherwise the Book has no net result (\`no_net_result\`): tell the person to add a group that holds its income and expense groups in Bkper.
 - A period in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a year, a quarter or a month, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data.
 - By month, or a breakdown, a trend or a total.
-- A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, a bridge (waterfall) or no chart. Keep it in the prompt as they said it. A chart that does not fit the numbers (such as a pie with a part below zero) is not drawn: the report shows the closest chart that fits and the asked-for one dimmed with why. Every chart that fits is offered as a preview in the report, so there is no need to ask again for another chart.
+- A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it. A chart that does not fit the numbers (such as a pie with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and the asked-for one dimmed with why. Every chart that fits is offered as a preview in the report, so there is no need to ask again for another chart.
 - \`#hashtags\`: only transactions with all of them.
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.
@@ -34,7 +35,7 @@ Save only when asked: this writes durable app metadata shared with the Book's co
 
 ## Errors
 
-Errors are JSON, \`{ "success": false, "error": { "code", "message" } }\`. With \`not_a_report\`, the request names nothing this Book can report: ask the person to name a group of the Book and a period, or offer the reports \`GET /api/v1/books/{bookId}/suggestions\` lists.`;
+Errors are JSON, \`{ "success": false, "error": { "code", "message" } }\`. With \`not_a_report\`, the request names nothing this Book can report: ask the person to name a group of the Book and a period, or offer the reports \`GET /api/v1/books/{bookId}/suggestions\` lists. With \`no_net_result\`, the Book has no net result until a group combines its income and expense groups.`;
 
 export const openApiDocumentConfig = {
     openapi: '3.0.0' as const,

@@ -10,9 +10,9 @@ import type { Snapshot } from '../../src/services/snapshot';
 import type { FakeLedger } from '../fixtures/ledger';
 import {
     fixtureLedger,
-    fixtureSnapshot,
     ledgerBalances,
     ledgerSnapshot,
+    simpleRootsLedger,
 } from '../fixtures/snapshot-book';
 
 function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
@@ -91,9 +91,16 @@ describe('buildReportSpec', () => {
             intent('g-expenses', 'last_month', { chart: 'table' }),
             intent('g-net', 'last_month', { chart: 'pie' }),
         ];
+        const calculated = [
+            intent('net-result', 'last_12_months', { monthly: true }),
+            intent('net-result', '2026-10', { chart: 'compare' }),
+        ];
         for (const lang of ['en', 'pt-BR', 'ja', 'ar', 'sw', 'mni-Mtei']) {
-            for (const request of intents) {
-                const built = await spec(request, lang);
+            for (const [request, ledger] of [
+                ...intents.map(request => [request, fixtureLedger()] as const),
+                ...calculated.map(request => [request, simpleRootsLedger()] as const),
+            ]) {
+                const built = await spec(request, lang, undefined, ledger);
                 const validation = validateReportSpec(built);
                 expect(validation, `${lang} ${JSON.stringify(request)}`).toEqual({
                     valid: true,
@@ -174,42 +181,54 @@ describe('buildReportSpec', () => {
         expect(element(built, 'Source').props.period).toBe(`Mar 1, 2024${TO}Nov 5, 2026`);
     });
 
-    it('labels the net result and its Incoming and Outgoing sides', async () => {
-        const built = await spec(intent('net-result', '2026-10', { monthly: true }));
+    it('labels a net result Report calculates, and says so in the Source', async () => {
+        const built = await spec(
+            intent('net-result', '2026-10', { monthly: true }),
+            'en',
+            undefined,
+            simpleRootsLedger()
+        );
         expect(element(built, 'Report').props.title).toBe('Net result');
         const answer = element(built, 'Answer').props;
         expect(answer.label).toBe('Net result');
-        expect(answer.parts?.map(part => [part.id, part.label, part.color])).toEqual([
-            ['incoming', 'Incoming', 'green'],
-            ['outgoing', 'Outgoing', 'red'],
-        ]);
+        expect(answer.parts).toBeUndefined();
+        // Its roots are the rows, as Bkper names them.
         const table = element(built, 'BreakdownTable').props;
-        expect(table.rows.map(row => row.label)).toEqual(['Incoming', 'Outgoing']);
+        expect(table.rows.map(row => [row.label, row.kind])).toEqual([
+            ['Revenue', 'group'],
+            ['Expenses', 'group'],
+        ]);
         const chart = element(built, 'Chart').props;
         expect(chart).toMatchObject({ kind: 'bar', label: `${isolate('Net result')} by month` });
         expect(
             'series' in chart && chart.series.map(series => [series.label, series.line ?? false])
         ).toEqual([
-            ['Incoming', false],
-            ['Outgoing', false],
+            ['Revenue', false],
+            ['Expenses', false],
             ['Net result', true],
         ]);
+        expect(element(built, 'Source').props.calculated).toEqual({
+            label: 'Calculated by Report',
+            note: t('source_calculated_note', 'en'),
+        });
     });
 
-    it('shows Outgoing positive everywhere, under the total of the net result', async () => {
-        const data = await report(intent('net-result', 'this_month', { monthly: true }));
+    it('totals the table of a net result Report calculates, each root as Bkper returns it', async () => {
+        const data = await report(
+            intent('net-result', 'this_month', { monthly: true }),
+            undefined,
+            simpleRootsLedger()
+        );
         const built = buildReportSpec(data, 'en');
-        const answer = element(built, 'Answer').props;
         const table = element(built, 'BreakdownTable').props;
         const chart = element(built, 'Chart').props;
-        const side = (id: string) => {
-            const part = answer.parts?.find(candidate => candidate.id === id);
+        const root = (id: string) => {
             const row = table.rows.find(candidate => candidate.id === id);
             const series = 'series' in chart && chart.series.find(entry => entry.id === id);
-            return [part?.amount, part?.change, row?.amount, row?.change, series && series.values];
+            return [row?.amount, row?.change, series && series.values];
         };
-        expect(side('outgoing')).toEqual(['1050.25', '0.0503', '1050.25', '0.0503', ['1050.25']]);
-        expect(side('incoming')).toEqual(['5000', '0', '5000', '0', ['5000']]);
+        expect(root('g-expenses')).toEqual(['1050.25', '0.0503', ['1050.25']]);
+        expect(root('g-revenue')).toEqual(['5000', '0', ['5000']]);
         expect(table.total).toEqual({
             label: 'Net result',
             color: 'grey',
@@ -220,18 +239,14 @@ describe('buildReportSpec', () => {
         });
     });
 
-    it('totals only the table of a net result', async () => {
-        const built = await spec(intent('g-expenses', 'last_month'));
+    it('titles the net result of a combining group by its name, with nothing calculated', async () => {
+        const built = await spec(intent('net-result', 'this_month'));
+        expect(element(built, 'Report').props.title).toBe('Net income');
         expect(element(built, 'BreakdownTable').props.total).toBeUndefined();
-    });
-
-    it('labels the remainder Bkper left out of a group', async () => {
-        const snapshot = await fixtureSnapshot();
-        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
-        const built = await spec(intent('g-expenses', 'this_month'), 'en', snapshot);
-        const table = element(built, 'BreakdownTable').props;
-        expect(labels(table.rows)).toEqual(['Rent', 'Other']);
-        expect(table.rows[1]).toMatchObject({ id: 'g-expenses:other', kind: 'other' });
+        expect(element(built, 'Source').props.calculated).toBeUndefined();
+        const group = await spec(intent('g-expenses', 'last_month'));
+        expect(element(group, 'BreakdownTable').props.total).toBeUndefined();
+        expect(element(group, 'Source').props.calculated).toBeUndefined();
     });
 
     it('keeps Bkper names verbatim and nests rows like the report', async () => {
@@ -300,17 +315,22 @@ describe('buildReportSpec', () => {
     });
 
     it('writes in the language asked for, in English where it has no translation', async () => {
-        addLocale('pt', { report_net_result: 'Resultado', row_incoming: 'Entradas' });
-        const built = await spec(intent('net-result', '2026-10'), 'pt-BR');
+        addLocale('pt', { report_net_result: 'Resultado', source_calculated: 'Calculado' });
+        const built = await spec(
+            intent('net-result', '2026-10'),
+            'pt-BR',
+            undefined,
+            simpleRootsLedger()
+        );
         expect(element(built, 'Report').props).toMatchObject({
             title: 'Resultado',
             subtitle: 'outubro de 2026',
             locale: 'pt-BR',
         });
-        expect(element(built, 'Answer').props.parts?.map(part => part.label)).toEqual([
-            'Entradas',
-            'Outgoing',
-        ]);
+        expect(element(built, 'Source').props.calculated).toEqual({
+            label: 'Calculado',
+            note: t('source_calculated_note', 'en'),
+        });
         expect(element(built, 'Answer').props.comparison).toBe(
             `vs. ${isolate('setembro de 2026')}`
         );
@@ -359,14 +379,8 @@ describe('buildReportSpec', () => {
         });
     });
 
-    it('stacks a series for each part, and names the rest Other', async () => {
-        const snapshot = await fixtureSnapshot();
-        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
-        const built = await spec(
-            intent('g-expenses', 'this_year', { chart: 'stacked' }),
-            'en',
-            snapshot
-        );
+    it('stacks a series for each part, by its name', async () => {
+        const built = await spec(intent('g-expenses', 'this_year', { chart: 'stacked' }));
         const chart = element(built, 'Chart').props;
         expect(chart).toMatchObject({
             kind: 'stacked',
@@ -375,7 +389,7 @@ describe('buildReportSpec', () => {
         });
         expect('series' in chart && chart.series.map(series => [series.id, series.label])).toEqual([
             ['a-rent', 'Rent'],
-            ['other', 'Other'],
+            ['a-food', 'Food'],
         ]);
     });
 
@@ -430,29 +444,19 @@ describe('buildReportSpec', () => {
         expect(month(Date.UTC(2026, 9, 1))).toMatch(/\p{Script=Arabic}/u);
     });
 
-    it('bridges Incoming to the net result', async () => {
-        const built = await spec(intent('net-result', 'this_month', { chart: 'waterfall' }));
-        expect(element(built, 'Chart').props).toEqual({
-            kind: 'waterfall',
-            label: `Breakdown of ${isolate('Net result')}`,
-            start: { label: 'Incoming', color: 'green', value: '5000' },
-            steps: [
-                { rowId: 'a-rent', label: 'Rent', color: 'red', value: '-1000' },
-                { rowId: 'a-food', label: 'Food', color: 'red', value: '-50.25' },
-            ],
-            end: { label: 'Net result', color: 'grey', value: '3949.75' },
-        });
-    });
-
-    it('bridges a position from one date to the other', async () => {
-        const built = await spec(intent('g-assets', 'today', { chart: 'waterfall' }));
-        expect(element(built, 'Chart').props).toEqual({
-            kind: 'waterfall',
-            label: `Breakdown of ${isolate('Assets')}`,
-            start: { label: `As of ${isolate('Oct 31, 2026')}`, color: 'blue', value: '3899.5' },
-            steps: [{ rowId: 'g-banks', label: 'Banks', color: 'blue', value: '3949.75' }],
-            end: { label: `As of ${isolate('Nov 5, 2026')}`, color: 'blue', value: '7849.25' },
-        });
+    it('draws no bridge, and says why', async () => {
+        for (const request of [
+            intent('net-result', 'this_month', { chart: 'waterfall' }),
+            intent('g-assets', 'today', { chart: 'waterfall' }),
+        ]) {
+            const built = await spec(request);
+            expect(element(built, 'Chart').props.kind).toBe('compare');
+            expect(element(built, 'Visualizations').props.unfit).toEqual({
+                kind: 'waterfall',
+                name: 'Bridge',
+                reason: t('chart_unfit_no_bridge', 'en'),
+            });
+        }
     });
 
     it('offers every other chart that fits, with the data the preferred chart would have', async () => {
@@ -545,7 +549,36 @@ describe('buildReportSpec', () => {
             t('chart_unfit_no_previous', 'en')
         );
         expect(await reason(intent('g-expenses', 'last_month', { chart: 'waterfall' }))).toBe(
-            t('chart_unfit_not_a_bridge', 'en')
+            t('chart_unfit_no_bridge', 'en')
+        );
+        const mixed = withAccounts(fixtureLedger(), ['50']);
+        const snapshot = await ledgerSnapshot(mixed);
+        snapshot.accounts['extra-0'].type = 'ASSET';
+        const stacked = intent('g-expenses', '2026', { monthly: true, chart: 'stacked' });
+        expect(
+            element(await spec(stacked, 'en', snapshot, mixed), 'Visualizations').props.unfit
+                ?.reason
+        ).toBe(t('chart_unfit_stacked_mixed_parts', 'en'));
+        const many = withAccounts(fixtureLedger(), ['5', '4', '3', '2', '1']);
+        expect(
+            element(await spec(stacked, 'en', undefined, many), 'Visualizations').props.unfit
+                ?.reason
+        ).toBe(t('chart_unfit_stacked_too_many_parts', 'en'));
+    });
+
+    it('says the parts Bkper returns are no whole of the total', async () => {
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const request = intent('g-expenses', 'all', { chart: 'pie' });
+        const balances = planQueries(planReport(request, snapshot)).map(query => {
+            const read = ledgerBalances(ledger, query);
+            delete read.accounts.Food;
+            read.groups.Expenses.accounts = ['Rent', 'Old Supplier'];
+            return read;
+        });
+        const built = buildReportSpec(buildReport(request, snapshot, balances), 'en');
+        expect(element(built, 'Visualizations').props.unfit?.reason).toBe(
+            t('chart_unfit_not_a_whole', 'en')
         );
     });
 
@@ -554,3 +587,13 @@ describe('buildReportSpec', () => {
         expect(Object.values(built.elements).some(part => part.type === 'Chart')).toBe(false);
     });
 });
+
+/** Adds Expenses accounts, each moving its amount on 2026-10-01 from `Owner`. */
+function withAccounts(ledger: FakeLedger, amounts: string[]): FakeLedger {
+    amounts.forEach((amount, i) => {
+        const name = `Extra ${i}`;
+        ledger.addAccount({ id: `extra-${i}`, name, type: 'OUTGOING', groups: ['g-expenses'] });
+        ledger.transactions.push({ date: '2026-10-01', from: 'Owner', to: name, amount });
+    });
+    return ledger;
+}

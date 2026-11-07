@@ -83,30 +83,29 @@ describe('chartConfig', () => {
         expect(datasets(chart)[0]).toMatchObject({ borderColor: 'var(--bkper-color-blue-high)' });
     });
 
-    it('draws Incoming and Outgoing as positive bars under a line of the net result', () => {
+    it('draws the roots of a net result as positive bars under a line of the net result', () => {
         const chart = view('net-result-by-month-pt');
         const spec = gallerySpec('net-result-by-month-pt');
-        const [incoming, outgoing] = elementOf(spec, 'Answer').props.parts ?? [];
+        const rows = elementOf(spec, 'BreakdownTable').props.rows;
         expect(datasets(chart).map(dataset => [dataset.label, dataset.type])).toEqual([
-            [incoming?.label, 'bar'],
-            [outgoing?.label, 'bar'],
+            ...rows.map(row => [row.label, 'bar']),
             [elementOf(spec, 'Report').props.title, 'line'],
         ]);
         expect(datasets(chart)[0].backgroundColor).toBe('var(--bkper-color-green-medium)');
         expect(datasets(chart)[1].backgroundColor).toBe('var(--bkper-color-red-medium)');
-        expect(datasets(chart)[2].borderColor).toBe('var(--bkper-color-grey-high)');
+        expect(datasets(chart)[3].borderColor).toBe('var(--bkper-color-grey-high)');
         expect(datasets(chart)[1].data.every(value => Number(value) > 0)).toBe(true);
         expect(chart.legend).toBe(true);
         const sort = chart.config.options?.plugins?.legend?.labels?.sort;
-        const items = [2, 0, 1].map(datasetIndex => ({ text: '', datasetIndex }));
+        const items = [3, 0, 2, 1].map(datasetIndex => ({ text: '', datasetIndex }));
         expect(
             sort &&
                 [...items].sort((a, b) => sort(a, b, chart.config.data)).map(i => i.datasetIndex)
-        ).toEqual([0, 1, 2]);
+        ).toEqual([0, 1, 2, 3]);
     });
 
     it('labels months with their year when the chart spans years', () => {
-        const chart = view('net-result-last-12-months-ar');
+        const chart = view('net-income-last-12-months-ar');
         expect(chart.config.data.labels?.[0]).toBe(
             new ReportFormat('ar', 2).month('2025-12', 'year')
         );
@@ -174,11 +173,11 @@ describe('chartConfig', () => {
     });
 
     it('emphasizes the series a highlighted row stands for', () => {
-        const chart = view('net-result-by-month-pt', 'outgoing');
-        expect(datasets(chart)).toHaveLength(3);
+        const chart = view('net-result-by-month-pt', 'g-expenses');
+        expect(datasets(chart)).toHaveLength(4);
         expect(datasets(chart)[0].backgroundColor).toContain('transparent');
         expect(datasets(chart)[1].backgroundColor).toBe('var(--bkper-color-red-high)');
-        expect(datasets(chart)[2].borderColor).toContain('transparent');
+        expect(datasets(chart)[3].borderColor).toContain('transparent');
     });
 
     it('leaves a highlighted row without amount out of a chart by month', () => {

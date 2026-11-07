@@ -2,9 +2,9 @@
  * Report spec: the data of a report becomes a json-render spec of the report catalog, in one
  * language.
  *
- * Every text is resolved here, in the report's language: titles, period labels, row labels
- * the report names itself (Other, Incoming, Outgoing) and the labels renderers show. Group
- * and account names stay verbatim. Amounts and ratios stay the report's decimal strings, and
+ * Every text is resolved here, in the report's language: titles, period labels, the note on
+ * a net result Report calculates, and the labels renderers show. Group and account names stay
+ * verbatim. Amounts and ratios stay the report's decimal strings, and
  * months and instants stay ISO, for renderers to format in the spec's locale.
  */
 import {
@@ -19,17 +19,13 @@ import { t, textDirection, type StringKey } from 'report-shared/strings';
 import { addDays, type DateRange, type IsoDate, type RelativePeriod } from './periods.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
 import {
-    OTHER_PART,
-    TYPE_COLORS,
     viewKindOf,
     type ChartSeries,
     type ReportAmounts,
     type ReportChart,
     type ReportData,
     type ReportRow,
-    type RowKind,
     type UnfitReason,
-    type WaterfallStep,
 } from './report.js';
 
 const RELATIVE_PERIOD_LABELS = {
@@ -70,17 +66,18 @@ const UNFIT_REASONS = {
     few_months: 'chart_unfit_few_months',
     no_amounts: 'chart_unfit_no_amounts',
     no_previous: 'chart_unfit_no_previous',
-    not_a_bridge: 'chart_unfit_not_a_bridge',
-    no_change: 'chart_unfit_no_change',
+    not_a_whole: 'chart_unfit_not_a_whole',
+    no_bridge: 'chart_unfit_no_bridge',
     // Said of the chart it is about.
     net_result: 'chart_unfit_pie_net_result',
 } as const satisfies Record<UnfitReason['code'], StringKey>;
 
-const NAMED_ROWS = {
-    other: 'row_other',
-    incoming: 'row_incoming',
-    outgoing: 'row_outgoing',
-} as const satisfies Partial<Record<RowKind, StringKey>>;
+/** Reasons said in the words of stacked bars rather than of a pie. */
+const STACKED_UNFIT_REASONS = {
+    net_result: 'chart_unfit_stacked_net_result',
+    mixed_parts: 'chart_unfit_stacked_mixed_parts',
+    too_many_parts: 'chart_unfit_stacked_too_many_parts',
+} as const satisfies Partial<Record<UnfitReason['code'], StringKey>>;
 
 /** The spec of a report in a language; it always passes the catalog's validation. */
 export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
@@ -113,14 +110,15 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
             expandLabel: t('breakdown_expand', lang),
             collapseLabel: t('breakdown_collapse', lang),
             emptyLabel: t('breakdown_empty', lang),
-            rows: report.breakdown.map(row => breakdownRow(row, labels)),
-            ...(report.net
+            rows: report.breakdown.map(row => breakdownRow(row)),
+            // A net result Report calculates totals its roots, which are the rows.
+            ...(report.calculated
                 ? {
                       total: {
                           label: title,
                           color: report.root.color,
                           ...amounts(report.answer),
-                          months: report.net.months,
+                          months: report.calculated.months,
                       },
                   }
                 : {}),
@@ -135,6 +133,14 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
             query: report.query,
             url: report.url,
             dataAt: report.dataAt,
+            ...(report.calculated
+                ? {
+                      calculated: {
+                          label: t('source_calculated', lang),
+                          note: t('source_calculated_note', lang),
+                      },
+                  }
+                : {}),
             labels: {
                 source: t('source_label', lang),
                 period: t('source_period', lang),
@@ -182,24 +188,6 @@ function answerProps(
         ...amounts(report.answer),
         ...(comparison
             ? { comparison: fill('answer_compared_with', labels.lang, { period: comparison }) }
-            : {}),
-        ...(report.net
-            ? {
-                  parts: [
-                      {
-                          id: 'incoming',
-                          label: labels.row('incoming'),
-                          color: TYPE_COLORS.INCOMING,
-                          ...amounts(report.net.incoming),
-                      },
-                      {
-                          id: 'outgoing',
-                          label: labels.row('outgoing'),
-                          color: TYPE_COLORS.OUTGOING,
-                          ...amounts(report.net.outgoing),
-                      },
-                  ],
-              }
             : {}),
     };
 }
@@ -254,14 +242,15 @@ function unfitReason(
     if (reason.code === 'negative_part') {
         const row = breakdownRowOf(report, reason.rowId);
         return fill(UNFIT_REASONS.negative_part, labels.lang, {
-            name: labels.row(row.kind, row.name),
+            name: row.name,
             amount: labels.amount(row.amount, report.book.fractionDigits ?? 2),
         });
     }
-    if (reason.code === 'net_result' && kind === 'stacked') {
-        return t('chart_unfit_stacked_net_result', labels.lang);
-    }
-    return t(UNFIT_REASONS[reason.code], labels.lang);
+    const stacked =
+        kind === 'stacked'
+            ? Object.entries(STACKED_UNFIT_REASONS).find(([code]) => code === reason.code)?.[1]
+            : undefined;
+    return t(stacked ?? UNFIT_REASONS[reason.code], labels.lang);
 }
 
 function chartProps(
@@ -282,7 +271,7 @@ function chartProps(
                 kind: chart.kind,
                 label: fill('chart_by_month', lang, { name: title }),
                 months: report.months,
-                series: chart.series.map(series => chartSeries(series, title, labels)),
+                series: chart.series.map(series => chartSeries(series, title)),
             };
         case 'ranked-bar':
         case 'donut':
@@ -294,7 +283,7 @@ function chartProps(
                     const row = breakdownRowOf(report, id);
                     return {
                         rowId: row.id,
-                        label: labels.row(row.kind, row.name),
+                        label: row.name,
                         color: row.color,
                         value: row.amount,
                     };
@@ -321,37 +310,12 @@ function chartProps(
                     const row = breakdownRowOf(report, id);
                     return {
                         rowId: row.id,
-                        label: labels.row(row.kind, row.name),
+                        label: row.name,
                         color: row.color,
                         value: row.amount,
                         previous: row.previous ?? '0',
                     };
                 }),
-            };
-        }
-        case 'waterfall': {
-            const net = report.root.id === NET_RESULT_ROOT;
-            // Incoming to the net result, or the previous position to the position.
-            const start = net
-                ? labels.row('incoming')
-                : report.previous && labels.asOf(report.previous.before);
-            if (start === undefined) {
-                throw new Error('A bridge of a position without a previous one');
-            }
-            return {
-                kind: 'waterfall',
-                label: fill('chart_breakdown', lang, { name: title }),
-                start: {
-                    label: start,
-                    color: net ? TYPE_COLORS.INCOMING : report.root.color,
-                    value: chart.start,
-                },
-                steps: chart.steps.map(step => waterfallStep(step, labels)),
-                end: {
-                    label: net ? title : labels.period(report),
-                    color: report.root.color,
-                    value: chart.end,
-                },
             };
         }
     }
@@ -365,41 +329,27 @@ function breakdownRowOf(report: ReportData, id: string): ReportRow {
     return row;
 }
 
-function waterfallStep(step: WaterfallStep, labels: Labels) {
-    return {
-        ...(step.id === OTHER_PART ? {} : { rowId: step.id }),
-        label: labels.row(step.kind, step.name),
-        color: step.color,
-        value: step.amount,
-    };
-}
-
-/**
- * A series of the root or a breakdown row, by its name; of a side of the net result; of the
- * net result itself; or of the rest of the rows (`other`).
- */
-function chartSeries(series: ChartSeries, title: string, labels: Labels) {
-    const named = ['incoming', 'outgoing', OTHER_PART] as const;
-    const kind = named.find(id => id === series.id) ?? 'group';
+/** A series of the root or a breakdown row, by its name, or of a net result Report calculates. */
+function chartSeries(series: ChartSeries, title: string) {
     return {
         id: series.id,
-        label: series.id === NET_RESULT_ROOT ? title : labels.row(kind, series.name),
+        label: series.id === NET_RESULT_ROOT || series.name === undefined ? title : series.name,
         color: series.color,
         ...(series.line ? { line: series.line } : {}),
         values: series.amounts,
     };
 }
 
-function breakdownRow(row: ReportRow, labels: Labels): BreakdownRow {
+function breakdownRow(row: ReportRow): BreakdownRow {
     return {
         id: row.id,
         kind: row.kind,
-        label: labels.row(row.kind, row.name),
+        label: row.name,
         color: row.color,
         ...amounts(row),
         ...(row.share === undefined ? {} : { share: row.share }),
         months: row.months,
-        children: row.children.map(child => breakdownRow(child, labels)),
+        children: row.children.map(breakdownRow),
     };
 }
 
@@ -434,16 +384,6 @@ class Labels {
     constructor(readonly lang: string) {
         this.day = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
         this.number = new Intl.NumberFormat(lang);
-    }
-
-    row(kind: RowKind, name?: string): string {
-        if (name !== undefined) {
-            return name;
-        }
-        if (kind === 'group' || kind === 'account') {
-            throw new Error(`A ${kind} row without a name`);
-        }
-        return t(NAMED_ROWS[kind], this.lang);
     }
 
     /** The period of an activity, by its name; the date of a position. */

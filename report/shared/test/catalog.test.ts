@@ -161,6 +161,22 @@ describe('validateReportSpec', () => {
         expect(issuesOf(spec)).toEqual([]);
     });
 
+    it('accepts a Source that says Report calculated the net result, and rejects a bare one', () => {
+        const calculated = (value: unknown) =>
+            changed(spec => {
+                const source = spec.elements.source;
+                if (source.type === 'Source') {
+                    Object.assign(source.props, { calculated: value });
+                }
+            });
+        expect(
+            issuesOf(
+                calculated({ label: 'Calculated by Report', note: 'Incoming minus Outgoing.' })
+            )
+        ).toEqual([]);
+        expect(issuesOf(calculated({ label: 'Calculated by Report' }))).not.toEqual([]);
+    });
+
     it('accepts a net result as a line over the bars and as the total of the table', () => {
         const spec = changed(spec => {
             const chart = spec.elements.chart;

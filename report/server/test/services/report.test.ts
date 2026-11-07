@@ -2,7 +2,6 @@ import { Amount } from 'bkper-js';
 import { describe, expect, it } from 'vitest';
 import type { QueryBalances } from '../../src/services/balances';
 import {
-    OTHER_PART,
     ReportError,
     buildReport,
     planQueries,
@@ -22,6 +21,7 @@ import {
     fixtureSnapshot,
     ledgerBalances,
     ledgerSnapshot,
+    simpleRootsLedger,
 } from '../fixtures/snapshot-book';
 
 function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
@@ -50,15 +50,15 @@ async function report(
 /** Name, amount, previous and change of each row, children indented. */
 function rows(breakdown: ReportRow[], depth = 0): string[] {
     return breakdown.flatMap(row => [
-        `${'  '.repeat(depth)}${row.name ?? row.kind} ${row.amount} (prev ${row.previous ?? '-'}` +
+        `${'  '.repeat(depth)}${row.name} ${row.amount} (prev ${row.previous ?? '-'}` +
             `, change ${row.change ?? '-'}, share ${row.share ?? '-'})`,
         ...rows(row.children, depth + 1),
     ]);
 }
 
 describe('planReport', () => {
-    const queries = async (request: ReportIntent) =>
-        planQueries(planReport(request, await fixtureSnapshot()));
+    const queries = async (request: ReportIntent, ledger: FakeLedger = fixtureLedger()) =>
+        planQueries(planReport(request, await ledgerSnapshot(ledger)));
 
     it('reads a root for the period and for the previous one, by month', async () => {
         expect(await queries(intent('g-expenses', 'last_month'))).toEqual([
@@ -90,14 +90,19 @@ describe('planReport', () => {
         ]);
     });
 
-    it('reads each activity root of a net result with a query of its own', async () => {
+    it('reads the group that combines Incoming and Outgoing for a net result', async () => {
         expect(await queries(intent('net-result', 'last_month'))).toEqual([
+            "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Net income' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+    });
+
+    it('reads each simple activity root of a net result with a query of its own', async () => {
+        expect(await queries(intent('net-result', 'last_month'), simpleRootsLedger())).toEqual([
             "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
             "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
             "group:'Revenue' after:2026-10-01 before:2026-11-01 by:m",
             "group:'Revenue' after:2026-09-01 before:2026-10-01 by:m",
-            "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Net income' after:2026-09-01 before:2026-10-01 by:m",
         ]);
     });
 
@@ -317,67 +322,175 @@ describe('buildReport: position', () => {
     });
 });
 
-describe('buildReport: mixed groups and net result', () => {
-    it('counts children of the other credit nature with the opposite sign, so rows add up', async () => {
+/** A group of the Book, as the Bkper API returns it. */
+function groupPayload(
+    id: string,
+    name: string,
+    nature: Pick<bkper.Group, 'type' | 'mixed' | 'credit' | 'permanent'>
+): bkper.Group {
+    return {
+        id,
+        name,
+        normalizedName: name.toLowerCase(),
+        hidden: false,
+        locked: false,
+        ...nature,
+    };
+}
+
+/** The simple roots, with an Outgoing root of their own that shares Food with Expenses. */
+function sharedAccountLedger(): FakeLedger {
+    const ledger = simpleRootsLedger();
+    ledger.addGroup(
+        groupPayload('g-travel', 'Travel', { type: 'OUTGOING', credit: false, permanent: false }),
+        ['a-food']
+    );
+    return ledger;
+}
+
+describe('buildReport: mixed groups', () => {
+    it('shows the rows of a mixed group as Bkper returns them, without changing their signs', async () => {
         const data = await report(intent('g-net', 'last_month'));
         expect(data.nature).toBe('activity');
         expect(data.root).toMatchObject({ type: 'MIXED', color: 'grey' });
+        // The group's own balance, as Bkper calculates it: Incoming minus Outgoing.
         expect(data.answer.amount).toBe('3799.5');
-        // Shares of a mixed total would mislead, so they are left out.
+        // Each row with its own balance, Outgoing positive; shares of a mixed total would mislead.
         expect(rows(data.breakdown)).toEqual([
             'Salary 5000 (prev 0, change -, share -)',
-            'Rent -1000 (prev 0, change -, share -)',
-            'Food -200.5 (prev 0, change -, share -)',
+            'Rent 1000 (prev 0, change -, share -)',
+            'Food 200.5 (prev 0, change -, share -)',
         ]);
         expect(data.breakdown.map(row => row.color)).toEqual(['green', 'red', 'red']);
+        expect(data.calculated).toBeUndefined();
         expect(data.chart).toEqual({ kind: 'ranked-bar', rows: ['a-salary', 'a-rent', 'a-food'] });
     });
 
-    it('nets Incoming against Outgoing over the unique accounts of the activity roots', async () => {
-        const data = await report(intent('net-result', 'all'));
-        expect(data.root).toEqual({ id: 'net-result', type: 'MIXED', color: 'grey' });
-        // Rent and Food are under two roots but count once; Old Supplier is under one.
-        expect(data.net).toMatchObject({
-            incoming: { amount: '10000' },
-            outgoing: { amount: '4260.75' },
+    it('shows a mixed position as Bkper returns it, each row with its own balance', async () => {
+        const ledger = fixtureLedger();
+        ledger.addGroup(
+            groupPayload('g-worth', 'Worth', { mixed: true, credit: false, permanent: true }),
+            ['a-cash', 'a-card']
+        );
+        ledger.transactions.push({
+            date: '2026-10-20',
+            from: 'Credit Card',
+            to: 'Food',
+            amount: '30',
         });
-        expect(data.answer).toEqual({ amount: '5739.25' });
-        // Outgoing shows positive, like the answer; the net result is Incoming minus Outgoing.
+        const data = await report(intent('g-worth', 'today', { chart: 'pie' }), ledger);
+        expect(data.nature).toBe('position');
+        expect(data.answer).toEqual({ amount: '70', previous: '70', change: '0' });
+        // The Liability shows positive, as Bkper shows it, not against the Asset.
         expect(rows(data.breakdown)).toEqual([
-            'incoming 10000 (prev -, change -, share -)',
+            'Cash 100 (prev 100, change 0, share -)',
+            'Credit Card 30 (prev 30, change 0, share -)',
+        ]);
+        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'mixed_parts' } });
+        expect(data.charts.facts).toMatchObject({ mixed: true, net: false, permanent: true });
+    });
+});
+
+describe('buildReport: net result from a group that combines Incoming and Outgoing', () => {
+    it('reads the net result Bkper calculates for the group, and its rows', async () => {
+        const data = await report(intent('net-result', 'all'));
+        expect(data.intent.root).toBe('net-result');
+        expect(data.root).toEqual({
+            id: 'g-net',
+            name: 'Net income',
+            type: 'MIXED',
+            color: 'grey',
+        });
+        // Old Supplier is under Expenses only.
+        expect(data.answer).toEqual({ amount: '5749.25' });
+        expect(rows(data.breakdown)).toEqual([
+            'Salary 10000 (prev -, change -, share -)',
+            'Rent 4000 (prev -, change -, share -)',
+            'Food 250.75 (prev -, change -, share -)',
+        ]);
+        expect(data.calculated).toBeUndefined();
+        expect(data.query).toBe("group:'Net income' before:2026-11-06");
+        // The same report as the group's own.
+        const group = await report(intent('g-net', 'all'));
+        expect({ ...data, intent: group.intent }).toEqual(group);
+    });
+
+    it('reads the combining group with the most accounts, the first in Book order on a tie', async () => {
+        const ledger = fixtureLedger();
+        ledger.addGroup(
+            groupPayload('g-food-net', 'Food and salary', {
+                mixed: true,
+                credit: true,
+                permanent: false,
+            }),
+            ['a-food', 'a-salary']
+        );
+        const snapshot = await ledgerSnapshot(ledger);
+        expect(planReport(intent('net-result', 'last_month'), snapshot).roots).toEqual(['g-net']);
+    });
+
+    it('fits no pie, donut or stacked parts, as for any net result', async () => {
+        const data = await report(intent('g-net', '2026', { monthly: true, chart: 'pie' }));
+        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
+        expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'table']);
+        expect(data.charts.facts).toMatchObject({ mixed: true, net: true });
+    });
+});
+
+describe('buildReport: net result Report calculates from simple roots', () => {
+    it('subtracts the Outgoing roots from the Incoming roots, each as Bkper returns it', async () => {
+        const ledger = simpleRootsLedger();
+        const data = await report(intent('net-result', 'all'), ledger);
+        expect(data.root).toEqual({ id: 'net-result', type: 'MIXED', color: 'grey' });
+        expect(data.answer).toEqual({ amount: '5739.25' });
+        // The roots are Bkper's own rows, Incoming first, each with its own balance and rows.
+        expect(rows(data.breakdown)).toEqual([
+            'Revenue 10000 (prev -, change -, share -)',
             '  Salary 10000 (prev -, change -, share 1)',
-            'outgoing 4260.75 (prev -, change -, share -)',
+            'Expenses 4260.75 (prev -, change -, share -)',
             '  Rent 4000 (prev -, change -, share 0.9388)',
             '  Food 250.75 (prev -, change -, share 0.0589)',
             '  Old Supplier 10 (prev -, change -, share 0.0023)',
         ]);
-        expect(data.breakdown.map(row => [row.id, row.type, row.color])).toEqual([
-            ['incoming', 'INCOMING', 'green'],
-            ['outgoing', 'OUTGOING', 'red'],
+        expect(data.breakdown.map(row => [row.id, row.kind, row.type, row.color])).toEqual([
+            ['g-revenue', 'group', 'INCOMING', 'green'],
+            ['g-expenses', 'group', 'OUTGOING', 'red'],
         ]);
-        expect(data.query).toBe(
-            "(group:'Expenses' OR group:'Revenue' OR group:'Net income') before:2026-11-06"
-        );
+        for (const row of data.breakdown) {
+            expect(row.amount).toBe((await report(intent(row.id, 'all'), ledger)).answer.amount);
+        }
+        expect(data.calculated).toEqual({ months: expect.any(Array) });
+        expect(data.query).toBe("(group:'Expenses' OR group:'Revenue') before:2026-11-06");
     });
 
     it('compares the net result with the previous period and shows it by month', async () => {
-        const data = await report(intent('net-result', 'this_month', { monthly: true }));
-        expect(data.net).toEqual({
-            incoming: { amount: '5000', previous: '5000', change: '0' },
-            outgoing: { amount: '1050.25', previous: '1000', change: '0.0503' },
-            months: ['3949.75'],
-        });
+        const data = await report(
+            intent('net-result', 'this_month', { monthly: true }),
+            simpleRootsLedger()
+        );
         expect(data.answer).toEqual({ amount: '3949.75', previous: '4000', change: '-0.0126' });
-        // The rows carry the same amounts and changes as the answer's sides.
+        expect(data.calculated).toEqual({ months: ['3949.75'] });
         expect(rows(data.breakdown).filter(row => !row.startsWith(' '))).toEqual([
-            'incoming 5000 (prev 5000, change 0, share -)',
-            'outgoing 1050.25 (prev 1000, change 0.0503, share -)',
+            'Revenue 5000 (prev 5000, change 0, share -)',
+            'Expenses 1050.25 (prev 1000, change 0.0503, share -)',
         ]);
         expect(data.chart).toEqual({
             kind: 'bar',
             series: [
-                { id: 'incoming', type: 'INCOMING', color: 'green', amounts: ['5000'] },
-                { id: 'outgoing', type: 'OUTGOING', color: 'red', amounts: ['1050.25'] },
+                {
+                    id: 'g-revenue',
+                    name: 'Revenue',
+                    type: 'INCOMING',
+                    color: 'green',
+                    amounts: ['5000'],
+                },
+                {
+                    id: 'g-expenses',
+                    name: 'Expenses',
+                    type: 'OUTGOING',
+                    color: 'red',
+                    amounts: ['1050.25'],
+                },
                 {
                     id: 'net-result',
                     type: 'MIXED',
@@ -389,30 +502,86 @@ describe('buildReport: mixed groups and net result', () => {
         });
     });
 
-    it('nets Incoming against Outgoing in every month', async () => {
-        const data = await report(intent('net-result', 'last_12_months', { monthly: true }));
-        const [incoming, outgoing] = data.breakdown;
-        expect(data.net?.months).toEqual(
+    it('subtracts the Outgoing roots from the Incoming roots in every month', async () => {
+        const data = await report(
+            intent('net-result', 'last_12_months', { monthly: true }),
+            simpleRootsLedger()
+        );
+        const [revenue, expenses] = data.breakdown;
+        expect(data.calculated?.months).toEqual(
             data.months.map((_, i) =>
-                new Amount(incoming.months[i]).minus(outgoing.months[i]).toFixed()
+                new Amount(revenue.months[i]).minus(expenses.months[i]).toFixed()
             )
         );
-        expect(data.net?.months.slice(-2)).toEqual(['3799.5', '3949.75']);
+        expect(data.calculated?.months.slice(-2)).toEqual(['3799.5', '3949.75']);
     });
 
-    it('leaves a side without amount out of the chart of a net result', async () => {
-        const data = await report(intent('net-result', '2026-09', { monthly: true }));
+    it('leaves a root without amount out of the chart', async () => {
+        const ledger = simpleRootsLedger();
+        const data = await report(intent('net-result', '2026-09', { monthly: true }), ledger);
         expect(rows(data.breakdown)).toEqual([
-            'outgoing 0 (prev 1000, change -1, share -)',
+            'Expenses 0 (prev 1000, change -1, share -)',
             '  Rent 0 (prev 1000, change -1, share -)',
         ]);
         // Nothing has an amount in any month, so there is no chart at all.
         expect(data.chart).toEqual({ kind: 'none' });
-        const year = await report(intent('net-result', 'last_year', { monthly: true }));
+        const year = await report(intent('net-result', 'last_year', { monthly: true }), ledger);
         expect(year.chart.kind === 'bar' && year.chart.series.map(series => series.id)).toEqual([
-            'outgoing',
+            'g-expenses',
             'net-result',
         ]);
+    });
+
+    it('reads a net result today from each root', async () => {
+        const data = await report(intent('net-result', 'today'), simpleRootsLedger());
+        expect(rows(data.breakdown).filter(row => !row.startsWith(' '))).toEqual([
+            'Revenue 5000 (prev 0, change -, share -)',
+            'Expenses 0 (prev 50.25, change -1, share -)',
+        ]);
+        expect(data.answer).toMatchObject({ amount: '5000', previous: '-50.25' });
+    });
+
+    it('fits no pie, donut or stacked parts', async () => {
+        const data = await report(
+            intent('net-result', '2026', { monthly: true }),
+            simpleRootsLedger()
+        );
+        expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'table']);
+        expect(data.charts.facts).toMatchObject({ rows: 2, mixed: true, net: true });
+    });
+
+    it('has no net result when the responses show roots sharing an account', async () => {
+        const ledger = simpleRootsLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const request = intent('net-result', 'last_month');
+        const balances = balancesOf(request, snapshot, ledger);
+        // An account the map does not show under Revenue, as when it was archived at zero.
+        const revenue = balances.filter(entry => entry.query.startsWith("group:'Revenue'"));
+        for (const entry of revenue) {
+            entry.accounts.Food = { ...balances[0].accounts.Food };
+            entry.groups.Revenue.accounts.push('Food');
+        }
+        expect(() => buildReport(request, snapshot, balances)).toThrow(
+            expect.objectContaining({ reason: 'no_net_result' })
+        );
+    });
+});
+
+describe('buildReport: no net result', () => {
+    it('has none when activity roots share accounts', async () => {
+        const snapshot = await ledgerSnapshot(sharedAccountLedger());
+        expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
+            expect.objectContaining({ reason: 'no_net_result' })
+        );
+    });
+
+    it('has none without both an Incoming and an Outgoing root', async () => {
+        const ledger = simpleRootsLedger();
+        ledger.removeGroup('g-revenue');
+        const snapshot = await ledgerSnapshot(ledger);
+        expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
+            expect.objectContaining({ reason: 'no_net_result' })
+        );
     });
 
     it('rejects a net result in a Book without activity roots', async () => {
@@ -424,22 +593,48 @@ describe('buildReport: mixed groups and net result', () => {
     });
 });
 
-describe('buildReport: remainder', () => {
-    it('adds the amount Bkper left out of the children, so the breakdown adds up', async () => {
+describe('buildReport: only the rows Bkper returns', () => {
+    it('shows no row Bkper left out, and no remainder in its place', async () => {
         const ledger = fixtureLedger();
         const snapshot = await ledgerSnapshot(ledger);
-        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
-        const data = await report(intent('g-expenses', 'this_month'), ledger, snapshot);
+        const request = intent('g-expenses', 'all', { chart: 'pie' });
+        const balances = balancesOf(request, snapshot, ledger);
+        for (const entry of balances) {
+            delete entry.accounts.Food;
+            entry.groups.Expenses.accounts = entry.groups.Expenses.accounts.filter(
+                name => name !== 'Food'
+            );
+        }
+        const data = buildReport(request, snapshot, balances);
+        // The group's own total still counts Food, as Bkper's does.
+        expect(data.answer.amount).toBe('4260.75');
         expect(rows(data.breakdown)).toEqual([
-            'Rent 1000 (prev 1000, change 0, share 0.9522)',
-            'other 50.25 (prev 0, change -, share 0.0478)',
+            'Rent 4000 (prev -, change -, share 0.9388)',
+            'Old Supplier 10 (prev -, change -, share 0.0023)',
+        ]);
+        // The parts are no whole of the total, so no chart implies they are.
+        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'not_a_whole' } });
+        expect(kinds(data)).not.toContain('donut');
+        expect(data.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
+    });
+
+    it('shows a row Bkper returns that the map lacks, with its own nature', async () => {
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        delete snapshot.accounts['a-food'];
+        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-old'];
+        const data = await report(intent('g-expenses', 'last_month'), ledger, snapshot);
+        expect(rows(data.breakdown)).toEqual([
+            'Rent 1000 (prev 0, change -, share 0.833)',
+            'Food 200.5 (prev 0, change -, share 0.167)',
         ]);
         expect(data.breakdown[1]).toMatchObject({
-            id: 'g-expenses:other',
+            id: 'account:Food',
+            kind: 'account',
             type: 'OUTGOING',
-            months: ['50.25'],
+            color: 'red',
+            months: ['200.5'],
         });
-        expect(data.breakdown[1].name).toBeUndefined();
     });
 });
 
@@ -463,15 +658,13 @@ function withSeptemberOnly(ledger: FakeLedger): FakeLedger {
 describe('buildReport: rows without amount', () => {
     it('keeps them in the table, last, and leaves them out of breakdown charts', async () => {
         const ledger = withSeptemberOnly(fixtureLedger());
-        const snapshot = await ledgerSnapshot(ledger);
-        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-september'];
-        const data = await report(intent('g-expenses', 'last_month'), ledger, snapshot);
+        const data = await report(intent('g-expenses', 'last_month'), ledger);
         expect(rows(data.breakdown)).toEqual([
             'Rent 1000 (prev 0, change -, share 0.833)',
-            'other 200.5 (prev 0, change -, share 0.167)',
+            'Food 200.5 (prev 0, change -, share 0.167)',
             'September Only 0 (prev 5, change -1, share 0)',
         ]);
-        expect(data.chart).toEqual({ kind: 'donut', rows: ['a-rent', 'g-expenses:other'] });
+        expect(data.chart).toEqual({ kind: 'donut', rows: ['a-rent', 'a-food'] });
     });
 
     it('needs two rows with amounts for a breakdown chart', async () => {
@@ -482,12 +675,9 @@ describe('buildReport: rows without amount', () => {
             ),
             1
         );
-        const snapshot = await ledgerSnapshot(ledger);
-        snapshot.groups['g-expenses'].accounts = ['a-rent', 'a-september'];
         const data = await report(
             intent('g-expenses', 'last_month', { view: 'breakdown' }),
-            ledger,
-            snapshot
+            ledger
         );
         expect(data.breakdown.map(row => row.name)).toEqual(['Rent', 'September Only']);
         expect(data.chart).toEqual({ kind: 'none' });
@@ -547,15 +737,6 @@ describe('buildReport: any period and hashtags', () => {
         expect(data.answer).toEqual({ amount: '0', previous: '50.25', change: '-1' });
         expect(rows(data.breakdown)).toEqual(['Food 0 (prev 50.25, change -1, share -)']);
         expect(data.query).toBe("group:'Expenses' after:2026-11-05 before:2026-11-06");
-    });
-
-    it('reads a net result today from each activity root', async () => {
-        const data = await report(intent('net-result', 'today'));
-        expect(data.net).toMatchObject({
-            incoming: { amount: '5000', previous: '0' },
-            outgoing: { amount: '0', previous: '50.25' },
-        });
-        expect(data.answer).toMatchObject({ amount: '5000', previous: '-50.25' });
     });
 
     it('reads hashtag reports from queries filtered by the hashtags', async () => {
@@ -667,37 +848,70 @@ describe('buildReport: chart preference', () => {
         });
     });
 
-    it('stacks the largest parts and the rest as other, adding up to the root each month', async () => {
-        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
+    it('stacks at most six parts, every part drawn, adding up to the root each month', async () => {
+        const request = intent('g-expenses', '2026', { monthly: true });
+        const six = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '300',
             '-40',
             '25',
             '7',
-            '3.33',
-            '1.01',
         ]);
-        const request = intent('g-expenses', '2026', { monthly: true });
-        const data = await report({ ...request, chart: 'stacked' }, ledger);
-        const byRules = await report(request, ledger);
+        const data = await report({ ...request, chart: 'stacked' }, six);
+        const byRules = await report(request, six);
         if (data.chart.kind !== 'stacked' || byRules.chart.kind !== 'bar') {
             throw new Error(`Unexpected charts ${data.chart.kind} and ${byRules.chart.kind}`);
         }
         const { series } = data.chart;
-        const rootMonths = byRules.chart.series[0].amounts;
-        expect(series.length).toBeLessThanOrEqual(6);
-        expect(series.at(-1)).toMatchObject({ id: 'other', type: 'OUTGOING', color: 'red' });
-        expect(series.at(-1)?.name).toBeUndefined();
-        expect(series.slice(0, -1).map(entry => entry.name)).toEqual([
+        expect(series.map(entry => entry.name)).toEqual([
             'Rent',
             'Extra 0',
             'Food',
             'Extra 1',
             'Extra 2',
+            'Extra 3',
         ]);
+        // Each part is its row, as Bkper returns it.
+        series.forEach(entry =>
+            expect(entry.amounts).toEqual(data.breakdown.find(row => row.id === entry.id)?.months)
+        );
+        const rootMonths = byRules.chart.series[0].amounts;
         data.months.forEach((month, i) => {
             expect(total(series.map(entry => entry.amounts[i])).eq(rootMonths[i]), month).toBe(
                 true
             );
+        });
+        const seven = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
+            '300',
+            '-40',
+            '25',
+            '7',
+            '3.33',
+        ]);
+        const many = await report({ ...request, chart: 'stacked' }, seven);
+        expect(many.charts.unfit).toEqual({ kind: 'stacked', reason: { code: 'too_many_parts' } });
+        expect(many.chart).toMatchObject({ kind: 'bar', fallback: true });
+    });
+
+    it('stacks no parts of different types, nor parts that are no whole of the root', async () => {
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['50']);
+        const snapshot = await ledgerSnapshot(ledger);
+        snapshot.accounts['g-expenses-extra-0'].type = 'ASSET';
+        const request = intent('g-expenses', '2026', { monthly: true, chart: 'stacked' });
+        const mixed = await report(request, ledger, snapshot);
+        expect(mixed.charts.unfit).toEqual({ kind: 'stacked', reason: { code: 'mixed_parts' } });
+        const withExtra = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['50']);
+        const extraMap = await ledgerSnapshot(withExtra);
+        const extraBalances = balancesOf(request, extraMap, withExtra);
+        for (const entry of extraBalances) {
+            delete entry.accounts.Food;
+            entry.groups.Expenses.accounts = entry.groups.Expenses.accounts.filter(
+                name => name !== 'Food'
+            );
+        }
+        const notWhole = buildReport(request, extraMap, extraBalances);
+        expect(notWhole.charts.unfit).toEqual({
+            kind: 'stacked',
+            reason: { code: 'not_a_whole' },
         });
     });
 
@@ -716,10 +930,13 @@ describe('buildReport: chart preference', () => {
             kind: 'area',
             series: byRules.chart.kind === 'line' ? byRules.chart.series : [],
         });
-        const net = await report(intent('net-result', '2026', { chart: 'area' }));
+        const net = await report(
+            intent('net-result', '2026', { chart: 'area' }),
+            simpleRootsLedger()
+        );
         expect(net.chart.kind === 'area' && net.chart.series.map(series => series.id)).toEqual([
-            'incoming',
-            'outgoing',
+            'g-revenue',
+            'g-expenses',
             'net-result',
         ]);
     });
@@ -737,8 +954,11 @@ describe('buildReport: chart preference', () => {
     it('compares each part with the previous period, also parts that had an amount only then', async () => {
         const data = await report(intent('g-expenses', 'this_month', { chart: 'compare' }));
         expect(data.chart).toEqual({ kind: 'compare', rows: ['a-rent', 'a-food'] });
-        const net = await report(intent('net-result', '2026-09', { chart: 'compare' }));
-        expect(net.chart).toEqual({ kind: 'compare', rows: ['outgoing'] });
+        const net = await report(
+            intent('net-result', '2026-09', { chart: 'compare' }),
+            simpleRootsLedger()
+        );
+        expect(net.chart).toEqual({ kind: 'compare', rows: ['g-expenses'] });
     });
 
     it('falls back from a comparison without a previous period to the closest chart', async () => {
@@ -750,127 +970,19 @@ describe('buildReport: chart preference', () => {
         });
     });
 
-    it('bridges Incoming to the net result through each Outgoing account', async () => {
-        const data = await report(intent('net-result', 'this_month', { chart: 'waterfall' }));
-        expect(data.chart).toEqual({
-            kind: 'waterfall',
-            start: '5000',
-            steps: [
-                {
-                    id: 'a-rent',
-                    kind: 'account',
-                    name: 'Rent',
-                    type: 'OUTGOING',
-                    color: 'red',
-                    amount: '-1000',
-                },
-                {
-                    id: 'a-food',
-                    kind: 'account',
-                    name: 'Food',
-                    type: 'OUTGOING',
-                    color: 'red',
-                    amount: '-50.25',
-                },
-            ],
-            end: '3949.75',
-        });
-        expect(data.answer.amount).toBe('3949.75');
-    });
-
-    it('bridges a net result to the cent with the smallest Outgoing accounts as other', async () => {
-        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
-            '300.01',
-            '-40.02',
-            '25.03',
-            '7.04',
-            '3.05',
-            '1.06',
-            '0.07',
-            '0.08',
-        ]);
-        const data = await report(
-            intent('net-result', 'last_month', { chart: 'waterfall' }),
-            ledger
-        );
-        if (data.chart.kind !== 'waterfall') {
-            throw new Error(`Unexpected chart ${data.chart.kind}`);
+    it('draws no bridge, offering the closest chart and why', async () => {
+        const requests = [
+            intent('g-expenses', 'last_month', { chart: 'waterfall' }),
+            intent('g-assets', 'today', { chart: 'waterfall' }),
+            intent('net-result', 'this_month', { chart: 'waterfall' }),
+        ];
+        for (const request of requests) {
+            const data = await report(request);
+            expect(data.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'no_bridge' } });
+            expect(kinds(data)).not.toContain('waterfall');
+            expect(data.charts).toMatchObject({ main: 'compare', rule: 'closest' });
+            expect(data.chart).toMatchObject({ kind: 'compare', fallback: true });
         }
-        const { start, steps, end } = data.chart;
-        expect(steps.length).toBeLessThanOrEqual(8);
-        expect(steps.at(-1)).toMatchObject({ id: 'other', kind: 'other', color: 'red' });
-        expect(start).toBe(data.net?.incoming.amount);
-        expect(end).toBe(data.answer.amount);
-        expect(total([start, ...steps.map(step => step.amount)]).toFixed()).toBe(
-            new Amount(end).toFixed()
-        );
-        // A refund lowers Outgoing, so it raises the net result.
-        expect(steps.find(step => step.name === 'Extra 1')?.amount).toBe('40.02');
-    });
-
-    it('bridges a position from its opening to its closing through each part’s change', async () => {
-        const data = await report(intent('g-assets', 'today', { chart: 'waterfall' }));
-        expect(data.chart).toEqual({
-            kind: 'waterfall',
-            start: '3899.5',
-            steps: [
-                {
-                    id: 'g-banks',
-                    kind: 'group',
-                    name: 'Banks',
-                    type: 'ASSET',
-                    color: 'blue',
-                    amount: '3949.75',
-                },
-            ],
-            end: '7849.25',
-        });
-        expect(data.answer).toMatchObject({ amount: '7849.25', previous: '3899.5' });
-    });
-
-    it('bridges a position to the cent with the smallest changes as other', async () => {
-        const ledger = withAccounts(fixtureLedger(), 'g-assets', '2026-11', [
-            '10.01',
-            '-20.02',
-            '30.03',
-            '-40.04',
-            '50.05',
-            '-60.06',
-            '70.07',
-            '0.01',
-        ]);
-        const data = await report(intent('g-assets', 'today', { chart: 'waterfall' }), ledger);
-        if (data.chart.kind !== 'waterfall') {
-            throw new Error(`Unexpected chart ${data.chart.kind}`);
-        }
-        const { start, steps, end } = data.chart;
-        expect(steps.length).toBeLessThanOrEqual(8);
-        expect(steps.map(step => step.name ?? step.id)).toEqual([
-            'Banks',
-            'Extra 6',
-            'Extra 5',
-            'Extra 4',
-            'Extra 3',
-            'Extra 2',
-            'Extra 1',
-            'other',
-        ]);
-        expect(start).toBe(data.answer.previous);
-        expect(end).toBe(data.answer.amount);
-        expect(total([start, ...steps.map(step => step.amount)]).toFixed()).toBe(
-            new Amount(end).toFixed()
-        );
-    });
-
-    it('falls back from a bridge for other activity or a position without a previous one', async () => {
-        const expenses = await report(intent('g-expenses', 'last_month', { chart: 'waterfall' }));
-        expect(expenses.chart).toEqual({
-            kind: 'compare',
-            rows: ['a-rent', 'a-food'],
-            fallback: true,
-        });
-        const all = await report(intent('g-assets', 'all', { chart: 'waterfall' }));
-        expect(all.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
     });
 });
 
@@ -918,25 +1030,11 @@ describe('buildReport: chart views', () => {
         expect(viewOf(data, 'bar')).toEqual(data.chart);
     });
 
-    it('computes the charts of a position, a bridge from the previous one among them', async () => {
+    it('computes the charts of a position', async () => {
         const data = await report(intent('g-assets', 'today'));
-        expect(kinds(data)).toEqual([
-            'line',
-            'ranked-bar',
-            'donut',
-            'pie',
-            'compare',
-            'waterfall',
-            'table',
-        ]);
+        expect(kinds(data)).toEqual(['line', 'ranked-bar', 'donut', 'pie', 'compare', 'table']);
         expect(data.charts.facts).toMatchObject({ months: 1, previous: true, permanent: true });
         expect(data.charts.main).toBe('donut');
-    });
-
-    it('computes the charts of a net result: no pie, donut or stacked parts', async () => {
-        const data = await report(intent('net-result', '2026', { monthly: true }));
-        expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'waterfall', 'table']);
-        expect(data.charts.facts).toMatchObject({ rows: 2, mixed: true, net: true });
     });
 
     it('has only the table when no chart fits', async () => {
@@ -974,12 +1072,9 @@ describe('buildReport: chart views', () => {
         const net = await report(intent('net-result', 'last_month', { chart: 'pie' }));
         expect(net.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
         expect(net.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
-        // Rent and Food count against the Incoming nature of the group.
+        // A group that combines Incoming and Outgoing is a net result too.
         const mixed = await report(intent('g-net', 'last_month', { chart: 'pie' }));
-        expect(mixed.charts.unfit).toEqual({
-            kind: 'pie',
-            reason: { code: 'negative_part', rowId: 'a-rent' },
-        });
+        expect(mixed.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
     });
 
     it('tells why a pie cannot show parts of different types', async () => {
@@ -1020,29 +1115,13 @@ describe('buildReport: chart views', () => {
         expect(data.charts.unfit).toEqual({ kind: 'area', reason: { code: 'no_amounts' } });
     });
 
-    it('tells why a comparison or a bridge needs a previous period', async () => {
+    it('tells why a comparison needs a previous period', async () => {
         const compare = await report(intent('g-expenses', 'all', { chart: 'compare' }));
         expect(compare.charts.unfit).toEqual({ kind: 'compare', reason: { code: 'no_previous' } });
         expect(compare.charts.facts.previous).toBe(false);
-        const bridge = await report(intent('g-assets', 'all', { chart: 'waterfall' }));
-        expect(bridge.charts.unfit).toEqual({
-            kind: 'waterfall',
-            reason: { code: 'no_previous' },
-        });
     });
 
-    it('tells why a bridge does not fit other activity', async () => {
-        const data = await report(intent('g-expenses', 'last_month', { chart: 'waterfall' }));
-        expect(data.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'not_a_bridge' } });
-        expect(data.charts).toMatchObject({ main: 'compare', rule: 'closest' });
-    });
-
-    it('tells why a bridge where nothing changed does not fit', async () => {
-        const data = await report(intent('g-card', 'today', { chart: 'waterfall' }));
-        expect(data.charts.unfit).toEqual({ kind: 'waterfall', reason: { code: 'no_change' } });
-    });
-
-    it('adds up every view to its parent, to the cent', async () => {
+    it('draws every view from the rows and months Bkper returns, to the cent', async () => {
         const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '300.01',
             '-40.02',
@@ -1062,8 +1141,14 @@ describe('buildReport: chart views', () => {
             intent('net-result', '2026', { monthly: true }),
             intent('net-result', 'last_month'),
         ];
-        for (const request of intents) {
-            const data = await report(request, ledger);
+        const simple = withAccounts(simpleRootsLedger(), 'g-expenses', '2026-10', ['300.01']);
+        const reports = [
+            ...(await Promise.all(intents.map(request => report(request, ledger)))),
+            await report(intent('net-result', '2026', { monthly: true }), simple),
+            await report(intent('net-result', 'last_month'), simple),
+        ];
+        for (const data of reports) {
+            const request = data.intent;
             for (const view of data.charts.views) {
                 const where = `${request.root} ${request.period} ${view.kind}`;
                 for (const problem of viewProblems(data, view)) {
@@ -1150,38 +1235,66 @@ describe('buildReport: a composition asked for', () => {
     });
 });
 
-/** What in a view does not add up to its parent: the root, or each side of a net result. */
+/**
+ * What in a view is not drawn from the report's own rows: every part is a breakdown row with
+ * its amounts, a pie or donut's parts and stacked parts are a whole of the root, and a net
+ * result Report calculates is its Incoming roots minus its Outgoing roots.
+ */
 function viewProblems(data: ReportData, view: ReportChart): string[] {
     const problems: string[] = [];
-    const net = data.root.id === 'net-result';
     const rowOf = (id: string) => data.breakdown.find(row => row.id === id);
-    const rootMonths = data.months.map((_, i) =>
-        total(data.breakdown.map(row => row.months[i])).toFixed()
-    );
     const same = (what: string, actual: Amount | string, expected: Amount | string | undefined) => {
         if (expected === undefined || !new Amount(actual).eq(expected)) {
             problems.push(`${what}: ${new Amount(actual).toFixed()} vs ${expected}`);
         }
     };
+    const calculated = (pick: (row: ReportRow) => string | undefined) =>
+        data.breakdown.reduce(
+            (net, row) =>
+                row.type === 'INCOMING' ? net.plus(pick(row) ?? 0) : net.minus(pick(row) ?? 0),
+            new Amount(0)
+        );
+    if (data.calculated) {
+        same(
+            'net',
+            calculated(row => row.amount),
+            data.answer.amount
+        );
+        data.months.forEach((month, i) =>
+            same(
+                `net ${month}`,
+                calculated(row => row.months[i]),
+                data.calculated?.months[i]
+            )
+        );
+    }
     switch (view.kind) {
         case 'bar':
         case 'line':
         case 'area':
             for (const series of view.series) {
-                const expected = net
-                    ? series.id === 'net-result'
-                        ? data.net?.months
-                        : rowOf(series.id)?.months
-                    : rootMonths;
-                data.months.forEach((month, i) =>
-                    same(`${series.id} ${month}`, series.amounts[i], expected?.[i])
-                );
+                const expected =
+                    series.id === 'net-result'
+                        ? data.calculated?.months
+                        : series.id === data.root.id
+                          ? undefined
+                          : rowOf(series.id)?.months;
+                if (series.id !== data.root.id) {
+                    data.months.forEach((month, i) =>
+                        same(`${series.id} ${month}`, series.amounts[i], expected?.[i])
+                    );
+                }
             }
             break;
         case 'stacked':
-            data.months.forEach((month, i) =>
-                same(month, total(view.series.map(series => series.amounts[i])), rootMonths[i])
-            );
+            if (view.series.length > 6) {
+                problems.push('more than six parts');
+            }
+            for (const series of view.series) {
+                data.months.forEach((month, i) =>
+                    same(`${series.id} ${month}`, series.amounts[i], rowOf(series.id)?.months[i])
+                );
+            }
             break;
         case 'ranked-bar':
         case 'donut':
@@ -1191,25 +1304,11 @@ function viewProblems(data: ReportData, view: ReportChart): string[] {
             if (rows.some(row => row === undefined)) {
                 problems.push('draws a row the breakdown lacks');
             }
-            if (net) {
-                const side = (id: string) => new Amount(rowOf(id)?.amount ?? 0);
-                same('net', side('incoming').minus(side('outgoing')), data.answer.amount);
-            } else {
-                same('amount', total(rows.map(row => row?.amount)), data.answer.amount);
-                if (view.kind === 'compare') {
-                    same('previous', total(rows.map(row => row?.previous)), data.answer.previous);
-                }
+            if (view.kind === 'donut' || view.kind === 'pie') {
+                same('whole', total(rows.map(row => row?.amount)), data.answer.amount);
             }
             break;
         }
-        case 'waterfall':
-            same('end', view.end, data.answer.amount);
-            same('start', view.start, net ? data.net?.incoming.amount : data.answer.previous);
-            same('steps', total([view.start, ...view.steps.map(step => step.amount)]), view.end);
-            if (view.steps.filter(step => step.id === OTHER_PART).length > 1) {
-                problems.push('more than one rest');
-            }
-            break;
         case 'none':
             break;
     }

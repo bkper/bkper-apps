@@ -9,23 +9,21 @@
  * one, per root, in parallel, as the Worker runs them), and compares every amount shown to the
  * cent with `bkper balance list` over the report's exact query and its previous period:
  *
- * - the answer, and Incoming and Outgoing for a net result over the unique accounts, both in
- *   the answer and in the breakdown's Incoming and Outgoing rows;
- * - every group and account row of the breakdown, in the root's sense (for a net result, in
- *   its side's sense: Outgoing positive);
- * - each month of the root, or of Incoming, Outgoing and the net result, for reports over
- *   several months;
- * - that every breakdown, remainder included, adds up to its parent, and that a net result is
- *   Incoming minus Outgoing, in total, in the previous period and in every month;
- * - that charts draw no row without an amount;
+ * - the answer, as Bkper's balance of the root; for a net result Report calculates, the
+ *   Incoming roots minus the Outgoing roots of the CLI, in total, before and in every month;
+ * - every row of the breakdown, at any depth, as Bkper's own balance of its group or account,
+ *   now, before and in each month: no sign changed, no remainder; and that every group or
+ *   account the CLI lists with an amount is a row, so nothing Bkper returns is hidden;
+ * - where the net result comes from, against the Book's groups and accounts as the CLI lists
+ *   them: the root group that combines Incoming and Outgoing, else simple activity roots that
+ *   share no account (and the CLI table shows none twice), else none (`no_net_result`);
  * - every chart that fits each report, the main one and every other one a renderer may switch
- *   to, for every root and the net result: each month of a chart by month; each part of a
- *   breakdown chart, with an amount (and positive in a pie or donut); each series of stacked
- *   bars in every month, and that they add up to the root; each part of a comparison, now and
- *   before; each step of a bridge, its start and its end, and that the steps add up to the end;
- *   the rest (`other`) of stacked bars and bridges as what the CLI leaves after the parts shown;
- *   and that the main chart is among them, and a preferred chart that does not fit is not, with
- *   its reason. Each line shows the preference, the main chart, the rule and the reason.
+ *   to: each month of a chart by month; the parts of a breakdown chart, exactly the rows with an
+ *   amount, positive in a pie or donut and adding up to the root's CLI total; each stacked part
+ *   in every month (at most six) and their sum against the root; each compared row; that no
+ *   bridge is ever drawn and a bridge asked for is unfit (`no_bridge`); that the main chart is
+ *   among them, and a preferred chart that does not fit is not, with its reason. Each line shows
+ *   the preference, the main chart, the rule and the reason.
  *
  * The CLI shows raw balances (credit minus debit), negated for permanent accounts, so Liability
  * and Outgoing come out negative; reports show them as Bkper charts do, by credit nature. A CLI
@@ -38,7 +36,7 @@ import { Amount, Bkper, type Book } from 'bkper-js';
 import { readQueryBalances } from '../server/src/services/balances.ts';
 import type { DateRange } from '../server/src/services/periods.ts';
 import {
-    OTHER_PART,
+    ReportError,
     buildReport,
     planQueries,
     planReport,
@@ -52,7 +50,7 @@ import {
     REPORT_CHARTS,
     type ReportIntent,
 } from '../server/src/services/report-intent.ts';
-import type { Snapshot, SnapshotNode } from '../server/src/services/snapshot.ts';
+import type { Snapshot } from '../server/src/services/snapshot.ts';
 import {
     currentUserId,
     loadSnapshot,
@@ -61,6 +59,7 @@ import {
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const CLI_CONCURRENCY = 6;
+const MAX_STACKED_PARTS = 6;
 const run = promisify(execFile);
 
 class MemoryStore implements SnapshotStore {
@@ -79,17 +78,29 @@ class Cli {
     private readonly waiting: (() => void)[] = [];
 
     async balances(bookId: string, query: string): Promise<(string | number)[][]> {
+        return JSON.parse(
+            await this.run(['balance', 'list', '-b', bookId, '-q', query, '--expanded', '10'])
+        ) as (string | number)[][];
+    }
+
+    async items<T>(command: 'group' | 'account', bookId: string): Promise<T[]> {
+        const list = JSON.parse(await this.run([command, 'list', '-b', bookId])) as {
+            items?: T[];
+        };
+        return list.items ?? [];
+    }
+
+    private async run(args: string[]): Promise<string> {
         if (this.active >= CLI_CONCURRENCY) {
             await new Promise<void>(resolve => this.waiting.push(resolve));
         }
         this.active++;
         try {
-            const { stdout } = await run(
-                'bkper',
-                ['balance', 'list', '-b', bookId, '-q', query, '--expanded', '10'],
-                { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
-            );
-            return JSON.parse(stdout) as (string | number)[][];
+            const { stdout } = await run('bkper', args, {
+                encoding: 'utf8',
+                maxBuffer: 64 * 1024 * 1024,
+            });
+            return stdout;
         } finally {
             this.active--;
             this.waiting.shift()?.();
@@ -103,18 +114,27 @@ class Cli {
  */
 interface CliRow {
     name: string;
+    /** The top-level row it is under, or its own name. */
+    root: string;
     total: Amount;
     months: Map<string, Amount>;
 }
 
-function cliRows(matrix: (string | number)[][], cumulative: boolean): Map<string, CliRow[]> {
+type CliTable = Map<string, CliRow[]>;
+
+function cliRows(matrix: (string | number)[][], cumulative: boolean): CliTable {
     const [header = [], ...lines] = matrix;
     const dates = header
         .map((cell, index) => ({ cell: String(cell), index }))
         .filter(({ cell }) => /^\d{4}-\d{2}-\d{2}$/.test(cell));
-    const rows = new Map<string, CliRow[]>();
+    const rows: CliTable = new Map();
+    let root = '';
     for (const line of lines) {
         const name = String(line[0]).trim();
+        // The CLI indents rows by their depth.
+        if (!/^\s/.test(String(line[0]))) {
+            root = name;
+        }
         const months = new Map<string, Amount>();
         let total = new Amount(0);
         for (const { cell, index } of dates) {
@@ -126,14 +146,32 @@ function cliRows(matrix: (string | number)[][], cumulative: boolean): Map<string
             );
             total = cumulative ? value : total.plus(value);
         }
-        rows.set(name, [...(rows.get(name) ?? []), { name, total, months }]);
+        rows.set(name, [...(rows.get(name) ?? []), { name, root, total, months }]);
     }
     return rows;
 }
 
+/** The nature that decides the sign Bkper shows for a group or an account. */
+interface Nature {
+    credit: boolean;
+    permanent: boolean;
+}
+
 /** A CLI amount in the sign reports show for the node. */
-function shown(node: SnapshotNode, cli: Amount): Amount {
-    return node.credit === node.permanent ? cli.times(-1) : cli;
+function shown(nature: Nature, cli: Amount): Amount {
+    return nature.credit === nature.permanent ? cli.times(-1) : cli;
+}
+
+/** A row's nature: its group's or account's in the map, else that of its type. */
+function natureOf(snapshot: Snapshot, row: { id: string; type: string }): Nature {
+    const node = snapshot.groups[row.id] ?? snapshot.accounts[row.id];
+    if (node) {
+        return { credit: node.credit, permanent: node.permanent };
+    }
+    return {
+        credit: row.type === 'LIABILITY' || row.type === 'INCOMING',
+        permanent: row.type === 'ASSET' || row.type === 'LIABILITY',
+    };
 }
 
 let failures = 0;
@@ -178,6 +216,88 @@ function intentsFor(snapshot: Snapshot, hashtags: string[]): ReportIntent[] {
     return intents;
 }
 
+/**
+ * Where the Book's net result comes from, from its groups and accounts as the CLI lists them,
+ * apart from the snapshot: the root group of Incoming and Outgoing accounts with the most
+ * accounts (the first in the CLI's order on a tie), else simple activity roots sharing no
+ * account, else none.
+ */
+type ExpectedNet =
+    | { kind: 'group'; id: string }
+    | { kind: 'calculated'; incoming: string[]; outgoing: string[] }
+    | { kind: 'none' };
+
+interface CliGroup {
+    id: string;
+    name: string;
+    type?: string;
+    mixed?: boolean;
+    permanent?: boolean;
+    parent?: { id?: string };
+}
+
+interface CliAccount {
+    id: string;
+    type: string;
+    groups?: { id?: string }[];
+}
+
+async function expectedNet(cli: Cli, bookId: string, snapshot: Snapshot): Promise<ExpectedNet> {
+    const [groups, accounts] = await Promise.all([
+        cli.items<CliGroup>('group', bookId),
+        cli.items<CliAccount>('account', bookId),
+    ]);
+    const under = (root: string): Set<string> => {
+        const ids = new Set([root]);
+        for (let grew = true; grew;) {
+            grew = false;
+            for (const group of groups) {
+                if (group.parent?.id && ids.has(group.parent.id) && !ids.has(group.id)) {
+                    ids.add(group.id);
+                    grew = true;
+                }
+            }
+        }
+        // Bkper leaves archived accounts at zero out of balances, so the map does too.
+        return new Set(
+            accounts
+                .filter(account => snapshot.accounts[account.id] !== undefined)
+                .filter(account => account.groups?.some(ref => ids.has(ref.id ?? '')))
+                .map(account => account.id)
+        );
+    };
+    const activity = groups.filter(
+        group => !group.parent?.id && !group.permanent && snapshot.roots.includes(group.id)
+    );
+    const held = new Map(activity.map(group => [group.id, under(group.id)]));
+    const types = (id: string) =>
+        new Set(
+            [...(held.get(id) ?? [])].map(
+                account => accounts.find(candidate => candidate.id === account)?.type
+            )
+        );
+    const combining = activity
+        .filter(group => group.mixed && types(group.id).has('INCOMING'))
+        .filter(group => types(group.id).has('OUTGOING'))
+        .sort((a, b) => (held.get(b.id)?.size ?? 0) - (held.get(a.id)?.size ?? 0))[0];
+    if (combining) {
+        return { kind: 'group', id: combining.id };
+    }
+    const incoming = activity.filter(group => !group.mixed && group.type === 'INCOMING');
+    const outgoing = activity.filter(group => !group.mixed && group.type === 'OUTGOING');
+    const all = activity.flatMap(group => [...(held.get(group.id) ?? [])]);
+    return incoming.length > 0 &&
+        outgoing.length > 0 &&
+        incoming.length + outgoing.length === activity.length &&
+        new Set(all).size === all.length
+        ? {
+              kind: 'calculated',
+              incoming: incoming.map(group => group.id),
+              outgoing: outgoing.map(group => group.id),
+          }
+        : { kind: 'none' };
+}
+
 async function computeReport(
     intent: ReportIntent,
     snapshot: Snapshot,
@@ -204,12 +324,29 @@ function withDates(report: ReportData, range: DateRange): string {
         : `${filter} after:${range.after} before:${range.before}`;
 }
 
+/** What the checks of one report read: its CLI tables, and how to compare with them. */
+interface CliCheck {
+    snapshot: Snapshot;
+    current: CliTable;
+    previous?: CliTable;
+    /** The report's CLI table lists running totals rather than activity. */
+    cumulative: boolean;
+    /** Whether the report and the CLI table both have amounts by month to compare. */
+    byMonth: boolean;
+    /** The CLI amount of a group or account by name, in the sign Bkper shows for it. */
+    total(rows: CliTable | undefined, name: string, nature: Nature): Amount;
+    /** The CLI amount of a group or account by name in a month of the report. */
+    month(name: string, nature: Nature, at: string): Amount;
+    same(what: string, actual: string | undefined, expected: Amount): void;
+}
+
 async function verifyReport(
     cli: Cli,
     bookId: string,
     snapshot: Snapshot,
     report: ReportData,
-    label: string
+    label: string,
+    net: ExpectedNet
 ): Promise<void> {
     const read = async (query: string) =>
         cliRows(await cli.balances(bookId, query), !query.includes('after:'));
@@ -224,167 +361,181 @@ async function verifyReport(
             problems.push(`${what}: report ${actual} vs CLI ${expected.toFixed()}`);
         }
     };
-    const cliTotal = (rows: Map<string, CliRow[]> | undefined, node: SnapshotNode) =>
-        shown(node, rows?.get(node.name)?.[0]?.total ?? new Amount(0));
-    // Sums the CLI amounts of the Book's Incoming and Outgoing accounts, in total or in a month.
-    const sides = (
-        rows: Map<string, CliRow[]> | undefined,
-        pick: (row: CliRow) => Amount | undefined = row => row.total
-    ) => {
-        let incoming = new Amount(0);
-        let outgoing = new Amount(0);
-        for (const account of Object.values(snapshot.accounts)) {
-            const row = rows?.get(account.name)?.[0];
-            if (!row) {
-                continue;
-            }
-            const amount = shown(account, pick(row) ?? new Amount(0));
-            if (account.type === 'INCOMING') {
-                incoming = incoming.plus(amount);
-            } else if (account.type === 'OUTGOING') {
-                outgoing = outgoing.plus(amount);
-            }
-        }
-        return { incoming, outgoing, net: incoming.minus(outgoing) };
+    const total = (rows: CliTable | undefined, name: string, nature: Nature) =>
+        shown(nature, rows?.get(name)?.[0]?.total ?? new Amount(0));
+    const month = (name: string, nature: Nature, at: string) => {
+        const months = current.get(name)?.[0]?.months ?? new Map<string, Amount>();
+        return shown(nature, cliSeries(report, months, cumulative).get(at) ?? new Amount(0));
+    };
+    const byMonth = report.months.length > 1 && (report.nature === 'position' || !cumulative);
+    const cliCheck: CliCheck = {
+        snapshot,
+        current,
+        previous,
+        cumulative,
+        byMonth,
+        total,
+        month,
+        same,
     };
 
-    if (report.root.id === NET_RESULT_ROOT) {
-        const incomingRow = report.breakdown.find(row => row.kind === 'incoming');
-        const outgoingRow = report.breakdown.find(row => row.kind === 'outgoing');
-        const now = sides(current);
-        same('incoming', report.net?.incoming.amount, now.incoming);
-        same('outgoing', report.net?.outgoing.amount, now.outgoing);
-        same('net', report.answer.amount, now.net);
-        // Rows without amounts are left out, so a missing side must be zero.
-        same('incoming row', incomingRow?.amount ?? '0', now.incoming);
-        same('outgoing row', outgoingRow?.amount ?? '0', now.outgoing);
-        if (previous) {
-            const before = sides(previous);
-            same('previous incoming', report.net?.incoming.previous, before.incoming);
-            same('previous outgoing', report.net?.outgoing.previous, before.outgoing);
-            same('previous net', report.answer.previous, before.net);
-            same('previous incoming row', incomingRow?.previous ?? '0', before.incoming);
-            same('previous outgoing row', outgoingRow?.previous ?? '0', before.outgoing);
-        }
-        // Every account of a side, in the side's sense, as Bkper shows it.
-        for (const row of [incomingRow, outgoingRow].flatMap(side => side?.children ?? [])) {
-            const account = snapshot.accounts[row.id];
-            if (!account) {
-                problems.push(`${row.name ?? row.id}: not an account of the Book`);
-                continue;
-            }
-            same(row.name ?? row.id, row.amount, cliTotal(current, account));
-            if (previous) {
-                same(`${row.name} previous`, row.previous, cliTotal(previous, account));
-            }
-        }
-        if (report.months.length > 1 && !cumulative) {
-            report.months.forEach((month, i) => {
-                const cli = sides(current, row => row.months.get(month));
-                same(`incoming ${month}`, incomingRow?.months[i] ?? '0', cli.incoming);
-                same(`outgoing ${month}`, outgoingRow?.months[i] ?? '0', cli.outgoing);
-                same(`net ${month}`, report.net?.months[i], cli.net);
-            });
-        }
+    problems.push(...netProblems(report, net));
+    if (report.calculated) {
+        problems.push(...calculatedProblems(report, cliCheck));
     } else {
         const root = snapshot.groups[report.root.id];
-        same('answer', report.answer.amount, cliTotal(current, root));
+        same('answer', report.answer.amount, total(current, root.name, root));
         if (previous) {
-            same('previous', report.answer.previous, cliTotal(previous, root));
-        }
-        const visit = (row: ReportRow) => {
-            const node =
-                row.kind === 'group'
-                    ? snapshot.groups[row.id]
-                    : row.kind === 'account'
-                      ? snapshot.accounts[row.id]
-                      : undefined;
-            if (node) {
-                const sign = node.credit === root.credit ? 1 : -1;
-                same(row.name ?? row.id, row.amount, cliTotal(current, node).times(sign));
-                if (previous) {
-                    same(
-                        `${row.name} previous`,
-                        row.previous,
-                        cliTotal(previous, node).times(sign)
-                    );
-                }
-            }
-            row.children.forEach(visit);
-        };
-        report.breakdown.forEach(visit);
-        // Activity by month needs a CLI table of activity, not of running totals.
-        if (report.months.length > 1 && (report.nature === 'position' || !cumulative)) {
-            const months = current.get(root.name)?.[0]?.months ?? new Map<string, Amount>();
-            const series = cliSeries(report, months, cumulative);
-            // Every chart by month that fits, whether drawn first or offered.
-            for (const view of report.charts.views) {
-                if (view.kind !== 'bar' && view.kind !== 'line' && view.kind !== 'area') {
-                    continue;
-                }
-                report.months.forEach((month, i) => {
-                    const expected = series.get(month);
-                    if (expected !== undefined) {
-                        same(
-                            `${view.kind} ${month}`,
-                            view.series[0].amounts[i],
-                            shown(root, expected)
-                        );
-                    }
-                });
-            }
+            same('previous', report.answer.previous, total(previous, root.name, root));
         }
     }
+    problems.push(...rowProblems(report, cliCheck));
     problems.push(...choiceProblems(report));
     for (const view of report.charts.views) {
         problems.push(
-            ...chartProblems(report, view, snapshot, {
-                current,
-                previous,
-                cumulative,
-                cliTotal,
-                sides,
-                same,
-            }).map(problem => `${view.kind}: ${problem}`)
+            ...chartProblems(report, view, cliCheck).map(problem => `${view.kind}: ${problem}`)
         );
     }
-    problems.push(...unbalanced(report));
 
     const rowCount = countRows(report.breakdown);
-    const remainders = countRows(report.breakdown, row => row.kind === 'other');
     const { charts } = report;
     const unfit = charts.unfit ? `, ${charts.unfit.kind} unfit: ${charts.unfit.reason.code}` : '';
     const chart =
         ` [${report.intent.chart ?? 'auto'} → ${charts.main} by ${charts.rule}${unfit};` +
         ` ${charts.views.length} views]`;
+    const calculated = report.calculated ? ' (calculated by Report)' : '';
     check(
         problems.length === 0,
-        `${label}${chart}: ${report.answer.amount}` +
+        `${label}${chart}: ${report.answer.amount}${calculated}` +
             (report.answer.previous === undefined ? '' : ` (prev ${report.answer.previous})`) +
-            `, ${rowCount} rows${remainders ? ` (${remainders} remainder)` : ''} — ${report.query}` +
+            `, ${rowCount} rows — ${report.query}` +
             (problems.length ? `\n         ${problems.slice(0, 4).join('\n         ')}` : '')
     );
 }
 
-interface ChartCheck {
-    current: Map<string, CliRow[]>;
-    previous?: Map<string, CliRow[]>;
-    /** The report's CLI table lists running totals rather than activity. */
-    cumulative: boolean;
-    /** A node's CLI amount, in the sign Bkper shows for it. */
-    cliTotal(rows: Map<string, CliRow[]> | undefined, node: SnapshotNode): Amount;
-    /** CLI Incoming, Outgoing and net result over the Book's accounts. */
-    sides(rows: Map<string, CliRow[]> | undefined): {
-        incoming: Amount;
-        outgoing: Amount;
-        net: Amount;
+/** Whether a net result comes from where the Book's groups and accounts say it must. */
+function netProblems(report: ReportData, net: ExpectedNet): string[] {
+    if (report.intent.root !== NET_RESULT_ROOT) {
+        return report.calculated ? ['A report of a group is calculated by Report'] : [];
+    }
+    switch (net.kind) {
+        case 'group':
+            return report.root.id === net.id && !report.calculated
+                ? []
+                : [`The net result is not the group ${net.id} that combines Incoming and Outgoing`];
+        case 'calculated':
+            return report.root.id === NET_RESULT_ROOT && report.calculated
+                ? []
+                : ['The net result of simple roots is not calculated by Report'];
+        case 'none':
+            return ['A net result of a Book that has none'];
+    }
+}
+
+/**
+ * A net result Report calculates: its rows are its roots, Incoming first, and it is the CLI's
+ * Incoming roots minus its Outgoing roots, in total, before and in every month, with no
+ * account under two roots.
+ */
+function calculatedProblems(report: ReportData, cli: CliCheck): string[] {
+    const problems: string[] = [];
+    const { snapshot, current, previous, total, same } = cli;
+    const roots = report.breakdown.map(row => snapshot.groups[row.id]);
+    if (roots.some(root => root === undefined || !snapshot.roots.includes(root.id))) {
+        problems.push('A row of a calculated net result is not a root group');
+        return problems;
+    }
+    const sign = (type: string) => (type === 'INCOMING' ? 1 : type === 'OUTGOING' ? -1 : 0);
+    if (roots.some(root => sign(root.type) === 0)) {
+        problems.push('A root of a calculated net result is neither Incoming nor Outgoing');
+    }
+    // Bkper's root totals, as the CLI shows them, each with its sign in the net result. A root
+    // without amounts is left out of the rows, so read every activity root of the Book.
+    const activity = snapshot.roots
+        .map(id => snapshot.groups[id])
+        .filter(group => !group.permanent);
+    const net = (pick: (group: (typeof activity)[number]) => Amount) =>
+        activity.reduce(
+            (sum, group) => sum.plus(pick(group).times(sign(group.type))),
+            new Amount(0)
+        );
+    same(
+        'net',
+        report.answer.amount,
+        net(group => total(current, group.name, group))
+    );
+    if (previous) {
+        same(
+            'previous net',
+            report.answer.previous,
+            net(group => total(previous, group.name, group))
+        );
+    }
+    if (cli.byMonth) {
+        report.months.forEach((at, i) =>
+            same(
+                `net ${at}`,
+                report.calculated?.months[i],
+                net(group => cli.month(group.name, group, at))
+            )
+        );
+    }
+    for (const table of [current, previous]) {
+        for (const [name, rows] of table ?? []) {
+            if (new Set(rows.map(row => row.root)).size > 1) {
+                problems.push(`${name} is under two roots of a calculated net result`);
+            }
+        }
+    }
+    return problems;
+}
+
+/**
+ * Every row, at any depth, is Bkper's own balance of its group or account, now, before and in
+ * each month; and every group or account the CLI lists with an amount is a row.
+ */
+function rowProblems(report: ReportData, cli: CliCheck): string[] {
+    const problems: string[] = [];
+    const { snapshot, current, previous, total, same } = cli;
+    const names = new Set<string>();
+    const visit = (row: ReportRow) => {
+        names.add(row.name);
+        if (row.kind !== 'group' && row.kind !== 'account') {
+            problems.push(`${row.name}: a row of the kind ${String(row.kind)}`);
+        }
+        const nature = natureOf(snapshot, row);
+        if (!current.has(row.name) && !previous?.has(row.name)) {
+            problems.push(`${row.name}: not a row Bkper returns`);
+        }
+        same(row.name, row.amount, total(current, row.name, nature));
+        if (previous) {
+            same(`${row.name} previous`, row.previous, total(previous, row.name, nature));
+        }
+        if (cli.byMonth) {
+            report.months.forEach((at, i) =>
+                same(`${row.name} ${at}`, row.months[i], cli.month(row.name, nature, at))
+            );
+        }
+        row.children.forEach(visit);
     };
-    same(what: string, actual: string | undefined, expected: Amount): void;
+    report.breakdown.forEach(visit);
+    const roots = report.calculated
+        ? snapshot.roots.map(id => snapshot.groups[id].name)
+        : [snapshot.groups[report.root.id].name];
+    for (const table of [current, previous]) {
+        for (const [name, rows] of table ?? []) {
+            if (!names.has(name) && !roots.includes(name) && !rows[0].total.eq(0)) {
+                problems.push(`${name}: Bkper returns it with an amount, but it is not a row`);
+            }
+        }
+    }
+    return problems;
 }
 
 /**
  * Whether the main chart is one of the charts that fit, drawn as the report's chart, and a
- * preferred chart that does not fit is left out of them, with the main chart marked `fallback`.
+ * preferred chart that does not fit is left out of them, with the main chart marked `fallback`;
+ * and a bridge is never drawn.
  */
 function choiceProblems(report: ReportData): string[] {
     const problems: string[] = [];
@@ -392,6 +543,9 @@ function choiceProblems(report: ReportData): string[] {
     const kinds = charts.views.map(viewKindOf);
     if (new Set(kinds).size !== kinds.length) {
         problems.push(`Repeated views: ${kinds.join(', ')}`);
+    }
+    if (kinds.includes('waterfall')) {
+        problems.push('A bridge is among the views');
     }
     const main = charts.views.find(view => viewKindOf(view) === charts.main);
     if (!main || viewKindOf(chart) !== charts.main) {
@@ -412,163 +566,107 @@ function choiceProblems(report: ReportData): string[] {
     if (preferred && preferred !== 'auto' && !charts.unfit && charts.main !== preferred) {
         problems.push(`The preferred ${preferred} fits, but ${charts.main} is drawn`);
     }
+    if (preferred === 'waterfall' && charts.unfit?.reason.code !== 'no_bridge') {
+        problems.push('A bridge asked for is not unfit as no bridge');
+    }
     return problems;
 }
 
 /**
- * Cross-checks the data of a chart against the CLI: breakdown parts, stacked series in every
- * month, compared parts now and before, and every bar of a bridge. The rest (`other`) is
- * checked as what the CLI leaves after the parts shown.
+ * Cross-checks the data of a chart against the CLI: each month of a chart by month, breakdown
+ * parts and their whole, stacked parts in every month and their whole, and compared parts.
  */
-function chartProblems(
-    report: ReportData,
-    chart: ReportChart,
-    snapshot: Snapshot,
-    cli: ChartCheck
-): string[] {
+function chartProblems(report: ReportData, chart: ReportChart, cli: CliCheck): string[] {
     const problems: string[] = [];
-    const { current, previous, same } = cli;
-    const net = report.root.id === NET_RESULT_ROOT;
-    const root = net ? undefined : snapshot.groups[report.root.id];
-    const nodeOf = (id: string): SnapshotNode | undefined =>
-        snapshot.groups[id] ?? snapshot.accounts[id];
-    // In the report's sense: the root's, or for a net result each side's (Outgoing positive).
-    const inSense = (node: SnapshotNode, amount: Amount) =>
-        root && node.credit !== root.credit ? amount.times(-1) : amount;
-    const total = (rows: Map<string, CliRow[]> | undefined, node: SnapshotNode) =>
-        inSense(node, cli.cliTotal(rows, node));
-    const month = (node: SnapshotNode, at: string) => {
-        const months = current.get(node.name)?.[0]?.months ?? new Map<string, Amount>();
-        const amount = cliSeries(report, months, cli.cumulative).get(at) ?? new Amount(0);
-        return inSense(node, shown(node, amount));
-    };
-    const sum = (values: (string | Amount)[]) =>
+    const { snapshot, current, total, same } = cli;
+    const root = report.calculated ? undefined : snapshot.groups[report.root.id];
+    const rowOf = (id: string) => report.breakdown.find(row => row.id === id);
+    const sum = (values: string[]) =>
         values.reduce<Amount>((result, value) => result.plus(value), new Amount(0));
 
+    if (chart.kind === 'bar' || chart.kind === 'line' || chart.kind === 'area') {
+        for (const series of chart.series) {
+            if (series.id === NET_RESULT_ROOT) {
+                if (series.amounts.join() !== report.calculated?.months.join()) {
+                    problems.push('The net result series is not the calculated net result');
+                }
+                continue;
+            }
+            const node = snapshot.groups[series.id];
+            if (!node) {
+                problems.push(`${series.id}: a series of no root group`);
+            } else if (cli.byMonth) {
+                report.months.forEach((at, i) =>
+                    same(`${series.name} ${at}`, series.amounts[i], cli.month(node.name, node, at))
+                );
+            }
+        }
+    }
     if (chart.kind === 'ranked-bar' || chart.kind === 'donut' || chart.kind === 'pie') {
         const drawn = report.breakdown.filter(row => !new Amount(row.amount).eq(0));
         if (chart.rows.join() !== drawn.map(row => row.id).join()) {
             problems.push('Does not draw exactly the parts with an amount, in order');
         }
-        for (const id of chart.rows) {
-            const row = report.breakdown.find(candidate => candidate.id === id);
-            if (chart.kind !== 'ranked-bar' && (!row || !new Amount(row.amount).gt(0))) {
-                problems.push(`Draws ${id}, not a positive part`);
+        if (chart.kind !== 'ranked-bar') {
+            if (!root) {
+                problems.push('Slices of a net result');
+            } else {
+                for (const id of chart.rows) {
+                    if (!new Amount(rowOf(id)?.amount ?? 0).gt(0)) {
+                        problems.push(`Draws ${id}, not a positive part`);
+                    }
+                }
+                same(
+                    'whole of the slices',
+                    sum(chart.rows.map(id => rowOf(id)?.amount ?? '0')).toFixed(),
+                    total(current, root.name, root)
+                );
             }
-        }
-        // The parts add up to the root; a net result's sides to the net result.
-        if (net) {
-            const side = (id: string) =>
-                new Amount(report.breakdown.find(row => row.id === id)?.amount ?? 0);
-            same(
-                'net of the parts',
-                side('incoming').minus(side('outgoing')).toFixed(),
-                new Amount(report.answer.amount)
-            );
-        } else {
-            same(
-                'sum of the parts',
-                sum(
-                    chart.rows.map(id => report.breakdown.find(row => row.id === id)?.amount ?? '0')
-                ).toFixed(),
-                new Amount(report.answer.amount)
-            );
         }
     }
     if (chart.kind === 'stacked') {
         if (!root || report.months.length < 2) {
             problems.push('Stacked bars of a net result or of one month');
-        } else if (report.nature === 'position' || !cli.cumulative) {
-            report.months.forEach((at, i) => {
-                for (const series of chart.series.filter(entry => entry.id !== OTHER_PART)) {
-                    const node = nodeOf(series.id);
-                    if (!node) {
-                        problems.push(`stacked ${series.id}: not a group or account`);
-                    } else {
-                        same(`stacked ${series.name} ${at}`, series.amounts[i], month(node, at));
+        } else {
+            if (chart.series.length > MAX_STACKED_PARTS) {
+                problems.push(`${chart.series.length} stacked parts`);
+            }
+            if (chart.series.some(series => rowOf(series.id) === undefined)) {
+                problems.push('A stacked part is not a top row');
+            }
+            if (cli.byMonth) {
+                report.months.forEach((at, i) => {
+                    for (const series of chart.series) {
+                        const row = rowOf(series.id);
+                        if (row) {
+                            same(
+                                `stacked ${series.name} ${at}`,
+                                series.amounts[i],
+                                cli.month(row.name, natureOf(snapshot, row), at)
+                            );
+                        }
                     }
-                }
-                // With the rest, the series add up to the root.
-                same(
-                    `stacked total ${at}`,
-                    sum(chart.series.map(series => series.amounts[i])).toFixed(),
-                    month(root, at)
-                );
-            });
+                    same(
+                        `stacked whole ${at}`,
+                        sum(chart.series.map(series => series.amounts[i])).toFixed(),
+                        cli.month(root.name, root, at)
+                    );
+                });
+            }
         }
     }
     if (chart.kind === 'compare') {
-        if (!previous) {
+        if (!cli.previous) {
             problems.push('A comparison without a previous period');
         }
         for (const id of chart.rows) {
-            const row = report.breakdown.find(candidate => candidate.id === id);
+            const row = rowOf(id);
             if (!row) {
                 problems.push(`The comparison draws ${id}, not a row`);
-                continue;
-            }
-            if (new Amount(row.amount).eq(0) && new Amount(row.previous ?? 0).eq(0)) {
+            } else if (new Amount(row.amount).eq(0) && new Amount(row.previous ?? 0).eq(0)) {
                 problems.push(`The comparison draws ${id}, a row without an amount`);
             }
-            const node = row.kind === 'group' || row.kind === 'account' ? nodeOf(id) : undefined;
-            const side = row.kind === 'incoming' || row.kind === 'outgoing' ? row.kind : undefined;
-            if (node) {
-                same(`compare ${row.name}`, row.amount, total(current, node));
-                same(`compare ${row.name} previous`, row.previous, total(previous, node));
-            } else if (side) {
-                same(`compare ${side}`, row.amount, cli.sides(current)[side]);
-                same(`compare ${side} previous`, row.previous, cli.sides(previous)[side]);
-            }
         }
-        if (root && previous) {
-            const rows = chart.rows.map(id => report.breakdown.find(row => row.id === id));
-            same(
-                'compare total',
-                sum(rows.map(row => row?.amount ?? '0')).toFixed(),
-                total(current, root)
-            );
-            same(
-                'compare total previous',
-                sum(rows.map(row => row?.previous ?? '0')).toFixed(),
-                total(previous, root)
-            );
-        }
-    }
-    if (chart.kind === 'waterfall') {
-        if (!sum([chart.start, ...chart.steps.map(step => step.amount)]).eq(chart.end)) {
-            problems.push('The steps of the bridge do not add up to its end');
-        }
-        let start: Amount;
-        let end: Amount;
-        let step: (node: SnapshotNode) => Amount;
-        if (net) {
-            const now = cli.sides(current);
-            start = now.incoming;
-            end = now.net;
-            step = node => cli.cliTotal(current, node).times(-1);
-        } else if (root && report.nature === 'position' && previous) {
-            start = total(previous, root);
-            end = total(current, root);
-            step = node => total(current, node).minus(total(previous, node));
-        } else {
-            problems.push('A bridge of activity other than the net result, or without a previous');
-            return problems;
-        }
-        same('bridge start', chart.start, start);
-        same('bridge end', chart.end, end);
-        let shownSteps = new Amount(0);
-        for (const entry of chart.steps.filter(entry => entry.id !== OTHER_PART)) {
-            const node = nodeOf(entry.id);
-            if (!node) {
-                problems.push(`bridge ${entry.id}: not a group or account`);
-                continue;
-            }
-            const expected = step(node);
-            shownSteps = shownSteps.plus(expected);
-            same(`bridge ${entry.name}`, entry.amount, expected);
-        }
-        const other = chart.steps.find(entry => entry.id === OTHER_PART);
-        same('bridge other', other?.amount ?? '0', end.minus(start).minus(shownSteps));
     }
     return problems;
 }
@@ -597,92 +695,8 @@ function cliSeries(
     return series;
 }
 
-/** Rows whose children (remainder included) do not add up to them. */
-function unbalanced(report: ReportData): string[] {
-    const problems: string[] = [];
-    const total = (rows: ReportRow[], pick: (row: ReportRow) => string | undefined) =>
-        rows.reduce((sum, row) => sum.plus(pick(row) ?? 0), new Amount(0));
-    const checkRows = (
-        name: string,
-        amount: string,
-        previous: string | undefined,
-        rows: ReportRow[]
-    ) => {
-        if (rows.length === 0) {
-            return;
-        }
-        if (!total(rows, row => row.amount).eq(amount)) {
-            problems.push(`${name}: children do not add up to ${amount}`);
-        }
-        if (previous !== undefined && !total(rows, row => row.previous).eq(previous)) {
-            problems.push(`${name}: children do not add up to previous ${previous}`);
-        }
-        for (const row of rows) {
-            checkRows(row.name ?? row.id, row.amount, row.previous, row.children);
-        }
-    };
-    const side = (id: string) =>
-        report.breakdown.find(row => row.kind === id && (id === 'incoming' || id === 'outgoing'));
-    if (report.root.id !== NET_RESULT_ROOT) {
-        checkRows('answer', report.answer.amount, report.answer.previous, report.breakdown);
-    } else {
-        // Incoming minus Outgoing is the net result, in total, before and in every month.
-        const zero = { amount: '0', previous: '0', months: report.months.map(() => '0') };
-        const incoming = side('incoming') ?? zero;
-        const outgoing = side('outgoing') ?? zero;
-        const net = (a?: string, b?: string) => new Amount(a ?? 0).minus(b ?? 0);
-        if (!net(incoming.amount, outgoing.amount).eq(report.answer.amount)) {
-            problems.push(`Incoming - Outgoing is not the net result ${report.answer.amount}`);
-        }
-        if (
-            report.answer.previous !== undefined &&
-            !net(incoming.previous, outgoing.previous).eq(report.answer.previous)
-        ) {
-            problems.push(`Incoming - Outgoing is not the previous net ${report.answer.previous}`);
-        }
-        if (report.net?.months.length !== report.months.length) {
-            problems.push('The net result does not have one amount per month');
-        }
-        report.months.forEach((month, i) => {
-            const expected = net(incoming.months[i], outgoing.months[i]);
-            if (!expected.eq(report.net?.months[i] ?? 'NaN')) {
-                problems.push(`Incoming - Outgoing is not the net result in ${month}`);
-            }
-        });
-        for (const row of report.breakdown) {
-            if (row.kind !== 'incoming' && row.kind !== 'outgoing') {
-                problems.push(`${row.id}: not a side of the net result`);
-            }
-            checkRows(row.id, row.amount, row.previous, row.children);
-        }
-        for (const view of report.charts.views) {
-            if (view.kind !== 'bar' && view.kind !== 'area') {
-                continue;
-            }
-            for (const series of view.series) {
-                const expected =
-                    series.id === NET_RESULT_ROOT ? report.net?.months : side(series.id)?.months;
-                if (series.amounts.join() !== expected?.join()) {
-                    problems.push(`The ${view.kind} chart's ${series.id} is not the table's`);
-                }
-            }
-            for (const series of view.series.filter(entry => entry.id !== NET_RESULT_ROOT)) {
-                if (new Amount(side(series.id)?.amount ?? 0).eq(0)) {
-                    problems.push(
-                        `The ${view.kind} chart draws ${series.id}, a side without an amount`
-                    );
-                }
-            }
-        }
-    }
-    return problems;
-}
-
-function countRows(rows: ReportRow[], include: (row: ReportRow) => boolean = () => true): number {
-    return rows.reduce(
-        (count, row) => count + Number(include(row)) + countRows(row.children, include),
-        0
-    );
+function countRows(rows: ReportRow[]): number {
+    return rows.reduce((count, row) => count + 1 + countRows(row.children), 0);
 }
 
 async function verifyBook(
@@ -701,8 +715,9 @@ async function verifyBook(
         now,
     });
     const book = await bkper.getBook(bookId);
+    const net = await expectedNet(cli, bookId, snapshot);
     console.log(
-        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}`
+        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${snapshot.dataRange?.firstMonth}..${snapshot.dataRange?.lastMonth}, net result: ${net.kind}`
     );
     const queryTimes: number[] = [];
     const computeTimes: number[] = [];
@@ -713,6 +728,7 @@ async function verifyBook(
         const label =
             `${snapshot.groups[intent.root]?.name ?? intent.root} ${intent.period}` +
             (intent.monthly ? ' monthly' : '') +
+            (intent.chart ? ` ${intent.chart}` : '') +
             (intent.hashtags ? ` #${intent.hashtags.join(' #')}` : '');
         try {
             const { report, computeMs, queriesMs, queries } = await computeReport(
@@ -725,11 +741,20 @@ async function verifyBook(
             queryCount += queries;
             reports.push({ label, report });
         } catch (error) {
+            // A Book whose groups give no net result has none, and says so.
+            if (
+                error instanceof ReportError &&
+                error.reason === 'no_net_result' &&
+                intent.root === NET_RESULT_ROOT
+            ) {
+                check(net.kind === 'none', `${label}: no net result, as the Book's groups say`);
+                continue;
+            }
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     await Promise.all(
-        reports.map(({ label, report }) => verifyReport(cli, bookId, snapshot, report, label))
+        reports.map(({ label, report }) => verifyReport(cli, bookId, snapshot, report, label, net))
     );
     const median = (values: number[]) =>
         values.length

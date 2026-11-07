@@ -88,6 +88,24 @@ export class FakeLedger {
         ];
     }
 
+    /** Adds a group to the Book, with existing accounts in it. */
+    addGroup(group: bkper.Group, accounts: string[] = []): void {
+        this.book.groups = [...(this.book.groups ?? []), group];
+        for (const account of this.book.accounts ?? []) {
+            if (accounts.includes(account.id ?? '')) {
+                account.groups = [...(account.groups ?? []), { id: group.id }];
+            }
+        }
+    }
+
+    /** Removes a group from the Book, and its accounts from it. */
+    removeGroup(id: string): void {
+        this.book.groups = (this.book.groups ?? []).filter(group => group.id !== id);
+        for (const account of this.book.accounts ?? []) {
+            account.groups = account.groups?.filter(ref => ref.id !== id);
+        }
+    }
+
     private group(name: string): bkper.Group {
         const group = this.book.groups?.find(candidate => candidate.name === name);
         if (!group) {

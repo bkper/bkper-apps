@@ -41,8 +41,30 @@ describe('readQueryBalances', () => {
             period: '3949.75',
             cumulative: '7849.25',
             months: [{ month: '2026-11', period: '3949.75', cumulative: '7849.25' }],
+            credit: false,
+            permanent: true,
+            groups: ['Banks'],
+            accounts: ['Cash'],
         });
         expect(groupBalances(balances, 'Banks')?.cumulative).toBe('7749.25');
+    });
+
+    it('keeps the groups and accounts Bkper lists under each group, and their natures', () => {
+        const balances = read("group:'Net income' after:2026-10-01 before:2026-11-06 by:m");
+        expect(groupBalances(balances, 'Net income')).toMatchObject({
+            credit: true,
+            permanent: false,
+            groups: [],
+            accounts: ['Rent', 'Food', 'Salary'],
+        });
+        expect(accountBalances(balances, 'Salary')).toMatchObject({
+            credit: true,
+            permanent: false,
+        });
+        expect(accountBalances(balances, 'Rent')).toMatchObject({
+            credit: false,
+            permanent: false,
+        });
     });
 
     it('tells a group or account Bkper left out from one with no balance', () => {

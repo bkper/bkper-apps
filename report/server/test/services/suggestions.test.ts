@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { buildReport, planQueries, planReport } from '../../src/services/report';
 import type { Snapshot } from '../../src/services/snapshot';
 import { buildSuggestions } from '../../src/services/suggestions';
-import { fixtureLedger, fixtureSnapshot, ledgerBalances } from '../fixtures/snapshot-book';
+import {
+    fixtureLedger,
+    fixtureSnapshot,
+    ledgerBalances,
+    ledgerSnapshot,
+    simpleRootsLedger,
+} from '../fixtures/snapshot-book';
 
 /** The fixture read years later: its last movements, in November 2026, are then old. */
 async function laterSnapshot(): Promise<Snapshot> {
@@ -65,9 +71,9 @@ describe('buildSuggestions', () => {
         snapshot.groups['g-net'].type = 'INCOMING';
         const order = (roots: string[]) =>
             buildSuggestions({ ...snapshot, roots }, 'en').map(suggestion => suggestion.text);
-        // Net income's accounts moved in seven months this year, Revenue's in two.
+        // Net income's accounts moved in seven months this year, Revenue's in two. Both are
+        // Incoming, so the Book has no net result.
         expect(order(['g-revenue', 'g-net'])).toEqual([
-            'Net result this year',
             'Net income by month this year',
             'Revenue this year',
         ]);
@@ -90,6 +96,22 @@ describe('buildSuggestions', () => {
             'Expenses by month this year',
             'Revenue this year',
         ]);
+    });
+
+    it('suggests the net result only when the Book has one, and its group once', async () => {
+        const texts = (snapshot: Snapshot) =>
+            buildSuggestions(snapshot, 'en').map(suggestion => suggestion.text);
+        // The group that combines Incoming and Outgoing is the net result.
+        expect(texts(await withRoots('g-net', 'g-expenses'))).toEqual([
+            'Net result this year',
+            'Expenses by month this year',
+        ]);
+        // Simple roots, which Report nets.
+        expect(texts(await ledgerSnapshot(simpleRootsLedger()))[0]).toBe('Net result this year');
+        // Roots that share an account have none.
+        const shared = await withRoots('g-expenses', 'g-revenue', 'g-net');
+        shared.groups['g-net'] = { ...shared.groups['g-net'], type: 'OUTGOING' };
+        expect(texts(shared)).not.toContain('Net result this year');
     });
 
     it('leaves out roots without movements and the net result without both sides', async () => {

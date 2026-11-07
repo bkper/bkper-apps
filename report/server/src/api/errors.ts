@@ -17,6 +17,7 @@ export type ApiErrorCode =
     | 'not_a_report'
     | 'future_period'
     | 'unknown_root'
+    | 'no_net_result'
     | 'ai_allowance_exhausted'
     | 'upstream_error'
     | 'storage_error'
@@ -46,6 +47,8 @@ const HTTP_CODES: Partial<Record<number, ApiErrorCode>> = {
 const REPORT_ERROR_MESSAGES = {
     future_period: 'The period has not started yet.',
     unknown_root: 'The intent names no root group of this Book, nor `net-result`.',
+    no_net_result:
+        'This Book has no net result: no group combines its Incoming and Outgoing groups. Tell the person to add one in Bkper (a top-level group holding the income and expense groups), or ask for one of its groups.',
 } as const;
 
 /**

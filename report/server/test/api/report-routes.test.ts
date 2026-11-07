@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppContext } from '../../src/app-context';
 import { createDecisionClient } from '../../src/services/decision-client';
 import { createApp } from '../../src/index';
-import { bookPayload, fixtureLedger } from '../fixtures/snapshot-book';
+import type { FakeLedger } from '../fixtures/ledger';
+import { fixtureLedger, simpleRootsLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
 
 const BOOK = 'book-1';
@@ -24,11 +25,17 @@ afterAll(() => vi.useRealTimers());
 /** Reads the fixture Book; the Report app never writes to a Book, so nothing else is faked. */
 class FakeBkper {
     bookLoads = 0;
-    readonly ledger = fixtureLedger();
+    readonly ledger: FakeLedger;
 
     constructor(
-        private readonly options: { permission?: bkper.Permission; failure?: BkperError } = {}
-    ) {}
+        private readonly options: {
+            permission?: bkper.Permission;
+            failure?: BkperError;
+            ledger?: FakeLedger;
+        } = {}
+    ) {
+        this.ledger = options.ledger ?? fixtureLedger();
+    }
 
     async getUser(): Promise<User> {
         return new User({ id: 'user-1' });
@@ -39,7 +46,7 @@ class FakeBkper {
         if (this.options.failure) {
             throw this.options.failure;
         }
-        const payload = structuredClone(bookPayload);
+        const payload = structuredClone(this.ledger.book);
         payload.permission = this.options.permission ?? 'VIEWER';
         const book = new Book(payload);
         book.getBalancesReport = async (query: string) =>
@@ -289,6 +296,69 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'bars' },
         });
         expect(invalid.status).toBe(400);
+    });
+
+    it('still takes a waterfall, and offers the closest chart with why it draws none', async () => {
+        const test = harness();
+        const intent = {
+            root: 'net-result',
+            period: '2026-10',
+            monthly: false,
+            chart: 'waterfall',
+        };
+        const response = await post(test, { intent });
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as {
+            intent: unknown;
+            chart: unknown;
+            trace: { chart: { unfit?: unknown; fitting: string[] } };
+            spec: ReportSpec;
+        };
+        expect(body.intent).toEqual(intent);
+        expect(body.chart).toEqual({ kind: 'compare', fallback: true });
+        expect(body.trace.chart.unfit).toEqual({
+            kind: 'waterfall',
+            reason: { code: 'no_bridge' },
+        });
+        expect(body.trace.chart.fitting).not.toContain('waterfall');
+        expect(elementOf(body.spec, 'Visualizations').props.unfit).toMatchObject({
+            kind: 'waterfall',
+        });
+    });
+
+    it('labels a net result Report calculates, in the spec and in the file', async () => {
+        const test = harness({ bkper: new FakeBkper({ ledger: simpleRootsLedger() }) });
+        const intent = { root: 'net-result', period: '2026-10', monthly: false };
+        const response = await post(test, { intent });
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as { spec: ReportSpec };
+        expect(elementOf(body.spec, 'Source').props.calculated?.label).toBe('Calculated by Report');
+        const file = await post(test, { intent, format: 'html' });
+        expect(file.status).toBe(200);
+        expect(await file.text()).toContain('Calculated by Report');
+    });
+
+    it('answers a net result the Book does not have with a reason to act on', async () => {
+        const ledger = simpleRootsLedger();
+        ledger.addGroup(
+            {
+                id: 'g-travel',
+                name: 'Travel',
+                type: 'OUTGOING',
+                credit: false,
+                permanent: false,
+            },
+            ['a-food']
+        );
+        const test = harness({ bkper: new FakeBkper({ ledger }) });
+        const response = await post(test, {
+            intent: { root: 'net-result', period: '2026-10', monthly: false },
+        });
+        expect(response.status).toBe(422);
+        const body = (await response.json()) as { error: { code: string; message: string } };
+        expect(body.error.code).toBe('no_net_result');
+        expect(body.error.message).toContain('add one in Bkper');
+        expect(test.queries).toEqual([]);
     });
 
     it('builds a report by prompt with one Bkper AI decision', async () => {

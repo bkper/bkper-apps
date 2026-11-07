@@ -11,7 +11,8 @@
  * an `<iframe sandbox="allow-scripts">` whose `srcdoc` is the file after the Agent's
  * `<!doctype html>` and Content-Security-Policy, styled as the Agent styles it, while every
  * request is blocked. It checks there are no requests, no policy violations and no console
- * errors; that the answer, the chart and the link to the Report app show; that a row opens
+ * errors; that the answer, the chart and the link to the Report app show; that a net result
+ * Report calculated is labelled so in the Source, and nothing else is; that a row opens
  * in place; that values written into texts, such as dates, read in the report's direction;
  * that a click on a chart's preview shows that chart in place of the main one, with no network,
  * and the link then opens it (the time each switch takes is reported); that previews stay above
@@ -80,7 +81,7 @@ const LINK = { url: 'https://report.bkper.app/?book=book-1&q=report', label: 'Op
 /** Recorded specs carry no intent: any report's state shows the file opens what it carries. */
 const OPEN = {
     bookId: 'book-1',
-    intent: { root: 'net-result', period: '2018', monthly: true, chart: 'waterfall' as const },
+    intent: { root: 'net-result', period: '2018', monthly: true, chart: 'compare' as const },
     language: 'en',
 };
 
@@ -220,6 +221,30 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
         if (drawn === 0) {
             failures.push('The chart drew nothing');
         }
+    }
+    // A net result Report calculated says so, as its spec does; nothing else does.
+    const calculated = await frame.evaluate(() => {
+        const data = document.getElementById('report-data')?.textContent ?? '{}';
+        const spec = JSON.parse(data) as {
+            spec?: {
+                elements?: Record<
+                    string,
+                    { type: string; props?: { calculated?: { label?: string } } }
+                >;
+            };
+        };
+        const source = Object.values(spec.spec?.elements ?? {}).find(
+            element => element.type === 'Source'
+        );
+        return source?.props?.calculated?.label ?? '';
+    });
+    const shownCalculated = (
+        await frame.locator('report-view .source-calculated dt').allTextContents()
+    ).map(text => text.trim());
+    if (shownCalculated.join('|') !== (calculated ? calculated : '')) {
+        failures.push(
+            `The Source shows ${JSON.stringify(shownCalculated)} as calculated by Report, not ${JSON.stringify(calculated)}`
+        );
     }
     const link = frame.locator('report-view .source-footer a');
     if ((await link.count()) !== 1 || !isReportAppLink(await link.getAttribute('href'))) {

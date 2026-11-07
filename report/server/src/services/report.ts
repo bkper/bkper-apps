@@ -9,14 +9,10 @@
  * cumulative balance (position), months from its monthly balances. Months are never added up
  * into totals.
  *
- * Every amount is a decimal string with the sign Bkper charts show (Outgoing and Liability
- * positive). Rows are expressed in their root's sense: a child whose credit nature differs
- * from the root's counts with the opposite sign, as in mixed groups, so every breakdown adds
- * up to its parent. When Bkper leaves accounts out of a group's balances, a remainder row
- * (`kind: 'other'`) keeps the breakdown adding up. A net result breaks down into its Incoming
- * and Outgoing sides, both positive as Bkper shows them, and Incoming minus Outgoing is the
- * net result. Rows without an amount in the period stay in the breakdown, last, but charts
- * leave them out.
+ * Every amount is a Bkper balance of one group or account, as Bkper returns it, with the sign
+ * Bkper shows (Outgoing and Liability positive): no sign is changed and nothing is added up
+ * across groups or accounts. The breakdown holds only the rows Bkper returns, so a mixed group's
+ * rows need not add up to it. The one exception is {@link calculatedNetResult}.
  */
 import { Amount } from 'bkper-js';
 import { VIEW_KINDS, type ViewKind } from 'report-shared/catalog';
@@ -25,6 +21,7 @@ import {
     groupBalances,
     monthPeriod,
     monthPosition,
+    type GroupNodeBalances,
     type NodeBalances,
     type QueryBalances,
 } from './balances.js';
@@ -44,13 +41,7 @@ import {
     type ReportIntent,
     type ReportView,
 } from './report-intent.js';
-import {
-    quote,
-    type NodeType,
-    type Snapshot,
-    type SnapshotGroup,
-    type SnapshotNode,
-} from './snapshot.js';
+import { quote, type NodeType, type Snapshot, type SnapshotGroup } from './snapshot.js';
 
 /** The colors Bkper gives each group and account type. */
 export const TYPE_COLORS = {
@@ -72,18 +63,18 @@ export interface ReportAmounts {
     change?: string;
 }
 
-/**
- * A group, an account, the remainder Bkper left out of a group (`other`), or the Incoming or
- * Outgoing side of a net result.
- */
-export type RowKind = 'group' | 'account' | 'other' | 'incoming' | 'outgoing';
+/** A group or an account, as Bkper returns it. */
+export type RowKind = 'group' | 'account';
 
 export interface ReportRow extends ReportAmounts {
-    /** Group or account id; `<groupId>:other` for a remainder; `incoming` or `outgoing`. */
+    /**
+     * Group or account id; `group:<name>` or `account:<name>` for one Bkper returns that the
+     * Book's map lacks, such as an account archived at zero.
+     */
     id: string;
     kind: RowKind;
-    /** The Bkper name, verbatim; absent for rows the report names (`other`, `incoming`, `outgoing`). */
-    name?: string;
+    /** The Bkper name, verbatim. */
+    name: string;
     type: NodeType;
     color: TypeColor;
     /** Ratio of the parent's amount, to 4 decimal places; absent under a mixed or zero parent. */
@@ -91,14 +82,14 @@ export interface ReportRow extends ReportAmounts {
     /** Amount in each of the report's {@link ReportData.months}. */
     months: string[];
     /**
-     * Sorted by size; a remainder comes next, then rows without an amount in the period, which
-     * charts leave out. Rows without amounts in any period or month are left out.
+     * The rows Bkper returns under it, sorted by size, then rows without an amount in the
+     * period, which charts leave out. Rows without amounts in any period or month are left out.
      */
     children: ReportRow[];
 }
 
 export interface ChartSeries {
-    /** The root, a side of a net result, the net result, or a breakdown row; `other` for the rest. */
+    /** The root, a breakdown row, or a net result Report calculates (`net-result`). */
     id: string;
     name?: string;
     type: NodeType;
@@ -109,7 +100,10 @@ export interface ChartSeries {
     amounts: string[];
 }
 
-/** Every chart a report may have; `none` for no chart. */
+/**
+ * Every chart kind of the API's contract; `none` for no chart. Reports no longer draw a
+ * `waterfall`, which stays in the contract for the clients that know it.
+ */
 export const CHART_KINDS = [
     'none',
     'bar',
@@ -121,39 +115,18 @@ export const CHART_KINDS = [
     'pie',
     'compare',
     'waterfall',
-] as const satisfies readonly ReportChart['kind'][];
-
-/** A part of a bridge: the change a breakdown row brings, or the rest of them (`other`). */
-export interface WaterfallStep {
-    /** The breakdown row's id, at any depth; `other` for the smaller parts together. */
-    id: string;
-    kind: RowKind;
-    name?: string;
-    type: NodeType;
-    color: TypeColor;
-    /** What the part adds to the bar before it: negative when it lowers it. */
-    amount: string;
-}
+] as const satisfies readonly (ReportChart['kind'] | 'waterfall')[];
 
 export type ReportChart = (
     | { kind: 'none' }
     /** By month: bars for activity, a line for positions, or areas. */
     | { kind: 'bar' | 'line' | 'area'; series: ChartSeries[] }
-    /**
-     * By month, a series for each of the largest breakdown rows and one for the rest (`other`),
-     * stacked: in every month they add up to the root.
-     */
+    /** By month, a series for each top breakdown row, stacked: in every month they make the root. */
     | { kind: 'stacked'; series: ChartSeries[] }
     /** The top breakdown rows with an amount, by id, in breakdown order. */
     | { kind: 'ranked-bar' | 'donut' | 'pie'; rows: string[] }
     /** The top breakdown rows with an amount in the period or the previous one, by id. */
     | { kind: 'compare'; rows: string[] }
-    /**
-     * A bridge from `start` to `end`, which `start` plus every step makes exactly: Incoming to
-     * the net result through each Outgoing account, or the previous position to the position
-     * through each part's change.
-     */
-    | { kind: 'waterfall'; start: string; steps: WaterfallStep[]; end: string }
 ) & {
     /** The intent preferred a chart that does not fit the report, so the rules chose this one. */
     fallback?: true;
@@ -161,7 +134,10 @@ export type ReportChart = (
 
 export { VIEW_KINDS, type ViewKind };
 
-/** Every reason a chart may not fit a report. */
+/**
+ * Every reason code of the API's contract. Since reports draw no bridge, `not_a_bridge` and
+ * `no_change` are no longer given; they stay in the contract for the clients that know them.
+ */
 export const UNFIT_REASON_CODES = [
     'net_result',
     'negative_part',
@@ -171,9 +147,11 @@ export const UNFIT_REASON_CODES = [
     'few_months',
     'no_amounts',
     'no_previous',
+    'not_a_whole',
+    'no_bridge',
     'not_a_bridge',
     'no_change',
-] as const satisfies readonly UnfitReason['code'][];
+] as const satisfies readonly (UnfitReason['code'] | 'not_a_bridge' | 'no_change')[];
 
 export const CHART_RULES = [
     'preference',
@@ -183,32 +161,32 @@ export const CHART_RULES = [
 
 /** Why a chart does not fit a report, from its facts. */
 export type UnfitReason =
-    /** A pie or donut of a net result, or its sides stacked. */
+    /** A pie or donut of a net result, or its parts stacked. */
     | { code: 'net_result' }
-    /** A part below zero, in the root's sense, cannot be a slice. */
+    /** A part below zero cannot be a slice. */
     | { code: 'negative_part'; rowId: string }
     /** Parts of another type than the root's, or under a mixed root, are no slices of one whole. */
     | { code: 'mixed_parts' }
     /** Fewer than two parts with an amount. */
     | { code: 'few_parts' }
-    /** More parts than a donut shows. */
+    /** More parts than a donut shows, or than stacked bars draw. */
     | { code: 'too_many_parts' }
     /** Fewer months than the chart needs: two over time, one for a chart by month. */
     | { code: 'few_months' }
     /** Every value the chart would draw is zero. */
     | { code: 'no_amounts' }
-    /** Nothing to compare with or bridge from, as for all time. */
+    /** Nothing to compare with, as for all time. */
     | { code: 'no_previous' }
-    /** A bridge of activity other than the net result. */
-    | { code: 'not_a_bridge' }
-    /** A bridge whose every step is zero. */
-    | { code: 'no_change' };
+    /** The parts Bkper returns do not make the root's amount, so they are no slices of it. */
+    | { code: 'not_a_whole' }
+    /** A bridge would show amounts that are no Bkper balances: reports draw none. */
+    | { code: 'no_bridge' };
 
 /** The facts of a report that decide which charts fit it. */
 export interface ChartFacts {
     /** Top-level breakdown rows with an amount in the period. */
     rows: number;
-    /** Of those, the ones below zero in the root's sense. */
+    /** Of those, the ones below zero, as Bkper shows them. */
     negative: number;
     /** Whether any of those is of another type than the root, or the root is mixed. */
     mixed: boolean;
@@ -216,7 +194,7 @@ export interface ChartFacts {
     months: number;
     /** Whether there is a previous period to compare with. */
     previous: boolean;
-    /** A net result. */
+    /** A net result: of a group that combines Incoming and Outgoing, or calculated. */
     net: boolean;
     /** A position of a permanent root (Asset, Liability). */
     permanent: boolean;
@@ -244,7 +222,10 @@ export interface ReportData {
     intent: ReportIntent;
     /** Activity within a period (Incoming, Outgoing, net result), or a position at its end (Asset, Liability). */
     nature: ReportNature;
-    /** The root group, or the net result (`net-result`, without a name). */
+    /**
+     * The root group, the group that combines Incoming and Outgoing for a net result, or a net
+     * result Report calculates (`net-result`, without a name).
+     */
     root: { id: string; name?: string; type: NodeType; color: TypeColor };
     /**
      * The period read. A calendar period that has not ended reads to date, as its current
@@ -253,14 +234,14 @@ export interface ReportData {
     period: { id: string; after?: IsoDate; before: IsoDate };
     /** The period compared with; a position compares with the position at its `before`. */
     previous?: DateRange;
-    /** The root's amount; for a net result, Incoming minus Outgoing. */
+    /** The root's amount, as Bkper returns it; for a net result Report calculates, that net result. */
     answer: ReportAmounts;
     /**
-     * Both sides of a net result, each with the sign Bkper shows (Outgoing positive), and the
-     * net result (Incoming minus Outgoing) in each of the {@link ReportData.months}. The
-     * breakdown has the same two sides, as its `incoming` and `outgoing` rows.
+     * A net result Report calculates, as no group of the Book combines Incoming and Outgoing
+     * ({@link calculatedNetResult}): its amount in each of the {@link ReportData.months}. Its
+     * breakdown is its roots, Incoming first.
      */
-    net?: { incoming: ReportAmounts; outgoing: ReportAmounts; months: string[] };
+    calculated?: { months: string[] };
     /** The months of the period, in order; the first and last may be partial. */
     months: IsoMonth[];
     /** The main chart: `fallback` when the intent preferred another, which does not fit. */
@@ -275,7 +256,12 @@ export interface ReportData {
     dataAt: string;
 }
 
-export type ReportErrorReason = 'unknown_root' | 'future_period' | 'no_activity_roots';
+export type ReportErrorReason =
+    | 'unknown_root'
+    | 'future_period'
+    | 'no_activity_roots'
+    /** No group combines Incoming and Outgoing, and the activity roots are not simple. */
+    | 'no_net_result';
 
 /** The intent asks for a report this Book cannot have. */
 export class ReportError extends Error {
@@ -290,14 +276,8 @@ export class ReportError extends Error {
 
 const MAX_DONUT_ROWS = 6;
 
-/** Series of stacked bars, the rest included, so the chart stays readable. */
-const MAX_STACKED_SERIES = 6;
-
-/** Steps of a bridge, the rest included. */
-const MAX_WATERFALL_STEPS = 8;
-
-/** The id of the part of a chart that holds the smaller parts together. */
-export const OTHER_PART = 'other';
+/** Parts of stacked bars, each drawn, so the chart stays readable. */
+const MAX_STACKED_PARTS = 6;
 
 /** The balances queries of one root: of the report's period, and of the previous one. */
 export interface RootQueries {
@@ -310,8 +290,10 @@ export interface RootQueries {
 export interface ReportPlan {
     nature: ReportNature;
     period: ReportPeriod;
-    /** The root group ids: the root, or every activity root of a net result. */
+    /** The root group ids: the root, or each root of a net result Report calculates. */
     roots: string[];
+    /** A net result Report calculates: its Incoming and its Outgoing roots. */
+    calculated?: { incoming: string[]; outgoing: string[] };
     hashtags: string[];
     /** One entry per root: never several roots in one query. */
     queries: RootQueries[];
@@ -324,10 +306,9 @@ export interface ReportPlan {
  * the hashtags or not.
  */
 export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan {
-    const net = intent.root === NET_RESULT_ROOT;
-    const roots = reportRoots(intent.root, snapshot);
+    const { roots, calculated } = reportRoots(intent.root, snapshot);
     const nature: ReportNature =
-        !net && snapshot.groups[roots[0]].permanent ? 'position' : 'activity';
+        !calculated && snapshot.groups[roots[0]].permanent ? 'position' : 'activity';
     const period = reportPeriod(intent.period, nature, snapshot.today);
     const hashtags = intent.hashtags ?? [];
     const current =
@@ -342,7 +323,7 @@ export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan
             ...(period.previous ? { previous: balancesQuery(filter, period.previous) } : {}),
         };
     });
-    return { nature, period, roots, hashtags, queries };
+    return { nature, period, roots, ...(calculated ? { calculated } : {}), hashtags, queries };
 }
 
 /** Every query of a plan, each once, in order. */
@@ -374,7 +355,7 @@ export function buildReport(
     balances: QueryBalances[]
 ): ReportData {
     const plan = planReport(intent, snapshot);
-    const { nature, period, roots, hashtags } = plan;
+    const { nature, period, roots, hashtags, calculated } = plan;
     const byQuery = new Map(balances.map(entry => [entry.query, entry]));
     const read = (query: string): QueryBalances => {
         const entry = byQuery.get(query);
@@ -383,16 +364,17 @@ export function buildReport(
         }
         return entry;
     };
-    const sources = plan.queries.map(({ current, previous }) => ({
-        current: read(current),
-        ...(previous ? { previous: read(previous) } : {}),
-    }));
+    const sources = new Map(
+        plan.queries.map(({ root, current, previous }) => [
+            root,
+            { current: read(current), ...(previous ? { previous: read(previous) } : {}) },
+        ])
+    );
     const months = reportMonths(period.range, snapshot);
-    const measure = measurer(sources, nature, period, months);
-    const net = intent.root === NET_RESULT_ROOT;
-    const report = net
-        ? netResultReport(snapshot, roots, measure)
-        : rootReport(snapshot, snapshot.groups[roots[0]], measure);
+    const reader = new RowReader(snapshot, nature, period, months);
+    const report = calculated
+        ? calculatedNetResult(snapshot, calculated, sources, reader)
+        : rootReport(snapshot.groups[roots[0]], sourceOf(sources, roots[0]), reader);
 
     const { after, before } = period.range;
     const filter = [groupsFilter(snapshot, roots), ...tags(hashtags)].join(' ');
@@ -406,7 +388,7 @@ export function buildReport(
         nature,
         root: report.root,
         total: reportAmounts(report.total),
-        net: report.net,
+        net: calculated !== undefined || (report.root.type === 'MIXED' && nature === 'activity'),
         rows: report.rows,
         series: report.series,
         months,
@@ -424,7 +406,7 @@ export function buildReport(
         period: { id: period.id, ...period.range },
         ...(period.previous ? { previous: period.previous } : {}),
         answer: reportAmounts(report.total),
-        ...(report.net ? { net: report.net } : {}),
+        ...(report.calculated ? { calculated: report.calculated } : {}),
         months,
         chart: charts.chart,
         charts: charts.charts,
@@ -432,7 +414,7 @@ export function buildReport(
         query,
         url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
         // The oldest of the balances read: none is older than this.
-        dataAt: sources
+        dataAt: [...sources.values()]
             .flatMap(source => [source.current, source.previous ?? []].flat())
             .map(entry => entry.dataAt)
             .sort()[0],
@@ -445,22 +427,94 @@ function groupsFilter(snapshot: Snapshot, groupIds: string[]): string {
     return filters.length === 1 ? filters[0] : `(${filters.join(' OR ')})`;
 }
 
-/** The root group ids a report reads: the root, or every activity root for a net result. */
-function reportRoots(root: string, snapshot: Snapshot): string[] {
+/** The roots a report reads: the root, or those of a net result. */
+function reportRoots(
+    root: string,
+    snapshot: Snapshot
+): { roots: string[]; calculated?: ReportPlan['calculated'] } {
     if (root === NET_RESULT_ROOT) {
-        const roots = snapshot.roots.filter(id => !snapshot.groups[id].permanent);
-        if (roots.length === 0) {
-            throw new ReportError(
-                'no_activity_roots',
-                'The Book has no Incoming or Outgoing root groups'
-            );
+        const net = netResultOf(snapshot);
+        switch (net.kind) {
+            case 'group':
+                return { roots: [net.group] };
+            case 'calculated':
+                return {
+                    roots: snapshot.roots.filter(
+                        id => net.incoming.includes(id) || net.outgoing.includes(id)
+                    ),
+                    calculated: { incoming: net.incoming, outgoing: net.outgoing },
+                };
+            case 'none':
+                throw new ReportError(
+                    net.reason,
+                    net.reason === 'no_activity_roots'
+                        ? 'The Book has no Incoming or Outgoing root groups'
+                        : 'No group of the Book combines Incoming and Outgoing'
+                );
         }
-        return roots;
     }
     if (!snapshot.roots.includes(root)) {
         throw new ReportError('unknown_root', 'Not a root group of the Book');
     }
-    return [root];
+    return { roots: [root] };
+}
+
+/** Where a Book's net result comes from, or why it has none. */
+export type NetResult =
+    /** A root group that combines Incoming and Outgoing: Bkper calculates the net result. */
+    | { kind: 'group'; group: string }
+    /** Simple activity roots, which Report nets: see {@link calculatedNetResult}. */
+    | { kind: 'calculated'; incoming: string[]; outgoing: string[] }
+    | { kind: 'none'; reason: 'no_activity_roots' | 'no_net_result' };
+
+/**
+ * The net result of a Book, from its map: the root group that combines Incoming and Outgoing
+ * accounts, the one with the most accounts (the first in Book order on a tie); else, when every
+ * activity root is purely Incoming or purely Outgoing, there are both, and no two share an
+ * account, those roots, for Report to net; else none.
+ */
+export function netResultOf(snapshot: Snapshot): NetResult {
+    const activity = snapshot.roots
+        .map(id => snapshot.groups[id])
+        .filter(group => !group.permanent);
+    if (activity.length === 0) {
+        return { kind: 'none', reason: 'no_activity_roots' };
+    }
+    const accounts = new Map(activity.map(group => [group.id, accountsOf(snapshot, group)]));
+    const types = (group: SnapshotGroup) =>
+        new Set([...(accounts.get(group.id) ?? [])].map(id => snapshot.accounts[id].type));
+    const combining = activity
+        .filter(group => {
+            const held = types(group);
+            return group.type === 'MIXED' && held.has('INCOMING') && held.has('OUTGOING');
+        })
+        // A stable sort: the first in Book order on a tie.
+        .sort((a, b) => (accounts.get(b.id)?.size ?? 0) - (accounts.get(a.id)?.size ?? 0))[0];
+    if (combining) {
+        return { kind: 'group', group: combining.id };
+    }
+    const incoming = activity.filter(group => group.type === 'INCOMING').map(group => group.id);
+    const outgoing = activity.filter(group => group.type === 'OUTGOING').map(group => group.id);
+    const held = activity.flatMap(group => [...(accounts.get(group.id) ?? [])]);
+    const simple =
+        incoming.length > 0 &&
+        outgoing.length > 0 &&
+        incoming.length + outgoing.length === activity.length &&
+        new Set(held).size === held.length;
+    return simple
+        ? { kind: 'calculated', incoming, outgoing }
+        : { kind: 'none', reason: 'no_net_result' };
+}
+
+/** The ids of the accounts under a group, at any depth, each once. */
+function accountsOf(snapshot: Snapshot, group: SnapshotGroup): Set<string> {
+    const ids = new Set<string>();
+    const collect = (node: SnapshotGroup): void => {
+        node.accounts.forEach(id => ids.add(id));
+        node.groups.forEach(id => collect(snapshot.groups[id]));
+    };
+    collect(group);
+    return ids;
 }
 
 export interface ReportPeriod {
@@ -519,83 +573,109 @@ interface Measure {
     months: Amount[];
 }
 
-interface Measurer {
-    of(node: SnapshotNode, sign: Sign): Measure;
-    /** A measure of nothing, to sum onto. */
-    zero(): Measure;
-}
-
-/** `1` when a node has its root's credit nature, `-1` when it counts against it. */
-type Sign = 1 | -1;
-
-/** The balances a report reads: for each root, of the period and of the previous one. */
-interface BalancesSource {
+/** The balances a report reads for one root: of the period and of the previous one. */
+interface RootSource {
     current: QueryBalances;
     previous?: QueryBalances;
 }
 
+function sourceOf(sources: ReadonlyMap<string, RootSource>, root: string): RootSource {
+    const source = sources.get(root);
+    if (!source) {
+        throw new Error(`No balances for the root ${root}`);
+    }
+    return source;
+}
+
 /**
- * Measures nodes from the balances read. A node reads its own balances, as Bkper returns them;
- * one Bkper left out of every response has none. An account under several roots of a net
- * result reads the first root's, the same in each.
+ * Reads groups, accounts and their rows from the balances of a root, as Bkper returns them. A
+ * node Bkper left out of a response has no balance there. Rows are the groups and accounts
+ * Bkper lists under a group in either period, never ones from the Book's map alone; the map
+ * gives their ids and types, and a node it lacks gets them from its name and its nature.
  */
-function measurer(
-    sources: BalancesSource[],
-    nature: ReportNature,
-    period: ReportPeriod,
-    months: IsoMonth[]
-): Measurer {
-    const find = (
-        node: SnapshotNode,
-        pick: (source: BalancesSource) => QueryBalances | undefined
-    ) => {
-        for (const source of sources) {
-            const balances = pick(source);
-            const found =
-                balances &&
-                (isGroup(node)
-                    ? groupBalances(balances, node.name)
-                    : accountBalances(balances, node.name));
-            if (found) {
-                return found;
-            }
-        }
-        return undefined;
-    };
-    const total = (balances: NodeBalances | undefined): Amount =>
-        new Amount((nature === 'activity' ? balances?.period : balances?.cumulative) ?? 0);
-    const month = (balances: NodeBalances | undefined, at: IsoMonth): Amount =>
-        new Amount(nature === 'activity' ? monthPeriod(balances, at) : monthPosition(balances, at));
-    const of = (node: SnapshotNode, sign: Sign): Measure => {
-        const current = find(node, source => source.current);
-        const measure: Measure = {
-            amount: total(current),
-            ...(period.previous ? { previous: total(find(node, source => source.previous)) } : {}),
-            months: months.map(at => month(current, at)),
+class RowReader {
+    private readonly groups: Map<string, SnapshotGroup>;
+    private readonly accounts: Map<string, Snapshot['accounts'][string]>;
+
+    constructor(
+        snapshot: Snapshot,
+        private readonly nature: ReportNature,
+        private readonly period: ReportPeriod,
+        private readonly months: IsoMonth[]
+    ) {
+        this.groups = new Map(Object.values(snapshot.groups).map(group => [group.name, group]));
+        this.accounts = new Map(
+            Object.values(snapshot.accounts).map(account => [account.name, account])
+        );
+    }
+
+    /** A group's line, with the rows Bkper returns under it, at any depth. */
+    group(name: string, source: RootSource): Line {
+        const current = groupBalances(source.current, name);
+        const previous = source.previous && groupBalances(source.previous, name);
+        const listed = (pick: (balances: GroupNodeBalances) => string[]) => [
+            ...new Set([current, previous].flatMap(balances => (balances ? pick(balances) : []))),
+        ];
+        const known = this.groups.get(name);
+        return {
+            id: known?.id ?? `group:${name}`,
+            kind: 'group',
+            name,
+            type: known?.type ?? nodeType(current ?? previous),
+            measure: this.measure(current, previous),
+            children: [
+                ...listed(balances => balances.groups).map(child => this.group(child, source)),
+                ...listed(balances => balances.accounts).map(child => this.account(child, source)),
+            ],
         };
-        return sign === 1 ? measure : scale(measure, -1);
-    };
-    const zero = (): Measure => ({
-        amount: new Amount(0),
-        ...(period.previous ? { previous: new Amount(0) } : {}),
-        months: months.map(() => new Amount(0)),
-    });
-    return { of, zero };
+    }
+
+    private account(name: string, source: RootSource): Line {
+        const current = accountBalances(source.current, name);
+        const previous = source.previous && accountBalances(source.previous, name);
+        const known = this.accounts.get(name);
+        return {
+            id: known?.id ?? `account:${name}`,
+            kind: 'account',
+            name,
+            type: known?.type ?? nodeType(current ?? previous),
+            measure: this.measure(current, previous),
+            children: [],
+        };
+    }
+
+    private measure(current?: NodeBalances, previous?: NodeBalances): Measure {
+        return {
+            amount: this.total(current),
+            ...(this.period.previous ? { previous: this.total(previous) } : {}),
+            months: this.months.map(month =>
+                this.nature === 'activity'
+                    ? new Amount(monthPeriod(current, month))
+                    : new Amount(monthPosition(current, month))
+            ),
+        };
+    }
+
+    private total(balances: NodeBalances | undefined): Amount {
+        return new Amount(
+            (this.nature === 'activity' ? balances?.period : balances?.cumulative) ?? 0
+        );
+    }
 }
 
-function isGroup(node: SnapshotNode): node is SnapshotGroup {
-    return 'accounts' in node;
-}
-
-function signOf(node: SnapshotNode, rootCredit: boolean): Sign {
-    return node.credit === rootCredit ? 1 : -1;
+/** The type of a node from its nature, as Bkper gives it; mixed groups need the map. */
+function nodeType(balances: NodeBalances | undefined): Exclude<NodeType, 'MIXED'> {
+    if (balances?.permanent) {
+        return balances.credit ? 'LIABILITY' : 'ASSET';
+    }
+    return balances?.credit ? 'INCOMING' : 'OUTGOING';
 }
 
 /** A breakdown row before its amounts become decimal strings. */
 interface Line {
     id: string;
     kind: RowKind;
-    name?: string;
+    name: string;
     type: NodeType;
     measure: Measure;
     children: Line[];
@@ -604,13 +684,13 @@ interface Line {
 interface ComputedReport {
     root: ReportData['root'];
     total: Measure;
-    net?: ReportData['net'];
+    calculated?: ReportData['calculated'];
     rows: ReportRow[];
     series: ChartSeries[];
 }
 
-function rootReport(snapshot: Snapshot, root: SnapshotGroup, measure: Measurer): ComputedReport {
-    const line = groupLine(snapshot, root, root.credit, measure);
+function rootReport(root: SnapshotGroup, source: RootSource, reader: RowReader): ComputedReport {
+    const line = reader.group(root.name, source);
     const color = TYPE_COLORS[root.type];
     return {
         root: { id: root.id, name: root.name, type: root.type, color },
@@ -628,114 +708,74 @@ function rootReport(snapshot: Snapshot, root: SnapshotGroup, measure: Measurer):
     };
 }
 
-function groupLine(
-    snapshot: Snapshot,
-    group: SnapshotGroup,
-    rootCredit: boolean,
-    measure: Measurer
-): Line {
-    const own = measure.of(group, signOf(group, rootCredit));
-    const children: Line[] = [
-        ...group.groups.map(id => groupLine(snapshot, snapshot.groups[id], rootCredit, measure)),
-        ...group.accounts.map(id => {
-            const account = snapshot.accounts[id];
-            return {
-                id,
-                kind: 'account' as const,
-                name: account.name,
-                type: account.type,
-                measure: measure.of(account, signOf(account, rootCredit)),
-                children: [],
-            };
-        }),
-    ];
-    const rest = sum([own, ...children.map(child => scale(child.measure, -1))], measure.zero());
-    if (!isZero(rest)) {
-        children.push({
-            id: `${group.id}:other`,
-            kind: 'other',
-            type: group.type,
-            measure: rest,
-            children: [],
-        });
-    }
-    return {
-        id: group.id,
-        kind: 'group',
-        name: group.name,
-        type: group.type,
-        measure: own,
-        children,
-    };
-}
-
 /**
- * Incoming minus Outgoing over the accounts of every activity root. Roots may share accounts,
- * so each account counts once, and root totals are never added.
+ * The one amount Report calculates itself, for a Book whose groups give no net result: Bkper's
+ * totals of its Incoming roots minus those of its Outgoing roots, in the period, the previous
+ * one and each month. {@link netResultOf} allows it only when every activity root is purely
+ * Incoming or purely Outgoing and no two share an account, which the responses confirm, so no
+ * account counts twice. Its rows are those roots, as Bkper returns them, Incoming first.
  */
-function netResultReport(snapshot: Snapshot, roots: string[], measure: Measurer): ComputedReport {
-    const accounts = new Set<string>();
-    const collect = (group: SnapshotGroup): void => {
-        group.accounts.forEach(id => accounts.add(id));
-        group.groups.forEach(id => collect(snapshot.groups[id]));
+function calculatedNetResult(
+    snapshot: Snapshot,
+    roots: { incoming: string[]; outgoing: string[] },
+    sources: ReadonlyMap<string, RootSource>,
+    reader: RowReader
+): ComputedReport {
+    const all = [...roots.incoming, ...roots.outgoing];
+    const held = all.flatMap(id => {
+        const { current, previous } = sourceOf(sources, id);
+        const read = [current, previous ?? []].flat();
+        return [...new Set(read.flatMap(balances => Object.keys(balances.accounts)))];
+    });
+    if (new Set(held).size !== held.length) {
+        throw new ReportError('no_net_result', 'Activity roots of the Book share accounts');
+    }
+    const lines = (ids: string[]) =>
+        ids.map(id => reader.group(snapshot.groups[id].name, sourceOf(sources, id)));
+    const incoming = lines(roots.incoming);
+    const outgoing = lines(roots.outgoing);
+    const sum = (measures: Measure[]): Measure =>
+        measures.reduce((total, measure) => ({
+            amount: total.amount.plus(measure.amount),
+            ...(total.previous && measure.previous
+                ? { previous: total.previous.plus(measure.previous) }
+                : {}),
+            months: total.months.map((month, i) => month.plus(measure.months[i])),
+        }));
+    const into = sum(incoming.map(line => line.measure));
+    const out = sum(outgoing.map(line => line.measure));
+    const total: Measure = {
+        amount: into.amount.minus(out.amount),
+        ...(into.previous && out.previous ? { previous: into.previous.minus(out.previous) } : {}),
+        months: into.months.map((month, i) => month.minus(out.months[i])),
     };
-    roots.forEach(id => collect(snapshot.groups[id]));
-
-    // Each side in its own sense, as Bkper shows it: Outgoing positive.
-    const side = (kind: 'incoming' | 'outgoing'): Line => {
-        const type = kind === 'incoming' ? 'INCOMING' : 'OUTGOING';
-        const credit = kind === 'incoming';
-        const children: Line[] = [...accounts]
-            .map(id => snapshot.accounts[id])
-            .filter(account => account.type === type)
-            .map(account => ({
-                id: account.id,
-                kind: 'account',
-                name: account.name,
-                type,
-                measure: measure.of(account, signOf(account, credit)),
-                children: [],
-            }));
-        const total = sum(
-            children.map(child => child.measure),
-            measure.zero()
-        );
-        return { id: kind, kind, type, measure: total, children };
-    };
-    const incoming = side('incoming');
-    const outgoing = side('outgoing');
-    const total = sum([incoming.measure, scale(outgoing.measure, -1)], measure.zero());
-    const netLine: Line = {
-        id: NET_RESULT_ROOT,
-        kind: 'group',
-        type: 'MIXED',
-        measure: total,
-        children: [],
-    };
+    const net = { type: 'MIXED' as const, measure: total };
     const series = (line: Line): ChartSeries => ({
         id: line.id,
+        name: line.name,
         type: line.type,
         color: TYPE_COLORS[line.type],
-        ...(line === netLine ? { line: true as const } : {}),
         amounts: line.measure.months.map(decimal),
     });
     return {
         root: { id: NET_RESULT_ROOT, type: 'MIXED', color: TYPE_COLORS.MIXED },
         total,
-        net: {
-            incoming: reportAmounts(incoming.measure),
-            outgoing: reportAmounts(outgoing.measure),
-            months: total.months.map(decimal),
-        },
-        rows: toRows([incoming, outgoing], netLine),
+        calculated: { months: total.months.map(decimal) },
+        rows: [...toRows(incoming, net), ...toRows(outgoing, net)],
         series: [
-            ...[incoming, outgoing].filter(line => !line.measure.amount.eq(0)).map(series),
-            series(netLine),
+            ...[...incoming, ...outgoing].filter(line => !line.measure.amount.eq(0)).map(series),
+            {
+                id: NET_RESULT_ROOT,
+                type: 'MIXED',
+                color: TYPE_COLORS.MIXED,
+                line: true,
+                amounts: total.months.map(decimal),
+            },
         ],
     };
 }
 
-function toRows(lines: Line[], parent: Line): ReportRow[] {
+function toRows(lines: Line[], parent: Pick<Line, 'type' | 'measure'>): ReportRow[] {
     const shareable = parent.type !== 'MIXED' && !parent.measure.amount.eq(0);
     return lines
         .filter(line => !isZero(line.measure))
@@ -743,7 +783,7 @@ function toRows(lines: Line[], parent: Line): ReportRow[] {
         .map(line => ({
             id: line.id,
             kind: line.kind,
-            ...(line.name === undefined ? {} : { name: line.name }),
+            name: line.name,
             type: line.type,
             color: TYPE_COLORS[line.type],
             ...reportAmounts(line.measure),
@@ -753,15 +793,11 @@ function toRows(lines: Line[], parent: Line): ReportRow[] {
         }));
 }
 
-/** Largest first, by size whatever the sign; then a remainder; then rows without an amount. */
+/** Largest first, by size whatever the sign; then rows without an amount. */
 function byRank(a: Line, b: Line): number {
     const zero = Number(a.measure.amount.eq(0)) - Number(b.measure.amount.eq(0));
-    const other = Number(a.kind === 'other') - Number(b.kind === 'other');
     return (
-        zero ||
-        other ||
-        b.measure.amount.abs().cmp(a.measure.amount.abs()) ||
-        (a.name ?? '').localeCompare(b.name ?? '')
+        zero || b.measure.amount.abs().cmp(a.measure.amount.abs()) || a.name.localeCompare(b.name)
     );
 }
 
@@ -770,9 +806,13 @@ interface ChartInput {
     nature: ReportNature;
     root: ReportData['root'];
     total: ReportAmounts;
-    net?: ReportData['net'];
+    /** A net result: of a group that combines Incoming and Outgoing, or calculated. */
+    net: boolean;
     rows: ReportRow[];
-    /** The series of a chart by month: the root, or the sides of a net result and the net result. */
+    /**
+     * The series of a chart by month: the root, or the roots of a net result Report calculates
+     * and that net result.
+     */
     series: ChartSeries[];
     months: IsoMonth[];
 }
@@ -891,7 +931,7 @@ function chartFacts({ nature, root, net, rows, months, total }: ChartInput): Cha
         mixed: root.type === 'MIXED' || drawn.some(row => row.type !== root.type),
         months: months.length,
         previous: total.previous !== undefined,
-        net: net !== undefined,
+        net,
         permanent: nature === 'position',
     };
 }
@@ -926,7 +966,7 @@ function rulesKind(
 
 /** A chart of the report, or the reason it does not fit. */
 function fitChart(kind: ViewKind, input: ChartInput): Fit {
-    const { nature, root, total, net, rows, series, months } = input;
+    const { root, total, net, rows, series, months } = input;
     const drawn = rows.filter(hasAmount);
     const ids = (parts: ReportRow[]) => parts.map(row => row.id);
     switch (kind) {
@@ -947,26 +987,29 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
             return hasValues(series)
                 ? { chart: { kind: 'area', series } }
                 : { reason: { code: 'no_amounts' } };
-        case 'stacked':
-            // The sides of a net result are each in their own sense, so they do not stack up to it.
-            if (net) {
-                return { reason: { code: 'net_result' } };
-            }
-            if (months.length < 2) {
-                return { reason: { code: 'few_months' } };
-            }
-            return drawn.length >= 2
-                ? { chart: { kind: 'stacked', series: stackedSeries(input) } }
-                : { reason: { code: 'few_parts' } };
+        case 'stacked': {
+            const reason = stackedReason(input);
+            return reason
+                ? { reason }
+                : { chart: { kind: 'stacked', series: stackedSeries(input) } };
+        }
         case 'ranked-bar':
             return drawn.length >= 2
                 ? { chart: { kind: 'ranked-bar', rows: ids(drawn) } }
                 : { reason: { code: 'few_parts' } };
         case 'donut':
         case 'pie': {
-            const reason = compositionReason(drawn, root.type, net !== undefined);
+            const reason = compositionReason(drawn, root.type, net);
             if (reason) {
                 return { reason };
+            }
+            if (
+                !isWhole(
+                    drawn.map(row => row.amount),
+                    total.amount
+                )
+            ) {
+                return { reason: { code: 'not_a_whole' } };
             }
             if (kind === 'donut' && drawn.length > MAX_DONUT_ROWS) {
                 return { reason: { code: 'too_many_parts' } };
@@ -984,34 +1027,13 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
                 ? { chart: { kind: 'compare', rows: ids(compared) } }
                 : { reason: { code: 'no_amounts' } };
         }
-        case 'waterfall': {
-            let chart: ReportChart | undefined;
-            if (net) {
-                // Incoming, minus each Outgoing account, is the net result.
-                const outgoing = rows.find(row => row.kind === 'outgoing')?.children ?? [];
-                const steps = outgoing.map(row => ({
-                    row,
-                    amount: new Amount(row.amount).times(-1),
-                }));
-                chart = bridge(net.incoming.amount, steps, total.amount, 'OUTGOING');
-            } else if (nature !== 'position') {
-                return { reason: { code: 'not_a_bridge' } };
-            } else if (total.previous === undefined) {
-                return { reason: { code: 'no_previous' } };
-            } else {
-                // The previous position, plus each part's change, is the position.
-                const steps = rows.map(row => ({
-                    row,
-                    amount: new Amount(row.amount).minus(row.previous ?? 0),
-                }));
-                chart = bridge(total.previous, steps, total.amount, root.type);
-            }
-            return chart ? { chart } : { reason: { code: 'no_change' } };
-        }
+        case 'waterfall':
+            // Its start, steps and end would be sums of Bkper's balances, not balances.
+            return { reason: { code: 'no_bridge' } };
     }
 }
 
-/** Why parts are no slices of one whole, or `undefined` when they are. */
+/** Why parts are no slices of one whole, or `undefined` when they may be. */
 function compositionReason(
     drawn: ReportRow[],
     rootType: NodeType,
@@ -1031,7 +1053,7 @@ function compositionReason(
     return isComposition(drawn, rootType) ? undefined : { code: 'mixed_parts' };
 }
 
-/** Parts of one type, each positive, that add up to a whole. */
+/** Parts of one type, each positive, as slices of a whole are. */
 function isComposition(rows: ReportRow[], rootType: NodeType): boolean {
     return (
         rootType !== 'MIXED' &&
@@ -1039,93 +1061,58 @@ function isComposition(rows: ReportRow[], rootType: NodeType): boolean {
     );
 }
 
-/** A series for each of the largest rows, and one for the rest, adding up to the root each month. */
-function stackedSeries({ root, rows, months }: ChartInput): ChartSeries[] {
-    const sumMonths = (parts: ReportRow[]) =>
-        months.map((_, i) => parts.reduce((sum, row) => sum.plus(row.months[i]), new Amount(0)));
-    const { top, rest } = largestParts(
-        rows.filter(row => row.kind !== 'other' && hasAmount(row)),
-        rows,
-        MAX_STACKED_SERIES,
-        parts => sumMonths(parts).every(month => month.eq(0))
+/**
+ * Whether the parts Bkper returns make the whole it returns. They may not, as when Bkper leaves
+ * a node out or subgroups share an account: then no chart may show them as its slices. This
+ * compares Bkper's own amounts; it shows no sum.
+ */
+function isWhole(parts: string[], whole: string): boolean {
+    return parts.reduce((sum, part) => sum.plus(part), new Amount(0)).eq(whole);
+}
+
+/** The top rows with an amount in any month: the parts stacked bars draw, each of its own. */
+function stackedParts({ rows }: ChartInput): ReportRow[] {
+    return rows.filter(row => row.months.some(month => !new Amount(month).eq(0)));
+}
+
+/** Why the parts do not stack up to the root in every month, or `undefined` when they do. */
+function stackedReason(input: ChartInput): UnfitReason | undefined {
+    const { root, net, months, series } = input;
+    // A net result's parts are each in their own sense, so they do not stack up to it.
+    if (net) {
+        return { code: 'net_result' };
+    }
+    if (months.length < 2) {
+        return { code: 'few_months' };
+    }
+    const parts = stackedParts(input);
+    if (parts.length < 2) {
+        return { code: 'few_parts' };
+    }
+    if (root.type === 'MIXED' || parts.some(row => row.type !== root.type)) {
+        return { code: 'mixed_parts' };
+    }
+    if (parts.length > MAX_STACKED_PARTS) {
+        return { code: 'too_many_parts' };
+    }
+    const whole = months.every((_, i) =>
+        isWhole(
+            parts.map(row => row.months[i]),
+            series[0].amounts[i]
+        )
     );
-    const series: ChartSeries[] = top.map(row => ({
+    return whole ? undefined : { code: 'not_a_whole' };
+}
+
+/** A series for each part, each as Bkper returns it: in every month they make the root. */
+function stackedSeries(input: ChartInput): ChartSeries[] {
+    return stackedParts(input).map(row => ({
         id: row.id,
-        ...(row.name === undefined ? {} : { name: row.name }),
+        name: row.name,
         type: row.type,
         color: row.color,
         amounts: row.months,
     }));
-    const other = sumMonths(rest);
-    if (!other.every(month => month.eq(0))) {
-        series.push({
-            id: OTHER_PART,
-            type: root.type,
-            color: root.color,
-            amounts: other.map(decimal),
-        });
-    }
-    return series;
-}
-
-/**
- * A bridge from `start` to `end` through the largest steps and the rest together; `undefined`
- * when nothing changes. The steps of every row make `end` from `start` exactly.
- */
-function bridge(
-    start: string,
-    steps: { row: ReportRow; amount: Amount }[],
-    end: string,
-    restType: NodeType
-): ReportChart | undefined {
-    const sumSteps = (parts: typeof steps) =>
-        parts.reduce((sum, step) => sum.plus(step.amount), new Amount(0));
-    if (!sumSteps(steps).plus(start).eq(end)) {
-        throw new Error('The steps of the bridge do not add up to its end');
-    }
-    const { top, rest } = largestParts(
-        steps
-            .filter(step => step.row.kind !== 'other' && !step.amount.eq(0))
-            .sort((a, b) => b.amount.abs().cmp(a.amount.abs())),
-        steps,
-        MAX_WATERFALL_STEPS,
-        parts => sumSteps(parts).eq(0)
-    );
-    const bars: WaterfallStep[] = top.map(({ row, amount }) => ({
-        id: row.id,
-        kind: row.kind,
-        ...(row.name === undefined ? {} : { name: row.name }),
-        type: row.type,
-        color: row.color,
-        amount: decimal(amount),
-    }));
-    const other = sumSteps(rest);
-    if (!other.eq(0)) {
-        bars.push({
-            id: OTHER_PART,
-            kind: 'other',
-            type: restType,
-            color: TYPE_COLORS[restType],
-            amount: decimal(other),
-        });
-    }
-    return bars.length > 0 ? { kind: 'waterfall', start, steps: bars, end } : undefined;
-}
-
-/**
- * The largest candidates, in their order, each a part of its own, and every other item as the
- * rest: at most `max` parts, the rest counting as one unless it is zero.
- */
-function largestParts<T>(
-    candidates: T[],
-    all: T[],
-    max: number,
-    isZeroRest: (rest: T[]) => boolean
-): { top: T[]; rest: T[] } {
-    const restOf = (top: T[]) => all.filter(item => !top.includes(item));
-    const fits = candidates.length + (isZeroRest(restOf(candidates)) ? 0 : 1) <= max;
-    const top = fits ? candidates : candidates.slice(0, max - 1);
-    return { top, rest: restOf(top) };
 }
 
 function hasAmount(row: ReportRow): boolean {
@@ -1147,27 +1134,6 @@ function reportAmounts(measure: Measure): ReportAmounts {
         previous: decimal(previous),
         ...(previous.eq(0) ? {} : { change: ratio(amount.minus(previous), previous.abs()) }),
     };
-}
-
-function scale(measure: Measure, factor: Sign): Measure {
-    return {
-        amount: measure.amount.times(factor),
-        ...(measure.previous ? { previous: measure.previous.times(factor) } : {}),
-        months: measure.months.map(month => month.times(factor)),
-    };
-}
-
-function sum(measures: Measure[], zero: Measure): Measure {
-    return measures.reduce(
-        (total, measure) => ({
-            amount: total.amount.plus(measure.amount),
-            ...(total.previous && measure.previous
-                ? { previous: total.previous.plus(measure.previous) }
-                : {}),
-            months: total.months.map((month, i) => month.plus(measure.months[i])),
-        }),
-        zero
-    );
 }
 
 function isZero(measure: Measure): boolean {

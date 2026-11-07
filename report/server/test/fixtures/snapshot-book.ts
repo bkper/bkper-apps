@@ -105,6 +105,16 @@ export function fixtureLedger(): FakeLedger {
     return new FakeLedger(structuredClone(bookPayload), structuredClone(transactions));
 }
 
+/**
+ * The fixture Book without its Net income group, so no group combines Incoming and Outgoing:
+ * its activity roots are simple, Expenses and Revenue, and share no account.
+ */
+export function simpleRootsLedger(): FakeLedger {
+    const ledger = fixtureLedger();
+    ledger.removeGroup('g-net');
+    return ledger;
+}
+
 /** The balances of a query of the ledger, as the app reads them. */
 export function ledgerBalances(
     ledger: FakeLedger,

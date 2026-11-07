@@ -202,6 +202,22 @@ describe('createReport by intent', () => {
         expect(error).toBeInstanceOf(NotAReportError);
         expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en') });
     });
+
+    it('has no net result when no group combines Incoming and Outgoing and roots share accounts', async () => {
+        const snapshot = await fixtureSnapshot();
+        // Expenses and Revenue stay; Net income shares their accounts but no longer combines.
+        snapshot.groups['g-net'] = { ...snapshot.groups['g-net'], type: 'OUTGOING' };
+        const test = harness();
+        const error = await createReport(
+            snapshot,
+            { intent: intent('net-result', 'this_year') },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ReportError);
+        expect(error).toMatchObject({ reason: 'no_net_result' });
+        expect(test.queries).toEqual([]);
+    });
 });
 
 describe('createReport by prompt', () => {
@@ -264,9 +280,10 @@ describe('createReport by prompt', () => {
             {},
             harness().options
         );
+        // The net result of the group that combines Incoming and Outgoing: Salary, Rent, Food.
         expect(result.trace).toEqual({
             facts: {
-                rows: 2,
+                rows: 3,
                 negative: 0,
                 mixed: true,
                 months: 1,
@@ -275,7 +292,7 @@ describe('createReport by prompt', () => {
                 permanent: false,
             },
             chart: {
-                fitting: ['bar', 'ranked-bar', 'compare', 'waterfall', 'table'],
+                fitting: ['bar', 'ranked-bar', 'compare', 'table'],
                 main: 'ranked-bar',
                 rule: 'closest',
                 unfit: { kind: 'pie', reason: { code: 'net_result' } },

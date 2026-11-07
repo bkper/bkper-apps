@@ -448,6 +448,11 @@ export const reportViewCSS = css`
         min-inline-size: 0;
     }
 
+    .source-calculated dt {
+        color: var(--wa-color-text-normal);
+        font-weight: var(--wa-font-weight-semibold);
+    }
+
     code {
         font-family: var(--wa-font-family-code);
         overflow-wrap: anywhere;

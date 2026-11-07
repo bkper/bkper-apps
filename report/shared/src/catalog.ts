@@ -343,6 +343,11 @@ export const SourceProps = z.strictObject({
     url: BkperUrl,
     /** When the balances were read. */
     dataAt: z.iso.datetime(),
+    /**
+     * A net result Report calculated itself, not Bkper, as the Book has no group that combines
+     * Incoming and Outgoing: the label that says so, and a note on how and what to add.
+     */
+    calculated: z.strictObject({ label: Text, note: Text }).optional(),
     labels: z.strictObject({
         source: Text,
         period: Text,

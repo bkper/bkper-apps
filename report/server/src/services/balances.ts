@@ -1,8 +1,9 @@
 /**
  * The balances of one Bkper query, as Bkper returns them: for each group and account in the
  * response, its balance in the query's period, its cumulative balance at the query's `before`,
- * and its monthly balances (`by:m`). Amounts are decimal strings with the sign Bkper shows
- * people: bkper-js representative balances, by credit nature.
+ * its monthly balances (`by:m`) and its nature, and for each group the subgroups and accounts
+ * Bkper lists under it. Amounts are decimal strings with the sign Bkper shows people:
+ * bkper-js representative balances, by credit nature.
  *
  * Nothing here adds amounts up: a report reads each amount it shows from one of these.
  * Entries are by Bkper name, which is unique per Book for groups and for accounts, so the
@@ -20,7 +21,7 @@ export interface MonthBalance {
     cumulative: string;
 }
 
-/** The balances of one group or account in a query. */
+/** The balances of one group or account in a query, and its nature as Bkper gives it. */
 export interface NodeBalances {
     /** Activity within the query's period: `after:` (if any) to `before:`. */
     period: string;
@@ -31,6 +32,16 @@ export interface NodeBalances {
      * movements, or before the first one of a query without `after:`, has no bucket.
      */
     months: MonthBalance[];
+    /** Credit nature (Incoming, Liability): decides the sign Bkper shows. */
+    credit: boolean;
+    /** Position to a date (Asset, Liability) rather than activity in a period. */
+    permanent: boolean;
+}
+
+/** A group's balances, and the subgroups and accounts Bkper lists under it, by name, in its order. */
+export interface GroupNodeBalances extends NodeBalances {
+    groups: string[];
+    accounts: string[];
 }
 
 export interface QueryBalances {
@@ -38,7 +49,7 @@ export interface QueryBalances {
     query: string;
     /** When Bkper answered it, as an ISO instant. */
     dataAt: string;
-    groups: Record<string, NodeBalances>;
+    groups: Record<string, GroupNodeBalances>;
     accounts: Record<string, NodeBalances>;
 }
 
@@ -55,12 +66,21 @@ export function readQueryBalances(
         accounts: {},
     };
     const read = (container: BalancesContainer): void => {
-        const entries = container.isFromAccount() ? balances.accounts : balances.groups;
-        // An account in several groups comes with the same balances under each.
-        if (!Object.hasOwn(entries, container.getName())) {
-            entries[container.getName()] = nodeBalances(container);
+        const name = container.getName();
+        const children = container.getBalancesContainers();
+        if (container.isFromAccount()) {
+            // An account in several groups comes with the same balances under each.
+            if (!Object.hasOwn(balances.accounts, name)) {
+                balances.accounts[name] = nodeBalances(container);
+            }
+        } else if (!Object.hasOwn(balances.groups, name)) {
+            balances.groups[name] = {
+                ...nodeBalances(container),
+                groups: children.filter(child => !child.isFromAccount()).map(childName),
+                accounts: children.filter(child => child.isFromAccount()).map(childName),
+            };
         }
-        container.getBalancesContainers().forEach(read);
+        children.forEach(read);
     };
     report.getBalancesContainers().forEach(read);
     return balances;
@@ -78,11 +98,20 @@ function nodeBalances(container: BalancesContainer): NodeBalances {
                 cumulative: decimal(balance.getCumulativeBalance()),
             }))
             .sort((a, b) => a.month.localeCompare(b.month)),
+        credit: container.isCredit() ?? false,
+        permanent: container.isPermanent(),
     };
 }
 
+function childName(container: BalancesContainer): string {
+    return container.getName();
+}
+
 /** The balances of a group or an account by name; `undefined` when Bkper left it out. */
-export function groupBalances(balances: QueryBalances, name: string): NodeBalances | undefined {
+export function groupBalances(
+    balances: QueryBalances,
+    name: string
+): GroupNodeBalances | undefined {
     return Object.hasOwn(balances.groups, name) ? balances.groups[name] : undefined;
 }
 

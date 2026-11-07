@@ -60,9 +60,9 @@ describe('locales', () => {
 
     it('load one language at a time in the browser', async () => {
         await loadLocale('sw');
-        expect(t('row_other', 'sw')).toBe(readLocale('sw').row_other);
+        expect(t('chart_name_pie', 'sw')).toBe(readLocale('sw').chart_name_pie);
         await loadLocale('en');
-        expect(t('row_other', 'en')).toBe('Other');
+        expect(t('chart_name_pie', 'en')).toBe('Pie');
     });
 });
 

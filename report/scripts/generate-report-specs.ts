@@ -129,24 +129,19 @@ const STUDIO_CASES: Case[] = [
         lang: 'ar-EG',
     },
     {
-        id: 'net-result-waterfall',
-        intent: intent(NET_RESULT_ROOT, '2025', { chart: 'waterfall' }),
+        id: 'net-result-compare',
+        intent: intent(NET_RESULT_ROOT, '2025', { chart: 'compare' }),
         lang: 'en',
     },
     {
-        id: 'net-result-loss-waterfall-ar',
-        intent: intent(NET_RESULT_ROOT, '2025-09', { chart: 'waterfall' }),
+        id: 'net-result-loss-ar',
+        intent: intent(NET_RESULT_ROOT, '2025-09'),
         lang: 'ar',
     },
     {
-        id: 'bank-accounts-waterfall',
+        id: 'bank-accounts-bridge-unfit',
         intent: intent('g-bank-accounts', '2025-Q3', { chart: 'waterfall' }),
         lang: 'en',
-    },
-    {
-        id: 'loans-waterfall-pt',
-        intent: intent('g-loans', '2025-Q2', { chart: 'waterfall' }),
-        lang: 'pt-BR',
     },
     {
         id: 'expenses-table',
@@ -157,10 +152,15 @@ const STUDIO_CASES: Case[] = [
 
 const LEDGER_CASES: Case[] = [
     { id: 'mixed-group', intent: intent('g-net', 'last_month', { view: 'breakdown' }), lang: 'en' },
-    { id: 'expenses-other-row', intent: intent('g-expenses', 'last_month'), lang: 'en' },
+    { id: 'expenses-last-month', intent: intent('g-expenses', 'last_month'), lang: 'en' },
+    {
+        id: 'net-result-group',
+        intent: intent(NET_RESULT_ROOT, 'last_month', { chart: 'waterfall' }),
+        lang: 'en',
+    },
     { id: 'assets-today-pt', intent: intent('g-assets', 'today'), lang: 'pt-BR' },
     {
-        id: 'net-result-last-12-months-ar',
+        id: 'net-income-last-12-months-ar',
         intent: intent(NET_RESULT_ROOT, 'last_12_months', { monthly: true }),
         lang: 'ar',
     },
@@ -177,8 +177,8 @@ const LEDGER_CASES: Case[] = [
         lang: 'en',
     },
     {
-        id: 'assets-waterfall',
-        intent: intent('g-assets', 'today', { chart: 'waterfall' }),
+        id: 'expenses-pie-negative',
+        intent: intent('g-expenses', 'last_month', { chart: 'pie' }),
         lang: 'en',
     },
 ];
@@ -245,6 +245,13 @@ async function main(): Promise<void> {
     if (bookIds.length === 0) {
         const studio = studioLedger();
         const ledger = fixtureLedger();
+        // A refund larger than October's food, so Food shows below zero then, as Bkper shows it.
+        ledger.transactions.push({
+            date: '2026-10-20',
+            from: 'Food',
+            to: 'Bank A',
+            amount: '387.24',
+        });
         await write(
             join(SPECS_DIR, 'studio.json'),
             await entries(

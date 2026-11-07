@@ -8,8 +8,8 @@
  * suggestions, the saved prompts, quick successive clicks and a typed request, and checks every
  * view transition as the browser captures it: scoped to the report (the input stays live and
  * still), the next report in place with its chart drawn at its size (not still blank, nor the
- * last chart's drawing in the next one's box), its snapshot as tall as the report (not
- * stretched), a prefetched report within 150 ms of the click, and the last report clicked shown
+ * last chart's drawing in the next one's box), its snapshot as tall as the report, both
+ * snapshots at their own size from the top (never scaled to the box), a prefetched report within 150 ms of the click, and the last report clicked shown
  * at the end. A chart chosen from the previews shows within 50 ms, with no transition; with
  * reduced motion, reports change with none. It saves the frames of one change per layout.
  */
@@ -72,6 +72,8 @@ interface PageState {
     /** The report's height, and its new snapshot's while a transition scoped to it runs. */
     height: number;
     snapshotHeight: number;
+    /** How the old and new snapshots fit their box: `object-fit` and `object-position`. */
+    snapshotFit: string[];
     /** The chart shown: whether Chart.js drew it, at what size, in what box. */
     chart: {
         element: string;
@@ -118,10 +120,17 @@ const RECORD_TRANSITIONS = `(() => {
         const chart = host?.chart;
         const input = page?.querySelector('wa-input');
         const snapshot = view ? parseFloat(getComputedStyle(view, '::view-transition-new(root)').height) : NaN;
+        const fit = part => {
+            const style = getComputedStyle(view, part);
+            return style.objectFit + ' ' + style.objectPosition;
+        };
         return {
             title: report?.querySelector('h1')?.textContent?.trim() ?? '',
             height: view ? view.getBoundingClientRect().height : 0,
             snapshotHeight: snapshot,
+            snapshotFit: view
+                ? ['::view-transition-old(root)', '::view-transition-new(root)'].map(fit)
+                : [],
             chart: host ? {
                 element: host.localName,
                 drawn: !!chart,
@@ -392,6 +401,13 @@ function checkRecord(
     check(
         Math.abs(captured.snapshotHeight - captured.height) <= 1,
         `${label}: the next report's snapshot is ${Math.round(captured.snapshotHeight)} px tall, the report ${Math.round(captured.height)} px`
+    );
+    // Browsers scale snapshots to fit the transition's box by default, which stretched the old
+    // report while the next one was prepared: each keeps its own size, from the top.
+    check(
+        captured.snapshotFit.length === 2 &&
+            captured.snapshotFit.every(fit => /^none \S+ 0%$/.test(fit)),
+        `${label}: snapshots fit their box as ${captured.snapshotFit.join(' / ')}, not at their own size from the top`
     );
     for (const state of [captured, record.after]) {
         check(

@@ -169,6 +169,17 @@ export const reportPageCSS = css`
         animation-timing-function: var(--wa-transition-easing);
     }
 
+    /*
+     * Browsers stretch each snapshot to the transition's box by default, so while the report's
+     * height changes (and while the next one is prepared) the last report showed scaled up.
+     * Each snapshot keeps its own size, from the top.
+     */
+    .report::view-transition-old(*),
+    .report::view-transition-new(*) {
+        object-fit: none;
+        object-position: top;
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .progress,
         .progress.active {

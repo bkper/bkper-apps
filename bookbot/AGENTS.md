@@ -4,7 +4,7 @@
 
 Read the responsibilities, events, properties and discovery API below before changing behavior or ownership.
 
-This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the discovery API (`/api/v1/discovery`, used by Parser Bot and other callers) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Since the 2026-11-05 handover, Parser Bot reads documents and learns from extraction corrections; the document reading, attachment, import and learning code was removed from this directory (Parser Bot keeps it). Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the discovery API (`/api/v1/discovery`, used by apps, agents and scripts) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
 - `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the legacy `bkper-agent` repository: it would route events back to the legacy Worker. Rollback to the legacy Worker is documented in `bkper.yaml`.
@@ -15,25 +15,23 @@ This directory is the Platform Bookbot. It finds From and To Accounts and histor
 - Existing technical names and `agent_*` properties stay unchanged.
 - Discovery never posts or writes from the API. Preserve explicit account sides, existing property behavior, legacy provenance, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
-- Parser Bot consumes Bookbot discovery through its API. Do not add document reading or extraction learning back here.
+- Bookbot does not read documents or learn from extraction; callers send it drafts. Do not add those jobs here.
 
 ## Refactoring rules
 
-- Goal: split the two apps into isolated business processes with the least code change possible. Current behavior works; don't break it.
+- Goal: keep Bookbot an isolated business process with the least code change possible. Current behavior works; don't break it.
 - Don't rewrite, fix, rename, reformat, or clean up. Record defects or ideas for a separate, approved change.
 - Move code verbatim, keeping names, comments, and order.
 - Keep diffs small and easy to review: one focused step per commit.
 - Before changing behavior that tests don't cover, add a short test of the current behavior. Existing tests change only mechanically.
 
-## Shared rules with Parser Bot
+## Rules
 
-These apply to both apps.
-
-- Preserve Bkper's zero-sum model. Neither app posts transactions; unresolved results remain unposted drafts.
-- AI suggests or extracts. Deterministic application code validates, merges, and controls financial writes.
+- Preserve Bkper's zero-sum model. Bookbot never posts transactions; unresolved results remain unposted drafts.
+- AI suggests. Deterministic application code validates, merges, and controls financial writes.
 - Reusable APIs return results without Book writes; Book reads and inference are allowed. Event adapters or explicitly authorized callers own persistence.
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
-- Hosting: one standard Bkper Platform app per app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Parser Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Parser Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Worker is only a rollback target and is never called). The address is one constant.
+- Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Callers reach `https://bookbot.bkper.app/api/v1/*` through Platform outbound, which delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). The legacy Worker is only a rollback target and is never called.
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance.
 - Do not log credentials, document content, transaction descriptions, or private Book data.
 
@@ -45,28 +43,26 @@ Bookbot owns:
 - Discovery of common historical properties and its provenance.
 - Rediscovery of affected pending drafts after a discovered account is corrected, including persisting those updates.
 
-Parser Bot owns parsing, description field extraction, file metadata, external parsers, imports, attachments, summaries, and extraction learning.
-
 ## Events
 
 | Event | Bookbot behavior |
 | --- | --- |
-| `TRANSACTION_POSTED` / `TRANSACTION_UPDATED` | Rediscover pending drafts when a discovered account was corrected. Parser Bot also subscribes for extraction learning. |
+| `TRANSACTION_POSTED` / `TRANSACTION_UPDATED` | Rediscover pending drafts when a discovered account was corrected. |
 
-Bookbot does not handle file or transaction-created events. Parser Bot calls Bookbot discovery before recording imports and when enriching created transactions. Since the cleanup after the 2026-11-05 handover, this directory contains only discovery, rediscovery and the discovery API.
+Bookbot does not handle file or transaction-created events. Callers that record drafts call the discovery API first. This directory contains only discovery, rediscovery and the discovery API.
 
 ## Properties
 
 | Properties | Role |
 | --- | --- |
-| `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, `agent_discovered_properties_`, plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (Parser Bot for imports and created transactions, Bookbot for rediscovery). Parser Bot statement learning reads the account-side provenance. |
+| `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, `agent_discovered_properties_`, plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (the caller for API results, Bookbot for rediscovery). Callers may read the account-side provenance, so keep these names stable. |
 | `agent_discovery_examples` | Discovery configuration (Account, then Group, then Book). |
-| `agent_excluded_properties`, legacy `agent_prompt_skip` | Exclusions shared with Parser Bot learning. Both read; neither writes. |
-| `parsed_account_name_` | Set by Bkper when a created transaction's description names one Account. Discovery uses it as the known Account and removes it locally; Parser Bot prompt and parser-URL lookup also reads it. |
+| `agent_excluded_properties`, legacy `agent_prompt_skip` | Property keys discovery never copies. Bookbot reads them and never writes them; other apps may read the same property. |
+| `parsed_account_name_` | Set by Bkper when a created transaction's description names one Account. Discovery uses it as the known Account and removes it locally. |
 
 ## Discovery API
 
-Bookbot provides this API; Parser Bot consumes it.
+Bookbot provides this API to apps, agents and scripts.
 
 - Versioned `/api/v1/*` operations with a published `/openapi.json` and generated client types.
 - Single and batch calls share one item contract and implementation. Stable client item identifiers correlate results.
@@ -104,7 +100,7 @@ bun run test:unit         # Clears live AI variables; integration cases skip
 bun run test              # All of the above
 ```
 
-Tests for removed code were deleted with it (Parser Bot keeps its own copies). Short failure characterizations and API safety/contract tests cover the discovery API. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
+Tests for removed code were deleted with it. Short failure characterizations and API safety/contract tests cover the discovery API. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
 
 ## Check and deploy
 

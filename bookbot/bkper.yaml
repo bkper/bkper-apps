@@ -2,7 +2,7 @@
 # Never sync from the legacy bkper-agent repository. Deploy, install, or sync only with separate explicit approval.
 id: bookbot
 name: Bookbot
-description: Extract transaction data from invoices, receipts, statements, and other documents using AI-assisted parsing.
+description: Find the right From and To accounts for your transactions, based on how you recorded similar ones before.
 
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-dark.svg
@@ -21,7 +21,6 @@ developers: '*@bkper.com'
 webhookUrl: https://bookbot.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 
-# Since the 2026-11-05 handover, Parser Bot reads documents and learns from extraction corrections;
 # Bookbot only rediscovers pending drafts after an Account correction.
 events:
   - TRANSACTION_POSTED

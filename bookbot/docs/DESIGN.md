@@ -1,25 +1,19 @@
 # Bookbot design
 
-Bookbot finds the From and To Accounts and historical properties for transactions. It serves reusable single and batch discovery to Parser Bot, the Bkper Agent, scripts and other apps, and re-checks pending drafts after a user corrects an Account that Bookbot suggested.
-
-Bookbot started as a copy of the legacy Bookbot Worker, which also read documents. Document reading, attachments, imports and extraction learning now belong to [Parser Bot](../../parser-bot/docs/DESIGN.md); Bookbot keeps only discovery and rediscovery.
+Bookbot finds the From and To Accounts and historical properties for transactions. It serves reusable single and batch discovery to apps, agents and scripts, and re-checks pending drafts after a user corrects an Account that Bookbot suggested.
 
 Rules, responsibilities, events, properties, the discovery API contract and known current behavior are in [AGENTS.md](../AGENTS.md). Known defects are in [DEFERRED.md](DEFERRED.md).
 
 ## Flow
 
 ```text
-Parser Bot import or created transaction
-    -> POST /api/v1/discovery/batch (one batch per target Book)
+Apps, agents and scripts
+    -> POST /api/v1/discovery or /api/v1/discovery/batch (one batch per target Book), read-only
     -> suggested Account sides and properties, per item
-    -> Parser Bot records or updates unposted drafts
+    -> the caller decides what to write, such as unposted drafts
 
 Posted or updated transaction with a corrected, Bookbot-suggested Account
     -> Bookbot rediscovers affected pending drafts and updates them
-
-Bkper Agent, scripts and other apps
-    -> the same authenticated API, read-only
-    -> the caller decides what to write
 ```
 
 ## Design choices

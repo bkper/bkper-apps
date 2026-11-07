@@ -25,9 +25,16 @@ This directory is the Parser Bot Platform app, started from the legacy Bookbot e
 - Keep diffs small and easy to review: one focused step per commit.
 - Before changing behavior that tests don't cover, add a short test of the current behavior. Existing tests change only mechanically.
 
-## Shared rules with Bookbot
+## Rules
 
-The shared rules in [Bookbot's AGENTS.md](../bookbot/AGENTS.md) apply here too: no posting, deterministic financial writes, read-only APIs, per-Book authorization, Platform hosting and the Bookbot address, preserved properties and provenance, no private data in logs.
+- Preserve Bkper's zero-sum model. Parser Bot never posts transactions; unresolved results remain unposted drafts.
+- AI suggests or extracts. Deterministic application code validates, merges, and controls financial writes.
+- Reusable APIs return results without Book writes; Book reads and inference are allowed. Event adapters or explicitly authorized callers own persistence.
+- API calls need authorization for every target Book, not app installation. Event automation requires installation.
+- Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication.
+- Bookbot discovery: Parser Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Parser Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Bookbot Worker is only a rollback target and is never called). The address is one constant. Bookbot's discovery API contract is in [Bookbot's AGENTS.md](../bookbot/AGENTS.md).
+- Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance, including Bookbot's `agent_credit_account_id_` and `agent_debit_account_id_` read by statement learning.
+- Do not log credentials, document content, transaction descriptions, or private Book data.
 
 ## Responsibilities
 

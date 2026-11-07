@@ -2,7 +2,7 @@
 
 Finds the right accounts for your transactions. Bookbot looks at how you recorded similar transactions before and suggests the missing From or To account, and the custom properties they always share.
 
-[Parser Bot](https://bkper.com/apps/parser-bot) asks Bookbot for accounts every time it turns a document into draft transactions. Your own apps, scripts, and agents can ask Bookbot too, through its discovery API.
+Apps, scripts, and agents ask Bookbot for accounts through its discovery API.
 
 Bookbot never posts transactions and never replaces an account or property you already set.
 
@@ -10,13 +10,13 @@ Bookbot never posts transactions and never replaces an account or property you a
 
 ```mermaid
 sequenceDiagram
-    participant Parser as Parser Bot or your app
+    participant App as Your app
     participant Bookbot as Bookbot
     participant Book as Bkper Book
 
-    Parser->>Bookbot: Which accounts for these drafts?
+    App->>Bookbot: Which accounts for these drafts?
     Bookbot->>Book: Search posted transactions
-    Bookbot-->>Parser: Suggested accounts and properties
+    Bookbot-->>App: Suggested accounts and properties
     Note over Book: Drafts reviewed and posted
     Book->>Bookbot: Account corrected on a posted transaction
     Bookbot->>Book: Re-check pending drafts
@@ -26,7 +26,7 @@ sequenceDiagram
 
 Bookbot assigns missing From and To accounts by searching your book's posted transactions for similar patterns:
 
-1. **Extract key terms** — AI identifies meaningful parts of the description (e.g. `Office Depot` from `OFFICE DEPOT #1234 PURCHASE 04/15`)
+1. **Identify key terms** — AI picks out meaningful parts of the description (e.g. `Office Depot` from `OFFICE DEPOT #1234 PURCHASE 04/15`)
 2. **Search by account + creator** — finds posted transactions with similar terms, scoped to the known account and user
 3. **Search by account** — same search, any user
 4. **Search by description** — searches across all accounts
@@ -122,5 +122,4 @@ Bookbot's suggestions are recorded on drafts as internal properties (suffixed wi
 
 ## Learn more
 
-- [Parser Bot](https://bkper.com/apps/parser-bot) — reads documents and creates draft transactions
 - [Recording transactions](https://bkper.com/docs/guides/using-bkper/record-guide) — how to record and manage transactions in Bkper

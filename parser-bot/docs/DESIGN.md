@@ -4,7 +4,7 @@ Parser Bot reads documents, statements, attachments and descriptions. It extract
 
 Parser Bot started as a copy of the legacy Bookbot Worker. Account discovery and rediscovery belong to [Bookbot](../../bookbot/docs/DESIGN.md); Parser Bot calls Bookbot's API and has no discovery code of its own.
 
-Rules, responsibilities, events, properties, the parse API and known current behavior are in [AGENTS.md](../AGENTS.md). The shared rules and the discovery API Parser Bot consumes are in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md). The contract for external parsers is in [TRANSACTIONS_EXTRACTOR_API.md](TRANSACTIONS_EXTRACTOR_API.md).
+Rules, responsibilities, events, properties, the parse API and known current behavior are in [AGENTS.md](../AGENTS.md). The discovery API Parser Bot consumes is in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md). The contract for external parsers is in [TRANSACTIONS_EXTRACTOR_API.md](TRANSACTIONS_EXTRACTOR_API.md).
 
 ## Flow
 

@@ -192,7 +192,7 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: ReportPromptSchema.optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.',
             example: 'show my expenses by category this year',
         }),
         intent: IntentSchema.optional(),
@@ -332,6 +332,14 @@ export const ReportTraceSchema = z
             .openapi({
                 description:
                     'With a `prompt`: what Bkper AI recognized in it, each answer with its score. Code decides the report from these.',
+            }),
+        names: z
+            .array(z.string())
+            .optional()
+            .openapi({
+                description:
+                    'With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.',
+                example: ['Food', 'Rent'],
             }),
         rule: z.enum(SHOW_RULE_NAMES).optional().openapi({
             description:

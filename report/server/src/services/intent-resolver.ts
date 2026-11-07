@@ -5,8 +5,10 @@
  * request asks about change over time, a composition, a comparison with an earlier period or a
  * bridge. This code makes the decisions: it applies the thresholds, decides how to show the
  * report with the rule table {@link SHOW_RULES}, picks the default period when the request
- * names none, and reads hashtags from the request text itself. Which charts fit the numbers is
- * decided afterwards, by `buildReport`, from the facts of the report.
+ * names none, and reads from the request text itself its hashtags and the exact names of the
+ * Book's groups and accounts (`prompt-names.ts`), which the report is of whenever the request
+ * writes any: the model's root is read only when it writes none. Which charts fit the numbers
+ * is decided afterwards, by `buildReport`, from the facts of the report.
  */
 import { decide, type DecisionClient } from './decision-client.js';
 import {
@@ -25,7 +27,8 @@ import {
     type ReportIntent,
     type ReportView,
 } from './report-intent.js';
-import { lastActiveMonth, type Snapshot } from './snapshot.js';
+import { HASHTAG, findPromptNames, type PromptName } from './prompt-names.js';
+import { lastActiveMonth, type Snapshot, type SnapshotNode } from './snapshot.js';
 import type { Timing } from './timing.js';
 
 export type IntentResolution =
@@ -157,12 +160,12 @@ export interface IntentTrace {
         language: JudgmentTrace<string>;
     };
     rule: ShowRule;
+    /** The Book's names the request writes, which the report is of instead of the root judgment. */
+    names?: string[];
 }
 
 const MAX_HASHTAGS = 10;
 const MAX_HASHTAG_CHARACTERS = 100;
-/** Letters, marks, digits, `_` and `-` after `#`; punctuation ends a hashtag. */
-const HASHTAG = /#([\p{L}\p{M}\p{N}_-]+)/gu;
 
 /** The `#hashtags` of a request, without `#`, each once, in order. */
 export function extractHashtags(prompt: string): string[] {
@@ -188,48 +191,83 @@ export async function resolveIntent(
     const result = await options.timing.measure('jev', () =>
         decide(options.client, request, options.signal)
     );
-    return readIntent(result.answers, roots, snapshot, extractHashtags(prompt));
+    return readIntent(
+        result.answers,
+        roots,
+        snapshot,
+        extractHashtags(prompt),
+        findPromptNames(prompt, snapshot)
+    );
 }
 
 /**
  * Turns answers into an intent, or into no report when the request names no root of the
- * Book confidently enough.
+ * Book confidently enough. When the request writes names of the Book (`names`), the report is
+ * of them, side by side when several, whatever the root judgment.
  *
  * @param roots What each root option stands for, from {@link buildIntentRequest}.
+ * @param names The Book's groups and accounts the request writes, from `findPromptNames`.
  */
 export function readIntent(
     answers: IntentAnswers,
     roots: Record<string, string>,
     snapshot: Snapshot,
-    hashtags: string[]
+    hashtags: string[],
+    names: PromptName[] = []
 ): IntentResolution {
     const language =
         answers.language.confidence >= THRESHOLDS.language ? answers.language.choice : undefined;
     const languageField = language ? { language } : {};
     const root = Object.hasOwn(roots, answers.root.choice) ? roots[answers.root.choice] : NO_ROOT;
-    if (root === NO_ROOT || answers.root.confidence < THRESHOLDS.root) {
+    if (names.length === 0 && (root === NO_ROOT || answers.root.confidence < THRESHOLDS.root)) {
         return { recognized: false, ...languageField };
     }
 
     const judgments = readJudgments(answers);
+    if (names.length > 1) {
+        // Names side by side are each their own amount, not parts of one: no composition.
+        judgments.composition = false;
+    }
     const { rule, chart, view } = decideShown(judgments);
     // Over time, the report shows the months, whichever rule chose its chart.
     const monthly = judgments.overTime;
     const trend = monthly || (chart !== undefined && CHARTS_BY_MONTH.includes(chart));
-    const intent = ReportIntentSchema.parse({
+    const [first, ...alongside] = names.map(({ root, target }) => ({
         root,
-        period: readPeriod(answers.period, root, trend, snapshot),
+        ...(target === undefined ? {} : { target }),
+    }));
+    const subject = first ?? { root };
+    const intent = ReportIntentSchema.parse({
+        ...subject,
+        ...(alongside.length > 0 ? { alongside } : {}),
+        period: readPeriod(
+            answers.period,
+            trend,
+            snapshot,
+            periodNodes(subject.root, names, snapshot)
+        ),
         monthly,
         ...(view ? { view } : {}),
         ...(chart ? { chart } : {}),
         ...(hashtags.length > 0 ? { hashtags } : {}),
     });
-    return {
-        recognized: true,
-        intent,
-        ...languageField,
-        trace: { judgments: traceJudgments(answers), rule },
-    };
+    const trace: IntentTrace = { judgments: traceJudgments(answers), rule };
+    if (names.length > 0) {
+        trace.names = names.map(({ name }) => name);
+    }
+    return { recognized: true, intent, ...languageField, trace };
+}
+
+/** The nature and months a default period is read from: the names written, else the root's. */
+type PeriodNodes = Pick<SnapshotNode, 'permanent' | 'activeMonths'>[];
+
+function periodNodes(root: string, names: PromptName[], snapshot: Snapshot): PeriodNodes {
+    if (names.length > 0) {
+        return names;
+    }
+    return root === NET_RESULT_ROOT
+        ? snapshot.roots.map(id => snapshot.groups[id]).filter(group => !group.permanent)
+        : [snapshot.groups[root]];
 }
 
 function readJudgments(answers: IntentAnswers): Judgments {
@@ -268,7 +306,11 @@ function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
     };
 }
 
-function readPeriod(answer: ChoiceAnswer, root: string, trend: boolean, snapshot: Snapshot) {
+/**
+ * The period Jev is sure of, else the default period of the nodes: a position when the first
+ * is one (a net result's activity roots never are), from the last month any of them moved.
+ */
+function readPeriod(answer: ChoiceAnswer, trend: boolean, snapshot: Snapshot, nodes: PeriodNodes) {
     if (
         answer.choice !== UNSPECIFIED &&
         answer.confidence >= THRESHOLDS.period &&
@@ -276,15 +318,11 @@ function readPeriod(answer: ChoiceAnswer, root: string, trend: boolean, snapshot
     ) {
         return answer.choice;
     }
-    const net = root === NET_RESULT_ROOT;
-    const groups = net
-        ? snapshot.roots.map(id => snapshot.groups[id]).filter(group => !group.permanent)
-        : [snapshot.groups[root]];
-    const nature: ReportNature = !net && groups[0].permanent ? 'position' : 'activity';
+    const nature: ReportNature = nodes[0]?.permanent ? 'position' : 'activity';
     return defaultPeriod({
         nature,
         trend,
         today: snapshot.today,
-        lastActiveMonth: lastActiveMonth(groups),
+        lastActiveMonth: lastActiveMonth(nodes),
     });
 }

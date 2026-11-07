@@ -332,6 +332,60 @@ describe('createReport by prompt', () => {
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
+    it('reports the group or account the prompt names, titled by it, from its root', async () => {
+        // Jev chose another root: the name the prompt writes decides.
+        const test = harness({ root: 'Revenue', period: '2026-10', language: 'pt' });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'quanto gastei com food em outubro' },
+            {},
+            test.options
+        );
+        expect(test.jevCalls).toBe(1);
+        expect(result.intent).toEqual(intent('g-expenses', '2026-10', { target: 'a-food' }));
+        expect(test.queries).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        expect(result.spec.elements[result.spec.root]).toMatchObject({
+            props: { title: 'Food' },
+        });
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
+        expect(result.query).toBe("account:'Food' after:2026-10-01 before:2026-11-01");
+        expect(result.trace).toMatchObject({ names: ['Food'] });
+        expect(result.text).toBe('quanto gastei com food em outubro');
+    });
+
+    it('shows the names a prompt writes side by side, each its own balance', async () => {
+        const test = harness({ root: 'Expenses', period: '2026-10' });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'Rent versus Food in October' },
+            {},
+            test.options
+        );
+        expect(result.intent).toMatchObject({
+            root: 'g-expenses',
+            target: 'a-rent',
+            alongside: [{ root: 'g-expenses', target: 'a-food' }],
+        });
+        expect(result.spec.elements['answer-1']).toMatchObject({ props: { amount: '1000' } });
+        expect(result.spec.elements['answer-2']).toMatchObject({ props: { amount: '200.5' } });
+    });
+
+    it('rejects positions and activity named side by side', async () => {
+        const test = harness({ root: 'Expenses', period: '2026-10' });
+        const error = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'cash and food in October' },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ReportError);
+        expect(error).toMatchObject({ reason: 'mixed_targets' });
+        expect(test.queries).toEqual([]);
+    });
+
     it('returns suggestions in the detected language when the prompt is not a report', async () => {
         const snapshot = await fixtureSnapshot();
         const test = harness({ root: 'none', language: 'en' });

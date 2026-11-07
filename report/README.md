@@ -13,7 +13,7 @@ Report turns a short request, such as _expenses by category this year_, into a f
 - **A breakdown table** of the group's subgroups and Accounts, as Bkper lists them, sorted by size, with each one's share and change. Open a row to see what is inside it; the chart highlights it.
 - **The source**: the exact Bkper query, the period and when the balances were read, with a link to open the same query in your Book.
 
-Every amount is a balance Bkper calculates for one group or Account, shown as Bkper shows it: Report adds nothing up and changes no sign, with one labelled exception for the net result (see below). Numbers never come from AI. AI only recognizes what your request is about: the group, the period, and whether you ask about months, parts, an earlier period or a step-by-step bridge, or name a chart. Fixed rules then decide the report and its chart.
+Every amount is a balance Bkper calculates for one group or Account, shown as Bkper shows it: Report adds nothing up and changes no sign, with one labelled exception for the net result (see below). Numbers never come from AI. Report finds the names of your groups and Accounts in your request itself. AI only recognizes the period, whether you ask about months, parts, an earlier period or a step-by-step bridge, the chart you name, and, when your request names no group or Account, the group it is about. Fixed rules then decide the report and its chart.
 
 ## How to use it
 
@@ -40,15 +40,21 @@ Write the way you would ask a colleague, in any language:
 | You type | You get |
 | --- | --- |
 | expenses by category this year | This year's expenses, broken down by their groups and Accounts |
-| income versus expenses last year | Last year's net result, and the groups that make it |
+| profit last year | Last year's net result, and the groups that make it |
 | receitas por mês em 2025 | Revenue of each month of 2025 |
 | ¿cuánto tengo en mis cuentas hoy? | Your asset balances today, by Account |
 | 去年第四季度的支出 | Expenses in the fourth quarter of last year |
 | dettes à la fin de 2024 | What you owed at the end of 2024 |
 | #travel expenses this year | This year's expenses on transactions tagged `#travel` |
 | despesas por categoria em pizza | This year's expenses as a pie chart |
+| Food last month | Your _Food_ group or Account alone, last month |
+| saldo do Nubank hoje | The balance of your _Nubank_ Account today |
+| Food and Rent by month | _Food_ and _Rent_ side by side, month by month, each with its own amount |
+| Marketing versus Travel this year | The same: two groups or Accounts side by side, never added up |
 
-A report always starts from one of the **top-level groups** of your Book, such as Expenses or Assets, or from **income versus expenses** (the net result). Activity groups (incoming and outgoing) show what moved within the period; balance groups (assets and liabilities) show the balance at the end of it.
+**Name any group or Account** of your Book, as your Book writes it (case and accents aside), and the report is of it, wherever it sits. Name several, such as _Food and Rent_ or _Food versus Rent_, to see them side by side, each with its own balance; Report never adds them up, so there is no total. To see their total, add a group that holds them in Bkper and ask for it. Names side by side must all be balances (assets and liabilities) or all activity (income and expenses).
+
+When your request names no group or Account, Report starts from the **top-level group** your request is about, such as Expenses or Assets, or from **income versus expenses** (the net result). The report's title always names what it shows. Activity groups (incoming and outgoing) show what moved within the period; balance groups (assets and liabilities) show the balance at the end of it.
 
 ### The net result
 
@@ -80,6 +86,7 @@ A chart you ask for that does not fit your numbers is not drawn: it shows first 
 - **A pie** has two or more parts, all positive and of one kind, so not income versus expenses, that add up to the total. **A donut** also has at most six.
 - **Stacked** and **area** charts have a period of two or more months. Stacked also needs two to six parts of one kind that add up to the total, and does not fit income versus expenses.
 - **A comparison** has a previous period, so not all time.
+- **Side by side**, no chart may suggest a total: a pie, a donut and stacked bars show dimmed; bars by month, an area, ranked bars, a comparison and the table fit.
 
 Report draws no **bridge** (waterfall): its bars would be sums Report makes itself, not balances Bkper calculates. Ask for one and it shows dimmed, with the comparison instead.
 
@@ -87,7 +94,8 @@ Charts that do not fit and that you did not ask for are simply not offered. A re
 
 ## Good to know
 
-- **Top-level groups only.** A report starts from a top-level group, not from a single subgroup or Account. Ask for the group that holds it and open its row in the breakdown.
+- **Names as your Book writes them.** Report recognizes a group or Account when your request contains its whole name; case and accents do not matter, but spelling and spacing do. The longest name wins, so _HSBC fees_ is that Account, not _HSBC_. If two groups or Accounts differ only by case or accents, the one written exactly as in your request wins, then a group over an Account. Names in `#hashtags` are filters, not names. If a name changes in your Book, a saved request with the old name no longer finds it, and the report shows the group the request is about instead.
+- **Up to six side by side.** Name more and the first six show.
 - **Periods in whole months.** Report understands months, quarters and years: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today. It does not report custom date ranges such as a single week.
 - **Hashtags.** Add `#hashtags` to your request to include only the transactions that have all of them.
 - **Up to two minutes behind.** To answer quickly, Report keeps your Book's balances for up to 60 seconds, and each report it showed you for another 60 seconds, so a transaction you posted in the last two minutes may not show yet.

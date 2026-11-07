@@ -269,7 +269,7 @@ class Lookup {
 }
 
 /** The last month any of the nodes had movements; `undefined` when none ever had. */
-export function lastActiveMonth(nodes: SnapshotNode[]): IsoMonth | undefined {
+export function lastActiveMonth(nodes: Pick<SnapshotNode, 'activeMonths'>[]): IsoMonth | undefined {
     return nodes
         .flatMap(node => node.activeMonths)
         .sort()

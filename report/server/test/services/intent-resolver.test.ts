@@ -11,6 +11,7 @@ import {
     type IntentAnswers,
     type Judgments,
 } from '../../src/services/intent-resolver';
+import { findPromptNames } from '../../src/services/prompt-names';
 import type { Snapshot } from '../../src/services/snapshot';
 import { ServerTiming } from '../../src/services/timing';
 import { fixtureSnapshot } from '../fixtures/snapshot-book';
@@ -316,6 +317,107 @@ describe('readIntent', () => {
     });
 });
 
+describe('readIntent with names the request writes', () => {
+    async function named(prompt: string, overrides: Partial<IntentAnswers> = {}, book?: Snapshot) {
+        const snapshot = book ?? (await fixtureSnapshot());
+        const { roots } = buildIntentRequest(prompt, snapshot);
+        const names = findPromptNames(prompt, snapshot);
+        return readIntent(answers(overrides), roots, snapshot, [], names);
+    }
+
+    it('reports what the request names, over the root Jev chose', async () => {
+        expect(await named('food in 2026-Q3', { root: sure('Revenue') })).toMatchObject({
+            recognized: true,
+            intent: { root: 'g-expenses', target: 'a-food', period: '2026-Q3', monthly: false },
+            trace: { names: ['Food'], judgments: { root: { answer: 'Revenue' } } },
+        });
+        expect(await named('banks', { root: sure('Assets') })).toMatchObject({
+            intent: { root: 'g-assets', target: 'g-banks' },
+        });
+        expect(await named('owner', { root: sure('Card') })).toMatchObject({
+            intent: { root: 'a-owner' },
+        });
+        const root = await named('Expenses', { root: sure('net-result') });
+        expect(root).toMatchObject({ intent: { root: 'g-expenses' } });
+        expect(root.recognized && root.intent).not.toHaveProperty('target');
+    });
+
+    it('is a report of the names even when Jev finds no root, or is unsure', async () => {
+        expect(await named('food', { root: sure('none') })).toMatchObject({
+            recognized: true,
+            intent: { root: 'g-expenses', target: 'a-food' },
+        });
+        expect(
+            await named('rent', { root: { choice: 'Revenue', confidence: THRESHOLDS.root - 0.1 } })
+        ).toMatchObject({ recognized: true, intent: { target: 'a-rent' } });
+    });
+
+    it('shows several names side by side, in the order written', async () => {
+        const result = await named('rent versus food, by month', { over_time: yes });
+        expect(result).toMatchObject({
+            intent: {
+                root: 'g-expenses',
+                target: 'a-rent',
+                alongside: [{ root: 'g-expenses', target: 'a-food' }],
+                monthly: true,
+                view: 'trend',
+            },
+            trace: { names: ['Rent', 'Food'] },
+        });
+        expect(await named('Expenses and Revenue')).toMatchObject({
+            intent: { root: 'g-expenses', alongside: [{ root: 'g-revenue' }] },
+        });
+    });
+
+    it('reads no composition of names side by side, which make no whole', async () => {
+        const both = { over_time: yes, composition: yes };
+        const result = await named('rent and food by month', both);
+        expect(result).toMatchObject({
+            intent: { monthly: true, view: 'trend' },
+            trace: { rule: 'over_time', judgments: { composition: { answer: true } } },
+        });
+        expect(result.recognized && result.intent).not.toHaveProperty('chart');
+        // A name alone has its parts.
+        expect(await named('expenses by month', both)).toMatchObject({
+            intent: { chart: 'stacked' },
+            trace: { rule: 'over_time_composition' },
+        });
+        // A chart the request names is still asked for, and shown dimmed when it does not fit.
+        expect(await named('rent and food as a pie', { chart_named: sure('pie') })).toMatchObject({
+            intent: { chart: 'pie' },
+        });
+    });
+
+    it('reads the default period of what the request names', async () => {
+        const unnamed = { period: sure('unspecified'), root: sure('Expenses') };
+        expect(await named('banks', unnamed)).toMatchObject({ intent: { period: 'today' } });
+        expect(await named('cash and banks', unnamed)).toMatchObject({
+            intent: { period: 'today' },
+        });
+        // Food last moved in November 2026: read years later, its last year with movements.
+        const later = await laterSnapshot();
+        expect(await named('food', unnamed, later)).toMatchObject({ intent: { period: '2026' } });
+        expect(await named('food by month', { ...unnamed, over_time: yes }, later)).toMatchObject({
+            intent: { period: '2026', monthly: true },
+        });
+        // An account in no group has no months in the map: this year, or today for a position.
+        expect(await named('owner', unnamed)).toMatchObject({ intent: { period: 'today' } });
+    });
+
+    it('keeps Jev’s period and judgments', async () => {
+        expect(
+            await named('food', { period: sure('2026-10'), chart_named: sure('pie') })
+        ).toMatchObject({ intent: { target: 'a-food', period: '2026-10', chart: 'pie' } });
+    });
+
+    it('leaves the root to Jev when the request names nothing of the Book', async () => {
+        const result = await named('what we spent on groceries', { root: sure('Expenses') });
+        expect(result).toMatchObject({ intent: { root: 'g-expenses' } });
+        expect(result.recognized && result.intent).not.toHaveProperty('target');
+        expect(result.recognized && result.trace).not.toHaveProperty('names');
+    });
+});
+
 function jevResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {
         status,
@@ -385,6 +487,46 @@ describe('resolveIntent', () => {
             ...buildIntentRequest('revenue in October 2026 #extra', snapshot).request,
         });
         expect(timing.header()).toMatch(/^jev;dur=/);
+    });
+
+    it('reports the names the request writes, with the same single decision request', async () => {
+        const requests: string[] = [];
+        const client = createDecisionClient({
+            fetch: async (_url, init) => {
+                requests.push(String(init?.body));
+                return jevResponse(answerBody());
+            },
+        });
+        const snapshot = await fixtureSnapshot();
+        const prompt = 'Food and Rent in October 2026 #extra';
+        const result = await resolveIntent(prompt, snapshot, {
+            client,
+            timing: new ServerTiming(),
+        });
+        expect(result).toMatchObject({
+            recognized: true,
+            intent: {
+                root: 'g-expenses',
+                target: 'a-food',
+                alongside: [{ root: 'g-expenses', target: 'a-rent' }],
+                period: '2026-10',
+                hashtags: ['extra'],
+            },
+            trace: { names: ['Food', 'Rent'] },
+        });
+        expect(requests).toHaveLength(1);
+        expect(JSON.parse(requests[0])).toEqual({
+            model: 'jev',
+            ...buildIntentRequest(prompt, snapshot).request,
+        });
+
+        // Renamed since the request was saved: no name is found, and Jev's root is read.
+        const renamed = await fixtureSnapshot();
+        renamed.accounts['a-food'] = { ...renamed.accounts['a-food'], name: 'Groceries' };
+        renamed.accounts['a-rent'] = { ...renamed.accounts['a-rent'], name: 'Housing' };
+        const again = await resolveIntent(prompt, renamed, { client, timing: new ServerTiming() });
+        expect(again).toMatchObject({ intent: { root: 'g-revenue' } });
+        expect(again.recognized && again.intent).not.toHaveProperty('target');
     });
 
     it('keeps the code of Bkper AI errors, such as an exhausted allowance', async () => {

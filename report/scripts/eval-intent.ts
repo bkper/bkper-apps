@@ -5,10 +5,11 @@
  *
  * Each case is a request, in one of many languages, with the intent it should get. The script
  * loads both snapshots (read-only, with your `bkper auth token`), asks the model each request
- * in turn as the app does, and reports the accuracy of each part of the intent (the root, the
- * period, the months, the view and the chart preference, which code decides from the model's
- * judgments), of the language, of the whole intent (default period and chart included), and the
- * p50/p95 latency of the model calls. A case that names no chart expects `auto`, so every
+ * in turn as the app does, with the names of the Book's groups and accounts code finds in it,
+ * and reports the accuracy of each part of the intent (the root, the targets, the period, the
+ * months, the view and the chart preference, which code decides from the model's judgments and
+ * the names), of the language, of the whole intent (default period and chart included), and
+ * the p50/p95 latency of the model calls. A case that names no chart expects `auto`, so every
  * report checks the chart. Each miss prints its trace: every judgment with its score, and the
  * rule that chose the chart.
  *
@@ -26,7 +27,12 @@ import {
     buildIntentRequest,
 } from '../server/src/services/intent-questions.ts';
 import { extractHashtags, readIntent } from '../server/src/services/intent-resolver.ts';
-import { NET_RESULT_ROOT, type ChartPreference } from '../server/src/services/report-intent.ts';
+import { findPromptNames } from '../server/src/services/prompt-names.ts';
+import {
+    NET_RESULT_ROOT,
+    type ChartPreference,
+    type ReportIntent,
+} from '../server/src/services/report-intent.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
 import {
     currentUserId,
@@ -44,7 +50,9 @@ type BookKey = keyof typeof BOOKS;
 type Accepted = string | string[];
 
 /**
- * A request and what it should resolve to. Roots are group names, `net-result` or `none`;
+ * A request and what it should resolve to. Roots are group names (or the name of an account
+ * in no group), `net-result` or `none`; `targets` are the names of the groups and accounts
+ * the report is of, in order, when the request writes them (left out: the root itself);
  * `period` is the model's expected choice (`unspecified` when the request names none), and
  * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`
  * and `chart` are the intent's (`view` is `unspecified` when left out, `chart` is `auto`). Lists
@@ -54,6 +62,7 @@ interface Case {
     book: BookKey;
     prompt: string;
     root: Accepted;
+    targets?: string[];
     language: string;
     period?: Accepted;
     intentPeriod?: string;
@@ -110,6 +119,7 @@ const CASES: Case[] = [
     {
         book: 'nimbus',
         prompt: 'saldo do HSBC',
+        targets: ['HSBC'],
         root: 'Capital',
         period: UNSPECIFIED,
         intentPeriod: 'today',
@@ -172,6 +182,7 @@ const CASES: Case[] = [
     {
         book: 'nimbus',
         prompt: 'marketing costs 2014',
+        targets: ['Marketing'],
         root: ['Sales & Marketing', 'Despesas'],
         period: '2014',
         language: 'en',
@@ -205,6 +216,7 @@ const CASES: Case[] = [
     {
         book: 'personal',
         prompt: 'how much did I spend on food in June 2019?',
+        targets: ['Food'],
         root: ['Expenses', 'Net income'],
         period: '2019-06',
         view: ['total', UNSPECIFIED],
@@ -253,6 +265,7 @@ const CASES: Case[] = [
     {
         book: 'personal',
         prompt: 'credit card debt',
+        targets: ['Credit card'],
         root: 'Debts',
         period: UNSPECIFIED,
         intentPeriod: 'today',
@@ -679,9 +692,193 @@ const CASES: Case[] = [
         chart: 'stacked',
         language: 'en',
     },
+    // Names of the Book's groups and accounts, written in requests of many languages: code finds
+    // them (case and accents aside, the longest name winning) and Jev judges the rest.
+    {
+        book: 'nimbus',
+        prompt: 'HSBC tarifas em 2015',
+        root: 'Tarifas',
+        targets: ['HSBC tarifas'],
+        period: '2015',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'quanto gastamos com Cursos e Projetos em 2013?',
+        root: 'Despesas',
+        targets: ['Cursos e Projetos'],
+        period: '2013',
+        view: ['total', UNSPECIFIED],
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'refeicoes por mes em 2016',
+        root: 'Despesas',
+        targets: ['Refeições'],
+        period: '2016',
+        monthly: true,
+        view: 'trend',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Marketing vs Suporte en 2014',
+        root: 'Despesas',
+        targets: ['Marketing', 'Suporte'],
+        period: '2014',
+        language: 'es',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Receitas e Despesas por mês em 2016',
+        root: 'Receitas',
+        targets: ['Receitas', 'Despesas'],
+        period: '2016',
+        monthly: true,
+        view: 'trend',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2012年のTelefoneの費用',
+        root: 'Despesas',
+        targets: ['Telefone'],
+        period: '2012',
+        language: 'ja',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Krishna im Jahr 2017',
+        root: 'Krishna',
+        period: '2017',
+        language: 'de',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'Correios et Telefone en 2013',
+        root: 'Despesas',
+        targets: ['Correios', 'Telefone'],
+        period: '2013',
+        language: 'fr',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2014年INSS和PIS的支出',
+        root: 'Impostos',
+        targets: ['INSS', 'PIS'],
+        period: '2014',
+        language: 'zh-CN',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'مصروفات Internet في 2015',
+        root: 'Despesas',
+        targets: ['Internet'],
+        period: '2015',
+        language: 'ar',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'HSBC balance at the end of 2016',
+        root: 'Capital',
+        targets: ['HSBC'],
+        period: ['2016', '2016-Q4', '2016-12'],
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'dividas no fim de 2015',
+        root: 'Dívidas',
+        period: ['2015', '2015-Q4', '2015-12'],
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: 'Food and Rent by month in 2019',
+        root: 'Net income',
+        targets: ['Food', 'Rent'],
+        period: '2019',
+        monthly: true,
+        view: 'trend',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'Cash e Bank Account hoje',
+        root: 'Assets',
+        targets: ['Cash', 'Bank Account'],
+        period: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: '2019 में Education का खर्च',
+        root: 'Net income',
+        targets: ['Education'],
+        period: '2019',
+        language: 'hi',
+    },
+    {
+        book: 'personal',
+        prompt: '2019년 Transportation 월별',
+        root: 'Net income',
+        targets: ['Transportation'],
+        period: '2019',
+        monthly: true,
+        view: 'trend',
+        language: 'ko',
+    },
+    {
+        book: 'personal',
+        prompt: 'Salary vs Food en 2019 en barras',
+        root: 'Net income',
+        targets: ['Salary', 'Food'],
+        period: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'ranked-bar',
+        language: 'es',
+    },
+    {
+        book: 'personal',
+        prompt: 'Ausgaben für Food und Entertainment 2019 als Torte',
+        root: 'Net income',
+        targets: ['Food', 'Entertainment'],
+        period: '2019',
+        view: ['breakdown', UNSPECIFIED],
+        chart: 'pie',
+        language: 'de',
+    },
+    {
+        book: 'personal',
+        prompt: 'CREDIT CARD today',
+        root: 'Debts',
+        targets: ['Credit card'],
+        period: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'Adjustment في 2019',
+        root: 'Adjustment',
+        period: '2019',
+        language: 'ar',
+    },
 ];
 
-const QUESTIONS = ['root', 'period', 'monthly', 'view', 'chart', 'language', 'intent'] as const;
+const QUESTIONS = [
+    'root',
+    'targets',
+    'period',
+    'monthly',
+    'view',
+    'chart',
+    'language',
+    'intent',
+] as const;
 type Measure = (typeof QUESTIONS)[number];
 
 class MemoryStore implements SnapshotStore {
@@ -706,7 +903,20 @@ function rootName(snapshot: Snapshot, root: string | undefined): string {
     if (root === undefined) {
         return NONE;
     }
-    return snapshot.groups[root]?.name ?? root;
+    return snapshot.groups[root]?.name ?? snapshot.ungrouped[root]?.name ?? root;
+}
+
+/** The names of what an intent is of, in order, when it is not its root alone. */
+function targetNames(snapshot: Snapshot, intent: ReportIntent | undefined): string[] {
+    if (intent === undefined || (intent.target === undefined && intent.alongside === undefined)) {
+        return [];
+    }
+    return [{ root: intent.root, target: intent.target }, ...(intent.alongside ?? [])].map(
+        ({ root, target }) =>
+            target === undefined
+                ? rootName(snapshot, root)
+                : (snapshot.groups[target]?.name ?? snapshot.accounts[target]?.name ?? target)
+    );
 }
 
 async function main(): Promise<void> {
@@ -754,13 +964,15 @@ async function main(): Promise<void> {
 
         const { answers } = result;
         const hashtags = extractHashtags(test.prompt);
-        const resolution = readIntent(answers, roots, snapshot, hashtags);
+        const names = findPromptNames(test.prompt, snapshot);
+        const resolution = readIntent(answers, roots, snapshot, hashtags, names);
         const isReport = !([] as string[]).concat(test.root).includes(NONE);
         const sure = (answer: { choice: string; confidence: number }, threshold: number) =>
             answer.confidence >= threshold ? answer.choice : UNSPECIFIED;
         const intent = resolution.recognized ? resolution.intent : undefined;
         const got = {
             root: rootName(snapshot, intent?.root),
+            targets: targetNames(snapshot, intent),
             period: sure(answers.period, THRESHOLDS.period),
             monthly: intent?.monthly ?? false,
             view: intent?.view ?? UNSPECIFIED,
@@ -774,12 +986,14 @@ async function main(): Promise<void> {
         if (isReport) {
             const expectedPeriod = test.intentPeriod ?? test.period;
             checks.period = accepts(test.period, got.period);
+            checks.targets = got.targets.join('|') === (test.targets ?? []).join('|');
             checks.monthly = got.monthly === (test.monthly ?? false);
             checks.view = accepts(test.view ?? UNSPECIFIED, got.view);
             checks.chart = got.chart === (test.chart ?? 'auto');
             checks.intent =
                 intent !== undefined &&
                 checks.root &&
+                checks.targets &&
                 accepts(expectedPeriod, intent.period) &&
                 checks.monthly &&
                 checks.view &&
@@ -797,8 +1011,9 @@ async function main(): Promise<void> {
             .filter(([, ok]) => !ok)
             .map(([question]) => question);
         const yes = (answer: { noul: number }) => answer.noul.toFixed(2);
+        const named = got.targets.length > 0 ? ` targets=${got.targets.join('|')}` : '';
         const detail =
-            `root=${got.root}(${answers.root.confidence.toFixed(2)})` +
+            `root=${got.root}(${answers.root.choice} ${answers.root.confidence.toFixed(2)})${named}` +
             ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
             `→${intent?.period ?? '-'}` +
             ` over_time=${yes(answers.over_time)} composition=${yes(answers.composition)}` +

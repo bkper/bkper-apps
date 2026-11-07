@@ -198,6 +198,41 @@ describe('saved-prompt route/service and independent app clients', () => {
         reopened.state.disconnect();
     });
 
+    it('reports what a saved prompt names, and the root Jev chooses once it is renamed', async () => {
+        const fixture = await savedWorkflow();
+        const owner = fixture.session('owner', 'OWNER');
+        const prompt = 'Food last month';
+        const saved = await owner.api.saveReport('fixture-a', { prompt });
+        const { state } = await client(owner);
+        const title = (report: ReportResponse) => report.spec.elements[report.spec.root].props;
+
+        const named = await click(state, saved.id);
+        expect(named.intent).toEqual({
+            root: 'g-expenses',
+            target: 'a-food',
+            period: 'last_month',
+            monthly: false,
+        });
+        expect(title(named)).toMatchObject({ title: 'Food' });
+        expect(answer(named).amount).toBe('200.5');
+        expect(named.trace.names).toEqual(['Food']);
+
+        // Renamed in the Book: the saved text no longer names it, and Jev's root is read.
+        await fixture.renameAccount('a-food', 'Groceries');
+        clock.now += CACHE_MS;
+        const renamed = await click(state, saved.id);
+        expect(renamed.intent).toEqual({
+            root: 'g-expenses',
+            period: 'last_month',
+            monthly: false,
+        });
+        expect(title(renamed)).toMatchObject({ title: 'Expenses' });
+        expect(answer(renamed).amount).toBe('1200.5');
+        expect(renamed.trace.names).toBeUndefined();
+        expect(fixture.savedValues().map(([, value]) => value)).toEqual([JSON.stringify(prompt)]);
+        state.disconnect();
+    });
+
     it('drops a late real report response across A → B → A without restoring its source', async () => {
         const fixture = await savedWorkflow();
         const owner = fixture.session('owner', 'OWNER');

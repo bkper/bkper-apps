@@ -154,13 +154,13 @@ export interface paths {
         put?: never;
         /**
          * Build a financial report of a Book from a request in any language
-         * @description Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts) or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.
+         * @description Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`.
          *
          *     With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
          *
-         *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. AI only recognizes in the prompt the group and period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
+         *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
         post: {
             parameters: {
@@ -930,6 +930,14 @@ export interface components {
                 };
             };
             /**
+             * @description With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.
+             * @example [
+             *       "Food",
+             *       "Rent"
+             *     ]
+             */
+            names?: string[];
+            /**
              * @description With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).
              * @example named
              * @enum {string}
@@ -1022,7 +1030,7 @@ export interface components {
         /** @description Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
             /**
-             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.
+             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.
              * @example show my expenses by category this year
              */
             prompt?: string;

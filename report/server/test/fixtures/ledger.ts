@@ -98,6 +98,21 @@ export class FakeLedger {
         }
     }
 
+    /** Renames an account, in the Book and in its transactions. */
+    renameAccount(id: string, name: string): void {
+        const account = this.book.accounts?.find(candidate => candidate.id === id);
+        if (!account?.name) {
+            throw new Error(`No account ${id}`);
+        }
+        const old = account.name;
+        account.name = name;
+        account.normalizedName = name.toLowerCase();
+        for (const transaction of this.transactions) {
+            transaction.from = transaction.from === old ? name : transaction.from;
+            transaction.to = transaction.to === old ? name : transaction.to;
+        }
+    }
+
     /** Removes a group from the Book, and its accounts from it. */
     removeGroup(id: string): void {
         this.book.groups = (this.book.groups ?? []).filter(group => group.id !== id);

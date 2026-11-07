@@ -2,9 +2,7 @@
     "paths": {
         "/api/v1/ping": {
             "get": {
-                "tags": [
-                    "API"
-                ],
+                "tags": ["API"],
                 "summary": "Ping app API",
                 "description": "Checks that the API is reachable. Not needed before other calls.",
                 "responses": {
@@ -33,9 +31,7 @@
         },
         "/api/v1/books/{bookId}/suggestions": {
             "get": {
-                "tags": [
-                    "Reports"
-                ],
+                "tags": ["Reports"],
                 "summary": "Suggest reports of a Book",
                 "description": "Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.",
                 "parameters": [
@@ -130,11 +126,9 @@
         },
         "/api/v1/books/{bookId}/report": {
             "post": {
-                "tags": [
-                    "Reports"
-                ],
+                "tags": ["Reports"],
                 "summary": "Build a financial report of a Book from a request in any language",
-                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts) or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`.\n\nWith `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. AI only recognizes in the prompt the group and period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
+                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`.\n\nWith `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
                 "parameters": [
                     {
                         "schema": {
@@ -252,9 +246,7 @@
         },
         "/api/v1/books/{bookId}/reports": {
             "get": {
-                "tags": [
-                    "Saved prompts"
-                ],
+                "tags": ["Saved prompts"],
                 "summary": "List the Book’s shared saved prompts and current capabilities",
                 "description": "Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.",
                 "parameters": [
@@ -335,9 +327,7 @@
                 }
             },
             "post": {
-                "tags": [
-                    "Saved prompts"
-                ],
+                "tags": ["Saved prompts"],
                 "summary": "Save an original prompt on the Book’s shared shelf",
                 "description": "Requires OWNER or EDITOR, checked afresh. Saves only the trimmed original prompt and its opaque id in durable app metadata, not in the Book’s executable saved-query list. Identical text after edge trimming is idempotent across collaborators. Does not store HTML, resolved intent, dates, numbers, inferred language or a separately selected chart. No AI or report computation runs. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Independent items never overwrite each other; visibility and concurrent changes to the same item follow KV eventual consistency. A later save can save a removed prompt again.",
                 "parameters": [
@@ -430,9 +420,7 @@
         },
         "/api/v1/books/{bookId}/reports/{reportId}": {
             "delete": {
-                "tags": [
-                    "Saved prompts"
-                ],
+                "tags": ["Saved prompts"],
                 "summary": "Remove a prompt from the Book’s shared shelf",
                 "description": "Requires OWNER or EDITOR, checked afresh. Either may remove any saved prompt on this Book. Idempotent: an absent id also succeeds. Removes only this item of app metadata, never a report, a Book saved query or financial data. Visibility is eventually consistent. A failed write may have reached storage, so retrying the same removal is safe.",
                 "parameters": [
@@ -533,19 +521,14 @@
                     "example": "report"
                 }
             },
-            "required": [
-                "ok",
-                "source"
-            ]
+            "required": ["ok", "source"]
         },
         "ErrorResponse": {
             "type": "object",
             "properties": {
                 "success": {
                     "type": "boolean",
-                    "enum": [
-                        false
-                    ]
+                    "enum": [false]
                 },
                 "error": {
                     "type": "object",
@@ -562,16 +545,10 @@
                             "example": "Book not found, or not shared with you."
                         }
                     },
-                    "required": [
-                        "code",
-                        "message"
-                    ]
+                    "required": ["code", "message"]
                 }
             },
-            "required": [
-                "success",
-                "error"
-            ]
+            "required": ["success", "error"]
         },
         "SuggestionsResponse": {
             "type": "object",
@@ -584,9 +561,7 @@
                     "description": "Up to three reports, chosen from the Book’s own groups and data."
                 }
             },
-            "required": [
-                "suggestions"
-            ]
+            "required": ["suggestions"]
         },
         "Suggestion": {
             "type": "object",
@@ -600,10 +575,7 @@
                     "$ref": "#/components/schemas/ReportIntent"
                 }
             },
-            "required": [
-                "text",
-                "intent"
-            ],
+            "required": ["text", "intent"],
             "description": "A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI."
         },
         "ReportIntent": {
@@ -644,11 +616,7 @@
                 },
                 "view": {
                     "type": "string",
-                    "enum": [
-                        "trend",
-                        "breakdown",
-                        "total"
-                    ],
+                    "enum": ["trend", "breakdown", "total"],
                     "description": "The layout asked for: `trend` (over time), `breakdown` (what makes up the amount: a donut of a few parts, a pie of more, else ranked bars) or `total` (the amount alone). Left out, the report picks one."
                 },
                 "chart": {
@@ -678,16 +646,10 @@
                     },
                     "maxItems": 10,
                     "description": "Only transactions with all these hashtags, without `#`.",
-                    "example": [
-                        "travel"
-                    ]
+                    "example": ["travel"]
                 }
             },
-            "required": [
-                "root",
-                "period",
-                "monthly"
-            ],
+            "required": ["root", "period", "monthly"],
             "description": "Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`."
         },
         "ReportSubject": {
@@ -708,9 +670,7 @@
                     "example": "6235671829479424"
                 }
             },
-            "required": [
-                "root"
-            ],
+            "required": ["root"],
             "description": "A group or Account to show side by side: a root, or a `target` under it."
         },
         "ReportResponse": {
@@ -763,10 +723,7 @@
                             "example": false
                         }
                     },
-                    "required": [
-                        "kind",
-                        "fallback"
-                    ],
+                    "required": ["kind", "fallback"],
                     "description": "The chart drawn, and whether the one asked for fit."
                 },
                 "trace": {
@@ -778,16 +735,7 @@
                     "example": "https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year"
                 }
             },
-            "required": [
-                "spec",
-                "intent",
-                "language",
-                "query",
-                "dataAt",
-                "chart",
-                "trace",
-                "url"
-            ],
+            "required": ["spec", "intent", "language", "query", "dataAt", "chart", "trace", "url"],
             "description": "The report, with `format: spec`."
         },
         "ReportSpec": {
@@ -806,9 +754,7 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "Report"
-                                        ]
+                                        "enum": ["Report"]
                                     },
                                     "props": {
                                         "type": "object",
@@ -828,10 +774,7 @@
                                             },
                                             "dir": {
                                                 "type": "string",
-                                                "enum": [
-                                                    "ltr",
-                                                    "rtl"
-                                                ]
+                                                "enum": ["ltr", "rtl"]
                                             },
                                             "fractionDigits": {
                                                 "type": "integer",
@@ -856,11 +799,7 @@
                                         "minItems": 1
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props",
-                                    "children"
-                                ],
+                                "required": ["type", "props", "children"],
                                 "additionalProperties": false
                             },
                             {
@@ -868,9 +807,7 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "Answer"
-                                        ]
+                                        "enum": ["Answer"]
                                     },
                                     "props": {
                                         "type": "object",
@@ -886,13 +823,7 @@
                                             },
                                             "color": {
                                                 "type": "string",
-                                                "enum": [
-                                                    "blue",
-                                                    "yellow",
-                                                    "green",
-                                                    "red",
-                                                    "grey"
-                                                ]
+                                                "enum": ["blue", "yellow", "green", "red", "grey"]
                                             },
                                             "previous": {
                                                 "type": "string",
@@ -914,10 +845,7 @@
                                                     "properties": {
                                                         "id": {
                                                             "type": "string",
-                                                            "enum": [
-                                                                "incoming",
-                                                                "outgoing"
-                                                            ]
+                                                            "enum": ["incoming", "outgoing"]
                                                         },
                                                         "label": {
                                                             "type": "string",
@@ -947,29 +875,17 @@
                                                             "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                                         }
                                                     },
-                                                    "required": [
-                                                        "id",
-                                                        "label",
-                                                        "amount",
-                                                        "color"
-                                                    ],
+                                                    "required": ["id", "label", "amount", "color"],
                                                     "additionalProperties": false
                                                 },
                                                 "maxItems": 2
                                             }
                                         },
-                                        "required": [
-                                            "label",
-                                            "amount",
-                                            "color"
-                                        ],
+                                        "required": ["label", "amount", "color"],
                                         "additionalProperties": false
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props"
-                                ],
+                                "required": ["type", "props"],
                                 "additionalProperties": false
                             },
                             {
@@ -977,18 +893,13 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "Chart"
-                                        ]
+                                        "enum": ["Chart"]
                                     },
                                     "props": {
                                         "$ref": "#/components/schemas/ChartProps"
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props"
-                                ],
+                                "required": ["type", "props"],
                                 "additionalProperties": false
                             },
                             {
@@ -996,9 +907,7 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "Visualizations"
-                                        ]
+                                        "enum": ["Visualizations"]
                                     },
                                     "props": {
                                         "type": "object",
@@ -1052,10 +961,7 @@
                                                             "$ref": "#/components/schemas/ChartProps"
                                                         }
                                                     },
-                                                    "required": [
-                                                        "kind",
-                                                        "name"
-                                                    ],
+                                                    "required": ["kind", "name"],
                                                     "additionalProperties": false
                                                 },
                                                 "minItems": 1
@@ -1089,19 +995,11 @@
                                                         "maxLength": 1000
                                                     }
                                                 },
-                                                "required": [
-                                                    "kind",
-                                                    "name",
-                                                    "reason"
-                                                ],
+                                                "required": ["kind", "name", "reason"],
                                                 "additionalProperties": false
                                             }
                                         },
-                                        "required": [
-                                            "label",
-                                            "main",
-                                            "views"
-                                        ],
+                                        "required": ["label", "main", "views"],
                                         "additionalProperties": false
                                     },
                                     "on": {
@@ -1112,27 +1010,18 @@
                                                 "properties": {
                                                     "action": {
                                                         "type": "string",
-                                                        "enum": [
-                                                            "selectChart"
-                                                        ]
+                                                        "enum": ["selectChart"]
                                                     }
                                                 },
-                                                "required": [
-                                                    "action"
-                                                ],
+                                                "required": ["action"],
                                                 "additionalProperties": false
                                             }
                                         },
-                                        "required": [
-                                            "select"
-                                        ],
+                                        "required": ["select"],
                                         "additionalProperties": false
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props"
-                                ],
+                                "required": ["type", "props"],
                                 "additionalProperties": false
                             },
                             {
@@ -1140,9 +1029,7 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "BreakdownTable"
-                                        ]
+                                        "enum": ["BreakdownTable"]
                                     },
                                     "props": {
                                         "type": "object",
@@ -1256,12 +1143,7 @@
                                                         }
                                                     }
                                                 },
-                                                "required": [
-                                                    "label",
-                                                    "color",
-                                                    "amount",
-                                                    "months"
-                                                ],
+                                                "required": ["label", "color", "amount", "months"],
                                                 "additionalProperties": false
                                             }
                                         },
@@ -1284,27 +1166,18 @@
                                                 "properties": {
                                                     "action": {
                                                         "type": "string",
-                                                        "enum": [
-                                                            "expandRow"
-                                                        ]
+                                                        "enum": ["expandRow"]
                                                     }
                                                 },
-                                                "required": [
-                                                    "action"
-                                                ],
+                                                "required": ["action"],
                                                 "additionalProperties": false
                                             }
                                         },
-                                        "required": [
-                                            "expand"
-                                        ],
+                                        "required": ["expand"],
                                         "additionalProperties": false
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props"
-                                ],
+                                "required": ["type", "props"],
                                 "additionalProperties": false
                             },
                             {
@@ -1312,9 +1185,7 @@
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": [
-                                            "Source"
-                                        ]
+                                        "enum": ["Source"]
                                     },
                                     "props": {
                                         "type": "object",
@@ -1356,10 +1227,7 @@
                                                         "maxLength": 1000
                                                     }
                                                 },
-                                                "required": [
-                                                    "label",
-                                                    "note"
-                                                ],
+                                                "required": ["label", "note"],
                                                 "additionalProperties": false
                                             },
                                             "labels": {
@@ -1419,9 +1287,7 @@
                                                 "properties": {
                                                     "action": {
                                                         "type": "string",
-                                                        "enum": [
-                                                            "openInBkper"
-                                                        ]
+                                                        "enum": ["openInBkper"]
                                                     },
                                                     "params": {
                                                         "type": "object",
@@ -1431,39 +1297,26 @@
                                                                 "format": "uri"
                                                             }
                                                         },
-                                                        "required": [
-                                                            "url"
-                                                        ],
+                                                        "required": ["url"],
                                                         "additionalProperties": false
                                                     }
                                                 },
-                                                "required": [
-                                                    "action",
-                                                    "params"
-                                                ],
+                                                "required": ["action", "params"],
                                                 "additionalProperties": false
                                             }
                                         },
-                                        "required": [
-                                            "open"
-                                        ],
+                                        "required": ["open"],
                                         "additionalProperties": false
                                     }
                                 },
-                                "required": [
-                                    "type",
-                                    "props"
-                                ],
+                                "required": ["type", "props"],
                                 "additionalProperties": false
                             }
                         ]
                     }
                 }
             },
-            "required": [
-                "root",
-                "elements"
-            ],
+            "required": ["root", "elements"],
             "additionalProperties": false,
             "description": "The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO."
         },
@@ -1474,11 +1327,7 @@
                     "properties": {
                         "kind": {
                             "type": "string",
-                            "enum": [
-                                "bar",
-                                "line",
-                                "area"
-                            ]
+                            "enum": ["bar", "line", "area"]
                         },
                         "label": {
                             "type": "string",
@@ -1509,19 +1358,11 @@
                                     },
                                     "color": {
                                         "type": "string",
-                                        "enum": [
-                                            "blue",
-                                            "yellow",
-                                            "green",
-                                            "red",
-                                            "grey"
-                                        ]
+                                        "enum": ["blue", "yellow", "green", "red", "grey"]
                                     },
                                     "line": {
                                         "type": "boolean",
-                                        "enum": [
-                                            true
-                                        ]
+                                        "enum": [true]
                                     },
                                     "values": {
                                         "type": "array",
@@ -1531,23 +1372,13 @@
                                         }
                                     }
                                 },
-                                "required": [
-                                    "id",
-                                    "label",
-                                    "color",
-                                    "values"
-                                ],
+                                "required": ["id", "label", "color", "values"],
                                 "additionalProperties": false
                             },
                             "minItems": 1
                         }
                     },
-                    "required": [
-                        "kind",
-                        "label",
-                        "months",
-                        "series"
-                    ],
+                    "required": ["kind", "label", "months", "series"],
                     "additionalProperties": false
                 },
                 {
@@ -1555,9 +1386,7 @@
                     "properties": {
                         "kind": {
                             "type": "string",
-                            "enum": [
-                                "stacked"
-                            ]
+                            "enum": ["stacked"]
                         },
                         "label": {
                             "type": "string",
@@ -1588,13 +1417,7 @@
                                     },
                                     "color": {
                                         "type": "string",
-                                        "enum": [
-                                            "blue",
-                                            "yellow",
-                                            "green",
-                                            "red",
-                                            "grey"
-                                        ]
+                                        "enum": ["blue", "yellow", "green", "red", "grey"]
                                     },
                                     "values": {
                                         "type": "array",
@@ -1604,23 +1427,13 @@
                                         }
                                     }
                                 },
-                                "required": [
-                                    "id",
-                                    "label",
-                                    "color",
-                                    "values"
-                                ],
+                                "required": ["id", "label", "color", "values"],
                                 "additionalProperties": false
                             },
                             "minItems": 2
                         }
                     },
-                    "required": [
-                        "kind",
-                        "label",
-                        "months",
-                        "series"
-                    ],
+                    "required": ["kind", "label", "months", "series"],
                     "additionalProperties": false
                 },
                 {
@@ -1628,11 +1441,7 @@
                     "properties": {
                         "kind": {
                             "type": "string",
-                            "enum": [
-                                "ranked-bar",
-                                "donut",
-                                "pie"
-                            ]
+                            "enum": ["ranked-bar", "donut", "pie"]
                         },
                         "label": {
                             "type": "string",
@@ -1655,35 +1464,20 @@
                                     },
                                     "color": {
                                         "type": "string",
-                                        "enum": [
-                                            "blue",
-                                            "yellow",
-                                            "green",
-                                            "red",
-                                            "grey"
-                                        ]
+                                        "enum": ["blue", "yellow", "green", "red", "grey"]
                                     },
                                     "value": {
                                         "type": "string",
                                         "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                     }
                                 },
-                                "required": [
-                                    "rowId",
-                                    "label",
-                                    "color",
-                                    "value"
-                                ],
+                                "required": ["rowId", "label", "color", "value"],
                                 "additionalProperties": false
                             },
                             "minItems": 1
                         }
                     },
-                    "required": [
-                        "kind",
-                        "label",
-                        "items"
-                    ],
+                    "required": ["kind", "label", "items"],
                     "additionalProperties": false
                 },
                 {
@@ -1691,9 +1485,7 @@
                     "properties": {
                         "kind": {
                             "type": "string",
-                            "enum": [
-                                "compare"
-                            ]
+                            "enum": ["compare"]
                         },
                         "label": {
                             "type": "string",
@@ -1714,10 +1506,7 @@
                                     "maxLength": 1000
                                 }
                             },
-                            "required": [
-                                "current",
-                                "previous"
-                            ],
+                            "required": ["current", "previous"],
                             "additionalProperties": false
                         },
                         "items": {
@@ -1736,13 +1525,7 @@
                                     },
                                     "color": {
                                         "type": "string",
-                                        "enum": [
-                                            "blue",
-                                            "yellow",
-                                            "green",
-                                            "red",
-                                            "grey"
-                                        ]
+                                        "enum": ["blue", "yellow", "green", "red", "grey"]
                                     },
                                     "value": {
                                         "type": "string",
@@ -1753,24 +1536,13 @@
                                         "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                     }
                                 },
-                                "required": [
-                                    "rowId",
-                                    "label",
-                                    "color",
-                                    "value",
-                                    "previous"
-                                ],
+                                "required": ["rowId", "label", "color", "value", "previous"],
                                 "additionalProperties": false
                             },
                             "minItems": 1
                         }
                     },
-                    "required": [
-                        "kind",
-                        "label",
-                        "periods",
-                        "items"
-                    ],
+                    "required": ["kind", "label", "periods", "items"],
                     "additionalProperties": false
                 },
                 {
@@ -1778,9 +1550,7 @@
                     "properties": {
                         "kind": {
                             "type": "string",
-                            "enum": [
-                                "waterfall"
-                            ]
+                            "enum": ["waterfall"]
                         },
                         "label": {
                             "type": "string",
@@ -1797,24 +1567,14 @@
                                 },
                                 "color": {
                                     "type": "string",
-                                    "enum": [
-                                        "blue",
-                                        "yellow",
-                                        "green",
-                                        "red",
-                                        "grey"
-                                    ]
+                                    "enum": ["blue", "yellow", "green", "red", "grey"]
                                 },
                                 "value": {
                                     "type": "string",
                                     "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                 }
                             },
-                            "required": [
-                                "label",
-                                "color",
-                                "value"
-                            ],
+                            "required": ["label", "color", "value"],
                             "additionalProperties": false
                         },
                         "steps": {
@@ -1833,24 +1593,14 @@
                                     },
                                     "color": {
                                         "type": "string",
-                                        "enum": [
-                                            "blue",
-                                            "yellow",
-                                            "green",
-                                            "red",
-                                            "grey"
-                                        ]
+                                        "enum": ["blue", "yellow", "green", "red", "grey"]
                                     },
                                     "value": {
                                         "type": "string",
                                         "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                     }
                                 },
-                                "required": [
-                                    "label",
-                                    "color",
-                                    "value"
-                                ],
+                                "required": ["label", "color", "value"],
                                 "additionalProperties": false
                             },
                             "minItems": 1
@@ -1865,34 +1615,18 @@
                                 },
                                 "color": {
                                     "type": "string",
-                                    "enum": [
-                                        "blue",
-                                        "yellow",
-                                        "green",
-                                        "red",
-                                        "grey"
-                                    ]
+                                    "enum": ["blue", "yellow", "green", "red", "grey"]
                                 },
                                 "value": {
                                     "type": "string",
                                     "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
                                 }
                             },
-                            "required": [
-                                "label",
-                                "color",
-                                "value"
-                            ],
+                            "required": ["label", "color", "value"],
                             "additionalProperties": false
                         }
                     },
-                    "required": [
-                        "kind",
-                        "label",
-                        "start",
-                        "steps",
-                        "end"
-                    ],
+                    "required": ["kind", "label", "start", "steps", "end"],
                     "additionalProperties": false
                 }
             ]
@@ -1906,13 +1640,7 @@
                 },
                 "kind": {
                     "type": "string",
-                    "enum": [
-                        "group",
-                        "account",
-                        "other",
-                        "incoming",
-                        "outgoing"
-                    ]
+                    "enum": ["group", "account", "other", "incoming", "outgoing"]
                 },
                 "label": {
                     "type": "string",
@@ -1921,13 +1649,7 @@
                 },
                 "color": {
                     "type": "string",
-                    "enum": [
-                        "blue",
-                        "yellow",
-                        "green",
-                        "red",
-                        "grey"
-                    ]
+                    "enum": ["blue", "yellow", "green", "red", "grey"]
                 },
                 "amount": {
                     "type": "string",
@@ -1959,15 +1681,7 @@
                     }
                 }
             },
-            "required": [
-                "id",
-                "kind",
-                "label",
-                "color",
-                "amount",
-                "months",
-                "children"
-            ],
+            "required": ["id", "kind", "label", "color", "amount", "months", "children"],
             "additionalProperties": false
         },
         "ReportTrace": {
@@ -1990,10 +1704,7 @@
                                     "description": "How sure the model is of it."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "The group asked about, by name, `net-result` or `none`."
                         },
                         "period": {
@@ -2010,10 +1721,7 @@
                                     "description": "How sure the model is of it."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "The period asked about, or `unspecified`."
                         },
                         "over_time": {
@@ -2030,10 +1738,7 @@
                                     "description": "The probability of yes."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "Whether the request asks how the amounts change over time."
                         },
                         "composition": {
@@ -2050,10 +1755,7 @@
                                     "description": "The probability of yes."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "Whether it asks what makes up the amount."
                         },
                         "versus_earlier": {
@@ -2070,10 +1772,7 @@
                                     "description": "The probability of yes."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "Whether it compares with an earlier period."
                         },
                         "bridge": {
@@ -2090,10 +1789,7 @@
                                     "description": "The probability of yes."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "Whether it asks how one amount leads to another, step by step."
                         },
                         "chart_named": {
@@ -2110,10 +1806,7 @@
                                     "description": "How sure the model is of it."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "The chart word it uses: `pie`, `bars`, `line`, `area`, `stacked`, `waterfall`, `table` (just the numbers) or `none`."
                         },
                         "language": {
@@ -2130,10 +1823,7 @@
                                     "description": "How sure the model is of it."
                                 }
                             },
-                            "required": [
-                                "answer",
-                                "score"
-                            ],
+                            "required": ["answer", "score"],
                             "description": "The language it is written in."
                         }
                     },
@@ -2148,6 +1838,14 @@
                         "language"
                     ],
                     "description": "With a `prompt`: what Bkper AI recognized in it, each answer with its score. Code decides the report from these."
+                },
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.",
+                    "example": ["Food", "Rent"]
                 },
                 "rule": {
                     "type": "string",
@@ -2206,9 +1904,7 @@
                         },
                         "sideBySide": {
                             "type": "boolean",
-                            "enum": [
-                                true
-                            ],
+                            "enum": [true],
                             "description": "Present when the report shows several groups or Accounts side by side (the parts are those), which are no parts of one whole."
                         }
                     },
@@ -2266,11 +1962,7 @@
                         },
                         "rule": {
                             "type": "string",
-                            "enum": [
-                                "preference",
-                                "closest",
-                                "rules"
-                            ],
+                            "enum": ["preference", "closest", "rules"],
                             "description": "What chose `main`: `preference` (the intent’s `chart`, which fits), `closest` (the fitting chart closest to a preference that does not fit) or `rules` (the report’s own choice, with no preference or nothing close).",
                             "example": "closest"
                         },
@@ -2322,30 +2014,18 @@
                                             "description": "The breakdown row that is the reason."
                                         }
                                     },
-                                    "required": [
-                                        "code"
-                                    ]
+                                    "required": ["code"]
                                 }
                             },
-                            "required": [
-                                "kind",
-                                "reason"
-                            ],
+                            "required": ["kind", "reason"],
                             "description": "The preferred chart, when it does not fit the report, and why; the spec shows it dimmed with the reason in words."
                         }
                     },
-                    "required": [
-                        "fitting",
-                        "main",
-                        "rule"
-                    ],
+                    "required": ["fitting", "main", "rule"],
                     "description": "The charts that fit, and how the main one was chosen."
                 }
             },
-            "required": [
-                "facts",
-                "chart"
-            ],
+            "required": ["facts", "chart"],
             "description": "How the report chose its charts: the judgments of the request and the rule they fired, then the facts of its numbers, from which code decides which charts fit."
         },
         "ReportErrorResponse": {
@@ -2374,7 +2054,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 1000,
-                    "description": "The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Uses one Bkper AI decision.",
+                    "description": "The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.",
                     "example": "show my expenses by category this year"
                 },
                 "intent": {
@@ -2388,10 +2068,7 @@
                 },
                 "format": {
                     "type": "string",
-                    "enum": [
-                        "spec",
-                        "html"
-                    ],
+                    "enum": ["spec", "html"],
                     "description": "What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.",
                     "example": "html"
                 }
@@ -2425,19 +2102,12 @@
                             "description": "True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf."
                         }
                     },
-                    "required": [
-                        "list",
-                        "save",
-                        "remove"
-                    ],
+                    "required": ["list", "save", "remove"],
                     "additionalProperties": false,
                     "description": "Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata."
                 }
             },
-            "required": [
-                "reports",
-                "capabilities"
-            ],
+            "required": ["reports", "capabilities"],
             "additionalProperties": false
         },
         "SavedPrompt": {
@@ -2457,10 +2127,7 @@
                     "description": "Only the saved request text. To build it against current Book data, send this as `prompt` to the singular POST /api/v1/books/{bookId}/report."
                 }
             },
-            "required": [
-                "id",
-                "prompt"
-            ],
+            "required": ["id", "prompt"],
             "additionalProperties": false,
             "description": "Book-shared original prompt, not a report snapshot or executable saved query. No HTML, intent, resolved period, amounts, inferred language or separately selected chart is saved."
         },
@@ -2471,9 +2138,7 @@
                     "$ref": "#/components/schemas/SavedPrompt"
                 }
             },
-            "required": [
-                "report"
-            ],
+            "required": ["report"],
             "additionalProperties": false
         },
         "SavePromptRequest": {
@@ -2487,9 +2152,7 @@
                     "example": "Despesas por mês este ano"
                 }
             },
-            "required": [
-                "prompt"
-            ],
+            "required": ["prompt"],
             "additionalProperties": false
         }
     }

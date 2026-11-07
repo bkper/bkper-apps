@@ -70,13 +70,13 @@ const reportRoute = createRoute({
     tags: ['Reports'],
     summary: 'Build a financial report of a Book from a request in any language',
     description: [
-        'Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts) or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.',
+        'Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.',
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`.',
         '',
         'With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.',
         '',
-        'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. AI only recognizes in the prompt the group and period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
+        'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
     request: {
         params: BookParamsSchema,

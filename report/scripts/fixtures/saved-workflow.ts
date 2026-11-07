@@ -12,7 +12,7 @@ import { AppContext } from '../../server/src/app-context';
 import { createApp } from '../../server/src/index';
 import { createDecisionClient } from '../../server/src/services/decision-client';
 import { snapshotKey } from '../../server/src/services/snapshot-loader';
-import { fixtureLedger, fixtureSnapshot } from '../../server/test/fixtures/snapshot-book';
+import { fixtureLedger, ledgerSnapshot } from '../../server/test/fixtures/snapshot-book';
 import { createTestEnv } from '../../server/test/test-env';
 
 export const WORKFLOW_PROMPT = 'Expenses last month';
@@ -20,8 +20,8 @@ export const WORKFLOW_BOOKS = ['fixture-a', 'fixture-b'] as const;
 type Role = NonNullable<bkper.Book['permission']>;
 
 export async function savedWorkflow() {
-    const snapshot = await fixtureSnapshot();
     const ledger = fixtureLedger();
+    let snapshot = await ledgerSnapshot(ledger);
     let today = '2026-11-05';
     const values = new Map<string, string>();
     let failWrite = false;
@@ -157,6 +157,12 @@ export async function savedWorkflow() {
         advance: () => {
             // The ledger has no movements after November 5, so its map stays the same.
             today = '2026-12-05';
+            for (const identity of sessions) seed(identity);
+        },
+        /** Renames an account in the Book, so its map and balances know only the new name. */
+        renameAccount: async (id: string, name: string) => {
+            ledger.renameAccount(id, name);
+            snapshot = await ledgerSnapshot(ledger);
             for (const identity of sessions) seed(identity);
         },
         savedValues: () =>

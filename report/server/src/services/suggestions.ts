@@ -4,13 +4,18 @@
  *
  * They are chosen by fixed rules from the snapshot (the Book's map, its structure alone, which
  * holds no amounts or dates), among the reports the Book supports: roots without accounts are
- * left out, roots of a kind are ranked by how many accounts they hold, and periods are the
- * default ones, activity this year and positions today.
+ * left out and roots of a kind are ranked by how many accounts they hold. Their periods follow
+ * the rule of a request that names none (`default-period.ts`): activity this year, or, when this
+ * year has no movements, the last year with them, which the suggestion's text then names; a
+ * position today.
  */
 import { t, type StringKey } from 'report-shared/strings';
+import type { QueryBalances } from './balances.js';
+import { readReport } from './default-period.js';
 import { netResultOf } from './report.js';
 import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
 import type { NodeType, Snapshot, SnapshotGroup } from './snapshot.js';
+import type { Timing } from './timing.js';
 
 export interface Suggestion {
     /** The request as a person would type it, in the requested language. */
@@ -22,7 +27,44 @@ export interface Suggestion {
 export const SUGGESTION_COUNT = 3;
 
 /**
- * Up to {@link SUGGESTION_COUNT} suggestions, in this order of preference: the net result,
+ * The suggestions of {@link buildSuggestions}, each with the period a request for it that names
+ * none reads (`readReport`): this year when it has movements, else the last year with them,
+ * after one query of the history of the suggested root (none for a position today, which never
+ * moves). The report's own queries are the ones its intent then reads, so they are cached for it.
+ * A suggestion whose balances cannot be read keeps its default period: its report tells.
+ */
+export async function readSuggestions(
+    snapshot: Snapshot,
+    lang: string,
+    options: {
+        loadBalances: (queries: string[]) => Promise<QueryBalances[]>;
+        timing: Timing;
+    }
+): Promise<Suggestion[]> {
+    const suggestions = await options.timing.measure('compute', async () =>
+        buildSuggestions(snapshot, lang)
+    );
+    return Promise.all(
+        suggestions.map(async suggestion => {
+            if (suggestion.intent.period === 'today') {
+                return suggestion;
+            }
+            try {
+                const { intent } = await readReport(suggestion.intent, snapshot, {
+                    loadBalances: options.loadBalances,
+                    defaultPeriod: true,
+                });
+                return { text: suggestionText(snapshot, intent, lang), intent };
+            } catch {
+                return suggestion;
+            }
+        })
+    );
+}
+
+/**
+ * Up to {@link SUGGESTION_COUNT} suggestions, at the default periods (activity this year, a
+ * position today), in this order of preference: the net result,
  * when the Book has one, the largest Outgoing root by month, the largest Asset (or other
  * permanent) root's position, the largest Incoming root, then the other roots, largest first.
  * Each root is suggested once: the group that combines Incoming and Outgoing as the net result.
@@ -93,16 +135,30 @@ function accountsUnder(snapshot: Snapshot, group: SnapshotGroup): Set<string> {
 
 /** Activity this year, by month or not, or a position today. */
 function rootSuggestion(group: SnapshotGroup, monthly: boolean, lang: string): Suggestion {
+    const intent = { root: group.id, period: group.permanent ? 'today' : 'this_year', monthly };
+    return { text: textOf(group, intent, lang), intent };
+}
+
+/** The request a person would type for a suggestion's intent, naming its period. */
+function suggestionText(snapshot: Snapshot, intent: ReportIntent, lang: string): string {
+    return intent.root === NET_RESULT_ROOT
+        ? netText(intent.period, lang)
+        : textOf(snapshot.groups[intent.root], intent, lang);
+}
+
+/** A root's activity this year or in a year `YYYY`, by month or not, or its position today. */
+function textOf(group: SnapshotGroup, { period, monthly }: ReportIntent, lang: string): string {
+    const thisYear = period === 'this_year';
     const key: StringKey = group.permanent
         ? 'suggestion_position_today'
         : monthly
-          ? 'suggestion_monthly_this_year'
-          : 'suggestion_breakdown_this_year';
-    const period = group.permanent ? 'today' : 'this_year';
-    return {
-        text: t(key, lang, { root: group.name }),
-        intent: { root: group.id, period, monthly },
-    };
+          ? thisYear
+              ? 'suggestion_monthly_this_year'
+              : 'suggestion_monthly_year'
+          : thisYear
+            ? 'suggestion_breakdown_this_year'
+            : 'suggestion_breakdown_year';
+    return t(key, lang, { root: group.name, year: period });
 }
 
 /**
@@ -133,7 +189,14 @@ function netResult(snapshot: Snapshot): { roots: SnapshotGroup[] } | undefined {
 
 function netSuggestion(lang: string): Suggestion {
     return {
-        text: t('suggestion_net_result_this_year', lang),
+        text: netText('this_year', lang),
         intent: { root: NET_RESULT_ROOT, period: 'this_year', monthly: false },
     };
+}
+
+/** The net result this year or in a year `YYYY`. */
+function netText(period: string, lang: string): string {
+    return period === 'this_year'
+        ? t('suggestion_net_result_this_year', lang)
+        : t('suggestion_net_result_year', lang, { year: period });
 }

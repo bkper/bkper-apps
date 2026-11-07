@@ -1,7 +1,9 @@
+import { addLocale } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { buildReport, planQueries, planReport } from '../../src/services/report';
 import type { Snapshot } from '../../src/services/snapshot';
-import { buildSuggestions } from '../../src/services/suggestions';
+import { buildSuggestions, readSuggestions } from '../../src/services/suggestions';
+import { ServerTiming } from '../../src/services/timing';
 import {
     fixtureLedger,
     fixtureSnapshot,
@@ -13,6 +15,20 @@ import {
 /** The fixture read years later: its last movements, in November 2026, are then old. */
 async function laterSnapshot(): Promise<Snapshot> {
     return { ...(await fixtureSnapshot()), today: '2028-03-10' };
+}
+
+/** Reads the suggestions of a snapshot from the fixture's ledger, noting every query. */
+async function readFrom(snapshot: Snapshot, lang = 'en') {
+    const ledger = fixtureLedger();
+    const queries: string[] = [];
+    const suggestions = await readSuggestions(snapshot, lang, {
+        loadBalances: async asked => {
+            queries.push(...asked);
+            return asked.map(query => ledgerBalances(ledger, query));
+        },
+        timing: new ServerTiming(),
+    });
+    return { suggestions, queries };
 }
 
 /** The fixture with only some of its root groups. */
@@ -133,5 +149,81 @@ describe('buildSuggestions', () => {
             },
         ]);
         expect(buildSuggestions({ ...snapshot, roots: ['g-card'] }, 'en')).toEqual([]);
+    });
+});
+
+describe('readSuggestions', () => {
+    it('suggests this year when it has movements, reading only the reports’ own queries', async () => {
+        const snapshot = await fixtureSnapshot();
+        const { suggestions, queries } = await readFrom(snapshot);
+        expect(suggestions).toEqual(buildSuggestions(snapshot, 'en'));
+        // The net result and Expenses, this year and the year before; a position today never
+        // moves, so Assets reads nothing here.
+        expect(queries).toEqual([
+            "group:'Net income' after:2026-01-01 before:2026-11-06 by:m",
+            "group:'Net income' after:2025-01-01 before:2025-11-06 by:m",
+            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
+            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
+        ]);
+    });
+
+    it('suggests the last year with movements on a Book with only old data, and says so', async () => {
+        const { suggestions, queries } = await readFrom(await laterSnapshot());
+        expect(suggestions).toEqual([
+            {
+                text: 'Net result in 2026',
+                intent: { root: 'net-result', period: '2026', monthly: false },
+            },
+            {
+                text: 'Expenses by month in 2026',
+                intent: { root: 'g-expenses', period: '2026', monthly: true },
+            },
+            {
+                text: 'Assets today',
+                intent: { root: 'g-assets', period: 'today', monthly: false },
+            },
+        ]);
+        // One query of history per suggested root that can move, never one per root group.
+        expect(queries.filter(query => !query.includes('after:'))).toEqual([
+            "group:'Net income' before:2028-03-11 by:m",
+            "group:'Expenses' before:2028-03-11 by:m",
+        ]);
+    });
+
+    it('suggests reports that show the Book’s data', async () => {
+        const ledger = fixtureLedger();
+        const snapshot = await laterSnapshot();
+        const { suggestions } = await readFrom(snapshot);
+        for (const { intent } of suggestions) {
+            const queries = planQueries(planReport(intent, snapshot));
+            const balances = queries.map(query => ledgerBalances(ledger, query));
+            const report = buildReport(intent, snapshot, balances);
+            expect(report.answer?.amount).not.toBe('0');
+            expect(report.breakdown.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('writes the year in the requested language', async () => {
+        addLocale('eo', {
+            suggestion_net_result_year: 'Neta rezulto en {year}',
+            suggestion_monthly_year: '{root} monate en {year}',
+        });
+        const { suggestions } = await readFrom(await laterSnapshot(), 'eo');
+        expect(suggestions.map(suggestion => suggestion.text)).toEqual([
+            'Neta rezulto en 2026',
+            'Expenses monate en 2026',
+            'Assets today',
+        ]);
+    });
+
+    it('keeps a suggestion’s period when its balances cannot be read', async () => {
+        const snapshot = await laterSnapshot();
+        const suggestions = await readSuggestions(snapshot, 'en', {
+            loadBalances: async () => {
+                throw new Error('Bkper is unavailable');
+            },
+            timing: new ServerTiming(),
+        });
+        expect(suggestions).toEqual(buildSuggestions(snapshot, 'en'));
     });
 });

@@ -28,7 +28,7 @@ import {
 import type { ReportIntent } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
-import { buildSuggestions, type Suggestion } from './suggestions.js';
+import { readSuggestions, type Suggestion } from './suggestions.js';
 import type { Timing } from './timing.js';
 
 /** The language of reports whose request names none and whose caller prefers none. */
@@ -111,7 +111,11 @@ export async function createReport(
         });
         detected = resolution.language;
         if (!resolution.recognized) {
-            throw notAReport(snapshot, languages.requested ?? detected ?? languages.accepted);
+            throw await notAReport(
+                snapshot,
+                options,
+                languages.requested ?? detected ?? languages.accepted
+            );
         }
         intent = resolution.intent;
         intentTrace = resolution.trace;
@@ -127,7 +131,7 @@ export async function createReport(
         });
     } catch (error) {
         if (error instanceof ReportError && error.reason === 'no_activity_roots') {
-            throw notAReport(snapshot, language);
+            throw await notAReport(snapshot, options, language);
         }
         throw error;
     }
@@ -156,6 +160,11 @@ function reportTrace({ facts, views, main, rule, unfit }: ReportCharts): ReportT
     };
 }
 
-function notAReport(snapshot: Snapshot, language = DEFAULT_LANGUAGE): NotAReportError {
-    return new NotAReportError(buildSuggestions(snapshot, language));
+/** Not a report, with the suggestions the Book can have instead, read as their own requests. */
+async function notAReport(
+    snapshot: Snapshot,
+    options: ReportServiceOptions,
+    language = DEFAULT_LANGUAGE
+): Promise<NotAReportError> {
+    return new NotAReportError(await readSuggestions(snapshot, language, options));
 }

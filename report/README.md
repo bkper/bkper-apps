@@ -66,7 +66,7 @@ When your request names no group or Account, Report starts from the **top-level 
 
 The net result comes from a group that holds both your income and your expense groups, such as _Profit and loss_: Bkper calculates it, and Report shows it with that group's name. If your Book has no such group, but each top-level income or expense group holds only income or only expenses, and no Account is in two of them, Report subtracts the expense groups from the income groups and says so: **Calculated by Report**, in the report and in files the Bkper Agent shares. Otherwise your Book has no net result yet; add a group that holds your income and expense groups in Bkper, and ask again.
 
-When your request names no period, Report shows activity for this year and balances for today. If your Book has no movements in that time, it shows the last year that has them.
+When your request names no period, Report shows activity for this year and balances for today. If your Book has no movements in that time, it shows the last year that has them. The suggested reports follow the same rule and name the year they show, such as _Expenses by month in 2018_.
 
 ## Charts
 

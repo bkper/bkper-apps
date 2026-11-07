@@ -516,6 +516,24 @@ describe('createReport of a request that names no period', () => {
         expect(result.intent).toEqual(intent('g-expenses', 'this_year', { hashtags: ['nothing'] }));
     });
 
+    it('suggests reports of the last year with movements when the request is not one', async () => {
+        const test = harness({ root: 'none', language: 'en' });
+        const error = await createReport(
+            await later(),
+            { prompt: 'what is the weather' },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(NotAReportError);
+        const { suggestions } = error as NotAReportError;
+        expect(suggestions.map(suggestion => suggestion.intent.period)).toEqual([
+            '2026',
+            '2026',
+            'today',
+        ]);
+        expect(suggestions[1].text).toBe('Expenses by month in 2026');
+    });
+
     it('reads a position today, whenever it last moved, with no other query', async () => {
         const test = harness({ root: 'Assets' });
         const result = await createReport(await later(), { prompt: 'assets' }, {}, test.options);

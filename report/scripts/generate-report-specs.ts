@@ -255,6 +255,8 @@ function liveCases(snapshot: Snapshot): Case[] {
         id: `suggestion-${index + 1}`,
         intent: suggestion.intent,
         lang: 'en',
+        // As the Worker suggests them: this year, or the last year with movements.
+        defaultPeriod: true,
     }));
     const breakdowns = snapshot.roots.map(root => ({
         id: `breakdown-${root}`,

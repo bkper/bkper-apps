@@ -7,9 +7,10 @@ import type { AppContext, AppEnv } from '../app-context.js';
 import { buildReportFile, reportFileOpen } from '../services/report-file.js';
 import { createReport, DEFAULT_LANGUAGE, type ReportRequest } from '../services/report-service.js';
 import { loadBalances } from '../services/balances-loader.js';
+import type { QueryBalances } from '../services/balances.js';
 import type { Snapshot } from '../services/snapshot.js';
 import { currentUserId, loadSnapshot } from '../services/snapshot-loader.js';
-import { buildSuggestions } from '../services/suggestions.js';
+import { readSuggestions } from '../services/suggestions.js';
 import { bookNames } from '../services/prompt-names.js';
 import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
@@ -58,7 +59,7 @@ const suggestionsRoute = createRoute({
     tags: ['Reports'],
     summary: 'Suggest reports of a Book',
     description:
-        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.',
+        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.',
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
@@ -192,14 +193,15 @@ export function registerApiRoutes(app: App): void {
         const context = c.var.appContext;
         const { bookId } = c.req.valid('param');
         const { language } = c.req.valid('query');
-        const { snapshot } = await readableSnapshot(context, bookId);
+        const { snapshot, userId } = await readableSnapshot(context, bookId);
         const lang =
             (language && supportedLanguage(language)) ??
             acceptedLanguage(c.req.header('Accept-Language')) ??
             DEFAULT_LANGUAGE;
-        const suggestions = await context.timing.measure('compute', async () =>
-            buildSuggestions(snapshot, lang)
-        );
+        const suggestions = await readSuggestions(snapshot, lang, {
+            loadBalances: bookBalances(context, bookId, snapshot, userId),
+            timing: context.timing,
+        });
         return c.json({ suggestions }, 200);
     });
 
@@ -225,15 +227,7 @@ export function registerApiRoutes(app: App): void {
             },
             {
                 decisions: context.decisions,
-                loadBalances: queries =>
-                    loadBalances(queries, {
-                        userId,
-                        bookId,
-                        kv: context.env.KV,
-                        timing: context.timing,
-                        read: query => context.readBalances(snapshot.book, query),
-                        defer: context.defer,
-                    }),
+                loadBalances: bookBalances(context, bookId, snapshot, userId),
                 timing: context.timing,
             }
         );
@@ -300,6 +294,24 @@ function reportRequest({ prompt, intent }: ReportRequestBody): ReportRequest {
 }
 
 /** The Book snapshot, for a user who may read the Book's balances, and that user. */
+/** Reads balances queries of the snapshot's Book for the user, through the minute's cache. */
+function bookBalances(
+    context: AppContext,
+    bookId: string,
+    snapshot: Snapshot,
+    userId: string
+): (queries: string[]) => Promise<QueryBalances[]> {
+    return queries =>
+        loadBalances(queries, {
+            userId,
+            bookId,
+            kv: context.env.KV,
+            timing: context.timing,
+            read: query => context.readBalances(snapshot.book, query),
+            defer: context.defer,
+        });
+}
+
 async function readableSnapshot(
     context: AppContext,
     bookId: string

@@ -62,7 +62,7 @@ export interface paths {
         };
         /**
          * Suggest reports of a Book
-         * @description Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.
+         * @description Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.
          */
         get: {
             parameters: {

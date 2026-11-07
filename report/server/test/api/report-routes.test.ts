@@ -227,13 +227,48 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
             text: 'Net result this year',
             intent: { root: 'net-result', period: 'this_year', monthly: false },
         });
-        expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'total']);
-        expect(test.queries).toEqual([]);
+        // This year has movements: the suggestions read only their reports' own queries (a
+        // position today never moves, so it reads none here), in parallel.
+        expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'balances', 'total']);
+        expect([...test.queries].sort()).toEqual([
+            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
+            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
+            "group:'Net income' after:2025-01-01 before:2025-11-06 by:m",
+            "group:'Net income' after:2026-01-01 before:2026-11-06 by:m",
+        ]);
 
         const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
         expect(warm.status).toBe(200);
         expect(test.bkper.bookLoads).toBe(1);
         expect(timings(warm)).toEqual(['user', 'kv', 'compute', 'total']);
+        expect(test.queries).toHaveLength(4);
+    });
+
+    it('suggests the last year with movements of a Book with only old data, and its reports are read', async () => {
+        // Years after the fixture's last movements, in November 2026.
+        vi.setSystemTime(new Date('2028-03-10T15:00:00Z'));
+        try {
+            const test = harness();
+            const response = await test.app.request(SUGGESTIONS_URL, {}, test.env);
+            const { suggestions } = (await response.json()) as {
+                suggestions: { text: string; intent: unknown }[];
+            };
+            expect(suggestions.map(suggestion => suggestion.text)).toEqual([
+                'Net result in 2026',
+                'Expenses by month in 2026',
+                'Assets today',
+            ]);
+            const read = test.queries.length;
+
+            // Their reports, asked for by intent as the client prefetches them, show the
+            // Book's data, from the balances the suggestions read.
+            const expenses = await post(test, { intent: suggestions[1].intent });
+            const body = (await expenses.json()) as { spec: ReportSpec };
+            expect(elementOf(body.spec, 'Answer').props.amount).not.toBe('0');
+            expect(test.queries).toHaveLength(read);
+        } finally {
+            vi.setSystemTime(NOW);
+        }
     });
 
     it('writes suggestions in the requested language, else the accepted one', async () => {

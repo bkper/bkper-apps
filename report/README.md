@@ -1,25 +1,8 @@
 # Report
 
-Type what you want to know about your Book, in your own language, and see the report as you type.
+Type what you want to know about your Book, in your own language, and see the report as you type: the answer and its change from the previous period, a chart, the groups and Accounts behind it, and the exact Bkper query.
 
-> **Your financial data stays unchanged.** Report only reads your Book. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
-
-## One request, one report
-
-Suppose you type _taxes in the last quarter of 2025 as a donut_. Report answers first, then shows the parts:
-
-**Taxes, Q4 2025: 14,313.96** (−11% vs. Q3 2025: 16,086.88)
-
-| Name | Amount | Share | Change |
-| --- | ---: | ---: | ---: |
-| Income tax | 6,708.13 | 46.9% | +5.8% |
-| Payroll tax | 4,739.65 | 33.1% | +1.8% |
-| Sales tax | 2,866.18 | 20.0% | +6.6% |
-| Property tax | 0.00 | 0% | −100% |
-
-Above the table is the chart, here the donut you asked for, with small previews of every other chart that fits, to switch to with one click. Below is the source: the exact Bkper query, `group:'Taxes' after:2025-10-01 before:2026-01-01`, with a link to open it in your Book.
-
-**Every amount is a balance Bkper calculates for one group or Account**, shown as Bkper shows it. Report adds nothing up and changes no sign, except one labelled net result (see [The net result](#the-net-result)). Numbers never come from AI: AI only helps read your request, and fixed rules build the report.
+> **Read-only, with every number from Bkper.** Every amount is a balance Bkper calculates for one group or Account, but for one labelled exception (see [The net result](#the-net-result)); numbers never come from AI. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
 
 ## How to use it
 

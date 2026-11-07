@@ -273,7 +273,7 @@ describe('Reports', () => {
         expect(calls).toHaveLength(3);
     });
 
-    it('answers a request asked before from memory, however it is spaced or cased', async () => {
+    it('answers a request asked before from memory, however it is spaced', async () => {
         const { reports, calls, prompts } = createReports();
         reports.open('book-1');
         await settle();
@@ -284,12 +284,31 @@ describe('Reports', () => {
         reports.input('other report');
         reports.submit();
 
-        reports.input('  Net   RESULT 2011 ');
+        reports.input('  net   result 2011 ');
         reports.submit();
 
         expect(title(reports.report)).toBe('Net');
         expect(reports.pending).toBe(false);
         expect(prompts()).toEqual(['net result 2011', 'other report']);
+    });
+
+    it('asks again for a request cased otherwise, as case tells names of the Book apart', async () => {
+        const { reports, calls, prompts } = createReports();
+        reports.open('book-1');
+        await settle();
+        // A Book with an Account Food and a group FOOD: each request names the one it writes.
+        reports.input('Food last month');
+        reports.submit();
+        calls.at(-1)?.resolve(response('Food'));
+        await settle();
+
+        reports.input('FOOD last month');
+        reports.submit();
+        expect(prompts()).toEqual(['Food last month', 'FOOD last month']);
+        calls.at(-1)?.resolve(response('FOOD'));
+        await settle();
+        expect(title(reports.report)).toBe('FOOD');
+        expect(reports.originalPrompt).toBe('FOOD last month');
     });
 
     it('remembers reports of one intent with different charts apart', async () => {
@@ -377,7 +396,7 @@ describe('Reports', () => {
         intentCalls().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
         await settle();
 
-        reports.input('net result in 2011');
+        reports.input('Net result  in 2011');
         await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
         expect(title(reports.report)).toBe('Suggestion 0');
@@ -587,7 +606,7 @@ describe('Reports', () => {
         expect(reports.chart).toBeUndefined();
         expect(reports.originalPrompt).toBe('Expenses last month');
         // Typing the saved text answers from the same memory.
-        reports.input('expenses LAST month');
+        reports.input(' Expenses  last month');
         reports.submit();
         expect(calls).toHaveLength(1);
 
@@ -655,14 +674,14 @@ describe('Reports', () => {
         expect(reports.notice).toBeUndefined();
     });
 
-    it('retains a cached prompt result’s real source rather than later casing or suggestion text', async () => {
+    it('retains a cached prompt result’s real source rather than later spacing or suggestion text', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
         reports.open('book-1');
         reports.input('Expenses   this year');
         reports.submit();
         calls[0].resolve(withMain(response('Expenses'), 'bar'));
         await settle();
-        reports.input(' EXPENSES this YEAR ');
+        reports.input(' Expenses this year ');
         reports.submit();
         expect(calls).toHaveLength(1);
         expect(reports.originalPrompt).toBe('Expenses   this year');
@@ -697,7 +716,7 @@ describe('Reports', () => {
             tick(CACHE_MS - 1);
             reports.input('other report');
             reports.submit();
-            reports.input('Expenses this month');
+            reports.input('expenses  this month');
             reports.submit();
             expect(title(reports.report)).toBe('Early');
             expect(prompts()).toEqual(['expenses this month', 'other report']);

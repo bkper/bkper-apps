@@ -425,8 +425,12 @@ export function wordCount(text: string): number {
     return count;
 }
 
+/**
+ * A request by its words, however spaced. Case stays: it tells apart names of the Book written
+ * alike but for it, as the Worker reads them (`report-shared/names`).
+ */
 function promptKey(text: string): string {
-    return `prompt:${text.trim().replace(/\s+/g, ' ').toLocaleLowerCase()}`;
+    return `prompt:${text.trim().replace(/\s+/g, ' ')}`;
 }
 
 function intentKey(intent: ReportIntent, language: string): string {

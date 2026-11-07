@@ -338,7 +338,7 @@ describe('createReport by prompt', () => {
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
-    it('reports the group or account the prompt names, titled by it, from its root', async () => {
+    it('reports the group or account the prompt names, titled by it, from its group', async () => {
         // Jev chose another root: the name the prompt writes decides.
         const test = harness({ root: 'Revenue', period: '2026-10', language: 'pt' });
         const result = await createReport(
@@ -492,7 +492,7 @@ describe('createReport of a request that names no period', () => {
         );
     });
 
-    it('reads a name from its root’s history, as its report reads it', async () => {
+    it('reads a name from its group’s history, as its report reads it', async () => {
         const test = harness({ root: 'Revenue' });
         const result = await createReport(await later(), { prompt: 'food' }, {}, test.options);
         expect(test.queries[2]).toBe("group:'Expenses' before:2028-03-11 by:m");

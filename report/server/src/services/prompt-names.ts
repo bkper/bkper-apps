@@ -22,9 +22,10 @@
  *    the accounts in no group).
  * 4. **Each once, in the order written,** at most {@link MAX_NAMED}.
  * 5. **Roots.** A group's root is its top-level group; an account in no group is a root of its
- *    own. An account under several roots is read from a root that another name of the request
- *    can only be read from, so the report queries fewer roots, else from the first root in Book
- *    order that holds it: either way it is the account's own Bkper balance.
+ *    own. An account under several roots is named under a root that another name of the
+ *    request can only be under, else under the first root in Book order that holds it. The
+ *    root only places the name in the intent: the report reads it from its own group, or an
+ *    account from the smallest group holding it, its own Bkper balance either way.
  */
 import { MAX_ALONGSIDE } from 'report-shared/report-intent';
 import {

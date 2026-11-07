@@ -2,9 +2,9 @@
  * The period of a request that names none: this year for activity, today for a position, and
  * the last 12 months for a trend (`defaultPeriod`). The Book's map holds no dates of movements,
  * so a Book with old data finds out from the report itself: only when the report's own answers
- * have no movements in that period does it run ONE more query, of the root of its first subject
- * over its whole history (`historyQuery`), and read the report of the last year with movements
- * it finds there instead.
+ * have no movements in that period does it run ONE more query, of the group its first subject
+ * is read from over its whole history (`historyQuery`), and read the report of the last year
+ * with movements it finds there instead.
  *
  * A month has movements when Bkper answers it with an amount for one of the report's groups or
  * accounts, or anything it lists under them: a month whose movements all net to zero shows
@@ -81,8 +81,8 @@ export function hasMovements(
     const { after, before } = plan.period.range;
     const first = after?.slice(0, 7);
     const last = addDays(before, -1).slice(0, 7);
-    return planSubjects(plan, snapshot).some(({ node, root }) => {
-        const query = plan.queries.find(entry => entry.root === root)?.current;
+    return planSubjects(plan, snapshot).some(({ node, source }) => {
+        const query = plan.queries.find(entry => entry.source === source)?.current;
         const answer = query === undefined ? undefined : answers.get(query);
         return (
             answer !== undefined &&
@@ -94,7 +94,7 @@ export function hasMovements(
 }
 
 /**
- * The last month, in a plausible year, the report's groups and accounts under the root of
+ * The last month, in a plausible year, the report's groups and accounts read from the group of
  * {@link historyQuery} had movements in.
  */
 export function lastMovedMonth(
@@ -104,7 +104,7 @@ export function lastMovedMonth(
 ): IsoMonth | undefined {
     const subjects = planSubjects(plan, snapshot);
     return subjects
-        .filter(({ root }) => root === subjects[0].root)
+        .filter(({ source }) => source === subjects[0].source)
         .flatMap(({ node }) => movedMonths(history, node))
         .filter(month => isPlausibleYear(Number(month.slice(0, 4))))
         .sort()

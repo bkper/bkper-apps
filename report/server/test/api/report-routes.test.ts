@@ -495,7 +495,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ]);
     });
 
-    it('builds a report of a target from its root’s queries, titled by the target', async () => {
+    it('builds a report of a group target from its own queries, titled by the target', async () => {
         const test = harness();
         const intent = { root: 'g-assets', target: 'g-banks', period: 'today', monthly: false };
         const response = await post(test, { intent, language: 'en' });
@@ -506,8 +506,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(elementOf(body.spec, 'Report').props.title).toBe('Banks');
         expect(elementOf(body.spec, 'Answer').props.amount).toBe('7749.25');
         expect(test.queries).toEqual([
-            "group:'Assets' after:2026-11-05 before:2026-11-06 by:m",
-            "group:'Assets' before:2026-11-01 by:m",
+            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Banks' before:2026-11-01 by:m",
         ]);
 
         // The report file opens the same target again.
@@ -520,7 +520,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
     });
 
-    it('shows targets side by side, one query per root, and opens them again by state', async () => {
+    it('shows targets side by side, one query per group, and opens them again by state', async () => {
         const test = harness();
         const intent = {
             root: 'g-expenses',

@@ -5,6 +5,7 @@ import {
     MissingBalancesError,
     ReportError,
     buildReport,
+    historyQuery,
     planQueries,
     planReport,
     viewKindOf,
@@ -327,9 +328,12 @@ describe('buildReport: a target under its root', () => {
     const plan = async (request: ReportIntent, ledger: FakeLedger = fixtureLedger()) =>
         planQueries(planReport(request, await ledgerSnapshot(ledger)));
 
-    it('reads a nested group from its root’s queries, with no query of its own', async () => {
+    it('reads a nested group from its own queries, not its root’s', async () => {
         const request = intent('g-assets', 'today', { target: 'g-banks' });
-        expect(await plan(request)).toEqual(await plan(intent('g-assets', 'today')));
+        expect(await plan(request)).toEqual([
+            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Banks' before:2026-11-01 by:m",
+        ]);
 
         const data = await report(request);
         expect(data.nature).toBe('position');
@@ -345,7 +349,7 @@ describe('buildReport: a target under its root', () => {
         expect(data.url).toContain(encodeURIComponent("group:'Banks' before:2026-11-06"));
     });
 
-    it('reads an account by month from its root’s queries', async () => {
+    it('reads an account by month from the smallest group holding it', async () => {
         const request = intent('g-expenses', '2026', { monthly: true, target: 'a-rent' });
         expect(await plan(request)).toEqual([
             "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
@@ -375,16 +379,73 @@ describe('buildReport: a target under its root', () => {
         expect(kinds(data)).toEqual(['bar', 'area', 'table']);
     });
 
-    it('reads an account the same from any root that holds it', async () => {
+    it('reads an account the same from any root that holds it, from the same group', async () => {
         const expenses = await report(intent('g-expenses', 'last_month', { target: 'a-rent' }));
         const net = await report(intent('g-net', 'last_month', { target: 'a-rent' }));
+        // Rent is in Expenses and Net income, three accounts each: the first in Book order.
         expect(await plan(intent('g-net', 'last_month', { target: 'a-rent' }))).toEqual([
-            "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Net income' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
         ]);
         expect(net.answer).toEqual(expenses.answer);
         expect(net.answer).toEqual({ amount: '1000', previous: '0' });
         expect(net.query).toBe(expenses.query);
+    });
+
+    it('reads an account from the smallest group holding it, not from its root', async () => {
+        const ledger = fixtureLedger();
+        ledger.addGroup(
+            groupPayload('g-fixed', 'Fixed costs', {
+                type: 'OUTGOING',
+                credit: false,
+                permanent: false,
+            }),
+            ['a-rent']
+        );
+        const request = intent('g-expenses', 'last_month', { target: 'a-rent' });
+        expect(await plan(request, ledger)).toEqual([
+            "group:'Fixed costs' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Fixed costs' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        const data = await report(request, ledger);
+        // Its own Bkper balance, as its row in its root's query and in its own query.
+        const root = ledgerBalances(ledger, "group:'Expenses' after:2026-10-01 before:2026-11-01");
+        const own = ledgerBalances(ledger, "account:'Rent' after:2026-10-01 before:2026-11-01");
+        expect(data.answer.amount).toBe(root.accounts.Rent.period);
+        expect(data.answer.amount).toBe(own.accounts.Rent.period);
+        expect(data.answer).toEqual({ amount: '1000', previous: '0' });
+        // The Source and the link name the account, as before.
+        expect(data.query).toBe("account:'Rent' after:2026-10-01 before:2026-11-01");
+    });
+
+    it('counts the groups and the accounts of a group, then takes the first in Book order', async () => {
+        // Assets holds Banks, Cash, Bank A and Bank B; Liquid holds three accounts, so Cash
+        // reads Liquid, which a count of accounts alone would tie with Assets.
+        const ledger = fixtureLedger();
+        ledger.addGroup(
+            groupPayload('g-liquid', 'Liquid', { type: 'ASSET', credit: false, permanent: true }),
+            ['a-cash', 'a-bank-a', 'a-bank-b']
+        );
+        expect(await plan(intent('g-assets', 'today', { target: 'a-cash' }), ledger)).toEqual([
+            "group:'Liquid' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Liquid' before:2026-11-01 by:m",
+        ]);
+        // Bank A: Banks and Liquid hold it, Banks the smaller.
+        expect(await plan(intent('g-assets', 'today', { target: 'a-bank-a' }), ledger)).toEqual([
+            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Banks' before:2026-11-01 by:m",
+        ]);
+        // On a tie, Book order, not the name: Aaa comes after Expenses in the Book.
+        ledger.addGroup(
+            groupPayload('g-aaa', 'Aaa', { type: 'OUTGOING', credit: false, permanent: false }),
+            ['a-rent', 'a-food', 'a-old']
+        );
+        expect(await plan(intent('g-aaa', 'last_month', { target: 'a-rent' }), ledger)).toEqual([
+            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+        ]);
+        const data = await report(intent('g-assets', 'today', { target: 'a-cash' }), ledger);
+        expect(data.answer).toEqual({ amount: '100', previous: '100', change: '0' });
     });
 
     it('shows each amount as a query of the target alone returns it', async () => {
@@ -403,7 +464,23 @@ describe('buildReport: a target under its root', () => {
         }
     });
 
-    it('filters the root’s queries by the hashtags', async () => {
+    it('reads the history of a target from the group it is read from', async () => {
+        const snapshot = await fixtureSnapshot();
+        const history = (request: ReportIntent) =>
+            historyQuery(planReport(request, snapshot), snapshot);
+        expect(history(intent('g-assets', 'this_year', { target: 'a-bank-a' }))).toBe(
+            "group:'Banks' before:2026-11-06 by:m"
+        );
+        expect(history(intent('g-assets', 'this_year', { target: 'g-banks' }))).toBe(
+            "group:'Banks' before:2026-11-06 by:m"
+        );
+        // A root's own history, as before.
+        expect(history(intent('g-assets', 'this_year'))).toBe(
+            "group:'Assets' before:2026-11-06 by:m"
+        );
+    });
+
+    it('filters the queries of its group by the hashtags', async () => {
         const request = intent('g-expenses', 'last_month', {
             target: 'a-food',
             hashtags: ['trip'],
@@ -426,8 +503,8 @@ describe('buildReport: a target under its root', () => {
             hashtags: ['trip'],
         });
         expect(await plan(request)).toEqual([
-            "group:'Assets' #trip before:2026-11-06 by:m",
-            "group:'Assets' #trip before:2026-10-01 by:m",
+            "group:'Banks' #trip before:2026-11-06 by:m",
+            "group:'Banks' #trip before:2026-10-01 by:m",
         ]);
         const data = await report(request);
         expect(data.answer).toMatchObject({ amount: '-1200.5', previous: '0' });
@@ -544,6 +621,36 @@ describe('buildReport: targets side by side', () => {
     /** The amount a report of one subject alone shows. */
     const alone = async (root: string, period: string, extra: Partial<ReportIntent> = {}) =>
         (await report(intent(root, period, extra))).answer;
+
+    it('shares the queries of targets read from the same group, and no others', async () => {
+        // Bank A and Bank B are both read from Banks: one query of the period, one before.
+        const shared = intent('g-assets', 'today', {
+            target: 'a-bank-a',
+            alongside: [{ root: 'g-assets', target: 'a-bank-b' }],
+        });
+        expect(await plan(shared)).toEqual([
+            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Banks' before:2026-11-01 by:m",
+        ]);
+        // Cash is read from Assets and Bank A from Banks: one query each, in parallel, though
+        // both are under Assets.
+        const apart = intent('g-assets', 'today', {
+            target: 'a-cash',
+            alongside: [{ root: 'g-assets', target: 'a-bank-a' }],
+        });
+        expect(await plan(apart)).toEqual([
+            "group:'Assets' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Assets' before:2026-11-01 by:m",
+            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Banks' before:2026-11-01 by:m",
+        ]);
+        const data = await report(apart);
+        expect(data.targets?.map(row => row.amount)).toEqual([
+            (await alone('g-assets', 'today', { target: 'a-cash' })).amount,
+            (await alone('g-assets', 'today', { target: 'a-bank-a' })).amount,
+        ]);
+        expect(data.targets?.map(row => row.amount)).toEqual(['100', '7749.25']);
+    });
 
     it('reads targets under one root from its queries, once, each with its own amount', async () => {
         const request = intent('g-expenses', 'last_month', {
@@ -889,7 +996,7 @@ describe('buildReport: net result from a group that combines Incoming and Outgoi
             ['a-food', 'a-salary']
         );
         const snapshot = await ledgerSnapshot(ledger);
-        expect(planReport(intent('net-result', 'last_month'), snapshot).roots).toEqual(['g-net']);
+        expect(planReport(intent('net-result', 'last_month'), snapshot).sources).toEqual(['g-net']);
     });
 
     it('fits no pie, donut or stacked parts, as for any net result', async () => {

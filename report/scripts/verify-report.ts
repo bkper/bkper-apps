@@ -1,25 +1,28 @@
 /**
  * Read-only cross-check of report calculations against the bkper CLI on live Books.
  *
- *     npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] <bookId> [<bookId> ...]
+ *     npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] [--root=<id or name>] <bookId> [<bookId> ...]
  *
  * For each Book it loads the snapshot (as of `--today`, when given, so Books with old data also
  * exercise current periods and today's activity), builds reports for several intents within the
  * Book's data range from the balances of each report's own queries (its period and the previous
- * one, per root, in parallel, as the Worker runs them), and compares every amount shown to the
- * cent with `bkper balance list` over the report's exact query and its previous period:
+ * one, per group read, in parallel, as the Worker runs them), and compares every amount shown to
+ * the cent with `bkper balance list` over the report's exact query and its previous period.
+ * `--root` (repeatable) checks only those root groups, their targets and their default periods,
+ * and no net result, so a large Book's run stays small; every amount it shows is still checked:
  *
  * - the answer, as Bkper's balance of the root; for a net result Report calculates, the
  *   Incoming roots minus the Outgoing roots of the CLI, in total, before and in every month;
- * - reports of targets (subgroups and accounts under each root, read from the root's own
- *   queries, with no query of their own, and accounts in no group, read with a query of their
- *   own): every amount as above, against the CLI's query of the target alone; an account under
- *   a root against its row in the CLI's query of the root, as Bkper does not find some accounts
- *   of older Books by name (`account:'<name>'` answers nothing), and an account in no group
- *   Bkper does not find so is no report, never a zero;
+ * - reports of targets (subgroups and accounts under each root; a group read from its own
+ *   queries, an account from those of the smallest group holding it, by the map's groups and
+ *   accounts; and accounts in no group, read with a query of their own): every amount as
+ *   above, against the CLI's query of the target alone; an account under a root against its row
+ *   in the CLI's query of the root, as Bkper does not find some accounts of older Books by name
+ *   (`account:'<name>'` answers nothing), and an account in no group Bkper does not find so is
+ *   no report, never a zero;
  * - targets side by side (roots, a root with a group or account under it, groups or accounts
  *   of different roots, positions, repeats, the reverse order and hashtags): that they read
- *   exactly the queries of their roots, each once; that each is a row of its own, in the order
+ *   exactly the queries each reads alone, each once; that each is a row of its own, in the order
  *   asked for, checked as a report of it alone is, with no total, no share and no
  *   calculation, so nothing adds them up; that charts by month draw each target's own months,
  *   ranked bars rank them by size, and no pie, donut or stacked chart fits; that one asked for
@@ -179,6 +182,17 @@ interface Nature {
     permanent: boolean;
 }
 
+/**
+ * Whether a report's amount is the CLI's. The CLI prints amounts as JavaScript numbers
+ * (bkper-js `Amount.toNumber()`), so an amount Bkper answers with more digits than a number
+ * holds, such as `631410.608024020000488`, is the CLI's when it is at that precision; amounts of
+ * a few decimal places must be exactly equal either way.
+ */
+function isCliAmount(actual: string, expected: Amount): boolean {
+    const amount = new Amount(actual);
+    return amount.eq(expected) || amount.toNumber() === expected.toNumber();
+}
+
 /** A CLI amount in the sign reports show for the node. */
 function shown(nature: Nature, cli: Amount): Amount {
     return nature.credit === nature.permanent ? cli.times(-1) : cli;
@@ -215,7 +229,12 @@ function check(ok: boolean, message: string): void {
     console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${message}`);
 }
 
-function intentsFor(snapshot: Snapshot, history: History, hashtags: string[]): ReportIntent[] {
+function intentsFor(
+    snapshot: Snapshot,
+    history: History,
+    hashtags: string[],
+    checked: string[]
+): ReportIntent[] {
     const range = history.range;
     if (!range) {
         return [];
@@ -223,7 +242,8 @@ function intentsFor(snapshot: Snapshot, history: History, hashtags: string[]): R
     const firstYear = range.firstMonth.slice(0, 4);
     const lastYear = range.lastMonth.slice(0, 4);
     const quarter = `${lastYear}-Q${Math.ceil(Number(range.lastMonth.slice(5)) / 3)}`;
-    const roots = [...snapshot.roots, NET_RESULT_ROOT];
+    // The net result may read roots that are not checked: only when every root is.
+    const roots = checked === snapshot.roots ? [...checked, NET_RESULT_ROOT] : checked;
     const charts = REPORT_CHARTS.filter(chart => chart !== 'auto');
     const intents: ReportIntent[] = roots.flatMap(root => [
         { root, period: firstYear, monthly: false },
@@ -237,7 +257,7 @@ function intentsFor(snapshot: Snapshot, history: History, hashtags: string[]): R
         { root, period: range.lastMonth, monthly: false, chart: 'compare' as const },
         { root, period: range.lastMonth, monthly: false, chart: 'waterfall' as const },
     ]);
-    const targets = targetsOf(snapshot, history, lastYear);
+    const targets = targetsOf(snapshot, history, lastYear, checked);
     for (const target of targets) {
         intents.push(
             { ...target, period: lastYear, monthly: true },
@@ -253,7 +273,7 @@ function intentsFor(snapshot: Snapshot, history: History, hashtags: string[]): R
             intents.push({ ...target, period: lastYear, monthly: true, hashtags: [hashtag] });
         }
     }
-    for (const group of sideBySideOf(snapshot, targets)) {
+    for (const group of sideBySideOf(snapshot, targets, checked)) {
         const [first, ...alongside] = group;
         const intent = { ...first, alongside };
         intents.push(
@@ -290,10 +310,10 @@ type Subject = Pick<ReportIntent, 'root' | 'target'>;
  * target under it (a group, an account); targets under different roots; the position roots
  * with an account in no group of their kind.
  */
-function sideBySideOf(snapshot: Snapshot, targets: Subject[]): Subject[][] {
+function sideBySideOf(snapshot: Snapshot, targets: Subject[], checked: string[]): Subject[][] {
     const permanent = (subject: Subject) =>
         nodeOf(snapshot, subject.target ?? subject.root)?.permanent ?? false;
-    const roots = snapshot.roots.map(root => ({ root }));
+    const roots = checked.map(root => ({ root }));
     const groups: Subject[][] = [];
     for (const kind of [false, true]) {
         const own = roots.filter(subject => permanent(subject) === kind);
@@ -338,10 +358,11 @@ const UNGROUPED_TARGETS = 3;
 function targetsOf(
     snapshot: Snapshot,
     history: History,
-    year: string
+    year: string,
+    checked: string[]
 ): Pick<ReportIntent, 'root' | 'target'>[] {
     const targets: Pick<ReportIntent, 'root' | 'target'>[] = [];
-    for (const root of snapshot.roots) {
+    for (const root of checked) {
         const groups: string[] = [];
         const accounts = new Set<string>();
         const collect = (id: string): void => {
@@ -463,12 +484,17 @@ interface History {
     range?: { firstMonth: string; lastMonth: string };
 }
 
-async function bookHistory(cli: Cli, bookId: string, snapshot: Snapshot): Promise<History> {
+async function bookHistory(
+    cli: Cli,
+    bookId: string,
+    snapshot: Snapshot,
+    checked: string[]
+): Promise<History> {
     const history: History = { roots: new Map(), months: new Map() };
     const tomorrow = addDays(snapshot.today, 1);
     const all = new Set<string>();
     await Promise.all(
-        snapshot.roots.map(async id => {
+        checked.map(async id => {
             // The CLI lists activity in each month of a query with `after:`.
             const query = `group:${quote(snapshot.groups[id].name)} after:1000-01-01 before:${tomorrow} by:m`;
             const root = new Set<string>();
@@ -520,15 +546,16 @@ async function defaultPeriodReports(
     snapshot: Snapshot,
     history: History,
     net: ExpectedNet,
-    book: Book
+    book: Book,
+    checked: string[]
 ): Promise<{ label: string; report: ReportData }[]> {
     const subjects: { root: string; months: Set<string>; nature: ReportNature }[] = [
-        ...snapshot.roots.map(root => ({
+        ...checked.map(root => ({
             root,
             months: history.roots.get(root) ?? new Set<string>(),
             nature: (snapshot.groups[root].permanent ? 'position' : 'activity') as ReportNature,
         })),
-        ...(net.kind === 'none'
+        ...(net.kind === 'none' || checked !== snapshot.roots
             ? []
             : [
                   {
@@ -667,7 +694,7 @@ async function verifyReport(
     ]);
     const problems: string[] = [];
     const same = (what: string, actual: string | undefined, expected: Amount) => {
-        if (actual === undefined || !new Amount(actual).eq(expected)) {
+        if (actual === undefined || !isCliAmount(actual, expected)) {
             problems.push(`${what}: report ${actual} vs CLI ${expected.toFixed()}`);
         }
     };
@@ -773,7 +800,7 @@ async function verifySideBySide(
     const queries = planQueries(planReport(intent, snapshot));
     const own = subjects.flatMap(subject => planQueries(planReport(single(subject), snapshot)));
     if (queries.join() !== [...new Set(own)].join() || new Set(queries).size !== queries.length) {
-        problems.push('Targets side by side do not read exactly their roots’ queries, each once');
+        problems.push('Targets side by side do not read exactly their own queries, each once');
     }
     if (targets.map(row => row.id).join() !== subjects.map(s => s.target ?? s.root).join()) {
         problems.push('The targets are not the rows, once each, in the order asked for');
@@ -818,7 +845,7 @@ async function verifySideBySide(
             const total = (rows: CliTable | undefined, name: string, nature: Nature) =>
                 shown(nature, rows?.get(name)?.[0]?.total ?? new Amount(0));
             const same = (what: string, actual: string | undefined, expected: Amount) => {
-                if (actual === undefined || !new Amount(actual).eq(expected)) {
+                if (actual === undefined || !isCliAmount(actual, expected)) {
                     problems.push(`${what}: report ${actual} vs CLI ${expected.toFixed()}`);
                 }
             };
@@ -906,20 +933,18 @@ async function verifySideBySide(
 }
 
 /**
- * Whether a report of a target is of the target, read from its root's queries alone, with none
- * of its own; and an account in no group from queries of that account alone.
+ * Whether a report of a target is of the target, read from the queries of one group alone: a
+ * group's own, an account's of a group holding it with no smaller group holding it (the fewest
+ * groups and accounts at any depth); and an account in no group from queries of that account
+ * alone.
  */
 function targetProblems(report: OneReport, snapshot: Snapshot): string[] {
     const { intent } = report;
     const queries = planQueries(planReport(intent, snapshot));
     if (intent.target !== undefined) {
-        // A target asked for again alongside is the report of it alone.
-        const root = planQueries(
-            planReport({ ...intent, target: undefined, alongside: undefined }, snapshot)
-        );
         return [
             ...(report.root.id === intent.target ? [] : ['The report is not of its target']),
-            ...(queries.join() === root.join() ? [] : ['A target reads queries its root does not']),
+            ...sourceProblems(queries, intent.target, snapshot),
         ];
     }
     const account = snapshot.ungrouped[intent.root];
@@ -928,6 +953,38 @@ function targetProblems(report: OneReport, snapshot: Snapshot): string[] {
         return own ? [] : ['An account in no group is not read with queries of its own'];
     }
     return [];
+}
+
+/** Whether a target's queries are all of the one group it must be read from. */
+function sourceProblems(queries: string[], target: string, snapshot: Snapshot): string[] {
+    const filters = new Set(queries.map(query => /^\S+:('[^']*'|"[^"]*")/.exec(query)?.[0]));
+    const [filter] = filters;
+    const group = Object.hasOwn(snapshot.groups, target) ? snapshot.groups[target] : undefined;
+    if (group) {
+        return filters.size === 1 && filter === `group:${quote(group.name)}`
+            ? []
+            : [`${group.name} is not read from its own queries: ${[...filters].join(', ')}`];
+    }
+    const size = (start: string): number => {
+        const seen = new Set<string>();
+        const visit = (id: string): void => {
+            snapshot.groups[id].accounts.forEach(account => seen.add(`account:${account}`));
+            snapshot.groups[id].groups.forEach(child => (seen.add(`group:${child}`), visit(child)));
+        };
+        visit(start);
+        return seen.size;
+    };
+    const holding = Object.values(snapshot.groups).filter(candidate =>
+        candidate.accounts.includes(target)
+    );
+    const smallest = Math.min(...holding.map(candidate => size(candidate.id)));
+    const read = holding.find(candidate => filter === `group:${quote(candidate.name)}`);
+    return filters.size === 1 && read !== undefined && size(read.id) === smallest
+        ? []
+        : [
+              `${snapshot.accounts[target]?.name ?? target} is not read from the smallest group ` +
+                  `holding it: ${[...filters].join(', ')}`,
+          ];
 }
 
 /** Whether a net result comes from where the Book's groups and accounts say it must. */
@@ -1222,7 +1279,8 @@ async function verifyBook(
     cli: Cli,
     bookId: string,
     now: () => Date,
-    hashtags: string[]
+    hashtags: string[],
+    only: string[]
 ): Promise<void> {
     const timing = new ServerTiming();
     const snapshot = await loadSnapshot(bookId, {
@@ -1234,16 +1292,28 @@ async function verifyBook(
     });
     const book = await bkper.getBook(bookId);
     const net = await expectedNet(cli, bookId, snapshot);
-    const history = await bookHistory(cli, bookId, snapshot);
+    const checked =
+        only.length === 0
+            ? snapshot.roots
+            : snapshot.roots.filter(
+                  id => only.includes(id) || only.includes(snapshot.groups[id].name)
+              );
+    if (checked.length === 0) {
+        throw new Error(`No root group of the Book is ${only.join(' or ')}`);
+    }
+    const history = await bookHistory(cli, bookId, snapshot, checked);
     console.log(
-        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${history.range?.firstMonth}..${history.range?.lastMonth}, net result: ${net.kind}`
+        `Book "${snapshot.book.name}" today ${snapshot.today}, data ${history.range?.firstMonth}..${history.range?.lastMonth}, net result: ${net.kind}` +
+            (checked === snapshot.roots
+                ? ''
+                : `; only ${checked.map(id => snapshot.groups[id].name).join(', ')}`)
     );
     const queryTimes: number[] = [];
     const computeTimes: number[] = [];
     let queryCount = 0;
     const reports: { label: string; report: ReportData }[] = [];
     // One at a time, so the times are of the calculation alone.
-    for (const intent of intentsFor(snapshot, history, hashtags)) {
+    for (const intent of intentsFor(snapshot, history, hashtags, checked)) {
         const target = intent.target === undefined ? undefined : nodeOf(snapshot, intent.target);
         const alongside = (intent.alongside ?? []).map(
             subject => nodeOf(snapshot, subject.target ?? subject.root)?.name ?? subject.root
@@ -1298,7 +1368,7 @@ async function verifyBook(
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
-    reports.push(...(await defaultPeriodReports(snapshot, history, net, book)));
+    reports.push(...(await defaultPeriodReports(snapshot, history, net, book, checked)));
     const mixed = mixedOf(snapshot);
     if (mixed) {
         let reason: string | undefined;
@@ -1332,10 +1402,11 @@ async function main(): Promise<void> {
         args.filter(arg => arg.startsWith(`--${name}=`)).map(arg => arg.slice(name.length + 3));
     const [today] = option('today');
     const hashtags = option('hashtag');
+    const only = option('root');
     const bookIds = args.filter(arg => !arg.startsWith('--'));
     if (bookIds.length === 0 || (today !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(today))) {
         console.error(
-            'Usage: npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] <bookId> [<bookId> ...]'
+            'Usage: npx tsx scripts/verify-report.ts [--today=YYYY-MM-DD] [--hashtag=<tag>] [--root=<id or name>] <bookId> [<bookId> ...]'
         );
         process.exit(2);
     }
@@ -1345,7 +1416,7 @@ async function main(): Promise<void> {
     const bkper = new Bkper({ oauthTokenProvider: async () => token });
     const cli = new Cli();
     for (const bookId of bookIds) {
-        await verifyBook(bkper, cli, bookId, now, hashtags);
+        await verifyBook(bkper, cli, bookId, now, hashtags, only);
     }
     console.log(
         failures === 0 ? `All ${checks} checks passed.` : `${failures} of ${checks} checks failed.`

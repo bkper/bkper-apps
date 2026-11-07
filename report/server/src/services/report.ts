@@ -2,15 +2,17 @@
  * Report calculation: an intent, a Book snapshot (the Book's map) and the balances of the
  * report's own Bkper queries become the numbers of a report.
  *
- * {@link planReport} names the queries a report reads: for each of its roots, one of the
- * period, `group:'<root>' after:<start> before:<end> by:m`, and one of the previous period,
+ * {@link planReport} names the queries a report reads: for each group it reads from, one of the
+ * period, `group:'<group>' after:<start> before:<end> by:m`, and one of the previous period,
  * the same way. Their caller runs them, in parallel, and {@link buildReport} reads every amount
  * from their responses: totals from a group's or account's period balance (activity) or
  * cumulative balance (position), months from its monthly balances. Months are never added up
- * into totals. A report of a target, a group or account under a root, reads it from its root's
- * responses, with no query of its own; an account in no group is a root of its own, read with
- * `account:'<name>' …`. Several targets show side by side, each with its own amount, read from
- * the queries of their roots, one per root: never added up, with no total and no shares.
+ * into totals. A group, a root or a target under one, is read from its own queries; an account
+ * under a root from the queries of the smallest group holding it ({@link sourceOf}), never with
+ * `account:'<name>'`, which Bkper does not find for some names; an account in no group is a
+ * root of its own, read with `account:'<name>' …`. Several targets show side by side, each
+ * with its own amount, read from the queries of their groups, one per group: never added up,
+ * with no total and no shares.
  *
  * Every amount is a Bkper balance of one group or account, as Bkper returns it, with the sign
  * Bkper shows (Outgoing and Liability positive): no sign is changed and nothing is added up
@@ -344,9 +346,12 @@ const MAX_DONUT_ROWS = 6;
 /** Parts of stacked bars, each drawn, so the chart stays readable. */
 const MAX_STACKED_PARTS = 6;
 
-/** The balances queries of one root: of the report's period, and of the previous one. */
-export interface RootQueries {
-    root: string;
+/**
+ * The balances queries of one group, or account in no group, a report reads from: of the
+ * report's period, and of the previous one.
+ */
+export interface SourceQueries {
+    source: string;
     current: string;
     previous?: string;
 }
@@ -367,20 +372,20 @@ export interface CalculatedRoots {
     outgoing: string[];
 }
 
-/** A target among several side by side, and the root whose responses it is read from. */
+/** A group or account a report is of, and the group or account whose responses it is read from. */
 export interface SideBySideTarget {
     node: ReportNode;
-    root: string;
+    source: string;
 }
 
 /**
- * The roots a report reads, by id (the root group or the account in no group, each root of
- * a net result Report calculates, or the roots of targets side by side, each once), and what
- * the report is of: a node read from the responses of its root (the root, the intent's target
- * under it, or the group that combines Incoming and Outgoing for a net result), a net result
+ * The groups (or accounts in no group) a report reads from, by id, each once: the node's own
+ * ({@link sourceOf}), each root of a net result Report calculates, or those of targets side by
+ * side; and what the report is of: a node (a root, the intent's target under it, an account in
+ * no group, or the group that combines Incoming and Outgoing for a net result), a net result
  * Report calculates, or several targets side by side.
  */
-export type ReportSubject = { roots: string[] } & (
+export type ReportSubject = { sources: string[] } & (
     | { node: ReportNode; calculated?: never; targets?: never }
     | { node?: never; calculated: CalculatedRoots; targets?: never }
     | { node?: never; calculated?: never; targets: SideBySideTarget[] }
@@ -391,8 +396,8 @@ export type ReportPlan = ReportSubject & {
     nature: ReportNature;
     period: ReportPeriod;
     hashtags: string[];
-    /** One entry per root: never several roots in one query. */
-    queries: RootQueries[];
+    /** One entry per group read from: never several groups in one query. */
+    queries: SourceQueries[];
 };
 
 /**
@@ -412,10 +417,10 @@ export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan
         nature === 'position' && hashtags.length > 0
             ? { before: period.range.before }
             : period.range;
-    const queries = subject.roots.map(root => {
-        const filter = [nodeFilter(rootNode(snapshot, root)), ...tags(hashtags)].join(' ');
+    const queries = subject.sources.map(source => {
+        const filter = [nodeFilter(sourceNode(snapshot, source)), ...tags(hashtags)].join(' ');
         return {
-            root,
+            source,
             current: balancesQuery(filter, current),
             ...(period.previous ? { previous: balancesQuery(filter, period.previous) } : {}),
         };
@@ -444,15 +449,15 @@ function balancesQuery(filter: string, range: DateRange): string {
 }
 
 /**
- * The one query of a report's history: its first subject's root over its whole history by
- * month, up to today, with the report's hashtags, where it finds the last month it had
- * movements. A target is read from its root's answer, as the report reads it; never several
- * roots in one query, as unbounded multi-group queries are slow and can fail.
+ * The one query of a report's history: the group its first subject is read from, over its whole
+ * history by month, up to today, with the report's hashtags, where it finds the last month it
+ * had movements. A target is read from that group's answer, as the report reads it; never
+ * several groups in one query, as unbounded multi-group queries are slow and can fail.
  */
 export function historyQuery(plan: ReportPlan, snapshot: Snapshot): string {
-    const [{ root }] = planSubjects(plan, snapshot);
+    const [{ source }] = planSubjects(plan, snapshot);
     return [
-        nodeFilter(rootNode(snapshot, root)),
+        nodeFilter(sourceNode(snapshot, source)),
         ...tags(plan.hashtags),
         `before:${addDays(snapshot.today, 1)}`,
         'by:m',
@@ -460,7 +465,7 @@ export function historyQuery(plan: ReportPlan, snapshot: Snapshot): string {
 }
 
 /**
- * The groups and accounts a report is of, each with the root whose answers hold it: its node,
+ * The groups and accounts a report is of, each with the group whose answers hold it: its node,
  * its targets side by side, or the roots of a net result Report calculates.
  */
 export function planSubjects(plan: ReportPlan, snapshot: Snapshot): SideBySideTarget[] {
@@ -468,9 +473,9 @@ export function planSubjects(plan: ReportPlan, snapshot: Snapshot): SideBySideTa
         return plan.targets;
     }
     if (plan.node) {
-        return [{ node: plan.node, root: plan.roots[0] }];
+        return [{ node: plan.node, source: plan.sources[0] }];
     }
-    return plan.roots.map(root => ({ node: rootNode(snapshot, root), root }));
+    return plan.sources.map(source => ({ node: sourceNode(snapshot, source), source }));
 }
 
 function tags(hashtags: string[]): string[] {
@@ -487,7 +492,7 @@ export function buildReport(
     balances: QueryBalances[]
 ): ReportData {
     const plan = planReport(intent, snapshot);
-    const { nature, period, roots, hashtags } = plan;
+    const { nature, period, hashtags } = plan;
     const byQuery = new Map(balances.map(entry => [entry.query, entry]));
     const read = (query: string): QueryBalances => {
         const entry = byQuery.get(query);
@@ -497,8 +502,8 @@ export function buildReport(
         return entry;
     };
     const sources = new Map(
-        plan.queries.map(({ root, current, previous }) => [
-            root,
+        plan.queries.map(({ source, current, previous }) => [
+            source,
             { current: read(current), ...(previous ? { previous: read(previous) } : {}) },
         ])
     );
@@ -536,8 +541,8 @@ export function buildReport(
     };
 
     if (plan.targets) {
-        const lines = plan.targets.map(({ node, root }) =>
-            nodeLine(node, sourceOf(sources, root), reader)
+        const lines = plan.targets.map(({ node, source }) =>
+            nodeLine(node, balancesOf(sources, source), reader)
         );
         const targets = lines.map(line => toRow(line, undefined));
         const types = new Set(lines.map(line => line.type));
@@ -561,7 +566,7 @@ export function buildReport(
     }
 
     const report = plan.node
-        ? nodeReport(plan.node, sourceOf(sources, roots[0]), reader)
+        ? nodeReport(plan.node, balancesOf(sources, plan.sources[0]), reader)
         : calculatedNetResult(snapshot, plan.calculated, sources, reader);
     const total = reportAmounts(report.total);
     const charts = reportCharts(intent.chart ?? 'auto', view, {
@@ -578,7 +583,7 @@ export function buildReport(
         months,
     });
     return {
-        ...base(plan.node ? nodeFilter(plan.node) : groupsFilter(snapshot, roots)),
+        ...base(plan.node ? nodeFilter(plan.node) : groupsFilter(snapshot, plan.sources)),
         root: report.root,
         ...(plan.node?.kind === 'account' ? { account: true as const } : {}),
         answer: total,
@@ -596,7 +601,7 @@ export function buildReport(
 function assertAccountsRead(
     snapshot: Snapshot,
     plan: ReportPlan,
-    sources: ReadonlyMap<string, RootSource>
+    sources: ReadonlyMap<string, SourceBalances>
 ): void {
     const nodes = plan.targets?.map(({ node }) => node) ?? (plan.node ? [plan.node] : []);
     for (const node of nodes) {
@@ -606,7 +611,7 @@ function assertAccountsRead(
         if (
             account &&
             !account.archived &&
-            !accountBalances(sourceOf(sources, account.id).current, account.name)
+            !accountBalances(balancesOf(sources, account.id).current, account.name)
         ) {
             throw new MissingBalancesError('Bkper did not find the account by its name');
         }
@@ -635,10 +640,10 @@ function reportSubject(intent: ReportIntent, snapshot: Snapshot): ReportSubject 
         const net = netResultOf(snapshot);
         switch (net.kind) {
             case 'group':
-                return { roots: [net.group], node: groupNode(snapshot.groups[net.group]) };
+                return { sources: [net.group], node: groupNode(snapshot.groups[net.group]) };
             case 'calculated':
                 return {
-                    roots: snapshot.roots.filter(
+                    sources: snapshot.roots.filter(
                         id => net.incoming.includes(id) || net.outgoing.includes(id)
                     ),
                     calculated: { incoming: net.incoming, outgoing: net.outgoing },
@@ -652,13 +657,15 @@ function reportSubject(intent: ReportIntent, snapshot: Snapshot): ReportSubject 
                 );
         }
     }
-    return { roots: [root], node: subjectNode({ root, target }, snapshot) };
+    const node = subjectNode({ root, target }, snapshot);
+    return { sources: [sourceOf(snapshot, node)], node };
 }
 
 /**
- * Several targets side by side, each once, in the order asked for, and their roots, each once:
- * all positions or all activity. A target asked for again, even under another root, is the
- * same; one target alone is its own report.
+ * Several targets side by side, each once, in the order asked for, and the groups they are read
+ * from, each once, so targets read from the same group share its queries: all positions or all
+ * activity. A target asked for again, even under another root, is the same; one target alone
+ * is its own report.
  */
 function sideBySide(subjects: ReportSubjectData[], snapshot: Snapshot): ReportSubject {
     const targets: SideBySideTarget[] = [];
@@ -668,16 +675,67 @@ function sideBySide(subjects: ReportSubjectData[], snapshot: Snapshot): ReportSu
         }
         const node = subjectNode(subject, snapshot);
         if (!targets.some(known => known.node.id === node.id)) {
-            targets.push({ node, root: subject.root });
+            targets.push({ node, source: sourceOf(snapshot, node) });
         }
     }
     if (targets.length === 1) {
-        return { roots: [targets[0].root], node: targets[0].node };
+        return { sources: [targets[0].source], node: targets[0].node };
     }
     if (new Set(targets.map(({ node }) => node.permanent)).size > 1) {
         throw new ReportError('mixed_targets', 'Positions and activity side by side');
     }
-    return { roots: [...new Set(targets.map(({ root }) => root))], targets };
+    return { sources: [...new Set(targets.map(({ source }) => source))], targets };
+}
+
+/**
+ * The group, or account in no group, whose queries a node is read from, by id: a group itself
+ * (a root or a target under one), so its query holds no more than it does; an account in no
+ * group itself, with `account:'<name>'`; and an account in groups, the smallest group holding
+ * it, the one with the fewest groups and accounts at any depth, the first in Book order (roots
+ * in order, each with its subgroups) on a tie. Never `account:'<name>'` for an account in a
+ * group: Bkper does not find some accounts of older Books by name, yet lists them under their
+ * groups. The group's answer lists the account with its own Bkper balance.
+ */
+function sourceOf(snapshot: Snapshot, node: ReportNode): string {
+    if (node.kind === 'group' || Object.hasOwn(snapshot.ungrouped, node.id)) {
+        return node.id;
+    }
+    let smallest: { id: string; size: number } | undefined;
+    for (const group of groupsInBookOrder(snapshot)) {
+        if (group.accounts.includes(node.id)) {
+            const size = sizeOf(snapshot, group);
+            if (smallest === undefined || size < smallest.size) {
+                smallest = { id: group.id, size };
+            }
+        }
+    }
+    if (smallest === undefined) {
+        throw new Error(`No group holds the account ${node.id}`);
+    }
+    return smallest.id;
+}
+
+/** The Book's groups in Book order: each root in order, then its subgroups, depth first. */
+function groupsInBookOrder(snapshot: Snapshot): SnapshotGroup[] {
+    const groups: SnapshotGroup[] = [];
+    const visit = (id: string): void => {
+        const group = snapshot.groups[id];
+        groups.push(group);
+        group.groups.forEach(visit);
+    };
+    snapshot.roots.forEach(visit);
+    return groups;
+}
+
+/** How many groups and accounts a group holds, at any depth, each once. */
+function sizeOf(snapshot: Snapshot, group: SnapshotGroup): number {
+    let groups = 0;
+    const count = (node: SnapshotGroup): void => {
+        groups += node.groups.length;
+        node.groups.forEach(id => count(snapshot.groups[id]));
+    };
+    count(group);
+    return groups + accountsOf(snapshot, group).size;
 }
 
 /** The group or account a subject names: a root, an account in no group, or a target under a root. */
@@ -715,8 +773,8 @@ function unknownTarget(): ReportError {
     return new ReportError('unknown_target', 'Not a group or account under the root group');
 }
 
-/** A root a report queries: a root group, or an account in no group. */
-function rootNode(snapshot: Snapshot, id: string): ReportNode {
+/** A group or an account in no group a report queries. */
+function sourceNode(snapshot: Snapshot, id: string): ReportNode {
     return Object.hasOwn(snapshot.ungrouped, id)
         ? accountNode(snapshot.ungrouped[id])
         : groupNode(snapshot.groups[id]);
@@ -827,7 +885,7 @@ function currentPeriodOf(id: string): string {
  * Months from the start of the range to its last day; without a start (all time), from the
  * first month Bkper answers the report's queries with, in a plausible year.
  */
-function reportMonths(range: DateRange, sources: RootSource[]): IsoMonth[] {
+function reportMonths(range: DateRange, sources: SourceBalances[]): IsoMonth[] {
     const first = range.after?.slice(0, 7) ?? firstMonth(sources.map(source => source.current));
     const last = addDays(range.before, -1).slice(0, 7);
     const months: IsoMonth[] = [];
@@ -858,16 +916,19 @@ interface Measure {
     months: Amount[];
 }
 
-/** The balances a report reads for one root: of the period and of the previous one. */
-interface RootSource {
+/**
+ * The balances a report reads from one group, or account in no group: of the period and of
+ * the previous one.
+ */
+interface SourceBalances {
     current: QueryBalances;
     previous?: QueryBalances;
 }
 
-function sourceOf(sources: ReadonlyMap<string, RootSource>, root: string): RootSource {
-    const source = sources.get(root);
+function balancesOf(sources: ReadonlyMap<string, SourceBalances>, id: string): SourceBalances {
+    const source = sources.get(id);
     if (!source) {
-        throw new Error(`No balances for the root ${root}`);
+        throw new Error(`No balances read from ${id}`);
     }
     return source;
 }
@@ -895,7 +956,7 @@ class RowReader {
     }
 
     /** A group's line, with the rows Bkper returns under it, at any depth. */
-    group(name: string, source: RootSource): Line {
+    group(name: string, source: SourceBalances): Line {
         const current = groupBalances(source.current, name);
         const previous = source.previous && groupBalances(source.previous, name);
         const listed = (pick: (balances: GroupNodeBalances) => string[]) => [
@@ -916,7 +977,7 @@ class RowReader {
     }
 
     /** An account's line, from a group's responses or from a query of the account alone. */
-    account(name: string, source: RootSource): Line {
+    account(name: string, source: SourceBalances): Line {
         const current = accountBalances(source.current, name);
         const previous = source.previous && accountBalances(source.previous, name);
         const known = this.accounts.get(name);
@@ -976,7 +1037,7 @@ interface ComputedReport {
 }
 
 /** The line of a group or an account, read from the responses of its root, by its id. */
-function nodeLine(node: ReportNode, source: RootSource, reader: RowReader): Line {
+function nodeLine(node: ReportNode, source: SourceBalances, reader: RowReader): Line {
     const line =
         node.kind === 'group' ? reader.group(node.name, source) : reader.account(node.name, source);
     return { ...line, id: node.id, type: node.type };
@@ -994,7 +1055,7 @@ function lineSeries(line: Line): ChartSeries {
 }
 
 /** The report of a group or an account, read from the responses of its root. */
-function nodeReport(node: ReportNode, source: RootSource, reader: RowReader): ComputedReport {
+function nodeReport(node: ReportNode, source: SourceBalances, reader: RowReader): ComputedReport {
     const line = nodeLine(node, source, reader);
     return {
         root: { id: node.id, name: node.name, type: node.type, color: TYPE_COLORS[node.type] },
@@ -1014,12 +1075,12 @@ function nodeReport(node: ReportNode, source: RootSource, reader: RowReader): Co
 function calculatedNetResult(
     snapshot: Snapshot,
     roots: CalculatedRoots,
-    sources: ReadonlyMap<string, RootSource>,
+    sources: ReadonlyMap<string, SourceBalances>,
     reader: RowReader
 ): ComputedReport {
     const all = [...roots.incoming, ...roots.outgoing];
     const held = all.flatMap(id => {
-        const { current, previous } = sourceOf(sources, id);
+        const { current, previous } = balancesOf(sources, id);
         const read = [current, previous ?? []].flat();
         return [...new Set(read.flatMap(balances => Object.keys(balances.accounts)))];
     });
@@ -1027,7 +1088,7 @@ function calculatedNetResult(
         throw new ReportError('no_net_result', 'Activity roots of the Book share accounts');
     }
     const lines = (ids: string[]) =>
-        ids.map(id => reader.group(snapshot.groups[id].name, sourceOf(sources, id)));
+        ids.map(id => reader.group(snapshot.groups[id].name, balancesOf(sources, id)));
     const incoming = lines(roots.incoming);
     const outgoing = lines(roots.outgoing);
     const sum = (measures: Measure[]): Measure =>

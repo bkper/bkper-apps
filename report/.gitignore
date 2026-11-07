@@ -40,3 +40,6 @@ client/dev/specs/local/
 
 # Report file bundle (npm run build:report-file)
 server/src/generated/
+
+# Local scratch scripts
+scripts/.tmp/

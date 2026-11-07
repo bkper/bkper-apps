@@ -102,6 +102,10 @@ bun run test              # All of the above
 
 Tests for removed code were deleted with it. Short failure characterizations and API safety/contract tests cover the discovery API. API routes rely on Platform authentication and outbound authorization, not the legacy event headers. Run `bun run test` after each step.
 
+## Evaluations
+
+`eval/system-one/` compares System One decision models on synthetic discovery cases; it is not part of the app bundle. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
+
 ## Check and deploy
 
 There is no CI workflow for this app. Run these from this directory: check locally, then deploy by hand with separate approval for each live step.

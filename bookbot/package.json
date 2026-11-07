@@ -10,6 +10,7 @@
         "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
         "build": "bun run typecheck && wrangler deploy --dry-run --outdir dist",
         "test:unit": "env -u BKPER_AI_BASE_URL -u BKPER_AI_OAUTH_TOKEN bun test",
+        "eval:system-one": "bun eval/system-one/run.ts",
         "test": "bun run build && bun run api:check && bun run typecheck:tests && bun run test:unit"
     },
     "devDependencies": {

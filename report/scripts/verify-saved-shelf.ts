@@ -11,6 +11,8 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
+import { withoutIsolates } from 'report-shared/bidi';
+import { CACHE_MS } from '../client/src/state/cache-window.ts';
 import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
 
 const APP = 'http://localhost:5207';
@@ -204,6 +206,8 @@ try {
                     blocked.push(`${req.method()} ${url.origin}${url.pathname}`);
                     return route.abort();
                 });
+                // A fake clock that runs on its own, moved ahead to expire the report cache.
+                await context.clock.install();
                 await page.goto(`${HOST}/books/fixture-book/transactions?app=report`);
                 const frame = page.frameLocator('iframe');
                 const shelf = frame.locator('report-shelf');
@@ -253,15 +257,29 @@ try {
                 const savedPrompt = shelf
                     .locator('.saved-prompt')
                     .filter({ hasText: prompt.trim() });
+                const prompted = () => requested.filter(isPromptBody).length;
+                const promptsBefore = prompted();
                 await savedPrompt.click();
                 await page.waitForTimeout(100);
                 await savedPrompt.click();
                 await page.waitForTimeout(100);
-                assert.deepEqual(
-                    requested.slice(-2),
-                    [{ prompt: prompt.trim() }, { prompt: prompt.trim() }],
-                    'Each saved click makes a fresh prompt request'
+                assert.equal(
+                    prompted(),
+                    promptsBefore + 1,
+                    'A saved click within a minute shows its report from memory'
                 );
+                await context.clock.fastForward(CACHE_MS);
+                await savedPrompt.click();
+                await page.waitForTimeout(100);
+                assert.equal(
+                    prompted(),
+                    promptsBefore + 2,
+                    'After a minute a saved click resolves its text again'
+                );
+                assert.deepEqual(requested.filter(isPromptBody).slice(-2), [
+                    { prompt: prompt.trim() },
+                    { prompt: prompt.trim() },
+                ]);
                 const geometry = await frame.locator('report-page').evaluate(element => {
                     const root = element.shadowRoot!;
                     const input = root.querySelector('wa-input')!.getBoundingClientRect();
@@ -333,7 +351,7 @@ try {
                 assert.deepEqual(blocked, [], 'All external API traffic was mocked');
                 assert.deepEqual(errors, [], 'No unexpected browser errors');
                 console.log(
-                    `PASS ${name}: shelf, Save/retry, fresh clicks, remove/retry, reload, read-only, input and viewport`
+                    `PASS ${name}: shelf, Save/retry, saved clicks within and after a minute, remove/retry, reload, read-only, input and viewport`
                 );
                 scenarios++;
                 await context.close();
@@ -350,6 +368,7 @@ try {
                 reducedMotion: 'reduce',
             });
             const errors: string[] = [];
+            const prompts = { count: 0 };
             const page = await context.newPage();
             page.on('pageerror', error => errors.push(error.message));
             page.on('console', message => {
@@ -383,6 +402,8 @@ try {
                     });
                 }
                 if (url.origin === APP && url.pathname.startsWith('/api/')) {
+                    if (url.pathname.endsWith('/report') && isPromptBody(req.postDataJSON()))
+                        prompts.count++;
                     const response = await session.request(
                         new Request(req.url(), {
                             method: req.method(),
@@ -400,12 +421,21 @@ try {
                 errors.push(`Unexpected network: ${req.method()} ${url.origin}${url.pathname}`);
                 return route.abort();
             });
+            await context.clock.install();
             await page.goto(`${HOST}/books/fixture-a/transactions?app=report`);
             const panel = page.frames().find(frame => frame.url().startsWith(APP));
             assert(panel);
             const frame = page.frameLocator('iframe');
             await frame.locator('report-suggestions wa-button').first().waitFor();
-            return { context, page, panel, frame, shelf: frame.locator('report-shelf'), errors };
+            return {
+                context,
+                page,
+                panel,
+                frame,
+                shelf: frame.locator('report-shelf'),
+                errors,
+                prompts,
+            };
         })
     );
     const [a, b] = collaborators;
@@ -444,15 +474,32 @@ try {
         await b.frame.locator('report-view').waitFor();
         return body;
     };
-    await open('2026-10');
-    await open('2026-10');
+    /** A click within a minute of the last request shows that report again, asking nothing. */
+    const reopen = async (shown: ReportResponse) => {
+        const before = b.prompts.count;
+        await b.shelf.locator('.saved-prompt').click();
+        await b.page.waitForTimeout(100);
+        assert.equal(b.prompts.count, before, 'A saved click within a minute asks nothing');
+        const root = shown.spec.elements[shown.spec.root];
+        assert(root?.type === 'Report');
+        const subtitle = withoutIsolates(root.props.subtitle);
+        assert(subtitle, 'The report names its period');
+        await b.frame.locator('report-view').getByText(subtitle).first().waitFor();
+    };
+    const first = await open('2026-10');
+    await reopen(first);
+    await b.context.clock.fastForward(CACHE_MS);
+    const october = await open('2026-10');
     await captureWorkflow('shared');
     workflow.advance();
+    // Within the minute the click still shows October; afterwards the period rolls forward.
+    await reopen(october);
+    await b.context.clock.fastForward(CACHE_MS);
     await open('2026-11');
     assert.equal(
         workflow.decisions.length,
         decisionStart + 3,
-        'Every click resolves the original prompt'
+        'Every click after a minute resolves the original prompt'
     );
     assert.deepEqual(
         workflow.decisions.slice(-3).map(item => item.state.today),
@@ -489,9 +536,13 @@ try {
     }
     scenarios++;
     console.log(
-        'PASS real route/service workflow: two browsers, shared reload/reopen, fresh prompt clicks, rolling dates, cross-Book isolation, downgrade and recovery'
+        'PASS real route/service workflow: two browsers, shared reload/reopen, saved clicks within and after a minute, rolling dates, cross-Book isolation, downgrade and recovery'
     );
 } finally {
     await browser.close();
 }
 console.log(`${scenarios} browser scenarios; ${screenshotCount} screenshots in ${screenshots}`);
+
+function isPromptBody(body: unknown): boolean {
+    return typeof body === 'object' && body !== null && 'prompt' in body;
+}

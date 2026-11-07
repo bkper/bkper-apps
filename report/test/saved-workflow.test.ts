@@ -4,6 +4,7 @@ import { savedWorkflow, WORKFLOW_PROMPT } from '../scripts/fixtures/saved-workfl
 import type { AuthSessionCallbacks } from '../client/src/auth/auth-session';
 import { createAppApi, type ReportResponse } from '../client/src/api/app-api';
 import { AppState } from '../client/src/state/app-state';
+import { CACHE_MS } from '../client/src/state/cache-window';
 import type { RoutePage } from '../client/src/state/route';
 
 // Only in-process Hono requests and injected decision responses are allowed.
@@ -22,6 +23,10 @@ afterEach(() => {
 
 type Workflow = Awaited<ReturnType<typeof savedWorkflow>>;
 type Session = ReturnType<Workflow['session']>;
+
+/** The clients' fake clock: report caches last {@link CACHE_MS} of it. */
+const clock = { now: 0 };
+beforeEach(() => void (clock.now = 1_000_000));
 
 async function client(session: Session, href = 'http://localhost:5207/?book=fixture-a') {
     const page: RoutePage = {
@@ -61,6 +66,7 @@ async function client(session: Session, href = 'http://localhost:5207/?book=fixt
         createSavedReportsApi: () => session.api,
         loadRenderer: async () => undefined,
         loadStrings: async () => undefined,
+        now: () => clock.now,
     });
     state.connect();
     await callbacks.onLoginSuccess?.();
@@ -88,6 +94,10 @@ async function click(state: AppState, id: string) {
     return state.reports.report!;
 }
 
+function isIntentBody(body: unknown): boolean {
+    return typeof body === 'object' && body !== null && 'intent' in body;
+}
+
 function answer(report: ReportResponse) {
     const element = Object.values(report.spec.elements).find(item => item.type === 'Answer');
     if (!element || element.type !== 'Answer') throw new Error('Missing answer');
@@ -95,7 +105,7 @@ function answer(report: ReportResponse) {
 }
 
 describe('saved-prompt route/service and independent app clients', () => {
-    it('shares only original text, reopens it freshly on every click and rolls last month forward', async () => {
+    it('shares only original text, reopens it within a minute from memory and rolls last month forward', async () => {
         const fixture = await savedWorkflow();
         const owner = fixture.session('owner', 'OWNER');
         const editor = fixture.session('editor', 'EDITOR');
@@ -120,18 +130,25 @@ describe('saved-prompt route/service and independent app clients', () => {
             await editor.api.saveReport('fixture-a', { prompt: ` ${WORKFLOW_PROMPT} ` })
         ).toEqual(item);
         expect(fixture.savedValues()).toHaveLength(1);
-        // Populate this independent client's normal prompt and intent caches first.
+        // This independent client's own typed request of the same text answers its saved click.
         b.state.reports.input(WORKFLOW_PROMPT);
         b.state.reports.submit();
         await vi.waitFor(() => expect(b.state.reports.originalPrompt).toBe(WORKFLOW_PROMPT));
+        const typed = b.state.reports.report!;
+        b.state.reports.chooseChart('ranked-bar');
+        b.state.openSavedReport(item.id);
+        expect(b.state.reports.report).toBe(typed);
+        expect(b.state.reports.pending).toBe(false);
+        expect(b.state.reports.chart).toBeUndefined();
+        clock.now += CACHE_MS;
         const first = await click(b.state, item.id);
         expect(answer(first).amount).toBe('1200.5');
         expect(first.query).toContain('after:2026-10-01 before:2026-11-01');
-        expect(b.state.reports.chart).toBeUndefined();
-        // The cached typed result must not satisfy either repeated saved click.
-        const repeat = await click(b.state, item.id);
-        expect(repeat.query).toBe(first.query);
+        // Within a minute a click shows the same report, though the date has changed since.
         fixture.advance();
+        b.state.openSavedReport(item.id);
+        expect(b.state.reports.report).toBe(first);
+        clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
         expect(later.intent.period).toBe('last_month');
         expect(later.query).toContain('after:2026-11-01 before:2026-12-01');
@@ -140,19 +157,19 @@ describe('saved-prompt route/service and independent app clients', () => {
             { request: WORKFLOW_PROMPT, today: '2026-11-05' },
             { request: WORKFLOW_PROMPT, today: '2026-11-05' },
             { request: WORKFLOW_PROMPT, today: '2026-11-05' },
-            { request: WORKFLOW_PROMPT, today: '2026-11-05' },
             { request: WORKFLOW_PROMPT, today: '2026-12-05' },
         ]);
-        expect(
-            fixture.requests
-                .filter(item => item.session === 'editor')
-                .slice(-3)
-                .map(item => item.body)
-        ).toEqual([
+        // The typed request and the two clicks after a minute each; the suggestions' reports,
+        // by intent, are fetched again with the suggestions after each minute.
+        const editorBodies = () =>
+            fixture.requests.filter(item => item.session === 'editor').map(item => item.body);
+        expect(editorBodies().filter(body => !isIntentBody(body))).toEqual([
             { prompt: WORKFLOW_PROMPT },
             { prompt: WORKFLOW_PROMPT },
             { prompt: WORKFLOW_PROMPT },
         ]);
+        expect(b.state.reports.suggestions).toHaveLength(3);
+        await vi.waitFor(() => expect(editorBodies().filter(isIntentBody)).toHaveLength(9));
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify(WORKFLOW_PROMPT),
         ]);

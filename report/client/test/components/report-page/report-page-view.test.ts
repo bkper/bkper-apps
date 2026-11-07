@@ -6,6 +6,7 @@ import { ReportPage } from '../../../src/components/report-page/report-page-view
 import { SELECT_CHART } from '../../../src/report/index';
 import { CHOOSE_SUGGESTION } from '../../../src/components/report-suggestions';
 import { AppState } from '../../../src/state/app-state';
+import { CACHE_MS } from '../../../src/state/cache-window';
 import type { ReportApi } from '../../../src/state/reports';
 import type { RoutePage } from '../../../src/state/route';
 import type { SavedReportsApi } from '../../../src/state/saved-reports';
@@ -58,6 +59,7 @@ function createPage(
         api?: ReportApi;
         shelfApi?: SavedReportsApi;
         getBook?: () => Promise<{ id: string; name: string }>;
+        now?: () => number;
     } = {}
 ): ReportPage {
     const href = options.href ?? 'https://report.bkper.app/?book=book-1';
@@ -94,6 +96,7 @@ function createPage(
         }),
         loadRenderer: async () => undefined,
         logger: { error: () => undefined },
+        now: options.now,
     });
     const view = new ReportPage();
     view.state = state;
@@ -417,9 +420,11 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(layout(view).at(-2)).toBe('report-shelf');
     });
 
-    it('opens a saved prompt through a new prompt request on every click, including suggestions', async () => {
+    it('opens a saved prompt by its text, from memory within a minute, even matching a suggestion', async () => {
         const request = vi.fn<ReportApi['report']>(async () => report('Fresh'));
+        const clock = { now: 1_000_000 };
         const view = createPage({
+            now: () => clock.now,
             api: { suggestions: async () => SUGGESTIONS, report: request },
             shelfApi: {
                 ...emptyShelf(),
@@ -435,9 +440,15 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         await settle(view);
         control(view, '.saved-prompt').click();
         await settle(view);
-        expect(request).toHaveBeenCalledTimes(2);
-        for (const call of request.mock.calls)
-            expect(call[1]).toEqual({ prompt: SUGGESTIONS[0].text });
+        expect(request).toHaveBeenCalledTimes(1);
+        clock.now += CACHE_MS;
+        control(view, '.saved-prompt').click();
+        await settle(view);
+        const prompts = request.mock.calls.filter(call => call[1].prompt !== undefined);
+        expect(prompts.map(call => call[1])).toEqual([
+            { prompt: SUGGESTIONS[0].text },
+            { prompt: SUGGESTIONS[0].text },
+        ]);
         expect(shadow(view).activeElement).toBe(input(view));
     });
 

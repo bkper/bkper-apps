@@ -31,6 +31,8 @@ export interface AppStateOptions {
     /** Loads the strings of a language; by default its code-split chunk. */
     loadStrings?: (lang: string) => Promise<void>;
     logger?: Pick<Console, 'error'>;
+    /** The clock of the report caches; by default `Date.now`. */
+    now?: () => number;
 }
 
 /** Creates the app's stores and wires them together. Components get it as their `state`. */
@@ -77,6 +79,7 @@ export class AppState {
         this.reports = new Reports(options.createReportApi?.(this.auth) ?? api, this.route, {
             language,
             logger,
+            now: options.now,
         });
         this.savedReports = new SavedReports(options.createSavedReportsApi?.(this.auth) ?? api);
         // Back or Forward, or Bkper changing the app's URL, shows what the URL selects.
@@ -134,7 +137,10 @@ export class AppState {
         this.reports.open(bookId);
     };
 
-    /** Open the active shelf's original text through fresh prompt resolution, every time. */
+    /**
+     * Open the active shelf's original text: its report of the last minute, else the text
+     * resolved again (see `Reports.runSaved`).
+     */
     readonly openSavedReport = (id: string): void => {
         if (!this.savedReports.canList || this.savedReports.bookId !== this.reports.bookId) return;
         const item = this.savedReports.items.find(report => report.id === id);

@@ -121,8 +121,9 @@ describe('AppState', () => {
         expect(asked).toEqual(['suggestions book-1', 'report book-1 expenses this year']);
         state.openSavedReport(SAVED.id);
         state.openSavedReport(SAVED.id);
+        // The typed request differs in casing, so the saved text is asked once, by itself.
         expect(asked.slice(-2)).toEqual([
-            'report book-1 Expenses this year',
+            'report book-1 expenses this year',
             'report book-1 Expenses this year',
         ]);
         state.select('book-2');

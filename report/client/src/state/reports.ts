@@ -8,6 +8,7 @@ import {
     type ReportResponse,
     type Suggestion,
 } from '../api/app-api';
+import { CACHE_MS, isFresh } from './cache-window';
 import type { Route } from './route';
 import { reactive, Store } from './store';
 
@@ -46,6 +47,8 @@ export interface ReportsOptions {
     /** The language of the interface, for the suggestions and the reports they ask for. */
     language: string;
     logger: Pick<Console, 'error'>;
+    /** The clock of the caches, in milliseconds; by default `Date.now`, which runs through sleep. */
+    now?: () => number;
 }
 
 /** A report asked for, shared by everyone who asks the same; `value` once it answers. */
@@ -54,6 +57,8 @@ interface Entry {
     value?: ReportResponse;
     /** Only a request actually made by prompt has an original prompt. */
     prompt?: string;
+    /** When it was asked for: it is reused for {@link CACHE_MS}. */
+    at: number;
 }
 
 /**
@@ -62,8 +67,9 @@ interface Entry {
  * A request goes out {@link DEBOUNCE_MS} after the last keystroke once it has {@link MIN_WORDS}
  * words, or at once on Enter. A newer request cancels the one in flight, and only the latest
  * answer is shown; the last report stays until then. Reports are remembered by request and by
- * intent, and the suggestions' reports are fetched as soon as the suggestions arrive, so
- * choosing one shows it from memory.
+ * intent for {@link CACHE_MS}, saved requests too, and the suggestions' reports are fetched as
+ * soon as the suggestions arrive, so choosing one shows it from memory. The suggestions come
+ * from the Book's map: the first request after {@link CACHE_MS} asks them again.
  */
 export class Reports extends Store {
     /** The request, as typed. */
@@ -89,6 +95,9 @@ export class Reports extends Store {
     private inFlight?: { key: string; controller: AbortController };
     private timer?: ReturnType<typeof setTimeout>;
     private suggestionsRequest?: AbortController;
+    /** When the suggestions were last asked for. */
+    private suggestionsAt?: number;
+    private readonly now: () => number;
 
     constructor(
         private readonly api: ReportApi,
@@ -96,6 +105,7 @@ export class Reports extends Store {
         private readonly options: ReportsOptions
     ) {
         super();
+        this.now = options.now ?? Date.now;
     }
 
     /** The chart the person chose for the report shown, from its previews; none for its main one. */
@@ -132,6 +142,7 @@ export class Reports extends Store {
         this.cancel();
         this.suggestionsRequest?.abort();
         this.suggestionsRequest = undefined;
+        this.suggestionsAt = undefined;
         this.openBookId = bookId;
         this.cache = new Map();
         this.report = undefined;
@@ -185,15 +196,16 @@ export class Reports extends Store {
     }
 
     /**
-     * Open a saved original request against current data. Never reuse a client result or a
-     * resolved intent, including a suggestion with the same text or a repeated saved click.
+     * Open a saved original request: the report of exactly its text within {@link CACHE_MS},
+     * else its text resolved again. Never a resolved intent, such as a suggestion's with the same
+     * text, nor the report of another spacing or casing of it.
      */
     runSaved(prompt: string): void {
         this.clearTimer();
         this.text = prompt;
         this.route.setPrompt(prompt);
         this.notice = undefined;
-        if (prompt.trim()) this.run(prompt, undefined, { fresh: true });
+        if (prompt.trim()) this.run(prompt, undefined, { saved: true });
     }
 
     /** The person chose another chart of the report shown: it shows with no new request. */
@@ -218,17 +230,20 @@ export class Reports extends Store {
         {
             language = this.language,
             label = false,
-            fresh = false,
+            saved = false,
         }: {
             language?: string;
             label?: boolean;
-            fresh?: boolean;
+            saved?: boolean;
         } = {}
     ): void {
         const bookId = this.openBookId;
         if (!bookId) return;
+        this.refreshSuggestions(bookId);
         const key = intent ? intentKey(intent, language) : promptKey(text);
-        const cached = fresh ? undefined : this.cache.get(key);
+        const remembered = this.remembered(key);
+        // A saved request is its exact text, so its source stays that text.
+        const cached = saved && remembered?.prompt !== text.trim() ? undefined : remembered;
         // The label replaces only the text the report was asked with, never later typing.
         const labelFor = label ? this.text : undefined;
         if (cached?.value) {
@@ -236,14 +251,14 @@ export class Reports extends Store {
             this.show(cached.value, intent ? undefined : cached.prompt, labelFor);
             return;
         }
-        if (!fresh && this.inFlight?.key === key) return;
+        if (this.inFlight?.key === key && (cached || !saved)) return;
         this.cancel();
         const sequence = this.sequence;
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
             const body: ReportRequest = intent ? { intent, language } : { prompt: text.trim() };
-            entry = this.request(key, bookId, body, controller.signal, !fresh);
+            entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
         const originalPrompt = intent ? undefined : entry.prompt;
@@ -263,21 +278,20 @@ export class Reports extends Store {
         );
     }
 
-    /** Ask the API, remembering the answer by request and by intent; failures are forgotten. */
-    private request(
-        key: string,
-        bookId: string,
-        body: ReportRequest,
-        signal?: AbortSignal,
-        remember = true
-    ): Entry {
+    /**
+     * Ask the API, remembering the answer by request and by intent for {@link CACHE_MS} from
+     * now; failures are forgotten.
+     */
+    private request(key: string, bookId: string, body: ReportRequest, signal?: AbortSignal): Entry {
+        this.forgetExpired();
         const cache = this.cache;
         const entry: Entry = {
             prompt: body.prompt,
+            at: this.now(),
             promise: this.api.report(bookId, body, { signal }).then(
                 report => {
                     entry.value = report;
-                    if (remember) cache.set(intentKey(report.intent, report.language), entry);
+                    cache.set(intentKey(report.intent, report.language), entry);
                     return report;
                 },
                 (error: unknown) => {
@@ -286,8 +300,24 @@ export class Reports extends Store {
                 }
             ),
         };
-        if (remember) cache.set(key, entry);
+        cache.set(key, entry);
         return entry;
+    }
+
+    /** The report remembered under `key`, while it is fresh; an expired one is forgotten. */
+    private remembered(key: string): Entry | undefined {
+        const entry = this.cache.get(key);
+        if (!entry || this.fresh(entry.at)) return entry;
+        this.cache.delete(key);
+        return undefined;
+    }
+
+    private forgetExpired(): void {
+        for (const [key, entry] of this.cache) if (!this.fresh(entry.at)) this.cache.delete(key);
+    }
+
+    private fresh(at: number): boolean {
+        return isFresh(at, this.now());
     }
 
     /** Show a report; when the input still holds `labelFor`, its title and period replace it. */
@@ -315,10 +345,21 @@ export class Reports extends Store {
         this.notice = 'error_unexpected';
     }
 
-    /** Load the suggestions, then fetch their reports so choosing one is instant. */
+    /** Ask the suggestions again once they are older than {@link CACHE_MS}, and not on their way. */
+    private refreshSuggestions(bookId: string): void {
+        if (this.suggestionsRequest || this.suggestionsAt === undefined) return;
+        if (!this.fresh(this.suggestionsAt)) void this.loadSuggestions(bookId);
+    }
+
+    /**
+     * Load the suggestions, then fetch their reports so choosing one is instant. Asked again,
+     * the suggestions shown stay until new ones arrive, and stay if those fail.
+     */
     private async loadSuggestions(bookId: string): Promise<void> {
         const controller = new AbortController();
+        const again = this.suggestions !== undefined;
         this.suggestionsRequest = controller;
+        this.suggestionsAt = this.now();
         try {
             const suggestions = await this.api.suggestions(bookId, {
                 language: this.language,
@@ -328,21 +369,23 @@ export class Reports extends Store {
             this.suggestions = suggestions;
             for (const suggestion of suggestions) this.prefetch(bookId, suggestion);
         } catch (error) {
-            if (controller.signal.aborted || isAbort(error)) return;
+            if (controller.signal.aborted || isAbort(error) || again) return;
             this.suggestions = [];
             this.failed(error);
+        } finally {
+            if (this.suggestionsRequest === controller) this.suggestionsRequest = undefined;
         }
     }
 
     private prefetch(bookId: string, suggestion: Suggestion): void {
         const key = intentKey(suggestion.intent, this.language);
         const entry =
-            this.cache.get(key) ??
+            this.remembered(key) ??
             this.request(key, bookId, { intent: suggestion.intent, language: this.language });
         // The text of a suggestion asks for its report too.
         const textKey = promptKey(suggestion.text);
         const cache = this.cache;
-        if (!cache.has(textKey)) cache.set(textKey, entry);
+        if (!this.remembered(textKey)) cache.set(textKey, entry);
         entry.promise.catch(() => {
             if (cache.get(textKey) === entry) cache.delete(textKey);
         });

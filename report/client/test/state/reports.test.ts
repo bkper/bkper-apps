@@ -5,6 +5,7 @@ import {
     type ReportResponse,
     type Suggestion,
 } from '../../src/api/app-api';
+import { CACHE_MS } from '../../src/state/cache-window';
 import { DEBOUNCE_MS, Reports, type ReportApi } from '../../src/state/reports';
 import { Route, type RoutePage } from '../../src/state/route';
 
@@ -61,10 +62,12 @@ interface Call {
 function createApi(suggestions: Suggestion[] = SUGGESTIONS) {
     const calls: Call[] = [];
     const suggestionCalls: { bookId: string; language?: string }[] = [];
+    /** What the next suggestions requests answer, in order; then `suggestions`. */
+    const nextSuggestions: (() => Promise<Suggestion[]>)[] = [];
     const api: ReportApi = {
         suggestions: async (bookId, options) => {
             suggestionCalls.push({ bookId, language: options.language });
-            return suggestions;
+            return (await nextSuggestions.shift()?.()) ?? suggestions;
         },
         report: (bookId, body, options) =>
             new Promise((resolve, reject) => {
@@ -73,14 +76,21 @@ function createApi(suggestions: Suggestion[] = SUGGESTIONS) {
     };
     const prompts = () => calls.flatMap(call => (call.body.prompt ? [call.body.prompt] : []));
     const intentCalls = () => calls.filter(call => call.body.intent);
-    return { api, calls, prompts, intentCalls, suggestionCalls };
+    return { api, calls, prompts, intentCalls, suggestionCalls, nextSuggestions };
 }
 
 function createReports(href = 'https://report.bkper.app/?book=book-1', api = createApi()) {
     const page = createPage(href);
     const route = new Route(page, false);
-    const reports = new Reports(api.api, route, { language: 'pt', logger: { error: () => {} } });
-    return { reports, route, page, ...api };
+    // A fake clock of the client caches: tests move it with `tick`.
+    const clock = { now: 1_000_000 };
+    const reports = new Reports(api.api, route, {
+        language: 'pt',
+        logger: { error: () => {} },
+        now: () => clock.now,
+    });
+    const tick = (ms: number) => void (clock.now += ms);
+    return { reports, route, page, clock, tick, ...api };
 }
 
 /** Let resolved promises run their continuations. */
@@ -491,7 +501,40 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBeUndefined();
     });
 
-    it('runs saved text fresh every time, bypassing suggested, prompt and intent caches', async () => {
+    it('reuses a saved click’s report for a minute, then resolves its text again', async () => {
+        const { reports, calls, prompts, tick } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.runSaved('Expenses last month');
+        // A repeated click while it is on its way asks nothing more.
+        reports.runSaved('Expenses last month');
+        expect(prompts()).toEqual(['Expenses last month']);
+        calls[0].resolve(withMain(response('October'), 'bar'));
+        await settle();
+        reports.chooseChart('pie');
+
+        tick(CACHE_MS - 1);
+        reports.runSaved('Expenses last month');
+        expect(prompts()).toEqual(['Expenses last month']);
+        expect(title(reports.report)).toBe('October');
+        expect(reports.chart).toBeUndefined();
+        expect(reports.originalPrompt).toBe('Expenses last month');
+        // Typing the saved text answers from the same memory.
+        reports.input('expenses LAST month');
+        reports.submit();
+        expect(calls).toHaveLength(1);
+
+        tick(1);
+        reports.runSaved('Expenses last month');
+        expect(calls[1].body).toEqual({ prompt: 'Expenses last month' });
+        expect(title(reports.report)).toBe('October');
+        expect(reports.pending).toBe(true);
+        calls[1].resolve(withMain(response('November'), 'bar'));
+        await settle();
+        expect(title(reports.report)).toBe('November');
+        expect(reports.originalPrompt).toBe('Expenses last month');
+    });
+
+    it('reuses for a saved click only a report of the same text, never an intent or other casing', async () => {
         const { reports, calls, intentCalls, prompts } = createReports();
         reports.open('book-1');
         await settle();
@@ -499,43 +542,45 @@ describe('Reports', () => {
         await settle();
         reports.choose(SUGGESTIONS[0]);
         reports.chooseChart('pie');
+
         reports.runSaved(SUGGESTIONS[0].text);
         expect(prompts()).toEqual([SUGGESTIONS[0].text]);
-        expect(calls.at(-1)?.body).toEqual({ prompt: SUGGESTIONS[0].text });
-        calls.at(-1)?.resolve(withMain(response('Fresh one'), 'bar'));
+        calls.at(-1)?.resolve(withMain(response('Resolved'), 'bar'));
         await settle();
-        expect(title(reports.report)).toBe('Fresh one');
+        expect(title(reports.report)).toBe('Resolved');
         expect(reports.chart).toBeUndefined();
         expect(reports.originalPrompt).toBe(SUGGESTIONS[0].text);
-        reports.runSaved(SUGGESTIONS[0].text);
-        const old = calls.at(-1)!;
-        reports.runSaved(SUGGESTIONS[0].text);
-        expect(old.signal?.aborted).toBe(true);
-        expect(prompts()).toEqual(Array(3).fill(SUGGESTIONS[0].text));
-        calls.at(-1)?.resolve(withMain(response('Fresh latest'), 'bar'));
+
+        reports.input('expenses   THIS year');
+        reports.submit();
+        calls.at(-1)?.resolve(withMain(response('Typed'), 'bar'));
         await settle();
-        old.resolve(withMain(response('Stale saved response'), 'bar'));
+        reports.runSaved('Expenses this year');
+        expect(prompts().slice(-2)).toEqual(['expenses   THIS year', 'Expenses this year']);
+        calls.at(-1)?.resolve(withMain(response('Saved'), 'bar'));
         await settle();
-        expect(title(reports.report)).toBe('Fresh latest');
-        expect(reports.pending).toBe(false);
+        expect(title(reports.report)).toBe('Saved');
+        expect(reports.originalPrompt).toBe('Expenses this year');
     });
 
-    it('bypasses an existing typed-prompt cache and retries failed saved execution fresh', async () => {
+    it('retries a failed saved execution, keeping the last report', async () => {
         const { reports, calls, prompts } = createReports(undefined, createApi([]));
         reports.open('book-1');
         reports.input('Expenses this year');
         reports.submit();
         calls[0].resolve(withMain(response('Typed earlier'), 'bar'));
         await settle();
-        reports.runSaved('Expenses this year');
-        expect(prompts()).toEqual(['Expenses this year', 'Expenses this year']);
-        expect(calls[1].body).toEqual({ prompt: 'Expenses this year' });
+        reports.runSaved('Expenses this month');
         calls[1].reject(new AppApiError('not a report', 422, 'not_a_report'));
         await settle();
         expect(title(reports.report)).toBe('Typed earlier');
         expect(reports.notice).toBe('hint_not_a_report');
-        reports.runSaved('Expenses this year');
-        expect(calls[2].body).toEqual({ prompt: 'Expenses this year' });
+        reports.runSaved('Expenses this month');
+        expect(prompts()).toEqual([
+            'Expenses this year',
+            'Expenses this month',
+            'Expenses this month',
+        ]);
         calls[2].resolve(withMain(response('Latest'), 'bar'));
         await settle();
         expect(title(reports.report)).toBe('Latest');
@@ -570,6 +615,205 @@ describe('Reports', () => {
         expect(title(reports.report)).toBe('Book B');
         expect(calls[1].body).toEqual({ prompt: 'Expenses this year' });
         expect(reports.originalPrompt).toBe('Expenses this year');
+    });
+
+    describe('a minute of memory', () => {
+        it(`shows a report from memory for ${CACHE_MS} ms, then asks again`, async () => {
+            const { reports, calls, prompts, tick } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.input('expenses this month');
+            reports.submit();
+            calls[0].resolve(response('Early'));
+            await settle();
+
+            tick(CACHE_MS - 1);
+            reports.input('other report');
+            reports.submit();
+            reports.input('Expenses this month');
+            reports.submit();
+            expect(title(reports.report)).toBe('Early');
+            expect(prompts()).toEqual(['expenses this month', 'other report']);
+
+            tick(1);
+            reports.input('expenses this month ');
+            reports.submit();
+            expect(prompts()).toEqual([
+                'expenses this month',
+                'other report',
+                'expenses this month',
+            ]);
+            // The report stays on screen while the new one is on its way.
+            expect(title(reports.report)).toBe('Early');
+            expect(reports.pending).toBe(true);
+            calls[2].resolve(response('Later'));
+            await settle();
+            expect(title(reports.report)).toBe('Later');
+        });
+
+        it('forgets the report of an intent after a minute too, including by state', async () => {
+            const { reports, calls, tick } = createReports(undefined, createApi([]));
+            const state = { intent: SUGGESTIONS[1].intent, language: 'pt' };
+            reports.open('book-1', '', state);
+            calls[0].resolve(response('Despesas'));
+            await settle();
+            reports.openState(state);
+            expect(calls).toHaveLength(1);
+
+            tick(CACHE_MS);
+            reports.openState(state);
+            expect(calls).toHaveLength(2);
+            expect(calls[1].body).toEqual({ intent: state.intent, language: 'pt' });
+        });
+
+        it('shows a stale answer that arrives late once, but never reuses it', async () => {
+            const { reports, calls, prompts, tick } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.input('expenses this month');
+            reports.submit();
+            tick(CACHE_MS + 1);
+            calls[0].resolve(response('Slow'));
+            await settle();
+            expect(title(reports.report)).toBe('Slow');
+
+            reports.submit();
+            expect(prompts()).toEqual(['expenses this month', 'expenses this month']);
+        });
+
+        it('treats a clock that went back as expired', async () => {
+            const { reports, calls, tick } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.input('expenses this month');
+            reports.submit();
+            calls[0].resolve(response('Before'));
+            await settle();
+
+            tick(-1);
+            reports.submit();
+            expect(calls).toHaveLength(2);
+        });
+
+        it('fetches prefetched suggestions afresh after a minute', async () => {
+            const { reports, intentCalls, tick } = createReports();
+            reports.open('book-1');
+            await settle();
+            intentCalls().forEach((call, index) => call.resolve(response(`Old ${index}`)));
+            await settle();
+
+            tick(CACHE_MS);
+            reports.choose(SUGGESTIONS[1]);
+            expect(reports.pending).toBe(true);
+            expect(title(reports.report)).toBeUndefined();
+            const fresh = intentCalls().filter(
+                call => call.body.intent?.root === SUGGESTIONS[1].intent.root
+            );
+            expect(fresh).toHaveLength(2);
+            fresh[1].resolve(response('New 1'));
+            await settle();
+            expect(title(reports.report)).toBe('New 1');
+        });
+
+        it('asks the suggestions of the Book’s map again after a minute, keeping them until they answer', async () => {
+            const { reports, calls, intentCalls, suggestionCalls, nextSuggestions, tick } =
+                createReports();
+            reports.open('book-1');
+            await settle();
+            intentCalls().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
+            await settle();
+
+            tick(CACHE_MS - 1);
+            reports.input('net result 2011');
+            reports.submit();
+            await settle();
+            expect(suggestionCalls).toHaveLength(1);
+
+            const later: Suggestion[] = [
+                {
+                    text: 'Receitas em 2012',
+                    intent: { root: 'g-3', period: '2012', monthly: false },
+                },
+            ];
+            let answer: (value: Suggestion[]) => void = () => undefined;
+            nextSuggestions.push(() => new Promise(resolve => (answer = resolve)));
+            tick(1);
+            reports.input('despesas 2011');
+            reports.submit();
+            expect(suggestionCalls).toHaveLength(2);
+            // Asking again while they are on their way asks them once.
+            reports.input('despesas 2012');
+            reports.submit();
+            expect(suggestionCalls).toHaveLength(2);
+            expect(reports.suggestions).toEqual(SUGGESTIONS);
+
+            answer(later);
+            await settle();
+            expect(reports.suggestions).toEqual(later);
+            expect(calls.at(-1)?.body).toEqual({ intent: later[0].intent, language: 'pt' });
+        });
+
+        it('keeps the suggestions, without a notice, when asking them again fails', async () => {
+            const { reports, suggestionCalls, nextSuggestions, tick } = createReports(
+                undefined,
+                createApi(SUGGESTIONS)
+            );
+            reports.open('book-1');
+            await settle();
+            nextSuggestions.push(() =>
+                Promise.reject(new AppApiError('Bkper failed', 502, 'upstream_error'))
+            );
+            tick(CACHE_MS);
+            reports.input('despesas 2011');
+            reports.submit();
+            await settle();
+
+            expect(suggestionCalls).toHaveLength(2);
+            expect(reports.suggestions).toEqual(SUGGESTIONS);
+            expect(reports.notice).toBeUndefined();
+            // A failed request waits another minute before asking again.
+            reports.input('despesas 2012');
+            reports.submit();
+            expect(suggestionCalls).toHaveLength(2);
+        });
+
+        it('drops suggestions asked again for a Book left before they answer', async () => {
+            const { reports, suggestionCalls, nextSuggestions, tick } = createReports();
+            reports.open('book-1');
+            await settle();
+            let answer: (value: Suggestion[]) => void = () => undefined;
+            nextSuggestions.push(() => new Promise(resolve => (answer = resolve)));
+            tick(CACHE_MS);
+            reports.input('despesas 2011');
+            reports.submit();
+            expect(suggestionCalls).toHaveLength(2);
+
+            reports.open('book-2');
+            await settle();
+            answer([
+                { text: 'Book 1 only', intent: { root: 'g-9', period: '2011', monthly: false } },
+            ]);
+            await settle();
+
+            expect(suggestionCalls.map(call => call.bookId)).toEqual([
+                'book-1',
+                'book-1',
+                'book-2',
+            ]);
+            expect(reports.suggestions).toEqual(SUGGESTIONS);
+        });
+
+        it('forgets every report of a Book once another opens, within the minute too', async () => {
+            const { reports, calls, prompts } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.input('expenses this month');
+            reports.submit();
+            calls[0].resolve(response('Book 1'));
+            await settle();
+
+            reports.open('book-2');
+            reports.open('book-1', 'expenses this month');
+            expect(prompts()).toEqual(['expenses this month', 'expenses this month']);
+            expect(calls[1].bookId).toBe('book-1');
+            expect(reports.report).toBeUndefined();
+        });
     });
 
     describe('opened by state', () => {

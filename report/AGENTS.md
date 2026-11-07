@@ -305,7 +305,7 @@ The plural `/api/v1/books/{bookId}/reports` is the Book-shared shelf of original
 
 ## Docs for people and agents
 
-`README.md` is the listing page people read (`bkper app get report` shows it too): what Report does, how to open it, examples in several languages, the previews of every chart that fits, the charts one can ask for, when each fits and why one shows dimmed, opening a report from the Agent, what it reads, and its limits. Keep development notes here, not there.
+`README.md` is the listing page people read (`bkper app get report` shows it too), short and in the format of the other apps' listings: one worked example (a request and the report it gives), how to open it, examples in several languages, the charts one can ask for and why one shows dimmed, saving requests, its limits, opening a report from the Agent, and a collapsed API section (`<details data-toc>`) with every route and the report call. Detailed rules belong in the OpenAPI texts, where agents read them; keep development notes here, not there.
 
 Agents decide from `bkper app list -b`, `bkper app get report` and `bkper app api spec report`, so the OpenAPI texts are written for them: the document's `info.description` (`server/src/api/openapi.ts`) is the guide, and each route, field and error repeats what an agent needs where it reads it (`routes.ts`, `schemas.ts`). The call they lead to: `POST /api/v1/books/{bookId}/report` with `{ "prompt": <the person's words, in their language>, "format": "html" }`, its output saved to an `.html` file the agent publishes. `bkper app api request` prints only an error's `message`, so messages say what to do next (`api/errors.ts`), never the request.
 

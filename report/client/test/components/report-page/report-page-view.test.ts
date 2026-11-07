@@ -304,6 +304,92 @@ describe('ReportPage', () => {
         expect(shown?.chart).toBe('pie');
     });
 
+    it('changes into the next report in a transition that captures it once its chart has drawn', async () => {
+        const view = createPage({
+            api: {
+                suggestions: async () => SUGGESTIONS,
+                report: async (_book, body) =>
+                    report('prompt' in body && body.prompt === 'taxes' ? 'Taxes' : 'Net result'),
+            },
+        });
+        view.state.reports.open('book-1');
+        view.state.reports.input('net result');
+        view.state.reports.submit();
+        await settle(view);
+        const shown = shadow(view).querySelector('report-view');
+        if (!shown) throw new Error('No report');
+        // A browser with view transitions scoped to an element, and a chart still to draw.
+        const drawn = deferred<void>();
+        let captured: Promise<void> | undefined;
+        Object.assign(shown, {
+            chartDrawn: () => drawn.promise,
+            startViewTransition: (update: () => Promise<void>) => {
+                captured = update();
+                return {
+                    updateCallbackDone: captured,
+                    ready: captured,
+                    finished: captured,
+                    skipTransition: () => undefined,
+                };
+            },
+        });
+
+        view.state.reports.input('taxes');
+        view.state.reports.submit();
+        await settle(view);
+        let done = false;
+        void captured?.then(() => (done = true));
+        await settle(view);
+
+        expect(captured).toBeDefined();
+        expect(shown.spec).toEqual(report('Taxes').spec);
+        expect(done).toBe(false);
+        drawn.resolve();
+        await captured;
+        expect(done).toBe(true);
+    });
+
+    it('does not wait for the chart where the transition holds the whole page', async () => {
+        const view = createPage({
+            api: {
+                suggestions: async () => SUGGESTIONS,
+                report: async (_book, body) =>
+                    report('prompt' in body && body.prompt === 'taxes' ? 'Taxes' : 'Net result'),
+            },
+        });
+        view.state.reports.open('book-1');
+        view.state.reports.input('net result');
+        view.state.reports.submit();
+        await settle(view);
+        const shown = shadow(view).querySelector('report-view');
+        if (!shown) throw new Error('No report');
+        // Only document transitions: nothing draws until the next page is captured.
+        let captured: Promise<void> | undefined;
+        Object.assign(shown, { chartDrawn: () => new Promise<void>(() => undefined) });
+        Object.assign(document, {
+            startViewTransition: (update: () => Promise<void>) => {
+                captured = update();
+                return {
+                    updateCallbackDone: captured,
+                    ready: captured,
+                    finished: captured,
+                    skipTransition: () => undefined,
+                };
+            },
+        });
+        try {
+            view.state.reports.input('taxes');
+            view.state.reports.submit();
+            await settle(view);
+            await captured;
+
+            expect(captured).toBeDefined();
+            expect(shown.spec).toEqual(report('Taxes').spec);
+        } finally {
+            Reflect.deleteProperty(document, 'startViewTransition');
+        }
+    });
+
     it('shows a quiet hint, or a clear alert when something failed', async () => {
         const view = createPage();
         view.state.reports.fail('hint_not_a_report');

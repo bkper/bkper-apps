@@ -1,4 +1,5 @@
 /** The Chart of a report, drawn by Web Awesome Pro's chart elements. */
+import type WaChart from '@awesome.me/webawesome-pro/dist/components/chart/chart.js';
 import { html } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 import type { ChartView } from './chart-config.js';
@@ -9,6 +10,21 @@ const RANKED_ROW = 2.25;
 const PAIRED_ROW = 3.25;
 const RANKED_AXIS = 2.5;
 const LEGEND = 2;
+
+/**
+ * Whether Chart.js has drawn the chart at the size of its element: it draws a frame or more after
+ * the element updates, at first at the size of the chart it showed before, then fits it.
+ */
+export function drawnAtSize(
+    element: Pick<WaChart, 'chart' | 'clientWidth' | 'clientHeight'>
+): boolean {
+    const chart = element.chart;
+    return (
+        !!chart &&
+        Math.abs(chart.width - element.clientWidth) <= 1 &&
+        Math.abs(chart.height - element.clientHeight) <= 1
+    );
+}
 
 export function renderChart(view: ChartView, kind: string, label: string, dir: 'ltr' | 'rtl') {
     const rows = view.config.data.labels?.length ?? 0;

@@ -16,11 +16,12 @@ import '@awesome.me/webawesome-pro/dist/components/doughnut-chart/doughnut-chart
 import '@awesome.me/webawesome-pro/dist/components/line-chart/line-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/pie-chart/pie-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/sparkline/sparkline.js';
+import type WaChart from '@awesome.me/webawesome-pro/dist/components/chart/chart.js';
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { renderAnswer } from './answer.js';
 import { renderBreakdown } from './breakdown.js';
-import { renderChart } from './chart.js';
+import { drawnAtSize, renderChart } from './chart.js';
 import { chartConfig, chartSwatches, type ChartView } from './chart-config.js';
 import {
     EXPAND_ROW,
@@ -44,6 +45,11 @@ import {
     type ReportSpec,
     type ViewKind,
 } from './spec-types.js';
+
+/** Frames to wait, at most, for the chart to draw at its size. */
+const DRAW_FRAMES = 6;
+/** How long a frame is waited for where the page draws none, such as a hidden one. */
+const FRAME_MS = 50;
 
 type ReportProps = PropsOf<'Report'>;
 type ChartProps = PropsOf<'Chart'>;
@@ -91,6 +97,22 @@ export class ReportView extends LitElement {
     };
     /** The drawings of the previews of the spec, which change only with it. */
     private previews?: { spec: ReportSpec; drawings: Map<ViewKind, TemplateResult> };
+
+    /**
+     * Resolves once the chart shown has drawn at its size, at once without one, and after a few
+     * frames for one that does not draw: Web Awesome's charts draw on a later frame than the
+     * report's update, and fit their size a frame after that. A view transition into this report
+     * waits for it, so it captures the report with its chart, not an empty or squeezed one.
+     */
+    async chartDrawn(): Promise<void> {
+        await this.updateComplete;
+        const chart = this.renderRoot.querySelector<WaChart>('.chart > *');
+        if (!chart) return;
+        await chart.updateComplete;
+        for (let frame = 0; frame < DRAW_FRAMES && !drawnAtSize(chart); frame++) {
+            await nextFrame();
+        }
+    }
 
     protected willUpdate(changed: PropertyValues<this>): void {
         if (changed.has('spec') && !changed.has('chart')) {
@@ -385,6 +407,17 @@ export class ReportView extends LitElement {
         this.chartView = { chart, highlight: highlight?.id, view };
         return view;
     }
+}
+
+/** The next frame, or {@link FRAME_MS} later where the page draws none. */
+function nextFrame(): Promise<void> {
+    return new Promise(resolve => {
+        const timer = setTimeout(resolve, FRAME_MS);
+        requestAnimationFrame(() => {
+            clearTimeout(timer);
+            resolve();
+        });
+    });
 }
 
 declare global {

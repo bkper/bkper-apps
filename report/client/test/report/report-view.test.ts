@@ -543,3 +543,45 @@ describe('<report-view> chart previews', () => {
         expect(shownKind(view)).toBe('bar');
     });
 });
+
+describe('<report-view> chartDrawn', () => {
+    /** The chart element of the report, with the Chart.js chart it drew set by the test. */
+    function chartOf(view: ReportView): HTMLElement & { chart: unknown } {
+        const element = root(view).querySelector('.chart > *');
+        if (!element) {
+            throw new Error('No chart');
+        }
+        // happy-dom has no canvas, so Chart.js never draws; the test says when it has.
+        Object.defineProperty(element, 'chart', { value: null, writable: true });
+        return element as HTMLElement & { chart: unknown };
+    }
+
+    /** A Chart.js chart drawn at a size, as much of one as the chart element uses. */
+    function drawing(width: number, height: number) {
+        return { width, height, update: () => undefined, destroy: () => undefined };
+    }
+
+    it('resolves once the chart has drawn at the size of its element', async () => {
+        const view = await mount(gallerySpec('expenses-by-month'));
+        const element = chartOf(view);
+        let drawn = false;
+        const waiting = view.chartDrawn().then(() => (drawn = true));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        expect(drawn).toBe(false);
+        // Drawn at the last chart's size, as Chart.js does before it fits the next one.
+        element.chart = drawing(element.clientWidth, element.clientHeight + 112);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        expect(drawn).toBe(false);
+        element.chart = drawing(element.clientWidth, element.clientHeight);
+        await waiting;
+        expect(drawn).toBe(true);
+    });
+
+    it('resolves at once without a chart, and in a few frames for one that never draws', async () => {
+        const table = await mount(gallerySpec('expenses-table'));
+        await expect(table.chartDrawn()).resolves.toBeUndefined();
+        const view = await mount(gallerySpec('taxes-donut'));
+        chartOf(view);
+        await expect(view.chartDrawn()).resolves.toBeUndefined();
+    });
+});

@@ -354,16 +354,21 @@ export class ReportPage extends LitElement {
     private follow(): void {
         const next = this.state.reports.report;
         if (next === this.shown || this.morphing) return;
-        const morph = this.reportArea && this.shown && next ? morphOf(this.reportArea) : undefined;
-        if (!morph) {
+        const area = this.reportArea;
+        const morph = area && this.shown && next ? morphOf(area) : undefined;
+        if (!area || !morph) {
             this.shown = next;
             return;
         }
         this.morphing = true;
+        // Scoped to the report, the page keeps drawing while the transition waits, so it captures
+        // the next report with its chart drawn; over the whole page nothing draws until then.
+        const scoped = isViewTransitionScope(area);
         const transition = morph(async () => {
             this.shown = next;
             await this.updateComplete;
-            await this.renderRoot.querySelector('report-view')?.updateComplete;
+            const view = this.renderRoot.querySelector('report-view');
+            await (scoped ? view?.chartDrawn?.() : view?.updateComplete);
         });
         // A report that answered meanwhile follows once this one is in place.
         void transition.updateCallbackDone.finally(() => {

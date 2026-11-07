@@ -3,7 +3,7 @@ import {
     type AuthSession,
     type AuthSessionCallbacks,
 } from '../auth/auth-session';
-import { supportedLanguage } from 'report-shared/languages';
+import { personLanguage } from './language';
 import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
 import { createAppApi, type AppApi, type ReportResponse } from '../api/app-api';
 import { loadReportRenderer } from '../report-loader';
@@ -79,7 +79,7 @@ export class AppState {
         const bookService = (options.createBookService ?? createService)(this.auth);
         this.books = new Books(bookService, this.route, logger);
         const api = createReportApi(this.auth);
-        const language = options.language ?? browserLanguage();
+        const language = options.language ?? personLanguage(document.cookie, navigator.languages);
         this.strings = new Strings(language, options.loadStrings);
         this.reports = new Reports(options.createReportApi?.(this.auth) ?? api, this.route, {
             language,
@@ -191,8 +191,4 @@ function createService(auth: AuthSession): BookService {
 
 function createReportApi(auth: AuthSession): AppApi {
     return createAppApi({ fetch: request => auth.authenticatedFetch(request) });
-}
-
-function browserLanguage(): string {
-    return supportedLanguage(navigator.language) ?? 'en';
 }

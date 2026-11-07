@@ -2,6 +2,7 @@
  * Measures the report API of a running Report app from its `Server-Timing` header, read-only.
  *
  *     npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...
+ *     npx tsx scripts/measure-api.ts --flow [--base=<url>] [--cold=<n>] [--runs=<n>] [--offset=<n>] <bookId>...
  *
  * `--base` is the app (default the local `bkper app dev` Worker, `http://localhost:8809`). For
  * each Book it asks for the suggestions, then times three paths, `--runs` times each (default 10):
@@ -16,8 +17,16 @@
  * they were too. With `--cold`, it then waits for the caches to expire before each of that many
  * rounds, alternating the intent and prompt paths. Uses your `bkper auth token`; the app never
  * writes to a Book.
+ *
+ * `--flow` measures instead what a person experiences (`measure-api/flow.ts`): opening each Book
+ * as the web client does, `--cold` times (default 2) after its caches expired, each followed by
+ * `--runs` warm opens (default 2), each open followed by two typed prompts, one naming a group or
+ * account of the Book and one naming none. `--offset` shifts the prompts chosen, for a rerun
+ * within Bkper AI's 15-minute cache.
  */
 import { execFileSync } from 'node:child_process';
+import { measureFlow } from './measure-api/flow';
+import { percentile, readTiming } from './measure-api/timing';
 
 interface Suggestion {
     text: string;
@@ -73,39 +82,26 @@ function option(name: string, fallback: string): string {
     return process.argv.find(arg => arg.startsWith(prefix))?.slice(prefix.length) ?? fallback;
 }
 
-function readTiming(header: string | null): Record<string, number> {
-    const metrics: Record<string, number> = {};
-    for (const entry of (header ?? '').split(',')) {
-        const [name, ...params] = entry.trim().split(';');
-        const duration = params
-            .map(param => /^dur=([\d.]+)$/.exec(param.trim())?.[1])
-            .find(Boolean);
-        if (name && duration) {
-            metrics[name] = Number(duration);
-        }
-    }
-    return metrics;
-}
-
-function percentile(values: number[], p: number): number {
-    const sorted = [...values].sort((a, b) => a - b);
-    return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)] ?? NaN;
-}
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main(): Promise<void> {
+    const flow = process.argv.includes('--flow');
     const base = option('base', 'http://localhost:8809');
-    const runs = Number(option('runs', '10'));
-    const coldRounds = Number(option('cold', '0'));
+    const runs = Number(option('runs', flow ? '2' : '10'));
+    const coldRounds = Number(option('cold', flow ? '2' : '0'));
     const hashtag = option('hashtag', 'trip');
     const books = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
     if (books.length === 0) {
         throw new Error(
-            'Usage: npx tsx scripts/measure-api.ts [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] <bookId>...'
+            'Usage: npx tsx scripts/measure-api.ts [--flow] [--base=<url>] [--runs=<n>] [--cold=<n>] [--hashtag=<tag>] [--offset=<n>] <bookId>...'
         );
     }
     const token = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
+    if (flow) {
+        const offset = Number(option('offset', '0'));
+        await measureFlow({ base, token, books, cold: coldRounds, warm: runs, offset });
+        return;
+    }
     const roots = new Map(
         books.map(book => {
             const { items } = JSON.parse(

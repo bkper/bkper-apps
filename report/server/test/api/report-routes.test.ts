@@ -14,6 +14,7 @@ import { createTestEnv } from '../test-env';
 const BOOK = 'book-1';
 const REPORT_URL = `http://localhost:8809/api/v1/books/${BOOK}/report`;
 const SUGGESTIONS_URL = `http://localhost:8809/api/v1/books/${BOOK}/suggestions`;
+const NAMES_URL = `http://localhost:8809/api/v1/books/${BOOK}/names`;
 
 /** The fixture Book's today, 2026-11-05, at noon in São Paulo. */
 const NOW = new Date('2026-11-05T15:00:00Z');
@@ -166,6 +167,51 @@ function timings(response: Response): string[] {
         .split(', ')
         .map(metric => metric.split(';')[0]);
 }
+
+describe('GET /api/v1/books/{bookId}/names', () => {
+    it('lists the names of the Book’s map, read once a minute and shared with the reports', async () => {
+        const test = harness();
+        const response = await test.app.request(NAMES_URL, {}, test.env);
+
+        expect(response.status).toBe(200);
+        const { names } = (await response.json()) as {
+            names: { id: string; name: string; kind: string; root: string }[];
+        };
+        expect(names).toHaveLength(15);
+        expect(names[0]).toEqual({
+            id: 'g-assets',
+            name: 'Assets',
+            kind: 'group',
+            root: 'g-assets',
+        });
+        expect(names).toContainEqual({
+            id: 'a-card',
+            name: 'Credit Card',
+            kind: 'account',
+            root: 'g-card',
+        });
+        expect(names.at(-1)).toEqual({
+            id: 'a-owner',
+            name: 'Owner',
+            kind: 'account',
+            root: 'a-owner',
+        });
+        expect(timings(response)).toEqual(['user', 'kv', 'balances', 'compute', 'total']);
+
+        // The same cached map serves the suggestions: the Book is read once.
+        const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
+        expect(warm.status).toBe(200);
+        expect(test.bkper.bookLoads).toBe(1);
+    });
+
+    it('lists names only to those who may read the Book’s reports', async () => {
+        const test = harness({ bkper: new FakeBkper({ permission: 'RECORDER' }) });
+        const response = await test.app.request(NAMES_URL, {}, test.env);
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({ error: { code: 'forbidden' } });
+    });
+});
 
 describe('GET /api/v1/books/{bookId}/suggestions', () => {
     it('suggests three reports with their intents and warms the snapshot', async () => {

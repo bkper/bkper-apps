@@ -11,7 +11,8 @@
  *    (`Intl.Segmenter`, which also splits words in languages written without spaces) or next
  *    to a character that is not a letter, mark or digit. Names of one character are never
  *    matched: they read as articles and conjunctions in many languages. `#hashtags` are filters,
- *    so names in them do not count.
+ *    so names in them do not count. These rules live in `report-shared/names`, which the web
+ *    client completes names by too.
  * 2. **The longest match wins.** Matches are taken longest first, and on equal length the one
  *    that starts first; a match that overlaps one already taken is dropped. So "HSBC tarifas"
  *    names that account, not "HSBC".
@@ -26,20 +27,29 @@
  *    order that holds it: either way it is the account's own Bkper balance.
  */
 import { MAX_ALONGSIDE } from 'report-shared/report-intent';
+import {
+    collapseWhitespace,
+    isWritable,
+    matchNames,
+    nameKey,
+    pickName,
+    withoutHashtags,
+    type NameKind,
+} from 'report-shared/names';
+import type { BookName } from 'report-shared/name-index';
 import type { IsoMonth } from './periods.js';
 import type { Snapshot } from './snapshot.js';
 
+export { HASHTAG } from 'report-shared/names';
+
 /** The most groups and accounts a request names: the first and those side by side with it. */
 export const MAX_NAMED = 1 + MAX_ALONGSIDE;
-
-/** Letters, marks, digits, `_` and `-` after `#`; punctuation ends a hashtag. */
-export const HASHTAG = /#([\p{L}\p{M}\p{N}_-]+)/gu;
 
 /** A group or account the request names, and where a report reads it. */
 export interface PromptName {
     /** The name as the Book writes it. */
     name: string;
-    kind: 'group' | 'account';
+    kind: NameKind;
     /** The root group, or the account in no group. */
     root: string;
     /** The group or account under {@link root}; absent when it is the root. */
@@ -50,74 +60,34 @@ export interface PromptName {
     activeMonths: IsoMonth[];
 }
 
-interface Candidate {
+/** A group or account of the map, in Book order. */
+export interface MapName {
     id: string;
-    kind: 'group' | 'account';
+    kind: NameKind;
     name: string;
-    /** The name with its whitespace collapsed, to tell an exact match. */
-    written: string;
-    /** Its place in Book order. */
-    order: number;
     /** A group's root, or the roots that hold an account, in Book order (itself when in no group). */
     roots: string[];
     permanent: boolean;
     activeMonths: IsoMonth[];
 }
 
-interface Match {
-    start: number;
-    end: number;
-    /** The folded length: longer matches win. */
-    length: number;
-    candidates: Candidate[];
+interface Candidate extends MapName {
+    /** The name with its whitespace collapsed, to tell an exact match. */
+    written: string;
+    /** Its place in Book order. */
+    order: number;
 }
-
-const SEGMENTER = new Intl.Segmenter('en', { granularity: 'word' });
-const WHITESPACE = /^\s$/u;
-const MARKS = /\p{M}+/gu;
-const FINAL_SIGMA = /ς/g;
-const PRINTABLE_ASCII = /^[\x20-\x7e]*$/;
-/** Whitespace other than single spaces. */
-const OTHER_WHITESPACE = /[^\S ]|  /u;
-const ONE_CHARACTER = /^.?$/u;
-const NOT_A_WORD_CHARACTER = /[^\p{L}\p{M}\p{N}]/gu;
 
 /** The groups and accounts `prompt` names, by the rules of this module, in the order written. */
 export function findPromptNames(prompt: string, snapshot: Snapshot): PromptName[] {
     const { names, longest } = indexNames(snapshot);
-    if (names.size === 0) {
-        return [];
-    }
-    const text = prompt.replace(HASHTAG, hashtag => ' '.repeat(hashtag.length));
-    const { folded, at } = foldWithOffsets(text);
-    const boundaries = wordBoundaries(text);
-
-    const matches: Match[] = [];
-    for (let i = 0; i < boundaries.length; i++) {
-        const start = boundaries[i];
-        for (let j = i + 1; j < boundaries.length; j++) {
-            const end = boundaries[j];
-            const length = at[end] - at[start];
-            if (length > longest) {
-                break;
-            }
-            const candidates = names.get(folded.slice(at[start], at[end]));
-            if (candidates) {
-                matches.push({ start, end, length, candidates });
-            }
-        }
-    }
-
-    const taken: Match[] = [];
-    for (const match of matches.sort((a, b) => b.length - a.length || a.start - b.start)) {
-        if (taken.every(other => match.end <= other.start || match.start >= other.end)) {
-            taken.push(match);
-        }
-    }
-
+    const text = withoutHashtags(prompt);
     const chosen: Candidate[] = [];
-    for (const match of taken.sort((a, b) => a.start - b.start)) {
-        const candidate = pick(match.candidates, collapse(text.slice(match.start, match.end)));
+    for (const match of matchNames(text, names, longest)) {
+        const candidate = pickName(
+            match.candidates,
+            collapseWhitespace(text.slice(match.start, match.end))
+        );
         if (!chosen.some(known => known.kind === candidate.kind && known.id === candidate.id)) {
             chosen.push(candidate);
         }
@@ -141,53 +111,27 @@ export function findPromptNames(prompt: string, snapshot: Snapshot): PromptName[
     });
 }
 
-/** The one of colliding candidates the request means: written exactly, a group, first in Book order. */
-function pick(candidates: Candidate[], written: string): Candidate {
-    const exact = candidates.filter(candidate => candidate.written === written);
-    const pool = exact.length > 0 ? exact : candidates;
-    return [...pool].sort(
-        (a, b) => Number(a.kind === 'account') - Number(b.kind === 'account') || a.order - b.order
-    )[0];
+/**
+ * The map's groups and accounts as the app's API lists them, to complete requests as they are
+ * typed: in Book order, each with the first root that holds it.
+ */
+export function bookNames(snapshot: Snapshot): BookName[] {
+    return mapNames(snapshot).map(({ id, name, kind, roots }) => ({
+        id,
+        name,
+        kind,
+        root: roots[0],
+    }));
 }
 
-/** Every group and account of the map by folded name, in Book order, and the longest folded name. */
-function indexNames(snapshot: Snapshot): { names: Map<string, Candidate[]>; longest: number } {
-    const names = new Map<string, Candidate[]>();
+/**
+ * Every group and account of the map, each once, in Book order: root groups in order, each with
+ * its subgroups, then its accounts, then the accounts in no group.
+ */
+export function mapNames(snapshot: Snapshot): MapName[] {
+    const names: MapName[] = [];
     const groups = new Set<string>();
-    const accounts = new Map<string, Candidate>();
-    let order = 0;
-    let longest = 0;
-    const add = (
-        kind: Candidate['kind'],
-        { id, name, permanent }: { id: string; name: string; permanent: boolean },
-        roots: string[],
-        activeMonths: IsoMonth[]
-    ): Candidate => {
-        const written = collapse(name).trim();
-        const candidate = {
-            id,
-            kind,
-            name,
-            written,
-            order: order++,
-            roots,
-            permanent,
-            activeMonths,
-        };
-        const key = fold(written);
-        // One character reads as an article or a conjunction in many languages.
-        if (!ONE_CHARACTER.test(key)) {
-            const known = names.get(key);
-            if (known) {
-                known.push(candidate);
-            } else {
-                names.set(key, [candidate]);
-            }
-            longest = Math.max(longest, key.length);
-        }
-        return candidate;
-    };
-
+    const accounts = new Map<string, MapName>();
     for (const root of snapshot.roots) {
         const visit = (id: string): void => {
             const group = snapshot.groups[id];
@@ -195,7 +139,7 @@ function indexNames(snapshot: Snapshot): { names: Map<string, Candidate[]>; long
                 return;
             }
             groups.add(id);
-            add('group', group, [root], group.activeMonths);
+            names.push(mapName('group', group, [root], group.activeMonths));
             group.groups.forEach(visit);
             for (const accountId of group.accounts) {
                 const account = snapshot.accounts[accountId];
@@ -205,66 +149,46 @@ function indexNames(snapshot: Snapshot): { names: Map<string, Candidate[]>; long
                         known.roots.push(root);
                     }
                 } else if (account) {
-                    accounts.set(accountId, add('account', account, [root], account.activeMonths));
+                    const name = mapName('account', account, [root], account.activeMonths);
+                    accounts.set(accountId, name);
+                    names.push(name);
                 }
             }
         };
         visit(root);
     }
     for (const account of Object.values(snapshot.ungrouped)) {
-        add('account', account, [account.id], []);
+        names.push(mapName('account', account, [account.id], []));
     }
+    return names;
+}
+
+function mapName(
+    kind: NameKind,
+    { id, name, permanent }: { id: string; name: string; permanent: boolean },
+    roots: string[],
+    activeMonths: IsoMonth[]
+): MapName {
+    return { id, kind, name, roots, permanent, activeMonths };
+}
+
+/** Every writable name of the map by folded name, in Book order, and the longest folded name. */
+function indexNames(snapshot: Snapshot): { names: Map<string, Candidate[]>; longest: number } {
+    const names = new Map<string, Candidate[]>();
+    let longest = 0;
+    mapNames(snapshot).forEach((name, order) => {
+        const { written, key } = nameKey(name.name);
+        if (!isWritable(key)) {
+            return;
+        }
+        const candidate = { ...name, written, order };
+        const known = names.get(key);
+        if (known) {
+            known.push(candidate);
+        } else {
+            names.set(key, [candidate]);
+        }
+        longest = Math.max(longest, key.length);
+    });
     return { names, longest };
-}
-
-/**
- * The folded text, and where each UTF-16 position of `text` falls in it: compatibility
- * decomposition, lowercase, no combining marks, each run of whitespace one space.
- */
-function foldWithOffsets(text: string): { folded: string; at: number[] } {
-    const at: number[] = [];
-    let folded = '';
-    let index = 0;
-    for (const char of text) {
-        at[index] = folded.length;
-        folded += WHITESPACE.test(char) ? (folded.endsWith(' ') ? '' : ' ') : foldCharacter(char);
-        index += char.length;
-    }
-    at[index] = folded.length;
-    return { folded, at };
-}
-
-/** A name folded as {@link foldWithOffsets} folds a request; its whitespace already collapsed. */
-function fold(name: string): string {
-    if (PRINTABLE_ASCII.test(name)) {
-        return name.toLowerCase();
-    }
-    return foldCharacter(name);
-}
-
-/**
- * Folds one character, or a whole text alike: the only lowercase that depends on the next
- * character, Greek final sigma, is read as sigma.
- */
-function foldCharacter(text: string): string {
-    return text.normalize('NFKD').toLowerCase().replace(MARKS, '').replace(FINAL_SIGMA, 'σ');
-}
-
-/** Each run of whitespace as one space. */
-function collapse(text: string): string {
-    return OTHER_WHITESPACE.test(text) ? text.replace(/\s+/gu, ' ') : text;
-}
-
-/** Where a whole name may start or end, ascending: word boundaries, and around non-word characters. */
-function wordBoundaries(text: string): number[] {
-    const positions = new Set([0, text.length]);
-    for (const { index, segment } of SEGMENTER.segment(text)) {
-        positions.add(index);
-        positions.add(index + segment.length);
-    }
-    for (const match of text.matchAll(NOT_A_WORD_CHARACTER)) {
-        positions.add(match.index);
-        positions.add(match.index + match[0].length);
-    }
-    return [...positions].sort((a, b) => a - b);
 }

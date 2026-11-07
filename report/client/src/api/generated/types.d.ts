@@ -143,6 +143,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/books/{bookId}/names": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the names of a Book’s groups and Accounts
+         * @description The names a report request can write to report a group or Account: written in a `prompt` to `POST /api/v1/books/{bookId}/report`, ignoring case and accents, each is what the report is of. For completing requests as they are typed; not needed to build a report. Read from the Book’s map, which may be up to 60 seconds old. Read-only.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
+                    bookId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The Book’s group and Account names */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BookNamesResponse"];
+                    };
+                };
+                /** @description Invalid request (`invalid_request`, naming the field) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description The person cannot view the Book (`forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Book not found, or not shared with the person (`book_not_found`) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Bkper or Bkper AI failed; try again (`upstream_error`) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Another error, such as `unauthorized` (401) or `internal_error` (500) */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/books/{bookId}/report": {
         parameters: {
             query?: never;
@@ -599,6 +686,33 @@ export interface components {
              * @example 6235671829479424
              */
             target?: string;
+        };
+        BookNamesResponse: {
+            /** @description Every group and Account of the Book’s balances, each once, in Book order: root groups in order, each with its subgroups, then its Accounts, then the Accounts in no group. Archived Accounts with no balance are left out. */
+            names: components["schemas"]["BookName"][];
+        };
+        /** @description A group or Account of the Book, by name. */
+        BookName: {
+            /**
+             * @description Id of the group or Account, as in `bkper group list` and `bkper account list`.
+             * @example 6235671829479424
+             */
+            id: string;
+            /**
+             * @description The name as the Book writes it.
+             * @example Credit Card
+             */
+            name: string;
+            /**
+             * @description A group or an Account.
+             * @enum {string}
+             */
+            kind: "group" | "account";
+            /**
+             * @description Id of its root (top-level) group: itself for a root group or an Account in no group; for an Account in several root groups, the first in Book order.
+             * @example 5687803178385408
+             */
+            root: string;
         };
         /** @description The report, with `format: spec`. */
         ReportResponse: {
@@ -1090,6 +1204,8 @@ export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportSubject = components['schemas']['ReportSubject'];
+export type BookNamesResponse = components['schemas']['BookNamesResponse'];
+export type BookName = components['schemas']['BookName'];
 export type ReportResponse = components['schemas']['ReportResponse'];
 export type ReportSpec = components['schemas']['ReportSpec'];
 export type ChartProps = components['schemas']['ChartProps'];

@@ -184,6 +184,35 @@ export const SuggestionsResponseSchema = z
     .openapi('SuggestionsResponse');
 
 /** Why a report request is invalid when it has neither or both of `prompt` and `intent`. */
+export const BookNameSchema = z
+    .object({
+        id: z.string().openapi({
+            description:
+                'Id of the group or Account, as in `bkper group list` and `bkper account list`.',
+            example: '6235671829479424',
+        }),
+        name: z.string().openapi({
+            description: 'The name as the Book writes it.',
+            example: 'Credit Card',
+        }),
+        kind: z.enum(['group', 'account']).openapi({ description: 'A group or an Account.' }),
+        root: z.string().openapi({
+            description:
+                'Id of its root (top-level) group: itself for a root group or an Account in no group; for an Account in several root groups, the first in Book order.',
+            example: '5687803178385408',
+        }),
+    })
+    .openapi('BookName', { description: 'A group or Account of the Book, by name.' });
+
+export const BookNamesResponseSchema = z
+    .object({
+        names: z.array(BookNameSchema).openapi({
+            description:
+                'Every group and Account of the Book’s balances, each once, in Book order: root groups in order, each with its subgroups, then its Accounts, then the Accounts in no group. Archived Accounts with no balance are left out.',
+        }),
+    })
+    .openapi('BookNamesResponse');
+
 export const EXACTLY_ONE_REQUEST = 'Send exactly one of `prompt` or `intent`.';
 
 // One object rather than a union of the two requests, so that a validation error names the

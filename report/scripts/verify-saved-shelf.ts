@@ -145,6 +145,7 @@ try {
                                     },
                                 ],
                             });
+                        if (path.endsWith('/names')) return json({ names: [] });
                         if (path.endsWith('/report')) {
                             requested.push(req.postDataJSON());
                             return json(response);

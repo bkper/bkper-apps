@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_NAMED, findPromptNames } from '../../src/services/prompt-names';
+import { NameIndex } from 'report-shared/name-index';
+import { MAX_NAMED, bookNames, findPromptNames } from '../../src/services/prompt-names';
 import type {
     NodeType,
     Snapshot,
@@ -156,6 +157,14 @@ describe('findPromptNames', () => {
             { name: 'Café', kind: 'account', root: 'g1', target: 'a1' },
         ]);
         expect(await found('CAFÉ', book)).toEqual([{ name: 'CAFÉ', kind: 'account', root: 'u1' }]);
+        // After a run of whitespace or a hashtag, still written exactly.
+        expect(await found('food  Café', book)).toEqual([
+            { name: 'Food', kind: 'group', root: 'g1' },
+            { name: 'Café', kind: 'account', root: 'g1', target: 'a1' },
+        ]);
+        expect(await found('#tag Café', book)).toEqual([
+            { name: 'Café', kind: 'account', root: 'g1', target: 'a1' },
+        ]);
         // None written exactly: the group.
         expect(await found('cafe', book)).toEqual([{ name: 'Cafe', kind: 'group', root: 'g2' }]);
         // Two accounts, none written exactly: the first in Book order.
@@ -220,5 +229,81 @@ describe('findPromptNames', () => {
         renamed.accounts['a-food'] = { ...renamed.accounts['a-food'], name: 'Groceries' };
         expect(await names('food in October', renamed)).toEqual([]);
         expect(await names('groceries in October', renamed)).toEqual(['Groceries']);
+    });
+});
+
+describe('bookNames', () => {
+    it('lists every group and account once, in Book order, with the first root holding it', async () => {
+        expect(bookNames(await fixtureSnapshot())).toEqual([
+            { id: 'g-assets', name: 'Assets', kind: 'group', root: 'g-assets' },
+            { id: 'g-banks', name: 'Banks', kind: 'group', root: 'g-assets' },
+            { id: 'a-bank-a', name: 'Bank A', kind: 'account', root: 'g-assets' },
+            { id: 'a-bank-b', name: 'Bank B', kind: 'account', root: 'g-assets' },
+            { id: 'a-cash', name: 'Cash', kind: 'account', root: 'g-assets' },
+            { id: 'g-card', name: 'Card', kind: 'group', root: 'g-card' },
+            { id: 'a-card', name: 'Credit Card', kind: 'account', root: 'g-card' },
+            { id: 'g-expenses', name: 'Expenses', kind: 'group', root: 'g-expenses' },
+            { id: 'a-rent', name: 'Rent', kind: 'account', root: 'g-expenses' },
+            { id: 'a-food', name: 'Food', kind: 'account', root: 'g-expenses' },
+            { id: 'a-old', name: 'Old Supplier', kind: 'account', root: 'g-expenses' },
+            { id: 'g-revenue', name: 'Revenue', kind: 'group', root: 'g-revenue' },
+            { id: 'a-salary', name: 'Salary', kind: 'account', root: 'g-revenue' },
+            { id: 'g-net', name: 'Net income', kind: 'group', root: 'g-net' },
+            { id: 'a-owner', name: 'Owner', kind: 'account', root: 'a-owner' },
+        ]);
+    });
+});
+
+describe('completing names', () => {
+    const multilingual = mapOf(
+        [
+            { id: 'g1', name: 'Despesas', accounts: ['a1', 'a2', 'a3', 'a4'], groups: ['g2'] },
+            { id: 'g2', name: 'Despesas fixas', parent: 'g1', accounts: ['a5', 'a6'] },
+            { id: 'g3', name: 'Cafe', accounts: ['a7', 'a8'] },
+            { id: 'g4', name: '工资收入', accounts: ['a9'] },
+        ],
+        {
+            a1: 'Refeições',
+            a2: 'HSBC',
+            a3: 'HSBC tarifas',
+            a4: 'Café',
+            a5: 'Aluguel',
+            a6: 'Conta  corrente',
+            a7: 'red car',
+            a8: 'car fee',
+            a9: 'المصروفات',
+        },
+        { u1: 'Food', u2: 'E' }
+    );
+
+    it('offers only names the Worker then finds in the request, as written', async () => {
+        const contexts = ['{}', 'despesas e {}', '{} em 2026', '2015年的{}', 'red {} by month'];
+        let checked = 0;
+        for (const snapshot of [await fixtureSnapshot(), multilingual]) {
+            const index = new NameIndex(bookNames(snapshot));
+            for (const { name } of bookNames(snapshot)) {
+                const letters = [...name];
+                for (let cut = 1; cut <= letters.length; cut++) {
+                    const typed = letters.slice(0, cut).join('');
+                    for (const context of contexts) {
+                        const [before, after] = context.split('{}');
+                        const text = before + typed + after;
+                        const caret = before.length + typed.length;
+                        for (const completion of index.complete(text, caret)) {
+                            const request =
+                                text.slice(0, completion.from) +
+                                completion.text +
+                                text.slice(completion.to);
+                            const ids = findPromptNames(request, snapshot).map(
+                                found => found.target ?? found.root
+                            );
+                            expect(ids, request).toContain(completion.name.id);
+                            checked++;
+                        }
+                    }
+                }
+            }
+        }
+        expect(checked).toBeGreaterThan(100);
     });
 });

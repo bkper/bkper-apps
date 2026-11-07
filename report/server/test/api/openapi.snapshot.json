@@ -124,6 +124,89 @@
                 }
             }
         },
+        "/api/v1/books/{bookId}/names": {
+            "get": {
+                "tags": ["Reports"],
+                "summary": "List the names of a Book’s groups and Accounts",
+                "description": "The names a report request can write to report a group or Account: written in a `prompt` to `POST /api/v1/books/{bookId}/report`, ignoring case and accents, each is what the report is of. For completing requests as they are typed; not needed to build a report. Read from the Book’s map, which may be up to 60 seconds old. Read-only.",
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "example": "abc123"
+                        },
+                        "required": true,
+                        "name": "bookId",
+                        "in": "path",
+                        "description": "Id of the Book, as Bkper gives it (`bkper book list`)."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Book’s group and Account names",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookNamesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request (`invalid_request`, naming the field)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The person cannot view the Book (`forbidden`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Book not found, or not shared with the person (`book_not_found`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bkper or Bkper AI failed; try again (`upstream_error`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Another error, such as `unauthorized` (401) or `internal_error` (500)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/books/{bookId}/report": {
             "post": {
                 "tags": ["Reports"],
@@ -672,6 +755,46 @@
             },
             "required": ["root"],
             "description": "A group or Account to show side by side: a root, or a `target` under it."
+        },
+        "BookNamesResponse": {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/components/schemas/BookName"
+                    },
+                    "description": "Every group and Account of the Book’s balances, each once, in Book order: root groups in order, each with its subgroups, then its Accounts, then the Accounts in no group. Archived Accounts with no balance are left out."
+                }
+            },
+            "required": ["names"]
+        },
+        "BookName": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Id of the group or Account, as in `bkper group list` and `bkper account list`.",
+                    "example": "6235671829479424"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "The name as the Book writes it.",
+                    "example": "Credit Card"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": ["group", "account"],
+                    "description": "A group or an Account."
+                },
+                "root": {
+                    "type": "string",
+                    "description": "Id of its root (top-level) group: itself for a root group or an Account in no group; for an Account in several root groups, the first in Book order.",
+                    "example": "5687803178385408"
+                }
+            },
+            "required": ["id", "name", "kind", "root"],
+            "description": "A group or Account of the Book, by name."
         },
         "ReportResponse": {
             "type": "object",

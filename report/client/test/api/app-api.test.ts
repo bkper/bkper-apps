@@ -198,6 +198,24 @@ describe('report API', () => {
         );
     });
 
+    it('asks for the names of a Book with its abort signal', async () => {
+        const requests: Request[] = [];
+        const controller = new AbortController();
+        const name = { id: 'a-1', name: 'Credit Card', kind: 'account', root: 'g-1' };
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async request => {
+                requests.push(request);
+                return jsonResponse({ names: [name] });
+            },
+        });
+
+        await expect(api.names('book 1', { signal: controller.signal })).resolves.toEqual([name]);
+        controller.abort();
+        expect(requests[0].url).toBe('https://app.example.test/api/v1/books/book%201/names');
+        expect(requests[0].signal.aborted).toBe(true);
+    });
+
     it('posts a report request with its abort signal', async () => {
         const requests: Request[] = [];
         const controller = new AbortController();

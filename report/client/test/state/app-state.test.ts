@@ -8,6 +8,8 @@ import type { ReportApi } from '../../src/state/reports';
 import type { HostPage } from '../../src/state/book-host';
 import type { RoutePage } from '../../src/state/route';
 import type { SavedReportsApi } from '../../src/state/saved-reports';
+import type { BookNamesApi } from '../../src/state/book-names';
+import { CACHE_MS } from '../../src/state/cache-window';
 
 const SAVED = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
 function createShelfApi() {
@@ -82,18 +84,34 @@ function createReportApi() {
     return { api, asked };
 }
 
+/** A names API that records the Books it is asked for and answers with one name each. */
+function createNamesApi() {
+    const asked: string[] = [];
+    const api: BookNamesApi = {
+        names: async bookId => {
+            asked.push(bookId);
+            return [{ id: `a-${bookId}`, name: `Food of ${bookId}`, kind: 'account', root: 'g' }];
+        },
+    };
+    return { api, asked };
+}
+
 /** An app at `href`, signed in once `signIn` runs. */
 function createApp(href: string, bookService = createBookService()) {
     const { page, goTo } = createPage(href);
     const auth: { callbacks?: AuthSessionCallbacks } = {};
     const reportApi = createReportApi();
     const shelfApi = createShelfApi();
+    const namesApi = createNamesApi();
+    const clock = { now: 1_000_000 };
     const state = new AppState({
         page,
         embedded: false,
         language: 'en',
         createReportApi: () => reportApi.api,
         createSavedReportsApi: () => shelfApi.api,
+        createBookNamesApi: () => namesApi.api,
+        now: () => clock.now,
         loadRenderer: async () => undefined,
         loadStrings: async () => undefined,
         createAuthSession: callbacks => {
@@ -105,7 +123,7 @@ function createApp(href: string, bookService = createBookService()) {
     });
     state.connect();
     const signIn = async () => auth.callbacks?.onLoginSuccess?.();
-    return { state, page, goTo, signIn, auth, asked: reportApi.asked, shelfApi };
+    return { state, page, goTo, signIn, auth, asked: reportApi.asked, shelfApi, namesApi, clock };
 }
 
 describe('AppState', () => {
@@ -135,6 +153,41 @@ describe('AppState', () => {
         state.select(undefined);
         expect(state.savedReports.bookId).toBeUndefined();
         expect(state.savedReports.items).toEqual([]);
+    });
+
+    it('loads the Book’s names after auth, per Book, and asks again only after a minute of typing', async () => {
+        const { state, signIn, namesApi, goTo, clock } = createApp(
+            'https://report.bkper.app/?book=book-1',
+            createBookService({ getBook: () => new Promise(() => undefined) })
+        );
+        expect(namesApi.asked).toEqual([]);
+        void signIn();
+        expect(namesApi.asked).toEqual(['book-1']);
+        await state.names.loaded;
+        const offered = (text: string) =>
+            state.names.complete(text, text.length).map(({ text }) => text);
+        expect(offered('expenses fo')).toEqual(['Food of book-1']);
+
+        for (const text of ['e', 'ex', 'expenses', 'expenses fo', 'expenses foo']) {
+            state.reports.input(text);
+            offered(text);
+        }
+        expect(namesApi.asked).toEqual(['book-1']);
+        clock.now += CACHE_MS;
+        state.reports.input('expenses food');
+        state.reports.input('expenses food ');
+        expect(namesApi.asked).toEqual(['book-1', 'book-1']);
+
+        state.select('book-2');
+        expect(state.names.bookId).toBe('book-2');
+        expect(offered('fo')).toEqual([]);
+        await state.names.loaded;
+        expect(offered('fo')).toEqual(['Food of book-2']);
+        goTo('https://report.bkper.app/?book=book-3');
+        expect(state.names.bookId).toBe('book-3');
+        state.select(undefined);
+        expect(state.names.bookId).toBeUndefined();
+        expect(namesApi.asked).toEqual(['book-1', 'book-1', 'book-2', 'book-3']);
     });
 
     it('loads the Book picker after authentication succeeds', async () => {

@@ -4,6 +4,7 @@ import type { components, ErrorResponse, paths, PingResponse } from './generated
 export type { PingResponse };
 export type ApiErrorResponse = ErrorResponse;
 export type Suggestion = components['schemas']['Suggestion'];
+export type BookName = components['schemas']['BookName'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type ReportResponse = components['schemas']['ReportResponse'];
@@ -119,6 +120,18 @@ export function createAppApi(options: AppApiOptions) {
                 throw toAppApiError(error, response);
             }
             return requireData(data, response).suggestions;
+        },
+
+        /** The names of the Book's groups and Accounts, in Book order, to complete requests. */
+        async names(bookId: string, options: RequestOptions = {}): Promise<BookName[]> {
+            const { data, error, response } = await client.GET('/api/v1/books/{bookId}/names', {
+                params: { path: { bookId } },
+                signal: options.signal,
+            });
+            if (error) {
+                throw toAppApiError(error, response);
+            }
+            return requireData(data, response).names;
         },
 
         /** Original prompts shared by the Book, with freshly authorized capabilities. */

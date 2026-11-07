@@ -10,6 +10,7 @@ import { loadBalances } from '../services/balances-loader.js';
 import type { Snapshot } from '../services/snapshot.js';
 import { currentUserId, loadSnapshot } from '../services/snapshot-loader.js';
 import { buildSuggestions } from '../services/suggestions.js';
+import { bookNames } from '../services/prompt-names.js';
 import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
 import { buildApiError } from './errors.js';
@@ -17,6 +18,7 @@ import { openApiDocumentConfig } from './openapi.js';
 import { acceptedLanguage, reportAppUrl } from './request-context.js';
 import {
     apiErrorResponses,
+    BookNamesResponseSchema,
     BookParamsSchema,
     bookErrorResponses,
     ErrorResponseSchema,
@@ -60,6 +62,20 @@ const suggestionsRoute = createRoute({
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
+        ...bookErrorResponses,
+    },
+});
+
+const namesRoute = createRoute({
+    method: 'get',
+    path: '/api/v1/books/{bookId}/names',
+    tags: ['Reports'],
+    summary: 'List the names of a Book’s groups and Accounts',
+    description:
+        'The names a report request can write to report a group or Account: written in a `prompt` to `POST /api/v1/books/{bookId}/report`, ignoring case and accents, each is what the report is of. For completing requests as they are typed; not needed to build a report. Read from the Book’s map, which may be up to 60 seconds old. Read-only.',
+    request: { params: BookParamsSchema },
+    responses: {
+        200: jsonResponse('The Book’s group and Account names', BookNamesResponseSchema),
         ...bookErrorResponses,
     },
 });
@@ -185,6 +201,14 @@ export function registerApiRoutes(app: App): void {
             buildSuggestions(snapshot, lang)
         );
         return c.json({ suggestions }, 200);
+    });
+
+    app.openapi(namesRoute, async c => {
+        const context = c.var.appContext;
+        const { bookId } = c.req.valid('param');
+        const { snapshot } = await readableSnapshot(context, bookId);
+        const names = await context.timing.measure('compute', async () => bookNames(snapshot));
+        return c.json({ names }, 200);
     });
 
     app.openapi(reportRoute, async c => {

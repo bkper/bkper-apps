@@ -14,6 +14,7 @@ import { Reports, type ChartKind, type ReportApi } from './reports';
 import { Navigation, Route, type RoutePage } from './route';
 import { Strings } from './strings';
 import { SavedReports, type SavedReportsApi } from './saved-reports';
+import { BookNames, type BookNamesApi } from './book-names';
 
 export interface AppStateOptions {
     page?: RoutePage;
@@ -26,12 +27,13 @@ export interface AppStateOptions {
     createBookService?: (auth: AuthSession) => BookService;
     createReportApi?: (auth: AuthSession) => ReportApi;
     createSavedReportsApi?: (auth: AuthSession) => SavedReportsApi;
+    createBookNamesApi?: (auth: AuthSession) => BookNamesApi;
     /** Loads the report renderer; by default its code-split bundle. */
     loadRenderer?: () => Promise<void>;
     /** Loads the strings of a language; by default its code-split chunk. */
     loadStrings?: (lang: string) => Promise<void>;
     logger?: Pick<Console, 'error'>;
-    /** The clock of the report caches; by default `Date.now`. */
+    /** The clock of the report and name caches; by default `Date.now`. */
     now?: () => number;
 }
 
@@ -43,6 +45,8 @@ export class AppState {
     readonly books: Books;
     readonly reports: Reports;
     readonly savedReports: SavedReports;
+    /** The open Book's group and account names, to complete requests as they are typed. */
+    readonly names: BookNames;
     /** The language of the interface's texts. */
     readonly strings: Strings;
     private readonly auth: AuthSession;
@@ -66,6 +70,7 @@ export class AppState {
             onLoginSuccess: () => {
                 // The report of the URL starts with the Book, not after it.
                 this.savedReports.open(this.route.bookId);
+                this.names.open(this.route.bookId);
                 this.reports.open(this.route.bookId, this.route.prompt, this.routeState());
                 return this.books.load();
             },
@@ -82,6 +87,10 @@ export class AppState {
             now: options.now,
         });
         this.savedReports = new SavedReports(options.createSavedReportsApi?.(this.auth) ?? api);
+        this.names = new BookNames(options.createBookNamesApi?.(this.auth) ?? api, {
+            now: options.now,
+            logger,
+        });
         // Back or Forward, or Bkper changing the app's URL, shows what the URL selects.
         this.route.addEventListener('navigate', event => {
             if (!(event instanceof Navigation)) return;
@@ -92,6 +101,7 @@ export class AppState {
             }
             void this.books.select(event.bookId);
             this.savedReports.open(event.bookId);
+            this.names.open(event.bookId);
             this.reports.open(event.bookId, event.prompt, state);
         });
         this.host.addEventListener('app-url-changed', event => {
@@ -103,6 +113,8 @@ export class AppState {
         });
         this.reports.addEventListener('change', () => {
             this.savedReports.setSource(this.reports.bookId, this.reports.originalPrompt);
+            // Like the suggestions, the names follow the map's minute as the person types.
+            this.names.refresh();
             this.syncState();
         });
     }
@@ -134,6 +146,7 @@ export class AppState {
     readonly select = (bookId: string | undefined): void => {
         void this.books.select(bookId);
         this.savedReports.open(bookId);
+        this.names.open(bookId);
         this.reports.open(bookId);
     };
 

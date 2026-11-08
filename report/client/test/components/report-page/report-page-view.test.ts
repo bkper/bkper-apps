@@ -1216,7 +1216,7 @@ describe('ReportPage with a Book whose groups keep it from reports', () => {
         );
     });
 
-    it('links to Bkper in development from the preview app', async () => {
+    it('links to Bkper in production from the preview app, which production opens for developers', async () => {
         const view = openWith(NOTHING, {
             host: createHostPage('https://report-preview.bkper.app'),
         });
@@ -1224,7 +1224,7 @@ describe('ReportPage with a Book whose groups keep it from reports', () => {
         await settle(view);
 
         const href = problemOf(view).action?.getAttribute('href') ?? '';
-        expect(new URL(href).origin).toBe('https://dev.bkper.app');
+        expect(new URL(href).origin).toBe('https://bkper.app');
     });
 
     it('tells others to ask the Book’s owner, with no action', async () => {

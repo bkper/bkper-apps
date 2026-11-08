@@ -7,7 +7,7 @@ import { personLanguage } from './language';
 import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
 import { createAppApi, type AppApi, type BookProblem, type ReportResponse } from '../api/app-api';
 import { agentPrompt, agentUrl } from '../agent-link';
-import { environmentBkperOrigin } from '../bkper-host';
+import { PRODUCTION_BKPER_ORIGIN } from '../bkper-host';
 import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
 import { AppUrlChange, BookHost, type HostPage } from './book-host';
@@ -168,11 +168,11 @@ export class AppState {
     /**
      * The link to the Bkper Agent that helps with the Book's `problem`, only for a person who may
      * organize the Book (OWNER or EDITOR): with the request for it ready in the Agent's input,
-     * none for an empty Book. On the Bkper of the app's environment; standalone it opens in the
+     * none for an empty Book. On Bkper in production; standalone it opens in the
      * same tab, in a Book in a new one unless the Book opens it in place ({@link openAgent}).
      */
     agentLink(problem: BookProblem): { url: string; newTab: boolean } | undefined {
-        const url = this.agentUrl(problem, environmentBkperOrigin(this.hostPage.location.origin));
+        const url = this.agentUrl(problem, PRODUCTION_BKPER_ORIGIN);
         return url === undefined ? undefined : { url, newTab: this.embedded };
     }
 

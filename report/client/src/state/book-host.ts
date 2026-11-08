@@ -22,12 +22,15 @@ export class AppUrlChange extends Event {
  * The Bkper Book page the app is embedded in, from the messages of the parent window on a Bkper
  * origin only. Fires `ready` on each `bkper:host-ready`, and an {@link AppUrlChange} for each
  * `bkper:app-url-changed` of a URL of the app. Sends the report's state (`bkper:app-state`)
- * only while the Book's last `bkper:host-ready` lists `app-state`, and only to its origin.
- * Standalone, it hears and sends nothing.
+ * only while the Book's last `bkper:host-ready` lists `app-state`, and asks it to navigate
+ * (`bkper:navigate`) only while it lists `navigate`, each only to its origin. Standalone, it
+ * hears and sends nothing.
  */
 export class BookHost extends EventTarget {
     /** The origin of the Book page that said it keeps the app's state. */
     private stateOrigin?: string;
+    /** The origin of the Book page that said it navigates for the app. */
+    private navigateOrigin?: string;
     private listening = false;
 
     constructor(private readonly page: HostPage) {
@@ -37,6 +40,11 @@ export class BookHost extends EventTarget {
     /** Whether the Book keeps the app's state (`bkper:app-state`). */
     get acceptsState(): boolean {
         return this.stateOrigin !== undefined;
+    }
+
+    /** The Bkper origin of the Book that navigates for the app (`bkper:navigate`), if any. */
+    get navigationOrigin(): string | undefined {
+        return this.navigateOrigin;
     }
 
     connect(): void {
@@ -57,6 +65,16 @@ export class BookHost extends EventTarget {
         return true;
     }
 
+    /**
+     * Ask the Book to open `url`, a page of its own origin, in place; whether it was sent. Only
+     * in answer to the person's click: the Book cannot tell.
+     */
+    navigate(url: string): boolean {
+        if (!this.navigateOrigin || !sameOrigin(url, this.navigateOrigin)) return false;
+        this.page.parent.postMessage({ type: 'bkper:navigate', url }, this.navigateOrigin);
+        return true;
+    }
+
     private readonly onMessage = (event: Event): void => {
         if (!(event instanceof MessageEvent) || event.source !== this.page.parent) return;
         const origins = bkperOrigins(isLocalOrigin(this.page.location.origin));
@@ -64,6 +82,7 @@ export class BookHost extends EventTarget {
         const ready = readHostReady(event.data);
         if (ready) {
             this.stateOrigin = ready.supports.includes('app-state') ? event.origin : undefined;
+            this.navigateOrigin = ready.supports.includes('navigate') ? event.origin : undefined;
             this.dispatchEvent(new Event('ready'));
             return;
         }

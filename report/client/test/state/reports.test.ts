@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     AppApiError,
+    type BookProblem,
     type ReportRequest,
     type ReportResponse,
     type Suggestion,
@@ -59,7 +60,7 @@ interface Call {
 }
 
 /** An API whose report requests answer only when a test says so; suggestions answer at once. */
-function createApi(suggestions: Suggestion[] = SUGGESTIONS) {
+function createApi(suggestions: Suggestion[] = SUGGESTIONS, problem?: BookProblem) {
     const calls: Call[] = [];
     const suggestionCalls: { bookId: string; language?: string }[] = [];
     /** What the next suggestions requests answer, in order; then `suggestions`. */
@@ -67,7 +68,8 @@ function createApi(suggestions: Suggestion[] = SUGGESTIONS) {
     const api: ReportApi = {
         suggestions: async (bookId, options) => {
             suggestionCalls.push({ bookId, language: options.language });
-            return (await nextSuggestions.shift()?.()) ?? suggestions;
+            const next = (await nextSuggestions.shift()?.()) ?? suggestions;
+            return problem ? { suggestions: next, problem } : { suggestions: next };
         },
         report: (bookId, body, options) =>
             new Promise((resolve, reject) => {
@@ -469,6 +471,62 @@ describe('Reports', () => {
 
         expect(reports.notice).toBe('error_no_net_result');
         expect(title(reports.report)).toBe('Expenses');
+    });
+
+    it('tells what keeps the Book from the report asked for, until the next request', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        const problem: BookProblem = {
+            code: 'mixed_group',
+            bookName: 'Acme',
+            canOrganize: true,
+            group: 'Everything',
+        };
+        reports.open('book-1');
+        reports.input('expenses this year');
+        reports.submit();
+        calls[0].resolve(response('Expenses'));
+        await settle();
+
+        reports.input('everything this year');
+        reports.submit();
+        calls[1].reject(new AppApiError('Mixed', 422, 'mixed_group', undefined, problem));
+        await settle();
+
+        expect(reports.problem).toEqual(problem);
+        expect(reports.notice).toBeUndefined();
+        expect(title(reports.report)).toBe('Expenses');
+
+        reports.input('everything this year!');
+        expect(reports.problem).toBeUndefined();
+    });
+
+    it('tells the problem of a Book with no reports as it opens, while the person types', async () => {
+        const problem: BookProblem = { code: 'empty_book', bookName: 'Acme', canOrganize: true };
+        const { reports, calls } = createReports(undefined, createApi([], problem));
+        reports.open('book-1');
+        await settle();
+
+        expect(reports.suggestions).toEqual([]);
+        expect(reports.problem).toEqual(problem);
+
+        reports.input('expenses this year');
+        expect(reports.problem).toEqual(problem);
+        reports.submit();
+        calls[0].reject(new AppApiError('Empty', 422, 'empty_book', undefined, problem));
+        await settle();
+        expect(reports.problem).toEqual(problem);
+        expect(reports.notice).toBeUndefined();
+
+        // A failure of its own says what failed instead.
+        reports.input('expenses this month');
+        reports.submit();
+        calls[1].reject(new AppApiError('Bkper failed', 502, 'upstream_error'));
+        await settle();
+        expect(reports.notice).toBe('error_upstream');
+        expect(reports.problem).toBeUndefined();
+
+        reports.open('book-2');
+        expect(reports.problem).toBeUndefined();
     });
 
     it('says why balances and activity cannot be side by side', async () => {

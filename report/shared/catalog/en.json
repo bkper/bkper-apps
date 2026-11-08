@@ -628,5 +628,106 @@
         "text": "Removing…",
         "role": "status",
         "context": "Announced pending status under the Book-shared prompt shelf while removing one saved request. The request stays visible until the API confirms removal. Keep very short."
+    },
+    "problem_empty_book": {
+        "text": "This Book has no transactions yet, so there's nothing to report.",
+        "role": "message",
+        "context": "Message shown when Report opens a Bkper Book that has no transactions recorded yet, so it can show no report. A Book is a Bkper ledger. One short sentence."
+    },
+    "problem_nothing_to_report": {
+        "text": "This Book has nothing to report on: {count} of its {total} accounts with transactions are in no group, and reports read groups.",
+        "role": "message",
+        "context": "Message shown when Report opens a Bkper Book whose Accounts are mostly not organized into Groups (such as Expenses or Assets), so it can show no report: reports are built from Groups. One sentence.",
+        "placeholders": {
+            "count": "number of Accounts with transactions that are in no Group, already formatted in the language",
+            "total": "number of Accounts with transactions, already formatted in the language"
+        }
+    },
+    "problem_no_net_result": {
+        "text": "This Book has no net result: no group combines its income and expenses.",
+        "role": "message",
+        "context": "Message shown when the person asks for the net result (income minus expenses) of a Bkper Book whose Groups give none: no Group holds both its Incoming and its Outgoing Groups. One short sentence."
+    },
+    "problem_no_net_result_shared": {
+        "text": "This Book has no net result: its groups {groups} share accounts.",
+        "role": "message",
+        "context": "Message shown when the person asks for the net result (income minus expenses) of a Bkper Book whose income and expense Groups share Accounts, so they cannot be netted. One short sentence.",
+        "placeholders": {
+            "groups": "names of the Groups that share Accounts, verbatim, as a list already joined in the language, such as Sales and Revenue"
+        }
+    },
+    "problem_mixed_group": {
+        "text": "The group {group} holds both balances (assets, liabilities) and activity (income, expenses), so its report would mix them.",
+        "role": "message",
+        "context": "Message shown when the person asks for the report of a Bkper Group that holds both Asset or Liability Accounts (balances at a date) and Incoming or Outgoing Accounts (income or expenses within a period). One sentence.",
+        "placeholders": {
+            "group": "name of the Group, verbatim"
+        }
+    },
+    "problem_ask_owner": {
+        "text": "Ask the Book's owner to organize its groups.",
+        "role": "message",
+        "context": "Shown after a message about how a Bkper Book's Groups keep it from reports, to a person who may not change the Book's Groups (not its owner or an editor). One short sentence."
+    },
+    "problem_ask_owner_start": {
+        "text": "Ask the Book's owner to get started.",
+        "role": "message",
+        "context": "Shown after the message that a Bkper Book has no transactions yet, to a person who may not change the Book (not its owner or an editor): the owner should start recording its transactions. One short sentence."
+    },
+    "action_agent_start": {
+        "text": "Get started with Agent",
+        "role": "button",
+        "context": "Button under the message that a Bkper Book has no transactions yet: it opens the Bkper Agent (Bkper's AI assistant, a product name: keep Agent untranslated if the language keeps product names) in the Book to start recording. Keep short."
+    },
+    "action_agent_organize": {
+        "text": "Organize with Agent",
+        "role": "button",
+        "context": "Button under a message about how a Bkper Book's Groups keep it from reports: it opens the Bkper Agent (Bkper's AI assistant, a product name: keep Agent untranslated if the language keeps product names) with a request ready to organize the Book's Groups, which the person reads and sends. Keep short."
+    },
+    "agent_prompt_nothing_to_report": {
+        "text": "My Book \"{book}\" has nothing to report on: {count} of its {total} accounts with transactions are in no group. Help me organize them into groups for reports, such as a balance sheet and an income statement. Change groups only, not transactions.",
+        "role": "message",
+        "context": "Request Report writes for the person into the Bkper Agent's input when their Book's Accounts are mostly in no Group, so it has no reports. The request is written in the person's own voice, for the Bkper Agent (an AI assistant) to read; it ends asking to change Groups only, never transactions.",
+        "placeholders": {
+            "book": "name of the Book, verbatim",
+            "count": "number of Accounts with transactions that are in no Group, already formatted in the language",
+            "total": "number of Accounts with transactions, already formatted in the language"
+        }
+    },
+    "agent_prompt_no_net_result": {
+        "text": "My Book \"{book}\" has no net result: no group combines {incoming} and {outgoing}. Help me organize its groups so income and expenses meet in one group. Change groups only, not transactions.",
+        "role": "message",
+        "context": "Request Report writes for the person into the Bkper Agent's input when their Book has no net result: no Group holds both its income Groups and its expense Groups. The request is written in the person's own voice, for the Bkper Agent (an AI assistant) to read; it ends asking to change Groups only, never transactions.",
+        "placeholders": {
+            "book": "name of the Book, verbatim",
+            "incoming": "names of the Book's income Groups, verbatim, as a list already joined in the language",
+            "outgoing": "names of the Book's expense Groups, verbatim, as a list already joined in the language"
+        }
+    },
+    "agent_prompt_no_net_result_general": {
+        "text": "My Book \"{book}\" has no net result: no group combines its income and expenses. Help me organize its groups so income and expenses meet in one group. Change groups only, not transactions.",
+        "role": "message",
+        "context": "Request Report writes for the person into the Bkper Agent's input when their Book has no net result and lacks income Groups or expense Groups. The request is written in the person's own voice, for the Bkper Agent (an AI assistant) to read; it ends asking to change Groups only, never transactions.",
+        "placeholders": {
+            "book": "name of the Book, verbatim"
+        }
+    },
+    "agent_prompt_no_net_result_shared": {
+        "text": "My Book \"{book}\" has no net result: its groups {shared} share accounts. Help me organize its groups so income and expenses meet in one group. Change groups only, not transactions.",
+        "role": "message",
+        "context": "Request Report writes for the person into the Bkper Agent's input when their Book has no net result because its income and expense Groups share Accounts. The request is written in the person's own voice, for the Bkper Agent (an AI assistant) to read; it ends asking to change Groups only, never transactions.",
+        "placeholders": {
+            "book": "name of the Book, verbatim",
+            "shared": "names of the Groups that share Accounts, verbatim, as a list already joined in the language"
+        }
+    },
+    "agent_prompt_mixed_group": {
+        "text": "In my Book \"{book}\", the group {group} combines balances (Asset, Liability) with activity (Incoming, Outgoing). Help me separate them into their own groups. Change groups only, not transactions.",
+        "role": "message",
+        "context": "Request Report writes for the person into the Bkper Agent's input when a Group of their Book holds both Asset or Liability Accounts and Incoming or Outgoing Accounts. Asset, Liability, Incoming and Outgoing are Bkper Account types. The request is written in the person's own voice, for the Bkper Agent (an AI assistant) to read; it ends asking to change Groups only, never transactions.",
+        "placeholders": {
+            "book": "name of the Book, verbatim",
+            "group": "name of the Group, verbatim"
+        }
     }
 }

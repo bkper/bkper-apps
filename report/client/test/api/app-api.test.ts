@@ -190,9 +190,9 @@ describe('report API', () => {
             },
         });
 
-        await expect(api.suggestions('book 1', { language: 'pt' })).resolves.toEqual([
-            { text: 'Net result in 2011', intent },
-        ]);
+        await expect(api.suggestions('book 1', { language: 'pt' })).resolves.toEqual({
+            suggestions: [{ text: 'Net result in 2011', intent }],
+        });
         expect(requests[0].url).toBe(
             'https://app.example.test/api/v1/books/book%201/suggestions?language=pt'
         );
@@ -265,5 +265,41 @@ describe('report API', () => {
             status: 422,
             suggestions: [{ text: 'Net result in 2011', intent }],
         });
+    });
+
+    it('tells the problem of a Book that has no reports, with no suggestions', async () => {
+        const problem = { code: 'empty_book', bookName: 'Acme', canOrganize: true } as const;
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async () => jsonResponse({ suggestions: [], problem }),
+        });
+
+        await expect(api.suggestions('book-1')).resolves.toEqual({ suggestions: [], problem });
+    });
+
+    it('keeps the problem of a Book that keeps it from the report asked for', async () => {
+        const problem = {
+            code: 'mixed_group',
+            bookName: 'Acme',
+            canOrganize: false,
+            group: 'Everything',
+        } as const;
+        const api = createAppApi({
+            baseUrl: 'https://app.example.test',
+            fetch: async () =>
+                jsonResponse(
+                    {
+                        success: false,
+                        error: { code: 'mixed_group', message: 'Mixed' },
+                        problem,
+                    },
+                    422
+                ),
+        });
+
+        const error = await api.report('book-1', { prompt: 'everything' }).catch(reason => reason);
+
+        expect(error).toBeInstanceOf(AppApiError);
+        expect(error).toMatchObject({ code: 'mixed_group', status: 422, problem });
     });
 });

@@ -4,6 +4,8 @@ import type { components, ErrorResponse, paths, PingResponse } from './generated
 export type { PingResponse };
 export type ApiErrorResponse = ErrorResponse;
 export type Suggestion = components['schemas']['Suggestion'];
+export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
+export type BookProblem = components['schemas']['BookProblem'];
 export type BookName = components['schemas']['BookName'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportRequest = components['schemas']['ReportRequest'];
@@ -29,7 +31,9 @@ export class AppApiError extends Error {
         readonly status: number,
         readonly code?: string,
         /** With `not_a_report`: reports the Book can have. */
-        readonly suggestions?: Suggestion[]
+        readonly suggestions?: Suggestion[],
+        /** With a problem of the Book's groups: what keeps it from the report, and who can fix it. */
+        readonly problem?: BookProblem
     ) {
         super(message);
         this.name = 'AppApiError';
@@ -64,7 +68,8 @@ function readApiErrorResponse(value: unknown): ApiErrorResponse | undefined {
 function toAppApiError(
     error: unknown,
     response: Response,
-    suggestions?: Suggestion[]
+    suggestions?: Suggestion[],
+    problem?: BookProblem
 ): AppApiError {
     const apiError = readApiErrorResponse(error);
     if (apiError) {
@@ -72,7 +77,8 @@ function toAppApiError(
             apiError.error.message,
             response.status,
             apiError.error.code,
-            suggestions
+            suggestions,
+            problem
         );
     }
 
@@ -104,11 +110,14 @@ export function createAppApi(options: AppApiOptions) {
             return requireData(data, response);
         },
 
-        /** Up to three reports the Book can have, with texts in `language`. */
+        /**
+         * Up to three reports the Book can have, with texts in `language`; or none and the
+         * `problem` of a Book that has no reports at all.
+         */
         async suggestions(
             bookId: string,
             options: RequestOptions & { language?: string } = {}
-        ): Promise<Suggestion[]> {
+        ): Promise<SuggestionsResponse> {
             const { data, error, response } = await client.GET(
                 '/api/v1/books/{bookId}/suggestions',
                 {
@@ -119,7 +128,7 @@ export function createAppApi(options: AppApiOptions) {
             if (error) {
                 throw toAppApiError(error, response);
             }
-            return requireData(data, response).suggestions;
+            return requireData(data, response);
         },
 
         /** The names of the Book's groups and Accounts, in Book order, to complete requests. */
@@ -192,7 +201,8 @@ export function createAppApi(options: AppApiOptions) {
             });
             if (error) {
                 const suggestions = 'suggestions' in error ? error.suggestions : undefined;
-                throw toAppApiError(error, response, suggestions);
+                const problem = 'problem' in error ? error.problem : undefined;
+                throw toAppApiError(error, response, suggestions, problem);
             }
             const report = requireData(data, response);
             if (typeof report === 'string') {

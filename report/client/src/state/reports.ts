@@ -3,6 +3,7 @@ import type { StringKey } from 'report-shared/strings';
 import {
     AppApiError,
     type AppApi,
+    type BookProblem,
     type ReportIntent,
     type ReportRequest,
     type ReportResponse,
@@ -87,6 +88,10 @@ export class Reports extends Store {
     /** A request is on its way. */
     @reactive pending = false;
     @reactive notice?: Notice;
+    /** What keeps the Book from the report asked for: its message, until the next request. */
+    @reactive private requestProblem?: BookProblem;
+    /** What keeps the Book from having any report, as its suggestions say. */
+    @reactive private bookProblem?: BookProblem;
     /** Reports the Book can have; `undefined` while they load. */
     @reactive suggestions?: Suggestion[];
 
@@ -129,6 +134,14 @@ export class Reports extends Store {
         return this.openBookId;
     }
 
+    /**
+     * What keeps the Book from its reports, shown in place of a notice: the problem of the last
+     * request, else the Book's own while nothing else is said.
+     */
+    get problem(): BookProblem | undefined {
+        return this.requestProblem ?? (this.notice ? undefined : this.bookProblem);
+    }
+
     /** The suggestions show under an empty input, and with the notices they answer. */
     get showsSuggestions(): boolean {
         return (
@@ -150,8 +163,9 @@ export class Reports extends Store {
         this.report = undefined;
         this.source = undefined;
         this.choice = undefined;
-        this.notice = undefined;
+        this.quiet();
         this.suggestions = undefined;
+        this.bookProblem = undefined;
         this.text = prompt;
         if (!bookId) return;
         void this.loadSuggestions(bookId);
@@ -165,7 +179,7 @@ export class Reports extends Store {
      */
     openState(state: ReportState): void {
         this.clearTimer();
-        this.notice = undefined;
+        this.quiet();
         this.run('', state.intent, { language: state.language, label: true });
     }
 
@@ -173,7 +187,7 @@ export class Reports extends Store {
     input(text: string): void {
         this.text = text;
         this.route.setPrompt(text);
-        this.notice = undefined;
+        this.quiet();
         this.clearTimer();
         if (wordCount(text) < MIN_WORDS) {
             this.cancel();
@@ -193,7 +207,7 @@ export class Reports extends Store {
         this.clearTimer();
         this.text = suggestion.text;
         this.route.setPrompt(suggestion.text);
-        this.notice = undefined;
+        this.quiet();
         this.run(suggestion.text, suggestion.intent);
     }
 
@@ -206,7 +220,7 @@ export class Reports extends Store {
         this.clearTimer();
         this.text = prompt;
         this.route.setPrompt(prompt);
-        this.notice = undefined;
+        this.quiet();
         if (prompt.trim()) this.run(prompt, undefined, { saved: true });
     }
 
@@ -219,7 +233,14 @@ export class Reports extends Store {
 
     /** Something outside the requests failed, such as loading the report renderer. */
     fail(notice: Notice): void {
+        this.quiet();
         this.notice = notice;
+    }
+
+    /** Say nothing: no notice and no problem of a request. */
+    private quiet(): void {
+        this.notice = undefined;
+        this.requestProblem = undefined;
     }
 
     /**
@@ -326,7 +347,7 @@ export class Reports extends Store {
     private show(report: ReportResponse, prompt?: string, labelFor?: string): void {
         this.source = prompt === undefined ? undefined : { report, prompt };
         this.pending = false;
-        this.notice = undefined;
+        this.quiet();
         // The report first: its chart is then its main one, and dropping the choice changes nothing.
         this.report = report;
         this.choice = undefined;
@@ -335,7 +356,12 @@ export class Reports extends Store {
 
     private failed(error: unknown): void {
         if (isAbort(error)) return;
+        this.quiet();
         if (error instanceof AppApiError) {
+            if (error.problem) {
+                this.requestProblem = error.problem;
+                return;
+            }
             if (error.suggestions?.length) this.suggestions = error.suggestions;
             const notice = error.code ? NOTICES[error.code] : undefined;
             if (notice) {
@@ -363,12 +389,13 @@ export class Reports extends Store {
         this.suggestionsRequest = controller;
         this.suggestionsAt = this.now();
         try {
-            const suggestions = await this.api.suggestions(bookId, {
+            const { suggestions, problem } = await this.api.suggestions(bookId, {
                 language: this.language,
                 signal: controller.signal,
             });
             if (controller.signal.aborted) return;
             this.suggestions = suggestions;
+            this.bookProblem = problem;
             for (const suggestion of suggestions) this.prefetch(bookId, suggestion);
         } catch (error) {
             if (controller.signal.aborted || isAbort(error) || again) return;

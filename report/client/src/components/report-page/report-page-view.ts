@@ -2,9 +2,12 @@ import type WaInput from '@awesome.me/webawesome-pro/dist/components/input/input
 import { LitElement, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
+import { isolate } from 'report-shared/bidi';
 import type { NameCompletion, NameIndex } from 'report-shared/name-index';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
-import type { ReportResponse } from '../../api/app-api';
+import { formatCount, formatList } from '../../agent-link';
+import type { BookProblem, ReportResponse } from '../../api/app-api';
+import { plainClick } from '../../bkper-host';
 import type { AppState } from '../../state/app-state';
 import { watch } from '../../state/store';
 import type { SELECT_CHART } from '../../report/index';
@@ -16,7 +19,15 @@ import { reportPageCSS } from './report-page-css';
 
 export type ReportPageState = Pick<
     AppState,
-    'route' | 'books' | 'reports' | 'strings' | 'savedReports' | 'openSavedReport' | 'names'
+    | 'route'
+    | 'books'
+    | 'reports'
+    | 'strings'
+    | 'savedReports'
+    | 'openSavedReport'
+    | 'names'
+    | 'agentLink'
+    | 'openAgent'
 >;
 
 /** Notices that say something failed, rather than hint. */
@@ -138,9 +149,11 @@ export class ReportPage extends LitElement {
                 <div class="dock">
                     ${
                         // One message at a time: the API's says why the Book cannot be read.
-                        open
-                            ? this.renderNotice(reports.notice ?? books.selectedBookError, lang)
-                            : nothing
+                        !open
+                            ? nothing
+                            : reports.problem
+                              ? this.renderProblem(reports.problem, lang)
+                              : this.renderNotice(reports.notice ?? books.selectedBookError, lang)
                     }
                     ${
                         open
@@ -234,6 +247,39 @@ export class ReportPage extends LitElement {
         return html`<p class="notice ${alert ? 'alert' : ''}" role=${alert ? 'alert' : 'status'}>
             ${t(notice, lang)}
         </p>`;
+    }
+
+    /**
+     * What keeps the Book from its reports, and what to do: for a person who may organize the
+     * Book, a link to the Bkper Agent with the request ready; for others, to ask the owner.
+     */
+    private renderProblem(problem: BookProblem, lang: string) {
+        const link = this.state.agentLink(problem);
+        const empty = problem.code === 'empty_book';
+        const ask = empty ? 'problem_ask_owner_start' : 'problem_ask_owner';
+        return html`<div class="notice problem" role="status">
+            <p class="message">${problemMessage(problem, lang)} ${link ? nothing : t(ask, lang)}</p>
+            ${
+                link
+                    ? html`<wa-button
+                          class="agent"
+                          size="s"
+                          pill
+                          appearance="outlined"
+                          variant="brand"
+                          href=${link.url}
+                          target=${link.newTab ? '_blank' : nothing}
+                          @click=${(event: MouseEvent) => this.onOpenAgent(event, problem)}
+                          >${t(empty ? 'action_agent_start' : 'action_agent_organize', lang)}</wa-button
+                      >`
+                    : nothing
+            }
+        </div>`;
+    }
+
+    /** A plain click opens the Agent in place where the Book can; else the link opens. */
+    private onOpenAgent(event: MouseEvent, problem: BookProblem): void {
+        if (plainClick(event) && this.state.openAgent(problem)) event.preventDefault();
     }
 
     private onInput = (event: Event) => {
@@ -406,6 +452,27 @@ function morphOf(area: HTMLElement): ViewTransitionScope['startViewTransition'] 
     if (isViewTransitionScope(area)) return update => area.startViewTransition(update);
     if (isViewTransitionScope(document)) return update => document.startViewTransition(update);
     return undefined;
+}
+
+/** What keeps the Book from its reports, in the interface's language, names isolated. */
+function problemMessage(problem: BookProblem, lang: string): string {
+    switch (problem.code) {
+        case 'empty_book':
+            return t('problem_empty_book', lang);
+        case 'nothing_to_report':
+            return t('problem_nothing_to_report', lang, {
+                count: formatCount(problem.ungrouped, lang),
+                total: formatCount(problem.total, lang),
+            });
+        case 'no_net_result':
+            return problem.shared.length
+                ? t('problem_no_net_result_shared', lang, {
+                      groups: formatList(problem.shared.map(isolate), lang),
+                  })
+                : t('problem_no_net_result', lang);
+        case 'mixed_group':
+            return t('problem_mixed_group', lang, { group: isolate(problem.group) });
+    }
 }
 
 function reportTitle(report: ReportResponse): string | undefined {

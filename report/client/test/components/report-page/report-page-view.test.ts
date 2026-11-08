@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     AppApiError,
     type BookName,
+    type BookProblem,
     type ReportResponse,
     type Suggestion,
 } from '../../../src/api/app-api';
@@ -16,6 +17,7 @@ import { DEBOUNCE_MS, type ReportApi } from '../../../src/state/reports';
 import type { RoutePage } from '../../../src/state/route';
 import type { SavedReportsApi } from '../../../src/state/saved-reports';
 import type { BookNamesApi } from '../../../src/state/book-names';
+import type { HostPage } from '../../../src/state/book-host';
 
 beforeEach(() => vi.stubGlobal('matchMedia', window.matchMedia.bind(window)));
 afterEach(() => vi.unstubAllGlobals());
@@ -68,6 +70,8 @@ function createPage(
         now?: () => number;
         names?: BookName[];
         namesApi?: BookNamesApi;
+        embedded?: boolean;
+        host?: HostPage;
     } = {}
 ): ReportPage {
     const href = options.href ?? 'https://report.bkper.app/?book=book-1';
@@ -82,12 +86,13 @@ function createPage(
         removeEventListener: () => undefined,
     };
     const api: ReportApi = options.api ?? {
-        suggestions: async () => SUGGESTIONS,
+        suggestions: async () => ({ suggestions: SUGGESTIONS }),
         report: async () => report('Net result'),
     };
     const state = new AppState({
         page,
-        embedded: false,
+        embedded: options.embedded ?? false,
+        host: options.host ?? createHostPage('https://report.bkper.app'),
         language: options.language ?? 'en',
         createAuthSession: () => ({
             authenticatedFetch: async () => new Response(),
@@ -112,6 +117,13 @@ function createPage(
     if (options.content) view.append(options.content);
     document.body.append(view);
     return view;
+}
+
+/** The page as a Book around it talks to it; its own parent when standalone. */
+function createHostPage(origin: string, parent?: HostPage['parent']) {
+    const page = Object.assign(new EventTarget(), { location: { origin } });
+    Object.defineProperty(page, 'parent', { value: parent ?? page });
+    return page as HostPage;
 }
 
 function shadow(view: ReportPage): ShadowRoot {
@@ -307,7 +319,7 @@ describe('ReportPage', () => {
     it('changes into the next report in a transition that captures it once its chart has drawn', async () => {
         const view = createPage({
             api: {
-                suggestions: async () => SUGGESTIONS,
+                suggestions: async () => ({ suggestions: SUGGESTIONS }),
                 report: async (_book, body) =>
                     report('prompt' in body && body.prompt === 'taxes' ? 'Taxes' : 'Net result'),
             },
@@ -364,7 +376,7 @@ describe('ReportPage', () => {
     it('does not wait for the chart where the transition holds the whole page', async () => {
         const view = createPage({
             api: {
-                suggestions: async () => SUGGESTIONS,
+                suggestions: async () => ({ suggestions: SUGGESTIONS }),
                 report: async (_book, body) =>
                     report('prompt' in body && body.prompt === 'taxes' ? 'Taxes' : 'Net result'),
             },
@@ -532,7 +544,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         const clock = { now: 1_000_000 };
         const view = createPage({
             now: () => clock.now,
-            api: { suggestions: async () => SUGGESTIONS, report: request },
+            api: { suggestions: async () => ({ suggestions: SUGGESTIONS }), report: request },
             shelfApi: {
                 ...emptyShelf(),
                 savedReports: async () => ({
@@ -844,7 +856,7 @@ async function completing(names = NAMES, language = 'en') {
     const view = createPage({
         names,
         language,
-        api: { suggestions: async () => SUGGESTIONS, report },
+        api: { suggestions: async () => ({ suggestions: SUGGESTIONS }), report },
     });
     await ready(view);
     await view.state.names.loaded;
@@ -1134,5 +1146,194 @@ describe('Completing Book names in ReportPage', () => {
         await view.updateComplete;
         await view.updateComplete;
         expect(offered(view)).toHaveLength(3);
+    });
+});
+
+describe('ReportPage with a Book whose groups keep it from reports', () => {
+    afterEach(() => document.body.replaceChildren());
+
+    const BASE = { bookName: 'Acme Ltd', canOrganize: true };
+    const NOTHING: BookProblem = {
+        ...BASE,
+        code: 'nothing_to_report',
+        ungrouped: 12,
+        total: 15,
+    };
+
+    /** A page whose Book has `problem` when it opens, as its suggestions say. */
+    function openWith(
+        problem: BookProblem,
+        options: Parameters<typeof createPage>[0] = {}
+    ): ReportPage {
+        return createPage({
+            ...options,
+            api: {
+                suggestions: async () => ({ suggestions: [], problem }),
+                report: async () =>
+                    Promise.reject(
+                        new AppApiError('Problem', 422, problem.code, undefined, problem)
+                    ),
+            },
+        });
+    }
+
+    function problemOf(view: ReportPage) {
+        const element = shadow(view).querySelector('.problem');
+        if (!element) throw new Error('No problem shows');
+        const action = element.querySelector('wa-button');
+        return { element, text: element.textContent?.replace(/\s+/g, ' ').trim(), action };
+    }
+
+    it('says an empty Book has nothing yet, and starts it with the Agent, with no request', async () => {
+        const view = openWith({ ...BASE, code: 'empty_book' });
+        view.state.reports.open('book-1');
+        await settle(view);
+
+        const { text, action } = problemOf(view);
+        expect(text).toContain(t('problem_empty_book', 'en'));
+        expect(action?.textContent?.trim()).toBe(t('action_agent_start', 'en'));
+        const url = new URL(action?.getAttribute('href') ?? '');
+        expect(url.href).toBe('https://bkper.app/books/book-1/transactions?app=bkper-agent');
+        expect(url.searchParams.has('q')).toBe(false);
+        // Standalone, the link opens Bkper in the same tab.
+        expect(action?.hasAttribute('target')).toBe(false);
+        expect(shadow(view).querySelectorAll('.notice')).toHaveLength(1);
+    });
+
+    it('offers to organize the Book with the Agent, with the request ready', async () => {
+        const view = openWith(NOTHING);
+        view.state.reports.open('book-1');
+        await settle(view);
+
+        const { text, action } = problemOf(view);
+        expect(text).toContain('12 of its 15 accounts');
+        expect(action?.textContent?.trim()).toBe(t('action_agent_organize', 'en'));
+        const url = new URL(action?.getAttribute('href') ?? '');
+        expect(url.origin + url.pathname).toBe('https://bkper.app/books/book-1/transactions');
+        expect(url.searchParams.get('app')).toBe('bkper-agent');
+        expect(url.searchParams.get('q')).toBe(
+            'My Book "Acme Ltd" has nothing to report on: 12 of its 15 accounts with transactions are in no group. Help me organize them into groups for reports, such as a balance sheet and an income statement. Change groups only, not transactions.'
+        );
+    });
+
+    it('links to Bkper in development from the preview app', async () => {
+        const view = openWith(NOTHING, {
+            host: createHostPage('https://report-preview.bkper.app'),
+        });
+        view.state.reports.open('book-1');
+        await settle(view);
+
+        const href = problemOf(view).action?.getAttribute('href') ?? '';
+        expect(new URL(href).origin).toBe('https://dev.bkper.app');
+    });
+
+    it('tells others to ask the Book’s owner, with no action', async () => {
+        for (const [problem, ask] of [
+            [{ ...BASE, canOrganize: false, code: 'empty_book' }, 'problem_ask_owner_start'],
+            [{ ...NOTHING, canOrganize: false }, 'problem_ask_owner'],
+        ] as const) {
+            const view = openWith(problem);
+            view.state.reports.open('book-1');
+            await settle(view);
+
+            const { text, action } = problemOf(view);
+            expect(text).toContain(t(ask, 'en'));
+            expect(action).toBeNull();
+            expect(view.state.agentLink(problem)).toBeUndefined();
+            view.remove();
+        }
+    });
+
+    it('says what keeps the report asked for, with the groups involved', async () => {
+        const problems: BookProblem[] = [
+            { ...BASE, code: 'mixed_group', group: 'Everything' },
+            {
+                ...BASE,
+                code: 'no_net_result',
+                incoming: ['Revenue'],
+                outgoing: ['Costs'],
+                shared: ['Revenue', 'Costs'],
+            },
+        ];
+        let next = problems[0];
+        const view = createPage({
+            api: {
+                suggestions: async () => ({ suggestions: SUGGESTIONS }),
+                report: async () =>
+                    Promise.reject(new AppApiError('Problem', 422, next.code, undefined, next)),
+            },
+        });
+        view.state.reports.open('book-1');
+        await settle(view);
+        expect(shadow(view).querySelector('.problem')).toBeNull();
+
+        view.state.reports.input('everything this year');
+        view.state.reports.submit();
+        await settle(view);
+        let shown = problemOf(view);
+        expect(shown.text).toContain('Everything');
+        expect(shown.text).toContain('holds both balances');
+        const mixed = new URL(shown.action?.getAttribute('href') ?? '');
+        expect(mixed.searchParams.get('q')).toContain('the group Everything combines');
+
+        next = problems[1];
+        view.state.reports.input('net result this year');
+        view.state.reports.submit();
+        await settle(view);
+        shown = problemOf(view);
+        expect(shown.text).toContain('share accounts');
+        const shared = new URL(shown.action?.getAttribute('href') ?? '');
+        expect(shared.searchParams.get('q')).toContain('its groups Revenue and Costs share');
+
+        view.state.reports.input('expenses this year');
+        await view.updateComplete;
+        expect(shadow(view).querySelector('.problem')).toBeNull();
+    });
+
+    it('opens the Agent in place in a Book that navigates for the app', async () => {
+        const parent = { postMessage: vi.fn() };
+        const host = createHostPage('https://report.bkper.app', parent);
+        const view = openWith(NOTHING, { embedded: true, host });
+        view.state.connect();
+        view.state.reports.open('book-1');
+        await settle(view);
+
+        // Until the Book says it navigates, the link opens in a new tab.
+        const { action } = problemOf(view);
+        expect(action?.getAttribute('target')).toBe('_blank');
+        const early = new MouseEvent('click', { bubbles: true, cancelable: true });
+        action?.dispatchEvent(early);
+        expect(early.defaultPrevented).toBe(false);
+        expect(parent.postMessage).not.toHaveBeenCalled();
+
+        const ready = new MessageEvent('message', {
+            data: { type: 'bkper:host-ready', supports: ['navigate'] },
+            origin: 'https://dev.bkper.app',
+        });
+        Object.defineProperty(ready, 'source', { value: parent });
+        host.dispatchEvent(ready);
+
+        const modified = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            metaKey: true,
+        });
+        action?.dispatchEvent(modified);
+        expect(modified.defaultPrevented).toBe(false);
+
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+        action?.dispatchEvent(click);
+        expect(click.defaultPrevented).toBe(true);
+        // On the Book's own origin, with the same request.
+        const url = new URL(action?.getAttribute('href') ?? '');
+        expect(url.origin).toBe('https://bkper.app');
+        expect(parent.postMessage).toHaveBeenCalledExactlyOnceWith(
+            {
+                type: 'bkper:navigate',
+                url: `https://dev.bkper.app${url.pathname}${url.search}`,
+            },
+            'https://dev.bkper.app'
+        );
+        view.state.disconnect();
     });
 });

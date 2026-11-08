@@ -5,7 +5,9 @@ import {
 } from '../auth/auth-session';
 import { personLanguage } from './language';
 import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
-import { createAppApi, type AppApi, type ReportResponse } from '../api/app-api';
+import { createAppApi, type AppApi, type BookProblem, type ReportResponse } from '../api/app-api';
+import { agentPrompt, agentUrl } from '../agent-link';
+import { environmentBkperOrigin } from '../bkper-host';
 import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
 import { AppUrlChange, BookHost, type HostPage } from './book-host';
@@ -55,6 +57,8 @@ export class AppState {
     private started = false;
     /** In a Book's panel, where the Book keeps the report's state; else the app's own page. */
     private readonly embedded: boolean;
+    /** The page the app runs in, as the Book around it sees it. */
+    private readonly hostPage: HostPage;
     /** The report, and chart, whose state the URL and the Book have, or were last checked to have. */
     private synced?: { report: ReportResponse; chart?: ChartKind };
 
@@ -65,7 +69,8 @@ export class AppState {
         this.loadRenderer = options.loadRenderer ?? loadReportRenderer;
         this.embedded = options.embedded ?? window.parent !== window;
         this.route = new Route(page, this.embedded);
-        this.host = new BookHost(options.host ?? window);
+        this.hostPage = options.host ?? window;
+        this.host = new BookHost(this.hostPage);
         this.auth = (options.createAuthSession ?? createAuthSession)({
             onLoginSuccess: () => {
                 // The report of the URL starts with the Book, not after it.
@@ -159,6 +164,34 @@ export class AppState {
         const item = this.savedReports.items.find(report => report.id === id);
         if (item) this.reports.runSaved(item.prompt);
     };
+
+    /**
+     * The link to the Bkper Agent that helps with the Book's `problem`, only for a person who may
+     * organize the Book (OWNER or EDITOR): with the request for it ready in the Agent's input,
+     * none for an empty Book. On the Bkper of the app's environment; standalone it opens in the
+     * same tab, in a Book in a new one unless the Book opens it in place ({@link openAgent}).
+     */
+    agentLink(problem: BookProblem): { url: string; newTab: boolean } | undefined {
+        const url = this.agentUrl(problem, environmentBkperOrigin(this.hostPage.location.origin));
+        return url === undefined ? undefined : { url, newTab: this.embedded };
+    }
+
+    /**
+     * The person clicked the Agent link of `problem`: in a Book that navigates for the app, ask it
+     * to open the Agent in place, on its own origin. Whether it did; else the link opens.
+     */
+    readonly openAgent = (problem: BookProblem): boolean => {
+        const origin = this.host.navigationOrigin;
+        if (!this.embedded || !origin) return false;
+        const url = this.agentUrl(problem, origin);
+        return url !== undefined && this.host.navigate(url);
+    };
+
+    private agentUrl(problem: BookProblem, origin: string): string | undefined {
+        const bookId = this.reports.bookId;
+        if (!bookId || !problem.canOrganize) return undefined;
+        return agentUrl(origin, bookId, agentPrompt(problem, this.strings.language));
+    }
 
     /**
      * Follow Back and Forward, and the first time sign in, load the interface's strings and

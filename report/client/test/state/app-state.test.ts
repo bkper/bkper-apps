@@ -74,7 +74,7 @@ function createReportApi() {
     const api: ReportApi = {
         suggestions: async bookId => {
             asked.push(`suggestions ${bookId}`);
-            return [];
+            return { suggestions: [] };
         },
         report: (bookId, body) => {
             asked.push(`report ${bookId} ${body.prompt ?? ''}`);
@@ -450,7 +450,7 @@ describe('AppState', () => {
         function answeringApi() {
             const bodies: ReportRequest[] = [];
             const api: ReportApi = {
-                suggestions: async () => [],
+                suggestions: async () => ({ suggestions: [] }),
                 report: async (_bookId, body) => {
                     bodies.push(body);
                     const intent = body.intent ?? REVENUE;

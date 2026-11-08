@@ -105,6 +105,24 @@ export const reportPageCSS = css`
         color: var(--wa-color-danger-on-quiet);
     }
 
+    /* What keeps the Book from its reports, and the action that helps, beside it when it fits. */
+    .problem {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--bkper-spacing-x-small) var(--bkper-spacing-small);
+        color: var(--wa-color-text-normal);
+    }
+
+    .problem .message {
+        flex: 0 1 auto;
+        margin-block: 0;
+    }
+
+    .problem .agent {
+        flex: none;
+    }
+
     /*
      * The names completing the word typed: a list over the report, above the dock, so the input
      * and what sits on it stay in view. The measures of the Book's input suggestions (those of a

@@ -82,6 +82,33 @@ describe('BookHost', () => {
         expect(urls).toEqual(['https://report.bkper.app/?book=b&state=s']);
     });
 
+    it('navigates in place only after the Book says it accepts it, on the Book’s origin', () => {
+        const { host, parent, send } = createHost();
+        const url = 'https://bkper.app/books/b1/transactions?app=bkper-agent';
+
+        expect(host.navigationOrigin).toBeUndefined();
+        expect(host.navigate(url)).toBe(false);
+        send({ type: 'bkper:host-ready', supports: ['app-state'] });
+        expect(host.navigate(url)).toBe(false);
+        expect(parent.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'bkper:navigate' }),
+            expect.anything()
+        );
+
+        send(READY);
+        expect(host.navigationOrigin).toBe(BKPER);
+        expect(host.navigate(url)).toBe(true);
+        expect(parent.postMessage).toHaveBeenCalledExactlyOnceWith(
+            { type: 'bkper:navigate', url },
+            BKPER
+        );
+
+        // A URL of another origin is not the Book's to open.
+        expect(host.navigate('https://dev.bkper.app/books/b1/transactions')).toBe(false);
+        send({ type: 'bkper:host-ready', supports: ['app-state'] });
+        expect(host.navigationOrigin).toBeUndefined();
+    });
+
     it('hears nothing standalone', () => {
         const page = Object.assign(new EventTarget(), {
             location: { origin: 'https://report.bkper.app' },

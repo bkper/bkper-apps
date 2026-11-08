@@ -22,6 +22,10 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 - Plans are ephemeral: delete a plan as soon as its work is done.
 - Never reference plans from code, comments, tests, configs, skills, or `AGENTS.md` files: no paths, and no plan phase, step, section, or decision numbers. Write the rule or the reason itself where it applies.
 
+## Environments
+
+Build as an external developer: preview (`menuUrlDev`, `webhookUrlDev`) and production both run on Bkper in production and its API. Never infer a Bkper origin from the app's own address; use the origin of the embedding Book's messages, or `https://bkper.app`.
+
 ## Port Allocation
 
 Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–9649`. Assign distinct ports per app; keep launch commands, proxies and HMR aligned with `strictPort: true`.

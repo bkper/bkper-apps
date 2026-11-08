@@ -10,7 +10,7 @@ import { loadBalances } from '../services/balances-loader.js';
 import type { QueryBalances } from '../services/balances.js';
 import type { Snapshot } from '../services/snapshot.js';
 import { currentUserId, loadSnapshot } from '../services/snapshot-loader.js';
-import { readSuggestions } from '../services/suggestions.js';
+import { readOpening } from '../services/suggestions.js';
 import { bookNames } from '../services/prompt-names.js';
 import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
@@ -59,7 +59,7 @@ const suggestionsRoute = createRoute({
     tags: ['Reports'],
     summary: 'Suggest reports of a Book',
     description:
-        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.',
+        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.',
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
@@ -112,7 +112,7 @@ const reportRoute = createRoute({
             },
         },
         422: jsonResponse(
-            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper)',
+            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions',
             ReportErrorResponseSchema
         ),
         429: jsonResponse(
@@ -198,11 +198,11 @@ export function registerApiRoutes(app: App): void {
             (language && supportedLanguage(language)) ??
             acceptedLanguage(c.req.header('Accept-Language')) ??
             DEFAULT_LANGUAGE;
-        const suggestions = await readSuggestions(snapshot, lang, {
+        const opening = await readOpening(snapshot, lang, {
             loadBalances: bookBalances(context, bookId, snapshot, userId),
             timing: context.timing,
         });
-        return c.json({ suggestions }, 200);
+        return c.json(opening, 200);
     });
 
     app.openapi(namesRoute, async c => {

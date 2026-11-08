@@ -961,6 +961,61 @@ describe('buildReport: mixed groups', () => {
     });
 });
 
+describe('planReport: a group that mixes balances with activity', () => {
+    /** The fixture Book with Salary also under Assets, which then holds balances and activity. */
+    function mixedAssetsLedger(): FakeLedger {
+        const ledger = fixtureLedger();
+        for (const account of ledger.book.accounts ?? []) {
+            if (account.id === 'a-salary') {
+                account.groups = [...(account.groups ?? []), { id: 'g-banks' }];
+            }
+        }
+        return ledger;
+    }
+    const mixedGroup = (group: string) =>
+        expect.objectContaining({
+            reason: 'mixed_group',
+            problem: expect.objectContaining({ code: 'mixed_group', group }),
+        });
+
+    it('rejects a report of the group, before any query', async () => {
+        const snapshot = await ledgerSnapshot(mixedAssetsLedger());
+        expect(() => planReport(intent('g-assets', 'today'), snapshot)).toThrow(
+            mixedGroup('Assets')
+        );
+        expect(() =>
+            planReport(intent('g-assets', 'today', { target: 'g-banks' }), snapshot)
+        ).toThrow(mixedGroup('Banks'));
+        expect(() =>
+            planReport(intent('g-card', 'today', { alongside: [{ root: 'g-assets' }] }), snapshot)
+        ).toThrow(mixedGroup('Assets'));
+    });
+
+    it('reads the accounts under it, and the other roots, as before', async () => {
+        const snapshot = await ledgerSnapshot(mixedAssetsLedger());
+        expect(
+            planReport(intent('g-assets', 'today', { target: 'a-cash' }), snapshot).sources
+        ).toEqual(['g-assets']);
+        expect(planReport(intent('g-card', 'today'), snapshot).sources).toEqual(['g-card']);
+        expect(planReport(intent('g-expenses', 'last_month'), snapshot).sources).toEqual([
+            'g-expenses',
+        ]);
+    });
+
+    it('rejects the net result of a combining group that also holds balances', async () => {
+        const ledger = fixtureLedger();
+        for (const account of ledger.book.accounts ?? []) {
+            if (account.id === 'a-cash') {
+                account.groups = [...(account.groups ?? []), { id: 'g-net' }];
+            }
+        }
+        const snapshot = await ledgerSnapshot(ledger);
+        expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
+            mixedGroup('Net income')
+        );
+    });
+});
+
 describe('buildReport: net result from a group that combines Incoming and Outgoing', () => {
     it('reads the net result Bkper calculates for the group, and its rows', async () => {
         const data = await report(intent('net-result', 'all'));
@@ -1151,6 +1206,21 @@ describe('buildReport: no net result', () => {
         const snapshot = await ledgerSnapshot(ledger);
         expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
             expect.objectContaining({ reason: 'no_net_result' })
+        );
+    });
+
+    it('tells which activity roots it found, and which share accounts', async () => {
+        const snapshot = await ledgerSnapshot(sharedAccountLedger());
+        expect(() => planReport(intent('net-result', 'last_month'), snapshot)).toThrow(
+            expect.objectContaining({
+                reason: 'no_net_result',
+                problem: expect.objectContaining({
+                    code: 'no_net_result',
+                    incoming: ['Revenue'],
+                    outgoing: ['Expenses', 'Travel'],
+                    shared: ['Expenses', 'Travel'],
+                }),
+            })
         );
     });
 

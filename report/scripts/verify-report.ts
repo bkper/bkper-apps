@@ -1365,6 +1365,14 @@ async function verifyBook(
                 check(net.kind === 'none', `${label}: no net result, as the Book's groups say`);
                 continue;
             }
+            // A group whose accounts with transactions hold balances and activity has no report.
+            if (error instanceof ReportError && error.problem?.code === 'mixed_group') {
+                check(
+                    true,
+                    `${label}: no report, as ${error.problem.group} mixes balances with activity`
+                );
+                continue;
+            }
             check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }

@@ -11,6 +11,7 @@
  */
 import { t, type StringKey } from 'report-shared/strings';
 import type { QueryBalances } from './balances.js';
+import { bookProblem, type BookProblem } from './book-problems.js';
 import { readReport } from './default-period.js';
 import { netResultOf } from './report.js';
 import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
@@ -26,6 +27,28 @@ export interface Suggestion {
 /** How many suggestions are shown, when the Book supports that many. */
 export const SUGGESTION_COUNT = 3;
 
+interface SuggestionOptions {
+    loadBalances: (queries: string[]) => Promise<QueryBalances[]>;
+    timing: Timing;
+}
+
+/**
+ * What a Book offers when Report opens: its suggestions ({@link readSuggestions}), or, when it
+ * has no reports at all (empty, or with nothing to report on), none and its problem, with no
+ * balances read.
+ */
+export async function readOpening(
+    snapshot: Snapshot,
+    lang: string,
+    options: SuggestionOptions
+): Promise<{ suggestions: Suggestion[]; problem?: BookProblem }> {
+    const problem = bookProblem(snapshot);
+    if (problem) {
+        return { suggestions: [], problem };
+    }
+    return { suggestions: await readSuggestions(snapshot, lang, options) };
+}
+
 /**
  * The suggestions of {@link buildSuggestions}, each with the period a request for it that names
  * none reads (`readReport`): this year when it has movements, else the last year with them,
@@ -36,10 +59,7 @@ export const SUGGESTION_COUNT = 3;
 export async function readSuggestions(
     snapshot: Snapshot,
     lang: string,
-    options: {
-        loadBalances: (queries: string[]) => Promise<QueryBalances[]>;
-        timing: Timing;
-    }
+    options: SuggestionOptions
 ): Promise<Suggestion[]> {
     const suggestions = await options.timing.measure('compute', async () =>
         buildSuggestions(snapshot, lang)

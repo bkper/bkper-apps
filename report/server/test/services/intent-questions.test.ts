@@ -34,7 +34,7 @@ function wideSnapshot(base: Snapshot, roots: number, accounts: number): Snapshot
         const ids = Array.from({ length: accounts }, (_, a) => `r${r}-a${a}`);
         groups[`r${r}`] = { ...node, id: `r${r}`, name: `Root ${r}`, groups: [], accounts: ids };
         for (const [a, id] of ids.entries()) {
-            accountMap[id] = { ...node, id, name: `R${r}-${a}`, archived: false };
+            accountMap[id] = { ...node, id, name: `R${r}-${a}`, archived: false, posted: true };
         }
     }
     return { ...base, roots: Object.keys(groups), groups, accounts: accountMap };

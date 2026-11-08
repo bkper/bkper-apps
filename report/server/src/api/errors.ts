@@ -1,6 +1,7 @@
 import { BkperError } from 'bkper-js';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HTTPException } from 'hono/http-exception';
+import type { BookProblem } from '../services/book-problems.js';
 import { BkperAiError } from '../services/decision-client.js';
 import { MissingBalancesError, ReportError } from '../services/report.js';
 import { NotAReportError } from '../services/report-service.js';
@@ -20,6 +21,9 @@ export type ApiErrorCode =
     | 'unknown_target'
     | 'mixed_targets'
     | 'no_net_result'
+    | 'empty_book'
+    | 'nothing_to_report'
+    | 'mixed_group'
     | 'ai_allowance_exhausted'
     | 'upstream_error'
     | 'storage_error'
@@ -32,7 +36,10 @@ export function buildApiError(code: ApiErrorCode, message: string) {
     };
 }
 
-export type ApiErrorBody = ReturnType<typeof buildApiError> & { suggestions?: Suggestion[] };
+export type ApiErrorBody = ReturnType<typeof buildApiError> & {
+    suggestions?: Suggestion[];
+    problem?: BookProblem;
+};
 
 export interface ApiErrorResponse {
     status: ContentfulStatusCode;
@@ -46,6 +53,10 @@ const HTTP_CODES: Partial<Record<number, ApiErrorCode>> = {
     404: 'not_found',
 };
 
+/** What an agent can offer when organizing the Book's groups would let it have the report. */
+const ORGANIZE =
+    'If the person is the Book’s OWNER or EDITOR (`problem.canOrganize`), offer to organize its groups for them, changing groups only, never transactions; otherwise, tell them to ask the Book’s owner. `problem` names what is involved.';
+
 const REPORT_ERROR_MESSAGES = {
     future_period: 'The period has not started yet.',
     unknown_root:
@@ -54,8 +65,11 @@ const REPORT_ERROR_MESSAGES = {
         'The intent’s target is no group or Account under its root group. Take the intent of a suggestion or of an earlier report, or send the person’s words as `prompt`.',
     mixed_targets:
         'Balances at a date (Asset, Liability) and activity in a period (Incoming, Outgoing) cannot be side by side. Ask for them in separate reports.',
-    no_net_result:
-        'This Book has no net result: no group combines its Incoming and Outgoing groups. Tell the person to add one in Bkper (a top-level group holding the income and expense groups), or ask for one of its groups.',
+    no_net_result: `This Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts. Reports of one of its groups still work. To have a net result, income and expenses must meet in one top-level group. ${ORGANIZE}`,
+    empty_book:
+        'This Book has no transactions yet, so there is nothing to report. If the person is the Book’s OWNER or EDITOR (`problem.canOrganize`), offer to help them get started recording its transactions.',
+    nothing_to_report: `This Book has nothing to report on: it has no groups, or most of its Accounts with transactions are in no group, and reports read groups. Organizing its Accounts into groups, such as a balance sheet and an income statement, lets it have reports. ${ORGANIZE}`,
+    mixed_group: `The group asked for holds both balances (Asset, Liability) and activity (Incoming, Outgoing), so its report would mix them. Reports of its subgroups or Accounts still work. Separating them into groups of their own lets it have the report. ${ORGANIZE}`,
 } as const;
 
 /**
@@ -89,7 +103,10 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
         };
     }
     if (error instanceof ReportError && error.reason !== 'no_activity_roots') {
-        return respond(422, error.reason, REPORT_ERROR_MESSAGES[error.reason]);
+        const response = respond(422, error.reason, REPORT_ERROR_MESSAGES[error.reason]);
+        return error.problem
+            ? { ...response, body: { ...response.body, problem: error.problem } }
+            : response;
     }
     if (error instanceof MissingBalancesError) {
         return respond(502, 'upstream_error', 'Bkper failed to answer.');

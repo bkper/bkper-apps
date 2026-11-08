@@ -22,6 +22,12 @@
 import { Amount } from 'bkper-js';
 import { VIEW_KINDS, type ViewKind } from 'report-shared/catalog';
 import {
+    bookProblem,
+    mixedGroupProblem,
+    noNetResultProblem,
+    type BookProblem,
+} from './book-problems.js';
+import {
     accountBalances,
     groupBalances,
     monthPeriod,
@@ -316,16 +322,45 @@ export type ReportErrorReason =
     | 'future_period'
     | 'no_activity_roots'
     /** No group combines Incoming and Outgoing, and the activity roots are not simple. */
-    | 'no_net_result';
+    | 'no_net_result'
+    /** No account has transactions posted. */
+    | 'empty_book'
+    /** No root groups, or most accounts with transactions posted are in no group. */
+    | 'nothing_to_report'
+    /** The group read holds balances and activity. */
+    | 'mixed_group';
 
-/** The intent asks for a report this Book cannot have. */
+/**
+ * The intent asks for a report this Book cannot have; with the Book's problem (see
+ * `book-problems.ts`) when organizing its groups would let it have the report.
+ */
 export class ReportError extends Error {
     constructor(
         readonly reason: ReportErrorReason,
-        message: string
+        message: string,
+        readonly problem?: BookProblem
     ) {
         super(message);
         this.name = 'ReportError';
+    }
+}
+
+/** The error of a Book's problem: the problem's code is its reason. */
+export function bookProblemError(problem: BookProblem): ReportError {
+    const messages: Record<BookProblem['code'], string> = {
+        empty_book: 'No account of the Book has transactions posted',
+        nothing_to_report: 'The Book has no groups to report on',
+        no_net_result: 'No group of the Book combines Incoming and Outgoing',
+        mixed_group: 'The group holds balances and activity',
+    };
+    return new ReportError(problem.code, messages[problem.code], problem);
+}
+
+/** Rejects a report of a Book that has none: empty, or with nothing to report on. */
+export function assertReportable(snapshot: Snapshot): void {
+    const problem = bookProblem(snapshot);
+    if (problem) {
+        throw bookProblemError(problem);
     }
 }
 
@@ -408,6 +443,7 @@ export type ReportPlan = ReportSubject & {
  */
 export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan {
     const subject = reportSubject(intent, snapshot);
+    rejectMixedGroups(subject, snapshot);
     const nature: ReportNature = (subject.node ?? subject.targets?.[0].node)?.permanent
         ? 'position'
         : 'activity';
@@ -649,16 +685,31 @@ function reportSubject(intent: ReportIntent, snapshot: Snapshot): ReportSubject 
                     calculated: { incoming: net.incoming, outgoing: net.outgoing },
                 };
             case 'none':
-                throw new ReportError(
-                    net.reason,
-                    net.reason === 'no_activity_roots'
-                        ? 'The Book has no Incoming or Outgoing root groups'
-                        : 'No group of the Book combines Incoming and Outgoing'
-                );
+                throw net.reason === 'no_activity_roots'
+                    ? new ReportError(
+                          net.reason,
+                          'The Book has no Incoming or Outgoing root groups'
+                      )
+                    : bookProblemError(noNetResultProblem(snapshot));
         }
     }
     const node = subjectNode({ root, target }, snapshot);
     return { sources: [sourceOf(snapshot, node)], node };
+}
+
+/**
+ * Rejects a report that reads a group whole whose accounts hold balances and activity: the
+ * subject's group, or each group side by side. Accounts are read from their groups' responses,
+ * by name, so a target account is never mixed.
+ */
+function rejectMixedGroups(subject: ReportSubject, snapshot: Snapshot): void {
+    const nodes = subject.node ? [subject.node] : (subject.targets ?? []).map(({ node }) => node);
+    for (const node of nodes) {
+        const problem = node.kind === 'group' ? mixedGroupProblem(snapshot, node.id) : undefined;
+        if (problem) {
+            throw bookProblemError(problem);
+        }
+    }
 }
 
 /**
@@ -1079,13 +1130,27 @@ function calculatedNetResult(
     reader: RowReader
 ): ComputedReport {
     const all = [...roots.incoming, ...roots.outgoing];
-    const held = all.flatMap(id => {
-        const { current, previous } = balancesOf(sources, id);
-        const read = [current, previous ?? []].flat();
-        return [...new Set(read.flatMap(balances => Object.keys(balances.accounts)))];
-    });
-    if (new Set(held).size !== held.length) {
-        throw new ReportError('no_net_result', 'Activity roots of the Book share accounts');
+    const heldBy = new Map(
+        all.map(id => {
+            const { current, previous } = balancesOf(sources, id);
+            const read = [current, previous ?? []].flat();
+            return [id, new Set(read.flatMap(balances => Object.keys(balances.accounts)))];
+        })
+    );
+    const shared = all.filter(id =>
+        all.some(
+            other =>
+                other !== id &&
+                [...(heldBy.get(id) ?? [])].some(name => heldBy.get(other)?.has(name))
+        )
+    );
+    if (shared.length > 0) {
+        throw bookProblemError(
+            noNetResultProblem(
+                snapshot,
+                snapshot.roots.filter(id => shared.includes(id)).map(id => snapshot.groups[id].name)
+            )
+        );
     }
     const lines = (ids: string[]) =>
         ids.map(id => reader.group(snapshot.groups[id].name, balancesOf(sources, id)));

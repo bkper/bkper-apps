@@ -45,6 +45,7 @@ function mapOf(
         ...node('OUTGOING'),
         type: 'OUTGOING',
         archived: false,
+        posted: true,
     });
     return {
         book: { id: 'book', name: 'Book', permission: 'VIEWER' },

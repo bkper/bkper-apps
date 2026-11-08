@@ -1,8 +1,9 @@
 /**
- * Book snapshot: the Book's map. Its root groups, their subgroups and accounts, and their
- * natures, which Jev's options, names, net results and suggestions are chosen from. It holds no
- * amounts and no dates of movements: every amount a report shows comes from a balances query of
- * the report's own period (`report.ts`).
+ * Book snapshot: the Book's map. Its root groups, their subgroups and accounts, their natures,
+ * and which accounts have transactions posted, which Jev's options, names, net results,
+ * suggestions and the Book's problems (`book-problems.ts`) are chosen from. It holds no amounts
+ * and no dates of movements: every amount a report shows comes from a balances query of the
+ * report's own period (`report.ts`).
  *
  * It is built from the Book's structure alone, as one `getBook` call returns it with its groups
  * and accounts: no balances query, so its cost does not grow with the Book's history or its
@@ -35,6 +36,8 @@ export interface SnapshotGroup extends SnapshotNode {
 export interface SnapshotAccount extends SnapshotNode {
     type: Exclude<NodeType, 'MIXED'>;
     archived: boolean;
+    /** Whether a transaction was ever posted to it, as Bkper tells in the Book payload. */
+    posted: boolean;
 }
 
 /** An account in no group: a root of its own, which a report reads with a query of its own. */
@@ -173,5 +176,6 @@ function accountNode(account: Account): SnapshotAccount {
         credit: account.isCredit() ?? false,
         permanent: account.isPermanent() ?? false,
         archived: account.isArchived() ?? false,
+        posted: account.hasTransactionPosted() ?? false,
     };
 }

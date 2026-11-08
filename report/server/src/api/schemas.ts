@@ -39,7 +39,10 @@ export const ErrorResponseSchema = z
                         '`unknown_root` (422, the intent names no root group of the Book),',
                         '`unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group),',
                         '`mixed_targets` (422, the intent’s `alongside` mixes balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports),',
-                        '`no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, which the person can add in Bkper),',
+                        '`no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it),',
+                        '`empty_book` (422, the Book has no transactions yet),',
+                        '`nothing_to_report` (422, the Book has no groups, or most of its Accounts with transactions are in no group; organizing them into groups fixes it),',
+                        '`mixed_group` (422, the group asked for holds both balances, Asset or Liability, and activity, Incoming or Outgoing; separating them into groups of their own fixes it),',
                         '`ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work),',
                         '`upstream_error` (502, Bkper or Bkper AI failed: try again) or',
                         '`internal_error` (500).',
@@ -175,13 +178,88 @@ export const SuggestionSchema = z
             'A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI.',
     });
 
+const ProblemBaseSchema = z.object({
+    bookName: z.string().openapi({
+        description: 'The Book’s name, as Bkper writes it.',
+        example: 'My Company',
+    }),
+    canOrganize: z.boolean().openapi({
+        description:
+            'Whether the person may change the Book’s groups (OWNER or EDITOR), so they, or an agent for them, can fix it. Otherwise only the Book’s owner can.',
+        example: true,
+    }),
+});
+
+export const BookProblemSchema = z
+    .discriminatedUnion('code', [
+        ProblemBaseSchema.extend({
+            code: z.literal('empty_book').openapi({
+                description: 'No Account of the Book has transactions yet.',
+            }),
+        }),
+        ProblemBaseSchema.extend({
+            code: z.literal('nothing_to_report').openapi({
+                description:
+                    'The Book has no groups, or more than half of its Accounts with transactions are in no group.',
+            }),
+            ungrouped: z.number().int().min(0).openapi({
+                description: 'Accounts with transactions that are in no group.',
+                example: 12,
+            }),
+            total: z.number().int().min(1).openapi({
+                description: 'Accounts with transactions.',
+                example: 15,
+            }),
+        }),
+        ProblemBaseSchema.extend({
+            code: z.literal('no_net_result').openapi({
+                description:
+                    'No group combines the Book’s Incoming and Outgoing groups, and its activity groups cannot be netted: they share Accounts, or some hold neither kind alone.',
+            }),
+            incoming: z.array(z.string()).openapi({
+                description:
+                    'Names of the activity root groups holding Incoming Accounts, in Book order.',
+                example: ['Revenue'],
+            }),
+            outgoing: z.array(z.string()).openapi({
+                description:
+                    'Names of the activity root groups holding Outgoing Accounts, in Book order.',
+                example: ['Expenses'],
+            }),
+            shared: z.array(z.string()).openapi({
+                description:
+                    'Names of the activity root groups that share Accounts with another, in Book order; empty when none do.',
+                example: [],
+            }),
+        }),
+        ProblemBaseSchema.extend({
+            code: z.literal('mixed_group').openapi({
+                description:
+                    'The group asked for holds Accounts with transactions of both balances (Asset, Liability) and activity (Incoming, Outgoing).',
+            }),
+            group: z.string().openapi({
+                description: 'Name of the group.',
+                example: 'Company',
+            }),
+        }),
+    ])
+    .openapi('BookProblem', {
+        description:
+            'Why the Book cannot have the report, found by fixed rules from its groups and Accounts, and what is involved. Every case but `empty_book` is fixed by organizing the Book’s groups, never its transactions.',
+    });
+
 export const SuggestionsResponseSchema = z
     .object({
         suggestions: z.array(SuggestionSchema).openapi({
-            description: 'Up to three reports, chosen from the Book’s own groups and Accounts.',
+            description:
+                'Up to three reports, chosen from the Book’s own groups and Accounts; none with a `problem`.',
         }),
+        problem: BookProblemSchema.optional(),
     })
-    .openapi('SuggestionsResponse');
+    .openapi('SuggestionsResponse', {
+        description:
+            'Suggested reports; or, when the Book has no reports at all, none and `problem`: `empty_book` (no transactions yet) or `nothing_to_report` (no groups to report on). Every report request of that Book then answers the same 422 error.',
+    });
 
 /** Why a report request is invalid when it has neither or both of `prompt` and `intent`. */
 export const BookNameSchema = z
@@ -511,7 +589,11 @@ export const ReportErrorResponseSchema = ErrorResponseSchema.extend({
         description:
             'With `not_a_report`: reports this Book can have, to offer the person instead.',
     }),
-}).openapi('ReportErrorResponse');
+    problem: BookProblemSchema.optional(),
+}).openapi('ReportErrorResponse', {
+    description:
+        'An error of a report request; with `not_a_report`, `suggestions`; with `empty_book`, `nothing_to_report`, `no_net_result` and `mixed_group`, `problem`: what is involved, and whether the person may organize the Book’s groups.',
+});
 
 export const bookErrorResponses = {
     400: jsonResponse('Invalid request (`invalid_request`, naming the field)', ErrorResponseSchema),

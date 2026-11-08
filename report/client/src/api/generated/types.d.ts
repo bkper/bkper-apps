@@ -62,7 +62,7 @@ export interface paths {
         };
         /**
          * Suggest reports of a Book
-         * @description Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. Read-only.
+         * @description Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.
          */
         get: {
             parameters: {
@@ -302,7 +302,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), or a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups; the person can add one in Bkper) */
+                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -610,7 +610,7 @@ export interface components {
             success: false;
             error: {
                 /**
-                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group), `mixed_targets` (422, the intent’s `alongside` mixes balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, which the person can add in Bkper), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
+                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group), `mixed_targets` (422, the intent’s `alongside` mixes balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it), `empty_book` (422, the Book has no transactions yet), `nothing_to_report` (422, the Book has no groups, or most of its Accounts with transactions are in no group; organizing them into groups fixes it), `mixed_group` (422, the group asked for holds both balances, Asset or Liability, and activity, Incoming or Outgoing; separating them into groups of their own fixes it), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
                  * @example book_not_found
                  */
                 code: string;
@@ -621,9 +621,11 @@ export interface components {
                 message: string;
             };
         };
+        /** @description Suggested reports; or, when the Book has no reports at all, none and `problem`: `empty_book` (no transactions yet) or `nothing_to_report` (no groups to report on). Every report request of that Book then answers the same 422 error. */
         SuggestionsResponse: {
-            /** @description Up to three reports, chosen from the Book’s own groups and Accounts. */
+            /** @description Up to three reports, chosen from the Book’s own groups and Accounts; none with a `problem`. */
             suggestions: components["schemas"]["Suggestion"][];
+            problem?: components["schemas"]["BookProblem"];
         };
         /** @description A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI. */
         Suggestion: {
@@ -686,6 +688,106 @@ export interface components {
              * @example 6235671829479424
              */
             target?: string;
+        };
+        /** @description Why the Book cannot have the report, found by fixed rules from its groups and Accounts, and what is involved. Every case but `empty_book` is fixed by organizing the Book’s groups, never its transactions. */
+        BookProblem: {
+            /**
+             * @description The Book’s name, as Bkper writes it.
+             * @example My Company
+             */
+            bookName: string;
+            /**
+             * @description Whether the person may change the Book’s groups (OWNER or EDITOR), so they, or an agent for them, can fix it. Otherwise only the Book’s owner can.
+             * @example true
+             */
+            canOrganize: boolean;
+            /**
+             * @description No Account of the Book has transactions yet.
+             * @enum {string}
+             */
+            code: "empty_book";
+        } | {
+            /**
+             * @description The Book’s name, as Bkper writes it.
+             * @example My Company
+             */
+            bookName: string;
+            /**
+             * @description Whether the person may change the Book’s groups (OWNER or EDITOR), so they, or an agent for them, can fix it. Otherwise only the Book’s owner can.
+             * @example true
+             */
+            canOrganize: boolean;
+            /**
+             * @description The Book has no groups, or more than half of its Accounts with transactions are in no group.
+             * @enum {string}
+             */
+            code: "nothing_to_report";
+            /**
+             * @description Accounts with transactions that are in no group.
+             * @example 12
+             */
+            ungrouped: number;
+            /**
+             * @description Accounts with transactions.
+             * @example 15
+             */
+            total: number;
+        } | {
+            /**
+             * @description The Book’s name, as Bkper writes it.
+             * @example My Company
+             */
+            bookName: string;
+            /**
+             * @description Whether the person may change the Book’s groups (OWNER or EDITOR), so they, or an agent for them, can fix it. Otherwise only the Book’s owner can.
+             * @example true
+             */
+            canOrganize: boolean;
+            /**
+             * @description No group combines the Book’s Incoming and Outgoing groups, and its activity groups cannot be netted: they share Accounts, or some hold neither kind alone.
+             * @enum {string}
+             */
+            code: "no_net_result";
+            /**
+             * @description Names of the activity root groups holding Incoming Accounts, in Book order.
+             * @example [
+             *       "Revenue"
+             *     ]
+             */
+            incoming: string[];
+            /**
+             * @description Names of the activity root groups holding Outgoing Accounts, in Book order.
+             * @example [
+             *       "Expenses"
+             *     ]
+             */
+            outgoing: string[];
+            /**
+             * @description Names of the activity root groups that share Accounts with another, in Book order; empty when none do.
+             * @example []
+             */
+            shared: string[];
+        } | {
+            /**
+             * @description The Book’s name, as Bkper writes it.
+             * @example My Company
+             */
+            bookName: string;
+            /**
+             * @description Whether the person may change the Book’s groups (OWNER or EDITOR), so they, or an agent for them, can fix it. Otherwise only the Book’s owner can.
+             * @example true
+             */
+            canOrganize: boolean;
+            /**
+             * @description The group asked for holds Accounts with transactions of both balances (Asset, Liability) and activity (Incoming, Outgoing).
+             * @enum {string}
+             */
+            code: "mixed_group";
+            /**
+             * @description Name of the group.
+             * @example Company
+             */
+            group: string;
         };
         BookNamesResponse: {
             /** @description Every group and Account of the Book’s balances, each once, in Book order: root groups in order, each with its subgroups, then its Accounts, then the Accounts in no group. Archived Accounts with no balance are left out. */
@@ -1137,9 +1239,11 @@ export interface components {
                 };
             };
         };
+        /** @description An error of a report request; with `not_a_report`, `suggestions`; with `empty_book`, `nothing_to_report`, `no_net_result` and `mixed_group`, `problem`: what is involved, and whether the person may organize the Book’s groups. */
         ReportErrorResponse: components["schemas"]["ErrorResponse"] & {
             /** @description With `not_a_report`: reports this Book can have, to offer the person instead. */
             suggestions?: components["schemas"]["Suggestion"][];
+            problem?: components["schemas"]["BookProblem"];
         };
         /** @description Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
@@ -1204,6 +1308,7 @@ export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportSubject = components['schemas']['ReportSubject'];
+export type BookProblem = components['schemas']['BookProblem'];
 export type BookNamesResponse = components['schemas']['BookNamesResponse'];
 export type BookName = components['schemas']['BookName'];
 export type ReportResponse = components['schemas']['ReportResponse'];

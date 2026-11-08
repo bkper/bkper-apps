@@ -65,6 +65,7 @@ describe('buildSnapshot', () => {
             credit: true,
             permanent: true,
             archived: false,
+            posted: true,
         });
         // Archived accounts are part of the structure.
         expect(accounts['a-old']).toMatchObject({ type: 'OUTGOING', archived: true });
@@ -82,9 +83,24 @@ describe('buildSnapshot', () => {
                 credit: true,
                 permanent: true,
                 archived: false,
+                posted: true,
             },
         });
         expect(accounts['a-owner']).toBeUndefined();
+    });
+
+    it('marks the accounts that have transactions posted', async () => {
+        const payload = structuredClone(bookPayload);
+        const card = payload.accounts?.find(account => account.id === 'a-card');
+        delete card?.hasTransactionPosted;
+        const owner = payload.accounts?.find(account => account.id === 'a-owner');
+        if (owner) {
+            owner.hasTransactionPosted = false;
+        }
+        const { accounts, ungrouped } = await build(payload);
+        expect(accounts['a-card'].posted).toBe(false);
+        expect(ungrouped['a-owner'].posted).toBe(false);
+        expect(accounts['a-cash'].posted).toBe(true);
     });
 
     it('holds no amounts and no months', async () => {

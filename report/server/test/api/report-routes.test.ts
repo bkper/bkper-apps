@@ -289,6 +289,47 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         );
     });
 
+    it('tells no problem for a Book that has reports', async () => {
+        const test = harness();
+        const body = (await (await test.app.request(SUGGESTIONS_URL, {}, test.env)).json()) as {
+            problem?: unknown;
+        };
+        expect(body.problem).toBeUndefined();
+    });
+
+    it('tells, with no suggestions, when the Book has nothing to report', async () => {
+        const empty = fixtureLedger();
+        for (const account of empty.book.accounts ?? []) {
+            account.hasTransactionPosted = false;
+        }
+        const test = harness({ bkper: new FakeBkper({ ledger: empty, permission: 'OWNER' }) });
+        const response = await test.app.request(SUGGESTIONS_URL, {}, test.env);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({
+            suggestions: [],
+            problem: { code: 'empty_book', bookName: 'Test Ledger', canOrganize: true },
+        });
+        expect(test.queries).toEqual([]);
+
+        const flat = fixtureLedger();
+        flat.book.groups = [];
+        for (const account of flat.book.accounts ?? []) {
+            account.groups = [];
+        }
+        const viewer = harness({ bkper: new FakeBkper({ ledger: flat }) });
+        const unorganized = await viewer.app.request(SUGGESTIONS_URL, {}, viewer.env);
+        expect(await unorganized.json()).toEqual({
+            suggestions: [],
+            problem: {
+                code: 'nothing_to_report',
+                bookName: 'Test Ledger',
+                canOrganize: false,
+                ungrouped: 9,
+                total: 9,
+            },
+        });
+    });
+
     it('rejects a language that is not a Bkper language', async () => {
         const test = harness();
         const response = await test.app.request(`${SUGGESTIONS_URL}?language=tlh`, {}, test.env);
@@ -447,10 +488,64 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             intent: { root: 'net-result', period: '2026-10', monthly: false },
         });
         expect(response.status).toBe(422);
-        const body = (await response.json()) as { error: { code: string; message: string } };
+        const body = (await response.json()) as {
+            error: { code: string; message: string };
+            problem: unknown;
+        };
         expect(body.error.code).toBe('no_net_result');
-        expect(body.error.message).toContain('add one in Bkper');
+        expect(body.error.message).toContain('groups only');
+        expect(body.problem).toEqual({
+            code: 'no_net_result',
+            bookName: 'Test Ledger',
+            canOrganize: false,
+            incoming: ['Revenue'],
+            outgoing: ['Expenses', 'Travel'],
+            shared: ['Expenses', 'Travel'],
+        });
         expect(test.queries).toEqual([]);
+    });
+
+    it('answers a report of a group that mixes balances with activity with what to organize', async () => {
+        const ledger = fixtureLedger();
+        for (const account of ledger.book.accounts ?? []) {
+            if (account.id === 'a-salary') {
+                account.groups = [...(account.groups ?? []), { id: 'g-assets' }];
+            }
+        }
+        const test = harness({ bkper: new FakeBkper({ ledger, permission: 'EDITOR' }) });
+        const response = await post(test, {
+            intent: { root: 'g-assets', period: 'today', monthly: false },
+            format: 'html',
+        });
+        expect(response.status).toBe(422);
+        const body = (await response.json()) as {
+            error: { code: string; message: string };
+            problem: unknown;
+        };
+        expect(body.error.code).toBe('mixed_group');
+        expect(body.error.message).toContain('groups only');
+        expect(body.problem).toEqual({
+            code: 'mixed_group',
+            bookName: 'Test Ledger',
+            canOrganize: true,
+            group: 'Assets',
+        });
+        expect(test.queries).toEqual([]);
+    });
+
+    it('answers a report of an empty Book with what to do, before Bkper AI', async () => {
+        const ledger = fixtureLedger();
+        for (const account of ledger.book.accounts ?? []) {
+            account.hasTransactionPosted = false;
+        }
+        const test = harness({ bkper: new FakeBkper({ ledger }) });
+        const response = await post(test, { prompt: 'expenses last month' });
+        expect(response.status).toBe(422);
+        expect(await response.json()).toMatchObject({
+            error: { code: 'empty_book' },
+            problem: { code: 'empty_book', canOrganize: false },
+        });
+        expect(test.jevCalls).toBe(0);
     });
 
     it('builds a report by prompt with one Bkper AI decision', async () => {

@@ -226,6 +226,65 @@ describe('createReport by intent', () => {
     });
 });
 
+describe('createReport of a Book that has nothing to report', () => {
+    it('answers an empty Book before asking Bkper AI or reading any balances', async () => {
+        const snapshot = await fixtureSnapshot();
+        for (const account of [
+            ...Object.values(snapshot.accounts),
+            ...Object.values(snapshot.ungrouped),
+        ]) {
+            account.posted = false;
+        }
+        for (const request of [
+            { prompt: 'expenses last month' },
+            { intent: intent('g-expenses', 'last_month') },
+        ]) {
+            const test = harness();
+            const error = await createReport(snapshot, request, {}, test.options).catch(
+                (e: unknown) => e
+            );
+            expect(error).toBeInstanceOf(ReportError);
+            expect(error).toMatchObject({
+                reason: 'empty_book',
+                problem: { code: 'empty_book', bookName: 'Test Ledger', canOrganize: false },
+            });
+            expect(test.jevCalls).toBe(0);
+            expect(test.queries).toEqual([]);
+        }
+    });
+
+    it('answers a Book whose accounts are mostly in no group, even for one of them', async () => {
+        const snapshot = await fixtureSnapshot();
+        snapshot.roots = [];
+        snapshot.groups = {};
+        snapshot.ungrouped = { ...snapshot.ungrouped, ...snapshot.accounts };
+        snapshot.accounts = {};
+        const test = harness();
+        const error = await createReport(
+            snapshot,
+            { intent: intent('a-owner', 'today') },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toMatchObject({
+            reason: 'nothing_to_report',
+            problem: { code: 'nothing_to_report', ungrouped: 9, total: 9 },
+        });
+        expect(test.queries).toEqual([]);
+    });
+
+    it('still answers a request that is no report of a Book that has reports as not a report', async () => {
+        const test = harness({ root: 'none' });
+        const error = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'what is the weather' },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(NotAReportError);
+    });
+});
+
 describe('createReport by prompt', () => {
     it('asks Jev once and reports in the language it detected', async () => {
         const test = harness({ root: 'Expenses', period: '2026-10', language: 'es' });

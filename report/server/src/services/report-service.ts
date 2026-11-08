@@ -7,6 +7,9 @@
  * request that names no period reads the default one, and only when that has no movements,
  * one query of the report's history and the report of its last year with them
  * (`default-period.ts`).
+ *
+ * A Book that has no reports at all (empty, or with nothing to report on: `book-problems.ts`) is
+ * answered before anything is asked or read.
  */
 import type { ReportSpec } from 'report-shared/catalog';
 import { reportText } from 'report-shared/report-state';
@@ -16,6 +19,7 @@ import { resolveIntent, type IntentTrace } from './intent-resolver.js';
 import type { QueryBalances } from './balances.js';
 import {
     ReportError,
+    assertReportable,
     buildReport,
     viewKindOf,
     type ChartFacts,
@@ -98,6 +102,7 @@ export async function createReport(
     options: ReportServiceOptions
 ): Promise<ReportResult> {
     const { timing } = options;
+    assertReportable(snapshot);
     let intent: ReportIntent;
     let intentTrace: IntentTrace | undefined;
     let detected: string | undefined;

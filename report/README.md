@@ -56,6 +56,19 @@ A chart that cannot show your numbers honestly is not drawn. It appears dimmed a
 
 Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. Owners and editors can save and remove requests; viewers and posters can open them.
 
+## When a Book has no report
+
+Some Books are not organized for reports yet. Report then says why instead of showing one:
+
+| The Book | Shown |
+| --- | --- |
+| Has no transactions yet | When Report opens |
+| Has no groups, or most Accounts with transactions are in no group | When Report opens |
+| Has no group that holds both income and expenses, or its income and expense groups share Accounts | When you ask for the net result |
+| Has a group that mixes balances (assets, liabilities) with activity (income, expenses) | When you ask for that group |
+
+Owners and editors get **Organize with Agent**: it opens the Bkper Agent in the Book with a request ready in its input, in your language, naming the groups involved and asking to change groups only, never transactions. The Agent sends nothing until you do, so read it, change it if you like, and send it. A Book with no transactions gets **Get started with Agent** instead. Everyone else is told to ask the Book's owner.
+
 ## Good to know
 
 - **Up to two minutes behind.** Report keeps balances and reports for up to a minute each, so a transaction posted in the last two minutes may not show yet.

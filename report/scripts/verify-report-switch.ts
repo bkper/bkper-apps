@@ -539,7 +539,7 @@ async function open(
             if (path.endsWith('/reports') && req.method() === 'GET')
                 return json({
                     reports: saved,
-                    capabilities: { list: true, save: true, remove: true },
+                    capabilities: { list: true, save: true, remove: true, move: true },
                 });
             if (path.endsWith('/report')) {
                 const body = req.postDataJSON() as { intent?: unknown; prompt?: string };

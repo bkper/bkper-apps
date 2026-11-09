@@ -154,7 +154,12 @@ try {
                         if (path.endsWith('/reports') && req.method() === 'GET')
                             return json({
                                 reports: items,
-                                capabilities: { list: true, save: writable, remove: writable },
+                                capabilities: {
+                                    list: true,
+                                    save: writable,
+                                    remove: writable,
+                                    move: writable,
+                                },
                             });
                         if (path.endsWith('/reports') && req.method() === 'POST') {
                             await new Promise(resolve => setTimeout(resolve, 350));

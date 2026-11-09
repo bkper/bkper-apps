@@ -249,7 +249,7 @@ async function route(page: Page, item: Case, theme: 'light' | 'dark'): Promise<v
             if (path.endsWith('/reports') && req.method() === 'GET')
                 return json({
                     reports: [],
-                    capabilities: { list: true, save: false, remove: false },
+                    capabilities: { list: true, save: false, remove: false, move: false },
                 });
             if (path.endsWith('/report'))
                 return json(

@@ -12,19 +12,21 @@ import type { BookNamesApi } from '../../src/state/book-names';
 import { CACHE_MS } from '../../src/state/cache-window';
 
 const SAVED = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
+const WRITE = { list: true, save: true, remove: true, move: true };
 function createShelfApi() {
     const loaded: string[] = [];
     const saved: { book: string; prompt: string }[] = [];
     const api: SavedReportsApi = {
         savedReports: async book => {
             loaded.push(book);
-            return { reports: [SAVED], capabilities: { list: true, save: true, remove: true } };
+            return { reports: [SAVED], capabilities: WRITE };
         },
         saveReport: async (book, body) => {
             saved.push({ book, prompt: body.prompt });
             return { id: 'b'.repeat(64), prompt: body.prompt };
         },
         removeReport: async () => undefined,
+        moveReport: async () => ({ reports: [SAVED], capabilities: WRITE }),
     };
     return { api, loaded, saved };
 }

@@ -13,6 +13,7 @@ export type ReportResponse = components['schemas']['ReportResponse'];
 export type SavedPrompt = components['schemas']['SavedPrompt'];
 export type SavedPromptsResponse = components['schemas']['SavedPromptsResponse'];
 export type SavePromptRequest = components['schemas']['SavePromptRequest'];
+export type MoveSavedPromptRequest = components['schemas']['MoveSavedPromptRequest'];
 export type SavedPromptCapabilities = SavedPromptsResponse['capabilities'];
 
 export interface RequestOptions {
@@ -183,6 +184,25 @@ export function createAppApi(options: AppApiOptions) {
                 { params: { path: { bookId, reportId } }, signal: options.signal }
             );
             if (!response.ok) throw toAppApiError(error, response);
+        },
+
+        /** Moves a prompt just before `before` (`null`: the end); answers the shelf in its new order. */
+        async moveReport(
+            bookId: string,
+            reportId: string,
+            body: MoveSavedPromptRequest,
+            options: RequestOptions = {}
+        ): Promise<SavedPromptsResponse> {
+            const { data, error, response } = await client.PUT(
+                '/api/v1/books/{bookId}/reports/{reportId}/position',
+                {
+                    params: { path: { bookId, reportId } },
+                    body: { before: body.before },
+                    signal: options.signal,
+                }
+            );
+            if (!response.ok) throw toAppApiError(error, response);
+            return requireData(data, response);
         },
 
         /**

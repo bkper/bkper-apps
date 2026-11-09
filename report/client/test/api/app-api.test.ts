@@ -52,7 +52,10 @@ describe('createAppApi', () => {
 
 describe('saved-prompt API', () => {
     const item = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
-    const shelf = { reports: [item], capabilities: { list: true, save: true, remove: true } };
+    const shelf = {
+        reports: [item],
+        capabilities: { list: true, save: true, remove: true, move: true },
+    };
 
     it('uses encoded generated routes, prompt-only JSON, no-store and abort signals', async () => {
         const requests: Request[] = [];
@@ -61,7 +64,8 @@ describe('saved-prompt API', () => {
             fetch: async request => {
                 requests.push(request);
                 if (request.method === 'DELETE') return new Response(null, { status: 204 });
-                return jsonResponse(request.method === 'GET' ? shelf : { report: item });
+                if (request.method === 'POST') return jsonResponse({ report: item });
+                return jsonResponse(shelf);
             },
         });
         const controller = new AbortController();
@@ -71,20 +75,25 @@ describe('saved-prompt API', () => {
             item
         );
         await expect(api.removeReport('book /1', item.id, options)).resolves.toBeUndefined();
+        await expect(
+            api.moveReport('book /1', item.id, { before: null }, options)
+        ).resolves.toEqual(shelf);
         const url = 'https://app.example.test/api/v1/books/book%20%2F1/reports';
         expect(requests.map(request => [request.method, request.url])).toEqual([
             ['GET', url],
             ['POST', url],
             ['DELETE', `${url}/${item.id}`],
+            ['PUT', `${url}/${item.id}/position`],
         ]);
         expect(requests[0].cache).toBe('no-store');
         expect(requests[1].headers.get('content-type')).toBe('application/json');
         await expect(requests[1].json()).resolves.toEqual({ prompt: item.prompt });
+        await expect(requests[3].json()).resolves.toEqual({ before: null });
         controller.abort();
         expect(requests.every(request => request.signal.aborted)).toBe(true);
     });
 
-    it.each(['list', 'save', 'remove'] as const)(
+    it.each(['list', 'save', 'remove', 'move'] as const)(
         'normalizes %s errors and propagates network/cancel failures',
         async operation => {
             let response = async (): Promise<Response> =>
@@ -101,7 +110,9 @@ describe('saved-prompt API', () => {
                     ? api.savedReports('b', { signal })
                     : operation === 'save'
                       ? api.saveReport('b', { prompt: item.prompt }, { signal })
-                      : api.removeReport('b', item.id, { signal });
+                      : operation === 'remove'
+                        ? api.removeReport('b', item.id, { signal })
+                        : api.moveReport('b', item.id, { before: item.id }, { signal });
             await expect(call()).rejects.toMatchObject({
                 name: 'AppApiError',
                 status: 502,
@@ -126,7 +137,7 @@ describe('saved-prompt API', () => {
         }
     );
 
-    it.each(['list', 'save', 'remove'] as const)(
+    it.each(['list', 'save', 'remove', 'move'] as const)(
         'cancels the actual %s transport',
         async operation => {
             const controller = new AbortController();
@@ -145,7 +156,9 @@ describe('saved-prompt API', () => {
                     ? api.savedReports('b', options)
                     : operation === 'save'
                       ? api.saveReport('b', { prompt: item.prompt }, options)
-                      : api.removeReport('b', item.id, options);
+                      : operation === 'remove'
+                        ? api.removeReport('b', item.id, options)
+                        : api.moveReport('b', item.id, { before: null }, options);
             controller.abort();
             await expect(result).rejects.toMatchObject({ name: 'AbortError' });
         }
@@ -163,18 +176,23 @@ describe('saved-prompt API', () => {
         });
     });
 
-    it.each(['list', 'save'] as const)('rejects empty %s success payloads', async operation => {
-        const api = createAppApi({
-            baseUrl: 'https://app.example.test',
-            fetch: async () =>
-                new Response(null, { status: 200, headers: { 'content-length': '0' } }),
-        });
-        const result =
-            operation === 'list'
-                ? api.savedReports('b')
-                : api.saveReport('b', { prompt: item.prompt });
-        await expect(result).rejects.toBeInstanceOf(AppApiError);
-    });
+    it.each(['list', 'save', 'move'] as const)(
+        'rejects empty %s success payloads',
+        async operation => {
+            const api = createAppApi({
+                baseUrl: 'https://app.example.test',
+                fetch: async () =>
+                    new Response(null, { status: 200, headers: { 'content-length': '0' } }),
+            });
+            const result =
+                operation === 'list'
+                    ? api.savedReports('b')
+                    : operation === 'save'
+                      ? api.saveReport('b', { prompt: item.prompt })
+                      : api.moveReport('b', item.id, { before: null });
+            await expect(result).rejects.toBeInstanceOf(AppApiError);
+        }
+    );
 });
 
 describe('report API', () => {

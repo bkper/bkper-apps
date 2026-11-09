@@ -472,13 +472,14 @@ describe('ReportPage', () => {
     });
 });
 
-const WRITE = { list: true, save: true, remove: true };
+const WRITE = { list: true, save: true, remove: true, move: true };
 const ITEM = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
 function emptyShelf(): SavedReportsApi {
     return {
         savedReports: async () => ({ reports: [], capabilities: WRITE }),
         saveReport: async (_book, body) => ({ id: ITEM.id, prompt: body.prompt }),
         removeReport: async () => undefined,
+        moveReport: async () => ({ reports: [], capabilities: WRITE }),
     };
 }
 function deferred<T>() {
@@ -660,7 +661,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
                 ...emptyShelf(),
                 savedReports: async () => ({
                     reports: [ITEM],
-                    capabilities: { list: true, save: false, remove: false },
+                    capabilities: { list: true, save: false, remove: false, move: false },
                 }),
             },
         });

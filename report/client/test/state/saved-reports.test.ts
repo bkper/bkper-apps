@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppApiError, type SavedPrompt, type SavedPromptsResponse } from '../../src/api/app-api';
-import { SavedReports, type SavedReportsApi } from '../../src/state/saved-reports';
+import { beforeFor, SavedReports, type SavedReportsApi } from '../../src/state/saved-reports';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -13,8 +13,9 @@ function deferred<T>() {
 }
 const ITEM: SavedPrompt = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
 const OTHER: SavedPrompt = { id: 'b'.repeat(64), prompt: 'Receitas por mês' };
-const WRITE = { list: true, save: true, remove: true };
-const READ = { list: true, save: false, remove: false };
+const THIRD: SavedPrompt = { id: 'c'.repeat(64), prompt: 'Net result last month' };
+const WRITE = { list: true, save: true, remove: true, move: true };
+const READ = { list: true, save: false, remove: false, move: false };
 
 function setup() {
     const loads: {
@@ -34,6 +35,13 @@ function setup() {
         signal?: AbortSignal;
         result: ReturnType<typeof deferred<void>>;
     }[] = [];
+    const moves: {
+        book: string;
+        id: string;
+        before: string | null;
+        signal?: AbortSignal;
+        result: ReturnType<typeof deferred<SavedPromptsResponse>>;
+    }[] = [];
     const api: SavedReportsApi = {
         savedReports: (book, options) => {
             const result = deferred<SavedPromptsResponse>();
@@ -50,15 +58,22 @@ function setup() {
             removals.push({ book, id, signal: options?.signal, result });
             return result.promise;
         },
+        moveReport: (book, id, body, options) => {
+            const result = deferred<SavedPromptsResponse>();
+            moves.push({ book, id, before: body.before, signal: options?.signal, result });
+            return result.promise;
+        },
     };
     const shelf = new SavedReports(api);
-    const ready = async (capabilities = WRITE) => {
+    const ready = async (capabilities = WRITE, reports = [ITEM]) => {
         shelf.open('book-1');
-        loads.at(-1)!.result.resolve({ reports: [ITEM], capabilities });
+        loads.at(-1)!.result.resolve({ reports, capabilities });
         await shelf.load();
         shelf.setSource('book-1', OTHER.prompt);
     };
-    return { shelf, loads, saves, removals, ready };
+    /** A shelf of three, in the server's order, which is not the order of their ids. */
+    const three = () => ready(WRITE, [THIRD, ITEM, OTHER]);
+    return { shelf, loads, saves, removals, moves, ready, three };
 }
 
 describe('SavedReports', () => {
@@ -157,9 +172,151 @@ describe('SavedReports', () => {
         expect(shelf.saveError).toBe('forbidden');
         expect(shelf.canSave).toBe(false);
         expect(shelf.canRemove).toBe(false);
+        expect(shelf.canMove).toBe(false);
         expect(shelf.canList).toBe(true);
         await shelf.save();
         expect(saves).toHaveLength(1);
+    });
+
+    it('keeps the server order and appends a confirmed save at the end', async () => {
+        const { shelf, saves, ready } = setup();
+        await ready(WRITE, [THIRD, ITEM, THIRD]);
+        expect(shelf.items).toEqual([THIRD, ITEM]);
+        const saving = shelf.save();
+        saves[0].result.resolve(OTHER);
+        await saving;
+        expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+    });
+
+    it('moves at once, then shows the order the server answers', async () => {
+        const { shelf, moves, three } = setup();
+        await three();
+        const moving = shelf.move(OTHER.id, THIRD.id);
+        expect(shelf.items).toEqual([OTHER, THIRD, ITEM]);
+        expect(shelf.moving).toBe(OTHER.id);
+        expect([shelf.canMove, shelf.canSave, shelf.canRemove]).toEqual([false, false, false]);
+        expect(moves).toEqual([
+            expect.objectContaining({ book: 'book-1', id: OTHER.id, before: THIRD.id }),
+        ]);
+        moves[0].result.resolve({ reports: [OTHER, ITEM, THIRD], capabilities: WRITE });
+        await moving;
+        expect(shelf.items).toEqual([OTHER, ITEM, THIRD]);
+        expect(shelf.moving).toBeUndefined();
+        expect(shelf.canMove).toBe(true);
+        const toEnd = shelf.move(OTHER.id, null);
+        expect(shelf.items).toEqual([ITEM, THIRD, OTHER]);
+        expect(moves[1].before).toBeNull();
+        moves[1].result.resolve({ reports: [ITEM, THIRD, OTHER], capabilities: READ });
+        await toEnd;
+        expect(shelf.capabilities).toEqual(READ);
+        expect(shelf.canMove).toBe(false);
+    });
+
+    it('asks nothing for a move that changes nothing', async () => {
+        const { shelf, moves, three } = setup();
+        await three();
+        await shelf.move(THIRD.id, ITEM.id);
+        await shelf.move(THIRD.id, THIRD.id);
+        await shelf.move(OTHER.id, null);
+        await shelf.move('d'.repeat(64), null);
+        await shelf.move(THIRD.id, 'd'.repeat(64));
+        expect(moves).toHaveLength(0);
+        expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+    });
+
+    it('restores the previous order when a move fails, and permits a retry', async () => {
+        const { shelf, moves, loads, three } = setup();
+        await three();
+        const moving = shelf.move(ITEM.id, THIRD.id);
+        expect(shelf.items).toEqual([ITEM, THIRD, OTHER]);
+        moves[0].result.reject(new AppApiError('private', 502, 'storage_error'));
+        await moving;
+        expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+        expect(shelf.moveError).toBe('storage_error');
+        expect(shelf.moving).toBeUndefined();
+        expect(loads).toHaveLength(1);
+        const retry = shelf.move(ITEM.id, THIRD.id);
+        expect(shelf.moveError).toBeUndefined();
+        moves[1].result.resolve({ reports: [ITEM, THIRD, OTHER], capabilities: WRITE });
+        await retry;
+        expect(shelf.items).toEqual([ITEM, THIRD, OTHER]);
+    });
+
+    it('restores the order without an error when the transport is cancelled', async () => {
+        const { shelf, moves, three } = setup();
+        await three();
+        const moving = shelf.move(OTHER.id, THIRD.id);
+        moves[0].result.reject(new DOMException('cancelled', 'AbortError'));
+        await moving;
+        expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+        expect(shelf.moveError).toBeUndefined();
+        expect(shelf.canMove).toBe(true);
+    });
+
+    it.each(['shelf_changed', 'report_not_found'] as const)(
+        'lists the shelf again after %s',
+        async code => {
+            const { shelf, moves, loads, three } = setup();
+            await three();
+            const moving = shelf.move(ITEM.id, THIRD.id);
+            const status = code === 'shelf_changed' ? 409 : 404;
+            moves[0].result.reject(new AppApiError('private', status, code));
+            await new Promise(resolve => setTimeout(resolve));
+            expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+            expect(shelf.moveError).toBe(code);
+            expect(loads).toHaveLength(2);
+            loads[1].result.resolve({ reports: [ITEM, OTHER], capabilities: WRITE });
+            await moving;
+            expect(shelf.items).toEqual([ITEM, OTHER]);
+            expect(shelf.loading).toBe(false);
+            expect(shelf.canMove).toBe(true);
+        }
+    );
+
+    it('turns every mutation off when the server denies a move', async () => {
+        const { shelf, moves, three } = setup();
+        await three();
+        const moving = shelf.move(OTHER.id, THIRD.id);
+        moves[0].result.reject(new AppApiError('private', 403, 'forbidden'));
+        await moving;
+        expect(shelf.moveError).toBe('forbidden');
+        expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
+        expect(shelf.capabilities).toEqual({ ...WRITE, save: false, remove: false, move: false });
+        await shelf.move(OTHER.id, THIRD.id);
+        expect(moves).toHaveLength(1);
+    });
+
+    it('runs one mutation at a time and coalesces a repeated move', async () => {
+        const { shelf, moves, saves, removals, loads, three } = setup();
+        await three();
+        const moving = shelf.move(OTHER.id, THIRD.id);
+        expect(shelf.move(OTHER.id, ITEM.id)).toBe(moving);
+        await shelf.move(ITEM.id, null);
+        await shelf.save();
+        await shelf.remove(ITEM.id);
+        await shelf.load();
+        expect([moves.length, saves.length, removals.length, loads.length]).toEqual([1, 0, 0, 1]);
+        moves[0].result.resolve({ reports: [OTHER, THIRD, ITEM], capabilities: WRITE });
+        await moving;
+        shelf.setSource('book-1', 'Assets today');
+        const saving = shelf.save();
+        await shelf.move(ITEM.id, null);
+        expect(moves).toHaveLength(1);
+        saves[0].result.resolve({ id: 'd'.repeat(64), prompt: 'Assets today' });
+        await saving;
+        expect(shelf.canMove).toBe(true);
+    });
+
+    it('gives where to move a prompt first, earlier or later', () => {
+        const items = [THIRD, ITEM, OTHER];
+        expect(beforeFor(items, ITEM.id, 'first')).toBe(THIRD.id);
+        expect(beforeFor(items, OTHER.id, 'earlier')).toBe(ITEM.id);
+        expect(beforeFor(items, THIRD.id, 'later')).toBe(OTHER.id);
+        expect(beforeFor(items, ITEM.id, 'later')).toBeNull();
+        expect(beforeFor(items, THIRD.id, 'first')).toBeUndefined();
+        expect(beforeFor(items, THIRD.id, 'earlier')).toBeUndefined();
+        expect(beforeFor(items, OTHER.id, 'later')).toBeUndefined();
+        expect(beforeFor(items, 'd'.repeat(64), 'first')).toBeUndefined();
     });
 
     it('ignores stale loads even on A to B to A and cancels their transport', async () => {
@@ -186,13 +343,21 @@ describe('SavedReports', () => {
         ['save', false],
         ['remove', true],
         ['remove', false],
+        ['move', true],
+        ['move', false],
     ] as const)(
         'drops late %s responses across Books (success: %s)',
         async (operation, success) => {
-            const { shelf, saves, removals, loads, ready } = setup();
-            await ready();
-            const old = operation === 'save' ? shelf.save() : shelf.remove(ITEM.id);
-            const call = operation === 'save' ? saves[0] : removals[0];
+            const { shelf, saves, removals, moves, loads, ready } = setup();
+            await ready(WRITE, [ITEM, THIRD]);
+            const old =
+                operation === 'save'
+                    ? shelf.save()
+                    : operation === 'remove'
+                      ? shelf.remove(ITEM.id)
+                      : shelf.move(THIRD.id, ITEM.id);
+            const call =
+                operation === 'save' ? saves[0] : operation === 'remove' ? removals[0] : moves[0];
             shelf.open('book-2');
             shelf.open('book-1');
             const current = shelf.load();
@@ -201,67 +366,87 @@ describe('SavedReports', () => {
             expect(call.signal?.aborted).toBe(true);
             if (!success) call.result.reject(new AppApiError('old', 403, 'forbidden'));
             else if (operation === 'save') saves[0].result.resolve(OTHER);
-            else removals[0].result.resolve();
+            else if (operation === 'remove') removals[0].result.resolve();
+            else moves[0].result.resolve({ reports: [THIRD, ITEM], capabilities: WRITE });
             await old;
             expect(shelf.items).toEqual([]);
             expect(shelf.capabilities).toEqual(READ);
             expect(shelf.saveError).toBeUndefined();
             expect(shelf.removeError).toBeUndefined();
+            expect(shelf.moveError).toBeUndefined();
             expect(shelf.saving).toBeUndefined();
             expect(shelf.removing).toBeUndefined();
+            expect(shelf.moving).toBeUndefined();
+            expect(loads).toHaveLength(3);
         }
     );
 
-    it.each(['save', 'remove'] as const)(
+    it.each(['save', 'remove', 'move'] as const)(
         'prevents an old list from undoing a confirmed %s',
         async operation => {
-            const { shelf, saves, removals, loads, ready } = setup();
-            await ready();
+            const { shelf, saves, removals, moves, loads, ready } = setup();
+            await ready(WRITE, operation === 'move' ? [ITEM, OTHER] : [ITEM]);
             const oldLoad = shelf.load();
-            const mutation = operation === 'save' ? shelf.save() : shelf.remove(ITEM.id);
+            const mutation =
+                operation === 'save'
+                    ? shelf.save()
+                    : operation === 'remove'
+                      ? shelf.remove(ITEM.id)
+                      : shelf.move(OTHER.id, ITEM.id);
             expect(loads.at(-1)!.signal?.aborted).toBe(true);
             await shelf.load();
             expect(loads).toHaveLength(2);
             if (operation === 'save') saves[0].result.resolve(OTHER);
-            else removals[0].result.resolve();
+            else if (operation === 'remove') removals[0].result.resolve();
+            else moves[0].result.resolve({ reports: [OTHER, ITEM], capabilities: WRITE });
             await mutation;
-            loads[1].result.resolve({ reports: [ITEM], capabilities: READ });
+            loads[1].result.resolve({ reports: [ITEM, OTHER], capabilities: READ });
             await oldLoad;
-            expect(shelf.items).toEqual(operation === 'save' ? [ITEM, OTHER] : []);
+            expect(shelf.items).toEqual(
+                operation === 'save' ? [ITEM, OTHER] : operation === 'remove' ? [] : [OTHER, ITEM]
+            );
             expect(shelf.capabilities).toEqual(WRITE);
         }
     );
 
     it('announces pending capability changes with the pending state already applied', async () => {
-        const { shelf, saves, removals, ready } = setup();
-        await ready();
+        const { shelf, saves, removals, moves, ready } = setup();
+        await ready(WRITE, [ITEM, THIRD]);
         const observed: {
-            saving?: string;
-            removing?: string;
+            pending: boolean;
+            order: string;
             canSave: boolean;
             canRemove: boolean;
+            canMove: boolean;
         }[] = [];
         shelf.addEventListener('change', () =>
             observed.push({
-                saving: shelf.saving,
-                removing: shelf.removing,
+                pending: Boolean(shelf.saving || shelf.removing || shelf.moving),
+                order: shelf.items.map(item => item.id[0]).join(''),
                 canSave: shelf.canSave,
                 canRemove: shelf.canRemove,
+                canMove: shelf.canMove,
             })
         );
         const saving = shelf.save();
         saves[0].result.resolve(OTHER);
         await saving;
+        const moving = shelf.move(OTHER.id, ITEM.id);
+        moves[0].result.reject(new AppApiError('private', 502, 'storage_error'));
+        await moving;
         const removing = shelf.remove(ITEM.id);
         removals[0].result.resolve();
         await removing;
-        expect(observed.some(state => state.saving || state.removing)).toBe(true);
-        expect(
-            observed
-                .filter(state => state.saving || state.removing)
-                .every(state => !state.canSave && !state.canRemove)
-        ).toBe(true);
-        expect(observed.at(-1)).toMatchObject({ canSave: true, canRemove: true });
+        const pending = observed.filter(state => state.pending);
+        expect(pending.length).toBeGreaterThan(0);
+        expect(pending.every(state => !state.canSave && !state.canRemove && !state.canMove)).toBe(
+            true
+        );
+        // The optimistic order and its rollback show only while the move is pending.
+        expect(observed.filter(state => state.order === 'bac').every(state => state.pending)).toBe(
+            true
+        );
+        expect(observed.at(-1)).toMatchObject({ canSave: true, canRemove: true, canMove: true });
     });
 
     it('gates conflicting mutations and never saves later input for an earlier output', async () => {
@@ -296,6 +481,7 @@ describe('SavedReports', () => {
             expect(shelf.canList).toBe(false);
             expect(shelf.canSave).toBe(false);
             expect(shelf.canRemove).toBe(false);
+            expect(shelf.canMove).toBe(false);
         }
     );
 

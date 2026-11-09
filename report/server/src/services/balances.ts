@@ -14,6 +14,7 @@ import { isoMonth, type IsoMonth } from './periods.js';
 
 /** One monthly bucket of a balances query. */
 export interface MonthBalance {
+    /** The year and month of Bkper's balance. */
     month: IsoMonth;
     /** Activity within the month (and the query's period). */
     period: string;
@@ -29,7 +30,9 @@ export interface NodeBalances {
     cumulative: string;
     /**
      * Bkper's monthly buckets, ascending. They are sparse: a month after the last one with
-     * movements, or before the first one of a query without `after:`, has no bucket.
+     * movements, or before the first one of a query without `after:`, has no bucket. A query
+     * without `after:` also has one for the month of its `before:`, which may be after the
+     * period read: a report takes the months of its period only.
      */
     months: MonthBalance[];
     /** Credit nature (Incoming, Liability): decides the sign Bkper shows. */
@@ -49,6 +52,15 @@ export interface QueryBalances {
     query: string;
     /** When Bkper answered it, as an ISO instant. */
     dataAt: string;
+    /**
+     * The dates Bkper read, as it writes them in the Book's date format: the range, such as
+     * ` after:11/2026 before:12/2026 by:m`, its first and last days, and the periodicity of its
+     * balances (`MONTHLY` for the queries a report reads, which end with `by:m`).
+     */
+    range?: string;
+    rangeBeginLabel?: string;
+    rangeEndLabel?: string;
+    periodicity?: string;
     groups: Record<string, GroupNodeBalances>;
     accounts: Record<string, NodeBalances>;
 }
@@ -59,9 +71,14 @@ export function readQueryBalances(
     report: BalancesReport,
     dataAt: Date
 ): QueryBalances {
+    const { range, rangeBeginLabel, rangeEndLabel, periodicity } = report.payload;
     const balances: QueryBalances = {
         query,
         dataAt: dataAt.toISOString(),
+        ...(range === undefined ? {} : { range }),
+        ...(rangeBeginLabel === undefined ? {} : { rangeBeginLabel }),
+        ...(rangeEndLabel === undefined ? {} : { rangeEndLabel }),
+        ...(periodicity === undefined ? {} : { periodicity }),
         groups: {},
         accounts: {},
     };

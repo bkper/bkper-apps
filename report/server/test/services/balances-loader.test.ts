@@ -11,8 +11,9 @@ import { bookPayload, fixtureLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
 
 const NOW = new Date('2026-11-05T15:00:00Z');
-const LAST_MONTH = "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m";
-const MONTH_BEFORE = "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m";
+const TODAY = '2026-11-05';
+const LAST_MONTH = "group:'Expenses' on:$m-1 by:m";
+const MONTH_BEFORE = "group:'Expenses' on:$m-2 by:m";
 
 interface TestOptions extends BalancesLoaderOptions {
     timing: ServerTiming;
@@ -28,6 +29,7 @@ function options(overrides: Partial<Omit<BalancesLoaderOptions, 'timing'>> = {})
     const test: TestOptions = {
         userId: 'user-1',
         bookId: 'book-1',
+        today: TODAY,
         kv: createTestEnv().KV,
         timing: new ServerTiming(),
         now: () => NOW,
@@ -76,22 +78,37 @@ describe('loadBalances', () => {
 
         expect(BALANCES_TTL_SECONDS).toBe(60);
         expect(puts).toEqual([
-            { key: await balancesKey('user-1', 'book-1', LAST_MONTH), ttl: 60 },
-            { key: await balancesKey('user-1', 'book-1', MONTH_BEFORE), ttl: 60 },
+            { key: await balancesKey('user-1', 'book-1', TODAY, LAST_MONTH), ttl: 60 },
+            { key: await balancesKey('user-1', 'book-1', TODAY, MONTH_BEFORE), ttl: 60 },
         ]);
         // Only the query not read before goes to Bkper.
         expect(warm.reads).toEqual([MONTH_BEFORE]);
         expect(second[0]).toEqual(first[0]);
     });
 
-    it('keys entries by user, Book and exact query, within the KV key limit', async () => {
-        const key = await balancesKey('user-1', 'book-1', LAST_MONTH);
-        expect(key).toMatch(/^balances:v2:user-1:book-1:[0-9a-f]{64}$/);
-        expect(await balancesKey('user-2', 'book-1', LAST_MONTH)).not.toBe(key);
-        expect(await balancesKey('user-1', 'book-2', LAST_MONTH)).not.toBe(key);
-        expect(await balancesKey('user-1', 'book-1', `${LAST_MONTH} `)).not.toBe(key);
-        const long = await balancesKey('user-1', 'book-1', `group:'${'x'.repeat(2000)}' by:m`);
+    it('keys entries by user, Book, the Book’s day and exact query, within the KV key limit', async () => {
+        const key = await balancesKey('user-1', 'book-1', TODAY, LAST_MONTH);
+        expect(key).toMatch(/^balances:v3:user-1:book-1:2026-11-05:[0-9a-f]{64}$/);
+        expect(await balancesKey('user-2', 'book-1', TODAY, LAST_MONTH)).not.toBe(key);
+        expect(await balancesKey('user-1', 'book-2', TODAY, LAST_MONTH)).not.toBe(key);
+        expect(await balancesKey('user-1', 'book-1', '2026-12-01', LAST_MONTH)).not.toBe(key);
+        expect(await balancesKey('user-1', 'book-1', TODAY, `${LAST_MONTH} `)).not.toBe(key);
+        const long = await balancesKey(
+            'user-1',
+            'book-1',
+            TODAY,
+            `group:'${'x'.repeat(2000)}' by:m`
+        );
         expect(new TextEncoder().encode(long).length).toBeLessThan(512);
+    });
+
+    it('never serves a query of relative dates read on another day of the Book', async () => {
+        const kv = createTestEnv().KV;
+        await loadBalances([LAST_MONTH], options({ kv }));
+        // The same text reads another month once the Book's month has changed.
+        const next = options({ kv, today: '2026-12-01' });
+        await loadBalances([LAST_MONTH], next);
+        expect(next.reads).toEqual([LAST_MONTH]);
     });
 
     it('does not share balances between users', async () => {
@@ -108,7 +125,9 @@ describe('loadBalances', () => {
         await loadBalances([LAST_MONTH], options({ kv, defer: task => deferred.push(task) }));
         expect(deferred).toHaveLength(1);
         await Promise.all(deferred);
-        expect(await kv.get(await balancesKey('user-1', 'book-1', LAST_MONTH))).not.toBeNull();
+        expect(
+            await kv.get(await balancesKey('user-1', 'book-1', TODAY, LAST_MONTH))
+        ).not.toBeNull();
     });
 
     it('reports kv and balances timings, and only kv when every query is cached', async () => {
@@ -129,6 +148,6 @@ describe('loadBalances', () => {
             },
         });
         await expect(loadBalances([LAST_MONTH], failing)).rejects.toThrow('upstream');
-        expect(await kv.get(await balancesKey('user-1', 'book-1', LAST_MONTH))).toBeNull();
+        expect(await kv.get(await balancesKey('user-1', 'book-1', TODAY, LAST_MONTH))).toBeNull();
     });
 });

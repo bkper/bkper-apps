@@ -353,6 +353,7 @@ function bookBalances(
         loadBalances(queries, {
             userId,
             bookId,
+            today: snapshot.today,
             kv: context.env.KV,
             timing: context.timing,
             read: query => context.readBalances(snapshot.book, query),

@@ -142,11 +142,11 @@ describe('buildReportSpec', () => {
         expect(element(built, 'Source').props).toMatchObject({
             footer: `Computed from the balances of ${isolate('Test Ledger')}`,
             period: `Oct 1${TO}31, 2026`,
-            query: "group:'Expenses' after:2026-10-01 before:2026-11-01",
+            query: "group:'Expenses' on:$m-1 by:m",
         });
     });
 
-    it('names calendar periods and the span a current period compares with', async () => {
+    it('names calendar periods and the months a current period compares with', async () => {
         const quarter = await spec(intent('g-expenses', '2026-Q3'));
         expect(element(quarter, 'Report').props.subtitle).toBe(
             `Q${isolate('3')} ${isolate('2026')}`
@@ -161,8 +161,9 @@ describe('buildReportSpec', () => {
         expect(element(year, 'Answer').props.comparison).toBe(`vs. ${isolate('2024')}`);
         const current = await spec(intent('g-expenses', 'this_year'));
         expect(element(current, 'Report').props.subtitle).toBe('This year');
+        // The same months of last year: the current month is read whole.
         expect(element(current, 'Answer').props.comparison).toBe(
-            `vs. ${isolate(`Jan 1${TO}Nov 5, 2025`)}`
+            `vs. ${isolate(`Jan 1${TO}Nov 30, 2025`)}`
         );
     });
 
@@ -172,11 +173,10 @@ describe('buildReportSpec', () => {
         expect(element(month, 'Report').props.subtitle).toBe('January 2026');
         expect(element(month, 'Answer').props.comparison).toBe(`vs. ${isolate('January 2025')}`);
         const current = await spec(intent('g-expenses', 'this_month', yearEarlier));
-        expect(element(current, 'Answer').props.comparison).toBe(
-            `vs. ${isolate(`Nov 1${TO}5, 2025`)}`
-        );
+        expect(element(current, 'Answer').props.comparison).toBe(`vs. ${isolate('November 2025')}`);
+        // A balance now compares with the end of the same month a year earlier.
         const position = await spec(intent('g-assets', 'today', yearEarlier));
-        expect(element(position, 'Answer').props.comparison).toBe(`vs. ${isolate('Nov 5, 2025')}`);
+        expect(element(position, 'Answer').props.comparison).toBe(`vs. ${isolate('Nov 30, 2025')}`);
     });
 
     it('dates a position and compares it with an earlier date', async () => {
@@ -191,7 +191,7 @@ describe('buildReportSpec', () => {
         expect(element(built, 'Report').props.subtitle).toBe('All time');
         expect(element(built, 'Answer').props.comparison).toBeUndefined();
         expect(element(built, 'Answer').props.previous).toBeUndefined();
-        expect(element(built, 'Source').props.period).toBe(`Mar 1, 2024${TO}Nov 5, 2026`);
+        expect(element(built, 'Source').props.period).toBe(`Mar 1, 2024${TO}Nov 30, 2026`);
     });
 
     it('labels a net result Report calculates, and says so in the Source', async () => {
@@ -240,14 +240,14 @@ describe('buildReportSpec', () => {
             const series = 'series' in chart && chart.series.find(entry => entry.id === id);
             return [row?.amount, row?.change, series && series.values];
         };
-        expect(root('g-expenses')).toEqual(['1050.25', '0.0503', ['1050.25']]);
+        expect(root('g-expenses')).toEqual(['1050.25', '-0.1252', ['1050.25']]);
         expect(root('g-revenue')).toEqual(['5000', '0', ['5000']]);
         expect(table.total).toEqual({
             label: 'Net result',
             color: 'grey',
             amount: '3949.75',
-            previous: '4000',
-            change: '-0.0126',
+            previous: '3799.5',
+            change: '0.0395',
             months: ['3949.75'],
         });
     });
@@ -327,7 +327,7 @@ describe('buildReportSpec', () => {
             label: `${isolate(report.props.title)} side by side`,
         });
         expect(element(built, 'Source').props.query).toBe(
-            "(account:'Food' OR group:'Revenue') after:2026-10-01 before:2026-11-01"
+            "(account:'Food' OR group:'Revenue') on:$m-1 by:m"
         );
         expect(element(built, 'Source').props.calculated).toBeUndefined();
     });
@@ -451,7 +451,7 @@ describe('buildReportSpec', () => {
         const date = (iso: string) => new Date(`${iso}T00:00:00Z`);
         for (const lang of ['ar', 'he']) {
             const current = await spec(intent('g-expenses', 'this_year'), lang);
-            const range = day(lang).formatRange(date('2025-01-01'), date('2025-11-05'));
+            const range = day(lang).formatRange(date('2025-01-01'), date('2025-11-30'));
             const comparison = element(current, 'Answer').props.comparison;
             expect(comparison).toBe(t('answer_compared_with', lang, { period: isolate(range) }));
             expect(comparison).not.toMatch(/[A-Za-z]/);
@@ -511,10 +511,10 @@ describe('buildReportSpec', () => {
             kind: 'compare',
             label: `Breakdown of ${isolate('Expenses')}`,
             // Both by their dates, in the same style.
-            periods: { current: `Nov 1${TO}5, 2026`, previous: `Oct 1${TO}5, 2026` },
+            periods: { current: 'November 2026', previous: 'October 2026' },
             items: [
                 { rowId: 'a-rent', label: 'Rent', color: 'red', value: '1000', previous: '1000' },
-                { rowId: 'a-food', label: 'Food', color: 'red', value: '50.25', previous: '0' },
+                { rowId: 'a-food', label: 'Food', color: 'red', value: '50.25', previous: '200.5' },
             ],
         });
         const position = await spec(intent('g-assets', 'today', { chart: 'compare' }));

@@ -170,6 +170,7 @@ export async function savedWorkflow() {
         advance: () => {
             // The map is the Book's structure, which a new day does not change.
             today = '2026-12-05';
+            ledger.today = today;
             for (const identity of sessions) seed(identity);
         },
         /** Renames an account in the Book, so its map and balances know only the new name. */

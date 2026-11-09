@@ -102,7 +102,7 @@ export const DATA_AT = new Date('2026-11-05T15:00:00Z');
 
 /** A fresh ledger of the fixture Book, which a test may change. */
 export function fixtureLedger(): FakeLedger {
-    return new FakeLedger(structuredClone(bookPayload), structuredClone(transactions));
+    return new FakeLedger(structuredClone(bookPayload), structuredClone(transactions), TODAY);
 }
 
 /**
@@ -131,7 +131,7 @@ export function ledgerBalances(
 /** The snapshot (the Book's map) of a ledger, built by the app's snapshot code. */
 export async function ledgerSnapshot(
     ledger: FakeLedger,
-    today = TODAY,
+    today = ledger.today,
     dataAt = DATA_AT
 ): Promise<Snapshot> {
     const book = new Book(ledger.book);

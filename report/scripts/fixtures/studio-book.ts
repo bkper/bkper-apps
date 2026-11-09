@@ -268,7 +268,7 @@ function studioTransactions(): LedgerTransaction[] {
 /** The studio's Book and its transactions. */
 export function studioLedger(): FakeLedger {
     assertBalanced();
-    return new FakeLedger(bookPayload(), studioTransactions());
+    return new FakeLedger(bookPayload(), studioTransactions(), STUDIO_TODAY);
 }
 
 /** The snapshot (the map) of the studio's Book, built by the app's snapshot code. */

@@ -3,11 +3,12 @@
  * report's own Bkper queries become the numbers of a report.
  *
  * {@link planReport} names the queries a report reads: for each group it reads from, one of the
- * period, `group:'<group>' after:<start> before:<end> by:m`, and one of the previous period,
- * the same way. Their caller runs them, in parallel, and {@link buildReport} reads every amount
- * from their responses: totals from a group's or account's period balance (activity) or
- * cumulative balance (position), months from its monthly balances. Months are never added up
- * into totals. A group, a root or a target under one, is read from its own queries; an account
+ * period, `group:'<group>' <dates>`, and one of the period it is compared with, the same way,
+ * their dates written by the period query builder (`period-query.ts`) and ending with `by:m`,
+ * so the query read is the query shown and opened in Bkper, and Bkper resolves its dates.
+ * Their caller runs them, in parallel, and {@link buildReport} reads every amount from their
+ * responses: totals from a group's or account's period balance (activity) or cumulative balance
+ * (position), months from its monthly balances. Months are never added up into totals. A group, a root or a target under one, is read from its own queries; an account
  * under a root from the queries of the smallest group holding it ({@link sourceOf}), never with
  * `account:'<name>'`, which Bkper does not find for some names; an account in no group is a
  * root of its own, read with `account:'<name>' …`. Several targets show side by side, each
@@ -36,13 +37,11 @@ import {
     type NodeBalances,
     type QueryBalances,
 } from './balances.js';
+import { buildPeriodQuery, periodRequestOf, type PeriodDates } from './period-query.js';
 import {
     addDays,
     isoMonth,
     isPlausibleYear,
-    previousPeriod,
-    yearEarlierPeriod,
-    resolvePeriod,
     type DateRange,
     type IsoDate,
     type IsoMonth,
@@ -288,19 +287,22 @@ export interface ReportBase {
     /** Activity within a period (Incoming, Outgoing, net result), or a position at its end (Asset, Liability). */
     nature: ReportNature;
     /**
-     * The period read. A calendar period that has not ended reads to date, as its current
-     * period (the current year as `this_year`). A position is measured at `before`.
+     * The period read: whole months, through the end of the current month when it is
+     * running, named by the id of its label (a calendar period cut at the current month as its
+     * current period, the current year as `this_year`; activity today as `this_month`, the
+     * month it reads). A position is measured at `before`: the end of its last month, or
+     * tomorrow when running. `dates` is the date part of its queries.
      */
-    period: { id: string; after?: IsoDate; before: IsoDate };
+    period: { id: string; after?: IsoDate; before: IsoDate; dates: string };
     /** The period compared with; a position compares with the position at its `before`. */
-    previous?: DateRange;
+    previous?: DateRange & { dates: string };
     /**
      * A net result Report calculates, as no group of the Book combines Incoming and Outgoing
      * ({@link calculatedNetResult}): its amount in each of the {@link ReportData.months}. Its
      * breakdown is its roots, Incoming first.
      */
     calculated?: { months: string[] };
-    /** The months of the period, in order; the first and last may be partial. */
+    /** The months of the period, in order. */
     months: IsoMonth[];
     /** The main chart: `fallback` when the intent preferred another, which does not fit. */
     chart: ReportChart;
@@ -438,9 +440,9 @@ export type ReportPlan = ReportSubject & {
 
 /**
  * The balances queries a report reads, or a {@link ReportError} when the Book cannot have it.
- * Hashtags filter every query. A position with hashtags reads from the start of the data:
- * under `after:`, Bkper's cumulative balance starts from the balance of every movement, with
- * the hashtags or not.
+ * Hashtags filter every query. A position reads from the start of the data, never with
+ * `after:`: under `after:`, Bkper's cumulative balance with hashtags starts from the balance of
+ * every movement, with the hashtags or not.
  */
 export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan {
     const subject = reportSubject(intent, snapshot);
@@ -450,16 +452,12 @@ export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan
         : 'activity';
     const period = reportPeriod(intent, nature, snapshot.today);
     const hashtags = intent.hashtags ?? [];
-    const current =
-        nature === 'position' && hashtags.length > 0
-            ? { before: period.range.before }
-            : period.range;
     const queries = subject.sources.map(source => {
         const filter = [nodeFilter(sourceNode(snapshot, source)), ...tags(hashtags)].join(' ');
         return {
             source,
-            current: balancesQuery(filter, current),
-            ...(period.previous ? { previous: balancesQuery(filter, period.previous) } : {}),
+            current: `${filter} ${period.read.dates}`,
+            ...(period.comparison ? { previous: `${filter} ${period.comparison.dates}` } : {}),
         };
     });
     return { ...subject, nature, period, hashtags, queries };
@@ -479,25 +477,26 @@ export function planQueries(plan: ReportPlan): string[] {
     ];
 }
 
-/** A query of a period by month: activity within it, positions at its end. */
-function balancesQuery(filter: string, range: DateRange): string {
-    const after = range.after === undefined ? '' : `after:${range.after} `;
-    return `${filter} ${after}before:${range.before} by:m`;
-}
-
 /**
  * The one query of a report's history: the group its first subject is read from, over its whole
- * history by month, up to today, with the report's hashtags, where it finds the last month it
- * had movements. A target is read from that group's answer, as the report reads it; never
- * several groups in one query, as unbounded multi-group queries are slow and can fail.
+ * history by month, through the current month (all time's activity), with the report's
+ * hashtags, where it finds the last month it had movements. A target is read from that group's
+ * answer, as the report reads it; never several groups in one query, as unbounded multi-group
+ * queries are slow and can fail.
  */
 export function historyQuery(plan: ReportPlan, snapshot: Snapshot): string {
     const [{ source }] = planSubjects(plan, snapshot);
+    const history = buildPeriodQuery(
+        { period: { span: 'all_time' } },
+        { today: snapshot.today, nature: 'activity' }
+    );
+    if (!history.ok) {
+        throw new Error(`No history: ${history.reason}`);
+    }
     return [
         nodeFilter(sourceNode(snapshot, source)),
         ...tags(plan.hashtags),
-        `before:${addDays(snapshot.today, 1)}`,
-        'by:m',
+        history.period.dates,
     ].join(' ');
 }
 
@@ -545,16 +544,12 @@ export function buildReport(
         ])
     );
     assertAccountsRead(snapshot, plan, sources);
-    const months = reportMonths(period.range, [...sources.values()]);
+    const months = reportMonths(period.read, [...sources.values()]);
     const reader = new RowReader(snapshot, nature, period, months);
-    const { after, before } = period.range;
-    const dates =
-        nature === 'position' || after === undefined
-            ? `before:${before}`
-            : `after:${after} before:${before}`;
     const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
     const base = (filter: string): Omit<ReportBase, 'chart' | 'charts' | 'breakdown'> => {
-        const query = `${[filter, ...tags(hashtags)].join(' ')} ${dates}`;
+        // The dates of the queries read, so the link shows exactly what was read.
+        const query = `${[filter, ...tags(hashtags)].join(' ')} ${period.read.dates}`;
         return {
             book: {
                 id: snapshot.book.id,
@@ -564,8 +559,10 @@ export function buildReport(
             },
             intent,
             nature,
-            period: { id: period.id, ...period.range },
-            ...(period.previous ? { previous: period.previous } : {}),
+            period: { id: period.id, ...period.range, dates: period.read.dates },
+            ...(period.previous && period.comparison
+                ? { previous: { ...period.previous, dates: period.comparison.dates } }
+                : {}),
             months,
             query,
             url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
@@ -901,62 +898,108 @@ function accountsOf(snapshot: Snapshot, group: SnapshotGroup): Set<string> {
 }
 
 export interface ReportPeriod {
+    /** The id of the period's label (see {@link ReportBase.period}). */
     id: string;
+    /** What the period's queries read. */
+    read: PeriodDates;
+    /** What the queries of the period compared with read; all time has none. */
+    comparison?: PeriodDates;
+    /** The dates the period covers, for its label. */
     range: DateRange;
+    /** The dates the comparison covers, for its label. */
     previous?: DateRange;
 }
 
+/**
+ * The period of an intent as the period query builder writes it: whole months, a running
+ * period through the end of the current month, compared with the same months of the previous
+ * period or a year earlier; a position at the end of its period.
+ */
 function reportPeriod(intent: ReportIntent, nature: ReportNature, today: IsoDate): ReportPeriod {
     const id = intent.period;
-    const context = { today };
-    const calendar = resolvePeriod(id, context);
-    if (!calendar) {
+    const request = periodRequestOf(id, intent.compareWith);
+    if (!request) {
         throw new Error(`Invalid period id: ${id}`);
     }
-    if (calendar.after !== undefined && calendar.after > today) {
-        throw new ReportError('future_period', 'The period has not started');
+    const built = buildPeriodQuery(request, { today, nature });
+    if (!built.ok) {
+        if (built.reason === 'future_period') {
+            throw new ReportError('future_period', 'The period has not started');
+        }
+        throw new Error(`No period for ${id}: ${built.reason}`);
     }
-    // Reports leave out future-dated transactions, like the current periods do.
-    const effective = calendar.before > addDays(today, 1) ? currentPeriodOf(id) : id;
-    const range = resolvePeriod(effective, context);
-    if (!range || range.after !== calendar.after) {
-        throw new Error(`No current period for ${id}`);
-    }
-    const previous =
-        intent.compareWith === 'year_earlier'
-            ? yearEarlierPeriod(effective, nature, context)
-            : previousPeriod(effective, nature, context);
-    return { id: effective, range, ...(previous ? { previous } : {}) };
-}
-
-/** The current period of a year `YYYY`, a quarter `YYYY-Qn` or a month `YYYY-MM` that contains today. */
-function currentPeriodOf(id: string): string {
-    if (id.includes('-Q')) {
-        return 'this_quarter';
-    }
-    return id.length === 4 ? 'this_year' : 'this_month';
+    const { period: read, comparison } = built;
+    return {
+        id: labelId(id, read, nature),
+        read,
+        range: rangeOf(read, nature, today),
+        ...(comparison ? { comparison, previous: comparisonRange(comparison, nature, today) } : {}),
+    };
 }
 
 /**
- * Months from the start of the range to its last day; without a start (all time), from the
- * first month Bkper answers the report's queries with, in a plausible year.
+ * The id a period is labelled by: a calendar period cut at the current month by its current
+ * period's (the current year as `this_year`), and activity today by the month it reads.
  */
-function reportMonths(range: DateRange, sources: SourceBalances[]): IsoMonth[] {
-    const first = range.after?.slice(0, 7) ?? firstMonth(sources.map(source => source.current));
-    const last = addDays(range.before, -1).slice(0, 7);
+function labelId(id: string, read: PeriodDates, nature: ReportNature): string {
+    if (id === 'today') {
+        return nature === 'activity' ? 'this_month' : id;
+    }
+    const calendar = /^(\d{4})(?:-Q([1-4])|-(\d{2}))?$/.exec(id);
+    if (!calendar) {
+        return id;
+    }
+    const [, year, quarter, month] = calendar;
+    const last = quarter ? isoMonth(Number(year), Number(quarter) * 3) : `${year}-${month ?? '12'}`;
+    if (read.last === last) {
+        return id;
+    }
+    return quarter ? 'this_quarter' : month ? 'this_month' : 'this_year';
+}
+
+/** The dates a period's months cover: a running position up to today, others whole months. */
+function rangeOf(read: PeriodDates, nature: ReportNature, today: IsoDate): DateRange {
+    return {
+        ...(read.first === undefined ? {} : { after: `${read.first}-01` }),
+        before:
+            nature === 'position' && read.running
+                ? addDays(today, 1)
+                : `${nextMonth(read.last)}-01`,
+    };
+}
+
+/** The dates a comparison covers: a position only its end. */
+function comparisonRange(read: PeriodDates, nature: ReportNature, today: IsoDate): DateRange {
+    const range = rangeOf(read, nature, today);
+    return nature === 'position' ? { before: range.before } : range;
+}
+
+/**
+ * The months a report shows, those of its period, from its first month (all time: the first
+ * month Bkper answers the report's queries with, in a plausible year) to its last. Bkper may
+ * also answer a month after them, such as the month of `before:` in a query without `after:`;
+ * it is left out.
+ */
+function reportMonths(read: PeriodDates, sources: SourceBalances[]): IsoMonth[] {
+    const first =
+        read.first ??
+        firstMonth(
+            sources.map(source => source.current),
+            read.last
+        );
     const months: IsoMonth[] = [];
-    for (let month = first; month !== undefined && month <= last; month = nextMonth(month)) {
+    for (let month = first; month !== undefined && month <= read.last; month = nextMonth(month)) {
         months.push(month);
     }
     return months;
 }
 
-/** The first month with a bucket in any of the answers, in a plausible year. */
-function firstMonth(answers: QueryBalances[]): IsoMonth | undefined {
+/** The first month with a bucket in any of the answers, in a plausible year, up to `last`. */
+function firstMonth(answers: QueryBalances[], last: IsoMonth): IsoMonth | undefined {
     return answers
         .flatMap(answer => [...Object.values(answer.groups), ...Object.values(answer.accounts)])
         .flatMap(node => node.months.map(({ month }) => month))
-        .filter(month => isPlausibleYear(Number(month.slice(0, 4))))
+        .filter(month => isPlausibleYear(Number(month.slice(0, 4))) && month <= last)
         .sort()[0];
 }
 

@@ -20,6 +20,7 @@ async function laterSnapshot(): Promise<Snapshot> {
 /** Reads the suggestions of a snapshot from the fixture's ledger, noting every query. */
 async function readFrom(snapshot: Snapshot, lang = 'en') {
     const ledger = fixtureLedger();
+    ledger.today = snapshot.today;
     const queries: string[] = [];
     const suggestions = await readSuggestions(snapshot, lang, {
         loadBalances: async asked => {
@@ -160,10 +161,10 @@ describe('readSuggestions', () => {
         // The net result and Expenses, this year and the year before; a position today never
         // moves, so Assets reads nothing here.
         expect(queries).toEqual([
-            "group:'Net income' after:2026-01-01 before:2026-11-06 by:m",
-            "group:'Net income' after:2025-01-01 before:2025-11-06 by:m",
-            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
-            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
+            "group:'Net income' after:$y before:$m+1 by:m",
+            "group:'Net income' after:$y-1 before:$m-11 by:m",
+            "group:'Expenses' after:$y before:$m+1 by:m",
+            "group:'Expenses' after:$y-1 before:$m-11 by:m",
         ]);
     });
 
@@ -184,15 +185,16 @@ describe('readSuggestions', () => {
             },
         ]);
         // One query of history per suggested root that can move, never one per root group.
-        expect(queries.filter(query => !query.includes('after:'))).toEqual([
-            "group:'Net income' before:2028-03-11 by:m",
-            "group:'Expenses' before:2028-03-11 by:m",
+        expect(queries.filter(query => !/ (on|after):/.test(query))).toEqual([
+            "group:'Net income' before:$m+1 by:m",
+            "group:'Expenses' before:$m+1 by:m",
         ]);
     });
 
     it('suggests reports that show the Book’s data', async () => {
         const ledger = fixtureLedger();
         const snapshot = await laterSnapshot();
+        ledger.today = snapshot.today;
         const { suggestions } = await readFrom(snapshot);
         for (const { intent } of suggestions) {
             const queries = planQueries(planReport(intent, snapshot));

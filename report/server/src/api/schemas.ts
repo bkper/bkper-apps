@@ -142,7 +142,7 @@ const IntentSchema = ReportIntentSchema.extend({
     }),
     period: shape.period.meta({
         description:
-            'The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Current periods end today; past ones are whole calendar periods.',
+            'The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Periods are whole months: a current one runs through the end of this month (activity `today` reads this month, balances `today` are as of today); past ones are whole calendar periods.',
         example: 'this_year',
     }),
     monthly: shape.monthly.meta({ description: 'Show the period month by month.' }),
@@ -566,8 +566,8 @@ export const ReportResponseSchema = z
         }),
         query: z.string().openapi({
             description:
-                'The Bkper query of exactly the report’s transactions and dates, to list them or check balances in Bkper.',
-            example: "group:'Expenses' after:2026-01-01 before:2026-11-06",
+                'The Bkper query of exactly the report’s transactions and dates, the one its balances were read with, to list them or check balances in Bkper. Relative periods keep Bkper’s date variables (`$y`, `$m`, `$d`), which Bkper resolves from the Book’s today.',
+            example: "group:'Expenses' after:$y before:$m+1 by:m",
         }),
         dataAt: z.string().openapi({
             description:

@@ -1,14 +1,12 @@
 /**
- * Report periods: the options a request may choose from, and their exact date boundaries.
+ * Report periods: the ids a request may choose from, with the dates each option describes to
+ * the model, the default period of a request that names none, and calendar helpers. A report's
+ * queries are not written here: `period-query.ts` builds them from a period id.
  *
- * Dates are calendar dates (`YYYY-MM-DD`) in the Book time zone, which is how Bkper reads
- * `after:` (inclusive) and `before:` (exclusive) in a query. Only "today" depends on the
- * clock; everything else is plain calendar arithmetic, so the same inputs always give the
- * same boundaries.
- *
- * Current periods (this month, quarter and year, year to date, the last 12 months and all
- * time) end at tomorrow: they include today and leave out future-dated transactions. Past
- * periods are whole calendar periods.
+ * Option dates are calendar dates (`YYYY-MM-DD`) in the Book time zone. Only "today" depends on
+ * the clock; everything else is plain calendar arithmetic, so the same inputs always give the
+ * same dates. Current periods (this month, quarter and year, year to date, the last 12 months
+ * and all time) are described up to today; past periods are whole calendar periods.
  */
 
 import {
@@ -185,19 +183,7 @@ function resolveRelative(id: RelativePeriod, context: PeriodContext): DateRange 
 }
 
 /** Current periods run "to date": from their first month up to and including today. */
-const TO_DATE_MONTHS = {
-    this_month: 1,
-    this_quarter: 3,
-    this_year: 12,
-    ytd: 12,
-    last_12_months: 12,
-} as const;
-
-type ToDatePeriod = keyof typeof TO_DATE_MONTHS;
-
-function isToDatePeriod(id: string): id is ToDatePeriod {
-    return Object.hasOwn(TO_DATE_MONTHS, id);
-}
+type ToDatePeriod = 'this_month' | 'this_quarter' | 'this_year' | 'ytd' | 'last_12_months';
 
 function toDateStart(id: ToDatePeriod, month: number): number {
     switch (id) {
@@ -215,65 +201,6 @@ function toDateStart(id: ToDatePeriod, month: number): number {
 
 function isRelativePeriod(id: string): id is RelativePeriod {
     return (RELATIVE_PERIODS as readonly string[]).includes(id);
-}
-
-/**
- * The period to compare with, calendar-aligned.
- *
- * Activity compares with the previous comparable period: the previous month, quarter or
- * year of a whole period, and the same span one period back for a current period, with
- * the day clamped to the end of a shorter month (this month on the 31st compares with
- * the whole of February). Today compares with yesterday.
- *
- * A position compares with the position at the end of the previous period, which is the
- * start of this one (for today, the end of last month); the result then has only `before`.
- *
- * All time has nothing to compare with.
- */
-export function previousPeriod(
-    id: string,
-    nature: ReportNature,
-    context: PeriodContext
-): DateRange | undefined {
-    const range = resolvePeriod(id, context);
-    if (!range?.after) {
-        return undefined;
-    }
-    if (nature === 'position') {
-        const before = id === 'today' ? monthStart(monthIndexOfDate(context.today)) : range.after;
-        return { before };
-    }
-    if (id === 'today') {
-        return { after: addDays(range.after, -1), before: range.after };
-    }
-    const months = isToDatePeriod(id)
-        ? TO_DATE_MONTHS[id]
-        : monthIndexOfDate(range.before) - monthIndexOfDate(range.after);
-    const after = monthStart(monthIndexOfDate(range.after) - months);
-    const before = isToDatePeriod(id)
-        ? addDays(shiftMonths(context.today, -months), 1)
-        : range.after;
-    return { after, before };
-}
-
-/**
- * The same period a year earlier, to compare with: the same calendar month, quarter or year, and
- * the same span of a current period, with February 29 clamped to the 28th. A position compares
- * with the position a year before the date it is measured at. All time has nothing to compare
- * with. For a year, it is the {@link previousPeriod}.
- */
-export function yearEarlierPeriod(
-    id: string,
-    nature: ReportNature,
-    context: PeriodContext
-): DateRange | undefined {
-    const range = resolvePeriod(id, context);
-    if (!range?.after) {
-        return undefined;
-    }
-    // Shifting the last day, not `before`, keeps a whole month whole and a span to date as long.
-    const before = addDays(shiftMonths(addDays(range.before, -1), -12), 1);
-    return nature === 'position' ? { before } : { after: shiftMonths(range.after, -12), before };
 }
 
 /**
@@ -391,14 +318,6 @@ function quarterStart(month: number): number {
 
 function yearStart(month: number): number {
     return month - (month % 12);
-}
-
-/** The same day `months` later or earlier, clamped to the end of a shorter month. */
-function shiftMonths(date: IsoDate, months: number): IsoDate {
-    const target = monthIndexOfDate(date) + months;
-    const lastDay = Number(addDays(monthStart(target + 1), -1).slice(8));
-    const day = Math.min(Number(date.slice(8)), lastDay);
-    return `${monthStart(target).slice(0, 8)}${pad(day)}`;
 }
 
 function monthsRange(first: number, length: number): DateRange {

@@ -11,6 +11,7 @@ import type { Snapshot } from '../../src/services/snapshot';
 import { buildSuggestions } from '../../src/services/suggestions';
 import { ServerTiming } from '../../src/services/timing';
 import {
+    TODAY,
     fixtureLedger,
     fixtureSnapshot,
     ledgerBalances,
@@ -61,8 +62,13 @@ interface Harness {
     events: string[];
 }
 
-function harness(answers: JevAnswers | (() => Response) = { root: 'Expenses' }): Harness {
+/** A report service on the fixture ledger, read on the Book's `today`. */
+function harness(
+    answers: JevAnswers | (() => Response) = { root: 'Expenses' },
+    today = TODAY
+): Harness {
     const ledger = fixtureLedger();
+    ledger.today = today;
     const state: Harness = {
         jevCalls: 0,
         queries: [],
@@ -110,12 +116,12 @@ describe('createReport by intent', () => {
         expect(test.jevCalls).toBe(0);
         // The period and the previous one, together.
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
         ]);
         expect(result.intent).toEqual(intent('g-expenses', '2026-10'));
         expect(result.language).toBe('pt');
-        expect(result.query).toBe("group:'Expenses' after:2026-10-01 before:2026-11-01");
+        expect(result.query).toBe("group:'Expenses' on:2026-10 by:m");
         expect(result.dataAt).toBe(NOW.toISOString());
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '1200.5' } });
         expect(result.spec.elements[result.spec.root]).toMatchObject({
@@ -163,14 +169,14 @@ describe('createReport by intent', () => {
         );
 
         expect(test.queries).toEqual([
-            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' #trip on:$m-1 by:m",
+            "group:'Expenses' #trip on:$m-2 by:m",
         ]);
-        expect(result.query).toBe("group:'Expenses' #trip after:2026-10-01 before:2026-11-01");
+        expect(result.query).toBe("group:'Expenses' #trip on:$m-1 by:m");
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
-    it('reads today with ordinary period queries', async () => {
+    it('reads activity today as this month', async () => {
         const test = harness();
         const result = await createReport(
             await fixtureSnapshot(),
@@ -180,10 +186,10 @@ describe('createReport by intent', () => {
         );
 
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-11-05 before:2026-11-06 by:m",
-            "group:'Expenses' after:2026-11-04 before:2026-11-05 by:m",
+            "group:'Expenses' on:$m by:m",
+            "group:'Expenses' on:$m-1 by:m",
         ]);
-        expect(result.query).toBe("group:'Expenses' after:2026-11-05 before:2026-11-06");
+        expect(result.query).toBe("group:'Expenses' on:$m by:m");
     });
 
     it('rejects intents the Book cannot have', async () => {
@@ -392,8 +398,8 @@ describe('createReport by prompt', () => {
 
         expect(test.events).toEqual(['jev', 'balances']);
         expect(test.queries).toEqual([
-            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' #trip on:$m-1 by:m",
+            "group:'Expenses' #trip on:$m-2 by:m",
         ]);
         expect(result.intent).toEqual(intent('g-expenses', 'last_month', { hashtags: ['trip'] }));
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
@@ -411,14 +417,14 @@ describe('createReport by prompt', () => {
         expect(test.jevCalls).toBe(1);
         expect(result.intent).toEqual(intent('g-expenses', '2026-10', { target: 'a-food' }));
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
         ]);
         expect(result.spec.elements[result.spec.root]).toMatchObject({
             props: { title: 'Food' },
         });
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
-        expect(result.query).toBe("account:'Food' after:2026-10-01 before:2026-11-01");
+        expect(result.query).toBe("account:'Food' on:2026-10 by:m");
         expect(result.trace).toMatchObject({ names: ['Food'] });
         expect(result.text).toBe('quanto gastei com food em outubro');
     });
@@ -507,21 +513,21 @@ describe('createReport of a request that names no period', () => {
         );
         expect(result.intent).toEqual(intent('g-expenses', 'this_year'));
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
-            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
+            "group:'Expenses' after:$y before:$m+1 by:m",
+            "group:'Expenses' after:$y-1 before:$m-11 by:m",
         ]);
     });
 
     it('reads the last year with movements when this year has none, after one more query', async () => {
-        const test = harness({ root: 'Expenses' });
+        const test = harness({ root: 'Expenses' }, LATER);
         const result = await createReport(await later(), { prompt: 'expenses' }, {}, test.options);
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2028-01-01 before:2028-03-11 by:m",
-            "group:'Expenses' after:2027-01-01 before:2027-03-11 by:m",
+            "group:'Expenses' after:$y before:$m+1 by:m",
+            "group:'Expenses' after:$y-1 before:$m-11 by:m",
             // The one query of the root's history, to find its last movements.
-            "group:'Expenses' before:2028-03-11 by:m",
-            "group:'Expenses' after:2026-01-01 before:2027-01-01 by:m",
-            "group:'Expenses' after:2025-01-01 before:2026-01-01 by:m",
+            "group:'Expenses' before:$m+1 by:m",
+            "group:'Expenses' on:2026 by:m",
+            "group:'Expenses' on:2025 by:m",
         ]);
         expect(result.intent).toEqual(intent('g-expenses', '2026'));
         // The report of that year, every amount Bkper's.
@@ -529,14 +535,14 @@ describe('createReport of a request that names no period', () => {
             await later(),
             { intent: intent('g-expenses', '2026') },
             {},
-            harness().options
+            harness(undefined, LATER).options
         );
         expect(result.spec).toEqual(byIntent.spec);
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '3250.75' } });
     });
 
     it('reads a trend of the last year with movements when the last 12 months have none', async () => {
-        const test = harness({ root: 'Expenses', over_time: 0.99 });
+        const test = harness({ root: 'Expenses', over_time: 0.99 }, LATER);
         const result = await createReport(
             await later(),
             { prompt: 'expenses over time' },
@@ -544,9 +550,9 @@ describe('createReport of a request that names no period', () => {
             test.options
         );
         expect(test.queries.slice(2)).toEqual([
-            "group:'Expenses' before:2028-03-11 by:m",
-            "group:'Expenses' after:2026-01-01 before:2027-01-01 by:m",
-            "group:'Expenses' after:2025-01-01 before:2026-01-01 by:m",
+            "group:'Expenses' before:$m+1 by:m",
+            "group:'Expenses' on:2026 by:m",
+            "group:'Expenses' on:2025 by:m",
         ]);
         expect(result.intent).toEqual(
             intent('g-expenses', '2026', { monthly: true, view: 'trend' })
@@ -554,15 +560,15 @@ describe('createReport of a request that names no period', () => {
     });
 
     it('reads a name from its group’s history, as its report reads it', async () => {
-        const test = harness({ root: 'Revenue' });
+        const test = harness({ root: 'Revenue' }, LATER);
         const result = await createReport(await later(), { prompt: 'food' }, {}, test.options);
-        expect(test.queries[2]).toBe("group:'Expenses' before:2028-03-11 by:m");
+        expect(test.queries[2]).toBe("group:'Expenses' before:$m+1 by:m");
         expect(result.intent).toEqual(intent('g-expenses', '2026', { target: 'a-food' }));
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '250.75' } });
     });
 
     it('keeps the default period when the history has no movements either', async () => {
-        const test = harness({ root: 'Expenses' });
+        const test = harness({ root: 'Expenses' }, LATER);
         const result = await createReport(
             await later(),
             { prompt: 'expenses #nothing' },
@@ -570,15 +576,15 @@ describe('createReport of a request that names no period', () => {
             test.options
         );
         expect(test.queries).toEqual([
-            "group:'Expenses' #nothing after:2028-01-01 before:2028-03-11 by:m",
-            "group:'Expenses' #nothing after:2027-01-01 before:2027-03-11 by:m",
-            "group:'Expenses' #nothing before:2028-03-11 by:m",
+            "group:'Expenses' #nothing after:$y before:$m+1 by:m",
+            "group:'Expenses' #nothing after:$y-1 before:$m-11 by:m",
+            "group:'Expenses' #nothing before:$m+1 by:m",
         ]);
         expect(result.intent).toEqual(intent('g-expenses', 'this_year', { hashtags: ['nothing'] }));
     });
 
     it('suggests reports of the last year with movements when the request is not one', async () => {
-        const test = harness({ root: 'none', language: 'en' });
+        const test = harness({ root: 'none', language: 'en' }, LATER);
         const error = await createReport(
             await later(),
             { prompt: 'what is the weather' },
@@ -596,14 +602,14 @@ describe('createReport of a request that names no period', () => {
     });
 
     it('reads a position today, whenever it last moved, with no other query', async () => {
-        const test = harness({ root: 'Assets' });
+        const test = harness({ root: 'Assets' }, LATER);
         const result = await createReport(await later(), { prompt: 'assets' }, {}, test.options);
         expect(result.intent).toEqual(intent('g-assets', 'today'));
         expect(test.queries).toHaveLength(2);
     });
 
     it('keeps a period the request names, with movements or not', async () => {
-        const named = harness({ root: 'Expenses', period: '2027' });
+        const named = harness({ root: 'Expenses', period: '2027' }, LATER);
         const result = await createReport(
             await later(),
             { prompt: 'expenses in 2027' },
@@ -614,7 +620,7 @@ describe('createReport of a request that names no period', () => {
         expect(named.queries).toHaveLength(2);
 
         // An intent always names its period, as a suggestion's does.
-        const byIntent = harness();
+        const byIntent = harness(undefined, LATER);
         const suggested = await createReport(
             await later(),
             { intent: intent('g-expenses', 'this_year', { monthly: true }) },
@@ -629,7 +635,8 @@ describe('createReport of a request that names no period', () => {
 describe('the history of a request that names no period', () => {
     it('reads one root only, the first subject’s, even for a net result Report calculates', async () => {
         const ledger = simpleRootsLedger();
-        const snapshot = { ...(await ledgerSnapshot(ledger)), today: '2028-03-10' };
+        ledger.today = '2028-03-10';
+        const snapshot = await ledgerSnapshot(ledger);
         const queries: string[] = [];
         const options: ReportServiceOptions = {
             ...harness({ root: 'net-result' }).options,
@@ -639,9 +646,10 @@ describe('the history of a request that names no period', () => {
             },
         };
         const result = await createReport(snapshot, { prompt: 'profit' }, {}, options);
-        expect(queries.filter(query => !query.includes('after:'))).toEqual([
-            "group:'Expenses' before:2028-03-11 by:m",
-        ]);
+        // The history reads from the start of the Book.
+        expect(
+            queries.filter(query => / before:\$m\+1 by:m$/.test(query) && !query.includes('after:'))
+        ).toEqual(["group:'Expenses' before:$m+1 by:m"]);
         expect(result.intent).toEqual(intent('net-result', '2026'));
     });
 });

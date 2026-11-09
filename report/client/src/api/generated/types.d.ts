@@ -753,7 +753,7 @@ export interface components {
             /** @description More groups or Accounts to show side by side with the first (`root` and `target`), in order: each with its own Bkper balance, never added up, with no total and no shares of one. All balances at a date (Asset, Liability) or all activity in a period (Incoming, Outgoing), else `mixed_targets`. One asked for twice shows once. Only charts that imply no whole fit: by month, area, ranked bars, compared and the table; a pie, donut or stacked chart shows dimmed with why. To show their total, the person adds a group that holds them in Bkper. Not with `net-result`. */
             alongside?: components["schemas"]["ReportSubject"][];
             /**
-             * @description The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Current periods end today; past ones are whole calendar periods.
+             * @description The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Periods are whole months: a current one runs through the end of this month (activity `today` reads this month, balances `today` are as of today); past ones are whole calendar periods.
              * @example this_year
              */
             period: string;
@@ -934,8 +934,8 @@ export interface components {
              */
             language: string;
             /**
-             * @description The Bkper query of exactly the report’s transactions and dates, to list them or check balances in Bkper.
-             * @example group:'Expenses' after:2026-01-01 before:2026-11-06
+             * @description The Bkper query of exactly the report’s transactions and dates, the one its balances were read with, to list them or check balances in Bkper. Relative periods keep Bkper’s date variables (`$y`, `$m`, `$d`), which Bkper resolves from the Book’s today.
+             * @example group:'Expenses' after:$y before:$m+1 by:m
              */
             query: string;
             /**

@@ -20,8 +20,8 @@ function read(query: string) {
 
 describe('readQueryBalances', () => {
     it('reads each group and account of the response with the sign Bkper shows', () => {
-        const balances = read("group:'Net income' after:2026-10-01 before:2026-11-06 by:m");
-        expect(balances.query).toBe("group:'Net income' after:2026-10-01 before:2026-11-06 by:m");
+        const balances = read("group:'Net income' after:2026-10 before:2026-12 by:m");
+        expect(balances.query).toBe("group:'Net income' after:2026-10 before:2026-12 by:m");
         expect(balances.dataAt).toBe(DATA_AT.toISOString());
         // Mixed Incoming and Outgoing follows the group's credit nature: income minus expenses.
         expect(groupBalances(balances, 'Net income')).toMatchObject({
@@ -36,7 +36,7 @@ describe('readQueryBalances', () => {
     });
 
     it('keeps the period balance of the query and the position at its end apart', () => {
-        const balances = read("group:'Assets' after:2026-11-01 before:2026-11-06 by:m");
+        const balances = read("group:'Assets' after:$m before:$d+1 by:m");
         expect(groupBalances(balances, 'Assets')).toEqual({
             period: '3949.75',
             cumulative: '7849.25',
@@ -50,7 +50,7 @@ describe('readQueryBalances', () => {
     });
 
     it('keeps the groups and accounts Bkper lists under each group, and their natures', () => {
-        const balances = read("group:'Net income' after:2026-10-01 before:2026-11-06 by:m");
+        const balances = read("group:'Net income' after:2026-10 before:2026-12 by:m");
         expect(groupBalances(balances, 'Net income')).toMatchObject({
             credit: true,
             permanent: false,
@@ -67,8 +67,23 @@ describe('readQueryBalances', () => {
         });
     });
 
+    it('keeps the dates Bkper read: the range, its labels and the periodicity', () => {
+        const balances = read("group:'Expenses' after:$y before:$m+1 by:m");
+        expect(balances).toMatchObject({
+            range: ' after:01/2026 before:12/2026 by:m',
+            rangeBeginLabel: '01/01/2026',
+            rangeEndLabel: '30/11/2026',
+            periodicity: 'MONTHLY',
+        });
+        expect(read("group:'Assets' before:$d+1 by:m")).toMatchObject({
+            range: ' before:06/11/2026 by:m',
+            rangeBeginLabel: '',
+            rangeEndLabel: '05/11/2026',
+        });
+    });
+
     it('tells a group or account Bkper left out from one with no balance', () => {
-        const balances = read("group:'Expenses' after:2026-10-01 before:2026-11-01 by:m");
+        const balances = read("group:'Expenses' on:$m-1 by:m");
         expect(accountBalances(balances, 'Old Supplier')).toMatchObject({ period: '0' });
         expect(accountBalances(balances, 'Salary')).toBeUndefined();
         expect(groupBalances(balances, 'toString')).toBeUndefined();
@@ -77,9 +92,10 @@ describe('readQueryBalances', () => {
 
 describe('monthPeriod and monthPosition', () => {
     it('read a month without a bucket as no activity, and the position carried over', () => {
-        const balances = read("group:'Assets' before:2026-11-06 by:m");
+        const balances = read("group:'Assets' before:$d+1 by:m");
         const cash = accountBalances(balances, 'Cash');
-        expect(cash?.months.map(month => month.month)).toEqual(['2024-03']);
+        // Bkper lists the months with movements, and the month of `before:`.
+        expect(cash?.months.map(month => month.month)).toEqual(['2024-03', '2026-11']);
         expect(monthPeriod(cash, '2024-03')).toBe('100');
         expect(monthPeriod(cash, '2026-10')).toBe('0');
         expect(monthPosition(cash, '2026-10')).toBe('100');

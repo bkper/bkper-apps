@@ -232,10 +232,10 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         // position today never moves, so it reads none here), in parallel.
         expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'balances', 'total']);
         expect([...test.queries].sort()).toEqual([
-            "group:'Expenses' after:2025-01-01 before:2025-11-06 by:m",
-            "group:'Expenses' after:2026-01-01 before:2026-11-06 by:m",
-            "group:'Net income' after:2025-01-01 before:2025-11-06 by:m",
-            "group:'Net income' after:2026-01-01 before:2026-11-06 by:m",
+            "group:'Expenses' after:$y before:$m+1 by:m",
+            "group:'Expenses' after:$y-1 before:$m-11 by:m",
+            "group:'Net income' after:$y before:$m+1 by:m",
+            "group:'Net income' after:$y-1 before:$m-11 by:m",
         ]);
 
         const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
@@ -250,6 +250,7 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         vi.setSystemTime(new Date('2028-03-10T15:00:00Z'));
         try {
             const test = harness();
+            test.bkper.ledger.today = '2028-03-10';
             const response = await test.app.request(SUGGESTIONS_URL, {}, test.env);
             const { suggestions } = (await response.json()) as {
                 suggestions: { text: string; intent: unknown }[];
@@ -352,7 +353,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(body).toMatchObject({
             intent,
             language: 'pt',
-            query: "group:'Expenses' after:2026-10-01 before:2026-11-01",
+            query: "group:'Expenses' on:2026-10 by:m",
             url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+outubro+de+2026`,
         });
         expect(typeof body.dataAt).toBe('string');
@@ -367,8 +368,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             'total',
         ]);
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
         ]);
     });
 
@@ -376,16 +377,16 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         const test = harness();
         const october = { root: 'g-expenses', period: '2026-10', monthly: false };
         const first = await post(test, { intent: october });
-        // Last month is October too: the same queries.
-        const again = await post(test, { intent: { ...october, period: 'last_month' } });
+        // The same report, drawn another way: the same queries.
+        const again = await post(test, { intent: { ...october, chart: 'table' } });
         // September is October's previous period: only its own previous one is read.
         await post(test, { intent: { ...october, period: '2026-09' } });
 
         expect([first.status, again.status]).toEqual([200, 200]);
         expect(test.queries).toEqual([
-            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
-            "group:'Expenses' after:2026-08-01 before:2026-09-01 by:m",
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
+            "group:'Expenses' on:2026-08 by:m",
         ]);
         expect(((await again.json()) as { dataAt: string }).dataAt).toBe(
             ((await first.json()) as { dataAt: string }).dataAt
@@ -558,7 +559,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(await response.json()).toMatchObject({
             intent: { root: 'g-revenue', period: '2026-10', monthly: false },
             language: 'es',
-            query: "group:'Revenue' after:2026-10-01 before:2026-11-01",
+            query: "group:'Revenue' on:2026-10 by:m",
             url: `https://report.bkper.app/?book=${BOOK}&q=ingresos+de+octubre`,
         });
         expect(timings(response)).toContain('jev');
@@ -633,12 +634,12 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
         expect(response.status).toBe(200);
         const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
-        expect(body).toMatchObject({ intent, query: "group:'Banks' before:2026-11-06" });
+        expect(body).toMatchObject({ intent, query: "group:'Banks' before:$d+1 by:m" });
         expect(elementOf(body.spec, 'Report').props.title).toBe('Banks');
         expect(elementOf(body.spec, 'Answer').props.amount).toBe('7749.25');
         expect(test.queries).toEqual([
-            "group:'Banks' after:2026-11-05 before:2026-11-06 by:m",
-            "group:'Banks' before:2026-11-01 by:m",
+            "group:'Banks' before:$d+1 by:m",
+            "group:'Banks' before:$m by:m",
         ]);
 
         // The report file opens the same target again.
@@ -666,7 +667,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
         expect(body).toMatchObject({
             intent,
-            query: "(account:'Food' OR group:'Revenue' OR account:'Rent') after:2026-10-01 before:2026-11-01",
+            query: "(account:'Food' OR group:'Revenue' OR account:'Rent') on:$m-1 by:m",
             trace: { facts: { sideBySide: true } },
         });
         const answers = Object.values(body.spec.elements).flatMap(element =>
@@ -678,10 +679,10 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             ['Rent', '1000'],
         ]);
         expect([...test.queries].sort()).toEqual([
-            "group:'Expenses' after:2026-09-01 before:2026-10-01 by:m",
-            "group:'Expenses' after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Revenue' after:2026-09-01 before:2026-10-01 by:m",
-            "group:'Revenue' after:2026-10-01 before:2026-11-01 by:m",
+            "group:'Expenses' on:$m-1 by:m",
+            "group:'Expenses' on:$m-2 by:m",
+            "group:'Revenue' on:$m-1 by:m",
+            "group:'Revenue' on:$m-2 by:m",
         ]);
 
         const file = await post(test, { intent, language: 'en', format: 'html' });
@@ -701,11 +702,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({
-            query: "account:'Owner' before:2026-11-06",
+            query: "account:'Owner' before:$d+1 by:m",
         });
         expect(test.queries).toEqual([
-            "account:'Owner' after:2026-11-05 before:2026-11-06 by:m",
-            "account:'Owner' before:2026-11-01 by:m",
+            "account:'Owner' before:$d+1 by:m",
+            "account:'Owner' before:$m by:m",
         ]);
     });
 
@@ -730,12 +731,12 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
         expect(response.status).toBe(200);
         expect(test.queries).toEqual([
-            "group:'Expenses' #trip after:2026-10-01 before:2026-11-01 by:m",
-            "group:'Expenses' #trip after:2026-09-01 before:2026-10-01 by:m",
+            "group:'Expenses' #trip on:$m-1 by:m",
+            "group:'Expenses' #trip on:$m-2 by:m",
         ]);
         expect(await response.json()).toMatchObject({
             intent: { hashtags: ['trip'] },
-            query: "group:'Expenses' #trip after:2026-10-01 before:2026-11-01",
+            query: "group:'Expenses' #trip on:$m-1 by:m",
         });
     });
 

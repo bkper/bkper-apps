@@ -41,6 +41,10 @@
  *   among them, and a preferred chart that does not fit is not, with its reason. Each line shows
  *   the preference, the main chart, the rule and the reason.
  *
+ * The app reads its own queries, with their variables (`on:$m-1 by:m`); the CLI reads the same
+ * dates in ISO months, `on:` as `after:` and `before:`, as it lists activity by month only for a
+ * query with `after:`. With `--today`, every relative date is written in ISO as of that day.
+ *
  * The CLI shows raw balances (credit minus debit), negated for permanent accounts, so Liability
  * and Outgoing come out negative; reports show them as Bkper charts do, by credit nature. A CLI
  * amount is flipped when its row's `credit` equals its `permanent`. Uses your `bkper auth token`;
@@ -51,11 +55,12 @@ import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
 import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
 import { readReport } from '../server/src/services/default-period.ts';
+import { resolveQueryDates } from '../server/src/services/period-query.ts';
 import {
     addDays,
     defaultPeriod,
     isPlausibleYear,
-    type DateRange,
+    isoMonth,
     type ReportNature,
 } from '../server/src/services/periods.ts';
 import {
@@ -84,6 +89,73 @@ import {
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const CLI_CONCURRENCY = 6;
+
+/**
+ * The Book's today given with `--today`. Bkper resolves `$y`, `$m` and `$d` from its own today,
+ * so every query of relative dates is then written in ISO months as of this day, for the app's
+ * reads and the CLI's alike; `before:$d+1` (a balance now) reads through the end of that month,
+ * as Bkper cannot be asked for a given day by month.
+ */
+let fixedToday: string | undefined;
+
+function nextMonthOf(month: string): string {
+    const [year, monthOfYear] = month.split('-').map(Number);
+    return monthOfYear === 12 ? isoMonth(year + 1, 1) : isoMonth(year, monthOfYear + 1);
+}
+
+/** A query as Bkper should read it: as of `--today` when given, else as the app wrote it. */
+function asOfToday(query: string): string {
+    const today = fixedToday;
+    if (today === undefined) {
+        return query;
+    }
+    return query
+        .split(' ')
+        .map(token => {
+            const match = /^(on|after|before):(\$[ymd]\S*)$/.exec(token);
+            if (!match) {
+                return token;
+            }
+            const [, key, value] = match;
+            if (value === '$d+1') {
+                return `before:${nextMonthOf(today.slice(0, 7))}`;
+            }
+            const { first, last } = resolveQueryDates(`${key}:${value} by:m`, today);
+            if (key === 'on' && first !== undefined && last !== undefined) {
+                return first === last ? `on:${first}` : `on:${first.slice(0, 4)}`;
+            }
+            if (key === 'after' && first !== undefined) {
+                return `after:${first}`;
+            }
+            if (key === 'before' && last !== undefined) {
+                return `before:${nextMonthOf(last)}`;
+            }
+            throw new Error(`Unexpected query dates: ${token}`);
+        })
+        .join(' ');
+}
+
+/**
+ * A query as the CLI reads it: its dates in ISO months, `on:` as `after:` and `before:`, since
+ * the CLI lists activity in each month only for a query with `after:`, and running totals for
+ * any other. The app's own query, with variables, is read apart, so both must agree.
+ */
+function forCli(query: string, today: string): string {
+    return asOfToday(query)
+        .split(' ')
+        .map(token => {
+            const match = /^on:(\S+)$/.exec(token);
+            if (!match) {
+                return token;
+            }
+            const { first, last } = resolveQueryDates(`on:${match[1]} by:m`, today);
+            if (first === undefined || last === undefined) {
+                throw new Error(`Unexpected query dates: ${token}`);
+            }
+            return `after:${first} before:${nextMonthOf(last)}`;
+        })
+        .join(' ');
+}
 const MAX_STACKED_PARTS = 6;
 const run = promisify(execFile);
 
@@ -491,12 +563,13 @@ async function bookHistory(
     checked: string[]
 ): Promise<History> {
     const history: History = { roots: new Map(), months: new Map() };
-    const tomorrow = addDays(snapshot.today, 1);
+    // Through the end of the current month, as the app's own history query reads it.
+    const end = `${nextMonthOf(snapshot.today.slice(0, 7))}-01`;
     const all = new Set<string>();
     await Promise.all(
         checked.map(async id => {
             // The CLI lists activity in each month of a query with `after:`.
-            const query = `group:${quote(snapshot.groups[id].name)} after:1000-01-01 before:${tomorrow} by:m`;
+            const query = `group:${quote(snapshot.groups[id].name)} after:1000-01-01 before:${end} by:m`;
             const root = new Set<string>();
             for (const [name, rows] of cliRows(await cli.balances(bookId, query), false)) {
                 const moved = rows.flatMap(row =>
@@ -529,7 +602,11 @@ function balancesReader(book: Book, count: { queries: number }) {
         return Promise.all(
             queries.map(async query => {
                 const asked = new Date();
-                return readQueryBalances(query, await book.getBalancesReport(query), asked);
+                return readQueryBalances(
+                    query,
+                    await book.getBalancesReport(asOfToday(query)),
+                    asked
+                );
             })
         );
     };
@@ -608,9 +685,8 @@ async function defaultPeriodReports(
 
 /** Whether a month is within an intent's period, as the CLI's history lists months. */
 function inRange(month: string, intent: ReportIntent, snapshot: Snapshot): boolean {
-    const { range } = planReport(intent, snapshot).period;
-    const last = addDays(range.before, -1).slice(0, 7);
-    return (range.after === undefined || month >= range.after.slice(0, 7)) && month <= last;
+    const { first, last } = planReport(intent, snapshot).period.read;
+    return (first === undefined || month >= first) && month <= last;
 }
 
 async function computeReport(
@@ -623,7 +699,7 @@ async function computeReport(
     const balances = await Promise.all(
         queries.map(async query => {
             const asked = new Date();
-            return readQueryBalances(query, await book.getBalancesReport(query), asked);
+            return readQueryBalances(query, await book.getBalancesReport(asOfToday(query)), asked);
         })
     );
     const queriesMs = performance.now() - start;
@@ -646,11 +722,13 @@ function cliQuery(report: ReportData, snapshot: Snapshot): string {
     return `group:${quote(snapshot.groups[root].name)}${report.query.slice(own.length)}`;
 }
 
-function withDates(report: ReportData, query: string, range: DateRange): string {
-    const filter = query.replace(/ (after:\S+ )?before:\S+$/, '');
-    return report.nature === 'position' || range.after === undefined
-        ? `${filter} before:${range.before}`
-        : `${filter} after:${range.after} before:${range.before}`;
+/** A query of the report's dates, with the dates of the period it is compared with instead. */
+function previousQuery(report: ReportData, query: string): string {
+    const { period, previous } = report;
+    if (!previous || !query.endsWith(period.dates)) {
+        throw new Error(`No comparison of ${query}`);
+    }
+    return `${query.slice(0, -period.dates.length)}${previous.dates}`;
 }
 
 /** What the checks of one report read: its CLI tables, and how to compare with them. */
@@ -682,15 +760,15 @@ async function verifyReport(
     if (!isOneSubject(report)) {
         return verifySideBySide(cli, bookId, snapshot, report, label);
     }
-    const read = async (query: string) =>
-        cliRows(await cli.balances(bookId, query), !query.includes('after:'));
-    const cumulative = !report.query.includes('after:');
+    const read = async (query: string) => {
+        const text = forCli(query, snapshot.today);
+        return cliRows(await cli.balances(bookId, text), !text.includes('after:'));
+    };
+    const cumulative = !forCli(report.query, snapshot.today).includes('after:');
     const query = cliQuery(report, snapshot);
     const [current, previous] = await Promise.all([
         read(query),
-        report.previous
-            ? read(withDates(report, query, report.previous))
-            : Promise.resolve(undefined),
+        report.previous ? read(previousQuery(report, query)) : Promise.resolve(undefined),
     ]);
     const problems: string[] = [];
     const same = (what: string, actual: string | undefined, expected: Amount) => {
@@ -814,7 +892,7 @@ async function verifySideBySide(
     if (report.breakdown !== targets) {
         problems.push('The breakdown is not the targets');
     }
-    const dates = /(after:\S+ )?before:\S+$/.exec(report.query)?.[0] ?? '';
+    const dates = report.period.dates;
     const tags = (intent.hashtags ?? []).map(tag => ` #${tag}`).join('');
     await Promise.all(
         subjects.map(async (subject, index) => {
@@ -831,15 +909,15 @@ async function verifySideBySide(
                 ? `group:${quote(snapshot.groups[subject.root].name)}`
                 : `${kind}:${quote(node.name)}`;
             const query = `${filter}${tags} ${dates}`;
-            const read = async (text: string) =>
-                cliRows(await cli.balances(bookId, text), !text.includes('after:'));
+            const read = async (asked: string) => {
+                const text = forCli(asked, snapshot.today);
+                return cliRows(await cli.balances(bookId, text), !text.includes('after:'));
+            };
             const [current, previous] = await Promise.all([
                 read(query),
-                report.previous
-                    ? read(withDates(report, query, report.previous))
-                    : Promise.resolve(undefined),
+                report.previous ? read(previousQuery(report, query)) : Promise.resolve(undefined),
             ]);
-            const cumulative = !report.query.includes('after:');
+            const cumulative = !forCli(report.query, snapshot.today).includes('after:');
             const byMonth =
                 report.months.length > 1 && (report.nature === 'position' || !cumulative);
             const total = (rows: CliTable | undefined, name: string, nature: Nature) =>
@@ -1409,6 +1487,7 @@ async function main(): Promise<void> {
     const option = (name: string) =>
         args.filter(arg => arg.startsWith(`--${name}=`)).map(arg => arg.slice(name.length + 3));
     const [today] = option('today');
+    fixedToday = today;
     const hashtags = option('hashtag');
     const only = option('root');
     const bookIds = args.filter(arg => !arg.startsWith('--'));

@@ -872,8 +872,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -887,7 +887,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -1770,8 +1770,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -1785,7 +1785,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -2172,8 +2172,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Oct 1 – Dec 31, 2025",
-                        "query": "group:'Taxes' after:2025-10-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Taxes'%20after%3A2025-10-01%20before%3A2026-01-01",
+                        "query": "group:'Taxes' after:2025-10 before:2026-01 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Taxes'%20after%3A2025-10%20before%3A2026-01%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2187,7 +2187,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Taxes'%20after%3A2025-10-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Taxes'%20after%3A2025-10%20before%3A2026-01%20by%3Am"
                             }
                         }
                     }
@@ -2658,8 +2658,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "As of ⁨Dec 31, 2025⁩",
-                        "query": "group:'Bank accounts' before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01",
+                        "query": "group:'Bank accounts' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2673,7 +2673,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -2915,8 +2915,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "As of ⁨Dec 31, 2025⁩",
-                        "query": "group:'Loans' before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Loans'%20before%3A2026-01-01",
+                        "query": "group:'Loans' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Loans'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2930,7 +2930,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Loans'%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Loans'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -3954,8 +3954,8 @@
                     "props": {
                         "footer": "Calculado a partir dos saldos do ⁨Studio Norte⁩",
                         "period": "1 de jan. – 31 de dez. de 2025",
-                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "calculated": {
                             "label": "Calculado pelo Report",
@@ -3973,7 +3973,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -4514,8 +4514,8 @@
                     "props": {
                         "footer": "⁨Studio Norte⁩の残高から計算",
                         "period": "2025/01/01～2025/12/31",
-                        "query": "group:'Revenue' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Revenue' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "出典",
@@ -4529,7 +4529,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -5044,8 +5044,8 @@
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "١‏/١١‏/٢٠٢٥ – ٣٠‏/١١‏/٢٠٢٥",
-                        "query": "group:'Expenses' after:2025-11-01 before:2025-12-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-11-01%20before%3A2025-12-01",
+                        "query": "group:'Expenses' on:2025-11 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025-11%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "المصدر",
@@ -5059,7 +5059,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-11-01%20before%3A2025-12-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025-11%20by%3Am"
                             }
                         }
                     }
@@ -5376,8 +5376,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Nov 1 – 30, 2025",
-                        "query": "group:'Revenue' after:2025-11-01 before:2025-12-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-11-01%20before%3A2025-12-01",
+                        "query": "group:'Revenue' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -5391,7 +5391,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-11-01%20before%3A2025-12-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -5932,8 +5932,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Revenue' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Revenue' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -5947,7 +5947,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Revenue'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -6829,8 +6829,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -6844,7 +6844,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -7726,8 +7726,8 @@
                     "props": {
                         "footer": "חושב מתוך היתרות של ⁨Studio Norte⁩",
                         "period": "1 ינו׳ – 31 דצמ׳ 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "מקור",
@@ -7741,7 +7741,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -8213,8 +8213,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "As of ⁨Dec 31, 2025⁩",
-                        "query": "group:'Bank accounts' before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01",
+                        "query": "group:'Bank accounts' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -8228,7 +8228,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -9253,8 +9253,8 @@
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "1‏/1‏/2025 – 31‏/12‏/2025",
-                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "calculated": {
                             "label": "تم الحساب بواسطة Report",
@@ -9272,7 +9272,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -10154,8 +10154,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -10169,7 +10169,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -10641,8 +10641,8 @@
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "في ⁨٣١‏/١٢‏/٢٠٢٥⁩",
-                        "query": "group:'Bank accounts' before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01",
+                        "query": "group:'Bank accounts' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "المصدر",
@@ -10656,7 +10656,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -11681,8 +11681,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "calculated": {
                             "label": "Calculated by Report",
@@ -11700,7 +11700,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -12270,8 +12270,8 @@
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "1‏/9‏/2025 – 30‏/9‏/2025",
-                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') after:2025-09-01 before:2025-10-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-09-01%20before%3A2025-10-01",
+                        "query": "(group:'Revenue' OR group:'Expenses' OR group:'Taxes') on:2025-09 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025-09%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "calculated": {
                             "label": "تم الحساب بواسطة Report",
@@ -12289,7 +12289,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20after%3A2025-09-01%20before%3A2025-10-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses'%20OR%20group%3A'Taxes')%20on%3A2025-09%20by%3Am"
                             }
                         }
                     }
@@ -12658,8 +12658,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "As of ⁨Sep 30, 2025⁩",
-                        "query": "group:'Bank accounts' before:2025-10-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2025-10-01",
+                        "query": "group:'Bank accounts' before:2025-10 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2025-10%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -12673,7 +12673,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2025-10-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Bank%20accounts'%20before%3A2025-10%20by%3Am"
                             }
                         }
                     }
@@ -13551,8 +13551,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "group:'Expenses' after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "group:'Expenses' on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -13566,7 +13566,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=group%3A'Expenses'%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -14260,8 +14260,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Studio Norte⁩",
                         "period": "Jan 1 – Dec 31, 2025",
-                        "query": "(group:'People' OR group:'Office' OR group:'Taxes') after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "(group:'People' OR group:'Office' OR group:'Taxes') on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -14275,7 +14275,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'People'%20OR%20group%3A'Office'%20OR%20group%3A'Taxes')%20on%3A2025%20by%3Am"
                             }
                         }
                     }
@@ -15080,8 +15080,8 @@
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Studio Norte⁩",
                         "period": "1‏/1‏/2025 – 31‏/12‏/2025",
-                        "query": "(group:'Revenue' OR group:'Expenses') after:2025-01-01 before:2026-01-01",
-                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20after%3A2025-01-01%20before%3A2026-01-01",
+                        "query": "(group:'Revenue' OR group:'Expenses') on:2025 by:m",
+                        "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20on%3A2025%20by%3Am",
                         "dataAt": "2025-12-31T21:00:00.000Z",
                         "labels": {
                             "source": "المصدر",
@@ -15095,7 +15095,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20after%3A2025-01-01%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/studio-book/transactions?query=(group%3A'Revenue'%20OR%20group%3A'Expenses')%20on%3A2025%20by%3Am"
                             }
                         }
                     }

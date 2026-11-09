@@ -118,6 +118,13 @@ function answers(report: ReportResponse) {
     );
 }
 
+/** The period the report's Source says it covers. */
+function sourcePeriod(report: ReportResponse) {
+    const element = report.spec.elements.source;
+    if (element?.type !== 'Source') throw new Error('Missing source');
+    return element.props.period;
+}
+
 function breakdown(report: ReportResponse) {
     const element = report.spec.elements.breakdown;
     if (element?.type !== 'BreakdownTable') throw new Error('Missing breakdown');
@@ -192,7 +199,8 @@ describe('saved-prompt route/service and independent app clients', () => {
         clock.now += CACHE_MS;
         const first = await click(b.state, item.id);
         expect(answer(first).amount).toBe('1200.5');
-        expect(first.query).toContain('after:2026-10-01 before:2026-11-01');
+        expect(first.query).toBe("group:'Expenses' on:$m-1 by:m");
+        expect(sourcePeriod(first)).toMatch(/^Oct 1\s–\s31, 2026$/);
         // Within a minute a click shows the same report, though the date has changed since.
         fixture.advance();
         b.state.openSavedReport(item.id);
@@ -200,7 +208,9 @@ describe('saved-prompt route/service and independent app clients', () => {
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
         expect(later.intent.period).toBe('last_month');
-        expect(later.query).toContain('after:2026-11-01 before:2026-12-01');
+        // The same query, which Bkper reads on the Book's new day.
+        expect(later.query).toBe(first.query);
+        expect(sourcePeriod(later)).toMatch(/^Nov 1\s–\s30, 2026$/);
         expect(answer(later).amount).toBe('1050.25');
         expect(fixture.decisions.map(item => item.state)).toEqual([
             { request: WORKFLOW_PROMPT, today: '2026-11-05' },
@@ -425,7 +435,8 @@ describe('completed names, through the real routes, reports, the shelf and other
         expect(named.trace.names).toEqual(['Food']);
         expect(named.spec.elements[named.spec.root].props).toMatchObject({ title: 'Food' });
         expect(answer(named)).toMatchObject({ amount: '200.5', label: 'Food' });
-        expect(named.query).toBe("account:'Food' after:2026-10-01 before:2026-11-01");
+        expect(named.query).toBe("account:'Food' on:$m-1 by:m");
+        expect(sourcePeriod(named)).toMatch(/^Oct 1\s–\s31, 2026$/);
         // Names complete only the text; Jev gets the same single decision request.
         expect(fixture.decisions.map(item => item.state)).toEqual([
             { request: 'Food last month', today: '2026-11-05' },
@@ -458,7 +469,8 @@ describe('completed names, through the real routes, reports, the shelf and other
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
         expect(later.intent).toEqual(named.intent);
-        expect(later.query).toBe("account:'Food' after:2026-11-01 before:2026-12-01");
+        expect(later.query).toBe(named.query);
+        expect(sourcePeriod(later)).toMatch(/^Nov 1\s–\s30, 2026$/);
         expect(answer(later).amount).toBe('50.25');
         // Each client asked for the names once, and again only when typing after a minute.
         expect(ownerCalls.filter(call => call.endsWith('/names'))).toHaveLength(1);
@@ -488,9 +500,7 @@ describe('completed names, through the real routes, reports, the shelf and other
             period: 'last_month',
         });
         expect(shown.trace.names).toEqual(['Food', 'Rent']);
-        expect(shown.query).toBe(
-            "(account:'Food' OR account:'Rent') after:2026-10-01 before:2026-11-01"
-        );
+        expect(shown.query).toBe("(account:'Food' OR account:'Rent') on:$m-1 by:m");
         // Each its own Bkper balance; nothing for them together (their group is 1200.5).
         expect(answers(shown).map(({ label, amount }) => [label, amount])).toEqual([
             ['Food', '200.5'],

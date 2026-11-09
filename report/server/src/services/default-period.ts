@@ -11,7 +11,7 @@
  * nothing, and counts as none. A position today always shows its balance, so it never moves.
  */
 import { groupBalances, accountBalances, type QueryBalances } from './balances.js';
-import { addDays, defaultPeriod, isPlausibleYear, type IsoMonth } from './periods.js';
+import { defaultPeriod, isPlausibleYear, type IsoMonth } from './periods.js';
 import { historyQuery, planQueries, planReport, planSubjects, type ReportPlan } from './report.js';
 import type { ReportIntent } from './report-intent.js';
 import type { Snapshot } from './snapshot.js';
@@ -78,9 +78,7 @@ export function hasMovements(
     balances: QueryBalances[]
 ): boolean {
     const answers = new Map(balances.map(answer => [answer.query, answer]));
-    const { after, before } = plan.period.range;
-    const first = after?.slice(0, 7);
-    const last = addDays(before, -1).slice(0, 7);
+    const { first, last } = plan.period.read;
     return planSubjects(plan, snapshot).some(({ node, source }) => {
         const query = plan.queries.find(entry => entry.source === source)?.current;
         const answer = query === undefined ? undefined : answers.get(query);

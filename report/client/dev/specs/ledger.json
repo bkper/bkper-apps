@@ -210,8 +210,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Net income' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -225,7 +225,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -420,8 +420,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Expenses' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Expenses' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -435,7 +435,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -659,8 +659,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Net income' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -674,7 +674,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -931,8 +931,8 @@
                     "props": {
                         "footer": "Calculado a partir dos saldos do ⁨Test Ledger⁩",
                         "period": "Em ⁨5 de nov. de 2026⁩",
-                        "query": "group:'Assets' before:2026-11-06",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A2026-11-06",
+                        "query": "group:'Assets' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Fonte",
@@ -946,7 +946,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A2026-11-06"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Assets'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -990,7 +990,7 @@
                         "color": "grey",
                         "previous": "-1000",
                         "change": "8.1365",
-                        "comparison": "مقابل ⁨1‏/12‏/2024 – 5‏/11‏/2025⁩"
+                        "comparison": "مقابل ⁨1‏/12‏/2024 – 30‏/11‏/2025⁩"
                     }
                 },
                 "chart": {
@@ -1123,8 +1123,8 @@
                                     "kind": "compare",
                                     "label": "تفصيل ⁨Net income⁩",
                                     "periods": {
-                                        "current": "1‏/12‏/2025 – 5‏/11‏/2026",
-                                        "previous": "1‏/12‏/2024 – 5‏/11‏/2025"
+                                        "current": "1‏/12‏/2025 – 30‏/11‏/2026",
+                                        "previous": "1‏/12‏/2024 – 30‏/11‏/2025"
                                     },
                                     "items": [
                                         {
@@ -1274,9 +1274,9 @@
                     "type": "Source",
                     "props": {
                         "footer": "تم احتسابه من أرصدة ⁨Test Ledger⁩",
-                        "period": "1‏/12‏/2025 – 5‏/11‏/2026",
-                        "query": "group:'Net income' after:2025-12-01 before:2026-11-06",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2025-12-01%20before%3A2026-11-06",
+                        "period": "1‏/12‏/2025 – 30‏/11‏/2026",
+                        "query": "group:'Net income' after:$m-11 before:$m+1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A%24m-11%20before%3A%24m%2B1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "المصدر",
@@ -1290,7 +1290,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2025-12-01%20before%3A2026-11-06"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A%24m-11%20before%3A%24m%2B1%20by%3Am"
                             }
                         }
                     }
@@ -1375,8 +1375,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "As of ⁨Dec 31, 2025⁩",
-                        "query": "group:'Card' before:2026-01-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A2026-01-01",
+                        "query": "group:'Card' before:$y by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A%24y%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -1390,7 +1390,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A2026-01-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Card'%20before%3A%24y%20by%3Am"
                             }
                         }
                     }
@@ -1542,8 +1542,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "As of ⁨Nov 5, 2026⁩",
-                        "query": "group:'Banks' before:2026-11-06",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A2026-11-06",
+                        "query": "group:'Banks' before:$d+1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A%24d%2B1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -1557,7 +1557,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A2026-11-06"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Banks'%20before%3A%24d%2B1%20by%3Am"
                             }
                         }
                     }
@@ -1601,7 +1601,7 @@
                         "color": "red",
                         "previous": "1000",
                         "change": "2",
-                        "comparison": "vs. ⁨Jan 1 – Nov 5, 2025⁩"
+                        "comparison": "vs. ⁨Jan 1 – Nov 30, 2025⁩"
                     }
                 },
                 "chart": {
@@ -1711,9 +1711,9 @@
                     "type": "Source",
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
-                        "period": "Jan 1 – Nov 5, 2026",
-                        "query": "account:'Rent' after:2026-01-01 before:2026-11-06",
-                        "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A2026-01-01%20before%3A2026-11-06",
+                        "period": "Jan 1 – Nov 30, 2026",
+                        "query": "account:'Rent' after:$y before:$m+1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A%24y%20before%3A%24m%2B1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -1727,7 +1727,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A2026-01-01%20before%3A2026-11-06"
+                                "url": "https://bkper.app/books/book-1/transactions?query=account%3A'Rent'%20after%3A%24y%20before%3A%24m%2B1%20by%3Am"
                             }
                         }
                     }
@@ -1771,7 +1771,7 @@
                         "color": "red",
                         "previous": "1000",
                         "change": "1.8635",
-                        "comparison": "לעומת ⁨1 ינו׳ – 5 נוב׳ 2025⁩"
+                        "comparison": "לעומת ⁨1 ינו׳ – 30 נוב׳ 2025⁩"
                     }
                 },
                 "chart": {
@@ -1953,8 +1953,8 @@
                                     "kind": "compare",
                                     "label": "פירוט של ⁨Expenses⁩",
                                     "periods": {
-                                        "current": "1 ינו׳ – 5 נוב׳ 2026",
-                                        "previous": "1 ינו׳ – 5 נוב׳ 2025"
+                                        "current": "1 ינו׳ – 30 נוב׳ 2026",
+                                        "previous": "1 ינו׳ – 30 נוב׳ 2025"
                                     },
                                     "items": [
                                         {
@@ -2073,9 +2073,9 @@
                     "type": "Source",
                     "props": {
                         "footer": "חושב מתוך היתרות של ⁨Test Ledger⁩",
-                        "period": "1 ינו׳ – 5 נוב׳ 2026",
-                        "query": "group:'Expenses' after:2026-01-01 before:2026-11-06",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-01-01%20before%3A2026-11-06",
+                        "period": "1 ינו׳ – 30 נוב׳ 2026",
+                        "query": "group:'Expenses' after:$y before:$m+1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A%24y%20before%3A%24m%2B1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "מקור",
@@ -2089,7 +2089,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-01-01%20before%3A2026-11-06"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A%24y%20before%3A%24m%2B1%20by%3Am"
                             }
                         }
                     }
@@ -2313,8 +2313,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Net income' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2328,7 +2328,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -2547,8 +2547,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Net income' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Net income' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2562,7 +2562,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Net%20income'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -2787,8 +2787,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "(account:'Food' OR account:'Rent') after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "(account:'Food' OR account:'Rent') on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -2802,7 +2802,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=(account%3A'Food'%20OR%20account%3A'Rent')%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }
@@ -3003,8 +3003,8 @@
                     "props": {
                         "footer": "Computed from the balances of ⁨Test Ledger⁩",
                         "period": "Oct 1 – 31, 2026",
-                        "query": "group:'Expenses' after:2026-10-01 before:2026-11-01",
-                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-10-01%20before%3A2026-11-01",
+                        "query": "group:'Expenses' on:$m-1 by:m",
+                        "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20on%3A%24m-1%20by%3Am",
                         "dataAt": "2026-11-05T15:00:00.000Z",
                         "labels": {
                             "source": "Source",
@@ -3018,7 +3018,7 @@
                         "open": {
                             "action": "openInBkper",
                             "params": {
-                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20after%3A2026-10-01%20before%3A2026-11-01"
+                                "url": "https://bkper.app/books/book-1/transactions?query=group%3A'Expenses'%20on%3A%24m-1%20by%3Am"
                             }
                         }
                     }

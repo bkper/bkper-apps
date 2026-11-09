@@ -54,7 +54,7 @@ A chart that cannot show your numbers honestly is not drawn. It appears dimmed a
 
 ## Save a request for the Book
 
-Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. The first request in the row is the one Report opens with. Owners and editors can save requests, and move or remove them from each one's **⋯** menu; viewers and posters can open them.
+Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. The first request in the row is the one Report opens with. Owners and editors can save requests, drag them along the row to reorder them (on a phone, touch and hold one first), and move or remove them from each one's **⋯** menu; viewers and posters can open them.
 
 ## When a Book has no report
 

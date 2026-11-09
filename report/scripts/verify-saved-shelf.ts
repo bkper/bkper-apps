@@ -2,9 +2,10 @@
  * Mock-only browser verification of the saved-prompt shelf in an expanded Book panel.
  * Run with the Vite client running: npx tsx scripts/verify-saved-shelf.ts
  * Screenshots: /tmp/report-saved-shelf (override with --screenshots=<directory>).
- * Eight layout scenarios stub the API; a two-collaborator scenario bridges the browsers
- * to real app routes/services with isolated KV, snapshots and decision responses, and
- * completes a Book name into a report that it saves and another collaborator reopens.
+ * Eight layout scenarios stub the API; ten more drag saved prompts along the shelf by mouse
+ * and finger (see verify-saved-shelf/drag.ts); a two-collaborator scenario bridges the
+ * browsers to real app routes/services with isolated KV, snapshots and decision responses,
+ * and completes a Book name into a report that it saves and another collaborator reopens.
  * Every auth and Bkper request is intercepted; no real Book or KV is accessed.
  */
 import assert from 'node:assert/strict';
@@ -15,6 +16,7 @@ import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
 import { withoutIsolates } from 'report-shared/bidi';
 import { CACHE_MS } from '../client/src/state/cache-window.ts';
 import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
+import { summarize, verifyDrag, type DragLayout } from './verify-saved-shelf/drag.ts';
 
 const APP = 'http://localhost:5207';
 const HOST = 'https://bkper.app';
@@ -491,6 +493,64 @@ try {
                 scenarios++;
                 await context.close();
             }
+    // Dragging prompts along the shelf, with motion and, at both widths, reduced motion.
+    const dragLayouts: DragLayout[] = [];
+    for (const width of [1100, 390])
+        for (const theme of ['light', 'dark'] as const)
+            for (const language of ['en', 'ar'] as const)
+                dragLayouts.push({ width, theme, language, reducedMotion: false });
+    dragLayouts.push(
+        { width: 1100, theme: 'light', language: 'en', reducedMotion: true },
+        { width: 390, theme: 'dark', language: 'ar', reducedMotion: true }
+    );
+    const dragFixture = fixtures.find(item => item.id === 'expenses-by-month');
+    assert(dragFixture);
+    const drags = { intervals: [] as number[], costs: [] as number[], settles: [] as number[] };
+    for (const layout of dragLayouts) {
+        const result = await verifyDrag(
+            {
+                browser,
+                app: APP,
+                host: HOST,
+                themeUrl,
+                themeScript,
+                screenshots,
+                report: {
+                    spec: dragFixture.spec,
+                    intent: dragFixture.intent,
+                    language: dragFixture.lang,
+                    query: 'mock-only',
+                    dataAt: '2025-12-31T21:00:00Z',
+                    chart: { kind: 'bar', fallback: false },
+                    trace: {
+                        facts: {
+                            rows: 7,
+                            negative: 0,
+                            mixed: false,
+                            months: 12,
+                            previous: true,
+                            net: false,
+                            permanent: false,
+                        },
+                        chart: { fitting: ['bar', 'table'], main: 'bar', rule: 'rules' },
+                    },
+                    url: `${APP}/?book=fixture-book`,
+                },
+            },
+            layout
+        );
+        drags.intervals.push(...result.intervals);
+        drags.costs.push(...result.costs);
+        drags.settles.push(...result.settles);
+        screenshotCount += result.screenshots;
+        scenarios++;
+        console.log(
+            `PASS ${result.name}: click/tap open, mouse and long-press drags open the gap where they land, Escape, leaving and re-entering, swipe scrolls, auto-scroll, rollback, menu, read-only; frames ${summarize(result.intervals)}, drop to settled ${summarize(result.settles)}`
+        );
+    }
+    console.log(
+        `Dragging: frame intervals ${summarize(drags.intervals)}; the drag's work per frame ${summarize(drags.costs)}; drop to settled ${summarize(drags.settles)}`
+    );
     // Independent browser contexts share only the real saved-prompt service's isolated KV.
     // They do not share browser state, report caches or a mocked shelf response.
     const workflow = await savedWorkflow();

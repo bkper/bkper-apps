@@ -9,6 +9,7 @@ import type { AppState } from '../state/app-state';
 import type { SavedReportsError, ShelfPlace } from '../state/saved-reports';
 import { watch } from '../state/store';
 import './report-suggestions';
+import { ShelfDrag } from './shelf-drag';
 
 export type ReportShelfState = Pick<AppState, 'route' | 'reports' | 'savedReports' | 'strings'>;
 
@@ -70,6 +71,38 @@ export class ReportShelf extends LitElement {
             max-inline-size: min(32ch, 55vw);
         }
 
+        /* Reordering by drag (see shelf-drag.ts): a long press picks a chip up, not the text. */
+        .items > wa-button-group {
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+
+        .items[data-dragging] > wa-button-group {
+            will-change: transform;
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+            .items[data-dragging] > wa-button-group:not([data-lifted]),
+            .items[data-dragging] > wa-button-group[data-away] {
+                transition: transform var(--wa-transition-normal) var(--wa-transition-easing);
+            }
+        }
+
+        wa-button-group[data-lifted] {
+            position: relative;
+            z-index: 1;
+            border-radius: var(--wa-border-radius-pill);
+            box-shadow: var(--wa-shadow-s);
+            cursor: grabbing;
+        }
+
+        wa-button-group[data-lifted] wa-button::part(button) {
+            background-color: var(--wa-color-brand-fill-quiet);
+            border-color: var(--wa-color-brand-border-loud);
+            color: var(--wa-color-brand-on-quiet);
+            cursor: grabbing;
+        }
+
         .saved-prompt::part(button) {
             max-inline-size: 100%;
         }
@@ -117,6 +150,17 @@ export class ReportShelf extends LitElement {
     @state() private moved?: { items: readonly SavedPrompt[]; text: string };
     /** The chip holding focus before a render, which may move or drop it. */
     private focused?: { id: string; index: number; control: 'saved-prompt' | 'options' };
+
+    /** Reorders saved prompts by dragging them along the row, for those who may move them. */
+    private readonly drag = new ShelfDrag(this, {
+        row: () => this.renderRoot.querySelector<HTMLElement>('.items'),
+        chips: () => this.chips(),
+        ids: () => this.state.savedReports.items.map(item => item.id),
+        canMove: () =>
+            this.state.savedReports.canMove &&
+            this.state.savedReports.bookId === this.state.route.bookId,
+        move: (id, before) => this.moveTo(id, before, false),
+    });
 
     constructor() {
         super();
@@ -287,14 +331,23 @@ export class ReportShelf extends LitElement {
         }
     }
 
-    /** Move a prompt; once the shelf confirms its new order, announce where it is. */
+    /** Move a prompt from its menu, keeping it in view. */
     private async move(id: string, place: ShelfPlace): Promise<void> {
         const shelf = this.state.savedReports;
         const before = shelf.beforeFor(id, place);
         if (before === undefined || !shelf.canMove) return;
+        await this.moveTo(id, before, true);
+    }
+
+    /**
+     * Move a prompt before `before` (`null`: the end), at once; once the shelf confirms its new
+     * order, announce where it is. A dragged chip is in view already, so only the menu reveals.
+     */
+    private async moveTo(id: string, before: string | null, reveal: boolean): Promise<void> {
+        const shelf = this.state.savedReports;
         const done = shelf.move(id, before);
         await this.updateComplete;
-        this.reveal(id);
+        if (reveal) this.reveal(id);
         await done;
         const index = shelf.items.findIndex(item => item.id === id);
         if (shelf.moveError || index === -1) return;
@@ -307,7 +360,7 @@ export class ReportShelf extends LitElement {
             }),
         };
         await this.updateComplete;
-        this.reveal(id);
+        if (reveal) this.reveal(id);
     }
 
     /** The focused element of the shelf's own tree, found from the document down. */
@@ -369,7 +422,8 @@ export class ReportShelf extends LitElement {
             chip?.querySelector<WaButton>('.saved-prompt');
         if (!chip || !button) return;
         button.focus({ preventScroll: true });
-        chip.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        // A drop keeps the row where the person left it.
+        if (!this.drag.active) chip.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     private suggestions() {

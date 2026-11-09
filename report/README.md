@@ -54,7 +54,7 @@ A chart that cannot show your numbers honestly is not drawn. It appears dimmed a
 
 ## Save a request for the Book
 
-Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. The first request in the row is the one Report opens with. Owners and editors can save requests, drag them along the row to reorder them (on a phone, touch and hold one first), and move or remove them from each one's **⋯** menu; viewers and posters can open them.
+Click **Save** to add the request behind the report on screen to the end of the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. The first request in the row is the one Report opens with. Owners and editors can save requests, drag them along the row to reorder them (on a phone, touch and hold one first), and move or remove them from each one's **⋯** menu; viewers and posters can open them.
 
 ## When a Book has no report
 
@@ -72,7 +72,7 @@ Owners and editors get **Organize with Agent**: it opens the Bkper Agent in the 
 ## Good to know
 
 - **Up to two minutes behind.** Report keeps balances and reports for up to a minute each, so a transaction posted in the last two minutes may not show yet.
-- **Bkper AI allowance.** Typed requests and saved requests use it; suggested reports and names do not.
+- **Bkper AI allowance.** Typed requests and saved requests use it, including the saved request Report opens with; suggested reports and names do not.
 - **What you share.** Report sends your request to Bkper AI to read it. A saved request is visible to all the Book's collaborators, and a report link contains its request.
 - **Who can use it.** Anyone who can view the Book's balances.
 

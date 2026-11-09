@@ -255,8 +255,8 @@ async function suggestions(name: string, width: number, theme: 'light' | 'dark')
     const chips = frame.locator('report-shelf report-suggestions wa-button');
     await chips.nth(fixtures.length - 1).waitFor();
     await prefetched(panel);
-    // The first report shows at once; the others change into one another.
-    await chips.nth(0).click();
+    // Opened with nothing asked, the Book shows its first suggestion by itself; the others
+    // change into one another.
     await panel.waitForFunction(title => window.shownTitle() === title, titleOf(fixtures[0]), {
         polling: 'raf',
     });
@@ -304,7 +304,7 @@ async function savedPrompts(name: string, width: number, theme: 'light' | 'dark'
     const prompts = frame.locator('report-shelf .saved-prompt');
     await prompts.nth(saved.length - 1).waitFor();
     await prefetched(panel);
-    await prompts.nth(0).click();
+    // Opened with nothing asked, the Book asks for its first saved prompt by itself.
     await panel.waitForFunction(title => window.shownTitle() === title, titleOf(fixtures[0]), {
         polling: 'raf',
     });

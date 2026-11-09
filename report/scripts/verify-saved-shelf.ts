@@ -3,9 +3,11 @@
  * Run with the Vite client running: npx tsx scripts/verify-saved-shelf.ts
  * Screenshots: /tmp/report-saved-shelf (override with --screenshots=<directory>).
  * Eight layout scenarios stub the API; ten more drag saved prompts along the shelf by mouse
- * and finger (see verify-saved-shelf/drag.ts); a two-collaborator scenario bridges the
- * browsers to real app routes/services with isolated KV, snapshots and decision responses,
- * and completes a Book name into a report that it saves and another collaborator reopens.
+ * and finger (see verify-saved-shelf/drag.ts); four open a Book with nothing asked, which then
+ * opens its first report by itself unless the person acted first or the URL asks for one (see
+ * verify-saved-shelf/auto-open.ts); a two-collaborator scenario bridges the browsers to real
+ * app routes/services with isolated KV, snapshots and decision responses, and completes a
+ * Book name into a report that it saves and another collaborator reopens.
  * Every auth and Bkper request is intercepted; no real Book or KV is accessed.
  */
 import assert from 'node:assert/strict';
@@ -16,6 +18,7 @@ import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
 import { withoutIsolates } from 'report-shared/bidi';
 import { CACHE_MS } from '../client/src/state/cache-window.ts';
 import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
+import { verifyAutoOpen, type AutoOpenLayout } from './verify-saved-shelf/auto-open.ts';
 import { summarize, verifyDrag, type DragLayout } from './verify-saved-shelf/drag.ts';
 
 const APP = 'http://localhost:5207';
@@ -551,6 +554,24 @@ try {
     console.log(
         `Dragging: frame intervals ${summarize(drags.intervals)}; the drag's work per frame ${summarize(drags.costs)}; drop to settled ${summarize(drags.settles)}`
     );
+    // A Book opened with nothing asked: each width, theme and language at least once.
+    const autoOpenLayouts: AutoOpenLayout[] = [
+        { width: 1100, theme: 'light', language: 'en' },
+        { width: 1100, theme: 'dark', language: 'ar' },
+        { width: 390, theme: 'dark', language: 'en' },
+        { width: 390, theme: 'light', language: 'ar' },
+    ];
+    for (const layout of autoOpenLayouts) {
+        const result = await verifyAutoOpen(
+            { browser, app: APP, host: HOST, themeUrl, themeScript, screenshots, fixtures },
+            layout
+        );
+        screenshotCount += result.screenshots;
+        scenarios++;
+        console.log(
+            `PASS ${result.name}: the first saved prompt, else the first suggestion (also when the shelf fails), opens selected with the focus in the input and a keystroke replaces it; typing, a cleared request or a chip first wins; a request or a state in the URL opens alone (${result.cases} cases)`
+        );
+    }
     // Independent browser contexts share only the real saved-prompt service's isolated KV.
     // They do not share browser state, report caches or a mocked shelf response.
     const workflow = await savedWorkflow();
@@ -704,6 +725,12 @@ try {
     await b.panel.goto(`${APP}/?book=fixture-b`);
     await b.frame.locator('report-suggestions wa-button').first().waitFor();
     assert.equal(await b.shelf.locator('.saved-prompt').count(), 0);
+    // With no saved prompt, the other Book opens on its first suggestion by itself.
+    await b.frame.locator('report-view canvas').first().waitFor();
+    assert.equal(
+        await b.frame.locator('wa-input.prompt input').inputValue(),
+        (await b.frame.locator('report-suggestions wa-button').first().textContent())?.trim()
+    );
     await captureWorkflow('other-book');
     // Opened with nothing asked, the Book shows its first saved prompt by itself.
     const autoOpened = b.page.waitForResponse(

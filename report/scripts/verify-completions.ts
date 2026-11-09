@@ -283,8 +283,20 @@ try {
                         size => reportPage()?.state.names.index.size === size,
                         INDEXES[book].size
                     );
+                /**
+                 * Opened with nothing asked, the Book opens its saved prompt by itself: typing is
+                 * timed once that report is drawn, so drawing it never counts as a keystroke's.
+                 */
+                const autoOpened = async () => {
+                    await asked(saved, 'The Book opens on its saved prompt');
+                    await frame.locator('report-view').waitFor();
+                    await panel.evaluate(() =>
+                        reportPage()?.shadowRoot?.querySelector('report-view')?.chartDrawn()
+                    );
+                };
                 await panel.evaluate(installProbes);
                 await namesLoaded();
+                await autoOpened();
 
                 // Every keystroke that should show names, timed from the key to the frame after.
                 const time = async (requests: string[]) => {
@@ -312,12 +324,14 @@ try {
                     await shelf.locator('.saved-prompt').waitFor();
                     await panel.evaluate(installProbes);
                     await namesLoaded();
+                    await autoOpened();
                     timings.push(...(await time(typedRequests(book, language))));
                     book = 'madeUp';
                     await panel.goto(panel.url());
                     await shelf.locator('.saved-prompt').waitFor();
                     await panel.evaluate(installProbes);
                     await namesLoaded();
+                    await autoOpened();
                 }
                 timings.sort((a, b) => a - b);
                 allTimings.push(...timings);
@@ -470,10 +484,24 @@ try {
                 await page.keyboard.type('despesas com credit ca');
                 await listbox.waitFor();
                 const count = prompts.length;
+                assert.notEqual(
+                    await panel.evaluate(() => reportPage()?.state.reports.originalPrompt),
+                    saved,
+                    'Another report shows before the click'
+                );
                 await shelf.locator('.saved-prompt').click();
-                await asked(saved, 'The saved prompt runs');
+                // The Book opened on it, so within a minute its report comes from memory: what
+                // shows is the saved prompt's report, and the request typed is never asked.
+                await panel.waitForFunction(
+                    text => reportPage()?.state.reports.originalPrompt === text,
+                    saved
+                );
                 assert.equal(await field.inputValue(), saved);
-                assert(prompts.length > count);
+                assert.deepEqual(
+                    prompts.slice(count).filter(prompt => prompt !== saved),
+                    [],
+                    'The saved prompt runs, nothing else'
+                );
                 assert.equal(await listbox.isVisible(), false);
                 await frame.locator('report-view').waitFor();
                 await field.focus();

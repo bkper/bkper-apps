@@ -345,6 +345,15 @@ export const SavePromptRequestSchema = z
     })
     .openapi('SavePromptRequest');
 
+export const MoveSavedPromptRequestSchema = z
+    .strictObject({
+        before: SavedPromptIdSchema.nullable().openapi({
+            description:
+                'The id of the saved prompt this one goes just before, or `null` for the end. Take it from the latest list; an id no longer on the shelf answers 409 `shelf_changed`.',
+        }),
+    })
+    .openapi('MoveSavedPromptRequest');
+
 export const SavedPromptSchema = z
     .strictObject({
         id: SavedPromptIdSchema,
@@ -362,7 +371,7 @@ export const SavedPromptsResponseSchema = z
     .strictObject({
         reports: z.array(SavedPromptSchema).openapi({
             description:
-                'All saved prompts in stable id order. The server follows every storage page. Visibility after saves/removals is eventually consistent.',
+                'All saved prompts in the shelf’s order: a new prompt goes last, and moves change it. The server follows every storage page. Visibility after saves, removals and moves is eventually consistent.',
         }),
         capabilities: z
             .strictObject({
@@ -374,6 +383,10 @@ export const SavedPromptsResponseSchema = z
                 remove: z.boolean().openapi({
                     description:
                         'True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf.',
+                }),
+                move: z.boolean().openapi({
+                    description:
+                        'True only for OWNER and EDITOR; either may reorder any prompt on this Book’s shelf.',
                 }),
             })
             .openapi({

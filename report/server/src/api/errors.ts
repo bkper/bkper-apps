@@ -27,6 +27,8 @@ export type ApiErrorCode =
     | 'ai_allowance_exhausted'
     | 'upstream_error'
     | 'storage_error'
+    | 'report_not_found'
+    | 'shelf_changed'
     | 'internal_error';
 
 export function buildApiError(code: ApiErrorCode, message: string) {
@@ -72,23 +74,30 @@ const REPORT_ERROR_MESSAGES = {
     mixed_group: `The group asked for holds both balances (Asset, Liability) and activity (Incoming, Outgoing), so its report would mix them. Reports of its subgroups or Accounts still work. Separating them into groups of their own lets it have the report. ${ORGANIZE}`,
 } as const;
 
+const SAVED_PROMPT_ERRORS = {
+    forbidden: [
+        403,
+        'Saved prompts require a known non-NONE Book role to list, and OWNER or EDITOR to save, remove or move.',
+    ],
+    storage_error: [
+        502,
+        'Saved-prompt storage failed. Retry the same operation; a failed write may have reached storage.',
+    ],
+    report_not_found: [404, 'This saved prompt is not on the Book’s shelf. List the shelf again.'],
+    shelf_changed: [
+        409,
+        'The shelf changed: the saved prompt to move before is no longer on it. List the shelf again and retry with its current order.',
+    ],
+} as const satisfies Record<SavedPromptsError['reason'], readonly [ContentfulStatusCode, string]>;
+
 /**
  * The typed response of a known failure, or `undefined` for unexpected ones. Messages are
  * the app's own: they never include the request's text or upstream details.
  */
 export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
     if (error instanceof SavedPromptsError) {
-        return error.reason === 'forbidden'
-            ? respond(
-                  403,
-                  'forbidden',
-                  'Saved prompts require a known non-NONE Book role to list, and OWNER or EDITOR to save or remove.'
-              )
-            : respond(
-                  502,
-                  'storage_error',
-                  'Saved-prompt storage failed. Retry the same operation; a failed write may have reached storage.'
-              );
+        const [status, message] = SAVED_PROMPT_ERRORS[error.reason];
+        return respond(status, error.reason, message);
     }
     if (error instanceof NotAReportError) {
         return {

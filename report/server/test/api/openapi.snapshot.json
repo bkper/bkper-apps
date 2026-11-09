@@ -368,7 +368,7 @@
                         }
                     },
                     "403": {
-                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -459,7 +459,7 @@
                         }
                     },
                     "403": {
-                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -548,7 +548,7 @@
                         }
                     },
                     "403": {
-                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.",
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -559,6 +559,122 @@
                     },
                     "404": {
                         "description": "Book not found, or not shared with the person (`book_not_found`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Another error, such as `unauthorized` (401) or `internal_error` (500)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/books/{bookId}/reports/{reportId}/position": {
+            "put": {
+                "tags": ["Saved prompts"],
+                "summary": "Move a prompt on the Book’s shared shelf",
+                "description": "Requires OWNER or EDITOR, checked afresh. Puts the saved prompt just before `before`, or at the end for `null`, and answers the whole shelf in its new order, as the list does. Already in place, nothing is written. Only this prompt’s place changes; prompts saved before the shelf had an order get one on the first move, in the order they had. Never changes a prompt’s text, a report or the Book. Visibility is eventually consistent, so a list right after may not show the move yet; the response is the order this request wrote. Retrying the same move is safe.",
+                "parameters": [
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "example": "abc123"
+                        },
+                        "required": true,
+                        "name": "bookId",
+                        "in": "path",
+                        "description": "Id of the Book, as Bkper gives it (`bkper book list`)."
+                    },
+                    {
+                        "schema": {
+                            "type": "string",
+                            "minLength": 64,
+                            "maxLength": 64,
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "Opaque saved-prompt id returned by this API. Scoped to the Book."
+                        },
+                        "required": true,
+                        "description": "Opaque saved-prompt id returned by this API. Scoped to the Book.",
+                        "name": "reportId",
+                        "in": "path"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveSavedPromptRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The shelf in its new order",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SavedPromptsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request (`invalid_request`, naming the field)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "`before` is no longer on the shelf (`shelf_changed`): list the shelf again and retry.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2352,7 +2468,7 @@
                     "items": {
                         "$ref": "#/components/schemas/SavedPrompt"
                     },
-                    "description": "All saved prompts in stable id order. The server follows every storage page. Visibility after saves/removals is eventually consistent."
+                    "description": "All saved prompts in the shelf’s order: a new prompt goes last, and moves change it. The server follows every storage page. Visibility after saves, removals and moves is eventually consistent."
                 },
                 "capabilities": {
                     "type": "object",
@@ -2368,9 +2484,13 @@
                         "remove": {
                             "type": "boolean",
                             "description": "True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf."
+                        },
+                        "move": {
+                            "type": "boolean",
+                            "description": "True only for OWNER and EDITOR; either may reorder any prompt on this Book’s shelf."
                         }
                     },
-                    "required": ["list", "save", "remove"],
+                    "required": ["list", "save", "remove", "move"],
                     "additionalProperties": false,
                     "description": "Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata."
                 }
@@ -2421,6 +2541,21 @@
                 }
             },
             "required": ["prompt"],
+            "additionalProperties": false
+        },
+        "MoveSavedPromptRequest": {
+            "type": "object",
+            "properties": {
+                "before": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 64,
+                    "maxLength": 64,
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "The id of the saved prompt this one goes just before, or `null` for the end. Take it from the latest list; an id no longer on the shelf answers 409 `shelf_changed`."
+                }
+            },
+            "required": ["before"],
             "additionalProperties": false
         }
     }

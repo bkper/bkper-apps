@@ -387,7 +387,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR. */
+                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR. */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -464,7 +464,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR. */
+                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR. */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -552,7 +552,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR. */
+                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR. */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -590,6 +590,108 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/books/{bookId}/reports/{reportId}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Move a prompt on the Book’s shared shelf
+         * @description Requires OWNER or EDITOR, checked afresh. Puts the saved prompt just before `before`, or at the end for `null`, and answers the whole shelf in its new order, as the list does. Already in place, nothing is written. Only this prompt’s place changes; prompts saved before the shelf had an order get one on the first move, in the order they had. Never changes a prompt’s text, a report or the Book. Visibility is eventually consistent, so a list right after may not show the move yet; the response is the order this request wrote. Retrying the same move is safe.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
+                    bookId: string;
+                    /** @description Opaque saved-prompt id returned by this API. Scoped to the Book. */
+                    reportId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoveSavedPromptRequest"];
+                };
+            };
+            responses: {
+                /** @description The shelf in its new order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavedPromptsResponse"];
+                    };
+                };
+                /** @description Invalid request (`invalid_request`, naming the field) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description `before` is no longer on the shelf (`shelf_changed`): list the shelf again and retry. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Bkper authorization failed (`upstream_error`) or saved-prompt storage failed (`storage_error`). Retry safely; a failed write may have reached storage. */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Another error, such as `unauthorized` (401) or `internal_error` (500) */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1266,7 +1368,7 @@ export interface components {
             format?: "spec" | "html";
         };
         SavedPromptsResponse: {
-            /** @description All saved prompts in stable id order. The server follows every storage page. Visibility after saves/removals is eventually consistent. */
+            /** @description All saved prompts in the shelf’s order: a new prompt goes last, and moves change it. The server follows every storage page. Visibility after saves, removals and moves is eventually consistent. */
             reports: components["schemas"]["SavedPrompt"][];
             /** @description Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata. */
             capabilities: {
@@ -1276,6 +1378,8 @@ export interface components {
                 save: boolean;
                 /** @description True only for OWNER and EDITOR; either may remove any prompt on this Book’s shelf. */
                 remove: boolean;
+                /** @description True only for OWNER and EDITOR; either may reorder any prompt on this Book’s shelf. */
+                move: boolean;
             };
         };
         /** @description Book-shared original prompt, not a report snapshot or executable saved query. No HTML, intent, resolved period, amounts, inferred language or separately selected chart is saved. */
@@ -1294,6 +1398,10 @@ export interface components {
              * @example Despesas por mês este ano
              */
             prompt: string;
+        };
+        MoveSavedPromptRequest: {
+            /** @description The id of the saved prompt this one goes just before, or `null` for the end. Take it from the latest list; an id no longer on the shelf answers 409 `shelf_changed`. */
+            before: string | null;
         };
     };
     responses: never;
@@ -1322,5 +1430,6 @@ export type SavedPromptsResponse = components['schemas']['SavedPromptsResponse']
 export type SavedPrompt = components['schemas']['SavedPrompt'];
 export type SavePromptResponse = components['schemas']['SavePromptResponse'];
 export type SavePromptRequest = components['schemas']['SavePromptRequest'];
+export type MoveSavedPromptRequest = components['schemas']['MoveSavedPromptRequest'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

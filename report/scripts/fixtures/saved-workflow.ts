@@ -24,18 +24,27 @@ export async function savedWorkflow() {
     let snapshot = await ledgerSnapshot(ledger);
     let today = '2026-11-05';
     const values = new Map<string, string>();
+    const metadata = new Map<string, Record<string, unknown>>();
     let failWrite = false;
     const env = {
         ...createTestEnv(),
         KV: {
             get: async (key: string) => values.get(key) ?? null,
-            put: async (key: string, value: string) => {
+            put: async (
+                key: string,
+                value: string,
+                options?: { metadata?: Record<string, unknown> }
+            ) => {
                 if (failWrite) throw new Error('Isolated storage unavailable');
                 values.set(key, value);
+                // Like KV, a put without metadata leaves the key with none.
+                if (options?.metadata) metadata.set(key, options.metadata);
+                else metadata.delete(key);
             },
             delete: async (key: string) => {
                 if (failWrite) throw new Error('Isolated storage unavailable');
                 values.delete(key);
+                metadata.delete(key);
             },
             list: async (options?: { prefix?: string; cursor?: string }) => {
                 const names = [...values.keys()]
@@ -45,7 +54,10 @@ export async function savedWorkflow() {
                 const start = Number(options?.cursor ?? 0);
                 const end = start + 1;
                 return {
-                    keys: names.slice(start, end).map(name => ({ name })),
+                    keys: names.slice(start, end).map(name => {
+                        const stored = metadata.get(name);
+                        return stored ? { name, metadata: stored } : { name };
+                    }),
                     list_complete: end >= names.length,
                     cursor: end >= names.length ? undefined : String(end),
                 };

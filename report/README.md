@@ -96,9 +96,10 @@ OpenAPI:    https://report.bkper.app/openapi.json
 | Build a report | `POST /api/v1/books/{bookId}/report` | One interactive HTML file (`"format": "html"`) or JSON (default). Read-only |
 | Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, without AI |
 | List names | `GET /api/v1/books/{bookId}/names` | The Book's group and Account names |
-| List saved requests | `GET /api/v1/books/{bookId}/reports` | The Book's shared requests, and what the person may do with them |
+| List saved requests | `GET /api/v1/books/{bookId}/reports` | The Book's shared requests in their order, and what the person may do with them |
 | Save a request | `POST /api/v1/books/{bookId}/reports` | Owner or editor. Writes app metadata only |
 | Remove a request | `DELETE /api/v1/books/{bookId}/reports/{reportId}` | Owner or editor |
+| Move a request | `PUT /api/v1/books/{bookId}/reports/{reportId}/position` | Owner or editor. `{ "before": id }`, or `null` for the end |
 
 To show a person a report, send their request in their own words and language, and give them the returned file as it is:
 

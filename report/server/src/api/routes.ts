@@ -12,7 +12,12 @@ import type { Snapshot } from '../services/snapshot.js';
 import { currentUserId, loadSnapshot } from '../services/snapshot-loader.js';
 import { readOpening } from '../services/suggestions.js';
 import { bookNames } from '../services/prompt-names.js';
-import { listSavedPrompts, removeSavedPrompt, savePrompt } from '../services/saved-prompts.js';
+import {
+    listSavedPrompts,
+    moveSavedPrompt,
+    removeSavedPrompt,
+    savePrompt,
+} from '../services/saved-prompts.js';
 import { requireViewPermission } from './authorization.js';
 import { buildApiError } from './errors.js';
 import { openApiDocumentConfig } from './openapi.js';
@@ -33,6 +38,7 @@ import {
     ReportResponseSchema,
     SuggestionsQuerySchema,
     SuggestionsResponseSchema,
+    MoveSavedPromptRequestSchema,
     SavedPromptParamsSchema,
     SavedPromptsResponseSchema,
     SavePromptRequestSchema,
@@ -126,7 +132,7 @@ const reportRoute = createRoute({
 const savedPromptErrors = {
     ...bookErrorResponses,
     403: jsonResponse(
-        'Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save/remove require OWNER or EDITOR.',
+        'Insufficient Book role (`forbidden`): list requires OWNER, EDITOR, POSTER, RECORDER or VIEWER; save, remove and move require OWNER or EDITOR.',
         ErrorResponseSchema
     ),
     502: jsonResponse(
@@ -183,6 +189,34 @@ const removeSavedPromptRoute = createRoute({
     responses: {
         204: { description: 'Removed, or already absent. No response body.' },
         ...savedPromptErrors,
+    },
+});
+
+const moveSavedPromptRoute = createRoute({
+    method: 'put',
+    path: '/api/v1/books/{bookId}/reports/{reportId}/position',
+    tags: ['Saved prompts'],
+    summary: 'Move a prompt on the Book’s shared shelf',
+    description:
+        'Requires OWNER or EDITOR, checked afresh. Puts the saved prompt just before `before`, or at the end for `null`, and answers the whole shelf in its new order, as the list does. Already in place, nothing is written. Only this prompt’s place changes; prompts saved before the shelf had an order get one on the first move, in the order they had. Never changes a prompt’s text, a report or the Book. Visibility is eventually consistent, so a list right after may not show the move yet; the response is the order this request wrote. Retrying the same move is safe.',
+    request: {
+        params: SavedPromptParamsSchema,
+        body: {
+            required: true,
+            content: { 'application/json': { schema: MoveSavedPromptRequestSchema } },
+        },
+    },
+    responses: {
+        200: jsonResponse('The shelf in its new order', SavedPromptsResponseSchema),
+        ...savedPromptErrors,
+        404: jsonResponse(
+            'The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`).',
+            ErrorResponseSchema
+        ),
+        409: jsonResponse(
+            '`before` is no longer on the shelf (`shelf_changed`): list the shelf again and retry.',
+            ErrorResponseSchema
+        ),
     },
 });
 
@@ -273,6 +307,20 @@ export function registerApiRoutes(app: App): void {
         const { bookId, reportId } = c.req.valid('param');
         await removeSavedPrompt(bookId, reportId, { bkper: context.bkper, kv: context.env.KV });
         return c.body(null, 204);
+    });
+
+    app.openapi(moveSavedPromptRoute, async c => {
+        c.header('Cache-Control', 'no-store');
+        const context = c.var.appContext;
+        const { bookId, reportId } = c.req.valid('param');
+        const { before } = c.req.valid('json');
+        return c.json(
+            await moveSavedPrompt(bookId, reportId, before, {
+                bkper: context.bkper,
+                kv: context.env.KV,
+            }),
+            200
+        );
     });
 
     app.doc('/openapi.json', openApiDocumentConfig);

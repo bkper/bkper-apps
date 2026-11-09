@@ -3,6 +3,9 @@
 import '@awesome.me/webawesome-pro/dist/components/button/button.js';
 import '@awesome.me/webawesome-pro/dist/components/button-group/button-group.js';
 import '@awesome.me/webawesome-pro/dist/components/callout/callout.js';
+import '@awesome.me/webawesome-pro/dist/components/divider/divider.js';
+import '@awesome.me/webawesome-pro/dist/components/dropdown/dropdown.js';
+import '@awesome.me/webawesome-pro/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome-pro/dist/components/spinner/spinner.js';
 import '@awesome.me/webawesome-pro/dist/components/input/input.js';
 import '@awesome.me/webawesome-pro/dist/components/popup/popup.js';

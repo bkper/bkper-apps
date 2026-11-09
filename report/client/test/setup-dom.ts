@@ -22,6 +22,14 @@ if (!('attachInternals' in browserWindow.HTMLElement.prototype)) {
     });
 }
 
+// happy-dom runs no animations; Web Awesome's menus wait for theirs to finish opening or closing.
+if (!('getAnimations' in browserWindow.Element.prototype)) {
+    Object.defineProperty(browserWindow.Element.prototype, 'getAnimations', {
+        configurable: true,
+        value: () => [],
+    });
+}
+
 const browserGlobals = [
     ['window', browserWindow],
     ['document', browserWindow.document],

@@ -1,16 +1,39 @@
-import { LitElement, css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import type { WaSelectEvent } from '@awesome.me/webawesome-pro/dist/events/select.js';
+import { LitElement, css, html, nothing, svg, type PropertyValues } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { isolate } from 'report-shared/bidi';
-import { t, type StringKey } from 'report-shared/strings';
+import { t, textDirection, type StringKey } from 'report-shared/strings';
+import type { SavedPrompt } from '../api/app-api';
 import type { AppState } from '../state/app-state';
-import type { SavedReportsError } from '../state/saved-reports';
+import type { SavedReportsError, ShelfPlace } from '../state/saved-reports';
 import { watch } from '../state/store';
 import './report-suggestions';
 
 export type ReportShelfState = Pick<AppState, 'route' | 'reports' | 'savedReports' | 'strings'>;
 
 export const OPEN_SAVED_REPORT = 'report-open-saved';
+
+/**
+ * The menu's moves, labelled by what the person sees: left is earlier in the row in
+ * left-to-right languages and later in right-to-left ones.
+ */
+function moves(dir: 'ltr' | 'rtl'): readonly { label: StringKey; place: ShelfPlace }[] {
+    return [
+        { label: 'shelf_move_first', place: 'first' },
+        { label: 'shelf_move_left', place: dir === 'rtl' ? 'later' : 'earlier' },
+        { label: 'shelf_move_right', place: dir === 'rtl' ? 'earlier' : 'later' },
+    ];
+}
+
+const REMOVE = 'remove';
+
+// Inline: a strict content security policy would block wa-icon's fetches.
+const MORE = html`<svg class="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    ${svg`<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>`}
+</svg>`;
+
+type WaButton = HTMLElementTagNameMap['wa-button'];
 
 /** The Book's shared prompts and the shown report's Save action, never the draft input. */
 @customElement('report-shelf')
@@ -57,8 +80,13 @@ export class ReportShelf extends LitElement {
             white-space: nowrap;
         }
 
-        .remove::part(button) {
+        .options::part(button) {
             padding-inline: var(--bkper-spacing-small);
+        }
+
+        .glyph {
+            inline-size: 1em;
+            block-size: 1em;
         }
 
         .feedback {
@@ -85,6 +113,11 @@ export class ReportShelf extends LitElement {
     /** Save is unavailable while the page is still transitioning to the store's next report. */
     @property({ type: Boolean }) current = true;
 
+    /** Announced after a move, while the shelf shows the order it confirmed. */
+    @state() private moved?: { items: readonly SavedPrompt[]; text: string };
+    /** The chip holding focus before a render, which may move or drop it. */
+    private focused?: { id: string; index: number; control: 'saved-prompt' | 'options' };
+
     constructor() {
         super();
         watch(this, () => [
@@ -108,6 +141,7 @@ export class ReportShelf extends LitElement {
             this.error(shelf.loadError, 'shelf_load_error'),
             this.error(shelf.saveError, 'shelf_save_error', shelf.capabilities?.save),
             this.error(shelf.removeError, 'shelf_remove_error', shelf.capabilities?.remove),
+            this.error(shelf.moveError, 'shelf_move_error', shelf.capabilities?.move),
         ];
         const failed = errors.some(error => error !== nothing);
         return html`
@@ -120,7 +154,7 @@ export class ReportShelf extends LitElement {
                                   shelf.items,
                                   item => item.id,
                                   item => html`
-                                      <wa-button-group label=${item.prompt}>
+                                      <wa-button-group label=${item.prompt} data-id=${item.id}>
                                           <wa-button
                                               class="saved-prompt"
                                               pill
@@ -133,27 +167,7 @@ export class ReportShelf extends LitElement {
                                               @click=${() => this.dispatchEvent(new CustomEvent(OPEN_SAVED_REPORT, { detail: item.id, bubbles: true, composed: true }))}
                                               ><bdi>${item.prompt}</bdi></wa-button
                                           >
-                                          ${
-                                              shelf.capabilities?.remove
-                                                  ? html`
-                                                        <wa-button
-                                                            class="remove"
-                                                            pill
-                                                            size="s"
-                                                            appearance="outlined"
-                                                            variant="neutral"
-                                                            title=${t('shelf_remove', lang, { prompt: isolate(item.prompt) })}
-                                                            aria-label=${t('shelf_remove', lang, { prompt: isolate(item.prompt) })}
-                                                            ?loading=${shelf.removing === item.id}
-                                                            ?disabled=${!shelf.canRemove}
-                                                            @click=${() => void shelf.remove(item.id)}
-                                                            ><span aria-hidden="true"
-                                                                >×</span
-                                                            ></wa-button
-                                                        >
-                                                    `
-                                                  : nothing
-                                          }
+                                          ${this.menu(item)}
                                       </wa-button-group>
                                   `
                               )
@@ -185,7 +199,7 @@ export class ReportShelf extends LitElement {
                 role="status"
                 aria-live="polite"
             >
-                ${shelf.loading ? t('shelf_loading', lang) : saving ? t('shelf_saving', lang) : shelf.removing ? t('shelf_removing', lang) : saved ? t('shelf_saved', lang) : nothing}
+                ${shelf.loading ? t('shelf_loading', lang) : saving ? t('shelf_saving', lang) : shelf.removing ? t('shelf_removing', lang) : this.moved?.items === shelf.items ? this.moved.text : saved ? t('shelf_saved', lang) : nothing}
             </div>
             ${
                 failed
@@ -195,7 +209,7 @@ export class ReportShelf extends LitElement {
                               size="s"
                               appearance="plain"
                               variant="neutral"
-                              ?disabled=${shelf.loading || saving || shelf.removing !== undefined}
+                              ?disabled=${shelf.loading || saving || shelf.removing !== undefined || shelf.moving !== undefined}
                               @click=${() => void shelf.load()}
                               >${t('shelf_reload', lang)}</wa-button
                           >
@@ -203,6 +217,159 @@ export class ReportShelf extends LitElement {
                     : nothing
             }
         `;
+    }
+
+    /** One menu per saved prompt: the moves the person may make, then Remove. */
+    private menu(item: SavedPrompt) {
+        const shelf = this.state.savedReports;
+        const lang = this.state.strings.language;
+        const move = shelf.capabilities?.move === true;
+        const remove = shelf.capabilities?.remove === true;
+        if (!move && !remove) return nothing;
+        const label = t('shelf_options', lang, { prompt: isolate(item.prompt) });
+        return html`
+            <wa-dropdown
+                placement="top-end"
+                @wa-select=${(event: WaSelectEvent) => this.select(item.id, event)}
+            >
+                <wa-button
+                    slot="trigger"
+                    class="options"
+                    pill
+                    size="s"
+                    appearance="outlined"
+                    variant="neutral"
+                    title=${label}
+                    aria-label=${label}
+                    ?loading=${shelf.removing === item.id}
+                    >${MORE}</wa-button
+                >
+                ${
+                    move
+                        ? moves(textDirection(lang)).map(
+                              ({ label, place }) => html`
+                                  <wa-dropdown-item
+                                      value=${place}
+                                      ?disabled=${!shelf.canMove || shelf.beforeFor(item.id, place) === undefined}
+                                      >${t(label, lang)}</wa-dropdown-item
+                                  >
+                              `
+                          )
+                        : nothing
+                }
+                ${move && remove ? html`<wa-divider></wa-divider>` : nothing}
+                ${
+                    remove
+                        ? html`
+                              <wa-dropdown-item
+                                  value=${REMOVE}
+                                  variant="danger"
+                                  ?disabled=${!shelf.canRemove}
+                                  >${t('shelf_remove', lang)}</wa-dropdown-item
+                              >
+                          `
+                        : nothing
+                }
+            </wa-dropdown>
+        `;
+    }
+
+    private select(id: string, event: WaSelectEvent): void {
+        const value = event.detail.item.getAttribute('value');
+        if (value === REMOVE) void this.state.savedReports.remove(id);
+        else if (value === 'first' || value === 'earlier' || value === 'later') {
+            // Once the menu has closed, so it fades where it was rather than following its chip.
+            event.detail.item
+                .closest('wa-dropdown')
+                ?.addEventListener('wa-after-hide', () => void this.move(id, value), {
+                    once: true,
+                });
+        }
+    }
+
+    /** Move a prompt; once the shelf confirms its new order, announce where it is. */
+    private async move(id: string, place: ShelfPlace): Promise<void> {
+        const shelf = this.state.savedReports;
+        const before = shelf.beforeFor(id, place);
+        if (before === undefined || !shelf.canMove) return;
+        const done = shelf.move(id, before);
+        await this.updateComplete;
+        this.reveal(id);
+        await done;
+        const index = shelf.items.findIndex(item => item.id === id);
+        if (shelf.moveError || index === -1) return;
+        const number = new Intl.NumberFormat(this.state.strings.language);
+        this.moved = {
+            items: shelf.items,
+            text: t('shelf_moved', this.state.strings.language, {
+                position: number.format(index + 1),
+                count: number.format(shelf.items.length),
+            }),
+        };
+        await this.updateComplete;
+        this.reveal(id);
+    }
+
+    /** The focused element of the shelf's own tree, found from the document down. */
+    private active(): Element | undefined {
+        let active = this.ownerDocument.activeElement;
+        while (active) {
+            if (active.getRootNode() === this.renderRoot) return active;
+            active = active.shadowRoot?.activeElement ?? null;
+        }
+        return undefined;
+    }
+
+    private chips(): HTMLElement[] {
+        return Array.from(
+            this.renderRoot.querySelectorAll<HTMLElement>('wa-button-group[data-id]')
+        );
+    }
+
+    /** Scroll a chip into the row's view, without moving the page around it. */
+    private reveal(id: string): void {
+        this.chips()
+            .find(chip => chip.dataset.id === id)
+            ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    protected willUpdate(changed: PropertyValues<this>): void {
+        super.willUpdate(changed);
+        const active = this.active();
+        const chips = this.chips();
+        const index = active ? chips.findIndex(chip => chip.contains(active)) : -1;
+        const id = chips[index]?.dataset.id;
+        this.focused =
+            id && active
+                ? {
+                      id,
+                      index,
+                      control: active.classList.contains('saved-prompt')
+                          ? 'saved-prompt'
+                          : 'options',
+                  }
+                : undefined;
+    }
+
+    /**
+     * A render that moves a chip in the row, or removes it, drops the focus it held. Give it
+     * back to the same control of that chip, or of the one now in its place.
+     */
+    protected updated(changed: PropertyValues<this>): void {
+        super.updated(changed);
+        const focused = this.focused;
+        this.focused = undefined;
+        if (!focused || this.active()) return;
+        const chips = this.chips();
+        const chip =
+            chips.find(entry => entry.dataset.id === focused.id) ??
+            chips[Math.min(focused.index, chips.length - 1)];
+        const button =
+            chip?.querySelector<WaButton>(`.${focused.control}`) ??
+            chip?.querySelector<WaButton>('.saved-prompt');
+        if (!chip || !button) return;
+        button.focus({ preventScroll: true });
+        chip.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     private suggestions() {

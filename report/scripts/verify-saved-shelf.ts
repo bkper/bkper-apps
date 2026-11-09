@@ -193,6 +193,22 @@ try {
                             ];
                             return json({ report: item });
                         }
+                        if (path.endsWith('/position') && req.method() === 'PUT') {
+                            const id = path.split('/').at(-2);
+                            const { before } = req.postDataJSON() as { before: string | null };
+                            const item = items.find(entry => entry.id === id);
+                            assert(item, 'Moves only a prompt on the shelf');
+                            const rest = items.filter(entry => entry !== item);
+                            const at =
+                                before === null
+                                    ? rest.length
+                                    : rest.findIndex(entry => entry.id === before);
+                            items = [...rest.slice(0, at), item, ...rest.slice(at)];
+                            return json({
+                                reports: items,
+                                capabilities: { list: true, save: true, remove: true, move: true },
+                            });
+                        }
                         if (path.includes('/reports/') && req.method() === 'DELETE') {
                             if (removeFails) {
                                 removeFails = false;
@@ -311,12 +327,124 @@ try {
                     await frame.locator('.page').getAttribute('dir'),
                     language === 'ar' ? 'rtl' : 'ltr'
                 );
-                const remove = shelf.locator('.remove').first();
-                await remove.click();
+                // The menu, by keyboard: it opens on the second prompt, moves it by what the
+                // person sees (left is earlier in LTR, later in RTL), and keeps focus on it.
+                const chips = shelf.locator('wa-button-group');
+                const order = () =>
+                    chips.evaluateAll(groups => groups.map(group => group.getAttribute('data-id')));
+                const shown = await order();
+                const trigger = chips.nth(1).locator('.options');
+                const triggerBox = (await trigger.boundingBox())!;
+                const promptBox = (await chips.nth(1).locator('.saved-prompt').boundingBox())!;
+                assert(
+                    Math.abs(triggerBox.height - promptBox.height) < 0.5 &&
+                        Math.abs(triggerBox.y - promptBox.y) < 0.5,
+                    'The menu button is the chip’s own segment, as tall as the prompt'
+                );
+                await trigger.focus();
+                await page.keyboard.press('Enter');
+                const menu = shelf.locator('wa-dropdown[open]');
+                await menu.waitFor();
+                assert.deepEqual(
+                    await menu
+                        .locator('wa-dropdown-item')
+                        .evaluateAll(entries =>
+                            entries.map(entry => [
+                                entry.getAttribute('value'),
+                                entry.hasAttribute('disabled'),
+                            ])
+                        ),
+                    [
+                        ['first', false],
+                        [language === 'ar' ? 'later' : 'earlier', false],
+                        [language === 'ar' ? 'earlier' : 'later', false],
+                        ['remove', false],
+                    ]
+                );
+                const menuBox = (await menu.locator('[part="menu"]').boundingBox())!;
+                assert(menuBox.y + menuBox.height <= triggerBox.y + 1, 'The menu opens above');
+                assert(menuBox.x >= 0 && menuBox.x + menuBox.width <= width, 'Menu fits');
+                await page.waitForTimeout(250);
+                await capture('menu');
+                // The first enabled item has focus; one step down is "Move left".
+                await page.keyboard.press('ArrowDown');
+                await page.keyboard.press('Enter');
+                await menu.waitFor({ state: 'detached' });
+                const expected =
+                    language === 'ar'
+                        ? [shown[0], shown[2], shown[1], ...shown.slice(3)]
+                        : [shown[1], shown[0], ...shown.slice(2)];
+                await panel.waitForFunction(
+                    ids =>
+                        JSON.stringify(
+                            Array.from(
+                                document
+                                    .querySelector('report-app')!
+                                    .shadowRoot!.querySelector('report-page')!
+                                    .shadowRoot!.querySelector('report-shelf')!
+                                    .shadowRoot!.querySelectorAll('wa-button-group')
+                            ).map(group => group.getAttribute('data-id'))
+                        ) === JSON.stringify(ids),
+                    expected
+                );
+                assert.equal(
+                    await panel.evaluate(
+                        () =>
+                            Array.from(
+                                document
+                                    .querySelector('report-app')!
+                                    .shadowRoot!.querySelector('report-page')!
+                                    .shadowRoot!.querySelector('report-shelf')!
+                                    .shadowRoot!.querySelectorAll('wa-dropdown')
+                            ).filter(menu => menu.shadowRoot!.querySelector('wa-popup[active]'))
+                                .length
+                    ),
+                    0,
+                    'The menu has closed before its chip moves'
+                );
+                const status = shelf.locator('[role="status"]');
+                const position = language === 'ar' ? 3 : 1;
+                const announced = await panel.evaluate(
+                    ([lang, at, count]) => {
+                        const number = new Intl.NumberFormat(lang);
+                        return [number.format(at), number.format(count)];
+                    },
+                    [language, position, shown.length] as const
+                );
+                await status.filter({ hasText: announced[0] }).waitFor();
+                assert((await status.textContent())!.includes(announced[1]));
+                const focused = await panel.evaluate(() => {
+                    let active: Element | null = document.activeElement;
+                    const path: string[] = [];
+                    while (active) {
+                        path.push(active.localName);
+                        const group = active.closest('wa-button-group');
+                        if (group)
+                            return {
+                                id: group.getAttribute('data-id'),
+                                control: active.closest('.options') ? 'options' : 'other',
+                            };
+                        active = active.shadowRoot?.activeElement ?? null;
+                    }
+                    return { id: null, control: path.join('>') };
+                });
+                assert.deepEqual(
+                    focused,
+                    { id: shown[1], control: 'options' },
+                    'Focus stays on the moved prompt’s menu button'
+                );
+                await capture('moved');
+                const remove = async () => {
+                    await chips.first().locator('.options').click();
+                    await shelf
+                        .locator('wa-dropdown[open] wa-dropdown-item[value="remove"]')
+                        .click();
+                };
+                await remove();
                 await shelf.locator('[role="alert"]').waitFor();
                 assert.equal(await shelf.locator('.saved-prompt').count(), 5);
                 await capture('remove-error');
-                await remove.click();
+                await remove();
                 await page.waitForTimeout(100);
                 assert.equal(await shelf.locator('.saved-prompt').count(), 4);
                 // Clear remains a separate usable control; Escape and viewport resize keep the input usable.
@@ -353,12 +481,12 @@ try {
                 await panel.goto(panel.url());
                 await shelf.locator('.saved-prompt').first().waitFor();
                 assert.equal(await save.count(), 0);
-                assert.equal(await shelf.locator('.remove').count(), 0);
+                assert.equal(await shelf.locator('.options').count(), 0);
                 await capture('read-only');
                 assert.deepEqual(blocked, [], 'All external API traffic was mocked');
                 assert.deepEqual(errors, [], 'No unexpected browser errors');
                 console.log(
-                    `PASS ${name}: shelf, Save/retry, saved clicks within and after a minute, remove/retry, reload, read-only, input and viewport`
+                    `PASS ${name}: shelf, Save/retry, saved clicks within and after a minute, menu move by keyboard, remove/retry from the menu, reload, read-only, input and viewport`
                 );
                 scenarios++;
                 await context.close();
@@ -517,21 +645,32 @@ try {
     await b.frame.locator('report-suggestions wa-button').first().waitFor();
     assert.equal(await b.shelf.locator('.saved-prompt').count(), 0);
     await captureWorkflow('other-book');
+    // Opened with nothing asked, the Book shows its first saved prompt by itself.
+    const autoOpened = b.page.waitForResponse(
+        response =>
+            response.url().endsWith('/report') &&
+            response.request().postDataJSON()?.prompt === WORKFLOW_PROMPT
+    );
     await b.panel.goto(`${APP}/?book=fixture-a`);
     await b.shelf.locator('.saved-prompt').waitFor();
-    await open('2026-11');
+    assert.equal((await autoOpened).status(), 200);
+    await b.frame.locator('report-view').waitFor();
+    const removeSaved = async () => {
+        await a.shelf.locator('.options').click();
+        await a.shelf.locator('wa-dropdown[open] wa-dropdown-item[value="remove"]').click();
+    };
     owner.identity.permission = 'VIEWER';
-    await a.shelf.locator('.remove').click();
+    await removeSaved();
     await a.shelf.locator('[role="alert"]').waitFor();
     assert.equal(await a.shelf.locator('.saved-prompt').count(), 1);
     await a.shelf.locator('.reload').click();
-    await a.shelf.locator('.remove').waitFor({ state: 'detached' });
+    await a.shelf.locator('.options').waitFor({ state: 'detached' });
     await a.page.screenshot({ path: join(screenshots, 'workflow-downgraded.png') });
     screenshotCount++;
     owner.identity.permission = 'EDITOR';
     await a.shelf.locator('.reload').click();
-    await a.shelf.locator('.remove').waitFor();
-    await a.shelf.locator('.remove').click();
+    await a.shelf.locator('.options').waitFor();
+    await removeSaved();
     await a.shelf.locator('.saved-prompt').waitFor({ state: 'detached' });
     await b.panel.goto(b.panel.url());
     await b.frame.locator('report-suggestions wa-button').first().waitFor();

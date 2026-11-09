@@ -5,6 +5,9 @@ describe('Web Awesome setup', () => {
     it('registers the template UI components used by the client', () => {
         expect(customElements.get('wa-button')).toBeDefined();
         expect(customElements.get('wa-callout')).toBeDefined();
+        expect(customElements.get('wa-divider')).toBeDefined();
+        expect(customElements.get('wa-dropdown')).toBeDefined();
+        expect(customElements.get('wa-dropdown-item')).toBeDefined();
         expect(customElements.get('wa-spinner')).toBeDefined();
         expect(customElements.get('wa-input')).toBeDefined();
         expect(customElements.get('wa-popup')).toBeDefined();

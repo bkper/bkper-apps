@@ -1,3 +1,5 @@
+import { WaSelectEvent } from '@awesome.me/webawesome-pro/dist/events/select.js';
+import { isolate } from 'report-shared/bidi';
 import { t } from 'report-shared/strings';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -516,6 +518,58 @@ function control(view: ReportPage, selector: string) {
     if (!button) throw new Error(`Missing shelf control: ${selector}`);
     return button;
 }
+/** A saved prompt's chip: its button and its menu. */
+function chip(view: ReportPage, id: string) {
+    const group = shelfRoot(view).querySelector(`wa-button-group[data-id="${id}"]`);
+    if (!group) throw new Error(`Missing saved prompt ${id}`);
+    return group;
+}
+/** The button that opens a saved prompt's menu. */
+function menuButton(view: ReportPage, id: string) {
+    const button = chip(view, id).querySelector<HTMLElementTagNameMap['wa-button']>(
+        'wa-dropdown > wa-button[slot="trigger"]'
+    );
+    if (!button) throw new Error(`Saved prompt ${id} has no menu`);
+    return button;
+}
+function menuItems(view: ReportPage, id: string) {
+    return Array.from(chip(view, id).querySelectorAll('wa-dropdown-item'));
+}
+function menuItem(view: ReportPage, id: string, label: string) {
+    const item = menuItems(view, id).find(entry => entry.textContent?.trim() === label);
+    if (!item) throw new Error(`Saved prompt ${id} has no menu item ${label}`);
+    return item;
+}
+/** The menu as the person sees it: each item's label and whether it is disabled. */
+function menu(view: ReportPage, id: string) {
+    return menuItems(view, id).map(item => [item.textContent?.trim(), item.disabled]);
+}
+/**
+ * Choose a menu item as Web Awesome does: the menu opens, reports the item chosen, and closes.
+ * Like Web Awesome, never a disabled item.
+ */
+async function choose(view: ReportPage, id: string, label: string) {
+    const item = menuItem(view, id, label);
+    if (item.disabled) throw new Error(`${label} is disabled`);
+    const dropdown = item.closest('wa-dropdown');
+    if (!dropdown) throw new Error(`${label} is in no menu`);
+    const shown = once(dropdown, 'wa-after-show');
+    dropdown.open = true;
+    await shown;
+    const hidden = once(dropdown, 'wa-after-hide');
+    dropdown.dispatchEvent(new WaSelectEvent({ item }));
+    dropdown.open = false;
+    await hidden;
+    await settle(view);
+}
+function once(target: EventTarget, type: string) {
+    return new Promise(resolve => target.addEventListener(type, resolve, { once: true }));
+}
+function order(view: ReportPage) {
+    return Array.from(shelfRoot(view).querySelectorAll('wa-button-group')).map(group =>
+        group.getAttribute('data-id')
+    );
+}
 async function ready(view: ReportPage) {
     view.state.select('book-1');
     await settle(view);
@@ -637,7 +691,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(control(view, '.saved-prompt').textContent).toContain(ITEM.prompt);
     });
 
-    it('removes only on confirmation from the API and leaves a failed item available to retry', async () => {
+    it('removes from the menu only on confirmation and leaves a failed item available to retry', async () => {
         const removed = deferred<void>();
         const remove = vi
             .fn()
@@ -651,16 +705,14 @@ describe('Book-shared prompt shelf in ReportPage', () => {
             },
         });
         await ready(view);
-        control(view, '.remove').click();
-        await settle(view);
+        await choose(view, ITEM.id, t('shelf_remove', 'en'));
         expect(shelfRoot(view).querySelector('[role="alert"]')?.textContent).toContain(
             t('shelf_remove_error', 'en')
         );
         expect(control(view, '.saved-prompt')).toBeDefined();
-        control(view, '.remove').click();
-        await settle(view);
-        expect(control(view, '.remove').loading).toBe(true);
-        expect(control(view, '.remove').disabled).toBe(true);
+        await choose(view, ITEM.id, t('shelf_remove', 'en'));
+        expect(menuButton(view, ITEM.id).loading).toBe(true);
+        expect(menuItem(view, ITEM.id, t('shelf_remove', 'en')).disabled).toBe(true);
         expect(shelfRoot(view).querySelector('[role="status"]')?.textContent).toContain(
             t('shelf_removing', 'en')
         );
@@ -685,7 +737,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         await run(view);
         expect(control(view, '.saved-prompt').disabled).toBe(false);
         expect(shelfRoot(view).querySelector('.save')).toBeNull();
-        expect(shelfRoot(view).querySelector('.remove')).toBeNull();
+        expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
     });
 
     it('does not offer Save for a restored intent or a prefetched suggestion', async () => {
@@ -757,7 +809,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         control(view, '.save').click();
         await settle(view);
         expect(shelfRoot(view).querySelector('.save')).toBeNull();
-        expect(shelfRoot(view).querySelector('.remove')).toBeNull();
+        expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
         expect(shelfRoot(view).querySelector('[role="alert"]')?.textContent).toContain(
             t('shelf_access_error', 'en')
         );
@@ -782,7 +834,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         view.state.select('book-2');
         await settle(view);
         expect(shelfRoot(view).querySelector('.saved-prompt')).toBeNull();
-        expect(shelfRoot(view).querySelector('.remove')).toBeNull();
+        expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
         expect(shelfRoot(view).querySelector('.save')).toBeNull();
         expect(shelfRoot(view).querySelector('[role="status"]')?.textContent).toContain(
             t('shelf_loading', 'en')
@@ -804,9 +856,211 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(control(view, '.saved-prompt').getAttribute('aria-label')).toBe(prompt);
         expect(control(view, '.saved-prompt').getAttribute('title')).toBe(prompt);
         expect(control(view, '.saved-prompt').querySelector('bdi')?.textContent).toBe(prompt);
-        expect(control(view, '.remove').getAttribute('aria-label')).toContain(prompt);
+        expect(menuButton(view, ITEM.id).getAttribute('aria-label')).toContain(prompt);
     });
 });
+
+describe('Saved prompt menu in ReportPage', () => {
+    afterEach(() => document.body.replaceChildren());
+
+    const A = ITEM;
+    const B = { id: 'b'.repeat(64), prompt: 'Revenue by month' };
+    const C = { id: 'c'.repeat(64), prompt: 'Cash today' };
+    const SHELF = [A, B, C];
+    const [FIRST, LEFT, RIGHT, REMOVE] = (
+        ['shelf_move_first', 'shelf_move_left', 'shelf_move_right', 'shelf_remove'] as const
+    ).map(key => t(key, 'en'));
+
+    function shelfPage(
+        options: {
+            capabilities?: typeof WRITE;
+            language?: string;
+            moveReport?: SavedReportsApi['moveReport'];
+        } = {}
+    ) {
+        return createPage({
+            language: options.language,
+            shelfApi: {
+                ...emptyShelf(),
+                savedReports: async () => ({
+                    reports: SHELF,
+                    capabilities: options.capabilities ?? WRITE,
+                }),
+                moveReport:
+                    options.moveReport ??
+                    (async (_book, id, { before }) => ({
+                        reports: reorder(SHELF, id, before),
+                        capabilities: WRITE,
+                    })),
+            },
+        });
+    }
+
+    it('replaces the remove segment with one menu: moves that can happen, then Remove', async () => {
+        const view = shelfPage();
+        await ready(view);
+        expect(menu(view, A.id)).toEqual([
+            [FIRST, true],
+            [LEFT, true],
+            [RIGHT, false],
+            [REMOVE, false],
+        ]);
+        expect(menu(view, B.id)).toEqual([
+            [FIRST, false],
+            [LEFT, false],
+            [RIGHT, false],
+            [REMOVE, false],
+        ]);
+        expect(menu(view, C.id)).toEqual([
+            [FIRST, false],
+            [LEFT, false],
+            [RIGHT, true],
+            [REMOVE, false],
+        ]);
+        expect(chip(view, A.id).querySelector('wa-dropdown wa-divider')).not.toBeNull();
+        expect(chip(view, A.id).querySelectorAll(':scope > wa-button')).toHaveLength(1);
+        expect(menuButton(view, A.id).getAttribute('aria-label')).toBe(
+            t('shelf_options', 'en', { prompt: isolate(A.prompt) })
+        );
+    });
+
+    it('offers moves only to those who may move, and Remove only to those who may remove', async () => {
+        const cases = [
+            [{ ...WRITE, remove: false }, [FIRST, LEFT, RIGHT]],
+            [{ ...WRITE, move: false }, [REMOVE]],
+            [{ ...WRITE, move: false, remove: false }, undefined],
+        ] as const;
+        for (const [capabilities, labels] of cases) {
+            const view = shelfPage({ capabilities });
+            await ready(view);
+            if (labels) {
+                expect(menu(view, B.id).map(([label]) => label)).toEqual(labels);
+                expect(chip(view, B.id).querySelector('wa-divider')).toBeNull();
+            } else {
+                expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
+            }
+            document.body.replaceChildren();
+        }
+    });
+
+    it('moves by what the person sees: left is earlier in LTR and later in RTL', async () => {
+        const cases = [
+            ['en', 'shelf_move_left', A.id],
+            ['en', 'shelf_move_right', null],
+            ['ar', 'shelf_move_left', null],
+            ['ar', 'shelf_move_right', A.id],
+        ] as const;
+        for (const [language, key, before] of cases) {
+            const move = vi.fn<SavedReportsApi['moveReport']>(async (_book, id, body) => ({
+                reports: reorder(SHELF, id, body.before),
+                capabilities: WRITE,
+            }));
+            const view = shelfPage({ language, moveReport: move });
+            await view.state.strings.load();
+            await ready(view);
+            await choose(view, B.id, t(key, language));
+            expect(move.mock.calls.map(call => call.slice(1, 3))).toEqual([[B.id, { before }]]);
+            document.body.replaceChildren();
+        }
+        const view = shelfPage({ language: 'ar' });
+        await view.state.strings.load();
+        await ready(view);
+        expect(view.state.strings.language).toBe('ar');
+        expect(menu(view, A.id).slice(0, 3)).toEqual([
+            [t('shelf_move_first', 'ar'), true],
+            [t('shelf_move_left', 'ar'), false],
+            [t('shelf_move_right', 'ar'), true],
+        ]);
+    });
+
+    it('moves a prompt once its menu has closed, so the menu does not follow its chip', async () => {
+        const view = shelfPage();
+        await ready(view);
+        const item = menuItem(view, C.id, FIRST);
+        const dropdown = item.closest('wa-dropdown');
+        if (!dropdown) throw new Error('No menu');
+        const shown = once(dropdown, 'wa-after-show');
+        dropdown.open = true;
+        await shown;
+        const hidden = once(dropdown, 'wa-after-hide');
+        dropdown.dispatchEvent(new WaSelectEvent({ item }));
+        dropdown.open = false;
+        await view.updateComplete;
+        expect(order(view)).toEqual([A.id, B.id, C.id]);
+        await hidden;
+        await settle(view);
+        expect(order(view)).toEqual([C.id, A.id, B.id]);
+    });
+
+    it("keeps focus on the moved prompt's menu and announces its new place", async () => {
+        const moved = deferred<Awaited<ReturnType<SavedReportsApi['moveReport']>>>();
+        const move = vi
+            .fn<SavedReportsApi['moveReport']>()
+            .mockReturnValueOnce(moved.promise)
+            .mockImplementation(async (_book, id, body) => ({
+                reports: reorder([C, A, B], id, body.before),
+                capabilities: WRITE,
+            }));
+        const view = shelfPage({ moveReport: move });
+        await ready(view);
+        menuButton(view, C.id).focus();
+        await choose(view, C.id, FIRST);
+        expect(order(view)).toEqual([C.id, A.id, B.id]);
+        expect(shelfRoot(view).activeElement).toBe(menuButton(view, C.id));
+        expect(menu(view, A.id).every(([label, disabled]) => label === REMOVE || disabled)).toBe(
+            true
+        );
+        moved.resolve({ reports: [C, A, B], capabilities: WRITE });
+        await settle(view);
+        expect(shelfRoot(view).querySelector('[role="status"]')?.textContent?.trim()).toBe(
+            t('shelf_moved', 'en', { position: '1', count: '3' })
+        );
+        expect(shelfRoot(view).activeElement).toBe(menuButton(view, C.id));
+        await choose(view, C.id, RIGHT);
+        expect(shelfRoot(view).querySelector('[role="status"]')?.textContent?.trim()).toBe(
+            t('shelf_moved', 'en', { position: '2', count: '3' })
+        );
+    });
+
+    it('restores the order of a failed move, keeps focus, and offers to reload', async () => {
+        const view = shelfPage({
+            moveReport: async () => {
+                throw new AppApiError('private', 502, 'storage_error');
+            },
+        });
+        await ready(view);
+        menuButton(view, A.id).focus();
+        await choose(view, A.id, RIGHT);
+        expect(order(view)).toEqual([A.id, B.id, C.id]);
+        expect(shelfRoot(view).querySelector('[role="alert"]')?.textContent).toContain(
+            t('shelf_move_error', 'en')
+        );
+        expect(shelfRoot(view).textContent).not.toContain('private');
+        expect(shelfRoot(view).querySelector('[role="status"]')?.textContent).not.toContain(
+            t('shelf_moved', 'en', { position: '2', count: '3' })
+        );
+        expect(shelfRoot(view).activeElement).toBe(menuButton(view, A.id));
+        expect(control(view, '.reload').disabled).toBe(false);
+    });
+
+    it("moves focus to the next prompt's menu when the focused one is removed", async () => {
+        const view = shelfPage();
+        await ready(view);
+        menuButton(view, B.id).focus();
+        await choose(view, B.id, REMOVE);
+        expect(order(view)).toEqual([A.id, C.id]);
+        expect(shelfRoot(view).activeElement).toBe(menuButton(view, C.id));
+    });
+});
+
+/** The shelf the server answers a move with. */
+function reorder<T extends { id: string }>(items: readonly T[], id: string, before: string | null) {
+    const item = items.find(entry => entry.id === id);
+    if (!item) throw new Error(`No item ${id}`);
+    const rest = items.filter(entry => entry !== item);
+    const at = before === null ? rest.length : rest.findIndex(entry => entry.id === before);
+    return [...rest.slice(0, at), item, ...rest.slice(at)];
+}
 
 const NAMES: BookName[] = [
     { id: 'g-exp', name: 'Despesas', kind: 'group', root: 'g-exp' },

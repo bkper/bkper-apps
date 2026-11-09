@@ -584,12 +584,9 @@
         "context": "Recovery action under the Book-shared shelf after a list or mutation failure. Fetches the list and fresh server permissions. Does not run a report."
     },
     "shelf_remove": {
-        "text": "Remove saved report: {prompt}",
-        "role": "label",
-        "context": "Accessible name and tooltip of the small remove action beside one Book-shared saved request. Removes only the saved prompt from the shelf, never financial data. The prompt may be long and multilingual.",
-        "placeholders": {
-            "prompt": "The original natural-language report request, verbatim, isolated for bidirectional text."
-        }
+        "text": "Remove",
+        "role": "button",
+        "context": "Item of the small menu of one Book-shared saved request, in the row of saved requests just above the report request input. Removes the saved request from the row for everyone in the Book; never removes financial data or reports. Short imperative."
     },
     "shelf_remove_error": {
         "text": "Could not remove the saved request. Try removing it again.",
@@ -628,6 +625,43 @@
         "text": "Removing…",
         "role": "status",
         "context": "Announced pending status under the Book-shared prompt shelf while removing one saved request. The request stays visible until the API confirms removal. Keep very short."
+    },
+    "shelf_options": {
+        "text": "Options for saved report: {prompt}",
+        "role": "label",
+        "context": "Accessible name and tooltip of the small menu button at the end of one Book-shared saved request, in the row just above the report request input. It opens a menu to move the saved request within the row or remove it. The prompt may be long and multilingual.",
+        "placeholders": {
+            "prompt": "The original natural-language report request, verbatim, isolated for bidirectional text."
+        }
+    },
+    "shelf_move_first": {
+        "text": "Move first",
+        "role": "button",
+        "context": "Item of the small menu of one Book-shared saved request, in the row of saved requests just above the report request input. Moves the request to the start of the row, where the request that opens first when the Book opens sits. Short imperative, like the other items of the menu."
+    },
+    "shelf_move_left": {
+        "text": "Move left",
+        "role": "button",
+        "context": "Item of the small menu of one Book-shared saved request, in the row of saved requests just above the report request input. Moves the request one place to the left on screen. Left is the literal screen direction, never translated as earlier or later: in right-to-left languages it moves the request later in the row. Short imperative."
+    },
+    "shelf_move_right": {
+        "text": "Move right",
+        "role": "button",
+        "context": "Item of the small menu of one Book-shared saved request, in the row of saved requests just above the report request input. Moves the request one place to the right on screen. Right is the literal screen direction, never translated as earlier or later: in right-to-left languages it moves the request earlier in the row. Short imperative."
+    },
+    "shelf_moved": {
+        "text": "Moved to position {position} of {count}",
+        "role": "status",
+        "context": "Announced by screen readers, not shown, after one Book-shared saved request was moved within the row of saved requests above the input. Says where it is now, counting from the start of the row. Keep short.",
+        "placeholders": {
+            "position": "The request's place in the row, from 1 at its start, formatted as a number in the language.",
+            "count": "How many saved requests the row holds, formatted as a number in the language."
+        }
+    },
+    "shelf_move_error": {
+        "text": "Could not move the saved request. Try moving it again.",
+        "role": "error",
+        "context": "Alert under the Book-shared shelf after moving a saved request fails. The saved requests go back to the order they had, and the person can retry safely from its menu or reload the saved requests."
     },
     "problem_empty_book": {
         "text": "This Book has no transactions yet, so there's nothing to report.",

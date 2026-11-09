@@ -431,6 +431,56 @@ describe('ReportPage', () => {
         }
     });
 
+    it('changes the report quietly when the browser skips the transition', async () => {
+        const view = createPage({
+            api: {
+                suggestions: async () => ({ suggestions: SUGGESTIONS }),
+                report: async (_book, body) =>
+                    report('prompt' in body && body.prompt === 'taxes' ? 'Taxes' : 'Net result'),
+            },
+        });
+        view.state.reports.open('book-1');
+        view.state.reports.input('net result');
+        view.state.reports.submit();
+        await settle(view);
+        const shown = shadow(view).querySelector('report-view');
+        if (!shown) throw new Error('No report');
+        Object.assign(shown, { chartDrawn: async () => undefined });
+        const area = shadow(view).querySelector('.scroll');
+        if (!area) throw new Error('No scroll area');
+        // Skipped, as when another transition starts: `ready` and `finished` reject, while the
+        // update still runs.
+        const skipped = () =>
+            Promise.reject(new DOMException('Transition was skipped', 'AbortError'));
+        let captured: Promise<void> | undefined;
+        Object.assign(area, {
+            startViewTransition: (update: () => Promise<void>) => {
+                captured = update();
+                return {
+                    updateCallbackDone: captured,
+                    ready: skipped(),
+                    finished: skipped(),
+                    skipTransition: () => undefined,
+                };
+            },
+        });
+        const unhandled: unknown[] = [];
+        const record = (reason: unknown) => unhandled.push(reason);
+        process.on('unhandledRejection', record);
+        try {
+            view.state.reports.input('taxes');
+            view.state.reports.submit();
+            await settle(view);
+            await captured;
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(shown.spec).toEqual(report('Taxes').spec);
+            expect(unhandled).toEqual([]);
+        } finally {
+            process.off('unhandledRejection', record);
+        }
+    });
+
     it('shows a quiet hint, or a clear alert when something failed', async () => {
         const view = createPage();
         view.state.reports.fail('hint_not_a_report');

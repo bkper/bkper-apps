@@ -438,6 +438,10 @@ export class ReportPage extends LitElement {
             const view = this.renderRoot.querySelector('report-view');
             await (scoped ? view?.chartDrawn?.() : view?.updateComplete);
         });
+        // The browser skips a transition when another starts or the area is hidden or replaced:
+        // the report still changes, only without the animation, which is no error.
+        transition.ready.catch(() => undefined);
+        transition.finished.catch(() => undefined);
         // A report that answered meanwhile follows once this one is in place.
         void transition.updateCallbackDone.finally(() => {
             this.morphing = false;

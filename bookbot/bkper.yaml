@@ -1,5 +1,5 @@
 # Live `bookbot` registration. Since the 2026-11-03 cutover, production events go to this Platform app (bookbot.bkper.app).
-# Never sync from the legacy bkper-agent repository. Deploy, install, or sync only with separate explicit approval.
+# Never sync from the retired legacy bkper-agent repository. Deploy, install, or sync only with separate explicit approval.
 id: bookbot
 name: Bookbot
 description: Find the right From and To accounts for your transactions, based on how you recorded similar ones before.
@@ -16,8 +16,6 @@ repoPrivate: false
 deprecated: false
 developers: '*@bkper.com'
 
-# Rollback: set webhookUrl back to https://bookbot-legacy.bkper.app/events, then commit, push, and sync.
-# The legacy Worker keeps running until it is retired.
 webhookUrl: https://bookbot.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 

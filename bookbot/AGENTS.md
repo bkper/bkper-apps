@@ -7,7 +7,7 @@ Read the responsibilities, events, properties and discovery API below before cha
 This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the discovery API (`/api/v1/discovery`, used by apps, agents and scripts) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
-- `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the legacy `bkper-agent` repository: it would route events back to the legacy Worker. Rollback to the legacy Worker is documented in `bkper.yaml`.
+- `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the retired legacy `bkper-agent` repository: its registration would route events to a Worker that no longer exists. There is no rollback to the legacy Worker.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Bookbot's public listing: account discovery, rediscovery and the discovery API.

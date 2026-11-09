@@ -17,6 +17,11 @@ import { reactive, Store } from './store';
 export const DEBOUNCE_MS = 250;
 /** Requests shorter than this many words wait for Enter: one word is rarely a report yet. */
 export const MIN_WORDS = 2;
+/**
+ * The event that asks the input to show the request selected, so the first keystroke replaces
+ * it: the request was opened for the person, not by them.
+ */
+export const SELECT_TEXT = 'select-text';
 
 export type ReportApi = Pick<AppApi, 'suggestions' | 'report'>;
 
@@ -96,6 +101,8 @@ export class Reports extends Store {
     @reactive suggestions?: Suggestion[];
 
     private openBookId?: string;
+    /** Nothing was asked of the open Book yet: no request typed, sent or chosen, no state shown. */
+    private nothingAsked = false;
     private cache = new Map<string, Entry>();
     /** Identifies the latest request: an answer to any other is stale. */
     private sequence = 0;
@@ -135,6 +142,19 @@ export class Reports extends Store {
     }
 
     /**
+     * The open Book was opened with no request or state, and since then nothing was typed (even
+     * a request cleared), sent, chosen or shown from a state.
+     */
+    get untouched(): boolean {
+        return this.nothingAsked;
+    }
+
+    /** Ask the input to show the request selected (see {@link SELECT_TEXT}). */
+    selectText(): void {
+        this.dispatchEvent(new Event(SELECT_TEXT));
+    }
+
+    /**
      * What keeps the Book from its reports, shown in place of a notice: the problem of the last
      * request, else the Book's own while nothing else is said.
      */
@@ -167,6 +187,7 @@ export class Reports extends Store {
         this.suggestions = undefined;
         this.bookProblem = undefined;
         this.text = prompt;
+        this.nothingAsked = !!bookId && !state && !prompt.trim();
         if (!bookId) return;
         void this.loadSuggestions(bookId);
         if (state) this.openState(state);
@@ -178,6 +199,7 @@ export class Reports extends Store {
      * AI), in its language; once it shows, the input holds its title and period.
      */
     openState(state: ReportState): void {
+        this.nothingAsked = false;
         this.clearTimer();
         this.quiet();
         this.run('', state.intent, { language: state.language, label: true });
@@ -185,6 +207,7 @@ export class Reports extends Store {
 
     /** The person typed: keep the request in the URL and ask once typing pauses. */
     input(text: string): void {
+        this.nothingAsked = false;
         this.text = text;
         this.route.setPrompt(text);
         this.quiet();
@@ -198,12 +221,14 @@ export class Reports extends Store {
 
     /** Enter: ask now. */
     submit(): void {
+        this.nothingAsked = false;
         this.clearTimer();
         if (this.text.trim()) this.run(this.text);
     }
 
     /** A suggestion was chosen: show it as the request, and its report, by intent. */
     choose(suggestion: Suggestion): void {
+        this.nothingAsked = false;
         this.clearTimer();
         this.text = suggestion.text;
         this.route.setPrompt(suggestion.text);
@@ -217,6 +242,7 @@ export class Reports extends Store {
      * text, nor the report of another spacing or casing of it.
      */
     runSaved(prompt: string): void {
+        this.nothingAsked = false;
         this.clearTimer();
         this.text = prompt;
         this.route.setPrompt(prompt);

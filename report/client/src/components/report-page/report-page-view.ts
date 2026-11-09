@@ -9,7 +9,8 @@ import { formatCount, formatList } from '../../agent-link';
 import type { BookProblem, ReportResponse } from '../../api/app-api';
 import { plainClick } from '../../bkper-host';
 import type { AppState } from '../../state/app-state';
-import { watch } from '../../state/store';
+import { SELECT_TEXT } from '../../state/reports';
+import { on, watch } from '../../state/store';
 import type { SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import { OPEN_SAVED_REPORT } from '../report-shelf';
@@ -82,6 +83,12 @@ export class ReportPage extends LitElement {
             this.state.strings,
             this.state.names,
         ]);
+        on(
+            this,
+            () => this.state.reports,
+            SELECT_TEXT,
+            () => void this.selectRequest()
+        );
     }
 
     /** A Book is open, so the input asks for its reports. */
@@ -391,6 +398,19 @@ export class ReportPage extends LitElement {
     private async focusInput(): Promise<void> {
         await this.input?.updateComplete;
         this.input?.focus();
+    }
+
+    /**
+     * The request was opened for the person: once the input shows it, select it, the focus in
+     * the input, so the first keystroke replaces it.
+     */
+    private async selectRequest(): Promise<void> {
+        await this.updateComplete;
+        const field = this.input;
+        if (!field || field.disabled) return;
+        await field.updateComplete;
+        field.focus();
+        field.select();
     }
 
     /**

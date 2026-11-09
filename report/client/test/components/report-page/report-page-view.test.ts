@@ -209,6 +209,21 @@ describe('ReportPage', () => {
         expect(shadow(view).activeElement).toBe(input(view));
     });
 
+    it('shows the first report of a Book it opens with its request selected, the focus kept in the input', async () => {
+        const view = createPage();
+        await ready(view);
+
+        const field = input(view).input;
+        expect(view.state.reports.text).toBe(SUGGESTIONS[0].text);
+        expect(field?.value).toBe(SUGGESTIONS[0].text);
+        expect([field?.selectionStart, field?.selectionEnd]).toEqual([
+            0,
+            SUGGESTIONS[0].text.length,
+        ]);
+        expect(shadow(view).activeElement).toBe(input(view));
+        expect(shadow(view).querySelector('report-view')).not.toBeNull();
+    });
+
     it('shows what it is given above a disabled input without a Book', async () => {
         const picker = document.createElement('book-picker');
         const view = createPage({ href: 'https://report.bkper.app/', content: picker });
@@ -554,18 +569,19 @@ describe('Book-shared prompt shelf in ReportPage', () => {
                 }),
             },
         });
+        const prompts = () => request.mock.calls.filter(call => call[1].prompt !== undefined);
+        // The Book opens its first saved prompt, as a click does: by its text.
         await ready(view);
-        request.mockClear();
+        expect(prompts()).toHaveLength(1);
         control(view, '.saved-prompt').click();
         await settle(view);
         control(view, '.saved-prompt').click();
         await settle(view);
-        expect(request).toHaveBeenCalledTimes(1);
+        expect(prompts()).toHaveLength(1);
         clock.now += CACHE_MS;
         control(view, '.saved-prompt').click();
         await settle(view);
-        const prompts = request.mock.calls.filter(call => call[1].prompt !== undefined);
-        expect(prompts.map(call => call[1])).toEqual([
+        expect(prompts().map(call => call[1])).toEqual([
             { prompt: SUGGESTIONS[0].text },
             { prompt: SUGGESTIONS[0].text },
         ]);

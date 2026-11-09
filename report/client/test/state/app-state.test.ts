@@ -1,10 +1,16 @@
 import { decodeReportState, encodeReportState } from 'report-shared/report-state';
 import { describe, expect, it, vi } from 'vitest';
-import type { ReportRequest, ReportResponse } from '../../src/api/app-api';
+import type {
+    BookProblem,
+    ReportRequest,
+    ReportResponse,
+    Suggestion,
+    SuggestionsResponse,
+} from '../../src/api/app-api';
 import type { AuthSession, AuthSessionCallbacks } from '../../src/auth/auth-session';
 import type { BookListItem, BookService } from '../../src/services/book-service';
 import { AppState } from '../../src/state/app-state';
-import type { ReportApi } from '../../src/state/reports';
+import { SELECT_TEXT, type ReportApi } from '../../src/state/reports';
 import type { HostPage } from '../../src/state/book-host';
 import type { RoutePage } from '../../src/state/route';
 import type { SavedReportsApi } from '../../src/state/saved-reports';
@@ -439,6 +445,284 @@ describe('AppState', () => {
         offline.connect();
         await vi.waitFor(() => expect(errors).toHaveLength(1));
         expect(offline.strings.language).toBe('en');
+    });
+
+    describe('opening a Book with nothing asked', () => {
+        const FIRST = { id: 'f'.repeat(64), prompt: 'Saved first' };
+        const SECOND = { id: 'e'.repeat(64), prompt: 'Saved second' };
+        const SUGGESTED: Suggestion[] = [
+            { text: 'Suggested first', intent: { root: 'g-1', period: '2011', monthly: true } },
+            { text: 'Suggested second', intent: { root: 'g-2', period: '2011', monthly: false } },
+        ];
+        const PROBLEM: BookProblem = {
+            code: 'empty_book',
+            book: 'Main Book',
+            canOrganize: true,
+        };
+        type Shelf = Awaited<ReturnType<SavedReportsApi['savedReports']>>;
+
+        function deferred<T>() {
+            let resolve!: (value: T) => void;
+            let reject!: (reason: unknown) => void;
+            const promise = new Promise<T>((yes, no) => {
+                resolve = yes;
+                reject = no;
+            });
+            return { promise, resolve, reject };
+        }
+        /** The deferred answer for `key`, made when first asked for or answered. */
+        function answers<T>() {
+            const all = new Map<string, ReturnType<typeof deferred<T>>>();
+            return (key: string) => {
+                const found = all.get(key) ?? deferred<T>();
+                all.set(key, found);
+                return found;
+            };
+        }
+
+        /** An app whose shelves and suggestions answer, per Book, when a test says so. */
+        function openingApp(href = 'https://report.bkper.app/?book=book-1') {
+            const { page, goTo } = createPage(href);
+            const shelf = answers<Shelf>();
+            const suggestions = answers<SuggestionsResponse>();
+            const asked: { bookId: string; body: ReportRequest }[] = [];
+            const auth: { callbacks?: AuthSessionCallbacks } = {};
+            const app = new AppState({
+                page,
+                embedded: false,
+                language: 'en',
+                createReportApi: () => ({
+                    suggestions: bookId => suggestions(bookId).promise,
+                    report: async (bookId, body) => {
+                        asked.push({ bookId, body });
+                        return reportOf(body);
+                    },
+                }),
+                createSavedReportsApi: () => ({
+                    ...createShelfApi().api,
+                    savedReports: bookId => shelf(bookId).promise,
+                }),
+                createBookNamesApi: () => createNamesApi().api,
+                loadRenderer: async () => undefined,
+                loadStrings: async () => undefined,
+                createAuthSession: callbacks => {
+                    auth.callbacks = callbacks;
+                    return createAuth();
+                },
+                createBookService: () => createBookService(),
+                logger: { error: () => undefined },
+            });
+            app.connect();
+            const selected: string[] = [];
+            app.reports.addEventListener(SELECT_TEXT, () => selected.push(app.reports.text));
+            const signIn = async () => auth.callbacks?.onLoginSuccess?.();
+            const prompts = () => asked.flatMap(({ body }) => (body.prompt ? [body.prompt] : []));
+            /** Let answered requests run their continuations. */
+            const settle = () => new Promise(resolve => setTimeout(resolve));
+            const url = () => new URL(page.location.href).searchParams;
+            return { app, page, goTo, shelf, suggestions, signIn, selected, prompts, settle, url };
+        }
+
+        function reportOf(body: ReportRequest): ReportResponse {
+            const intent = body.intent ?? { root: 'g-9', period: '2012', monthly: false };
+            const props = {
+                title: body.prompt ?? intent.root,
+                subtitle: intent.period,
+                locale: 'en',
+                dir: 'ltr' as const,
+                fractionDigits: 2,
+            };
+            return {
+                spec: {
+                    root: 'report',
+                    elements: { report: { type: 'Report', props, children: [] } },
+                },
+                intent,
+                language: 'en',
+                query: 'q',
+                dataAt: '2026-11-05T00:00:00Z',
+                chart: { kind: 'none', fallback: false },
+                trace: {
+                    facts: {
+                        rows: 2,
+                        negative: 0,
+                        mixed: false,
+                        months: 12,
+                        previous: true,
+                        net: false,
+                        permanent: false,
+                    },
+                    chart: { fitting: ['table'], main: 'none', rule: 'rules' },
+                },
+                url: 'https://report.bkper.app/',
+            };
+        }
+
+        const stateOf = (report: ReportResponse | undefined) =>
+            report && encodeReportState({ intent: report.intent, language: report.language });
+
+        it('opens the first saved prompt as clicking it, once the shelf settles after the suggestions', async () => {
+            const { app, shelf, suggestions, signIn, selected, prompts, settle, url } =
+                openingApp();
+            await signIn();
+            suggestions('book-1').resolve({ suggestions: SUGGESTED });
+            await settle();
+            expect(app.reports.text).toBe('');
+            expect(selected).toEqual([]);
+
+            shelf('book-1').resolve({ reports: [FIRST, SECOND], capabilities: WRITE });
+            await settle();
+
+            expect(prompts()).toEqual([FIRST.prompt]);
+            expect(app.reports.text).toBe(FIRST.prompt);
+            expect(app.reports.originalPrompt).toBe(FIRST.prompt);
+            expect(selected).toEqual([FIRST.prompt]);
+            expect(url().get('q')).toBe(FIRST.prompt);
+            expect(url().get('state')).toBe(stateOf(app.reports.report));
+
+            // Within a minute, clicking it shows it from memory: one Bkper AI call in all.
+            app.openSavedReport(FIRST.id);
+            await settle();
+            expect(prompts()).toEqual([FIRST.prompt]);
+            expect(selected).toEqual([FIRST.prompt]);
+        });
+
+        it('opens the first suggestion as clicking it when the shelf has none, before or after it settles', async () => {
+            for (const shelfFirst of [true, false]) {
+                const { app, shelf, suggestions, signIn, selected, prompts, settle, url } =
+                    openingApp();
+                await signIn();
+                const empty = () => shelf('book-1').resolve({ reports: [], capabilities: WRITE });
+                if (shelfFirst) empty();
+                await settle();
+                expect(app.reports.text).toBe('');
+                suggestions('book-1').resolve({ suggestions: SUGGESTED });
+                if (!shelfFirst) {
+                    await settle();
+                    expect(app.reports.text).toBe('');
+                    empty();
+                }
+                await settle();
+
+                expect(app.reports.text).toBe(SUGGESTED[0].text);
+                expect(app.reports.report?.intent).toEqual(SUGGESTED[0].intent);
+                expect(app.reports.originalPrompt).toBeUndefined();
+                expect(prompts()).toEqual([]);
+                expect(selected).toEqual([SUGGESTED[0].text]);
+                expect(url().get('q')).toBe(SUGGESTED[0].text);
+                expect(url().get('state')).toBe(stateOf(app.reports.report));
+            }
+        });
+
+        it('opens the first suggestion when the shelf fails to load', async () => {
+            const { app, shelf, suggestions, signIn, selected, settle } = openingApp();
+            await signIn();
+            suggestions('book-1').resolve({ suggestions: SUGGESTED });
+            shelf('book-1').reject(new Error('Offline'));
+            await settle();
+
+            expect(app.savedReports.loadError).toBe('unexpected');
+            expect(app.reports.text).toBe(SUGGESTED[0].text);
+            expect(selected).toEqual([SUGGESTED[0].text]);
+
+            // A shelf that loads later does not open again.
+            shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+            await settle();
+            expect(selected).toEqual([SUGGESTED[0].text]);
+        });
+
+        it('opens nothing without suggestions, or with a Book problem', async () => {
+            for (const answer of [
+                { suggestions: [] },
+                { suggestions: SUGGESTED, problem: PROBLEM },
+            ] satisfies SuggestionsResponse[]) {
+                const { app, shelf, suggestions, signIn, selected, settle, url } = openingApp();
+                await signIn();
+                shelf('book-1').resolve({ reports: [], capabilities: WRITE });
+                suggestions('book-1').resolve(answer);
+                await settle();
+                expect(app.reports.text).toBe('');
+                expect(app.reports.report).toBeUndefined();
+                expect(selected).toEqual([]);
+                expect(url().get('q')).toBeNull();
+            }
+        });
+
+        it('opens nothing when the URL asks for a request or a state', async () => {
+            const revenue = encodeReportState({
+                intent: { root: 'g-2', period: '2012', monthly: false },
+            });
+            for (const query of ['q=net%20result', `state=${revenue}`]) {
+                const { app, shelf, suggestions, signIn, selected, prompts, settle } = openingApp(
+                    `https://report.bkper.app/?book=book-1&${query}`
+                );
+                await signIn();
+                shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+                suggestions('book-1').resolve({ suggestions: SUGGESTED });
+                await settle();
+                expect(selected).toEqual([]);
+                expect(prompts()).not.toContain(FIRST.prompt);
+                expect(app.reports.text).not.toBe(SUGGESTED[0].text);
+            }
+        });
+
+        it('lets the person, a state or a navigation on the Book act first', async () => {
+            const acts: [string, (app: AppState, goTo: (url: string) => void) => void][] = [
+                ['typing, then clearing', app => (app.reports.input('net'), app.reports.input(''))],
+                ['submitting', app => app.reports.submit()],
+                ['choosing a suggestion', app => app.reports.choose(SUGGESTED[1])],
+                ['opening a saved prompt', app => app.reports.runSaved(SECOND.prompt)],
+                [
+                    'a state',
+                    app => app.reports.openState({ intent: SUGGESTED[1].intent, language: 'en' }),
+                ],
+                ['Back or Forward', (_app, goTo) => goTo('https://report.bkper.app/?book=book-1')],
+            ];
+            for (const [, act] of acts) {
+                const { app, goTo, shelf, suggestions, signIn, selected, prompts, settle } =
+                    openingApp();
+                await signIn();
+                act(app, goTo);
+                shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+                suggestions('book-1').resolve({ suggestions: SUGGESTED });
+                await settle();
+                expect(selected).toEqual([]);
+                expect(prompts()).not.toContain(FIRST.prompt);
+            }
+        });
+
+        it('opens the Book selected instead of the one it leaves, never again after clearing or on Back', async () => {
+            const { app, goTo, shelf, suggestions, signIn, selected, settle, url } = openingApp(
+                'https://report.bkper.app/'
+            );
+            await signIn();
+            app.select('book-1');
+            app.select('book-2');
+            shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+            suggestions('book-1').resolve({ suggestions: SUGGESTED });
+            await settle();
+            expect(selected).toEqual([]);
+
+            shelf('book-2').resolve({ reports: [SECOND], capabilities: WRITE });
+            suggestions('book-2').resolve({ suggestions: SUGGESTED });
+            await settle();
+            expect(app.reports.bookId).toBe('book-2');
+            expect(selected).toEqual([SECOND.prompt]);
+            expect(url().get('q')).toBe(SECOND.prompt);
+
+            app.reports.input('');
+            await app.savedReports.load();
+            await settle();
+            expect(app.reports.text).toBe('');
+
+            goTo('https://report.bkper.app/?book=book-3');
+            shelf('book-3').resolve({ reports: [FIRST], capabilities: WRITE });
+            suggestions('book-3').resolve({ suggestions: SUGGESTED });
+            await settle();
+            expect(app.reports.bookId).toBe('book-3');
+            expect(app.reports.text).toBe('');
+            expect(selected).toEqual([SECOND.prompt]);
+        });
     });
 
     describe('in a Book that keeps the report’s state', () => {

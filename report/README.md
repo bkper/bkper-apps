@@ -8,7 +8,7 @@ Type what you want to know about your Book, in your own language, and see the re
 
 1. Open a Book in Bkper and, the first time, install Report from _Automations > Apps_.
 2. Choose **Report** from the Book menu.
-3. Pick a suggested report, or type your own request. There is no button: the report appears as you type. Press **Enter** to ask at once.
+3. Report opens with the first request saved for the Book, else the first suggested report, its words selected: start typing to ask your own instead. There is no button: the report appears as you type. Press **Enter** to ask at once.
 
 Report speaks the language you chose in Bkper, else your browser's. A typed request gets its report in the language you typed it in. The page's address keeps your report, so reloading, bookmarking or sharing the link with someone who can view the Book opens it again with the latest balances.
 
@@ -54,7 +54,7 @@ A chart that cannot show your numbers honestly is not drawn. It appears dimmed a
 
 ## Save a request for the Book
 
-Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. Owners and editors can save and remove requests; viewers and posters can open them.
+Click **Save** to add the request behind the report on screen to the row above the input, shared with everyone in the Book. You save the **question, not the numbers**: opening it builds the report from current data, and _last month_ always means the last month. The first request in the row is the one Report opens with. Owners and editors can save and remove requests; viewers and posters can open them.
 
 ## When a Book has no report
 

@@ -61,6 +61,11 @@ export class AppState {
     private readonly hostPage: HostPage;
     /** The report, and chart, whose state the URL and the Book have, or were last checked to have. */
     private synced?: { report: ReportResponse; chart?: ChartKind };
+    /**
+     * The Book whose first report opens by itself once it can, and whether its shelf settled
+     * without a prompt to open, so its first suggestion opens instead.
+     */
+    private opening?: { bookId: string; suggestion: boolean };
 
     constructor(options: AppStateOptions = {}) {
         const page = options.page ?? window;
@@ -77,6 +82,7 @@ export class AppState {
                 this.savedReports.open(this.route.bookId);
                 this.names.open(this.route.bookId);
                 this.reports.open(this.route.bookId, this.route.prompt, this.routeState());
+                this.openFirstLater();
                 return this.books.load();
             },
             onError: error => this.books.fail('Auth error:', error),
@@ -99,6 +105,7 @@ export class AppState {
         // Back or Forward, or Bkper changing the app's URL, shows what the URL selects.
         this.route.addEventListener('navigate', event => {
             if (!(event instanceof Navigation)) return;
+            this.opening = undefined;
             const state = this.routeState();
             if (state && event.bookId === this.reports.bookId) {
                 this.reports.openState(state);
@@ -121,7 +128,54 @@ export class AppState {
             // Like the suggestions, the names follow the map's minute as the person types.
             this.names.refresh();
             this.syncState();
+            this.openFirst();
         });
+        this.savedReports.addEventListener('change', () => this.openFirst());
+    }
+
+    /**
+     * A Book opened with nothing asked of it (no request or state in the URL): open its first
+     * report as clicking it would, once the shelf has settled: the first saved prompt, else,
+     * once they arrive, the first suggestion. Never on Back or Forward.
+     */
+    private openFirstLater(): void {
+        const bookId = this.reports.bookId;
+        this.opening = bookId && this.reports.untouched ? { bookId, suggestion: false } : undefined;
+        this.openFirst();
+    }
+
+    /**
+     * Open the first report of the Book opening, when it can. The person wins: anything asked of
+     * the Book first (typing, even cleared, Enter, a chip, a state), a navigation or another
+     * Book cancels it. The input then shows its request selected, so a keystroke replaces it.
+     */
+    private openFirst(): void {
+        const opening = this.opening;
+        if (!opening) return;
+        const { reports, savedReports: shelf } = this;
+        if (reports.bookId !== opening.bookId || !reports.untouched) {
+            this.opening = undefined;
+            return;
+        }
+        if (!opening.suggestion) {
+            if (shelf.bookId !== opening.bookId || shelf.loading) return;
+            const saved = shelf.canList ? shelf.items[0] : undefined;
+            if (saved) {
+                this.opening = undefined;
+                this.openSavedReport(saved.id);
+                reports.selectText();
+                return;
+            }
+            // A shelf without prompts, or one that failed, leaves it to the suggestions.
+            opening.suggestion = true;
+        }
+        const suggestions = reports.suggestions;
+        if (!suggestions) return;
+        this.opening = undefined;
+        const suggestion = suggestions[0];
+        if (!suggestion || reports.problem) return;
+        reports.choose(suggestion);
+        reports.selectText();
     }
 
     /** The report the URL's state names, if it is a valid one. */
@@ -153,6 +207,7 @@ export class AppState {
         this.savedReports.open(bookId);
         this.names.open(bookId);
         this.reports.open(bookId);
+        this.openFirstLater();
     };
 
     /**

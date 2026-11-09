@@ -7,7 +7,7 @@ import {
     type Suggestion,
 } from '../../src/api/app-api';
 import { CACHE_MS } from '../../src/state/cache-window';
-import { DEBOUNCE_MS, Reports, type ReportApi } from '../../src/state/reports';
+import { DEBOUNCE_MS, Reports, SELECT_TEXT, type ReportApi } from '../../src/state/reports';
 import { Route, type RoutePage } from '../../src/state/route';
 
 function createPage(href: string): RoutePage {
@@ -1018,6 +1018,56 @@ describe('Reports', () => {
             expect(suggestionCalls.length).toBe(1);
             expect(title(reports.report)).toBe('Net result');
             expect(reports.text).toBe('Net result 2011');
+        });
+    });
+
+    describe('a Book nothing was asked of yet', () => {
+        it('is untouched until the person or a state asks for something, even a request cleared', () => {
+            const acts: [string, (reports: Reports) => void][] = [
+                ['input', reports => reports.input('')],
+                ['submit', reports => reports.submit()],
+                ['choose', reports => reports.choose(SUGGESTIONS[0])],
+                ['saved', reports => reports.runSaved('Net result')],
+                ['state', reports => reports.openState({ intent: SUGGESTIONS[0].intent })],
+            ];
+            for (const [, act] of acts) {
+                const { reports } = createReports();
+                expect(reports.untouched).toBe(false);
+                reports.open('book-1');
+                expect(reports.untouched).toBe(true);
+                reports.fail('error_unexpected');
+                reports.chooseChart('pie');
+                expect(reports.untouched).toBe(true);
+                act(reports);
+                expect(reports.untouched).toBe(false);
+                reports.open('book-2');
+                expect(reports.untouched).toBe(true);
+            }
+        });
+
+        it('is touched when it opens with a request or a state, and without a Book', () => {
+            const { reports } = createReports();
+            reports.open('book-1', 'net result');
+            expect(reports.untouched).toBe(false);
+            reports.open('book-1', '', { intent: SUGGESTIONS[0].intent });
+            expect(reports.untouched).toBe(false);
+            reports.open(undefined);
+            expect(reports.untouched).toBe(false);
+            reports.open('book-1', '  ');
+            expect(reports.untouched).toBe(true);
+        });
+
+        it('asks the input to show its request selected', () => {
+            const { reports } = createReports();
+            const selected: string[] = [];
+            reports.addEventListener(SELECT_TEXT, () => selected.push(reports.text));
+            reports.open('book-1');
+            reports.choose(SUGGESTIONS[0]);
+            expect(selected).toEqual([]);
+
+            reports.selectText();
+
+            expect(selected).toEqual(['Net result in 2011']);
         });
     });
 });

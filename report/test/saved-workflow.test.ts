@@ -29,7 +29,14 @@ type Session = ReturnType<Workflow['session']>;
 const clock = { now: 0 };
 beforeEach(() => void (clock.now = 1_000_000));
 
-async function client(session: Session, href = 'http://localhost:5207/?book=fixture-a') {
+async function client(session: Session, href?: string) {
+    const opened = await start(session, href);
+    await settled(opened.state);
+    return opened;
+}
+
+/** A client signed in on `href`, without waiting for anything it asks. */
+async function start(session: Session, href = 'http://localhost:5207/?book=fixture-a') {
     const page: RoutePage = {
         location: { href },
         history: {
@@ -72,7 +79,6 @@ async function client(session: Session, href = 'http://localhost:5207/?book=fixt
     });
     state.connect();
     await callbacks.onLoginSuccess?.();
-    await settled(state);
     return { state, page };
 }
 
@@ -246,10 +252,12 @@ describe('saved-prompt route/service and independent app clients', () => {
         const owner = fixture.session('owner', 'OWNER');
         const prompt = 'Food last month';
         const saved = await owner.api.saveReport('fixture-a', { prompt });
+        // The Book opens with its first saved prompt, as a click does.
         const { state } = await client(owner);
         const title = (report: ReportResponse) => report.spec.elements[report.spec.root].props;
 
-        const named = await click(state, saved.id);
+        const named = state.reports.report!;
+        expect(state.reports.originalPrompt).toBe(prompt);
         expect(named.intent).toEqual({
             root: 'g-expenses',
             target: 'a-food',
@@ -301,18 +309,18 @@ describe('saved-prompt route/service and independent app clients', () => {
                 return response;
             },
         });
-        const { state } = await client({ ...owner, api });
-        state.openSavedReport(saved.id);
+        // The Book opens its first saved prompt, as a click does; its answer is held.
+        const { state } = await start({ ...owner, api });
         await vi.waitFor(() => expect(release).toBeDefined());
         state.select('fixture-b');
         await settled(state);
         expect(state.savedReports.items).toEqual([]);
+        fixture.advance();
+        // Back on A, it opens again, read afresh on the new date.
         state.select('fixture-a');
         await settled(state);
         expect(oldSignal?.aborted).toBe(true);
-        expect(state.reports.originalPrompt).toBeUndefined();
-        fixture.advance();
-        const current = await click(state, saved.id);
+        const current = state.reports.report!;
         expect(answer(current).amount).toBe('1050.25');
         release!();
         await new Promise(resolve => setTimeout(resolve, 20));
@@ -431,9 +439,10 @@ describe('completed names, through the real routes, reports, the shelf and other
         ]);
 
         // Another collaborator reopens the text: the same Account, from its own query.
+        // It opens with the Book, as a click does.
         const b = await client(editor);
         expect(b.state.savedReports.items).toEqual([item]);
-        const reopened = await click(b.state, item.id);
+        const reopened = b.state.reports.report!;
         expect(reopened.intent).toEqual(named.intent);
         expect(answer(reopened).amount).toBe('200.5');
         expect(b.state.reports.originalPrompt).toBe('Food last month');

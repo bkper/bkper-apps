@@ -10,6 +10,12 @@ import {
     buildIntentRequest,
 } from '../../server/src/services/intent-questions.ts';
 import { periodRequestOf } from '../../server/src/services/period-query.ts';
+import {
+    PERIOD_QUESTION_IDS,
+    buildAtomicIntentRequest,
+    readPeriod,
+    type PeriodReading as AtomicReading,
+} from '../../server/src/services/period-questions.ts';
 import type { IsoDate } from '../../server/src/services/periods.ts';
 import type { Snapshot } from '../../server/src/services/snapshot.ts';
 import type { PeriodAnswer } from './score.ts';
@@ -76,4 +82,37 @@ export const readByList: PeriodMode = async ({ prompt, snapshot, today, client }
     };
 };
 
-export const MODES: Record<string, PeriodMode> = { list: readByList };
+/** The period of the atomic reading, or none. */
+export function atomicAnswer(reading: AtomicReading): PeriodAnswer {
+    return reading.request ? { request: reading.request } : { reason: 'unspecified_period' };
+}
+
+/**
+ * The atomic questions: how long the period is, and which year, month and quarter the request
+ * says for it and for the period it compares with, in the app's request instead of the list.
+ */
+export const readByAtomicParts: PeriodMode = async ({ prompt, snapshot, today, client }) => {
+    const { request } = buildAtomicIntentRequest(prompt, { ...snapshot, today });
+    const start = performance.now();
+    const result = await decide(client, request);
+    const latencyMs = performance.now() - start;
+    const reading = readPeriod(result.answers);
+    const judgments: Record<string, string> = {};
+    for (const id of PERIOD_QUESTION_IDS) {
+        const { answer, score } = reading.trace[id];
+        if (answer !== 'unspecified' || score < 0.9) {
+            judgments[id] = `${answer} (${score.toFixed(2)})`;
+        }
+    }
+    judgments.year_earlier = result.answers.year_earlier.noul.toFixed(2);
+    return {
+        answer: atomicAnswer(reading),
+        judgments,
+        latencyMs,
+        inputTokens: result.usage.input_tokens,
+        requestCharacters: JSON.stringify(request).length,
+        model: result.model,
+    };
+};
+
+export const MODES: Record<string, PeriodMode> = { list: readByList, atomic: readByAtomicParts };

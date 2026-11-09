@@ -1,12 +1,13 @@
 /**
  * Evaluates how requests' periods are read, against the real decision model.
  *
- *     npx tsx scripts/eval-periods/run.ts [--mode=list] [--only=<n>,...] [--category=<c>,...]
+ *     npx tsx scripts/eval-periods/run.ts [--mode=list|atomic] [--only=<n>,...] [--category=<c>,...]
  *         [--language=<code>,...] [--concurrency=4] [--out=<file.json>]
  *     npx tsx scripts/eval-periods/run.ts --compare=<a.json>,<b.json>
  *
  * Each case of `cases.ts` is a request, the today it is asked on and the period a person means.
- * The mode (`modes.ts`) reads its period; scoring (`score.ts`) builds the queries of the expected
+ * The mode (`modes.ts`) reads its period: `list` (the default) as the app does, one choice among
+ * dated period options; `atomic` with the period questions of `period-questions.ts`; scoring (`score.ts`) builds the queries of the expected
  * and of the read parts and compares the months they read. It prints accuracy per part, per
  * whole request, per category and per language, consistency across paraphrases, latency and
  * input tokens, and every miss, and writes the run to a JSON file in `/tmp` that `--compare`
@@ -232,6 +233,13 @@ function printComparison(aPath: string, bPath: string): void {
     console.log(`${''.padEnd(32)} ${'A'.padEnd(20)} B`);
     for (const row of rows) {
         console.log(`${row.name.padEnd(32)} ${percent(row.a).padEnd(20)} ${percent(row.b)}`);
+    }
+    const sizes = (summary: Summary, name: 'latencyMs' | 'inputTokens' | 'requestCharacters') =>
+        summary[name] ? `p50 ${summary[name].p50}, p95 ${summary[name].p95}` : '-';
+    for (const name of ['latencyMs', 'inputTokens', 'requestCharacters'] as const) {
+        console.log(
+            `${name.padEnd(32)} ${sizes(a.summary, name).padEnd(20)} ${sizes(b.summary, name)}`
+        );
     }
     const show = (title: string, results: CaseResult[]) => {
         console.log(`\n${title}: ${results.length}`);

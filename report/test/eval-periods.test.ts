@@ -11,7 +11,8 @@ import {
     caseKey,
     expectations,
 } from '../scripts/eval-periods/cases';
-import { listAnswer } from '../scripts/eval-periods/modes';
+import { atomicAnswer, listAnswer } from '../scripts/eval-periods/modes';
+import { readPeriod, type PeriodAnswers } from '../server/src/services/period-questions';
 import {
     compareRuns,
     meaningOf,
@@ -237,6 +238,29 @@ describe('listAnswer', () => {
         const none = { reason: 'unspecified_period' };
         expect(listAnswer({ choice: '2016', confidence: 0.3 }, { noul: 0 })).toEqual(none);
         expect(listAnswer({ choice: 'unspecified', confidence: 0.9 }, { noul: 0 })).toEqual(none);
+    });
+});
+
+describe('atomicAnswer', () => {
+    const answers = (choices: Partial<Record<string, string>>): PeriodAnswers => {
+        const choice = (id: string) => ({ choice: choices[id] ?? 'unspecified', confidence: 0.9 });
+        return {
+            span: choice('span'),
+            year: choice('year'),
+            month: choice('month'),
+            quarter: choice('quarter'),
+            compared_year: choice('compared_year'),
+            compared_month: choice('compared_month'),
+            compared_quarter: choice('compared_quarter'),
+            year_earlier: { noul: 0 },
+        };
+    };
+
+    it('reads the atomic parts, and no period when they name none', () => {
+        expect(atomicAnswer(readPeriod(answers({ year: '2016', compared_year: '2014' })))).toEqual({
+            request: { period: { year: 2016 }, compared: { year: 2014 } },
+        });
+        expect(atomicAnswer(readPeriod(answers({})))).toEqual({ reason: 'unspecified_period' });
     });
 });
 

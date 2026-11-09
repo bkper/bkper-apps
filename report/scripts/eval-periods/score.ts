@@ -344,12 +344,15 @@ export interface RunComparison {
 }
 
 /**
- * Two runs side by side: whole accuracy overall, per part and per category, and the requests
- * (by today and request) that one got right and the other wrong.
+ * Two runs side by side: whole accuracy overall, per part, per category and per language, and
+ * consistency; and the requests (by today and request) that one got right and the other wrong.
  */
 export function compareRuns(a: RunFile, b: RunFile): RunComparison {
     const categories = [
         ...new Set([...Object.keys(a.summary.byCategory), ...Object.keys(b.summary.byCategory)]),
+    ];
+    const languages = [
+        ...new Set([...Object.keys(a.summary.byLanguage), ...Object.keys(b.summary.byLanguage)]),
     ];
     const rows = [
         { name: 'whole', a: a.summary.whole, b: b.summary.whole },
@@ -360,6 +363,16 @@ export function compareRuns(a: RunFile, b: RunFile): RunComparison {
             a: a.summary.byCategory[category],
             b: b.summary.byCategory[category],
         })),
+        ...languages.map(language => ({
+            name: `language ${language}`,
+            a: a.summary.byLanguage[language],
+            b: b.summary.byLanguage[language],
+        })),
+        {
+            name: 'consistency',
+            a: { hits: a.summary.consistency.consistent, total: a.summary.consistency.groups },
+            b: { hits: b.summary.consistency.consistent, total: b.summary.consistency.groups },
+        },
     ];
     const before = new Map(a.results.map(result => [result.key, result]));
     const better: CaseResult[] = [];

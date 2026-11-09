@@ -2,6 +2,15 @@
  * Evaluates intent resolution against the real decision model, on the two test Books.
  *
  *     BKPER_AI_TOKEN=<token> npx tsx scripts/eval-intent.ts [--only=<case number>,...]
+ *         [--periods=list|atomic]
+ *
+ * `--periods=list` (the default) asks the app's request, whose period is one choice among
+ * dated options; `--periods=atomic` asks the same request with that choice replaced by the
+ * atomic period questions (`period-questions.ts`). In atomic mode the period is scored by
+ * meaning: the expected period id and `compareWith`, translated with `periodRequestOf`, and the
+ * parts read are each built into a query and resolved at the Book's today, and the months they
+ * read (of the period and of its comparison) must match; what the period is compared with is
+ * scored the same way. Every other measure is unchanged.
  *
  * Each case is a request, in one of many languages, with the intent it should get. The script
  * loads both snapshots (read-only, with your `bkper auth token`), asks the model each request
@@ -32,7 +41,19 @@ import {
     UNSPECIFIED,
     buildIntentRequest,
 } from '../server/src/services/intent-questions.ts';
-import { extractHashtags, readIntent } from '../server/src/services/intent-resolver.ts';
+import {
+    extractHashtags,
+    readIntent,
+    type IntentAnswers,
+} from '../server/src/services/intent-resolver.ts';
+import { periodRequestOf } from '../server/src/services/period-query.ts';
+import {
+    PERIOD_QUESTION_IDS,
+    buildAtomicIntentRequest,
+    readPeriod as readAtomicPeriod,
+    type PeriodReading,
+} from '../server/src/services/period-questions.ts';
+import type { ReportNature } from '../server/src/services/periods.ts';
 import { findPromptNames } from '../server/src/services/prompt-names.ts';
 import {
     NET_RESULT_ROOT,
@@ -47,6 +68,13 @@ import {
     type SnapshotStore,
 } from '../server/src/services/snapshot-loader.ts';
 import { ServerTiming } from '../server/src/services/timing.ts';
+import {
+    describeMeaning,
+    meaningOf,
+    sameComparison,
+    sameMeaning,
+    type Meaning,
+} from './eval-periods/score.ts';
 
 const BOOKS = {
     nimbus: 'agtzfmJrcGVyLWhyZHINCxIGTGVkZ2VyGNEPDA',
@@ -1060,11 +1088,99 @@ async function readPeriod(
     }
 }
 
+type PeriodsMode = 'list' | 'atomic';
+
+/** The model's answers to a request, asked as the app asks, or with the atomic period questions. */
+interface Asked {
+    answers: IntentAnswers;
+    roots: Record<string, string>;
+    /** The atomic reading of the period, in atomic mode. */
+    atomic?: PeriodReading;
+    latencyMs: number;
+    inputTokens: number;
+    model: string;
+}
+
+async function ask(
+    client: ReturnType<typeof createDecisionClient>,
+    prompt: string,
+    snapshot: Snapshot,
+    mode: PeriodsMode
+): Promise<Asked> {
+    if (mode === 'list') {
+        const { request, roots } = buildIntentRequest(prompt, snapshot);
+        const start = performance.now();
+        const result = await decide(client, request);
+        return {
+            answers: result.answers,
+            roots,
+            latencyMs: performance.now() - start,
+            inputTokens: result.usage.input_tokens,
+            model: result.model,
+        };
+    }
+    const { request, roots } = buildAtomicIntentRequest(prompt, snapshot);
+    const start = performance.now();
+    const result = await decide(client, request);
+    const latencyMs = performance.now() - start;
+    const atomic = readAtomicPeriod(result.answers);
+    // The intent's other parts come from the unchanged questions; its period is the default one
+    // here, and is read only when the atomic questions name none.
+    return {
+        answers: { ...result.answers, period: { choice: UNSPECIFIED, confidence: 0 } },
+        roots,
+        atomic,
+        latencyMs,
+        inputTokens: result.usage.input_tokens,
+        model: result.model,
+    };
+}
+
+/** Whether the report a case expects reads a position (a permanent group or account) or activity. */
+function natureOf(test: Case, snapshot: Snapshot): ReportNature {
+    const name = test.targets?.[0] ?? ([] as string[]).concat(test.root)[0];
+    const node =
+        Object.values(snapshot.groups).find(group => group.name === name) ??
+        Object.values(snapshot.accounts).find(account => account.name === name);
+    return node?.permanent ? 'position' : 'activity';
+}
+
+/**
+ * What each period a case accepts means at the Book's today, with what it is compared with. A
+ * request that names no period means none, or the default period the Worker then reads (a
+ * balance today is the same months whether named or not).
+ */
+function expectedMeanings(test: Case, today: string, nature: ReportNature): Meaning[] {
+    const meaning = (id: string) => {
+        const request = periodRequestOf(id, test.compareWith);
+        if (!request) {
+            throw new Error(`Case "${test.prompt}" expects an unknown period ${id}`);
+        }
+        return meaningOf({ request }, today, nature);
+    };
+    return ([] as string[])
+        .concat(test.period ?? [])
+        .flatMap(id =>
+            id === UNSPECIFIED
+                ? [
+                      meaningOf({ reason: 'unspecified_period' }, today, nature),
+                      ...(test.intentPeriod ? [meaning(test.intentPeriod)] : []),
+                  ]
+                : [meaning(id)]
+        );
+}
+
 async function main(): Promise<void> {
     const only = process.argv
         .filter(arg => arg.startsWith('--only='))
         .flatMap(arg => arg.slice(7).split(','))
         .map(Number);
+    const periodsOption =
+        process.argv.find(arg => arg.startsWith('--periods='))?.slice(10) ?? 'list';
+    if (periodsOption !== 'list' && periodsOption !== 'atomic') {
+        throw new Error('--periods must be list or atomic');
+    }
+    const mode: PeriodsMode = periodsOption;
     const bkperToken = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
     const aiToken = process.env.BKPER_AI_TOKEN || bkperToken;
     const bkper = new Bkper({ oauthTokenProvider: async () => bkperToken });
@@ -1098,14 +1214,12 @@ async function main(): Promise<void> {
             continue;
         }
         const snapshot = snapshots[test.book];
-        const { request, roots } = buildIntentRequest(test.prompt, snapshot);
-        const start = performance.now();
-        const result = await decide(client, request);
-        latencies.push(performance.now() - start);
-        tokens.push(result.usage.input_tokens);
-        models.add(result.model);
+        const asked = await ask(client, test.prompt, snapshot, mode);
+        latencies.push(asked.latencyMs);
+        tokens.push(asked.inputTokens);
+        models.add(asked.model);
 
-        const { answers } = result;
+        const { answers, roots, atomic } = asked;
         const hashtags = extractHashtags(test.prompt);
         const names = findPromptNames(test.prompt, snapshot);
         const resolution = readIntent(answers, roots, snapshot, hashtags, names);
@@ -1117,9 +1231,18 @@ async function main(): Promise<void> {
                   resolution.intent,
                   snapshot,
                   books[test.book],
-                  resolution.defaultPeriod
+                  resolution.defaultPeriod && atomic?.request === undefined
               )
             : undefined;
+        const nature = natureOf(test, snapshot);
+        const meaning = atomic
+            ? meaningOf(
+                  atomic.request ? { request: atomic.request } : { reason: 'unspecified_period' },
+                  snapshot.today,
+                  nature
+              )
+            : undefined;
+        const expectedMeaning = expectedMeanings(test, snapshot.today, nature);
         const got = {
             root: rootName(snapshot, intent?.root),
             targets: targetNames(snapshot, intent),
@@ -1136,17 +1259,27 @@ async function main(): Promise<void> {
         };
         if (isReport) {
             const expectedPeriod = test.intentPeriod ?? test.period;
-            checks.period = accepts(test.period, got.period);
+            checks.period = meaning
+                ? expectedMeaning.some(expected => sameMeaning(expected, meaning))
+                : accepts(test.period, got.period);
             checks.targets = got.targets.join('|') === (test.targets ?? []).join('|');
             checks.monthly = got.monthly === (test.monthly ?? false);
             checks.view = accepts(test.view ?? UNSPECIFIED, got.view);
             checks.chart = got.chart === (test.chart ?? 'auto');
-            checks.compare = got.compare === (test.compareWith ?? 'previous');
+            checks.compare = meaning
+                ? expectedMeaning.some(expected => sameComparison(expected, meaning))
+                : got.compare === (test.compareWith ?? 'previous');
+            // In atomic mode, a named period is its meaning; a default one is the intent's.
+            const periodRead =
+                intent !== undefined &&
+                (meaning && !meaning.reason
+                    ? checks.period
+                    : accepts(expectedPeriod, intent.period) && (!meaning || checks.period));
             checks.intent =
                 intent !== undefined &&
                 checks.root &&
                 checks.targets &&
-                accepts(expectedPeriod, intent.period) &&
+                periodRead &&
                 checks.monthly &&
                 checks.view &&
                 checks.chart &&
@@ -1167,8 +1300,18 @@ async function main(): Promise<void> {
         const named = got.targets.length > 0 ? ` targets=${got.targets.join('|')}` : '';
         const detail =
             `root=${got.root}(${answers.root.choice} ${answers.root.confidence.toFixed(2)})${named}` +
-            ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
-            `→${intent?.period ?? '-'}` +
+            (atomic
+                ? ` ${PERIOD_QUESTION_IDS.filter(id => atomic.trace[id].answer !== UNSPECIFIED)
+                      .map(
+                          id =>
+                              `${id}=${atomic.trace[id].answer}(${atomic.trace[id].score.toFixed(2)})`
+                      )
+                      .join(
+                          ' '
+                      )}${atomic.trace.rules.length > 0 ? ` rules=${atomic.trace.rules.join(',')}` : ''}` +
+                  ` → ${meaning ? describeMeaning(meaning) : '-'}${meaning?.reason ? ` → ${intent?.period ?? '-'}` : ''}`
+                : ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
+                  `→${intent?.period ?? '-'}`) +
             ` over_time=${yes(answers.over_time)} composition=${yes(answers.composition)}` +
             ` versus_earlier=${yes(answers.versus_earlier)} year_earlier=${yes(answers.year_earlier)}` +
             ` bridge=${yes(answers.bridge)}` +
@@ -1185,7 +1328,7 @@ async function main(): Promise<void> {
         );
     }
 
-    console.log(`\nModel: ${[...models].join(', ')}`);
+    console.log(`\nPeriods: ${mode}; model: ${[...models].join(', ')}`);
     for (const question of QUESTIONS) {
         const pct = totals[question] ? (100 * hits[question]) / totals[question] : 0;
         console.log(

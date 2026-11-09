@@ -264,8 +264,9 @@ function yearOf(year: YearPart, current: number): number {
 }
 
 /**
- * The current or previous month is today's, or, in another year, the same month of that year.
- * A named month in no year is the latest one that has started, or, with an `anchor`, the latest
+ * The current or previous month is today's; in a year relative to today's, the same month that
+ * many years away; in a written year, the same month of the year in it (December 2024 for last
+ * month asked in January, with 2024). A named month in no year is the latest one that has started, or, with an `anchor`, the latest
  * one before that month.
  */
 function monthOf(
@@ -279,8 +280,7 @@ function monthOf(
         if (year === undefined || year === 'current') {
             return { index, relative: true };
         }
-        const shift = (yearOf(year, current) - yearOf('current', current)) * 12;
-        return { index: index + shift, relative: typeof year === 'string' };
+        return { index: inYear(index, year, current), relative: typeof year === 'string' };
     }
     if (year !== undefined) {
         return { index: yearOf(year, current) * 12 + month - 1, relative: false };
@@ -297,16 +297,23 @@ function quarterOf(
 ): number {
     if (quarter === 'current' || quarter === 'previous') {
         const first = quarterStart(current) - (quarter === 'previous' ? 3 : 0);
-        if (year === undefined || year === 'current') {
-            return first;
-        }
-        return first + (yearOf(year, current) - yearOf('current', current)) * 12;
+        return year === undefined ? first : inYear(first, year, current);
     }
     const monthOfYear = (quarter - 1) * 3;
     if (year !== undefined) {
         return yearOf(year, current) * 12 + monthOfYear;
     }
     return latestBefore(monthOfYear, anchor);
+}
+
+/**
+ * A month of today's, moved to a year: as many years away as a relative year is from today's, or
+ * to its own month of the year in a written year.
+ */
+function inYear(month: number, year: YearPart, current: number): number {
+    return typeof year === 'number'
+        ? year * 12 + (month % 12)
+        : month + (yearOf(year, current) - yearOf('current', current)) * 12;
 }
 
 /** The latest month of the year at `monthOfYear` (January is 0) before `anchor`. */

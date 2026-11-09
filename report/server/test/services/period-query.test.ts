@@ -132,6 +132,27 @@ describe('buildPeriodQuery, as of 2026-11-09', () => {
         ]);
     });
 
+    it('places last month in a written year at its own month, across a new year', () => {
+        const january = '2026-01-15';
+        expect(
+            dates({ period: { month: 'previous' }, compared: { year: 2024 } }, 'activity', january)
+        ).toEqual(['on:$m-1 by:m', 'on:2024-12 by:m']);
+        expect(
+            dates(
+                { period: { quarter: 'previous' }, compared: { year: 2024 } },
+                'activity',
+                january
+            )
+        ).toEqual(['after:2025-10 before:2026-01 by:m', 'after:2024-10 before:2025-01 by:m']);
+        expect(
+            dates(
+                { period: { month: 'previous' }, compared: { year: 'previous' } },
+                'activity',
+                january
+            )
+        ).toEqual(['on:$m-1 by:m', 'on:$m-13 by:m']);
+    });
+
     it('rejects a period that has not started', () => {
         expect(dates({ period: { year: 2027 } })).toBe('future_period');
         expect(dates({ period: { month: 12, year: 2026 } })).toBe('future_period');

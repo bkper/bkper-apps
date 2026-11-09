@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    COMPARE_WITH,
     HASHTAG_PATTERN,
     MAX_ALONGSIDE,
     MAX_HASHTAGS,
@@ -10,10 +11,19 @@ import {
     REPORT_CHARTS,
     REPORT_VIEWS,
     type ChartPreference,
+    type CompareWith,
     type ReportView,
 } from 'report-shared/report-intent';
 
-export { NET_RESULT_ROOT, REPORT_CHARTS, REPORT_VIEWS, type ChartPreference, type ReportView };
+export {
+    COMPARE_WITH,
+    NET_RESULT_ROOT,
+    REPORT_CHARTS,
+    REPORT_VIEWS,
+    type ChartPreference,
+    type CompareWith,
+    type ReportView,
+};
 
 const Id = z.string().min(1).max(MAX_ROOT_LENGTH);
 
@@ -35,6 +45,8 @@ export const ReportIntentSchema = z.object({
     period: z.string().regex(PERIOD_ID_PATTERN),
     /** Whether to show the period by month. */
     monthly: z.boolean(),
+    /** What the period is compared with; left out, the period before. */
+    compareWith: z.enum(COMPARE_WITH).optional(),
     /** The layout the request named, if any. */
     view: z.enum(REPORT_VIEWS).optional(),
     /** The chart the person prefers; left out, `auto`. */

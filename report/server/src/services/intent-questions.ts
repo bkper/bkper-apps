@@ -28,6 +28,8 @@ export const THRESHOLDS = {
     composition: 0.5,
     /** The probability of yes from which the request compares with an earlier period. */
     versus_earlier: 0.5,
+    /** The probability of yes from which the request compares with the same period a year earlier. */
+    year_earlier: 0.5,
     /** The probability of yes from which the request asks how one amount leads to another. */
     bridge: 0.5,
     /** Below it, the request names no chart. */
@@ -75,6 +77,9 @@ const COMPOSITION_INSTRUCTIONS =
 
 const VERSUS_EARLIER_INSTRUCTIONS =
     'Does `request` ask to compare the amounts with an earlier period it names, such as last year, the year before or the previous month?';
+
+const YEAR_EARLIER_INSTRUCTIONS =
+    'Does `request` ask to compare the amounts with the same period one year earlier, such as January last year for January, the same quarter last year or year over year?';
 
 const BRIDGE_INSTRUCTIONS =
     'Does `request` ask how one amount leads to another, step by step, such as from revenue through each expense to profit, or from an opening to a closing balance?';
@@ -140,6 +145,7 @@ export type IntentQuestions = {
     over_time: NoulQuestion;
     composition: NoulQuestion;
     versus_earlier: NoulQuestion;
+    year_earlier: NoulQuestion;
     bridge: NoulQuestion;
     chart_named: ChoiceQuestion<typeof CHART_NAMED_CRITERIA>;
     language: ChoiceQuestion<Criteria>;
@@ -173,6 +179,7 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                 over_time: { type: 'noul', instructions: OVER_TIME_INSTRUCTIONS },
                 composition: { type: 'noul', instructions: COMPOSITION_INSTRUCTIONS },
                 versus_earlier: { type: 'noul', instructions: VERSUS_EARLIER_INSTRUCTIONS },
+                year_earlier: { type: 'noul', instructions: YEAR_EARLIER_INSTRUCTIONS },
                 bridge: { type: 'noul', instructions: BRIDGE_INSTRUCTIONS },
                 chart_named: {
                     type: 'choice',

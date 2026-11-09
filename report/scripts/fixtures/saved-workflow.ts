@@ -132,6 +132,7 @@ export async function savedWorkflow() {
                                         over_time: { type: 'noul', noul: 0.01 },
                                         composition: { type: 'noul', noul: 0.01 },
                                         versus_earlier: { type: 'noul', noul: 0.01 },
+                                        year_earlier: { type: 'noul', noul: 0.01 },
                                         bridge: { type: 'noul', noul: 0.01 },
                                     },
                                     usage: { input_tokens: 1, output_tokens: 1 },

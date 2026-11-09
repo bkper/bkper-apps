@@ -1,6 +1,6 @@
 # Report
 
-Type what you want to know about your Book, in your own language, and see the report as you type: the answer and its change from the previous period, a chart, the groups and Accounts behind it, and the exact Bkper query.
+Type what you want to know about your Book, in your own language, and see the report as you type: the answer and its change from the previous period (or from the same period a year earlier, when you ask for it), a chart, the groups and Accounts behind it, and the exact Bkper query.
 
 > **Read-only, with every number from Bkper.** Every amount is a balance Bkper calculates for one group or Account, but for one labelled exception (see [The net result](#the-net-result)); numbers never come from AI. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
 
@@ -47,7 +47,8 @@ Report picks the chart that fits. To start with another, name it in your request
 | bars, a line | Amounts month by month, or the parts, largest first |
 | stacked by month | The parts piled up, month by month |
 | an area chart | Amounts over time, as a filled area |
-| versus last year | Each part beside the previous period |
+| versus last month, versus last year | Each part beside the previous period |
+| versus January last year, year over year | Each part beside the same period a year earlier |
 | just the numbers | The answer and the table, without a chart |
 
 A chart that cannot show your numbers honestly is not drawn. It appears dimmed among the previews with the reason, such as _A pie can't show Taxes (-186.74)_, and the closest chart that fits is shown instead. For example, a pie needs two or more positive parts that make up the total, and side-by-side names never get a chart that suggests a total. Report never draws a bridge (waterfall), because its bars would be sums Report makes itself.

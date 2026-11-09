@@ -8,6 +8,7 @@ import {
     isPeriodId,
     isoMonth,
     previousPeriod,
+    yearEarlierPeriod,
     resolvePeriod,
     todayInTimeZone,
 } from '../../src/services/periods';
@@ -257,6 +258,62 @@ describe('previousPeriod', () => {
         expect(position('2024')).toEqual({ before: '2024-01-01' });
         expect(position('2025-Q4')).toEqual({ before: '2025-10-01' });
         expect(position('all')).toBeUndefined();
+    });
+});
+
+describe('yearEarlierPeriod', () => {
+    const today = '2026-11-05';
+    const earlier = (id: string, day = today) => yearEarlierPeriod(id, 'activity', { today: day });
+
+    it('is the same calendar month, quarter or year a year before a whole period', () => {
+        expect(earlier('2026-01')).toEqual({ after: '2025-01-01', before: '2025-02-01' });
+        expect(earlier('last_month')).toEqual({ after: '2025-10-01', before: '2025-11-01' });
+        expect(earlier('2026-Q1')).toEqual({ after: '2025-01-01', before: '2025-04-01' });
+        expect(earlier('last_quarter')).toEqual({ after: '2025-07-01', before: '2025-10-01' });
+        expect(earlier('2024-02')).toEqual({ after: '2023-02-01', before: '2023-03-01' });
+        expect(earlier('last_year')).toEqual({ after: '2024-01-01', before: '2025-01-01' });
+    });
+
+    it('is the same span a year before for the current periods', () => {
+        expect(earlier('this_month')).toEqual({ after: '2025-11-01', before: '2025-11-06' });
+        expect(earlier('this_quarter')).toEqual({ after: '2025-10-01', before: '2025-11-06' });
+        expect(earlier('this_year')).toEqual({ after: '2025-01-01', before: '2025-11-06' });
+        expect(earlier('last_12_months')).toEqual({
+            after: '2024-12-01',
+            before: '2025-11-06',
+        });
+        expect(earlier('today')).toEqual({ after: '2025-11-05', before: '2025-11-06' });
+    });
+
+    it('is the previous period of a year', () => {
+        for (const id of ['2024', 'last_year', 'this_year', 'ytd']) {
+            expect(earlier(id)).toEqual(previousPeriod(id, 'activity', { today }));
+        }
+    });
+
+    it('clamps February 29 to the 28th', () => {
+        expect(earlier('today', '2028-02-29')).toEqual({
+            after: '2027-02-28',
+            before: '2027-03-01',
+        });
+        expect(earlier('this_month', '2028-02-29')).toEqual({
+            after: '2027-02-01',
+            before: '2027-03-01',
+        });
+    });
+
+    it('compares positions a year before the date they are measured at', () => {
+        const position = (id: string) => yearEarlierPeriod(id, 'position', { today });
+        expect(position('today')).toEqual({ before: '2025-11-06' });
+        expect(position('this_month')).toEqual({ before: '2025-11-06' });
+        expect(position('2026-01')).toEqual({ before: '2025-02-01' });
+        expect(position('2025-Q4')).toEqual({ before: '2025-01-01' });
+        expect(position('2024')).toEqual({ before: '2024-01-01' });
+    });
+
+    it('has nothing to compare with for all time or an unknown id', () => {
+        expect(earlier('all')).toBeUndefined();
+        expect(earlier('next_year')).toBeUndefined();
     });
 });
 

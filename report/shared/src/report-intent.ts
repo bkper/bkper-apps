@@ -47,6 +47,14 @@ export const HASHTAG_PATTERN = /^[^\s#,.'"]+$/;
 export const MAX_HASHTAGS = 10;
 export const MAX_HASHTAG_LENGTH = 100;
 
+/**
+ * What a report compares its period with: the period right before it (the default), or the same
+ * period a year earlier, such as January last year for January.
+ */
+export const COMPARE_WITH = ['previous', 'year_earlier'] as const;
+
+export type CompareWith = (typeof COMPARE_WITH)[number];
+
 export const RELATIVE_PERIODS = [
     'today',
     'this_month',
@@ -89,6 +97,8 @@ export interface ReportIntentData {
     /** A period id, see {@link PERIOD_ID_PATTERN}. */
     period: string;
     monthly: boolean;
+    /** What the period is compared with; left out, `previous`. */
+    compareWith?: CompareWith;
     view?: ReportView;
     chart?: ChartPreference;
     hashtags?: string[];

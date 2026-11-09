@@ -92,6 +92,26 @@ describe('planReport', () => {
         ]);
     });
 
+    it('reads the same period a year earlier when the intent compares with it', async () => {
+        const yearEarlier = { compareWith: 'year_earlier' } as const;
+        expect(await queries(intent('g-expenses', '2026-01', yearEarlier))).toEqual([
+            "group:'Expenses' after:2026-01-01 before:2026-02-01 by:m",
+            "group:'Expenses' after:2025-01-01 before:2025-02-01 by:m",
+        ]);
+        // A month not yet over is read to date, against the same days a year earlier.
+        expect(await queries(intent('g-expenses', '2026-11', yearEarlier))).toEqual([
+            "group:'Expenses' after:2026-11-01 before:2026-11-06 by:m",
+            "group:'Expenses' after:2025-11-01 before:2025-11-06 by:m",
+        ]);
+        expect(await queries(intent('g-assets', 'today', yearEarlier))).toEqual([
+            "group:'Assets' after:2026-11-05 before:2026-11-06 by:m",
+            "group:'Assets' before:2025-11-06 by:m",
+        ]);
+        expect(await queries(intent('g-expenses', 'all', yearEarlier))).toEqual([
+            "group:'Expenses' before:2026-11-06 by:m",
+        ]);
+    });
+
     it('reads the group that combines Incoming and Outgoing for a net result', async () => {
         expect(await queries(intent('net-result', 'last_month'))).toEqual([
             "group:'Net income' after:2026-10-01 before:2026-11-01 by:m",

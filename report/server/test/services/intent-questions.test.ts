@@ -151,7 +151,13 @@ describe('buildIntentRequest', () => {
 
     it('asks each judgment as a yes or no question that stands alone', async () => {
         const { questions } = buildIntentRequest('expenses', await fixtureSnapshot()).request;
-        for (const id of ['over_time', 'composition', 'versus_earlier', 'bridge'] as const) {
+        for (const id of [
+            'over_time',
+            'composition',
+            'versus_earlier',
+            'year_earlier',
+            'bridge',
+        ] as const) {
             expect(questions[id].type).toBe('noul');
             expect(questions[id].instructions).toMatch(/^Does `request` ask /);
             // No question refers to another or says when not to answer yes.
@@ -163,6 +169,7 @@ describe('buildIntentRequest', () => {
             'over_time',
             'composition',
             'versus_earlier',
+            'year_earlier',
             'bridge',
             'chart_named',
             'language',

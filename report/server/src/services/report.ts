@@ -41,6 +41,7 @@ import {
     isoMonth,
     isPlausibleYear,
     previousPeriod,
+    yearEarlierPeriod,
     resolvePeriod,
     type DateRange,
     type IsoDate,
@@ -447,7 +448,7 @@ export function planReport(intent: ReportIntent, snapshot: Snapshot): ReportPlan
     const nature: ReportNature = (subject.node ?? subject.targets?.[0].node)?.permanent
         ? 'position'
         : 'activity';
-    const period = reportPeriod(intent.period, nature, snapshot.today);
+    const period = reportPeriod(intent, nature, snapshot.today);
     const hashtags = intent.hashtags ?? [];
     const current =
         nature === 'position' && hashtags.length > 0
@@ -905,7 +906,8 @@ export interface ReportPeriod {
     previous?: DateRange;
 }
 
-function reportPeriod(id: string, nature: ReportNature, today: IsoDate): ReportPeriod {
+function reportPeriod(intent: ReportIntent, nature: ReportNature, today: IsoDate): ReportPeriod {
+    const id = intent.period;
     const context = { today };
     const calendar = resolvePeriod(id, context);
     if (!calendar) {
@@ -920,7 +922,10 @@ function reportPeriod(id: string, nature: ReportNature, today: IsoDate): ReportP
     if (!range || range.after !== calendar.after) {
         throw new Error(`No current period for ${id}`);
     }
-    const previous = previousPeriod(effective, nature, context);
+    const previous =
+        intent.compareWith === 'year_earlier'
+            ? yearEarlierPeriod(effective, nature, context)
+            : previousPeriod(effective, nature, context);
     return { id: effective, range, ...(previous ? { previous } : {}) };
 }
 

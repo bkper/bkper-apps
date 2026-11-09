@@ -81,6 +81,7 @@ function jevResponse(answers: JevAnswers): Response {
             over_time: { type: 'noul', noul: 0.01 },
             composition: { type: 'noul', noul: 0.01 },
             versus_earlier: { type: 'noul', noul: 0.01 },
+            year_earlier: { type: 'noul', noul: 0.01 },
             bridge: { type: 'noul', noul: 0.01 },
             chart_named: choice('none'),
             language: choice(answers.language ?? 'en'),

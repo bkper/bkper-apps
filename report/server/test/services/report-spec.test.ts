@@ -166,6 +166,19 @@ describe('buildReportSpec', () => {
         );
     });
 
+    it('names the same period a year earlier when the intent compares with it', async () => {
+        const yearEarlier = { compareWith: 'year_earlier' } as const;
+        const month = await spec(intent('g-expenses', '2026-01', yearEarlier));
+        expect(element(month, 'Report').props.subtitle).toBe('January 2026');
+        expect(element(month, 'Answer').props.comparison).toBe(`vs. ${isolate('January 2025')}`);
+        const current = await spec(intent('g-expenses', 'this_month', yearEarlier));
+        expect(element(current, 'Answer').props.comparison).toBe(
+            `vs. ${isolate(`Nov 1${TO}5, 2025`)}`
+        );
+        const position = await spec(intent('g-assets', 'today', yearEarlier));
+        expect(element(position, 'Answer').props.comparison).toBe(`vs. ${isolate('Nov 5, 2025')}`);
+    });
+
     it('dates a position and compares it with an earlier date', async () => {
         const built = await spec(intent('g-assets', 'today'));
         expect(element(built, 'Report').props.subtitle).toBe(`As of ${isolate('Nov 5, 2026')}`);

@@ -738,7 +738,7 @@ export interface components {
             text: string;
             intent: components["schemas"]["ReportIntent"];
         };
-        /** @description Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
+        /** @description Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, what it is compared with, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`. */
         ReportIntent: {
             /**
              * @description Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses: the net result Bkper calculates for the root group that combines Incoming and Outgoing groups; without one, the Incoming roots minus the Outgoing roots, labelled as calculated by Report, when each root is purely Incoming or Outgoing and no two share an Account. Also the id of an Account in no group (`bkper account list`), reported alone.
@@ -760,12 +760,18 @@ export interface components {
             /** @description Show the period month by month. */
             monthly: boolean;
             /**
+             * @description What the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year, the same days of the previous month for this month so far), or `year_earlier`, the same period a year earlier (January last year for January, the same days a year earlier for a period not yet over). A balance at a date (Asset, Liability) compares with the balance at the start of the period, or a year before its date. `all` compares with nothing. Left out, `previous`.
+             * @example year_earlier
+             * @enum {string}
+             */
+            compareWith?: "previous" | "year_earlier";
+            /**
              * @description The layout asked for: `trend` (over time), `breakdown` (what makes up the amount: a donut of a few parts, a pie of more, else ranked bars) or `total` (the amount alone). Left out, the report picks one.
              * @enum {string}
              */
             view?: "trend" | "breakdown" | "total";
             /**
-             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the previous period), `table` (no chart) or `auto`. `waterfall` (a bridge) is accepted but never drawn, as its bars would not be Bkper balances: the report shows it dimmed with why. Left out or `auto`, the report picks one; a chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (see the response’s `chart` and `trace.chart`).
+             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the period compared with, see `compareWith`), `table` (no chart) or `auto`. `waterfall` (a bridge) is accepted but never drawn, as its bars would not be Bkper balances: the report shows it dimmed with why. Left out or `auto`, the report picks one; a chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (see the response’s `chart` and `trace.chart`).
              * @example pie
              * @enum {string}
              */

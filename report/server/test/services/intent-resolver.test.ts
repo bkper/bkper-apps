@@ -27,6 +27,7 @@ function answers(overrides: Partial<IntentAnswers> = {}): IntentAnswers {
         over_time: no,
         composition: no,
         versus_earlier: no,
+        year_earlier: no,
         bridge: no,
         chart_named: sure('none'),
         language: sure('pt'),
@@ -171,6 +172,7 @@ describe('readIntent', () => {
                     over_time: { answer: true, score: 0.7 },
                     composition: { answer: true, score: 0.6 },
                     versus_earlier: { answer: false, score: 0.1 },
+                    year_earlier: { answer: false, score: 0.1 },
                     bridge: { answer: false, score: 0.1 },
                     chart_named: { answer: 'pie', score: THRESHOLDS.chart_named - 0.01 },
                     language: { answer: 'pt', score: 0.99 },
@@ -208,6 +210,25 @@ describe('readIntent', () => {
         expect(await intentOf({ composition: below('composition') })).not.toHaveProperty('view');
         expect(await intentOf({ over_time: below('over_time') })).toMatchObject({
             monthly: false,
+        });
+    });
+
+    it('compares with the same period a year earlier when the request asks so', async () => {
+        const at = { noul: THRESHOLDS.year_earlier };
+        const below = { noul: THRESHOLDS.year_earlier - 0.01 };
+        expect(await intentOf({ versus_earlier: yes, year_earlier: at })).toMatchObject({
+            period: '2026-Q3',
+            chart: 'compare',
+            compareWith: 'year_earlier',
+        });
+        expect(await intentOf({ year_earlier: at })).toMatchObject({
+            compareWith: 'year_earlier',
+        });
+        expect(await intentOf({ versus_earlier: yes, year_earlier: below })).not.toHaveProperty(
+            'compareWith'
+        );
+        expect(await read({ year_earlier: at })).toMatchObject({
+            trace: { judgments: { year_earlier: { answer: true, score: at.noul } } },
         });
     });
 
@@ -450,6 +471,7 @@ function answerBody() {
             over_time: { type: 'noul', noul: 0.02 },
             composition: { type: 'noul', noul: 0.8 },
             versus_earlier: { type: 'noul', noul: 0.03 },
+            year_earlier: { type: 'noul', noul: 0.02 },
             bridge: { type: 'noul', noul: 0.01 },
             chart_named: choice('none'),
             language: choice('en'),

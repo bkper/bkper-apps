@@ -257,6 +257,26 @@ export function previousPeriod(
 }
 
 /**
+ * The same period a year earlier, to compare with: the same calendar month, quarter or year, and
+ * the same span of a current period, with February 29 clamped to the 28th. A position compares
+ * with the position a year before the date it is measured at. All time has nothing to compare
+ * with. For a year, it is the {@link previousPeriod}.
+ */
+export function yearEarlierPeriod(
+    id: string,
+    nature: ReportNature,
+    context: PeriodContext
+): DateRange | undefined {
+    const range = resolvePeriod(id, context);
+    if (!range?.after) {
+        return undefined;
+    }
+    // Shifting the last day, not `before`, keeps a whole month whole and a span to date as long.
+    const before = addDays(shiftMonths(addDays(range.before, -1), -12), 1);
+    return nature === 'position' ? { before } : { after: shiftMonths(range.after, -12), before };
+}
+
+/**
  * Every period a request may choose: the relative periods, then each year of the last
  * {@link RECENT_YEARS}, and their quarters and months, most recent first, up to today's. Every
  * year is kept, and the most recent quarters and months that fit in {@link MAX_PERIOD_OPTIONS}.

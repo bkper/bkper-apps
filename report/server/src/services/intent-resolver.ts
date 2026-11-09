@@ -62,6 +62,7 @@ export interface IntentAnswers {
     over_time: NoulAnswer;
     composition: NoulAnswer;
     versus_earlier: NoulAnswer;
+    year_earlier: NoulAnswer;
     bridge: NoulAnswer;
     chart_named: ChoiceAnswer;
     language: ChoiceAnswer;
@@ -165,6 +166,7 @@ export interface IntentTrace {
         over_time: JudgmentTrace<boolean>;
         composition: JudgmentTrace<boolean>;
         versus_earlier: JudgmentTrace<boolean>;
+        year_earlier: JudgmentTrace<boolean>;
         bridge: JudgmentTrace<boolean>;
         chart_named: JudgmentTrace<string>;
         language: JudgmentTrace<string>;
@@ -259,6 +261,8 @@ export function readIntent(
                 today: snapshot.today,
             }),
         monthly,
+        // Whatever chart shows it, the period is compared with the one the request names.
+        ...(yes(answers, 'year_earlier') ? { compareWith: 'year_earlier' } : {}),
         ...(view ? { view } : {}),
         ...(chart ? { chart } : {}),
         ...(hashtags.length > 0 ? { hashtags } : {}),
@@ -289,15 +293,20 @@ function periodNature(root: string, names: PromptName[], snapshot: Snapshot): Re
     return node?.permanent ? 'position' : 'activity';
 }
 
+type NoulQuestionId = 'over_time' | 'composition' | 'versus_earlier' | 'year_earlier' | 'bridge';
+
+/** Whether the model answered yes to a yes or no question, from its threshold. */
+function yes(answers: IntentAnswers, question: NoulQuestionId): boolean {
+    return answers[question].noul >= THRESHOLDS[question];
+}
+
 function readJudgments(answers: IntentAnswers): Judgments {
-    const yes = (question: 'over_time' | 'composition' | 'versus_earlier' | 'bridge') =>
-        answers[question].noul >= THRESHOLDS[question];
     const word = CHART_WORDS.find(id => id === answers.chart_named.choice);
     return {
-        overTime: yes('over_time'),
-        composition: yes('composition'),
-        versusEarlier: yes('versus_earlier'),
-        bridge: yes('bridge'),
+        overTime: yes(answers, 'over_time'),
+        composition: yes(answers, 'composition'),
+        versusEarlier: yes(answers, 'versus_earlier'),
+        bridge: yes(answers, 'bridge'),
         ...(word && answers.chart_named.confidence >= THRESHOLDS.chart_named
             ? { chartNamed: word }
             : {}),
@@ -309,8 +318,8 @@ function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
         answer: choice,
         score: confidence,
     });
-    const noul = (question: 'over_time' | 'composition' | 'versus_earlier' | 'bridge') => ({
-        answer: answers[question].noul >= THRESHOLDS[question],
+    const noul = (question: NoulQuestionId) => ({
+        answer: yes(answers, question),
         score: answers[question].noul,
     });
     return {
@@ -319,6 +328,7 @@ function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
         over_time: noul('over_time'),
         composition: noul('composition'),
         versus_earlier: noul('versus_earlier'),
+        year_earlier: noul('year_earlier'),
         bridge: noul('bridge'),
         chart_named: choice(answers.chart_named),
         language: choice(answers.language),

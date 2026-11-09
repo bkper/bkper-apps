@@ -5,8 +5,10 @@
  *
  * The state names the root and the target by their ids, which stay valid when they are
  * renamed. It is a version, then the base64url of
- * `<monthly><view><chart>.<period>.<language>.<hashtags>.<root>`: one letter each for the
- * month flag, the view and the chart, hashtags joined by `,` (neither `.` nor `,` can be in a
+ * `<monthly><view><chart>[y].<period>.<language>.<hashtags>.<root>`: one letter each for the
+ * month flag, the view and the chart, then `y` only for a comparison with the same period a
+ * year earlier (so a comparison with the period before writes what it wrote before), hashtags
+ * joined by `,` (neither `.` nor `,` can be in a
  * hashtag), and the root last, so it may hold anything. A report of a target under its root
  * is version `2`, with the target before the root: `….<hashtags>.<target>.<root>`, so a target
  * cannot hold a `.`. A report of targets side by side is version `3`,
@@ -75,6 +77,9 @@ const CHART_CODES: Record<ChartPreference, string> = {
     donut: 'd',
 };
 
+/** The flag of a comparison with the same period a year earlier, after the chart's letter. */
+const YEAR_EARLIER_CODE = 'y';
+
 const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 /** A report to open again: its intent, and the language of its texts when known. */
@@ -94,7 +99,8 @@ export function encodeReportState({ intent, language }: ReportState): string | u
     const flags =
         (intent.monthly ? '1' : '0') +
         VIEW_CODES[intent.view ?? 'none'] +
-        CHART_CODES[intent.chart ?? 'auto'];
+        CHART_CODES[intent.chart ?? 'auto'] +
+        (intent.compareWith === 'year_earlier' ? YEAR_EARLIER_CODE : '');
     const { alongside, target } = intent;
     const text = [
         flags,
@@ -151,7 +157,10 @@ export function decodeReportState(state: string): ReportState | undefined {
         version === ALONGSIDE_VERSION
             ? [subjects[0], subjects[1] || undefined]
             : [undefined, subjects[0]];
-    if (flags.length !== 3 || (flags[0] !== '0' && flags[0] !== '1')) return undefined;
+    if (flags.length < 3 || flags.length > 4 || (flags[0] !== '0' && flags[0] !== '1')) {
+        return undefined;
+    }
+    if (flags.length === 4 && flags[3] !== YEAR_EARLIER_CODE) return undefined;
     const view = codeOf(VIEW_CODES, flags[1]);
     const chart = codeOf(CHART_CODES, flags[2]);
     if (view === undefined || chart === undefined) return undefined;
@@ -161,6 +170,7 @@ export function decodeReportState(state: string): ReportState | undefined {
         ...(alongside !== undefined ? { alongside: alongside.split(',').map(subjectOf) } : {}),
         period,
         monthly: flags[0] === '1',
+        ...(flags.length === 4 ? { compareWith: 'year_earlier' as const } : {}),
         ...(view !== 'none' ? { view } : {}),
         ...(chart !== 'auto' ? { chart } : {}),
         ...(hashtags ? { hashtags: hashtags.split(',') } : {}),

@@ -152,6 +152,37 @@ describe('report state', () => {
         }
     });
 
+    it('round-trips a comparison with the same period a year earlier, in every version', () => {
+        const base = {
+            root: '191002',
+            period: '2026-01',
+            monthly: false,
+            chart: 'compare' as const,
+        };
+        for (const intent of [
+            base,
+            { ...base, target: '5687803178385408' },
+            { ...base, alongside: [{ root: '130003' }] },
+        ]) {
+            const state: ReportState = {
+                intent: { ...intent, compareWith: 'year_earlier' },
+                language: 'pt',
+            };
+            expect(roundTrip(state)).toEqual(state);
+            expect(encodeReportState(state)).not.toBe(
+                encodeReportState({ intent, language: 'pt' })
+            );
+        }
+    });
+
+    it('leaves out a comparison with the period before, so states written before stay the same', () => {
+        const intent = { root: 'r', period: '2018', monthly: false };
+        expect(encodeReportState({ intent: { ...intent, compareWith: 'previous' } })).toBe(
+            encodeReportState({ intent })
+        );
+        expect(roundTrip({ intent: { ...intent, compareWith: 'previous' } })).toEqual({ intent });
+    });
+
     it('leaves out no chart and auto alike, so both open the rules’ chart', () => {
         const intent = { root: 'r', period: '2018', monthly: false };
         expect(encodeReportState({ intent: { ...intent, chart: 'auto' } })).toBe(

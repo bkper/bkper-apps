@@ -7,8 +7,8 @@
  * loads both snapshots (read-only, with your `bkper auth token`), asks the model each request
  * in turn as the app does, with the names of the Book's groups and accounts code finds in it,
  * and reports the accuracy of each part of the intent (the root, the targets, the period, the
- * months, the view and the chart preference, which code decides from the model's judgments and
- * the names), of the language, of the whole intent (default period and chart included), and
+ * months, the view, the chart preference and what the period is compared with, which code
+ * decides from the model's judgments and the names), of the language, of the whole intent (default period and chart included), and
  * the p50/p95 latency of the model calls. A case that names no chart expects `auto`, so every
  * report checks the chart. Each miss prints its trace: every judgment with its score, and the
  * rule that chose the chart.
@@ -37,6 +37,7 @@ import { findPromptNames } from '../server/src/services/prompt-names.ts';
 import {
     NET_RESULT_ROOT,
     type ChartPreference,
+    type CompareWith,
     type ReportIntent,
 } from '../server/src/services/report-intent.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
@@ -60,8 +61,9 @@ type Accepted = string | string[];
  * in no group), `net-result` or `none`; `targets` are the names of the groups and accounts
  * the report is of, in order, when the request writes them (left out: the root itself);
  * `period` is the model's expected choice (`unspecified` when the request names none), and
- * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`
- * and `chart` are the intent's (`view` is `unspecified` when left out, `chart` is `auto`). Lists
+ * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`,
+ * `chart` and `compareWith` are the intent's (`view` is `unspecified` when left out, `chart` is
+ * `auto`, `compareWith` is `previous`). Lists
  * accept any of their answers: equally right readings, such as an account found in two roots.
  */
 interface Case {
@@ -75,9 +77,13 @@ interface Case {
     monthly?: boolean;
     view?: Accepted;
     chart?: ChartPreference;
+    compareWith?: CompareWith;
 }
 
 const NONE = 'none';
+
+/** This year, for requests that say "this year" or "last year". */
+const YEAR = new Date().getUTCFullYear();
 
 const CASES: Case[] = [
     // Nimbus Financeiro: Portuguese groups, data from 2010-10 to 2018-09.
@@ -873,6 +879,95 @@ const CASES: Case[] = [
         period: '2019',
         language: 'ar',
     },
+    // What a period is compared with: the same period a year earlier when the request names it,
+    // else the period before. Appended last, so the cases before keep their numbers.
+    {
+        book: 'nimbus',
+        prompt: 'revenue in January 2016 compared to January 2015',
+        root: 'Receitas',
+        period: '2016-01',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'revenue in january this year compared to january last year',
+        root: 'Revenue',
+        period: `${YEAR}-01`,
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'receitas de março de 2017 comparadas com março de 2016',
+        root: 'Receitas',
+        period: '2017-03',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'pt',
+    },
+    {
+        book: 'personal',
+        prompt: 'expenses Q2 2019 vs Q2 2018',
+        root: 'Expenses',
+        period: '2019-Q2',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'gastos de junio de 2019 frente al mismo mes del año anterior',
+        root: 'Expenses',
+        period: '2019-06',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'es',
+    },
+    {
+        book: 'nimbus',
+        prompt: '2016年3月の収入を前年同月と比較',
+        root: 'Receitas',
+        period: '2016-03',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'ja',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'despesas do segundo trimestre de 2016, ano contra ano',
+        root: 'Despesas',
+        period: '2016-Q2',
+        chart: 'compare',
+        compareWith: 'year_earlier',
+        language: 'pt',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'revenue in January 2016 compared to December 2015',
+        root: 'Receitas',
+        period: '2016-01',
+        chart: 'compare',
+        language: 'en',
+    },
+    {
+        book: 'personal',
+        prompt: 'expenses in June 2019 compared with the previous month',
+        root: 'Expenses',
+        period: '2019-06',
+        chart: 'compare',
+        language: 'en',
+    },
+    {
+        book: 'nimbus',
+        prompt: 'despesas do terceiro trimestre de 2016 contra o trimestre anterior',
+        root: 'Despesas',
+        period: '2016-Q3',
+        chart: 'compare',
+        language: 'pt',
+    },
 ];
 
 const QUESTIONS = [
@@ -882,6 +977,7 @@ const QUESTIONS = [
     'monthly',
     'view',
     'chart',
+    'compare',
     'language',
     'intent',
 ] as const;
@@ -899,6 +995,16 @@ class MemoryStore implements SnapshotStore {
 
 const accepts = (accepted: Accepted | undefined, value: string | undefined) =>
     accepted === undefined ? true : ([] as string[]).concat(accepted).includes(value ?? '');
+
+/** A year compared with the year before or a year earlier is the same comparison. */
+const WHOLE_YEAR = /^(?:\d{4}|this_year|last_year|ytd)$/;
+
+/** What an intent's period is compared with, the same for a year either way. */
+function comparison(intent: ReportIntent | undefined): CompareWith {
+    return intent && !WHOLE_YEAR.test(intent.period)
+        ? (intent.compareWith ?? 'previous')
+        : 'previous';
+}
 
 function percentile(values: number[], p: number): number {
     const sorted = [...values].sort((a, b) => a - b);
@@ -1021,6 +1127,7 @@ async function main(): Promise<void> {
             monthly: intent?.monthly ?? false,
             view: intent?.view ?? UNSPECIFIED,
             chart: intent?.chart ?? 'auto',
+            compare: comparison(intent),
             language: resolution.language,
         };
         const checks: Partial<Record<Measure, boolean>> = {
@@ -1034,6 +1141,7 @@ async function main(): Promise<void> {
             checks.monthly = got.monthly === (test.monthly ?? false);
             checks.view = accepts(test.view ?? UNSPECIFIED, got.view);
             checks.chart = got.chart === (test.chart ?? 'auto');
+            checks.compare = got.compare === (test.compareWith ?? 'previous');
             checks.intent =
                 intent !== undefined &&
                 checks.root &&
@@ -1042,6 +1150,7 @@ async function main(): Promise<void> {
                 checks.monthly &&
                 checks.view &&
                 checks.chart &&
+                checks.compare &&
                 (intent.hashtags ?? []).join() === hashtags.join();
         } else {
             checks.intent = !resolution.recognized;
@@ -1061,9 +1170,10 @@ async function main(): Promise<void> {
             ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
             `→${intent?.period ?? '-'}` +
             ` over_time=${yes(answers.over_time)} composition=${yes(answers.composition)}` +
-            ` versus_earlier=${yes(answers.versus_earlier)} bridge=${yes(answers.bridge)}` +
+            ` versus_earlier=${yes(answers.versus_earlier)} year_earlier=${yes(answers.year_earlier)}` +
+            ` bridge=${yes(answers.bridge)}` +
             ` chart_named=${answers.chart_named.choice}(${answers.chart_named.confidence.toFixed(2)})` +
-            ` → ${resolution.recognized ? resolution.trace.rule : '-'}: monthly=${got.monthly} view=${got.view} chart=${got.chart}` +
+            ` → ${resolution.recognized ? resolution.trace.rule : '-'}: monthly=${got.monthly} view=${got.view} chart=${got.chart} compare=${got.compare}` +
             ` lang=${answers.language.choice}(${answers.language.confidence.toFixed(2)})`;
         const trace =
             misses.length > 0 && resolution.recognized

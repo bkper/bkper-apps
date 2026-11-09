@@ -67,7 +67,7 @@ describe('meaningOf', () => {
             reason: 'future_period',
         });
         expect(
-            activity({ request: { period: { year: 2016 }, compared: { year: 2018 } } })
+            activity({ request: { period: { year: 2016 }, compared: { year: 2016 } } })
                 .comparisonError
         ).toBe('comparison_not_earlier');
     });

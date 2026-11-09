@@ -158,9 +158,45 @@ describe('buildPeriodQuery, as of 2026-11-09', () => {
         expect(dates({ period: { month: 12, year: 2026 } })).toBe('future_period');
     });
 
-    it('reports a comparison that is not earlier, and builds the period', () => {
+    it('swaps a comparison wholly later than the period, so the later one is read', () => {
         expect(dates({ period: { year: 2016 }, compared: { year: 2018 } })).toEqual([
+            'on:2018 by:m',
             'on:2016 by:m',
+        ]);
+        expect(
+            dates({ period: { year: 2025, month: 3 }, compared: { year: 2025, month: 4 } })
+        ).toEqual(['on:2025-04 by:m', 'on:2025-03 by:m']);
+        expect(dates({ period: { month: 'previous' }, compared: { month: 'current' } })).toEqual([
+            'on:$m by:m',
+            'on:$m-1 by:m',
+        ]);
+    });
+
+    it('reads a swapped running period to this month, against the same months', () => {
+        expect(dates({ period: { year: 'previous' }, compared: { year: 'current' } })).toEqual([
+            'after:$y before:$m+1 by:m',
+            'after:$y-1 before:$m-11 by:m',
+        ]);
+        expect(dates({ period: { year: 2024 }, compared: { year: 2026 } })).toEqual([
+            'after:2026-01 before:2026-12 by:m',
+            'after:2024-01 before:2024-12 by:m',
+        ]);
+        expect(
+            dates({ period: { year: 'previous' }, compared: { year: 'current' } }, 'position')
+        ).toEqual(['before:$d+1 by:m', 'before:$m-11 by:m']);
+    });
+
+    it('rejects a swapped period that has not started', () => {
+        expect(dates({ period: { year: 2025 }, compared: { year: 2027 } })).toBe('future_period');
+    });
+
+    it('reports a comparison that overlaps the period, and builds the period', () => {
+        expect(dates({ period: { year: 2016 }, compared: { year: 2016 } })).toEqual([
+            'on:2016 by:m',
+            'comparison_not_earlier',
+        ]);
+        expect(dates({ period: { year: 'current' }, compared: { year: 2026 } })).toEqual([
+            'after:$y before:$m+1 by:m',
             'comparison_not_earlier',
         ]);
     });
@@ -478,6 +514,8 @@ describe('buildPeriodQuery, every combination of parts', () => {
                 'comparison_kind_mismatch',
                 'comparison_not_earlier',
                 'comparison_unavailable',
+                // A later comparison that has not started swaps into a future period.
+                'future_period',
                 'unspecified_period',
             ]);
         });

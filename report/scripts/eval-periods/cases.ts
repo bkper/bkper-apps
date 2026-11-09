@@ -32,7 +32,7 @@ export const CATEGORIES = [
     'balance',
     /** Periods that have not started. */
     'future',
-    /** A comparison that is later than the period, or another kind of period. */
+    /** A comparison of another kind of period, or of all time. */
     'invalid_comparison',
     /** No period at all: the report reads its default one. */
     'no_period',
@@ -1603,6 +1603,55 @@ const namedComparison: PeriodCase[] = [
         },
         [['en', 'expenses February vs February 2024']]
     ),
+    // A comparison named later than the period swaps with it: the later one is the period.
+    ...group(
+        'year-2016-vs-2018',
+        {
+            category: 'named_comparison',
+            today: NOV,
+            book: 'nimbus',
+            nature: A,
+            expected: { period: { year: 2018 }, compared: { year: 2016 } },
+        },
+        [
+            ['en', 'expenses 2016 vs 2018'],
+            ['pt', 'despesas de 2016 contra 2018'],
+        ]
+    ),
+    ...group(
+        'year-2024-vs-2025',
+        {
+            category: 'named_comparison',
+            today: NOV,
+            book: 'personal',
+            nature: A,
+            expected: { period: { year: 2025 }, compared: { year: 2024 } },
+        },
+        [
+            ['en', 'revenue 2024 vs 2025'],
+            ['es', 'ingresos 2024 frente a 2025'],
+        ]
+    ),
+    ...singles(
+        {
+            category: 'named_comparison',
+            today: NOV,
+            book: 'personal',
+            nature: A,
+            expected: { period: { year: 'current' }, compared: { year: 'previous' } },
+        },
+        [['en', 'expenses last year compared with this year']]
+    ),
+    ...singles(
+        {
+            category: 'named_comparison',
+            today: NOV,
+            book: 'personal',
+            nature: A,
+            expected: { period: { year: 2025, month: 4 }, compared: { year: 2025, month: 3 } },
+        },
+        [['en', 'expenses March 2025 vs April 2025']]
+    ),
 ];
 
 const mixedComparison: PeriodCase[] = [
@@ -2020,52 +2069,6 @@ const invalidComparison: PeriodCase[] = [
         {
             category: 'invalid_comparison',
             today: NOV,
-            book: 'nimbus',
-            nature: A,
-            expected: { period: { year: 2016 }, compared: { year: 2018 } },
-        },
-        [
-            ['en', 'expenses 2016 vs 2018'],
-            ['pt', 'despesas de 2016 contra 2018'],
-        ]
-    ),
-    ...singles(
-        {
-            category: 'invalid_comparison',
-            today: NOV,
-            book: 'personal',
-            nature: A,
-            expected: { period: { year: 2024 }, compared: { year: 2025 } },
-        },
-        [
-            ['en', 'revenue 2024 vs 2025'],
-            ['es', 'ingresos 2024 frente a 2025'],
-        ]
-    ),
-    ...singles(
-        {
-            category: 'invalid_comparison',
-            today: NOV,
-            book: 'personal',
-            nature: A,
-            expected: { period: { year: 'previous' }, compared: { year: 'current' } },
-        },
-        [['en', 'expenses last year compared with this year']]
-    ),
-    ...singles(
-        {
-            category: 'invalid_comparison',
-            today: NOV,
-            book: 'personal',
-            nature: A,
-            expected: { period: { year: 2025, month: 3 }, compared: { year: 2025, month: 4 } },
-        },
-        [['en', 'expenses March 2025 vs April 2025']]
-    ),
-    ...singles(
-        {
-            category: 'invalid_comparison',
-            today: NOV,
             book: 'personal',
             nature: A,
             expected: { period: { year: 'previous' }, compared: { month: 1 } },
@@ -2073,6 +2076,8 @@ const invalidComparison: PeriodCase[] = [
         [
             ['en', 'expenses last year vs January'],
             ['de', 'Ausgaben letztes Jahr im Vergleich zum Januar'],
+            ['es', 'gastos del año pasado frente a enero'],
+            ['ja', '昨年の支出と1月の比較'],
         ]
     ),
     ...singles(
@@ -2086,6 +2091,7 @@ const invalidComparison: PeriodCase[] = [
         [
             ['en', 'expenses 2024 vs Q1 2023'],
             ['pt', 'despesas de 2024 contra o primeiro trimestre de 2023'],
+            ['it', 'spese 2024 rispetto al primo trimestre 2023'],
         ]
     ),
     ...singles(

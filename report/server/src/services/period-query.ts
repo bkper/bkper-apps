@@ -157,7 +157,9 @@ interface Normalized {
 /**
  * The dates of a period's query and of its comparison's, or why there is no period. A period
  * that names no year for its month or quarter is this year's, or last year's when it has not
- * started yet. A comparison must be the same kind of period, wholly earlier.
+ * started yet. A comparison must be the same kind of period, wholly earlier; one wholly later
+ * swaps with the period (a person comparing two periods wants both, and change reads from the
+ * earlier to the later), so the later one is read as the period, to this month when running.
  */
 export function buildPeriodQuery(request: PeriodRequest, context: PeriodQueryContext): PeriodQuery {
     assertParts(request.period);
@@ -169,13 +171,24 @@ export function buildPeriodQuery(request: PeriodRequest, context: PeriodQueryCon
     if (!normalized) {
         return { ok: false, reason: 'unspecified_period' };
     }
-    const period = resolvePeriod(normalized, current);
-    if (period.first !== undefined && period.first > current) {
+    const whole = resolvePeriod(normalized, current);
+    if (whole.first !== undefined && whole.first > current) {
         return { ok: false, reason: 'future_period' };
     }
-    period.last = Math.min(period.last, current);
+    let period: Months = { ...whole, last: Math.min(whole.last, current) };
     const write = (months: Months) => periodDates(months, context.nature, current);
-    const comparison = compare(normalized, period, request, current);
+    let comparison = compare(normalized, period, request, current);
+    if (
+        typeof comparison === 'object' &&
+        comparison.first !== undefined &&
+        comparison.first > period.last
+    ) {
+        const later = swap(period, comparison, whole.last - (whole.first ?? 0) + 1, current);
+        if (!later) {
+            return { ok: false, reason: 'future_period' };
+        }
+        ({ period, comparison } = later);
+    }
     return {
         ok: true,
         period: write(period),
@@ -349,7 +362,7 @@ function compare(
     if (first === undefined) {
         return 'comparison_kind_mismatch';
     }
-    if (first.index + length - 1 >= period.first) {
+    if (first.index + length - 1 >= period.first && first.index <= period.last) {
         return 'comparison_not_earlier';
     }
     return {
@@ -357,6 +370,28 @@ function compare(
         first: first.index,
         last: first.index + length - 1,
         relative: first.relative,
+    };
+}
+
+/**
+ * A comparison wholly later than the period, as the period, cut at the current month, and the
+ * period as its comparison, over as many months; `undefined` when the later one has not started.
+ * `length` is the months of the period before it was cut.
+ */
+function swap(
+    period: Months,
+    later: Months,
+    length: number,
+    current: number
+): { period: Months; comparison: Months } | undefined {
+    const first = later.first ?? current;
+    if (first > current || period.first === undefined) {
+        return undefined;
+    }
+    const last = Math.min(first + length - 1, current);
+    return {
+        period: { ...later, last },
+        comparison: { ...period, last: period.first + last - first },
     };
 }
 

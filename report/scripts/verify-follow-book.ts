@@ -2,6 +2,8 @@
  * Browser verification of the report following the query a Book shows its transactions with.
  * Run with the Vite client running: npx tsx scripts/verify-follow-book.ts
  * Screenshots: /tmp/report-follow-book (override with --screenshots=<directory>).
+ * `--app=https://report-preview.bkper.app` runs the client build that was deployed there
+ * (`--client`, default `dist/client`) at its own origin instead (see `deployed-app.ts`).
  *
  * The API is stubbed with recorded specs (client/dev/specs/studio.json); no Book, Worker or KV
  * is read. This page plays the Book as bkper-clients implements it (`AppBuilder.ts`,
@@ -32,14 +34,15 @@ import { chromium, type Frame, type Page } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
 import { reportText } from '../shared/src/report-text.ts';
 import { decodeUrlState, type UrlState } from '../shared/src/url-state.ts';
+import { serveDeployedApp } from './deployed-app.ts';
 
-const APP = 'http://localhost:5207';
+const option = (name: string): string | undefined =>
+    process.argv.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const APP = new URL(option('app') ?? 'http://localhost:5207').origin;
 const HOST = 'https://bkper.app';
 const BOOK = 'fixture-book';
 const TIMEOUT_MS = 10_000;
-const screenshots =
-    process.argv.find(arg => arg.startsWith('--screenshots='))?.split('=')[1] ??
-    '/tmp/report-follow-book';
+const screenshots = option('screenshots') ?? '/tmp/report-follow-book';
 
 interface Fixture {
     id: string;
@@ -518,6 +521,7 @@ async function open(options: {
         if (url.origin === APP && req.method() === 'GET') return route.continue();
         return route.abort();
     });
+    await serveDeployedApp(context, APP, 'mock-only-token', option('client'));
     if (embedded) await page.goto(`${HOST}/books/${BOOK}/transactions?app=report`);
     else await page.goto(`${APP}/?book=${BOOK}&bookQuery=${encodeURIComponent(options.query)}`);
     const panel = embedded ? await appFrame(page) : page.mainFrame();

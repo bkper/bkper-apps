@@ -3,14 +3,16 @@
  * the real report file, from the running app's API, in the Agent's file frame, and the real
  * Report app, in the Book's panel. Read-only, with your `bkper auth token`.
  *
- *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--prompt=<text>] <bookId>
+ *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--client=<dir>] [--prompt=<text>] <bookId>
  *
  * The file is of the Book's first suggestion (by its text), or of `--prompt`, such as one that
  * names an Account (read by Bkper AI).
  *
  * Needs the app running locally (`npm run dev`: `--app` defaults to the client at
- * http://localhost:5207, `--api` to the Worker at http://localhost:8809) and Playwright's
- * Chromium headless shell. This page plays the two hosts, as bkper-clients implements them:
+ * http://localhost:5207, `--api` to the Worker at http://localhost:8809), or deployed (both
+ * `--app` and `--api` at `https://report-preview.bkper.app`: the app's origin then serves the
+ * client build that was deployed, `--client`, default `dist/client`, with the deployed API; see
+ * `deployed-app.ts`), and Playwright's Chromium headless shell. This page plays the two hosts, as bkper-clients implements them:
  *
  * - The Book (`https://bkper.app/books/<bookId>/transactions`, served here) shows the app the
  *   URL names (`app`, `appState`) in its panel, from the menu URL of `bkper.yaml` with
@@ -33,6 +35,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { chromium, type Frame, type Page, type Request } from 'playwright-core';
 import type { ViewKind } from '../shared/src/catalog.ts';
+import { serveDeployedApp } from './deployed-app.ts';
 import type { ReportFileData } from '../shared/src/report-file.ts';
 import { decodeUrlState, type UrlState } from '../shared/src/url-state.ts';
 
@@ -260,7 +263,7 @@ async function main(): Promise<void> {
     const [bookId] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
     if (!bookId) {
         throw new Error(
-            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--prompt=<text>] <bookId>'
+            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--client=<dir>] [--prompt=<text>] <bookId>'
         );
     }
     const token = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
@@ -305,6 +308,7 @@ async function main(): Promise<void> {
         await context.route(`${AGENT}**`, route =>
             route.fulfill({ contentType: 'text/html', body: agentPage() })
         );
+        await serveDeployedApp(context, appOrigin, token, option('client', 'dist/client'));
         const page = await context.newPage();
         const fileRequests: string[] = [];
         const reportBodies: unknown[] = [];

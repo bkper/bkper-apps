@@ -67,27 +67,6 @@
                         "main": "ranked-bar",
                         "views": [
                             {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Net income⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-net",
-                                            "label": "Net income",
-                                            "color": "grey",
-                                            "values": [
-                                                "4186.74"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "ranked-bar",
                                 "name": "Ranked"
                             },
@@ -291,27 +270,6 @@
                         "main": "ranked-bar",
                         "views": [
                             {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Expenses⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-expenses",
-                                            "label": "Expenses",
-                                            "color": "red",
-                                            "values": [
-                                                "813.26"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "ranked-bar",
                                 "name": "Ranked"
                             },
@@ -511,27 +469,6 @@
                         "label": "Charts",
                         "main": "compare",
                         "views": [
-                            {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Net income⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-net",
-                                            "label": "Net income",
-                                            "color": "grey",
-                                            "values": [
-                                                "4186.74"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
                             {
                                 "kind": "ranked-bar",
                                 "name": "Ranked",
@@ -736,6 +673,17 @@
                                     "kind": "line",
                                     "label": "⁨Assets⁩ por mês",
                                     "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
                                         "2026-11"
                                     ],
                                     "series": [
@@ -744,7 +692,123 @@
                                             "label": "Assets",
                                             "color": "blue",
                                             "values": [
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "4286.74",
                                                 "8236.49"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Área",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨Assets⁩ por mês",
+                                    "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-assets",
+                                            "label": "Assets",
+                                            "color": "blue",
+                                            "values": [
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "4286.74",
+                                                "8236.49"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "stacked",
+                                "name": "Empilhado",
+                                "chart": {
+                                    "kind": "stacked",
+                                    "label": "⁨Assets⁩ por mês",
+                                    "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "4186.74",
+                                                "8136.49"
+                                            ]
+                                        },
+                                        {
+                                            "id": "a-cash",
+                                            "label": "Cash",
+                                            "color": "blue",
+                                            "values": [
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100",
+                                                "100"
                                             ]
                                         }
                                     ]
@@ -821,6 +885,17 @@
                     "props": {
                         "label": "Detalhamento",
                         "months": [
+                            "2025-12",
+                            "2026-01",
+                            "2026-02",
+                            "2026-03",
+                            "2026-04",
+                            "2026-05",
+                            "2026-06",
+                            "2026-07",
+                            "2026-08",
+                            "2026-09",
+                            "2026-10",
                             "2026-11"
                         ],
                         "columns": {
@@ -844,6 +919,17 @@
                                 "change": "0.9434",
                                 "share": "0.9879",
                                 "months": [
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "4186.74",
                                     "8136.49"
                                 ],
                                 "children": [
@@ -857,6 +943,17 @@
                                         "change": "0.9434",
                                         "share": "1",
                                         "months": [
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "0",
+                                            "4186.74",
                                             "8136.49"
                                         ],
                                         "children": []
@@ -873,6 +970,17 @@
                                 "change": "0",
                                 "share": "0.0121",
                                 "months": [
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
+                                    "100",
                                     "100"
                                 ],
                                 "children": []
@@ -1399,6 +1507,17 @@
                                     "kind": "line",
                                     "label": "⁨Banks⁩ by month",
                                     "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
                                         "2026-11"
                                     ],
                                     "series": [
@@ -1407,6 +1526,60 @@
                                             "label": "Banks",
                                             "color": "blue",
                                             "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "4186.74",
+                                                "8136.49"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "kind": "area",
+                                "name": "Area",
+                                "chart": {
+                                    "kind": "area",
+                                    "label": "⁨Banks⁩ by month",
+                                    "months": [
+                                        "2025-12",
+                                        "2026-01",
+                                        "2026-02",
+                                        "2026-03",
+                                        "2026-04",
+                                        "2026-05",
+                                        "2026-06",
+                                        "2026-07",
+                                        "2026-08",
+                                        "2026-09",
+                                        "2026-10",
+                                        "2026-11"
+                                    ],
+                                    "series": [
+                                        {
+                                            "id": "g-banks",
+                                            "label": "Banks",
+                                            "color": "blue",
+                                            "values": [
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "0",
+                                                "4186.74",
                                                 "8136.49"
                                             ]
                                         }
@@ -1451,6 +1624,17 @@
                     "props": {
                         "label": "Breakdown",
                         "months": [
+                            "2025-12",
+                            "2026-01",
+                            "2026-02",
+                            "2026-03",
+                            "2026-04",
+                            "2026-05",
+                            "2026-06",
+                            "2026-07",
+                            "2026-08",
+                            "2026-09",
+                            "2026-10",
                             "2026-11"
                         ],
                         "columns": {
@@ -1474,6 +1658,17 @@
                                 "change": "0.9434",
                                 "share": "1",
                                 "months": [
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "0",
+                                    "4186.74",
                                     "8136.49"
                                 ],
                                 "children": []
@@ -2109,27 +2304,6 @@
                         "main": "ranked-bar",
                         "views": [
                             {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Net income⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-net",
-                                            "label": "Net income",
-                                            "color": "grey",
-                                            "values": [
-                                                "4186.74"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "ranked-bar",
                                 "name": "Ranked"
                             },
@@ -2346,27 +2520,6 @@
                         "main": "compare",
                         "views": [
                             {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Net income⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-net",
-                                            "label": "Net income",
-                                            "color": "grey",
-                                            "values": [
-                                                "4186.74"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "ranked-bar",
                                 "name": "Ranked",
                                 "chart": {
@@ -2575,35 +2728,6 @@
                         "main": "ranked-bar",
                         "views": [
                             {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨⁨Food⁩ and ⁨Rent⁩⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "a-food",
-                                            "label": "Food",
-                                            "color": "red",
-                                            "values": [
-                                                "-186.74"
-                                            ]
-                                        },
-                                        {
-                                            "id": "a-rent",
-                                            "label": "Rent",
-                                            "color": "red",
-                                            "values": [
-                                                "1000"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "ranked-bar",
                                 "name": "Ranked"
                             },
@@ -2788,27 +2912,6 @@
                         "label": "Charts",
                         "main": "ranked-bar",
                         "views": [
-                            {
-                                "kind": "bar",
-                                "name": "By month",
-                                "chart": {
-                                    "kind": "bar",
-                                    "label": "⁨Expenses⁩ by month",
-                                    "months": [
-                                        "2026-10"
-                                    ],
-                                    "series": [
-                                        {
-                                            "id": "g-expenses",
-                                            "label": "Expenses",
-                                            "color": "red",
-                                            "values": [
-                                                "813.26"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
                             {
                                 "kind": "ranked-bar",
                                 "name": "Ranked"

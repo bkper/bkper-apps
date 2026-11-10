@@ -485,7 +485,7 @@ describe('createReport by prompt', () => {
                 permanent: false,
             },
             chart: {
-                fitting: ['bar', 'ranked-bar', 'compare', 'table'],
+                fitting: ['ranked-bar', 'compare', 'table'],
                 main: 'ranked-bar',
                 rule: 'closest',
                 unfit: { kind: 'donut', reason: { code: 'net_result' } },

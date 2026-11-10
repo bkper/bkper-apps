@@ -520,6 +520,52 @@ describe('buildReport: position', () => {
         expect(data.chart).toEqual({ kind: 'donut', rows: ['g-banks', 'a-cash'] });
     });
 
+    it('draws a balance now as the 12 month-ends ending today, from the same query', async () => {
+        const request = intent('g-assets', 'today');
+        expect(planQueries(planReport(request, await ledgerSnapshot(fixtureLedger())))).toEqual([
+            "group:'Assets' before:$d+1 by:m",
+            "group:'Assets' before:$m by:m",
+        ]);
+        const data = await report(request);
+        expect(data.months).toEqual([
+            '2025-12',
+            '2026-01',
+            '2026-02',
+            '2026-03',
+            '2026-04',
+            '2026-05',
+            '2026-06',
+            '2026-07',
+            '2026-08',
+            '2026-09',
+            '2026-10',
+            '2026-11',
+        ]);
+        const line = data.charts.views.find(view => view.kind === 'line');
+        expect(line).toMatchObject({
+            kind: 'line',
+            series: [
+                {
+                    id: 'g-assets',
+                    amounts: [...Array<string>(10).fill('100'), '3899.5', '7849.25'],
+                },
+            ],
+        });
+        // The last point is the balance shown, today's.
+        expect(data.answer.amount).toBe('7849.25');
+        // The headline and the comparison are those of the balance itself.
+        expect(data.answer).toEqual({ amount: '7849.25', previous: '3899.5', change: '1.0129' });
+    });
+
+    it('draws a balance at the end of a month as the 12 month-ends ending then', async () => {
+        const data = await report(intent('g-assets', '2026-09', { monthly: true }));
+        expect(data.months[0]).toBe('2025-10');
+        expect(data.months.at(-1)).toBe('2026-09');
+        expect(data.months).toHaveLength(12);
+        expect(data.chart).toMatchObject({ kind: 'line' });
+        expect(data.answer.amount).toBe('100');
+    });
+
     it('shows positions at the end of each month on a line', async () => {
         const data = await report(intent('g-assets', '2026-Q4', { monthly: true }));
         expect(data.period).toEqual({
@@ -1311,32 +1357,8 @@ describe('buildReport: net result Report calculates from simple roots', () => {
             'Revenue 5000 (prev 5000, change 0, share -)',
             'Expenses 1050.25 (prev 1200.5, change -0.1252, share -)',
         ]);
-        expect(data.chart).toEqual({
-            kind: 'bar',
-            series: [
-                {
-                    id: 'g-revenue',
-                    name: 'Revenue',
-                    type: 'INCOMING',
-                    color: 'green',
-                    amounts: ['5000'],
-                },
-                {
-                    id: 'g-expenses',
-                    name: 'Expenses',
-                    type: 'OUTGOING',
-                    color: 'red',
-                    amounts: ['1050.25'],
-                },
-                {
-                    id: 'net-result',
-                    type: 'MIXED',
-                    color: 'grey',
-                    line: true,
-                    amounts: ['3949.75'],
-                },
-            ],
-        });
+        // One month by month is no chart: its roots are ranked instead.
+        expect(data.chart).toEqual({ kind: 'ranked-bar', rows: ['g-revenue', 'g-expenses'] });
     });
 
     it('subtracts the Outgoing roots from the Incoming roots in every month', async () => {
@@ -1546,7 +1568,7 @@ describe('buildReport: chart', () => {
             intent('g-expenses', 'last_month', { monthly: true, view: 'breakdown' })
         );
         expect(breakdown.chart.kind).toBe('donut');
-        const trend = await report(intent('g-expenses', 'last_month', { view: 'trend' }));
+        const trend = await report(intent('g-expenses', '2026', { view: 'trend' }));
         expect(trend.chart.kind).toBe('bar');
     });
 
@@ -1942,9 +1964,29 @@ describe('buildReport: chart views', () => {
 
     it('computes the charts of a position', async () => {
         const data = await report(intent('g-assets', 'today'));
-        expect(kinds(data)).toEqual(['line', 'ranked-bar', 'donut', 'compare', 'table']);
-        expect(data.charts.facts).toMatchObject({ months: 1, previous: true, permanent: true });
+        expect(kinds(data)).toEqual([
+            'line',
+            'area',
+            'stacked',
+            'ranked-bar',
+            'donut',
+            'compare',
+            'table',
+        ]);
+        expect(data.charts.facts).toMatchObject({ months: 12, previous: true, permanent: true });
         expect(data.charts.main).toBe('donut');
+    });
+
+    it('never offers a chart by month of a single month', async () => {
+        const month = await report(intent('g-expenses', 'last_month', { monthly: true }));
+        expect(month.months).toEqual(['2026-10']);
+        expect(kinds(month)).not.toContain('bar');
+        expect(kinds(month)).not.toContain('line');
+        // A trend of one month shows its parts instead.
+        expect(month.charts).toMatchObject({ main: 'donut', rule: 'rules' });
+        const bars = await report(intent('g-expenses', 'last_month', { chart: 'bar' }));
+        expect(bars.charts.unfit).toEqual({ kind: 'bar', reason: { code: 'few_months' } });
+        expect(bars.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
     });
 
     it('has only the table when no chart fits', async () => {

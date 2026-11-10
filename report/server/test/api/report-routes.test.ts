@@ -499,8 +499,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(area.chart).toEqual({ kind: 'donut', fallback: true, asked: 'area' });
         const choices = elementOf(area.spec, 'Visualizations').props;
         expect(choices.main).toBe('donut');
+        // One month by month is no chart.
         expect(choices.views.map(view => view.kind)).toEqual([
-            'bar',
             'ranked-bar',
             'donut',
             'compare',

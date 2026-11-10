@@ -195,7 +195,7 @@ export type UnfitReason =
     | { code: 'few_parts' }
     /** More parts than a donut shows, or than stacked bars draw. */
     | { code: 'too_many_parts' }
-    /** Fewer months than the chart needs: two over time, one for a chart by month. */
+    /** Fewer months than the chart needs: two, as one point by month is no chart. */
     | { code: 'few_months' }
     /** Every value the chart would draw is zero. */
     | { code: 'no_amounts' }
@@ -310,7 +310,7 @@ export interface ReportBase {
      * breakdown is its roots, Incoming first.
      */
     calculated?: { months: string[] };
-    /** The months of the period, in order. */
+    /** The months shown, in order: the period's; a balance as of a day, the 12 month-ends ending then. */
     months: IsoMonth[];
     /** The main chart: `fallback` when the intent preferred another, which does not fit. */
     chart: ReportChart;
@@ -552,7 +552,7 @@ export function buildReport(
         ])
     );
     assertAccountsRead(snapshot, plan, sources);
-    const months = reportMonths(period.read, [...sources.values()]);
+    const months = reportMonths(period.read, nature, [...sources.values()]);
     const reader = new RowReader(snapshot, nature, period, months);
     const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
     // Every query of a period has the same dates, so the first source's answers say what each read.
@@ -974,18 +974,32 @@ function readDaysOf(
 }
 
 /**
- * The months a report shows, those of its period, from its first month (all time: the first
- * month Bkper answers the report's queries with, in a plausible year) to its last. Bkper may
- * also answer a month after them, such as the month of `before:` in a query without `after:`;
- * it is left out.
+ * The month-ends a balance as of a day (now, or the end of a month) is drawn over: the 11 before
+ * it and its own, so its line shows the year that led to it.
  */
-function reportMonths(read: PeriodDates, sources: SourceBalances[]): IsoMonth[] {
-    const first =
-        read.first ??
-        firstMonth(
-            sources.map(source => source.current),
-            read.last
-        );
+export const BALANCE_LINE_MONTHS = 12;
+
+/**
+ * The months a report shows, those of its period, from its first month (all time: the first
+ * month Bkper answers the report's queries with, in a plausible year) to its last; a balance as
+ * of a day, the {@link BALANCE_LINE_MONTHS} month-ends ending then. A position reads every
+ * movement before its day, never with `after:`, so its query's monthly buckets already hold
+ * those month-ends: the line needs no other query. Bkper may also answer a month after them,
+ * such as the month of `before:` in a query without `after:`; it is left out.
+ */
+function reportMonths(
+    read: PeriodDates,
+    nature: ReportNature,
+    sources: SourceBalances[]
+): IsoMonth[] {
+    const asOfDay = nature === 'position' && (read.kind === 'now' || read.kind === 'month');
+    const first = asOfDay
+        ? monthsBefore(read.last, BALANCE_LINE_MONTHS - 1)
+        : (read.first ??
+          firstMonth(
+              sources.map(source => source.current),
+              read.last
+          ));
     const months: IsoMonth[] = [];
     for (let month = first; month !== undefined && month <= read.last; month = nextMonth(month)) {
         months.push(month);
@@ -1000,6 +1014,12 @@ function firstMonth(answers: QueryBalances[], last: IsoMonth): IsoMonth | undefi
         .flatMap(node => node.months.map(({ month }) => month))
         .filter(month => isPlausibleYear(Number(month.slice(0, 4))) && month <= last)
         .sort()[0];
+}
+
+function monthsBefore(month: IsoMonth, count: number): IsoMonth {
+    const [year, monthOfYear] = month.split('-').map(Number);
+    const index = year * 12 + monthOfYear - 1 - count;
+    return isoMonth(Math.floor(index / 12), (index % 12) + 1);
 }
 
 function nextMonth(month: IsoMonth): IsoMonth {
@@ -1358,12 +1378,7 @@ function reportCharts(
         return isFit(fit) ? fit.chart : undefined;
     };
     const views = VIEW_KINDS.flatMap(kind => fitting(kind) ?? []);
-    const chosen = mainChoice(
-        preference,
-        fits,
-        () => rulesKind(view, input, fits, byMonth),
-        input.months.length
-    );
+    const chosen = mainChoice(preference, fits, () => rulesKind(view, input, fits, byMonth));
     const main = fitting(chosen.main);
     if (!main) {
         throw new Error(`The main chart does not fit: ${chosen.main}`);
@@ -1384,8 +1399,7 @@ function reportCharts(
 function mainChoice(
     preference: ShownPreference,
     fits: ReadonlyMap<ViewKind, Fit>,
-    byRules: () => ViewKind,
-    months: number
+    byRules: () => ViewKind
 ): { main: ViewKind; rule: ChartRule; unfit?: ReportCharts['unfit'] } {
     if (preference === 'auto') {
         return { main: byRules(), rule: 'rules' };
@@ -1395,13 +1409,10 @@ function mainChoice(
         return { main: preference, rule: 'preference' };
     }
     const unfit = { kind: preference, reason: fit.reason };
-    // A chart by month of one month shows nothing the parts do not.
     const closest =
         preference === 'table'
             ? undefined
-            : CLOSEST[preference].find(
-                  kind => isFit(fits.get(kind)) && (!isByMonth(kind) || months >= 2)
-              );
+            : CLOSEST[preference].find(kind => isFit(fits.get(kind)));
     return closest
         ? { main: closest, rule: 'closest', unfit }
         : { main: byRules(), rule: 'rules', unfit };
@@ -1437,9 +1448,9 @@ function chartFacts(input: ChartInput): ChartFacts {
 }
 
 /**
- * The rules' chart: by month for a trend (the chart by month offered); else, for a composition
- * asked for or with no view named, a donut of a few parts of one whole, else ranked bars; else
- * the table.
+ * The rules' chart: by month for a trend of two months or more (the chart by month offered);
+ * else, for a composition asked for, a trend of one month or with no view named, a donut of a
+ * few parts of one whole, else ranked bars; else the table.
  */
 function rulesKind(
     view: ReportView | undefined,
@@ -1448,7 +1459,7 @@ function rulesKind(
     byMonth: ViewKind
 ): ViewKind {
     const { series, months } = input;
-    if (view === 'trend' && months.length > 0) {
+    if (view === 'trend' && months.length >= 2) {
         // A chart whose every value is zero shows nothing, as charts leave out empty rows.
         if (!hasValues(series)) {
             return 'table';
@@ -1456,8 +1467,11 @@ function rulesKind(
         return byMonth;
     }
     // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
+    // A trend of one month shows its parts: one point by month is no chart.
     const candidates: ViewKind[] =
-        view === 'breakdown' || view === undefined ? ['donut', 'ranked-bar'] : [];
+        view === 'breakdown' || view === 'trend' || view === undefined
+            ? ['donut', 'ranked-bar']
+            : [];
     return candidates.find(kind => isFit(fits.get(kind))) ?? 'table';
 }
 
@@ -1475,7 +1489,8 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
             return { chart: { kind: 'none' } };
         case 'bar':
         case 'line':
-            if (months.length === 0) {
+            // One point by month shows nothing the parts do not.
+            if (months.length < 2) {
                 return { reason: { code: 'few_months' } };
             }
             return hasValues(series)

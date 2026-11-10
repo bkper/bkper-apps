@@ -536,7 +536,7 @@ describe('buildReportSpec', () => {
 
     it('labels a net result Report calculates, and says so in the Source', async () => {
         const built = await spec(
-            intent('net-result', '2026-10', { monthly: true }),
+            intent('net-result', 'this_quarter', { monthly: true }),
             'en',
             undefined,
             simpleRootsLedger()
@@ -568,7 +568,7 @@ describe('buildReportSpec', () => {
 
     it('totals the table of a net result Report calculates, each root as Bkper returns it', async () => {
         const data = await report(
-            intent('net-result', 'this_month', { monthly: true }),
+            intent('net-result', 'this_quarter', { monthly: true }),
             undefined,
             simpleRootsLedger()
         );
@@ -580,15 +580,15 @@ describe('buildReportSpec', () => {
             const series = 'series' in chart && chart.series.find(entry => entry.id === id);
             return [row?.amount, row?.change, series && series.values];
         };
-        expect(root('g-expenses')).toEqual(['1050.25', '-0.1252', ['1050.25']]);
-        expect(root('g-revenue')).toEqual(['5000', '0', ['5000']]);
+        expect(root('g-expenses')).toEqual(['2250.75', '1.2508', ['1200.5', '1050.25']]);
+        expect(root('g-revenue')).toEqual(['10000', undefined, ['5000', '5000']]);
         expect(table.total).toEqual({
             label: 'Net result',
             color: 'grey',
-            amount: '3949.75',
-            previous: '3799.5',
-            change: '0.0395',
-            months: ['3949.75'],
+            amount: '7749.25',
+            previous: '-1000',
+            change: '8.7493',
+            months: ['3799.5', '3949.75'],
         });
     });
 

@@ -3,10 +3,17 @@ import { describe, expect, it } from 'bun:test';
 import { CASES, type ExtractionCase } from '../../eval/system-one/cases.js';
 import type { SystemOneResponse } from '../../eval/system-one/contract.js';
 import { geminiPrompt, geminiRequestMatches, geminiSystemPrompt } from '../../eval/system-one/gemini.js';
-import { buildClairicRequest, type DocumentContent } from '../../eval/system-one/request.js';
+import { buildClairicRequest, buildClairicTunedRequest, type DocumentContent } from '../../eval/system-one/request.js';
 import {
     checkSpans,
     CLAIRIC,
+    CLAIRIC_TUNED,
+    CLAIRIC_TUNED_DATED,
+    CLAIRIC_TUNED_FIELDS,
+    CLAIRIC_TUNED_NOTES,
+    clairicRequest,
+    describeItems,
+    detectCurrency,
     fieldOutcome,
     GEMINI,
     itemsAddUp,
@@ -22,6 +29,7 @@ const TEXT = 'Invoice A-1 from Café Sol, 2026-10-01. Bread 3.00, coffee 2.50, t
 const CASE: ExtractionCase = {
     id: 'test-invoice',
     tags: ['pt', 'invoice'],
+    buyer: 'Padaria Pão Quente ME',
     text: TEXT,
     expected: {
         date: '2026-10-01',
@@ -64,6 +72,28 @@ function clairicBody(overrides: Record<string, unknown> = {}): SystemOneResponse
 
 function clairicCall(body: unknown, status = 200): RecordedCall {
     return { caseId: CASE.id, model: CLAIRIC, status, latencyMs: 100, request: buildClairicRequest(CLAIRIC, CASE, DOCUMENT), body };
+}
+
+const IMAGE_CASE: ExtractionCase = { ...CASE, id: 'test-image', tags: ['pt', 'image'], text: undefined, image: { file: 'scan.png', format: 'png' } };
+const IMAGE: DocumentContent = { mimeType: 'image/png', base64: 'iVBORw0KGgo=' };
+
+function tunedBody(overrides: Record<string, unknown> = {}): SystemOneResponse {
+    const { currency: _currency, description: _description, ...answers } = clairicBody().answers;
+    return {
+        ...clairicBody(),
+        answers: { ...answers, item_names: { type: 'list', value: ['Bread', 'coffee'], confidence: 0.9, spans: [null, null] }, ...overrides },
+    };
+}
+
+function tunedCall(body: unknown, extractionCase = CASE, document = DOCUMENT): RecordedCall {
+    return {
+        caseId: extractionCase.id,
+        model: CLAIRIC_TUNED,
+        status: 200,
+        latencyMs: 100,
+        request: buildClairicTunedRequest(CLAIRIC, extractionCase, document),
+        body,
+    };
 }
 
 function geminiCall(transaction: unknown, usage = { input_tokens: 500, output_tokens: 100, input_tokens_details: { cached_tokens: 100 } }): RecordedCall {
@@ -138,6 +168,81 @@ describe('extraction trial scoring', () => {
         expect(scoreCase(CASE, DOCUMENT, [clairicCall(unbalanced)], PRICING).totalVerified).toBe(false);
     });
 
+    it('gives the tuned Clairic the buyer and no reference date, and asks for currency only on images', () => {
+        const text = buildClairicTunedRequest(CLAIRIC, CASE, DOCUMENT);
+        const image = buildClairicTunedRequest(CLAIRIC, IMAGE_CASE, IMAGE);
+
+        expect(text.state).toBe(`Buyer: Padaria Pão Quente ME\n\nDocument:\n${TEXT}`);
+        expect(text.reference_date).toBeUndefined();
+        expect(Object.keys(text.questions)).not.toContain('currency');
+        expect(Object.keys(text.questions)).not.toContain('description');
+        expect(text.questions.item_names).toMatchObject({ type: 'list', items: 'text' });
+        expect(image.state).toBe('Buyer: Padaria Pão Quente ME\n\nScanned document: document-scan');
+        expect(Object.keys(image.questions)).toContain('currency');
+        expect(image.assets?.['document-scan']).toBeDefined();
+        expect(text.questions.date).toMatchObject({ instructions: expect.stringContaining('Null when the document states no such date.') });
+    });
+
+    it('differs from the tuned request only by the reference date when dated', () => {
+        const tuned = clairicRequest(CLAIRIC_TUNED, CASE, DOCUMENT);
+        const dated = clairicRequest(CLAIRIC_TUNED_DATED, CASE, DOCUMENT);
+
+        expect(dated).toEqual({ ...tuned, reference_date: '2026-10-31' });
+        expect(clairicRequest(CLAIRIC, CASE, DOCUMENT)).toEqual(buildClairicRequest(CLAIRIC, CASE, DOCUMENT));
+        expect(scoreCase(CASE, DOCUMENT, [{ ...tunedCall(tunedBody()), model: CLAIRIC_TUNED_DATED, request: dated }], PRICING))
+            .toMatchObject({ model: CLAIRIC_TUNED_DATED, costNanoUsd: 100_000, fields: { currency: { outcome: 'correct' } } });
+    });
+
+    it('adds Book notes between the buyer and the document, and changes nothing else', () => {
+        const dated = clairicRequest(CLAIRIC_TUNED_DATED, CASE, DOCUMENT);
+        const noted = clairicRequest(CLAIRIC_TUNED_NOTES, CASE, DOCUMENT);
+        const notes = noted.state.slice(noted.state.indexOf('Book notes:\n'), noted.state.indexOf('\n\nDocument:'));
+
+        expect(noted.state.startsWith('Buyer: Padaria Pão Quente ME\n\nBook notes:\n- ')).toBe(true);
+        expect(noted.state.endsWith(`\n\nDocument:\n${TEXT}`)).toBe(true);
+        expect({ ...noted, state: noted.state.replace(`${notes}\n\n`, '') }).toEqual(dated);
+        expect(scoreCase(CASE, DOCUMENT, [{ ...tunedCall(tunedBody()), model: CLAIRIC_TUNED_NOTES, request: noted }], PRICING).model)
+            .toBe(CLAIRIC_TUNED_NOTES);
+    });
+
+    it('appends field notes to their questions only, leaving the state as dated', () => {
+        const dated = clairicRequest(CLAIRIC_TUNED_DATED, CASE, DOCUMENT);
+        const fielded = clairicRequest(CLAIRIC_TUNED_FIELDS, CASE, DOCUMENT);
+        const changed = Object.keys(fielded.questions).filter(name =>
+            JSON.stringify(fielded.questions[name]) !== JSON.stringify(dated.questions[name]));
+
+        expect(changed.sort()).toEqual(['date', 'document_number', 'supplier', 'total']);
+        for (const name of changed) {
+            expect(fielded.questions[name].instructions?.startsWith(`${dated.questions[name].instructions} `)).toBe(true);
+        }
+        expect({ ...fielded, questions: dated.questions }).toEqual(dated);
+    });
+
+    it('reads the currency from document text in code, only when the document names one', () => {
+        expect(['Total R$ 6,00', 'TOTAL $18.80', '249,00 €', 'TOTAL DUE (USD)', 'TOTAL £38.49', 'Fatura -R$ 15,00', '(dois mil reais)']
+            .map(detectCurrency)).toEqual(['BRL', 'USD', 'EUR', 'USD', 'GBP', 'BRL', 'BRL']);
+        expect(detectCurrency('Amount: 150.00')).toBeNull();
+        expect(detectCurrency('USt-IdNr. DE 318')).toBeNull();
+        expect(detectCurrency('Paid $10.00, or 9,20 €')).toBeNull();
+    });
+
+    it('describes a purchase by its first three item names', () => {
+        expect(describeItems(['Bread', 'Coffee', 'Milk', 'Cake'])).toBe('Bread, Coffee, Milk');
+        expect(describeItems(['  Bread ', ''])).toBe('Bread');
+        expect(describeItems([])).toBeNull();
+    });
+
+    it('scores the tuned Clairic with currency from code on text and from Clairic on images', () => {
+        const text = scoreCase(CASE, DOCUMENT, [tunedCall(tunedBody())], PRICING);
+        const image = scoreCase(IMAGE_CASE, IMAGE, [tunedCall(tunedBody({ currency: value('text', 'R$') }), IMAGE_CASE, IMAGE)], PRICING);
+
+        expect(text).toMatchObject({ model: CLAIRIC_TUNED, costNanoUsd: 100_000, totalVerified: true });
+        expect(text.fields?.currency).toEqual({ outcome: 'correct' });
+        expect(text.fields?.description).toEqual({ outcome: 'correct' });
+        expect(image.fields?.currency).toMatchObject({ outcome: 'correct', confidence: 0.9 });
+        expect(scoreCase(IMAGE_CASE, IMAGE, [tunedCall(tunedBody(), IMAGE_CASE, IMAGE)], PRICING).error).toBe('invalid_answer');
+    });
+
     it('reports failed calls and malformed answers as errors', () => {
         const rejected = { error: { type: 'invalid_request_error', code: 'unsupported_parameter', param: 'assets', message: 'no' } };
 
@@ -197,7 +302,7 @@ describe('extraction trial scoring', () => {
 
     it('refuses recordings whose requests no longer match the cases', () => {
         const stale = { ...clairicCall(clairicBody()), request: { ...buildClairicRequest(CLAIRIC, CASE, DOCUMENT), state: 'changed' } };
-        const recording = { recordedAt: '2026-11-07', endpoints: {}, release: '2026-11-07', pricing: {}, calls: [stale] };
+        const recording = { recordedAt: {}, endpoints: {}, release: '2026-11-07', pricing: {}, calls: [stale] };
 
         expect(() => scoreRecording([CASE], new Map([[CASE.id, DOCUMENT]]), recording)).toThrow('Recorded request differs');
     });

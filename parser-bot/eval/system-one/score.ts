@@ -10,10 +10,41 @@ import {
 } from './contract.js';
 import { GEMINI_PROPERTIES, geminiRequestMatches, readGeminiAnswer, readGeminiUsage } from './gemini.js';
 import type { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
-import { buildClairicRequest, QUESTIONS, type DocumentContent } from './request.js';
+import { BOOK_NOTES, buildClairicRequest, FIELD_NOTES, buildClairicTunedRequest, QUESTIONS, type DocumentContent } from './request.js';
 
 export const CLAIRIC = 'clairic';
+/** Clairic asked with the bot's context; see `buildClairicTunedRequest`. */
+export const CLAIRIC_TUNED = 'clairic-tuned';
+/** The tuned request plus the reference date, to compare date answers with and without it. */
+export const CLAIRIC_TUNED_DATED = 'clairic-tuned-dated';
+/** The dated request plus Book notes in its state; see `BOOK_NOTES`. */
+export const CLAIRIC_TUNED_NOTES = 'clairic-tuned-notes';
+/** The dated request with the notes that apply in their fields' instructions; see `FIELD_NOTES`. */
+export const CLAIRIC_TUNED_FIELDS = 'clairic-tuned-fields';
 export const GEMINI = 'gemini-flash';
+/** Trial labels that call Clairic. */
+export const CLAIRIC_LABELS = [CLAIRIC, CLAIRIC_TUNED, CLAIRIC_TUNED_DATED, CLAIRIC_TUNED_NOTES, CLAIRIC_TUNED_FIELDS];
+/** Trial labels, in report order. */
+export const MODELS = [...CLAIRIC_LABELS, GEMINI];
+
+/** The catalog model a trial label calls, which sets its price. */
+export function catalogModel(label: string): string {
+    return CLAIRIC_LABELS.includes(label) ? CLAIRIC : label;
+}
+
+/** The Clairic request a trial label sends for a document. */
+export function clairicRequest(label: string, extractionCase: ExtractionCase, document: DocumentContent): SystemOneRequest {
+    if (label === CLAIRIC) return buildClairicRequest(CLAIRIC, extractionCase, document);
+    if (label === CLAIRIC_TUNED) return buildClairicTunedRequest(CLAIRIC, extractionCase, document);
+    if (label === CLAIRIC_TUNED_DATED) return buildClairicTunedRequest(CLAIRIC, extractionCase, document, { referenceDate: true });
+    if (label === CLAIRIC_TUNED_NOTES) {
+        return buildClairicTunedRequest(CLAIRIC, extractionCase, document, { referenceDate: true, bookNotes: BOOK_NOTES });
+    }
+    if (label === CLAIRIC_TUNED_FIELDS) {
+        return buildClairicTunedRequest(CLAIRIC, extractionCase, document, { referenceDate: true, fieldNotes: FIELD_NOTES });
+    }
+    throw new Error(`Not a Clairic label: ${label}`);
+}
 
 /** Gateway prices from the model catalog at recording time, in nano USD per token. */
 export interface ModelPricing {
@@ -33,8 +64,11 @@ export interface RecordedCall {
 }
 
 export interface Recording {
-    recordedAt: string;
+    /** By trial label. */
+    recordedAt: Record<string, string>;
+    /** By trial label. */
     endpoints: Record<string, string>;
+    /** By catalog model. */
     release: string;
     pricing: Record<string, ModelPricing>;
     calls: RecordedCall[];
@@ -133,6 +167,20 @@ export function normalizeText(value: string): string {
 export function normalizeCurrency(value: string): string {
     const key = value.trim().toUpperCase();
     return CURRENCY_ALIASES[key] ?? key;
+}
+
+const CURRENCY_MARKS = /R\$|US\$|\$|€|£|\b(?:USD|BRL|EUR|GBP)\b|\breais\b/giu;
+
+/** The one currency a document's text names, by symbol, code or name; null for none or several. */
+export function detectCurrency(text: string): string | null {
+    const currencies = new Set(Array.from(text.matchAll(CURRENCY_MARKS), match => normalizeCurrency(match[0])));
+    return currencies.size === 1 ? [...currencies][0] : null;
+}
+
+/** A description from the first three item names, as written. */
+export function describeItems(names: string[]): string | null {
+    const kept = names.map(name => name.trim()).filter(name => name !== '').slice(0, 3);
+    return kept.length > 0 ? kept.join(', ') : null;
 }
 
 function alphanumeric(value: string): string {
@@ -235,23 +283,27 @@ export function checkSpans(response: SystemOneResponse, request: SystemOneReques
     return check;
 }
 
+function readValue(answers: Record<string, unknown>, name: string, type: 'text' | 'number' | 'date'): FieldReading | undefined {
+    const answer = answers[name];
+    if (!isValueAnswer(answer, type)) return undefined;
+    return {
+        value: answer.value,
+        ...(answer.guess !== undefined ? { guess: answer.guess } : {}),
+        confidence: answer.confidence,
+        pNull: answer.p_null,
+    };
+}
+
+function readAmounts(answers: Record<string, unknown>, name: string): number[] | undefined {
+    const answer = answers[name];
+    return isListAnswer(answer, 'number') ? answer.value.filter((item): item is number => typeof item === 'number') : undefined;
+}
+
 /** Reads Clairic's answers; undefined when any is missing or malformed. */
 export function readClairic(response: SystemOneResponse): Extraction | undefined {
     const answers = response.answers;
-    const value = (name: string, type: 'text' | 'number' | 'date'): FieldReading | undefined => {
-        const answer = answers[name];
-        if (!isValueAnswer(answer, type)) return undefined;
-        return {
-            value: answer.value,
-            ...(answer.guess !== undefined ? { guess: answer.guess } : {}),
-            confidence: answer.confidence,
-            pNull: answer.p_null,
-        };
-    };
-    const amounts = (name: string): number[] | undefined => {
-        const answer = answers[name];
-        return isListAnswer(answer, 'number') ? answer.value.filter((item): item is number => typeof item === 'number') : undefined;
-    };
+    const value = (name: string, type: 'text' | 'number' | 'date') => readValue(answers, name, type);
+    const amounts = (name: string) => readAmounts(answers, name);
     const date = value(QUESTIONS.date, 'date');
     const total = value(QUESTIONS.total, 'number');
     const currency = value(QUESTIONS.currency, 'text');
@@ -266,6 +318,35 @@ export function readClairic(response: SystemOneResponse): Extraction | undefined
     }
     return {
         fields: { date, total, currency, supplier, document_number: documentNumber, description },
+        items: { lineAmounts, charges, discounts },
+    };
+}
+
+/**
+ * Reads the tuned Clairic's answers. Code supplies what it was not asked: the currency of a text
+ * document, from its text, and the description, from the item names. Undefined when any answer is
+ * missing or malformed.
+ */
+export function readClairicTuned(response: SystemOneResponse, extractionCase: ExtractionCase): Extraction | undefined {
+    const answers = response.answers;
+    const date = readValue(answers, QUESTIONS.date, 'date');
+    const total = readValue(answers, QUESTIONS.total, 'number');
+    const currency = extractionCase.image
+        ? readValue(answers, QUESTIONS.currency, 'text')
+        : { value: detectCurrency(extractionCase.text ?? '') };
+    const supplier = readValue(answers, QUESTIONS.supplier, 'text');
+    const documentNumber = readValue(answers, QUESTIONS.documentNumber, 'text');
+    const itemNames = answers[QUESTIONS.itemNames];
+    const lineAmounts = readAmounts(answers, QUESTIONS.lineAmounts);
+    const charges = readAmounts(answers, QUESTIONS.charges);
+    const discounts = readAmounts(answers, QUESTIONS.discounts);
+    if (!date || !total || !currency || !supplier || !documentNumber || !isListAnswer(itemNames, 'text')
+        || !lineAmounts || !charges || !discounts) {
+        return undefined;
+    }
+    const names = itemNames.value.filter((item): item is string => typeof item === 'string');
+    return {
+        fields: { date, total, currency, supplier, document_number: documentNumber, description: { value: describeItems(names) } },
         items: { lineAmounts, charges, discounts },
     };
 }
@@ -317,7 +398,7 @@ function scoreExtraction(extractionCase: ExtractionCase, extraction: Extraction)
 
 function callCost(model: string, body: unknown, pricing: ModelPricing | undefined): number {
     if (!pricing) return 0;
-    if (model === CLAIRIC) {
+    if (catalogModel(model) === CLAIRIC) {
         return isSystemOneResponse(body)
             ? body.usage.input_tokens * pricing.inputNanoUsdPerToken + body.usage.output_tokens * pricing.outputNanoUsdPerToken
             : 0;
@@ -346,11 +427,11 @@ export function scoreCase(extractionCase: ExtractionCase, document: DocumentCont
     if (last.status !== 200) {
         return { ...base, error: `HTTP ${last.status} ${readSystemOneError(last.body)?.code ?? 'invalid_response'}` };
     }
-    if (last.model === CLAIRIC) {
+    if (catalogModel(last.model) === CLAIRIC) {
         if (!isSystemOneResponse(last.body)) return { ...base, error: 'invalid_response' };
-        const extraction = readClairic(last.body);
+        const extraction = last.model === CLAIRIC ? readClairic(last.body) : readClairicTuned(last.body, extractionCase);
         if (!extraction) return { ...base, error: 'invalid_answer' };
-        const request = buildClairicRequest(last.model, extractionCase, document);
+        const request = clairicRequest(last.model, extractionCase, document);
         return { ...base, ...scoreExtraction(extractionCase, extraction), spans: checkSpans(last.body, request, Boolean(extractionCase.image)) };
     }
     const answer = readGeminiAnswer(last.body);
@@ -536,8 +617,8 @@ export function summarize(model: string, outcomes: CaseOutcome[]): ModelSummary 
 }
 
 function requestMatches(call: RecordedCall, extractionCase: ExtractionCase, document: DocumentContent): boolean {
-    if (call.model === CLAIRIC) {
-        return JSON.stringify(call.request) === JSON.stringify(buildClairicRequest(call.model, extractionCase, document));
+    if (CLAIRIC_LABELS.includes(call.model)) {
+        return JSON.stringify(call.request) === JSON.stringify(clairicRequest(call.model, extractionCase, document));
     }
     if (call.model === GEMINI) return geminiRequestMatches(call.request, document);
     throw new Error(`Recorded call for an unknown model: ${call.model}`);
@@ -567,9 +648,9 @@ export function scoreRecording(cases: ExtractionCase[], documents: Map<string, D
         const extractionCase = casesById.get(first.caseId);
         const document = documents.get(first.caseId);
         if (!extractionCase || !document) throw new Error(`Recorded call for unknown case: ${first.caseId}`);
-        return scoreCase(extractionCase, document, calls, recording.pricing[first.model]);
+        return scoreCase(extractionCase, document, calls, recording.pricing[catalogModel(first.model)]);
     });
-    const models = [...new Set(outcomes.map(outcome => outcome.model))];
+    const models = MODELS.filter(model => outcomes.some(outcome => outcome.model === model));
     return {
         summaries: models.map(model => summarize(model, outcomes.filter(outcome => outcome.model === model))),
         outcomes,

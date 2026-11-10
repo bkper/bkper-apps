@@ -48,6 +48,12 @@ export interface ImageDocument {
 export interface ExtractionCase {
     id: string;
     tags: CaseTag[];
+    /**
+     * Who paid or was billed: the Book's owner, whom Extractor Bot knows from the Book. The
+     * English documents belong to a design studio's Book, the Portuguese ones to a bakery's, except
+     * where the document names another payer.
+     */
+    buyer: string;
     /** The document as plain text, for text documents. */
     text?: string;
     /** The document as an image, for scanned documents. */
@@ -64,6 +70,7 @@ export const CASES: ExtractionCase[] = [
     {
         id: 'en-invoice-office-supply',
         tags: ['en', 'invoice'],
+        buyer: 'Tern & Finch Design LLC',
         text: `BLUEPEAK OFFICE SUPPLY INC.
 1440 Harbor Way, Oakland CA 94607
 
@@ -97,6 +104,7 @@ TOTAL DUE (USD)                                  357.12
     {
         id: 'en-receipt-coffee',
         tags: ['en', 'receipt', 'messy'],
+        buyer: 'Tern & Finch Design LLC',
         text: `  ** HALFMOON COFFEE ROASTERS **
    88 Linden St  Portland OR
   TEL 503-555-0144
@@ -130,6 +138,7 @@ THANK YOU!! come again
     {
         id: 'en-email-saas-receipt',
         tags: ['en', 'email', 'receipt'],
+        buyer: 'Tern & Finch Design LLC',
         text: `From: Lumora Cloud <billing@lumora.example>
 To: ops@ternfinch.example
 Subject: Your receipt from Lumora Cloud #2391-4410
@@ -163,6 +172,7 @@ Questions? Reply to this email.
     {
         id: 'en-utility-bill',
         tags: ['en', 'invoice', 'distractor_dates', 'messy'],
+        buyer: 'Tern & Finch Design LLC',
         text: `CASCADE POWER & LIGHT
 Bill no. CPL-552019          Statement date: 09/28/2026
 Account 0049-221-87
@@ -194,6 +204,7 @@ Pay online at cascadepower.example
     {
         id: 'en-contractor-invoice',
         tags: ['en', 'invoice', 'number_format'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Invoice #0042
 From: Marisol Okafor — Illustration & Layout
 To: Tern & Finch Design LLC
@@ -222,6 +233,7 @@ Payment by bank transfer within 15 days.
     {
         id: 'en-email-no-amount',
         tags: ['en', 'email', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Subject: September consulting invoice
 From: Priya Raman <priya@ramanadvisory.example>
 
@@ -248,6 +260,7 @@ Raman Advisory
     {
         id: 'en-email-reminder-no-date',
         tags: ['en', 'email', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Hello,
 
 Just a friendly reminder that invoice FW-1187 for the spring garden
@@ -271,6 +284,7 @@ Fernwood Landscaping
     {
         id: 'en-hotel-folio',
         tags: ['en', 'invoice', 'distractor_dates'],
+        buyer: 'Tern & Finch Design LLC',
         text: `THE GRANARY HOTEL — GUEST FOLIO
 Folio 55102          Room 214
 Guest: S. Whitfield
@@ -300,6 +314,7 @@ Paid AMEX 23-Sep-2026
     {
         id: 'en-uk-bookshop',
         tags: ['en', 'receipt'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Pickwick & Lane Booksellers
 12 Market Row, York YO1 8AB
 VAT Reg GB 284 1192 07
@@ -329,6 +344,7 @@ VAT included @0% books / 20% other
     {
         id: 'en-order-email',
         tags: ['en', 'email', 'invoice'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Subject: Your Parcelwise order #PW-88310-27 has shipped
 
 Order placed: September 29, 2026
@@ -360,6 +376,7 @@ Order total:       $80.53
     {
         id: 'en-eur-tools-invoice',
         tags: ['en', 'invoice', 'number_format'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Kranich Werkzeuge GmbH · Hafenstraße 9 · 20457 Hamburg
 USt-IdNr. DE 318 204 551
 
@@ -390,6 +407,7 @@ Invoice total                                   380,80 €
     {
         id: 'en-fuel-ocr',
         tags: ['en', 'receipt', 'messy', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         text: `QU1CKST0P FUEL #0218
 H1GHWAY 9 & ELM
 DATE 10/11/26  TIME l7:O3
@@ -416,6 +434,7 @@ AUTH 0O4471
     {
         id: 'en-lunch-no-year',
         tags: ['en', 'receipt', 'yearless_date', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         text: `Saffron Table
 Lunch — Oct 22
 Table 9 · Guests 3
@@ -442,6 +461,7 @@ Total               $55.46
     {
         id: 'en-membership-no-currency',
         tags: ['en', 'receipt', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         text: `PAYMENT CONFIRMATION
 Ref: 77-AC-2093
 Received with thanks from Tern & Finch Design LLC
@@ -462,6 +482,7 @@ Date received: 2026-08-30
     {
         id: 'pt-nfe-distribuidora',
         tags: ['pt', 'invoice', 'number_format'],
+        buyer: 'Padaria Pão Quente ME',
         text: `NOTA FISCAL ELETRÔNICA - NF-e
 Nº 000.457.112   Série 001
 DATA DE EMISSÃO: 08/09/2026
@@ -495,6 +516,7 @@ VALOR TOTAL DA NOTA                          R$  1.324,20
     {
         id: 'pt-cupom-padaria',
         tags: ['pt', 'receipt', 'messy', 'number_format'],
+        buyer: 'Padaria Pão Quente ME',
         text: `PADARIA E CONFEITARIA ESTRELA DO SUL
 R. DAS FLORES 120 - CAMPINAS SP
 CNPJ 98.765.432/0001-10
@@ -526,6 +548,7 @@ TROCO                          1,27
     {
         id: 'pt-fatura-telefone',
         tags: ['pt', 'email', 'invoice', 'distractor_dates'],
+        buyer: 'Padaria Pão Quente ME',
         text: `Assunto: Sua fatura Telenova de setembro chegou
 
 Olá, Marcos!
@@ -560,6 +583,7 @@ Pague com Pix ou boleto até o vencimento.
     {
         id: 'pt-recibo-aluguel',
         tags: ['pt', 'receipt', 'missing_fields'],
+        buyer: 'Ana Beatriz Coelho',
         text: `RECIBO
 
 Recebi de Ana Beatriz Coelho a importância de R$ 2.300,00
@@ -586,6 +610,7 @@ CPF 123.456.789-00
     {
         id: 'pt-nota-servico-sem-data',
         tags: ['pt', 'invoice', 'missing_fields'],
+        buyer: 'Condomínio Jardim das Acácias',
         text: `NOTA DE SERVIÇO 318
 Prestador: Hidráulica Bom Fluxo - Serviços Residenciais
 Cliente: Condomínio Jardim das Acácias
@@ -615,6 +640,7 @@ Assinatura do responsável: ____________
     {
         id: 'pt-email-corrida',
         tags: ['pt', 'email', 'receipt'],
+        buyer: 'Padaria Pão Quente ME',
         text: `Recibo da sua viagem com a Rodax
 
 domingo, 4 de outubro de 2026
@@ -646,6 +672,7 @@ Código da viagem: RDX-7Q4-K19
     {
         id: 'pt-mercado-sem-ano',
         tags: ['pt', 'receipt', 'yearless_date', 'number_format'],
+        buyer: 'Padaria Pão Quente ME',
         text: `SUPERMERCADO BOA COMPRA
 Loja 07 - Recife PE
 Data: 15/10   Hora: 19:22   Caixa 3   Cupom 118204
@@ -675,6 +702,7 @@ CARTAO DEBITO               64,36
     {
         id: 'pt-email-sem-valor',
         tags: ['pt', 'email', 'missing_fields'],
+        buyer: 'Padaria Pão Quente ME',
         text: `Assunto: NF de outubro
 
 Oi, Júlia,
@@ -699,6 +727,7 @@ TecnoReparo Informática
     {
         id: 'img-en-grocery-receipt',
         tags: ['en', 'receipt', 'image'],
+        buyer: 'Tern & Finch Design LLC',
         image: { file: 'en-grocery-receipt.png', format: 'png' },
         expected: {
             date: '2026-09-18',
@@ -715,6 +744,7 @@ TecnoReparo Informática
     {
         id: 'img-pt-farmacia',
         tags: ['pt', 'receipt', 'image', 'number_format'],
+        buyer: 'Padaria Pão Quente ME',
         image: { file: 'pt-farmacia.jpg', format: 'jpeg' },
         expected: {
             date: '2026-10-03',
@@ -731,6 +761,7 @@ TecnoReparo Informática
     {
         id: 'img-en-invoice-no-date',
         tags: ['en', 'invoice', 'image', 'missing_fields'],
+        buyer: 'Tern & Finch Design LLC',
         image: { file: 'en-invoice-no-date.png', format: 'png' },
         expected: {
             date: null,
@@ -747,6 +778,7 @@ TecnoReparo Informática
     {
         id: 'img-pt-servico-eletrica',
         tags: ['pt', 'invoice', 'image'],
+        buyer: 'Padaria Pão Quente ME',
         image: { file: 'pt-servico-eletrica.png', format: 'png' },
         expected: {
             date: '2026-09-21',

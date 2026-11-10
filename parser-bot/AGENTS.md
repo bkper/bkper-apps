@@ -109,7 +109,7 @@ bun run test              # All of the above
 
 Event handlers call Bookbot's discovery API through `src/services/BookbotDiscoveryClient.ts`. When Bookbot's contract changes, copy `bookbot/test/api/openapi.snapshot.json` to `src/clients/bookbot/openapi.json` and run `bun run api`. Local runs cannot call Bookbot (local outbound authorizes only the Bkper API and Bkper AI); tests use the doubles in `test/helpers/bookbot-discovery.ts`.
 
-`eval/system-one/` compares Clairic (Open System One) with the bot's current Gemini extraction on synthetic invoices and receipts; it is not part of the app bundle and reuses `ExtractorInvoice` unchanged. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
+`eval/system-one/` compares Clairic (Open System One), as first asked and with the bot's context, with the bot's current Gemini extraction on synthetic invoices and receipts; it is not part of the app bundle and reuses `ExtractorInvoice` unchanged. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live`, `--live-clairic` and `--live-new` make paid calls and need separate approval.
 
 Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and external parser compatibility. For refactoring, follow the rules above. Run `bun run test` after each step.
 

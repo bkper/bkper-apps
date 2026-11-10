@@ -337,7 +337,7 @@ export const ReportRequestSchema = z
         }),
         format: z.enum(['spec', 'html']).optional().openapi({
             description:
-                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.',
+                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.',
             example: 'html',
         }),
     })

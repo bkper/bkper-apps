@@ -4,6 +4,8 @@ Type what you want to know about your Book, in your own language, and see the re
 
 > **Read-only, with every number from Bkper.** Every amount is a balance Bkper calculates for one group or Account, but for one labelled exception (see [The net result](#the-net-result)); numbers never come from AI. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
 
+> **For agents.** To show a person a report, make one call with their request in their own words and publish the file as it is: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"<their request>","format":"html"}' > report.html`. Its amounts are Bkper balances read by code and it shows the query it read, so don't query or re-check them yourself.
+
 ## How to use it
 
 1. Open a Book in Bkper and, the first time, install Report from _Automations > Apps_.
@@ -97,7 +99,7 @@ OpenAPI:    https://report.bkper.app/openapi.json
 
 | Operation | Route | Effect |
 | --- | --- | --- |
-| Build a report | `POST /api/v1/books/{bookId}/report` | One interactive HTML file (`"format": "html"`) or JSON (default). Read-only |
+| Build a report | `POST /api/v1/books/{bookId}/report` | One interactive HTML file (`"format": "html"`), or the JSON Report's web client renders (default). Read-only |
 | Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, without AI |
 | List names | `GET /api/v1/books/{bookId}/names` | The Book's group and Account names |
 | List saved requests | `GET /api/v1/books/{bookId}/reports` | The Book's shared requests in their order, and what the person may do with them |

@@ -2,7 +2,7 @@
  * Judges what an agent plans to run for a person's report request: the call the Report docs
  * should lead it to, `bkper app api request report /api/v1/books/<bookId>/report` with
  * `{"prompt": <the request in its own words>, "format": "html"}`, saved to an `.html` file that
- * it publishes, and nothing that changes the Book.
+ * it publishes, once, and nothing that changes the Book or re-checks the report's amounts.
  */
 
 /** What the agent would do: shell commands in order, and the files it would publish. */
@@ -37,14 +37,25 @@ export function judgePlan(plan: AgentPlan, bookId: string, request: string): str
         .map(shellWords)
         .filter(words => words[0] === 'bkper' && WRITE_VERBS.has(words[2] ?? ''))
         .map(words => `changes the Book: ${words.join(' ')}`);
+    // Every amount of the report is a Bkper balance read by code: reading them again only adds turns.
+    problems.push(
+        ...plan.commands
+            .map(shellWords)
+            .filter(words => words[0] === 'bkper' && words[1] === 'balance')
+            .map(words => `re-checks the report's amounts: ${words.join(' ')}`)
+    );
 
     const path = `/api/v1/books/${bookId}/report`;
-    const call = plan.commands
+    const calls = plan.commands
         .map(shellWords)
-        .find(words => words.slice(0, 6).join(' ') === `bkper app api request report ${path}`);
-    if (!call) {
+        .filter(words => words.slice(0, 6).join(' ') === `bkper app api request report ${path}`);
+    if (calls.length === 0) {
         return [...problems, `no \`bkper app api request report ${path}\` command`];
     }
+    if (calls.length > 1) {
+        problems.push(`asks Report ${calls.length} times: one html call shows the report`);
+    }
+    const call = calls[calls.length - 1];
 
     const body = parseBody(call);
     if (!body) {

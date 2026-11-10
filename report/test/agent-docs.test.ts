@@ -69,6 +69,21 @@ describe('judgePlan', () => {
         ]);
     });
 
+    it('fails a plan that asks Report again or re-checks its amounts', () => {
+        const command = `bkper app api request report /api/v1/books/${BOOK}/report -d '{"prompt":"${REQUEST}","format":"html"}' > r.html`;
+        const spec = `bkper app api request report /api/v1/books/${BOOK}/report -d '{"prompt":"${REQUEST}","format":"spec"}'`;
+        const recheck = `bkper balance list -b ${BOOK} -q "group:'Expenses' after:2025-01-01 before:2026-01-01"`;
+        const result = judgePlan(
+            { commands: [spec, recheck, command], publish: ['r.html'] },
+            BOOK,
+            REQUEST
+        );
+        expect(result).toEqual([
+            `re-checks the report's amounts: ${shellWords(recheck).join(' ')}`,
+            'asks Report 2 times: one html call shows the report',
+        ]);
+    });
+
     it('fails a plan that changes the Book', () => {
         const command = `bkper app api request report /api/v1/books/${BOOK}/report -d '{"prompt":"${REQUEST}","format":"html"}' > r.html`;
         const result = judgePlan(

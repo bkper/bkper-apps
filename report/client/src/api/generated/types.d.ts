@@ -243,9 +243,9 @@ export interface paths {
          * Build a financial report of a Book from a request in any language
          * @description Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.
          *
-         *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`.
+         *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.
          *
-         *     With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
+         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
          *
          *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
@@ -1477,7 +1477,7 @@ export interface components {
              */
             language?: string;
             /**
-             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is. `spec` (the default) for JSON: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.
+             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.
              * @example html
              * @enum {string}
              */

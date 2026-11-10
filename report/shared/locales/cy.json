@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Trefnu gyda'r Asiant",
     "action_agent_start": "Dechrau gyda'r Asiant",
+    "agent_prompt_custom_report": "Crëwch adroddiad pwrpasol, heb ddefnyddio'r ap Report, sy'n",
     "agent_prompt_mixed_group": "Yn fy Llyfr cyfrifon \"{book}\", mae'r grŵp {group} yn cyfuno balansau (Ased, Rhwymedigaeth) â gweithgarwch (Mewnlif, Alllif). Helpwch fi i'w gwahanu i'w grwpiau eu hunain. Newidiwch grwpiau'n unig, nid trafodion.",
     "agent_prompt_no_net_result": "Does gan fy Llyfr cyfrifon \"{book}\" ddim canlyniad net: does dim grŵp yn cyfuno {incoming} a {outgoing}. Helpwch fi i drefnu ei grwpiau fel bod incwm a threuliau'n cwrdd mewn un grŵp. Newidiwch grwpiau'n unig, nid trafodion.",
     "agent_prompt_no_net_result_general": "Does gan fy Llyfr cyfrifon \"{book}\" ddim canlyniad net: does dim grŵp yn cyfuno ei incwm a'i dreuliau. Helpwch fi i drefnu ei grwpiau fel bod incwm a threuliau'n cwrdd mewn un grŵp. Newidiwch grwpiau'n unig, nid trafodion.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "o ddechrau'r flwyddyn hyd yma {year}",
     "retry": "Rhoi cynnig arall arni",
     "shelf_access_error": "Mae mynediad at adroddiadau a gadwyd wedi newid. Ail-lwytho i wirio mynediad.",
+    "shelf_custom_report": "Adroddiad pwrpasol",
     "shelf_label": "Adroddiadau wedi'u cadw",
     "shelf_load_error": "Nid oedd modd llwytho'r adroddiadau a gadwyd. Rhowch gynnig ar ail-lwytho.",
     "shelf_loading": "Yn llwytho adroddiadau wedi'u cadw…",

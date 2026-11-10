@@ -29,6 +29,8 @@ export type ReportPageState = Pick<
     | 'names'
     | 'agentLink'
     | 'openAgent'
+    | 'customReportLink'
+    | 'openCustomReport'
     | 'openInBkper'
 >;
 

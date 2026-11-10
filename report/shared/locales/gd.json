@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Cuir air dòigh leis an Neach-taice",
     "action_agent_start": "Tòisich leis an Neach-taice",
+    "agent_prompt_custom_report": "Cruthaich aithisg ghnàthaichte, gun an aplacaid Report a chleachdadh, a",
     "agent_prompt_mixed_group": "San Leabhar-cunntais agam \"{book}\", tha am buidheann {group} a’ co-cheangal cothromachaidhean (Maoin, Fiachan) ri gnìomhachd (A-steach, A-mach). Cuidich mi gus an sgaradh nam buidhnean fhèin. Atharraich buidhnean a-mhàin, chan e gnothaichean.",
     "agent_prompt_no_net_result": "Chan eil toradh glan aig an Leabhar-cunntais agam \"{book}\": chan eil buidheann sam bith a’ co-cheangal {incoming} agus {outgoing}. Cuidich mi gus na buidhnean aige a chur air dòigh gus an coinnich teachd-a-steach is cosgaisean ann an aon bhuidheann. Atharraich buidhnean a-mhàin, chan e gnothaichean.",
     "agent_prompt_no_net_result_general": "Chan eil toradh glan aig an Leabhar-cunntais agam \"{book}\": chan eil buidheann sam bith a’ co-cheangal a theachd-a-steach is a chosgaisean. Cuidich mi gus na buidhnean aige a chur air dòigh gus an coinnich teachd-a-steach is cosgaisean ann an aon bhuidheann. Atharraich buidhnean a-mhàin, chan e gnothaichean.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "bho thoiseach na bliadhna gu ruige seo {year}",
     "retry": "Feuch a-rithist",
     "shelf_access_error": "Dh'atharraich cothrom air aithisgean sàbhailte. Ath-luchdaich airson cothrom a sgrùdadh.",
+    "shelf_custom_report": "Aithisg ghnàthaichte",
     "shelf_label": "Aithisgean air an sàbhaladh",
     "shelf_load_error": "Cha b' urrainn dhuinn na aithisgean a chaidh a shàbhaladh a luchdadh. Feuch ris ath-luchdadh.",
     "shelf_loading": "A’ luchdadh aithisgean a chaidh a shàbhaladh…",

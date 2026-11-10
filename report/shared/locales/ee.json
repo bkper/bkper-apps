@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ɖo ɖoɖo kple Agent",
     "action_agent_start": "Dze egɔme kple Agent",
+    "agent_prompt_custom_report": "Wɔ nyatakaka tɔxɛ aɖe, eye mègazã Report app la o, si",
     "agent_prompt_mixed_group": "Le nye Akɔntabuɖuƒe \"{book}\" me la, akaunta ƒuƒoƒo {group} kpe susɔwo (Kesinɔnu, Fe) kple dɔwɔwɔ (Nuvava, Nuyiyi) ɖekae. Kpe ɖe ŋunye mama wo ɖe woawo ŋutɔ ƒe akaunta ƒuƒoƒowo me. Trɔ akaunta ƒuƒoƒowo ko, mègatrɔ asitsatsawo o.",
     "agent_prompt_no_net_result": "Nuŋɔŋlɔ si susɔ mele nye Akɔntabuɖuƒe \"{book}\" si o: akaunta ƒuƒoƒo aɖeke mekpe {incoming} kple {outgoing} ɖekae o. Kpe ɖe ŋunye maɖo eƒe akaunta ƒuƒoƒowo ɖe ɖoɖo nu ale be nuxɔxɔwo kple gazazãwo nado go le akaunta ƒuƒoƒo ɖeka me. Trɔ akaunta ƒuƒoƒowo ko, mègatrɔ asitsatsawo o.",
     "agent_prompt_no_net_result_general": "Nuŋɔŋlɔ si susɔ mele nye Akɔntabuɖuƒe \"{book}\" si o: akaunta ƒuƒoƒo aɖeke mekpe eƒe nuxɔxɔwo kple gazazãwo ɖekae o. Kpe ɖe ŋunye maɖo eƒe akaunta ƒuƒoƒowo ɖe ɖoɖo nu ale be nuxɔxɔwo kple gazazãwo nado go le akaunta ƒuƒoƒo ɖeka me. Trɔ akaunta ƒuƒoƒowo ko, mègatrɔ asitsatsawo o.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "tso ƒea ƒe gɔmedzedze va se ɖe egbe {year}",
     "retry": "Gbugbɔ nɔ agbagba",
     "shelf_access_error": "Nuŋlɔɖi si woɖo da ƒe mɔnu trɔ. Yi enu faa be nàkpɔ mɔnu si le asiwò.",
+    "shelf_custom_report": "Nyatakaka tɔxɛ",
     "shelf_label": "Nyatakaka siwo wokpɔ ɖo",
     "shelf_load_error": "Mete ŋu load nyatakakawo si wolé ɖe asi o. Tsɔ load ake.",
     "shelf_loading": "Eɖoa ŋkɔ ɖe nyatakakawo dzi la le loadɔm…",

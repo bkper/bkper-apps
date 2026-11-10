@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ordina cum Agente",
     "action_agent_start": "Incipe cum Agente",
+    "agent_prompt_custom_report": "Crea relationem propriam, sine applicatione Report, quae",
     "agent_prompt_mixed_group": "In Libro rationum meo \"{book}\", grex {group} residua (Bona, Debita) cum motibus (Introitus, Exitus) coniungit. Adiuva me ea in greges proprios separare. Muta greges tantum, non transactiones.",
     "agent_prompt_no_net_result": "Liber rationum meus \"{book}\" eventum purum non habet: nullus grex {incoming} et {outgoing} coniungit. Adiuva me greges eius ita ordinare ut reditus et impensae in uno grege conveniant. Muta greges tantum, non transactiones.",
     "agent_prompt_no_net_result_general": "Liber rationum meus \"{book}\" eventum purum non habet: nullus grex reditus et impensas eius coniungit. Adiuva me greges eius ita ordinare ut reditus et impensae in uno grege conveniant. Muta greges tantum, non transactiones.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ab initio anni ad hodiernum {year}",
     "retry": "Iterum conare",
     "shelf_access_error": "Aditus ad relationes servatas mutatus est. Rursus onera ut aditum probes.",
+    "shelf_custom_report": "Relatio propria",
     "shelf_label": "Relationes servatae",
     "shelf_load_error": "Relationes servatae onerari non potuerunt. Conare iterum onerare.",
     "shelf_loading": "Relationes servatae onerantur…",

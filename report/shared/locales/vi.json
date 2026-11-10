@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Sắp xếp với Trợ lý",
     "action_agent_start": "Bắt đầu với Trợ lý",
+    "agent_prompt_custom_report": "Hãy tạo một báo cáo tùy chỉnh, không dùng ứng dụng Report, thể hiện",
     "agent_prompt_mixed_group": "Trong Sổ cái \"{book}\" của tôi, nhóm {group} kết hợp số dư (Tài sản, Nợ phải trả) với biến động (Khoản vào, Khoản ra). Hãy giúp tôi tách chúng thành các nhóm riêng. Chỉ thay đổi nhóm, không thay đổi giao dịch.",
     "agent_prompt_no_net_result": "Sổ cái \"{book}\" của tôi không có kết quả ròng: không nhóm nào kết hợp {incoming} và {outgoing}. Hãy giúp tôi sắp xếp các nhóm của nó để thu nhập và chi phí gặp nhau trong một nhóm. Chỉ thay đổi nhóm, không thay đổi giao dịch.",
     "agent_prompt_no_net_result_general": "Sổ cái \"{book}\" của tôi không có kết quả ròng: không nhóm nào kết hợp thu nhập và chi phí của nó. Hãy giúp tôi sắp xếp các nhóm của nó để thu nhập và chi phí gặp nhau trong một nhóm. Chỉ thay đổi nhóm, không thay đổi giao dịch.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "từ đầu năm đến nay {year}",
     "retry": "Thử lại",
     "shelf_access_error": "Quyền truy cập các báo cáo đã lưu đã thay đổi. Hãy tải lại để kiểm tra quyền truy cập.",
+    "shelf_custom_report": "Báo cáo tùy chỉnh",
     "shelf_label": "Báo cáo đã lưu",
     "shelf_load_error": "Không thể tải các báo cáo đã lưu. Hãy thử tải lại.",
     "shelf_loading": "Đang tải các báo cáo đã lưu…",

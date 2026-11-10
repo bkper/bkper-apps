@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Agente ukamp wakicht'aña",
     "action_agent_start": "Agente ukamp qalltaña",
+    "agent_prompt_custom_report": "Report aplicación apnaqasa, mä munata willt'äwi lurapxita, akax uñacht'ayañapawa:",
     "agent_prompt_mixed_group": "Nayan \"{book}\" librojanxa, {group} tamax saldonaka (Yänaka, Manu) lurawinakampi (Mantiri, Misturi) mayacht'i. Jupanakan pachpa tamanakapar jaljañatak yanapt'ita. Tamanak sapakiw mayjt'ayam, janiw transacciónanakx mayjt'aykamti.",
     "agent_prompt_no_net_result": "Nayan \"{book}\" librojax janiw netu jikxatatanïkiti: janiw kuna tamas {incoming} ukat {outgoing} mayacht'kiti. Tamanakap wakicht'añatak yanapt'ita, mantañanakampi misturinakampi mä tamar jikisipxañapataki. Tamanak sapakiw mayjt'ayam, janiw transacciónanakx mayjt'aykamti.",
     "agent_prompt_no_net_result_general": "Nayan \"{book}\" librojax janiw netu jikxatatanïkiti: janiw kuna tamas mantañanakapampi misturinakapampi mayacht'kiti. Tamanakap wakicht'añatak yanapt'ita, mantañanakampi misturinakampi mä tamar jikisipxañapataki. Tamanak sapakiw mayjt'ayam, janiw transacciónanakx mayjt'aykamti.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "mara qalltatpach jichhürkama {year}",
     "retry": "Mayampitaki yatiqaña",
     "shelf_access_error": "Imataki willt'ata qillqatanakar mantañax mayjt'iwa. Mantañ uñakipañataki machaqar apaqaña.",
+    "shelf_custom_report": "Munata willt'äwi",
     "shelf_label": "Imatata willaña qillqatanaka",
     "shelf_load_error": "Imatat willäwinakax janiw apthapiñ atiqkiti. Wasitat apthapiñ yant'am.",
     "shelf_loading": "Imatat willt'awinaka apkatasiñataki…",

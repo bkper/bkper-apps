@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BookProblem } from '../src/api/app-api';
-import { agentPrompt, agentUrl, MAX_AGENT_PROMPT } from '../src/agent-link';
+import { t } from 'report-shared/strings';
+import { agentPrompt, agentUrl, customReportPrompt, MAX_AGENT_PROMPT } from '../src/agent-link';
 
 const BASE = { bookName: 'Acme Ltd', canOrganize: true };
 
@@ -22,6 +23,20 @@ describe('agentUrl', () => {
     it('opens the Agent with no request when given none', () => {
         const url = agentUrl('https://dev.bkper.app', 'b1');
         expect(url).toBe('https://dev.bkper.app/books/b1/transactions?app=bkper-agent');
+    });
+});
+
+describe('customReportPrompt', () => {
+    it('starts a request for a report built without Report, ready for the person to finish', () => {
+        expect(customReportPrompt('en')).toBe(
+            'Create a custom report, without using the Report app, that '
+        );
+    });
+
+    it('is written in the interface language, ending with a space for the person to go on', () => {
+        const prompt = customReportPrompt('fr');
+        expect(prompt).toBe(`${t('agent_prompt_custom_report', 'fr')} `);
+        expect(prompt.length).toBeLessThanOrEqual(MAX_AGENT_PROMPT);
     });
 });
 

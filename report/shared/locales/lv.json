@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Sakārtot ar Aģentu",
     "action_agent_start": "Sākt ar Aģentu",
+    "agent_prompt_custom_report": "Izveidojiet pielāgotu pārskatu, neizmantojot lietotni Report, kas",
     "agent_prompt_mixed_group": "Manā Grāmatā “{book}” grupa {group} apvieno atlikumus (Aktīvs, Pasīvs) ar kustību (Ienākošais, Izejošais). Palīdziet man tos nodalīt atsevišķās grupās. Mainiet tikai grupas, ne darījumus.",
     "agent_prompt_no_net_result": "Manai Grāmatai “{book}” nav neto rezultāta: neviena grupa neapvieno {incoming} un {outgoing}. Palīdziet man sakārtot tās grupas tā, lai ieņēmumi un izdevumi satiktos vienā grupā. Mainiet tikai grupas, ne darījumus.",
     "agent_prompt_no_net_result_general": "Manai Grāmatai “{book}” nav neto rezultāta: neviena grupa neapvieno tās ieņēmumus un izdevumus. Palīdziet man sakārtot tās grupas tā, lai ieņēmumi un izdevumi satiktos vienā grupā. Mainiet tikai grupas, ne darījumus.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} no gada sākuma līdz šodienai",
     "retry": "Mēģināt vēlreiz",
     "shelf_access_error": "Piekļuve saglabātajiem pārskatiem ir mainījusies. Pārlādējiet, lai pārbaudītu piekļuvi.",
+    "shelf_custom_report": "Pielāgots pārskats",
     "shelf_label": "Saglabātie pārskati",
     "shelf_load_error": "Saglabātos pārskatus neizdevās ielādēt. Mēģiniet ielādēt vēlreiz.",
     "shelf_loading": "Notiek saglabāto pārskatu ielāde…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ajan ile düzenle",
     "action_agent_start": "Ajan ile başla",
+    "agent_prompt_custom_report": "Report uygulamasını kullanmadan, şunları gösteren özel bir rapor oluşturun:",
     "agent_prompt_mixed_group": "\"{book}\" Defterimde {group} grubu bakiyeleri (Varlık, Borç) hareketlerle (Giriş, Çıkış) birleştiriyor. Bunları kendi gruplarına ayırmama yardım edin. Yalnızca grupları değiştirin, işlemleri değil.",
     "agent_prompt_no_net_result": "\"{book}\" Defterimin net sonucu yok: hiçbir grup {incoming} ve {outgoing} gruplarını birleştirmiyor. Gelirler ve giderler tek bir grupta buluşacak şekilde gruplarını düzenlememe yardım edin. Yalnızca grupları değiştirin, işlemleri değil.",
     "agent_prompt_no_net_result_general": "\"{book}\" Defterimin net sonucu yok: hiçbir grup gelirlerini ve giderlerini birleştirmiyor. Gelirler ve giderler tek bir grupta buluşacak şekilde gruplarını düzenlememe yardım edin. Yalnızca grupları değiştirin, işlemleri değil.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "yıl başından bugüne {year}",
     "retry": "Tekrar dene",
     "shelf_access_error": "Kayıtlı raporlara erişim değişti. Erişimi kontrol etmek için sayfayı yeniden yükleyin.",
+    "shelf_custom_report": "Özel rapor",
     "shelf_label": "Kayıtlı raporlar",
     "shelf_load_error": "Kaydedilen raporlar yüklenemedi. Yeniden yüklemeyi deneyin.",
     "shelf_loading": "Kayıtlı raporlar yükleniyor…",

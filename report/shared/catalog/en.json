@@ -726,6 +726,11 @@
         "role": "error",
         "context": "Alert under the Book-shared shelf after moving a saved request fails. The saved requests go back to the order they had, and the person can retry safely from its menu or reload the saved requests."
     },
+    "shelf_custom_report": {
+        "text": "Custom report",
+        "role": "button",
+        "context": "Last chip of the row of saved reports and suggestions just above the request input. It opens the Bkper Agent (Bkper's AI assistant) in the same Book, to build a report the Report app does not make; the person finishes the request there. Short noun phrase, like the other chips."
+    },
     "problem_empty_book": {
         "text": "This Book has no transactions yet, so there's nothing to report.",
         "role": "message",
@@ -826,5 +831,10 @@
             "book": "name of the Book, verbatim",
             "group": "name of the Group, verbatim"
         }
+    },
+    "agent_prompt_custom_report": {
+        "text": "Create a custom report, without using the Report app, that",
+        "role": "message",
+        "context": "Start of a request Report writes for the person into the Bkper Agent's input (Bkper's AI assistant) when they click the Custom report chip. The person finishes the sentence themselves, describing the report they want, then sends it. Written in the person's own voice, as an instruction to the Agent. It must say clearly that the Agent builds the report itself without using the Report app: keep Report, the app's name, untranslated, as the Agent knows the app by that name. It must end so that the person can go on typing what the report should show: in English it ends with that; where the language cannot leave a sentence open that way, end with a word or a colon after which the description follows naturally. No ending punctuation otherwise."
     }
 }

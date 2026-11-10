@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Hlophisa le Moemeli",
     "action_agent_start": "Qala le Moemeli",
+    "agent_prompt_custom_report": "Etsa tlaleho e ikgethileng, o sa sebedise app ya Report, e",
     "agent_prompt_mixed_group": "Bukeng ea ka ea Lintlha \"{book}\", Sehlopha {group} se kopanya masalla (Thepa, Mokoloto) le mosebetsi (Tse kenang, Tse tsoang). Nthuse ho li arola ka lihlopha tsa tsona. Fetola lihlopha feela, eseng Litheransakshene.",
     "agent_prompt_no_net_result": "Buka ea ka ea Lintlha \"{book}\" ha e na sephetho se hloekileng: ha ho Sehlopha se kopanyang {incoming} le {outgoing}. Nthuse ho hlophisa lihlopha tsa eona e le hore chelete e kenang le litšenyehelo li kopane Sehlopheng se le seng. Fetola lihlopha feela, eseng Litheransakshene.",
     "agent_prompt_no_net_result_general": "Buka ea ka ea Lintlha \"{book}\" ha e na sephetho se hloekileng: ha ho Sehlopha se kopanyang chelete ea eona e kenang le litšenyehelo. Nthuse ho hlophisa lihlopha tsa eona e le hore chelete e kenang le litšenyehelo li kopane Sehlopheng se le seng. Fetola lihlopha feela, eseng Litheransakshene.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ho tloha qalong ya selemo ho fihlela kajeno {year}",
     "retry": "Leka hape",
     "shelf_access_error": "Phihlello ea litlaleho tse bolokiloeng e fetohile. Layita hape ho sheba phihlello.",
+    "shelf_custom_report": "Tlaleho e ikgethileng",
     "shelf_label": "Litlaleho tse bolokiloeng",
     "shelf_load_error": "Litlaleho tse bolokiloeng ha lia ka tsa laolloa. Leka ho laola hape.",
     "shelf_loading": "Ho kenngoa litlaleho tse bolokiloeng…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Panga na Wakala",
     "action_agent_start": "Anza na Wakala",
+    "agent_prompt_custom_report": "Tengeneza ripoti maalum, bila kutumia programu ya Report, ambayo",
     "agent_prompt_mixed_group": "Katika Daftari langu \"{book}\", kundi {group} linaunganisha salio (Mali, Deni) na shughuli (Yanayoingia, Yanayotoka). Nisaidie kuyatenganisha katika makundi yao wenyewe. Badilisha makundi tu, si miamala.",
     "agent_prompt_no_net_result": "Daftari langu \"{book}\" halina matokeo halisi: hakuna kundi linalounganisha {incoming} na {outgoing}. Nisaidie kupanga makundi yake ili mapato na matumizi yakutane katika kundi moja. Badilisha makundi tu, si miamala.",
     "agent_prompt_no_net_result_general": "Daftari langu \"{book}\" halina matokeo halisi: hakuna kundi linalounganisha mapato na matumizi yake. Nisaidie kupanga makundi yake ili mapato na matumizi yakutane katika kundi moja. Badilisha makundi tu, si miamala.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "tangu mwanzo wa mwaka hadi leo {year}",
     "retry": "Jaribu tena",
     "shelf_access_error": "Ufikiaji wa ripoti zilizohifadhiwa umebadilika. Pakia upya ili kukagua ufikiaji.",
+    "shelf_custom_report": "Ripoti maalum",
     "shelf_label": "Ripoti zilizohifadhiwa",
     "shelf_load_error": "Ripoti zilizohifadhiwa hazikuweza kupakiwa. Jaribu kupakia upya.",
     "shelf_loading": "Inapakia ripoti zilizohifadhiwa…",

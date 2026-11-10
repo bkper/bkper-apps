@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Agent bilan tartibga solish",
     "action_agent_start": "Agent bilan boshlash",
+    "agent_prompt_custom_report": "Report ilovasidan foydalanmasdan, quyidagilarni ko‘rsatadigan maxsus hisobot yarating:",
     "agent_prompt_mixed_group": "Mening “{book}” Kitobimda {group} guruhi qoldiqlarni (Aktiv, Passiv) harakat (Kirim, Chiqim) bilan birlashtiradi. Ularni o‘z guruhlariga ajratishga yordam bering. Faqat guruhlarni o‘zgartiring, tranzaksiyalarni emas.",
     "agent_prompt_no_net_result": "Mening “{book}” Kitobimning sof natijasi yo‘q: hech bir guruh {incoming} va {outgoing} guruhlarini birlashtirmaydi. Daromad va xarajatlar bitta guruhda uchrashadigan qilib uning guruhlarini tartiblashga yordam bering. Faqat guruhlarni o‘zgartiring, tranzaksiyalarni emas.",
     "agent_prompt_no_net_result_general": "Mening “{book}” Kitobimning sof natijasi yo‘q: hech bir guruh uning daromad va xarajatlarini birlashtirmaydi. Daromad va xarajatlar bitta guruhda uchrashadigan qilib uning guruhlarini tartiblashga yordam bering. Faqat guruhlarni o‘zgartiring, tranzaksiyalarni emas.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "yil boshidan bugungacha {year}",
     "retry": "Qayta urinish",
     "shelf_access_error": "Saqlangan hisobotlarga kirish huquqi o‘zgardi. Kirishni tekshirish uchun qayta yuklang.",
+    "shelf_custom_report": "Maxsus hisobot",
     "shelf_label": "Saqlangan hisobotlar",
     "shelf_load_error": "Saqlangan hisobotlarni yuklab bo‘lmadi. Qayta yuklab ko‘ring.",
     "shelf_loading": "Saqlangan hisobotlar yuklanmoqda…",

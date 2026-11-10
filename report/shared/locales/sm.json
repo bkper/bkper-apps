@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Faʻatulaga ma Agent",
     "action_agent_start": "Amata ma Agent",
+    "agent_prompt_custom_report": "Faia se lipoti faʻapitoa, e aunoa ma le faʻaaogaina o le app Report, e",
     "agent_prompt_mixed_group": "I laʻu Tusi tala o tupe \"{book}\", o le Vaega {group} e tuʻufaʻatasia totogi totoe (Meatotino, Aitalafu) ma gaioiga (Mea e ulu mai, Mea e alu atu). Fesoasoani mai ia te aʻu e vavae ese i latou i a latou lava Vaega. Suia na o Vaega, ae aua le suia Fefaʻatauaʻiga.",
     "agent_prompt_no_net_result": "E leai se taunuuga mama o laʻu Tusi tala o tupe \"{book}\": e leai se Vaega e tuʻufaʻatasia {incoming} ma {outgoing}. Fesoasoani mai ia te aʻu e faʻatulaga ana Vaega ina ia feiloaʻi tupe maua ma tupe faʻaalu i se Vaega e tasi. Suia na o Vaega, ae aua le suia Fefaʻatauaʻiga.",
     "agent_prompt_no_net_result_general": "E leai se taunuuga mama o laʻu Tusi tala o tupe \"{book}\": e leai se Vaega e tuʻufaʻatasia ana tupe maua ma tupe faʻaalu. Fesoasoani mai ia te aʻu e faʻatulaga ana Vaega ina ia feiloaʻi tupe maua ma tupe faʻaalu i se Vaega e tasi. Suia na o Vaega, ae aua le suia Fefaʻatauaʻiga.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "mai le amataga o le tausaga e oo mai i le aso {year}",
     "retry": "Toe taumafai",
     "shelf_access_error": "Ua suia le avanoa i lipoti ua teuina. Toe utaina e siaki le avanoa.",
+    "shelf_custom_report": "Lipoti faʻapitoa",
     "shelf_label": "Lipoti ua teuina",
     "shelf_load_error": "Sa lē mafai ona utaina lipoti ua teu. Taumafai e toe utaina.",
     "shelf_loading": "O loʻo utaina lipoti ua teuina…",

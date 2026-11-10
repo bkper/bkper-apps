@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Tata karo Agen",
     "action_agent_start": "Wiwiti karo Agen",
+    "agent_prompt_custom_report": "Gawe laporan khusus, tanpa nganggo aplikasi Report, sing",
     "agent_prompt_mixed_group": "Ing Buku kula \"{book}\", grup {group} nggabungake saldo (Aset, Kewajiban) karo aktivitas (Mlebu, Metu). Tulung bantu kula misahake menyang grup dhewe-dhewe. Owahi grup wae, dudu transaksi.",
     "agent_prompt_no_net_result": "Buku kula \"{book}\" ora duwe asil bersih: ora ana grup sing nggabungake {incoming} lan {outgoing}. Tulung bantu kula nata grup-grupe supaya pemasukan lan pengeluaran ketemu ing siji grup. Owahi grup wae, dudu transaksi.",
     "agent_prompt_no_net_result_general": "Buku kula \"{book}\" ora duwe asil bersih: ora ana grup sing nggabungake pemasukan lan pengeluarane. Tulung bantu kula nata grup-grupe supaya pemasukan lan pengeluaran ketemu ing siji grup. Owahi grup wae, dudu transaksi.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "wiwit wiwitan taun nganti saiki {year}",
     "retry": "Cobanen maneh",
     "shelf_access_error": "Akses laporan sing disimpen wis owah. Muat ulang kanggo mriksa akses.",
+    "shelf_custom_report": "Laporan khusus",
     "shelf_label": "Laporan sing disimpen",
     "shelf_load_error": "Laporan sing disimpen ora bisa dimuat. Coba muat maneh.",
     "shelf_loading": "Lagi ngunggah laporan sing disimpen…",

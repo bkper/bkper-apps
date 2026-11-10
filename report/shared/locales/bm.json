@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Labɛn ni Ajan ye",
     "action_agent_start": "Daminɛ ni Ajan ye",
+    "agent_prompt_custom_report": "Rapɔ kɛrɛnkɛrɛnnen dɔ dilan, i kana Report app baara, min bɛ",
     "agent_prompt_mixed_group": "N ka Kunnafoni kaye \"{book}\" kɔnɔ, kɔnti jɛkulu {group} bɛ lakɔrɔw (Nafolo, Juru) ni baara (Don, Bɔ) fara ɲɔgɔn kan. N dɛmɛ ka u faran ka u bila u yɛrɛ ka kɔnti jɛkuluw kɔnɔ. Kɔnti jɛkuluw dɔrɔn falen, i kana yɛlɛmaw falen.",
     "agent_prompt_no_net_result": "Sɔrɔ kɛrɛnkɛrɛnnen tɛ n ka Kunnafoni kaye \"{book}\" na: kɔnti jɛkulu si tɛ {incoming} ni {outgoing} fara ɲɔgɔn kan. N dɛmɛ ka a kɔnti jɛkuluw labɛn walisa sɔrɔw ni musakaw ka ɲɔgɔn sɔrɔ kɔnti jɛkulu kelen kɔnɔ. Kɔnti jɛkuluw dɔrɔn falen, i kana yɛlɛmaw falen.",
     "agent_prompt_no_net_result_general": "Sɔrɔ kɛrɛnkɛrɛnnen tɛ n ka Kunnafoni kaye \"{book}\" na: kɔnti jɛkulu si tɛ a sɔrɔw ni a musakaw fara ɲɔgɔn kan. N dɛmɛ ka a kɔnti jɛkuluw labɛn walisa sɔrɔw ni musakaw ka ɲɔgɔn sɔrɔ kɔnti jɛkulu kelen kɔnɔ. Kɔnti jɛkuluw dɔrɔn falen, i kana yɛlɛmaw falen.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "san daminɛ ka na bi ma {year}",
     "retry": "Segin ka a kɛ",
     "shelf_access_error": "Rapɔri mara minnu sɔrɔli ye, o yɛlɛmana. I ka a lajɛ kokura walasa ka sɔrɔli lajɛ.",
+    "shelf_custom_report": "Rapɔ kɛrɛnkɛrɛnnen",
     "shelf_label": "Rapɔri mara minnu",
     "shelf_load_error": "Rapɔri mara minnu tɛ se ka load. I ye load kɛ tugun.",
     "shelf_loading": "Sɛbɛn mara kunnafoniw be ka bɔ…",

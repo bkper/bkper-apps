@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Agent nen siam fel",
     "action_agent_start": "Agent nen tan",
+    "agent_prompt_custom_report": "Report app hmang lovin report mahni duh ang siam rawh, chu chuan",
     "agent_prompt_mixed_group": "Ka Ledger \"{book}\" ah chuan Pawl {group} chuan Balance (Neih thil, Pek tur) leh hnathawh (Lutna, Chhuahna) a hmangkawm. An Pawl theuhah then hrang turin min pui rawh. Pawl chauh thlak rawh, Transaction thlak suh.",
     "agent_prompt_no_net_result": "Ka Ledger \"{book}\" ah hian net result a awm lo: {incoming} leh {outgoing} hmangkawm Pawl a awm lo. Income leh expense chu Pawl khatah an inhmuh theih nan a Pawl-te siam fel turin min pui rawh. Pawl chauh thlak rawh, Transaction thlak suh.",
     "agent_prompt_no_net_result_general": "Ka Ledger \"{book}\" ah hian net result a awm lo: a income leh expense hmangkawm Pawl a awm lo. Income leh expense chu Pawl khatah an inhmuh theih nan a Pawl-te siam fel turin min pui rawh. Pawl chauh thlak rawh, Transaction thlak suh.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "kum tîrh aṭanga vawiinah thlengin {year}",
     "retry": "Ti nawn rawh",
     "shelf_access_error": "Report vawn dah access a danglam. Access en turin reload leh rawh.",
+    "shelf_custom_report": "Mahni duh ang Report",
     "shelf_label": "Report Save tawh",
     "shelf_load_error": "Report save tawh chu load theih a ni lo. Load nawn leh rawh.",
     "shelf_loading": "Report save tawh te load mek a ni…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "使用智能体整理",
     "action_agent_start": "使用智能体开始",
+    "agent_prompt_custom_report": "不使用 Report 应用，创建一份自定义报表，内容为：",
     "agent_prompt_mixed_group": "在我的账簿“{book}”中，分组 {group} 将余额（资产、负债）与变动（流入、流出）合并在一起。请帮我把它们拆分到各自的分组中。只修改分组，不要修改交易。",
     "agent_prompt_no_net_result": "我的账簿“{book}”没有净结果：没有分组合并 {incoming} 和 {outgoing}。请帮我整理其分组，让收入和支出汇合到同一个分组中。只修改分组，不要修改交易。",
     "agent_prompt_no_net_result_general": "我的账簿“{book}”没有净结果：没有分组合并其收入和支出。请帮我整理其分组，让收入和支出汇合到同一个分组中。只修改分组，不要修改交易。",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year}年初至今",
     "retry": "重试",
     "shelf_access_error": "已保存报表的访问权限已更改。请重新加载以检查访问权限。",
+    "shelf_custom_report": "自定义报表",
     "shelf_label": "已保存的报表",
     "shelf_load_error": "无法加载已保存的报告。请尝试重新加载。",
     "shelf_loading": "正在加载已保存的报告…",

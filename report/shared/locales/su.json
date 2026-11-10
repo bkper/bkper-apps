@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Atur sareng Agén",
     "action_agent_start": "Mimitian sareng Agén",
+    "agent_prompt_custom_report": "Damel laporan khusus, tanpa nganggo aplikasi Report, anu",
     "agent_prompt_mixed_group": "Dina Buku abdi \"{book}\", grup {group} ngagabungkeun saldo (Aset, Kawajiban) sareng kagiatan (Asup, Kaluar). Bantosan abdi misahkeunana kana grup masing-masing. Robih grup waé, sanés transaksi.",
     "agent_prompt_no_net_result": "Buku abdi \"{book}\" teu gaduh hasil bersih: teu aya grup anu ngagabungkeun {incoming} sareng {outgoing}. Bantosan abdi ngatur grup-grupna supados panghasilan sareng biaya patepang dina hiji grup. Robih grup waé, sanés transaksi.",
     "agent_prompt_no_net_result_general": "Buku abdi \"{book}\" teu gaduh hasil bersih: teu aya grup anu ngagabungkeun panghasilan sareng biayana. Bantosan abdi ngatur grup-grupna supados panghasilan sareng biaya patepang dina hiji grup. Robih grup waé, sanés transaksi.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ti mimiti taun nepi ka ayeuna {year}",
     "retry": "Cobian deui",
     "shelf_access_error": "Aksés ka laporan nu disimpen robih. Muat deui pikeun mariksa aksés.",
+    "shelf_custom_report": "Laporan khusus",
     "shelf_label": "Laporan nu disimpen",
     "shelf_load_error": "Laporan nu disimpen teu bisa dimuat. Cobi muat deui.",
     "shelf_loading": "Keur ngamuat laporan nu disimpen…",

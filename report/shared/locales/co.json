@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Urganizà cù Agente",
     "action_agent_start": "Cumincià cù Agente",
+    "agent_prompt_custom_report": "Crea un raportu persunalizatu, senza aduprà l'app Report, chì",
     "agent_prompt_mixed_group": "In u mo Libru cuntabile «{book}», u gruppu {group} cumbina saldi (Attivu, Passivu) cù attività (Entrata, Surtita). Aiutami à separalli in gruppi soi. Cambia solu i gruppi, micca e transazzioni.",
     "agent_prompt_no_net_result": "U mo Libru cuntabile «{book}» ùn hà micca risultatu nettu: nisun gruppu cumbina {incoming} è {outgoing}. Aiutami à urganizà i so gruppi per chì i ricavi è e spese si scontrinu in un gruppu. Cambia solu i gruppi, micca e transazzioni.",
     "agent_prompt_no_net_result_general": "U mo Libru cuntabile «{book}» ùn hà micca risultatu nettu: nisun gruppu cumbina i so ricavi è e so spese. Aiutami à urganizà i so gruppi per chì i ricavi è e spese si scontrinu in un gruppu. Cambia solu i gruppi, micca e transazzioni.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "da u principiu di l'annu {year}",
     "retry": "Pruvà torna",
     "shelf_access_error": "L'accessu à i raporti salvati hè cambiatu. Ricarica per verificà l'accessu.",
+    "shelf_custom_report": "Raportu persunalizatu",
     "shelf_label": "Rapporti salvati",
     "shelf_load_error": "I rapporti salvati ùn anu pussutu esse carricati. Pruvà à ricaricà.",
     "shelf_loading": "Caricamentu di i raporti salvati…",

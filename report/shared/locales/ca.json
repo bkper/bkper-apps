@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organitzar amb Agent",
     "action_agent_start": "Començar amb Agent",
+    "agent_prompt_custom_report": "Crea un informe personalitzat, sense fer servir l'app Report, que",
     "agent_prompt_mixed_group": "Al meu Llibre «{book}», el grup {group} combina saldos (Actiu, Passiu) amb activitat (Entrada, Sortida). Ajuda'm a separar-los en grups propis. Canvia només els grups, no les transaccions.",
     "agent_prompt_no_net_result": "El meu Llibre «{book}» no té resultat net: cap grup combina {incoming} i {outgoing}. Ajuda'm a organitzar-ne els grups perquè els ingressos i les despeses es trobin en un mateix grup. Canvia només els grups, no les transaccions.",
     "agent_prompt_no_net_result_general": "El meu Llibre «{book}» no té resultat net: cap grup combina els seus ingressos i despeses. Ajuda'm a organitzar-ne els grups perquè els ingressos i les despeses es trobin en un mateix grup. Canvia només els grups, no les transaccions.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "de l'any fins avui {year}",
     "retry": "Torna-ho a provar",
     "shelf_access_error": "L'accés als informes desats ha canviat. Torna a carregar per comprovar l'accés.",
+    "shelf_custom_report": "Informe personalitzat",
     "shelf_label": "Informes desats",
     "shelf_load_error": "No s'han pogut carregar els informes desats. Prova de tornar a carregar.",
     "shelf_loading": "Carregant els informes desats…",

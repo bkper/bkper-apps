@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organizoni me Agjentin",
     "action_agent_start": "Filloni me Agjentin",
+    "agent_prompt_custom_report": "Krijoni një raport të personalizuar, pa përdorur aplikacionin Report, që",
     "agent_prompt_mixed_group": "Në Librin tim kontabël „{book}”, grupi {group} kombinon gjendje (Aktiv, Detyrim) me veprimtari (Hyrje, Dalje). Më ndihmoni t'i ndaj në grupet e tyre. Ndryshoni vetëm grupet, jo transaksionet.",
     "agent_prompt_no_net_result": "Libri im kontabël „{book}” nuk ka rezultat neto: asnjë grup nuk kombinon {incoming} dhe {outgoing}. Më ndihmoni të organizoj grupet e tij që të ardhurat dhe shpenzimet të takohen në një grup. Ndryshoni vetëm grupet, jo transaksionet.",
     "agent_prompt_no_net_result_general": "Libri im kontabël „{book}” nuk ka rezultat neto: asnjë grup nuk kombinon të ardhurat dhe shpenzimet e tij. Më ndihmoni të organizoj grupet e tij që të ardhurat dhe shpenzimet të takohen në një grup. Ndryshoni vetëm grupet, jo transaksionet.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "nga fillimi i vitit deri sot {year}",
     "retry": "Provoni përsëri",
     "shelf_access_error": "Qasja te raportet e ruajtura ka ndryshuar. Ringarkoni për të kontrolluar qasjen.",
+    "shelf_custom_report": "Raport i personalizuar",
     "shelf_label": "Raporte të ruajtura",
     "shelf_load_error": "Raportet e ruajtura nuk mund të ngarkoheshin. Provoni t'i ringarkoni.",
     "shelf_loading": "Po ngarkohen raportet e ruajtura…",

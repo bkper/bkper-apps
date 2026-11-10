@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Agent bilen tertipleşdirmek",
     "action_agent_start": "Agent bilen başlamak",
+    "agent_prompt_custom_report": "Report programmasyny ulanmazdan, aşakdakylary görkezýän aýratyn hasabat dörediň:",
     "agent_prompt_mixed_group": "Meniň „{book}“ Hasap kitabymda {group} topary galyndylary (Aktiw, Passiw) hereket (Giriş, Çykyş) bilen birleşdirýär. Olary öz aýry toparlaryna bölmäge kömek ediň. Diňe toparlary üýtgediň, amallary däl.",
     "agent_prompt_no_net_result": "Meniň „{book}“ Hasap kitabymyň arassa netijesi ýok: hiç bir topar {incoming} we {outgoing} birleşdirmeýär. Girdejiler we çykdajylar bir toparda duşuşar ýaly onuň toparlaryny tertipleşdirmäge kömek ediň. Diňe toparlary üýtgediň, amallary däl.",
     "agent_prompt_no_net_result_general": "Meniň „{book}“ Hasap kitabymyň arassa netijesi ýok: hiç bir topar onuň girdejilerini we çykdajylaryny birleşdirmeýär. Girdejiler we çykdajylar bir toparda duşuşar ýaly onuň toparlaryny tertipleşdirmäge kömek ediň. Diňe toparlary üýtgediň, amallary däl.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} ýylyň başyndan şu güne çenli",
     "retry": "Täzeden synanyşmak",
     "shelf_access_error": "Ýatda saklanan hasabatlara girip bilmek üýtgedi. Girip bilmegi barlamak üçin gaýtadan ýükläň.",
+    "shelf_custom_report": "Aýratyn hasabat",
     "shelf_label": "Saklanan hasabatlar",
     "shelf_load_error": "Saklanan hasabatlar ýüklenip bilmedi. Gaýtadan ýüklemäge synanyşyň.",
     "shelf_loading": "Saklanan hasabatlar ýüklenýär…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Korrasta Agendiga",
     "action_agent_start": "Alusta Agendiga",
+    "agent_prompt_custom_report": "Loo kohandatud aruanne, ilma Report rakendust kasutamata, mis",
     "agent_prompt_mixed_group": "Minu Raamatus „{book}“ ühendab grupp {group} saldosid (Vara, Kohustus) liikumistega (Sissevool, Väljavool). Aita mul need eraldi gruppidesse lahutada. Muuda ainult gruppe, mitte tehinguid.",
     "agent_prompt_no_net_result": "Minu Raamatul „{book}“ pole puhastulemust: ükski grupp ei ühenda gruppe {incoming} ja {outgoing}. Aita mul selle grupid korrastada nii, et tulud ja kulud kohtuksid ühes grupis. Muuda ainult gruppe, mitte tehinguid.",
     "agent_prompt_no_net_result_general": "Minu Raamatul „{book}“ pole puhastulemust: ükski grupp ei ühenda selle tulusid ja kulusid. Aita mul selle grupid korrastada nii, et tulud ja kulud kohtuksid ühes grupis. Muuda ainult gruppe, mitte tehinguid.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "aasta algusest tänaseni {year}",
     "retry": "Proovi uuesti",
     "shelf_access_error": "Salvestatud aruannete juurdepääs muutus. Laadi uuesti, et juurdepääsu kontrollida.",
+    "shelf_custom_report": "Kohandatud aruanne",
     "shelf_label": "Salvestatud aruanded",
     "shelf_load_error": "Salvestatud aruandeid ei õnnestunud laadida. Proovi uuesti laadida.",
     "shelf_loading": "Salvestatud aruandeid laaditakse…",

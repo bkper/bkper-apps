@@ -4,7 +4,7 @@ Type what you want to know about your Book, in your own language, and see the re
 
 > **Read-only, with every number from Bkper.** Every amount is a balance Bkper calculates for one group or Account, but for one labelled exception (see [The net result](#the-net-result)); numbers never come from AI. Saving a request writes app metadata, never transactions, balances or the Book's saved queries.
 
-> **For agents.** To show a person a report, make one call with their request in their own words and publish the file as it is: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"<their request>","format":"html"}' > report.html`. Its amounts are Bkper balances read by code and it shows the query it read, so don't query or re-check them yourself.
+> **For agents.** To show a person a report, make one call with their request in their own words and publish the file as it is: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"<their request>","format":"html"}' > report.html`. Its amounts are Bkper balances read by code and it shows the query it read, so don't query or re-check them yourself. A request for a custom report, or one that says it is not for Report, is not for this app: build it from the Book's Bkper balances yourself, without calling Report.
 
 ## How to use it
 
@@ -87,6 +87,8 @@ Owners and editors get **Organize with Agent**: it opens the Bkper Agent in the 
 ## Reports in Bkper Agent
 
 Ask the Bkper Agent for a report in your own words, such as _show my expenses by category this year_. It asks Report for you and shows the same interactive report, with an **Open in Report** link. In a Book where Report is installed, the link opens Report in place of the Agent, where you can keep asking; elsewhere, in a new tab.
+
+Need a report Report does not make? Click **Custom report**, always the last chip above the input: it opens the Bkper Agent in the same Book with _Create a custom report, without using the Report app, that_ ready in its input, in your language. Finish the sentence with what the report should show and send it: the Agent builds it from the Book's balances itself.
 
 <details data-toc>
 <summary><strong>API access</strong></summary>

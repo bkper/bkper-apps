@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Konza ndi Agent",
     "action_agent_start": "Yamba ndi Agent",
+    "agent_prompt_custom_report": "Pangani lipoti yapadera, osagwiritsa ntchito pulogalamu ya Report, yomwe",
     "agent_prompt_mixed_group": "M'Buku langa la ndalama \"{book}\", gulu la {group} limaphatikiza ndalama zotsala (Katundu, Ngongole) ndi zochitika (Zolowa, Zotuluka). Ndithandizeni kuzilekanitsa m'magulu awo. Sinthani magulu okha, osati kusamutsa.",
     "agent_prompt_no_net_result": "Buku langa la ndalama \"{book}\" lilibe zotsatira zonse: palibe gulu lophatikiza {incoming} ndi {outgoing}. Ndithandizeni kukonza magulu ake kuti ndalama zolowa ndi zotuluka zikumane m'gulu limodzi. Sinthani magulu okha, osati kusamutsa.",
     "agent_prompt_no_net_result_general": "Buku langa la ndalama \"{book}\" lilibe zotsatira zonse: palibe gulu lophatikiza ndalama zake zolowa ndi zotuluka. Ndithandizeni kukonza magulu ake kuti ndalama zolowa ndi zotuluka zikumane m'gulu limodzi. Sinthani magulu okha, osati kusamutsa.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "kuyambira chiyambi cha chaka mpaka lero {year}",
     "retry": "Yesaninso",
     "shelf_access_error": "Mwayi wopeza malipoti osungidwa wasintha. Kwezaninso kuti muwone mwayi wopeza.",
+    "shelf_custom_report": "Lipoti yapadera",
     "shelf_label": "Malipoti osungidwa",
     "shelf_load_error": "Malipoti osungidwa sanathe kutsegulidwa. Yesaninso kutsegula.",
     "shelf_loading": "Zikutsegula malipoti osungidwa…",

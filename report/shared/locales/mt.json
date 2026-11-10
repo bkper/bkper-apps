@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organizza mal-Aġent",
     "action_agent_start": "Ibda mal-Aġent",
+    "agent_prompt_custom_report": "Oħloq rapport personalizzat, mingħajr ma tuża l-app Report, li",
     "agent_prompt_mixed_group": "Fil-Ktieb tiegħi \"{book}\", il-grupp {group} jgħaqqad bilanċi (Assi, Obbligazzjoni) ma' attività (Dħul, Ħruġ). Għinni nisseparahom fi gruppi tagħhom stess. Ibdel il-gruppi biss, mhux it-tranżazzjonijiet.",
     "agent_prompt_no_net_result": "Il-Ktieb tiegħi \"{book}\" m'għandux riżultat nett: l-ebda grupp ma jgħaqqad {incoming} u {outgoing}. Għinni norganizza l-gruppi tiegħu biex id-dħul u l-infiq jiltaqgħu fi grupp wieħed. Ibdel il-gruppi biss, mhux it-tranżazzjonijiet.",
     "agent_prompt_no_net_result_general": "Il-Ktieb tiegħi \"{book}\" m'għandux riżultat nett: l-ebda grupp ma jgħaqqad id-dħul u l-infiq tiegħu. Għinni norganizza l-gruppi tiegħu biex id-dħul u l-infiq jiltaqgħu fi grupp wieħed. Ibdel il-gruppi biss, mhux it-tranżazzjonijiet.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "mill-bidu tas-sena sal-lum {year}",
     "retry": "Erġa' pprova",
     "shelf_access_error": "L-aċċess għar-rapporti salvati nbidel. Erġa' tella' biex tiċċekkja l-aċċess.",
+    "shelf_custom_report": "Rapport personalizzat",
     "shelf_label": "Rapporti salvati",
     "shelf_load_error": "Ir-rapporti ssejvjati ma setgħux jitgħabbew. Ipprova erġa' tgħabbi.",
     "shelf_loading": "Qed jitgħabbew ir-rapporti ssejvjati…",

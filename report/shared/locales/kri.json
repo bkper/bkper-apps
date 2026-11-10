@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Arenj wit Ejent",
     "action_agent_start": "Bigin wit Ejent",
+    "agent_prompt_custom_report": "Mek wan ripɔt we a want, nɔ yuz di Report app, we",
     "agent_prompt_mixed_group": "Na mi Buk \"{book}\", di Grup {group} de mix balans (Asset, Det) wit wok (Kam In, Go Out). Ɛp mi fɔ sheb dɛn go na dɛn yon Grup dɛn. Chenj Grup dɛn nɔmɔ, nɔ Transakshɔn dɛn.",
     "agent_prompt_no_net_result": "Mi Buk \"{book}\" nɔ gɛt nɛt rizɔlt: no Grup nɔ de kam togɛda wit {incoming} ɛn {outgoing}. Ɛp mi arenj in Grup dɛn so dat inkam ɛn ɛkspɛns go mit na wan Grup. Chenj Grup dɛn nɔmɔ, nɔ Transakshɔn dɛn.",
     "agent_prompt_no_net_result_general": "Mi Buk \"{book}\" nɔ gɛt nɛt rizɔlt: no Grup nɔ de kam togɛda wit in inkam ɛn ɛkspɛns. Ɛp mi arenj in Grup dɛn so dat inkam ɛn ɛkspɛns go mit na wan Grup. Chenj Grup dɛn nɔmɔ, nɔ Transakshɔn dɛn.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "frɔm di biginin fɔ di ia te tide {year}",
     "retry": "Tray igen",
     "shelf_access_error": "Di access to di rippot dem we yu seev dɔn chenj. Rilod fɔ chɛk di access.",
+    "shelf_custom_report": "Ripɔt we yu want",
     "shelf_label": "Rapɔt dɛn we dɛn sev",
     "shelf_load_error": "Wi nɔ ebul lod di ripɔt dɛn we yu sev. Tray lod bak.",
     "shelf_loading": "Dɛn de lod di ripɔt dɛn we dɛn sev…",

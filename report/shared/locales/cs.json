@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Uspořádat s Agentem",
     "action_agent_start": "Začít s Agentem",
+    "agent_prompt_custom_report": "Vytvořte vlastní report, bez použití aplikace Report, který",
     "agent_prompt_mixed_group": "V mé Knize „{book}“ skupina {group} spojuje zůstatky (Aktivum, Závazek) s pohyby (Příchozí, Odchozí). Pomozte mi je rozdělit do samostatných skupin. Měňte jen skupiny, ne transakce.",
     "agent_prompt_no_net_result": "Moje Kniha „{book}“ nemá čistý výsledek: žádná skupina nespojuje {incoming} a {outgoing}. Pomozte mi uspořádat její skupiny tak, aby se příjmy a výdaje setkaly v jedné skupině. Měňte jen skupiny, ne transakce.",
     "agent_prompt_no_net_result_general": "Moje Kniha „{book}“ nemá čistý výsledek: žádná skupina nespojuje její příjmy a výdaje. Pomozte mi uspořádat její skupiny tak, aby se příjmy a výdaje setkaly v jedné skupině. Měňte jen skupiny, ne transakce.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "od začátku roku {year}",
     "retry": "Zkusit znovu",
     "shelf_access_error": "Přístup k uloženým reportům se změnil. Načtěte stránku znovu a ověřte přístup.",
+    "shelf_custom_report": "Vlastní report",
     "shelf_label": "Uložené reporty",
     "shelf_load_error": "Uložené přehledy se nepodařilo načíst. Zkuste je načíst znovu.",
     "shelf_loading": "Načítání uložených přehledů…",

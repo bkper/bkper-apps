@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Susun dengan Ejen",
     "action_agent_start": "Mula dengan Ejen",
+    "agent_prompt_custom_report": "Buat laporan tersuai, tanpa menggunakan aplikasi Report, yang",
     "agent_prompt_mixed_group": "Dalam Buku saya \"{book}\", kumpulan {group} menggabungkan baki (Aset, Liabiliti) dengan aktiviti (Masuk, Keluar). Bantu saya memisahkannya ke dalam kumpulan masing-masing. Ubah kumpulan sahaja, bukan transaksi.",
     "agent_prompt_no_net_result": "Buku saya \"{book}\" tiada hasil bersih: tiada kumpulan yang menggabungkan {incoming} dan {outgoing}. Bantu saya menyusun kumpulannya supaya pendapatan dan perbelanjaan bertemu dalam satu kumpulan. Ubah kumpulan sahaja, bukan transaksi.",
     "agent_prompt_no_net_result_general": "Buku saya \"{book}\" tiada hasil bersih: tiada kumpulan yang menggabungkan pendapatan dan perbelanjaannya. Bantu saya menyusun kumpulannya supaya pendapatan dan perbelanjaan bertemu dalam satu kumpulan. Ubah kumpulan sahaja, bukan transaksi.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} sejak awal tahun",
     "retry": "Cuba lagi",
     "shelf_access_error": "Akses laporan tersimpan telah berubah. Muat semula untuk menyemak akses.",
+    "shelf_custom_report": "Laporan tersuai",
     "shelf_label": "Laporan disimpan",
     "shelf_load_error": "Laporan yang disimpan tidak dapat dimuatkan. Cuba muat semula.",
     "shelf_loading": "Memuatkan laporan tersimpan…",

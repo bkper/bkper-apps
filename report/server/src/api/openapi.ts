@@ -2,7 +2,7 @@ const REPORT_GUIDE = `Read-only financial reports of a Bkper Book, from a reques
 
 ## Show a person a report
 
-When a person asks to see a report of a Book (expenses, revenue, income versus expenses, profit and loss, balances, by category, by month, …), call \`POST /api/v1/books/{bookId}/report\` with:
+When a person asks to see a report of a Book (expenses, revenue, income versus expenses, profit and loss, balances, by category, by month, …), unless they ask for a custom report (see Custom reports), call \`POST /api/v1/books/{bookId}/report\` with:
 
 \`\`\`json
 { "prompt": "<the person's request, in their own words and language>", "format": "html" }
@@ -15,6 +15,10 @@ bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"show m
 \`\`\`
 
 This one call is the whole task, and the deterministic route to the report: every amount is a Bkper balance of one group or Account, as Bkper shows it, read by code, never by AI; Report adds nothing up, but for one labelled case below, and the file shows the exact Bkper query it read, for anyone to audit. So do not compute or query the balances yourself, do not ask for \`format: spec\` first, and do not re-check the amounts or open the file: publish it and answer in a line, as the report speaks for itself. \`format: spec\` (the default) is the JSON Report's own web client renders; showing a report never needs it.
+
+## Custom reports
+
+A request for a custom report, or one that says it is not for the Report app, is not for Report: build that report yourself from the Book's Bkper balances (with the Bkper CLI or API), and do not call \`POST /api/v1/books/{bookId}/report\`. Report's own **Custom report** chip opens the Bkper Agent with such a request started, in the person's language, such as "Create a custom report, without using the Report app, that …". Every other report request goes to Report as above.
 
 ## What a request can ask
 

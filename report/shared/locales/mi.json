@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Whakaraupapa me te Kaiāwhina",
     "action_agent_start": "Tīmata me te Kaiāwhina",
+    "agent_prompt_custom_report": "Hangaia he pūrongo motuhake, me te kore e whakamahi i te taupānga Report, e",
     "agent_prompt_mixed_group": "I taku Pukapuka pūkete \"{book}\", ka whakakotahi te rōpū {group} i ngā toenga (Rawa, Nama) me ngā mahi (Whakauru, Whakaputa). Āwhina mai kia wehea ai ērā ki ō rātou ake rōpū. Me huri ngā rōpū anake, kaua ngā whakawhitinga.",
     "agent_prompt_no_net_result": "Kāore he hua kore o taku Pukapuka pūkete \"{book}\": kāore he rōpū e whakakotahi ana i {incoming} me {outgoing}. Āwhina mai kia whakaraupapa ai au i ōna rōpū kia tūtaki ai ngā whiwhinga me ngā whakapaunga i te rōpū kotahi. Me huri ngā rōpū anake, kaua ngā whakawhitinga.",
     "agent_prompt_no_net_result_general": "Kāore he hua kore o taku Pukapuka pūkete \"{book}\": kāore he rōpū e whakakotahi ana i ōna whiwhinga me ōna whakapaunga. Āwhina mai kia whakaraupapa ai au i ōna rōpū kia tūtaki ai ngā whiwhinga me ngā whakapaunga i te rōpū kotahi. Me huri ngā rōpū anake, kaua ngā whakawhitinga.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "mai i te tīmatanga o te tau ki tēnei rā {year}",
     "retry": "Whakamātauria anō",
     "shelf_access_error": "Kua huri te urunga ki ngā pūrongo kua tiakina. Utaina anō hei tirotiro i te urunga.",
+    "shelf_custom_report": "Pūrongo motuhake",
     "shelf_label": "Ngā pūrongo kua tiakina",
     "shelf_load_error": "Kāore i taea te uta i ngā pūrongo kua tiakina. Whakamātauria te uta anō.",
     "shelf_loading": "E uta ana ngā pūrongo kua tiakina…",

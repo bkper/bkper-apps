@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ku habee Wakiil",
     "action_agent_start": "Ku bilow Wakiil",
+    "agent_prompt_custom_report": "Samee warbixin gaar ah, adigoon isticmaalin app-ka Report, oo",
     "agent_prompt_mixed_group": "Buuggayga xisaabta \"{book}\", kooxda {group} waxay isku dartaa hadhaagyo (Hanti, Deyn) iyo dhaqdhaqaaq (Soo gelaya, Baxaya). Iga caawi inaan u kala saaro kooxahooda gaarka ah. Beddel kooxaha oo keliya, ha beddelin macaamillada.",
     "agent_prompt_no_net_result": "Buuggayga xisaabta \"{book}\" ma laha natiijo saafi ah: ma jirto koox isku darta {incoming} iyo {outgoing}. Iga caawi inaan habeeyo kooxihiisa si dakhliga iyo kharashyadu ugu kulmaan hal koox. Beddel kooxaha oo keliya, ha beddelin macaamillada.",
     "agent_prompt_no_net_result_general": "Buuggayga xisaabta \"{book}\" ma laha natiijo saafi ah: ma jirto koox isku darta dakhligiisa iyo kharashyadiisa. Iga caawi inaan habeeyo kooxihiisa si dakhliga iyo kharashyadu ugu kulmaan hal koox. Beddel kooxaha oo keliya, ha beddelin macaamillada.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "bilowga sanadka ilaa maanta {year}",
     "retry": "Isku day mar kale",
     "shelf_access_error": "Helitaanka warbixinnada la keydiyay waa isbeddelay. Dib u soo rar si aad u hubiso helitaanka.",
+    "shelf_custom_report": "Warbixin gaar ah",
     "shelf_label": "Warbixinno la keydiyay",
     "shelf_load_error": "Warbixinnada la keydiyay lama soo rari karin. Isku day inaad dib u soo rarto.",
     "shelf_loading": "Waxaa soo dhacaya warbixinnada la keydiyay…",

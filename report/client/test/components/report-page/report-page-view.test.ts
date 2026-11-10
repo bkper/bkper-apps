@@ -899,6 +899,155 @@ describe('Book-shared prompt shelf in ReportPage', () => {
     });
 });
 
+describe('Custom report chip in ReportPage', () => {
+    afterEach(() => document.body.replaceChildren());
+
+    const DRAFT = 'Create a custom report, without using the Report app, that ';
+
+    /** The shelf row's last chip, which must be the custom report's. */
+    function lastChip(view: ReportPage) {
+        const last = shelfRoot(view).querySelector('.items')?.lastElementChild;
+        if (!last) throw new Error('The shelf row is empty');
+        return last;
+    }
+
+    function expectCustomLast(view: ReportPage) {
+        const chip = lastChip(view);
+        expect(chip.classList.contains('custom-report')).toBe(true);
+        expect(chip.textContent?.trim()).toBe(t('shelf_custom_report', 'en'));
+        expect(shelfRoot(view).querySelectorAll('.custom-report')).toHaveLength(1);
+    }
+
+    it('is the last chip of the shelf while it loads and after the suggestions', async () => {
+        const loaded = deferred<Awaited<ReturnType<SavedPromptsApi['savedPrompts']>>>();
+        const suggested = deferred<{ suggestions: string[] }>();
+        const view = createPage({
+            api: { suggestions: () => suggested.promise, report: async () => report('Net') },
+            shelfApi: { ...emptyShelf(), savedPrompts: () => loaded.promise },
+        });
+        view.state.select('book-1');
+        await settle(view);
+        // While the shelf and the suggestions load.
+        expect(shelfRoot(view).querySelector('report-suggestions')).not.toBeNull();
+        expectCustomLast(view);
+        suggested.resolve({ suggestions: SUGGESTIONS });
+        loaded.resolve({ prompts: [], capabilities: WRITE });
+        await settle(view);
+        // After the suggestions.
+        expect(lastChip(view).previousElementSibling?.localName).toBe('report-suggestions');
+        expectCustomLast(view);
+    });
+
+    // After saved prompts, read-only too, and with a shelf that failed or has nothing to show.
+    it.each([
+        ['an empty shelf without suggestions', async () => ({ prompts: [], capabilities: WRITE })],
+        ['saved prompts', async () => ({ prompts: [ITEM], capabilities: WRITE })],
+        [
+            'read-only saved prompts',
+            async () => ({
+                prompts: [ITEM],
+                capabilities: { list: true, save: false, remove: false, move: false },
+            }),
+        ],
+        [
+            'a shelf that failed',
+            () => Promise.reject(new AppApiError('private', 502, 'storage_error')),
+        ],
+    ] satisfies [string, SavedPromptsApi['savedPrompts']][])(
+        'is the last chip after %s',
+        async (_name, savedPrompts) => {
+            const view = createPage({
+                api: {
+                    suggestions: async () => ({ suggestions: [] }),
+                    report: async () => report('Net'),
+                },
+                shelfApi: { ...emptyShelf(), savedPrompts },
+            });
+            await ready(view);
+            expectCustomLast(view);
+        }
+    );
+
+    it('opens the Agent in the Book with the draft of a custom report, in the person’s language', async () => {
+        const view = createPage();
+        await ready(view);
+        const chip = shelfRoot(view).querySelector('.custom-report');
+        const url = new URL(chip?.getAttribute('href') ?? '');
+        expect(url.origin + url.pathname).toBe('https://bkper.app/books/book-1/transactions');
+        expect(url.searchParams.get('app')).toBe('bkper-agent');
+        expect(url.searchParams.get('q')).toBe(DRAFT);
+        // Standalone, in the same tab.
+        expect(chip?.hasAttribute('target')).toBe(false);
+
+        const arabic = createPage({ language: 'ar' });
+        arabic.state.connect();
+        await arabic.state.strings.load();
+        await ready(arabic);
+        const translated = shelfRoot(arabic).querySelector('.custom-report');
+        expect(translated?.textContent?.trim()).toBe(t('shelf_custom_report', 'ar'));
+        const draft = new URL(translated?.getAttribute('href') ?? '').searchParams.get('q');
+        expect(draft).toBe(`${t('agent_prompt_custom_report', 'ar')} `);
+        expect(draft).not.toBe(DRAFT);
+        arabic.state.disconnect();
+    });
+
+    it('is a link the keyboard reaches and follows', async () => {
+        const view = createPage();
+        await ready(view);
+        const chip =
+            shelfRoot(view).querySelector<HTMLElementTagNameMap['wa-button']>('.custom-report');
+        await chip?.updateComplete;
+        expect(chip?.disabled).toBe(false);
+        const anchor = chip?.shadowRoot?.querySelector('a');
+        expect(anchor?.getAttribute('href')).toBe(chip?.getAttribute('href'));
+        expect(anchor?.tabIndex).toBe(0);
+    });
+
+    it('opens the Agent in place in a Book that navigates for the app, else in a new tab', async () => {
+        const parent = { postMessage: vi.fn() };
+        const host = createHostPage('https://report.bkper.app', parent);
+        const view = createPage({ embedded: true, host });
+        view.state.connect();
+        await ready(view);
+        const chip = shelfRoot(view).querySelector('.custom-report');
+        expect(chip?.getAttribute('target')).toBe('_blank');
+        const early = new MouseEvent('click', { bubbles: true, cancelable: true });
+        chip?.dispatchEvent(early);
+        expect(early.defaultPrevented).toBe(false);
+        expect(parent.postMessage).not.toHaveBeenCalled();
+
+        const hostReady = new MessageEvent('message', {
+            data: { type: 'bkper:host-ready', supports: ['navigate'] },
+            origin: 'https://dev.bkper.app',
+        });
+        Object.defineProperty(hostReady, 'source', { value: parent });
+        host.dispatchEvent(hostReady);
+
+        const modified = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            ctrlKey: true,
+        });
+        chip?.dispatchEvent(modified);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(parent.postMessage).not.toHaveBeenCalled();
+
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+        chip?.dispatchEvent(click);
+        expect(click.defaultPrevented).toBe(true);
+        const url = new URL(chip?.getAttribute('href') ?? '');
+        expect(parent.postMessage).toHaveBeenCalledExactlyOnceWith(
+            {
+                type: 'bkper:navigate',
+                url: `https://dev.bkper.app${url.pathname}${url.search}`,
+            },
+            'https://dev.bkper.app'
+        );
+        expect(new URL(parent.postMessage.mock.calls[0][0].url).searchParams.get('q')).toBe(DRAFT);
+        view.state.disconnect();
+    });
+});
+
 describe('Saved prompt menu in ReportPage', () => {
     afterEach(() => document.body.replaceChildren());
 

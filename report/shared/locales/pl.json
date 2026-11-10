@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Uporządkuj z Agentem",
     "action_agent_start": "Zacznij z Agentem",
+    "agent_prompt_custom_report": "Utwórz raport niestandardowy, bez używania aplikacji Report, który",
     "agent_prompt_mixed_group": "W mojej Księdze „{book}” grupa {group} łączy salda (Aktywa, Zobowiązania) z ruchem (Wpływy, Wypływy). Pomóż mi rozdzielić je na osobne grupy. Zmieniaj tylko grupy, nie transakcje.",
     "agent_prompt_no_net_result": "Moja Księga „{book}” nie ma wyniku netto: żadna grupa nie łączy {incoming} i {outgoing}. Pomóż mi uporządkować jej grupy tak, aby przychody i wydatki spotykały się w jednej grupie. Zmieniaj tylko grupy, nie transakcje.",
     "agent_prompt_no_net_result_general": "Moja Księga „{book}” nie ma wyniku netto: żadna grupa nie łączy jej przychodów i wydatków. Pomóż mi uporządkować jej grupy tak, aby przychody i wydatki spotykały się w jednej grupie. Zmieniaj tylko grupy, nie transakcje.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "od początku roku {year}",
     "retry": "Spróbuj ponownie",
     "shelf_access_error": "Dostęp do zapisanych raportów się zmienił. Odśwież stronę, aby sprawdzić dostęp.",
+    "shelf_custom_report": "Raport niestandardowy",
     "shelf_label": "Zapisane raporty",
     "shelf_load_error": "Nie udało się wczytać zapisanych raportów. Spróbuj odświeżyć stronę.",
     "shelf_loading": "Wczytywanie zapisanych raportów…",

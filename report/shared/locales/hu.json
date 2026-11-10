@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Rendezés az Ügynökkel",
     "action_agent_start": "Kezdés az Ügynökkel",
+    "agent_prompt_custom_report": "Készítsen egyéni jelentést a Report alkalmazás használata nélkül, amely",
     "agent_prompt_mixed_group": "A(z) „{book}” Főkönyvemben a(z) {group} csoport egyenlegeket (Eszköz, Kötelezettség) egyesít mozgásokkal (Bejövő, Kimenő). Segítsen külön csoportokba választani őket. Csak a csoportokat módosítsa, a tranzakciókat ne.",
     "agent_prompt_no_net_result": "A(z) „{book}” Főkönyvemnek nincs nettó eredménye: egyetlen csoport sem egyesíti ezeket: {incoming} és {outgoing}. Segítsen úgy rendezni a csoportjait, hogy a bevételek és a kiadások egy csoportban találkozzanak. Csak a csoportokat módosítsa, a tranzakciókat ne.",
     "agent_prompt_no_net_result_general": "A(z) „{book}” Főkönyvemnek nincs nettó eredménye: egyetlen csoport sem egyesíti a bevételeit és a kiadásait. Segítsen úgy rendezni a csoportjait, hogy a bevételek és a kiadások egy csoportban találkozzanak. Csak a csoportokat módosítsa, a tranzakciókat ne.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "év elejétől máig {year}",
     "retry": "Újrapróbálkozás",
     "shelf_access_error": "A mentett jelentésekhez való hozzáférés megváltozott. Töltse újra az oldalt a hozzáférés ellenőrzéséhez.",
+    "shelf_custom_report": "Egyéni jelentés",
     "shelf_label": "Mentett jelentések",
     "shelf_load_error": "A mentett jelentések betöltése nem sikerült. Próbálja újratölteni.",
     "shelf_loading": "Mentett jelentések betöltése…",

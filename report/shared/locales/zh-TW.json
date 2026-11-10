@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "使用智慧代理整理",
     "action_agent_start": "使用智慧代理開始",
+    "agent_prompt_custom_report": "不使用 Report 應用程式，建立一份自訂報表，內容為：",
     "agent_prompt_mixed_group": "在我的帳簿「{book}」中，群組 {group} 將餘額（資產、負債）與變動（流入、流出）合併在一起。請幫我將它們拆分到各自的群組中。只修改群組，不要修改交易。",
     "agent_prompt_no_net_result": "我的帳簿「{book}」沒有淨損益：沒有群組合併 {incoming} 與 {outgoing}。請幫我整理其群組，讓收入與支出匯集到同一個群組中。只修改群組，不要修改交易。",
     "agent_prompt_no_net_result_general": "我的帳簿「{book}」沒有淨損益：沒有群組合併其收入與支出。請幫我整理其群組，讓收入與支出匯集到同一個群組中。只修改群組，不要修改交易。",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year}年初至今",
     "retry": "重試",
     "shelf_access_error": "已儲存報表的存取權限已變更。請重新載入以檢查存取權限。",
+    "shelf_custom_report": "自訂報表",
     "shelf_label": "已儲存的報表",
     "shelf_load_error": "無法載入已儲存的報表。請嘗試重新載入。",
     "shelf_loading": "正在載入已儲存的報告…",

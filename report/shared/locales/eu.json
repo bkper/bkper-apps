@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Antolatu Agentearekin",
     "action_agent_start": "Hasi Agentearekin",
+    "agent_prompt_custom_report": "Sortu txosten pertsonalizatu bat, Report aplikazioa erabili gabe, honako hau erakusten duena:",
     "agent_prompt_mixed_group": "Nire \"{book}\" Liburuan, {group} taldeak saldoak (Aktiboa, Pasiboa) eta jarduera (Sarrera, Irteera) batzen ditu. Lagundu haiek beren talde propioetan bereizten. Aldatu taldeak soilik, ez transakzioak.",
     "agent_prompt_no_net_result": "Nire \"{book}\" Liburuak ez du emaitza garbirik: ez dago {incoming} eta {outgoing} biltzen dituen talderik. Lagundu bere taldeak antolatzen, diru-sarrerak eta gastuak talde berean elkar daitezen. Aldatu taldeak soilik, ez transakzioak.",
     "agent_prompt_no_net_result_general": "Nire \"{book}\" Liburuak ez du emaitza garbirik: ez dago bere diru-sarrerak eta gastuak biltzen dituen talderik. Lagundu bere taldeak antolatzen, diru-sarrerak eta gastuak talde berean elkar daitezen. Aldatu taldeak soilik, ez transakzioak.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "urte hasieratik gaur arte {year}",
     "retry": "Saiatu berriro",
     "shelf_access_error": "Gordetako txostenetarako sarbidea aldatu da. Birkargatu sarbidea egiaztatzeko.",
+    "shelf_custom_report": "Txosten pertsonalizatua",
     "shelf_label": "Gordetako txostenak",
     "shelf_load_error": "Ezin izan dira gordetako txostenak kargatu. Saiatu berriro kargatzen.",
     "shelf_loading": "Gordetako txostenak kargatzen…",

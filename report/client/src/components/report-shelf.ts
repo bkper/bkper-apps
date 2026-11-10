@@ -5,13 +5,17 @@ import { repeat } from 'lit/directives/repeat.js';
 import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { SavedPrompt } from '../api/app-api';
+import { plainClick } from '../bkper-host';
 import type { AppState } from '../state/app-state';
 import type { SavedPromptsError, ShelfPlace } from '../state/saved-prompts';
 import { watch } from '../state/store';
 import './report-suggestions';
 import { ShelfDrag } from './shelf-drag';
 
-export type ReportShelfState = Pick<AppState, 'route' | 'reports' | 'savedPrompts' | 'strings'>;
+export type ReportShelfState = Pick<
+    AppState,
+    'route' | 'reports' | 'savedPrompts' | 'strings' | 'customReportLink' | 'openCustomReport'
+>;
 
 export const OPEN_SAVED_REPORT = 'report-open-saved';
 
@@ -32,6 +36,17 @@ const REMOVE = 'remove';
 // Inline: a strict content security policy would block wa-icon's fetches.
 const MORE = html`<svg class="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     ${svg`<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>`}
+</svg>`;
+
+// Inline, like MORE: the Bkper Agent's sparkle, so the custom report chip reads as the Agent's.
+const SPARKLE = html`<svg
+    slot="start"
+    class="glyph"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+>
+    ${svg`<path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>`}
 </svg>`;
 
 type WaButton = HTMLElementTagNameMap['wa-button'];
@@ -175,7 +190,11 @@ export class ReportShelf extends LitElement {
     render() {
         const { savedPrompts: shelf, reports } = this.state;
         // Never expose the previous Book's items or source during navigation.
-        if (shelf.bookId !== this.state.route.bookId) return this.suggestions();
+        if (shelf.bookId !== this.state.route.bookId) {
+            return html`<div class="row">
+                <div class="items">${this.suggestions()}${this.customReport()}</div>
+            </div>`;
+        }
         const lang = this.state.strings.language;
         const source = reports.originalPrompt;
         const saved = source !== undefined && shelf.isSaved(source);
@@ -217,6 +236,7 @@ export class ReportShelf extends LitElement {
                               )
                             : this.suggestions()
                     }
+                    ${this.customReport()}
                 </div>
                 ${
                     (source && shelf.capabilities?.save) || saving
@@ -425,6 +445,30 @@ export class ReportShelf extends LitElement {
         // A drop keeps the row where the person left it.
         if (!this.drag.active) chip.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
+
+    /**
+     * The custom report chip, always the row's last: the Bkper Agent builds a report Report does
+     * not make, in place where the Book navigates for the app, else by its link.
+     */
+    private customReport() {
+        const link = this.state.customReportLink();
+        if (!link) return nothing;
+        return html`<wa-button
+            class="custom-report"
+            size="s"
+            pill
+            appearance="outlined"
+            variant="brand"
+            href=${link.url}
+            target=${link.newTab ? '_blank' : nothing}
+            @click=${this.onCustomReport}
+            >${SPARKLE}${t('shelf_custom_report', this.state.strings.language)}</wa-button
+        >`;
+    }
+
+    private onCustomReport = (event: MouseEvent): void => {
+        if (plainClick(event) && this.state.openCustomReport()) event.preventDefault();
+    };
 
     private suggestions() {
         const { reports, strings } = this.state;

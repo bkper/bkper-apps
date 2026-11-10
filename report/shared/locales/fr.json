@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organiser avec l'Agent",
     "action_agent_start": "Commencer avec l'Agent",
+    "agent_prompt_custom_report": "Créez un rapport personnalisé, sans utiliser l'app Report, qui",
     "agent_prompt_mixed_group": "Dans mon Livre « {book} », le groupe {group} combine des soldes (Actif, Passif) avec de l'activité (Entrée, Sortie). Aidez-moi à les séparer dans leurs propres groupes. Modifiez uniquement les groupes, pas les transactions.",
     "agent_prompt_no_net_result": "Mon Livre « {book} » n'a pas de résultat net : aucun groupe ne combine {incoming} et {outgoing}. Aidez-moi à organiser ses groupes pour que les revenus et les dépenses se rejoignent dans un même groupe. Modifiez uniquement les groupes, pas les transactions.",
     "agent_prompt_no_net_result_general": "Mon Livre « {book} » n'a pas de résultat net : aucun groupe ne combine ses revenus et ses dépenses. Aidez-moi à organiser ses groupes pour que les revenus et les dépenses se rejoignent dans un même groupe. Modifiez uniquement les groupes, pas les transactions.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "cumul annuel {year}",
     "retry": "Réessayer",
     "shelf_access_error": "L'accès aux rapports enregistrés a changé. Rechargez pour vérifier l'accès.",
+    "shelf_custom_report": "Rapport personnalisé",
     "shelf_label": "Rapports enregistrés",
     "shelf_load_error": "Impossible de charger les rapports enregistrés. Essayez de recharger.",
     "shelf_loading": "Chargement des rapports enregistrés…",

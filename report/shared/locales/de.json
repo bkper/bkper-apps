@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Mit Agent ordnen",
     "action_agent_start": "Mit Agent beginnen",
+    "agent_prompt_custom_report": "Erstellen Sie einen individuellen Bericht, ohne die App Report zu verwenden, der",
     "agent_prompt_mixed_group": "In meinem Buch „{book}“ verbindet die Gruppe {group} Salden (Aktiva, Passiva) mit Bewegungen (Eingang, Ausgang). Helfen Sie mir, sie in eigene Gruppen zu trennen. Ändern Sie nur Gruppen, keine Transaktionen.",
     "agent_prompt_no_net_result": "Mein Buch „{book}“ hat kein Nettoergebnis: Keine Gruppe fasst {incoming} und {outgoing} zusammen. Helfen Sie mir, seine Gruppen so zu ordnen, dass Einnahmen und Ausgaben in einer Gruppe zusammenkommen. Ändern Sie nur Gruppen, keine Transaktionen.",
     "agent_prompt_no_net_result_general": "Mein Buch „{book}“ hat kein Nettoergebnis: Keine Gruppe fasst seine Einnahmen und Ausgaben zusammen. Helfen Sie mir, seine Gruppen so zu ordnen, dass Einnahmen und Ausgaben in einer Gruppe zusammenkommen. Ändern Sie nur Gruppen, keine Transaktionen.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "seit Jahresbeginn {year}",
     "retry": "Erneut versuchen",
     "shelf_access_error": "Der Zugriff auf gespeicherte Berichte hat sich geändert. Laden Sie neu, um den Zugriff zu prüfen.",
+    "shelf_custom_report": "Individueller Bericht",
     "shelf_label": "Gespeicherte Berichte",
     "shelf_load_error": "Gespeicherte Berichte konnten nicht geladen werden. Versuchen Sie, neu zu laden.",
     "shelf_loading": "Gespeicherte Berichte werden geladen …",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Usporiadajte s Agentom",
     "action_agent_start": "Začnite s Agentom",
+    "agent_prompt_custom_report": "Vytvorte vlastnú správu bez použitia aplikácie Report, ktorá",
     "agent_prompt_mixed_group": "V mojej Knihe „{book}“ skupina {group} spája zostatky (Aktívum, Záväzok) s pohybmi (Prírastok, Úbytok). Pomôžte mi rozdeliť ich do samostatných skupín. Meňte iba skupiny, nie transakcie.",
     "agent_prompt_no_net_result": "Moja Kniha „{book}“ nemá čistý výsledok: žiadna skupina nespája {incoming} a {outgoing}. Pomôžte mi usporiadať jej skupiny tak, aby sa príjmy a výdavky stretli v jednej skupine. Meňte iba skupiny, nie transakcie.",
     "agent_prompt_no_net_result_general": "Moja Kniha „{book}“ nemá čistý výsledok: žiadna skupina nespája jej príjmy a výdavky. Pomôžte mi usporiadať jej skupiny tak, aby sa príjmy a výdavky stretli v jednej skupine. Meňte iba skupiny, nie transakcie.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "od začiatku roka {year}",
     "retry": "Skúste to znova",
     "shelf_access_error": "Prístup k uloženým reportom sa zmenil. Znova načítajte stránku a skontrolujte prístup.",
+    "shelf_custom_report": "Vlastná správa",
     "shelf_label": "Uložené zostavy",
     "shelf_load_error": "Uložené správy sa nepodarilo načítať. Skúste stránku načítať znova.",
     "shelf_loading": "Načítavajú sa uložené zostavy…",

@@ -6,7 +6,7 @@ import {
 import { personLanguage } from './language';
 import { decodeUrlState, encodeUrlState, type UrlState } from 'report-shared/url-state';
 import { createAppApi, type AppApi, type BookProblem, type ReportResponse } from '../api/app-api';
-import { agentPrompt, agentUrl } from '../agent-link';
+import { agentPrompt, agentUrl, customReportPrompt } from '../agent-link';
 import { PRODUCTION_BKPER_ORIGIN } from '../bkper-host';
 import { loadReportRenderer } from '../report-loader';
 import { createBookService, type BookService } from '../services/book-service';
@@ -246,12 +246,34 @@ export class AppState {
      * The person clicked the Agent link of `problem`: in a Book that navigates for the app, ask it
      * to open the Agent in place, on its own origin. Whether it did; else the link opens.
      */
-    readonly openAgent = (problem: BookProblem): boolean => {
+    readonly openAgent = (problem: BookProblem): boolean =>
+        this.navigateInPlace(origin => this.agentUrl(problem, origin));
+
+    /**
+     * The link to the Bkper Agent that builds a custom report of the Book, one Report does not
+     * make, for anyone in the Book: with the start of the request ready in the Agent's input, in
+     * the interface's language, for the person to finish. It opens as the Agent links of Book
+     * problems do ({@link agentLink}, {@link openCustomReport}).
+     */
+    customReportLink(): { url: string; newTab: boolean } | undefined {
+        const url = this.customReportUrl(PRODUCTION_BKPER_ORIGIN);
+        return url === undefined ? undefined : { url, newTab: this.embedded };
+    }
+
+    /**
+     * The person clicked the custom report link: in a Book that navigates for the app, ask it to
+     * open the Agent in place, on its own origin. Whether it did; else the link opens.
+     */
+    readonly openCustomReport = (): boolean =>
+        this.navigateInPlace(origin => this.customReportUrl(origin));
+
+    /** In a Book that navigates for the app, ask it to open the URL `urlOn` its origin gives. */
+    private navigateInPlace(urlOn: (origin: string) => string | undefined): boolean {
         const origin = this.host.navigationOrigin;
         if (!this.embedded || !origin) return false;
-        const url = this.agentUrl(problem, origin);
+        const url = urlOn(origin);
         return url !== undefined && this.host.navigate(url);
-    };
+    }
 
     /**
      * The person clicked the link to the report's query in Bkper, `url`: in a Book that navigates
@@ -269,6 +291,12 @@ export class AppState {
         const bookId = this.reports.bookId;
         if (!bookId || !problem.canOrganize) return undefined;
         return agentUrl(origin, bookId, agentPrompt(problem, this.strings.language));
+    }
+
+    private customReportUrl(origin: string): string | undefined {
+        const bookId = this.reports.bookId;
+        if (!bookId) return undefined;
+        return agentUrl(origin, bookId, customReportPrompt(this.strings.language));
     }
 
     /**

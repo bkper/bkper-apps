@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Emohenda Agente ndive",
     "action_agent_start": "Eñepyrũ Agente ndive",
+    "agent_prompt_custom_report": "Ejapo peteĩ ñemombe'u reipotáva, eipuru'ỹre Report aplicación, ohechaukáva:",
     "agent_prompt_mixed_group": "Che Kuatia rembiapo \"{book}\"-pe, aty {group} ombojoaju saldo (Mba'e ierekóva, Mba'e ijyvyku) tembiapo (Jeike, Jeho) ndive. Chepytyvõ amboja'o hag̃ua chupekuéra ijatýpe tee. Emoambue aty añónte, ani mba'e jehekýi.",
     "agent_prompt_no_net_result": "Che Kuatia rembiapo \"{book}\" ndorekói resultado neto: ni peteĩ aty nombojoajúi {incoming} ha {outgoing}. Chepytyvõ amohenda hag̃ua hi'aty, ingreso ha gasto oñembojoaju hag̃ua peteĩ atýpe. Emoambue aty añónte, ani mba'e jehekýi.",
     "agent_prompt_no_net_result_general": "Che Kuatia rembiapo \"{book}\" ndorekói resultado neto: ni peteĩ aty nombojoajúi hi'ingreso ha hi'gasto. Chepytyvõ amohenda hag̃ua hi'aty, ingreso ha gasto oñembojoaju hag̃ua peteĩ atýpe. Emoambue aty añónte, ani mba'e jehekýi.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ary ñepyrũme guive ko'ágã peve {year}",
     "retry": "Eha'ã jey",
     "shelf_access_error": "Umi techapyrã ñongatupyre ojeike ñemoambue. Emoĩ jey eme'ẽ hag̃ua ejeikévo.",
+    "shelf_custom_report": "Ñemombe'u reipotáva",
     "shelf_label": "Marandu ñongatupyre",
     "shelf_load_error": "Ndaikatúi oñemyanyhẽ umi reporte ñongatupyre. Eha'ã jey emyanyhẽ.",
     "shelf_loading": "Oñemyanyhẽhína umi marandu ñeñongatupyre…",

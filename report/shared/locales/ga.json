@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Eagraigh leis an nGníomhaire",
     "action_agent_start": "Tosaigh leis an nGníomhaire",
+    "agent_prompt_custom_report": "Cruthaigh tuarascáil shaincheaptha, gan an aip Report a úsáid, a",
     "agent_prompt_mixed_group": "I mo Leabhar cuntas \"{book}\", comhcheanglaíonn an grúpa {group} iarmhéideanna (Sócmhainn, Dliteanas) le gníomhaíocht (Isteach, Amach). Cabhraigh liom iad a scaradh ina ngrúpaí féin. Athraigh grúpaí amháin, ní idirbhearta.",
     "agent_prompt_no_net_result": "Níl glanthoradh ag mo Leabhar cuntas \"{book}\": ní chomhcheanglaíonn aon ghrúpa {incoming} agus {outgoing}. Cabhraigh liom a ghrúpaí a eagrú ionas go dtagann ioncam agus costais le chéile in aon ghrúpa amháin. Athraigh grúpaí amháin, ní idirbhearta.",
     "agent_prompt_no_net_result_general": "Níl glanthoradh ag mo Leabhar cuntas \"{book}\": ní chomhcheanglaíonn aon ghrúpa a ioncam agus a chostais. Cabhraigh liom a ghrúpaí a eagrú ionas go dtagann ioncam agus costais le chéile in aon ghrúpa amháin. Athraigh grúpaí amháin, ní idirbhearta.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "go dtí seo i mbliana {year}",
     "retry": "Bain triail eile as",
     "shelf_access_error": "Tá athrú tagtha ar rochtain ar thuarascálacha sábháilte. Athlódáil chun rochtain a sheiceáil.",
+    "shelf_custom_report": "Tuarascáil shaincheaptha",
     "shelf_label": "Tuarascálacha sábháilte",
     "shelf_load_error": "Níorbh fhéidir na tuarascálacha sábháilte a luchtú. Bain triail as athluchtú.",
     "shelf_loading": "Tuarascálacha sábháilte á luchtú…",

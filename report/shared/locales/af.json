@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organiseer met Agent",
     "action_agent_start": "Begin met Agent",
+    "agent_prompt_custom_report": "Skep 'n pasgemaakte verslag, sonder om die Report-app te gebruik, wat",
     "agent_prompt_mixed_group": "In my Boek \"{book}\" kombineer die groep {group} saldo's (Bate, Laste) met aktiwiteit (Inkomende, Uitgaande). Help my om hulle in hul eie groepe te skei. Verander net groepe, nie transaksies nie.",
     "agent_prompt_no_net_result": "My Boek \"{book}\" het geen netto resultaat nie: geen groep kombineer {incoming} en {outgoing} nie. Help my om sy groepe so te organiseer dat inkomste en uitgawes in een groep saamkom. Verander net groepe, nie transaksies nie.",
     "agent_prompt_no_net_result_general": "My Boek \"{book}\" het geen netto resultaat nie: geen groep kombineer sy inkomste en uitgawes nie. Help my om sy groepe so te organiseer dat inkomste en uitgawes in een groep saamkom. Verander net groepe, nie transaksies nie.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "jaar tot op datum {year}",
     "retry": "Probeer weer",
     "shelf_access_error": "Toegang tot gestoorde verslae het verander. Laai weer om toegang na te gaan.",
+    "shelf_custom_report": "Pasgemaakte verslag",
     "shelf_label": "Gestoorde verslae",
     "shelf_load_error": "Gestoorde verslae kon nie laai nie. Probeer weer laai.",
     "shelf_loading": "Gestoorde verslae word gelaai…",

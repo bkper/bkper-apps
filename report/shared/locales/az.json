@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Agent ilə təşkil et",
     "action_agent_start": "Agent ilə başla",
+    "agent_prompt_custom_report": "Report tətbiqindən istifadə etmədən aşağıdakıları göstərən fərdi hesabat yaradın:",
     "agent_prompt_mixed_group": "\"{book}\" Kitabımda {group} qrupu qalıqları (Aktiv, Öhdəlik) fəaliyyətlə (Daxilolma, Xaricolma) birləşdirir. Onları öz qruplarına ayırmağıma kömək edin. Yalnız qrupları dəyişin, əməliyyatları yox.",
     "agent_prompt_no_net_result": "\"{book}\" Kitabımın xalis nəticəsi yoxdur: heç bir qrup {incoming} və {outgoing} birləşdirmir. Gəlir və xərclər bir qrupda birləşsin deyə onun qruplarını təşkil etməyimə kömək edin. Yalnız qrupları dəyişin, əməliyyatları yox.",
     "agent_prompt_no_net_result_general": "\"{book}\" Kitabımın xalis nəticəsi yoxdur: heç bir qrup onun gəlir və xərclərini birləşdirmir. Gəlir və xərclər bir qrupda birləşsin deyə onun qruplarını təşkil etməyimə kömək edin. Yalnız qrupları dəyişin, əməliyyatları yox.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} ilin əvvəlindən bu günədək",
     "retry": "Yenidən cəhd et",
     "shelf_access_error": "Saxlanmış hesabatlara giriş dəyişib. Girişi yoxlamaq üçün səhifəni yenidən yükləyin.",
+    "shelf_custom_report": "Fərdi hesabat",
     "shelf_label": "Saxlanmış hesabatlar",
     "shelf_load_error": "Saxlanmış hesabatlar yüklənə bilmədi. Yenidən yükləməyə cəhd edin.",
     "shelf_loading": "Yadda saxlanmış hesabatlar yüklənir…",

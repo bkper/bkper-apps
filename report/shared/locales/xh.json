@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Lungelelanisa ngeEjenti",
     "action_agent_start": "Qalisa ngeEjenti",
+    "agent_prompt_custom_report": "Yenza ingxelo ekhethekileyo, ngaphandle kokusebenzisa i-app ye-Report, ebonisa",
     "agent_prompt_mixed_group": "KwiNcwadi yam yeeakhaunti \"{book}\", iQela {group} lidibanisa iibhalansi (Impahla, Isikweletu) nomsebenzi (Okungenayo, Okuphumayo). Ndincede ndizahlule zibe ngamaqela azo. Tshintsha amaqela kuphela, hayi iintengiselwano.",
     "agent_prompt_no_net_result": "INcwadi yam yeeakhaunti \"{book}\" ayinaso isiphumo esiyinet: akukho Qela lidibanisa {incoming} kunye ne-{outgoing}. Ndincede ndilungelelanise amaqela ayo ukuze ingeniso nenkcitho zidibane kwiQela elinye. Tshintsha amaqela kuphela, hayi iintengiselwano.",
     "agent_prompt_no_net_result_general": "INcwadi yam yeeakhaunti \"{book}\" ayinaso isiphumo esiyinet: akukho Qela lidibanisa ingeniso nenkcitho yayo. Ndincede ndilungelelanise amaqela ayo ukuze ingeniso nenkcitho zidibane kwiQela elinye. Tshintsha amaqela kuphela, hayi iintengiselwano.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ukusuka ekuqaleni konyaka ukuya namhlanje {year}",
     "retry": "Zama kwakhona",
     "shelf_access_error": "Ufikelelo kwiingxelo ezigciniweyo luguqukile. Layisha kwakhona ukuze ujonge ufikelelo.",
+    "shelf_custom_report": "Ingxelo ekhethekileyo",
     "shelf_label": "Iingxelo ezigcinwe",
     "shelf_load_error": "Iingxelo ezigcinwe azikwazanga ukulayishwa. Zama ukulayisha kwakhona.",
     "shelf_loading": "Iyalayisha iingxelo ezigcinwe…",

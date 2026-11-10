@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Hlela hi Ejenti",
     "action_agent_start": "Sungula hi Ejenti",
+    "agent_prompt_custom_report": "Endla xiviko xo hlawuleka, u nga tirhisi app ya Report, lexi",
     "agent_prompt_mixed_group": "Eka Buku ya mina ya timali \"{book}\", Ntlawa {group} wu hlanganisa minsalo (Xuma, Xikweleti) ni migingiriko (Leswi nghenaka, Leswi humaka). Ndzi pfuna ku swi hambanisa eka mintlawa ya swona. Cinca mintlawa ntsena, ku nga ri Minchumu ya mali.",
     "agent_prompt_no_net_result": "Buku ya mina ya timali \"{book}\" a yi na mbuyelo lowu tengeke: a ku na Ntlawa lowu hlanganisaka {incoming} na {outgoing}. Ndzi pfuna ku hlela mintlawa ya yona leswaku mali leyi nghenaka ni mixavo swi hlangana eka Ntlawa wun'we. Cinca mintlawa ntsena, ku nga ri Minchumu ya mali.",
     "agent_prompt_no_net_result_general": "Buku ya mina ya timali \"{book}\" a yi na mbuyelo lowu tengeke: a ku na Ntlawa lowu hlanganisaka mali leyi nghenaka ni mixavo ya yona. Ndzi pfuna ku hlela mintlawa ya yona leswaku mali leyi nghenaka ni mixavo swi hlangana eka Ntlawa wun'we. Cinca mintlawa ntsena, ku nga ri Minchumu ya mali.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ku sukela eku sunguleni ka lembe ku fika namuntlha {year}",
     "retry": "Ringeta nakambe",
     "shelf_access_error": "Ku nghena eka tiphoyitsi leti hlayisiweke ku cincile. Tlhela u layita leswaku u kambela ku nghena.",
+    "shelf_custom_report": "Xiviko xo hlawuleka",
     "shelf_label": "Swiviko leswi hlayisiweke",
     "shelf_load_error": "Swiviko leswi hlayisiweke a swi nga tekeriwanga. Ringeta ku swi teka nakambe.",
     "shelf_loading": "Ku layicheka swiviko leswi hlayisiweke…",

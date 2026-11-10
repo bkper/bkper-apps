@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organizza con Agente",
     "action_agent_start": "Inizia con Agente",
+    "agent_prompt_custom_report": "Crea un report personalizzato, senza usare l'app Report, che",
     "agent_prompt_mixed_group": "Nel mio Libro contabile «{book}», il gruppo {group} combina saldi (Attività, Passività) con movimenti (Entrata, Uscita). Aiutami a separarli in gruppi propri. Modifica solo i gruppi, non le transazioni.",
     "agent_prompt_no_net_result": "Il mio Libro contabile «{book}» non ha un risultato netto: nessun gruppo combina {incoming} e {outgoing}. Aiutami a organizzarne i gruppi in modo che entrate e uscite si incontrino in un unico gruppo. Modifica solo i gruppi, non le transazioni.",
     "agent_prompt_no_net_result_general": "Il mio Libro contabile «{book}» non ha un risultato netto: nessun gruppo combina le sue entrate e uscite. Aiutami a organizzarne i gruppi in modo che entrate e uscite si incontrino in un unico gruppo. Modifica solo i gruppi, non le transazioni.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year}, da inizio anno",
     "retry": "Riprova",
     "shelf_access_error": "L'accesso ai report salvati è cambiato. Ricarica per verificare l'accesso.",
+    "shelf_custom_report": "Report personalizzato",
     "shelf_label": "Report salvati",
     "shelf_load_error": "Impossibile caricare i report salvati. Prova a ricaricare.",
     "shelf_loading": "Caricamento dei report salvati…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organiza co Axente",
     "action_agent_start": "Comeza co Axente",
+    "agent_prompt_custom_report": "Crea un informe personalizado, sen usar a app Report, que",
     "agent_prompt_mixed_group": "No meu Libro \"{book}\", o grupo {group} combina saldos (Activo, Pasivo) con actividade (Entrada, Saída). Axúdame a separalos nos seus propios grupos. Cambia só grupos, non transaccións.",
     "agent_prompt_no_net_result": "O meu Libro \"{book}\" non ten resultado neto: ningún grupo combina {incoming} e {outgoing}. Axúdame a organizar os seus grupos para que os ingresos e os gastos se atopen nun mesmo grupo. Cambia só grupos, non transaccións.",
     "agent_prompt_no_net_result_general": "O meu Libro \"{book}\" non ten resultado neto: ningún grupo combina os seus ingresos e gastos. Axúdame a organizar os seus grupos para que os ingresos e os gastos se atopen nun mesmo grupo. Cambia só grupos, non transaccións.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "no que vai de ano {year}",
     "retry": "Tenta de novo",
     "shelf_access_error": "O acceso aos informes gardados cambiou. Recarga para comprobar o acceso.",
+    "shelf_custom_report": "Informe personalizado",
     "shelf_label": "Informes gardados",
     "shelf_load_error": "Non se puideron cargar os informes gardados. Proba a recargar.",
     "shelf_loading": "Cargando os informes gardados…",

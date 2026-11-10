@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "E hoʻonohonoho me Agent",
     "action_agent_start": "E hoʻomaka me Agent",
+    "agent_prompt_custom_report": "E hana i hōʻike kūikawā, me ka hoʻohana ʻole i ka polokalamu Report, e",
     "agent_prompt_mixed_group": "Ma kaʻu Puke moʻokāki \"{book}\", hui pū ka hui {group} i nā koena (Waiwai, Aie) me ka hana (Komo mai, Puka aku). E kōkua mai iaʻu e hoʻokaʻawale iā lākou i loko o ko lākou mau hui ponoʻī. E hoʻololi i nā hui wale nō, ʻaʻole i nā hoʻoneʻe.",
     "agent_prompt_no_net_result": "ʻAʻohe hopena net o kaʻu Puke moʻokāki \"{book}\": ʻaʻohe hui e hui pū ana iā {incoming} a me {outgoing}. E kōkua mai iaʻu e hoʻonohonoho i kāna mau hui i hui ai ka loaʻa a me ka hoʻolilo i loko o hoʻokahi hui. E hoʻololi i nā hui wale nō, ʻaʻole i nā hoʻoneʻe.",
     "agent_prompt_no_net_result_general": "ʻAʻohe hopena net o kaʻu Puke moʻokāki \"{book}\": ʻaʻohe hui e hui pū ana i kāna loaʻa a me kāna hoʻolilo. E kōkua mai iaʻu e hoʻonohonoho i kāna mau hui i hui ai ka loaʻa a me ka hoʻolilo i loko o hoʻokahi hui. E hoʻololi i nā hui wale nō, ʻaʻole i nā hoʻoneʻe.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "mai ka hoʻomaka ʻana o ka makahiki a hiki i kēia lā {year}",
     "retry": "E hoʻāʻo hou",
     "shelf_access_error": "Ua loli ka komo ʻana i nā hōʻike i mālama ʻia. E hoʻouka hou e nānā i ka komo ʻana.",
+    "shelf_custom_report": "Hōʻike kūikawā",
     "shelf_label": "Nā hōʻike i mālama ʻia",
     "shelf_load_error": "ʻAʻole hiki ke hoʻouka i nā hōʻike i mālama ʻia. E ho‘āʻo e hoʻouka hou.",
     "shelf_loading": "Ke hoʻouka ʻia nā hōʻike i mālama ʻia…",

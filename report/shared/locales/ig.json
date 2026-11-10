@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Hazie na Onye enyemaka AI",
     "action_agent_start": "Malite na Onye enyemaka AI",
+    "agent_prompt_custom_report": "Mepụta akụkọ ahaziri iche, n'ejighị ngwa Report, nke",
     "agent_prompt_mixed_group": "N'ime Akwụkwọ ndekọ m \"{book}\", otu {group} na-ejikọ fọdụrụ (Akụ, Ụgwọ) na ọrụ (Ntinye, Mpụta). Nyere m aka kewaa ha n'otu nke ha. Gbanwee otu naanị, ọ bụghị azụmahịa.",
     "agent_prompt_no_net_result": "Akwụkwọ ndekọ m \"{book}\" enweghị nsonaazụ net: ọ dịghị otu jikọtara {incoming} na {outgoing}. Nyere m aka hazie otu ya ka ego ọbịbịa na mmefu zukọọ n'otu otu. Gbanwee otu naanị, ọ bụghị azụmahịa.",
     "agent_prompt_no_net_result_general": "Akwụkwọ ndekọ m \"{book}\" enweghị nsonaazụ net: ọ dịghị otu jikọtara ego ọbịbịa ya na mmefu ya. Nyere m aka hazie otu ya ka ego ọbịbịa na mmefu zukọọ n'otu otu. Gbanwee otu naanị, ọ bụghị azụmahịa.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "site mmalite afọ ruo taa {year}",
     "retry": "Nwaa ọzọ",
     "shelf_access_error": "Nnweta akụkọ ndị echekwara agbanweela. Bupụghachi ka ị lelee nnweta.",
+    "shelf_custom_report": "Akụkọ ahaziri iche",
     "shelf_label": "Akụkọ echekwara",
     "shelf_load_error": "Enweghị ike ibu akwụkwọ akụkọ echekwara. Gbalịa ibu ya ọzọ.",
     "shelf_loading": "Ana-ebuga akụkọ echekwara…",

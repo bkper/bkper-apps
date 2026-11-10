@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Bi Ajan re birêk bixe",
     "action_agent_start": "Bi Ajan re dest pê bike",
+    "agent_prompt_custom_report": "Raporteke taybet çêke, bêyî ku sepana Report bi kar bînî, ku",
     "agent_prompt_mixed_group": "Di Deftera min \"{book}\" de, koma {group} bakiyeyan (Mal, Deyn) bi çalakiyê (Têketin, Derketin) re dike yek. Alîkariya min bike ku ez wan di komên wan ên xwe de ji hev veqetînim. Tenê koman biguherîne, ne muameleyan.",
     "agent_prompt_no_net_result": "Encama net a Deftera min \"{book}\" tune ye: tu kom {incoming} û {outgoing} nake yek. Alîkariya min bike ku ez komên wê wisa birêk bixim ku dahat û lêçûn di komekê de bigihîjin hev. Tenê koman biguherîne, ne muameleyan.",
     "agent_prompt_no_net_result_general": "Encama net a Deftera min \"{book}\" tune ye: tu kom dahat û lêçûnên wê nake yek. Alîkariya min bike ku ez komên wê wisa birêk bixim ku dahat û lêçûn di komekê de bigihîjin hev. Tenê koman biguherîne, ne muameleyan.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "ji destpêka salê heta îro {year}",
     "retry": "Dîsa biceribîne",
     "shelf_access_error": "Gihîştina raporên tomarkirî guherî. Ji bo kontrolkirina gihîştinê dîsa bar bike.",
+    "shelf_custom_report": "Raporta taybet",
     "shelf_label": "Raporên tomarkirî",
     "shelf_load_error": "Raporên tomarkirî nehatin barkirin. Careke din bar bike.",
     "shelf_loading": "Raporên tomarkirî tên barkirin…",

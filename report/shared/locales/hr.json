@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organiziraj s Agentom",
     "action_agent_start": "Počni s Agentom",
+    "agent_prompt_custom_report": "Izradi prilagođeno izvješće, bez korištenja aplikacije Report, koje",
     "agent_prompt_mixed_group": "U mojoj Knjizi „{book}” grupa {group} kombinira salda (Imovina, Obveza) s aktivnošću (Ulaz, Izlaz). Pomozi mi da ih razdvojim u zasebne grupe. Mijenjaj samo grupe, ne transakcije.",
     "agent_prompt_no_net_result": "Moja Knjiga „{book}” nema neto rezultat: nijedna grupa ne kombinira {incoming} i {outgoing}. Pomozi mi da organiziram njezine grupe tako da se prihodi i rashodi susretnu u jednoj grupi. Mijenjaj samo grupe, ne transakcije.",
     "agent_prompt_no_net_result_general": "Moja Knjiga „{book}” nema neto rezultat: nijedna grupa ne kombinira njezine prihode i rashode. Pomozi mi da organiziram njezine grupe tako da se prihodi i rashodi susretnu u jednoj grupi. Mijenjaj samo grupe, ne transakcije.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "od početka godine {year}",
     "retry": "Pokušaj ponovo",
     "shelf_access_error": "Pristup spremljenim izvještajima se promijenio. Ponovno učitaj za provjeru pristupa.",
+    "shelf_custom_report": "Prilagođeno izvješće",
     "shelf_label": "Spremljena izvješća",
     "shelf_load_error": "Spremljeni izvještaji nisu se mogli učitati. Pokušaj ponovno učitati stranicu.",
     "shelf_loading": "Učitavanje spremljenih izvješća…",

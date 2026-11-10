@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organisera med Agent",
     "action_agent_start": "Kom igång med Agent",
+    "agent_prompt_custom_report": "Skapa en anpassad rapport, utan att använda appen Report, som",
     "agent_prompt_mixed_group": "I min Bok ”{book}” kombinerar gruppen {group} saldon (Tillgång, Skuld) med aktivitet (Inflöde, Utflöde). Hjälp mig att dela upp dem i egna grupper. Ändra bara grupper, inte transaktioner.",
     "agent_prompt_no_net_result": "Min Bok ”{book}” har inget nettoresultat: ingen grupp kombinerar {incoming} och {outgoing}. Hjälp mig att organisera dess grupper så att intäkter och kostnader möts i en grupp. Ändra bara grupper, inte transaktioner.",
     "agent_prompt_no_net_result_general": "Min Bok ”{book}” har inget nettoresultat: ingen grupp kombinerar dess intäkter och kostnader. Hjälp mig att organisera dess grupper så att intäkter och kostnader möts i en grupp. Ändra bara grupper, inte transaktioner.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "hittills i år {year}",
     "retry": "Försök igen",
     "shelf_access_error": "Åtkomsten till sparade rapporter har ändrats. Ladda om för att kontrollera åtkomsten.",
+    "shelf_custom_report": "Anpassad rapport",
     "shelf_label": "Sparade rapporter",
     "shelf_load_error": "Sparade rapporter kunde inte laddas. Försök att ladda om.",
     "shelf_loading": "Läser in sparade rapporter …",

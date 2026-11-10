@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ronga neAgent",
     "action_agent_start": "Tanga neAgent",
+    "agent_prompt_custom_report": "Gadzira report yakasarudzika, usingashandisi app yeReport, inoratidza",
     "agent_prompt_mixed_group": "MuBhuku rangu remahesabhu \"{book}\", boka {group} rinosanganisa mabhalansi (Pfuma, Zvikwereti) nezviitiko (Zvinopinda, Zvinobuda). Ndibatsire kuzviparadzanisa mumapoka azvo. Chinja mapoka chete, kwete mitengesano.",
     "agent_prompt_no_net_result": "Bhuku rangu remahesabhu \"{book}\" harina mhedzisiro yakachena: hapana boka rinosanganisa {incoming} ne{outgoing}. Ndibatsire kuronga mapoka aro kuti mari inopinda nemari inobuda zvisangane muboka rimwe. Chinja mapoka chete, kwete mitengesano.",
     "agent_prompt_no_net_result_general": "Bhuku rangu remahesabhu \"{book}\" harina mhedzisiro yakachena: hapana boka rinosanganisa mari yaro inopinda nemari inobuda. Ndibatsire kuronga mapoka aro kuti mari inopinda nemari inobuda zvisangane muboka rimwe. Chinja mapoka chete, kwete mitengesano.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "kubva pakutanga kwegore kusvika nhasi {year}",
     "retry": "Edzazve",
     "shelf_access_error": "Kuwana kuma-report akachengetwa kwashanduka. Reloda kuti uone kuwana.",
+    "shelf_custom_report": "Report yakasarudzika",
     "shelf_label": "Zvirevo zvakachengetwa",
     "shelf_load_error": "Maripoti akachengetwa haana kukwanisa kuvhurwa. Едза kuvhura zvakare.",
     "shelf_loading": "Inotora zvirevo zvakachengetwa…",

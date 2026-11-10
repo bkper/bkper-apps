@@ -1,8 +1,9 @@
 /**
  * Links that open the Bkper Agent in a Book, with a request ready in its input (`q`) that the
  * person reads and sends: the Agent never sends it by itself. Report writes one for a person who
- * may organize the Book's groups, when they keep it from the reports asked for (`BookProblem`).
- * The request is a fixed text in the person's language with the names involved, never AI.
+ * may organize the Book's groups, when they keep it from the reports asked for (`BookProblem`),
+ * and for anyone who wants a report Report does not make (`customReportPrompt`). The request is a
+ * fixed text in the person's language, with the names involved, never AI.
  */
 import { t } from 'report-shared/strings';
 import type { BookProblem } from './api/app-api';
@@ -59,6 +60,14 @@ export function agentPrompt(problem: BookProblem, lang: string): string | undefi
     }
     const prompt = text.trim();
     return prompt.length <= MAX_AGENT_PROMPT ? prompt : undefined;
+}
+
+/**
+ * The start of a request for a custom report the Agent builds itself, without the Report app, in
+ * `lang`, for the person to finish: it ends with a space where they go on typing.
+ */
+export function customReportPrompt(lang: string): string {
+    return `${t('agent_prompt_custom_report', lang).trim()} `;
 }
 
 /** Names as a list in the language, such as `A, B and C`. */

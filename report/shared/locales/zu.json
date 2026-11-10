@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Hlela noMsizi",
     "action_agent_start": "Qala noMsizi",
+    "agent_prompt_custom_report": "Dala umbiko wangokwezifiso, ngaphandle kokusebenzisa i-app ye-Report, obonisa",
     "agent_prompt_mixed_group": "KuBhuku lami \"{book}\", Iqembu {group} lihlanganisa amabhalansi (Impahla, Isikweletu) nomsebenzi (Okungenayo, Okuphumayo). Ngisize ngiwahlukanise abe ngamaqembu awo. Shintsha amaqembu kuphela, hhayi Ukuthengiselana.",
     "agent_prompt_no_net_result": "Ibhuku lami \"{book}\" alinawo umphumela ohlanzekile: alikho Iqembu elihlanganisa {incoming} no-{outgoing}. Ngisize ngihlele amaqembu alo ukuze imali engenayo nezindleko zihlangane eQenjini elilodwa. Shintsha amaqembu kuphela, hhayi Ukuthengiselana.",
     "agent_prompt_no_net_result_general": "Ibhuku lami \"{book}\" alinawo umphumela ohlanzekile: alikho Iqembu elihlanganisa imali yalo engenayo nezindleko. Ngisize ngihlele amaqembu alo ukuze imali engenayo nezindleko zihlangane eQenjini elilodwa. Shintsha amaqembu kuphela, hhayi Ukuthengiselana.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "kusukela ekuqaleni konyaka kuze kube namuhla {year}",
     "retry": "Zama futhi",
     "shelf_access_error": "Ukufinyelela kuma-ripoti alondoloziwe kuguqukile. Layisha kabusha ukuze ubheke ukufinyelela.",
+    "shelf_custom_report": "Umbiko wangokwezifiso",
     "shelf_label": "Imibiko egciniwe",
     "shelf_load_error": "Imibiko egciniwe ayikwazanga ukulayishwa. Zama ukulayisha futhi.",
     "shelf_loading": "Iyalayisha imibiko egciniwe…",

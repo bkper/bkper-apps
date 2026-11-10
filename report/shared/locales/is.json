@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Skipuleggja með Aðstoðarmanni",
     "action_agent_start": "Byrja með Aðstoðarmanni",
+    "agent_prompt_custom_report": "Búðu til sérsniðna skýrslu, án þess að nota Report-appið, sem",
     "agent_prompt_mixed_group": "Í Bókinni minni „{book}“ sameinar hópurinn {group} stöður (Eign, Skuld) og hreyfingar (Innflæði, Útflæði). Hjálpaðu mér að skipta þeim í eigin hópa. Breyttu aðeins hópum, ekki færslum.",
     "agent_prompt_no_net_result": "Bókin mín „{book}“ hefur enga nettóniðurstöðu: enginn hópur sameinar {incoming} og {outgoing}. Hjálpaðu mér að skipuleggja hópa hennar þannig að tekjur og gjöld mætist í einum hópi. Breyttu aðeins hópum, ekki færslum.",
     "agent_prompt_no_net_result_general": "Bókin mín „{book}“ hefur enga nettóniðurstöðu: enginn hópur sameinar tekjur hennar og gjöld. Hjálpaðu mér að skipuleggja hópa hennar þannig að tekjur og gjöld mætist í einum hópi. Breyttu aðeins hópum, ekki færslum.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "frá áramótum {year}",
     "retry": "Reyna aftur",
     "shelf_access_error": "Aðgangur að vistuðum skýrslum breyttist. Endurhlaða til að athuga aðganginn.",
+    "shelf_custom_report": "Sérsniðin skýrsla",
     "shelf_label": "Vistaðar skýrslur",
     "shelf_load_error": "Ekki tókst að hlaða vistuðum skýrslum. Reyndu að hlaða aftur.",
     "shelf_loading": "Hleð vistuðum skýrslum…",

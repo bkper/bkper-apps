@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Mam Agent organiséieren",
     "action_agent_start": "Mam Agent ufänken",
+    "agent_prompt_custom_report": "Erstell e personaliséierte Rapport, ouni d'App Report ze benotzen, deen",
     "agent_prompt_mixed_group": "A mengem Buch „{book}“ kombinéiert d'Grupp {group} Saldoen (Verméigen, Schold) mat Beweegungen (Eragoend, Ausgoend). Hëllef mer, se an eegen Gruppen ze trennen. Änner just Gruppen, keng Transaktiounen.",
     "agent_prompt_no_net_result": "Mäi Buch „{book}“ huet kee Nettoresultat: keng Grupp kombinéiert {incoming} an {outgoing}. Hëllef mer, seng Gruppen esou ze organiséieren, datt Akommes an Ausgaben an enger Grupp zesummekommen. Änner just Gruppen, keng Transaktiounen.",
     "agent_prompt_no_net_result_general": "Mäi Buch „{book}“ huet kee Nettoresultat: keng Grupp kombinéiert seng Akommes an Ausgaben. Hëllef mer, seng Gruppen esou ze organiséieren, datt Akommes an Ausgaben an enger Grupp zesummekommen. Änner just Gruppen, keng Transaktiounen.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "zënter Ufank vum Joer {year}",
     "retry": "Nach eng Kéier probéieren",
     "shelf_access_error": "Den Zougang zu de gespäicherte Rapporte huet sech geännert. Luet nei fir den Zougang ze kontrolléieren.",
+    "shelf_custom_report": "Personaliséierte Rapport",
     "shelf_label": "Gespäichert Rapporten",
     "shelf_load_error": "Gespäichert Rapporte konnten net gelueden ginn. Probéier nach eng Kéier ze laden.",
     "shelf_loading": "Gespäichert Rapporte gi gelueden…",

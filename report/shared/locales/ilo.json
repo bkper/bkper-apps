@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Urnongen a kadua ti Agent",
     "action_agent_start": "Irugi a kadua ti Agent",
+    "agent_prompt_custom_report": "Agaramidka iti custom a report, a saan nga usaren ti Report app, a",
     "agent_prompt_mixed_group": "Iti Librok a \"{book}\", ti grupo a {group} ket mangtipon kadagiti balanse (Sanikua, Utang) ken aktibidad (Umay, Rummuar). Tulongannak nga isina ida kadagiti bukodda a grupo. Grupo laeng ti baliwan, saan a dagiti transaksion.",
     "agent_prompt_no_net_result": "Awan ti net a resulta ti Librok a \"{book}\": awan ti grupo a mangtipon iti {incoming} ken {outgoing}. Tulongannak nga urnongen dagiti grupona tapno agsabat dagiti sapul ken gastos iti maysa a grupo. Grupo laeng ti baliwan, saan a dagiti transaksion.",
     "agent_prompt_no_net_result_general": "Awan ti net a resulta ti Librok a \"{book}\": awan ti grupo a mangtipon kadagiti sapul ken gastosna. Tulongannak nga urnongen dagiti grupona tapno agsabat dagiti sapul ken gastos iti maysa a grupo. Grupo laeng ti baliwan, saan a dagiti transaksion.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "manipud rugi ti tawen agingga ita {year}",
     "retry": "Padasen manen",
     "shelf_access_error": "Nagbaliw ti access dagiti naidulin a report. I-reload tapno maitsek ti access.",
+    "shelf_custom_report": "Custom a report",
     "shelf_label": "Naipondo a report",
     "shelf_load_error": "Saan a naikarga dagiti naidulin a report. Padasenyo ti mangikarga manen.",
     "shelf_loading": "Mangikarkarga kadagiti naidulin a report…",

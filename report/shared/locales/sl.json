@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Uredi z Agentom",
     "action_agent_start": "Začni z Agentom",
+    "agent_prompt_custom_report": "Ustvarite poročilo po meri, brez uporabe aplikacije Report, ki",
     "agent_prompt_mixed_group": "V moji Knjigi »{book}« skupina {group} združuje salda (Sredstvo, Obveznost) s prometom (Priliv, Odliv). Pomagajte mi jih ločiti v lastne skupine. Spreminjajte samo skupine, ne transakcij.",
     "agent_prompt_no_net_result": "Moja Knjiga »{book}« nima neto rezultata: nobena skupina ne združuje {incoming} in {outgoing}. Pomagajte mi urediti njene skupine tako, da se prihodki in odhodki srečajo v eni skupini. Spreminjajte samo skupine, ne transakcij.",
     "agent_prompt_no_net_result_general": "Moja Knjiga »{book}« nima neto rezultata: nobena skupina ne združuje njenih prihodkov in odhodkov. Pomagajte mi urediti njene skupine tako, da se prihodki in odhodki srečajo v eni skupini. Spreminjajte samo skupine, ne transakcij.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "od začetka leta {year}",
     "retry": "Poskusi znova",
     "shelf_access_error": "Dostop do shranjenih poročil se je spremenil. Znova naložite stran, da preverite dostop.",
+    "shelf_custom_report": "Poročilo po meri",
     "shelf_label": "Shranjena poročila",
     "shelf_load_error": "Shranjenih poročil ni bilo mogoče naložiti. Poskusite znova naložiti.",
     "shelf_loading": "Nalaganje shranjenih poročil …",

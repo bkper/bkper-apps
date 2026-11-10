@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Sutvarkyti su Agentu",
     "action_agent_start": "Pradėti su Agentu",
+    "agent_prompt_custom_report": "Sukurkite pasirinktinę ataskaitą nenaudodami programėlės Report, kuri",
     "agent_prompt_mixed_group": "Mano Knygoje „{book}“ grupė {group} jungia likučius (Turtas, Įsipareigojimas) su judėjimu (Įeinantys, Išeinantys). Padėkite man atskirti juos į atskiras grupes. Keiskite tik grupes, ne operacijas.",
     "agent_prompt_no_net_result": "Mano Knyga „{book}“ neturi grynojo rezultato: jokia grupė nejungia {incoming} ir {outgoing}. Padėkite man sutvarkyti jos grupes taip, kad pajamos ir išlaidos susitiktų vienoje grupėje. Keiskite tik grupes, ne operacijas.",
     "agent_prompt_no_net_result_general": "Mano Knyga „{book}“ neturi grynojo rezultato: jokia grupė nejungia jos pajamų ir išlaidų. Padėkite man sutvarkyti jos grupes taip, kad pajamos ir išlaidos susitiktų vienoje grupėje. Keiskite tik grupes, ne operacijas.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} nuo metų pradžios",
     "retry": "Bandyti dar kartą",
     "shelf_access_error": "Išsaugotų ataskaitų prieiga pasikeitė. Įkelkite iš naujo, kad patikrintumėte prieigą.",
+    "shelf_custom_report": "Pasirinktinė ataskaita",
     "shelf_label": "Išsaugotos ataskaitos",
     "shelf_load_error": "Nepavyko įkelti išsaugotų ataskaitų. Pabandykite įkelti iš naujo.",
     "shelf_loading": "Įkeliamos išsaugotos ataskaitos…",

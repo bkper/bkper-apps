@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Teekateeka n'Omuyambi",
     "action_agent_start": "Tandika n'Omuyambi",
+    "agent_prompt_custom_report": "Kola lipoota gy'oyagala, nga tokozesezza app ya Report, eraga",
     "agent_prompt_mixed_group": "Mu Kitabo kyange \"{book}\", ekibinja {group} kigatta ebisigaddewo (Obugagga, Ebbanja) n'emirimu (Ebyingira, Ebifuluma). Nnyamba okubyawula mu bibinja byabyo. Kyusa ebibinja byokka, so si ntambula.",
     "agent_prompt_no_net_result": "Ekitabo kyange \"{book}\" tekirina bivudde mu bulambulukufu: tewali kibinja ekigatta {incoming} ne {outgoing}. Nnyamba okuteekateeka ebibinja byakyo ensimbi eziyingira n'ezifuluma zisisinkane mu kibinja kimu. Kyusa ebibinja byokka, so si ntambula.",
     "agent_prompt_no_net_result_general": "Ekitabo kyange \"{book}\" tekirina bivudde mu bulambulukufu: tewali kibinja ekigatta ensimbi zaakyo eziyingira n'ezifuluma. Nnyamba okuteekateeka ebibinja byakyo ensimbi eziyingira n'ezifuluma zisisinkane mu kibinja kimu. Kyusa ebibinja byokka, so si ntambula.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "okuva ku ntandikwa y'omwaka okutuuka leero {year}",
     "retry": "Ddamu ogezeeko",
     "shelf_access_error": "Okuyingira ku alipoota ezitereke kukyuse. Ddamu olodinge okukebera okuyingira.",
+    "shelf_custom_report": "Lipoota gy'oyagala",
     "shelf_label": "Lipooti ezitereddwa",
     "shelf_load_error": "Lipoota ezaterekebwa tezisobose kuggulwawo. Gezaako okuzigulawo nate.",
     "shelf_loading": "Lipoota ezitereddwa zirina okuyingizibwa…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organisearje mei Agint",
     "action_agent_start": "Begjin mei Agint",
+    "agent_prompt_custom_report": "Meitsje in oanpast rapport, sûnder de Report-app te brûken, dat",
     "agent_prompt_mixed_group": "Yn myn Boekhâlding \"{book}\" kombinearret de groep {group} saldo's (Besit, Skuld) mei aktiviteit (Yngong, Útgong). Help my se yn har eigen groepen te skieden. Feroarje allinnich groepen, gjin transaksjes.",
     "agent_prompt_no_net_result": "Myn Boekhâlding \"{book}\" hat gjin netto resultaat: gjin groep kombinearret {incoming} en {outgoing}. Help my har groepen sa te organisearjen dat ynkomsten en útjeften yn ien groep byinoar komme. Feroarje allinnich groepen, gjin transaksjes.",
     "agent_prompt_no_net_result_general": "Myn Boekhâlding \"{book}\" hat gjin netto resultaat: gjin groep kombinearret har ynkomsten en útjeften. Help my har groepen sa te organisearjen dat ynkomsten en útjeften yn ien groep byinoar komme. Feroarje allinnich groepen, gjin transaksjes.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "fan it begjin fan it jier oant no {year}",
     "retry": "Probearje it opnij",
     "shelf_access_error": "De tagong ta bewarre rapporten is feroare. Laad opnij om de tagong te kontrolearjen.",
+    "shelf_custom_report": "Oanpast rapport",
     "shelf_label": "Bewarre rapporten",
     "shelf_load_error": "Bewarre rapporten koenen net laden wurde. Probearje opnij te laden.",
     "shelf_loading": "Bewarre rapporten lade…",

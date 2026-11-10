@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organiser med Agent",
     "action_agent_start": "Kom i gang med Agent",
+    "agent_prompt_custom_report": "Opret en tilpasset rapport, uden at bruge Report-appen, som",
     "agent_prompt_mixed_group": "I mit Regnskab \"{book}\" kombinerer gruppen {group} saldi (Aktiv, Passiv) med aktivitet (Indgående, Udgående). Hjælp mig med at adskille dem i deres egne grupper. Ændr kun grupper, ikke posteringer.",
     "agent_prompt_no_net_result": "Mit Regnskab \"{book}\" har intet nettoresultat: ingen gruppe kombinerer {incoming} og {outgoing}. Hjælp mig med at organisere dets grupper, så indtægter og udgifter mødes i én gruppe. Ændr kun grupper, ikke posteringer.",
     "agent_prompt_no_net_result_general": "Mit Regnskab \"{book}\" har intet nettoresultat: ingen gruppe kombinerer dets indtægter og udgifter. Hjælp mig med at organisere dets grupper, så indtægter og udgifter mødes i én gruppe. Ændr kun grupper, ikke posteringer.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "år til dato {year}",
     "retry": "Prøv igen",
     "shelf_access_error": "Adgangen til gemte rapporter er ændret. Genindlæs for at tjekke adgangen.",
+    "shelf_custom_report": "Tilpasset rapport",
     "shelf_label": "Gemte rapporter",
     "shelf_load_error": "Gemte rapporter kunne ikke indlæses. Prøv at genindlæse.",
     "shelf_loading": "Indlæser gemte rapporter…",

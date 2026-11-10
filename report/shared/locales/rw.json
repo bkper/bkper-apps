@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Tunganya na Agent",
     "action_agent_start": "Tangira na Agent",
+    "agent_prompt_custom_report": "Kora raporo yihariye, udakoresheje porogaramu Report, igaragaza",
     "agent_prompt_mixed_group": "Mu Gitabo cyanjye cya konti \"{book}\", itsinda {group} rihuza isigaranira (Umutungo, Umwenda) n'ibikorwa (Ibyinjira, Ibisohoka). Mfasha kubitandukanya mu matsinda yabyo bwite. Hindura amatsinda gusa, ntuhindure ibikorwa by'ubucuruzi.",
     "agent_prompt_no_net_result": "Igitabo cyanjye cya konti \"{book}\" nta musaruro nyirizina gifite: nta tsinda rihuza {incoming} na {outgoing}. Mfasha gutunganya amatsinda yacyo kugira ngo ibyinjira n'ibisohoka bihurire mu itsinda rimwe. Hindura amatsinda gusa, ntuhindure ibikorwa by'ubucuruzi.",
     "agent_prompt_no_net_result_general": "Igitabo cyanjye cya konti \"{book}\" nta musaruro nyirizina gifite: nta tsinda rihuza ibyinjira byacyo n'ibisohoka. Mfasha gutunganya amatsinda yacyo kugira ngo ibyinjira n'ibisohoka bihurire mu itsinda rimwe. Hindura amatsinda gusa, ntuhindure ibikorwa by'ubucuruzi.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "kuva mu ntangiriro z'umwaka kugeza uyu munsi {year}",
     "retry": "Ongera ugerageze",
     "shelf_access_error": "Uburenganzira bwo kugera kuri raporo zabitswe bwarahindutse. Ongera ufungure kugira ngo urebe uburenganzira.",
+    "shelf_custom_report": "Raporo yihariye",
     "shelf_label": "Raporo zabitswe",
     "shelf_load_error": "Raporo zabitswe ntizashoboye gufunguka. Gerageza kongera gufungura.",
     "shelf_loading": "Raporo zabitswe zirimo gufungurwa…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organizează cu Agentul",
     "action_agent_start": "Începe cu Agentul",
+    "agent_prompt_custom_report": "Creați un raport personalizat, fără a folosi aplicația Report, care",
     "agent_prompt_mixed_group": "În Registrul meu „{book}”, grupul {group} combină solduri (Activ, Datorie) cu activitate (Intrări, Ieșiri). Ajutați-mă să le separ în grupuri proprii. Modificați doar grupurile, nu tranzacțiile.",
     "agent_prompt_no_net_result": "Registrul meu „{book}” nu are rezultat net: niciun grup nu combină {incoming} și {outgoing}. Ajutați-mă să îi organizez grupurile astfel încât veniturile și cheltuielile să se întâlnească într-un singur grup. Modificați doar grupurile, nu tranzacțiile.",
     "agent_prompt_no_net_result_general": "Registrul meu „{book}” nu are rezultat net: niciun grup nu îi combină veniturile și cheltuielile. Ajutați-mă să îi organizez grupurile astfel încât veniturile și cheltuielile să se întâlnească într-un singur grup. Modificați doar grupurile, nu tranzacțiile.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "de la începutul anului {year}",
     "retry": "Încearcă din nou",
     "shelf_access_error": "Accesul la rapoartele salvate s-a schimbat. Reîncărcați pagina pentru a verifica accesul.",
+    "shelf_custom_report": "Raport personalizat",
     "shelf_label": "Rapoarte salvate",
     "shelf_load_error": "Rapoartele salvate nu au putut fi încărcate. Încercați să reîncărcați.",
     "shelf_loading": "Se încarcă rapoartele salvate…",

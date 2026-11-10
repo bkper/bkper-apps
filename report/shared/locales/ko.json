@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "에이전트로 정리",
     "action_agent_start": "에이전트로 시작",
+    "agent_prompt_custom_report": "Report 앱을 사용하지 말고 맞춤 리포트를 만들어 주세요. 내용:",
     "agent_prompt_mixed_group": "내 장부 \"{book}\"에서 그룹 {group}이(가) 잔액(자산, 부채)과 활동(유입, 유출)을 합치고 있어요. 각각의 그룹으로 나누는 걸 도와주세요. 그룹만 바꾸고 거래는 바꾸지 말아 주세요.",
     "agent_prompt_no_net_result": "내 장부 \"{book}\"에는 순손익이 없어요. {incoming}와(과) {outgoing}을(를) 합친 그룹이 없어요. 수입과 지출이 한 그룹에서 만나도록 그룹을 정리하는 걸 도와주세요. 그룹만 바꾸고 거래는 바꾸지 말아 주세요.",
     "agent_prompt_no_net_result_general": "내 장부 \"{book}\"에는 순손익이 없어요. 수입과 지출을 합친 그룹이 없어요. 수입과 지출이 한 그룹에서 만나도록 그룹을 정리하는 걸 도와주세요. 그룹만 바꾸고 거래는 바꾸지 말아 주세요.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} 연초부터 현재까지",
     "retry": "다시 시도",
     "shelf_access_error": "저장된 보고서 접근 권한이 변경되었어요. 다시 불러와서 접근 권한을 확인해 주세요.",
+    "shelf_custom_report": "맞춤 리포트",
     "shelf_label": "저장된 보고서",
     "shelf_load_error": "저장된 리포트를 불러오지 못했어요. 다시 불러와 주세요.",
     "shelf_loading": "저장된 보고서를 불러오는 중이에요…",

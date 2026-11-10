@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Hyehyɛ ne Agent",
     "action_agent_start": "Fi ase ne Agent",
+    "agent_prompt_custom_report": "Yɛ amanneɛbɔ a mepɛ ma me a womfa Report app no nni dwuma, na ɛkyerɛ",
     "agent_prompt_mixed_group": "Wɔ me Akontaabu nwoma \"{book}\" mu no, kuw {group} ka nkaeɛ (Agyapadeɛ, Ka) ne dwumadie (Deɛ ɛba mu, Deɛ ɛfiri mu) bom. Boa me na mempaapae wɔn mu nkɔ wɔn ankasa kuw mu. Sesa kuw nko ara, nsesa dwumadie.",
     "agent_prompt_no_net_result": "Me Akontaabu nwoma \"{book}\" nni mfaso nyinaa akyi: kuw biara nka {incoming} ne {outgoing} ano. Boa me na menhyehyɛ ne kuw sɛnea sika a aba ne sika a ɛfiri adi bɛhyia wɔ kuw baako mu. Sesa kuw nko ara, nsesa dwumadie.",
     "agent_prompt_no_net_result_general": "Me Akontaabu nwoma \"{book}\" nni mfaso nyinaa akyi: kuw biara nka ne sika a aba ne sika a ɛfiri adi ano. Boa me na menhyehyɛ ne kuw sɛnea sika a aba ne sika a ɛfiri adi bɛhyia wɔ kuw baako mu. Sesa kuw nko ara, nsesa dwumadie.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "afe yi mfiase kosi nnɛ {year}",
     "retry": "Sɔ hwɛ bio",
     "shelf_access_error": "Nsakrae aba wɔ akwan a wotumi fa so hu nkrataa a wɔakora so. Bio load na hwɛ kwan a wowɔ.",
+    "shelf_custom_report": "Amanneɛbɔ a wopɛ",
     "shelf_label": "Amanneɛ a wɔakora",
     "shelf_load_error": "Wɔantumi anload amanneɛbɔ a wɔakora no. Hwɛ so san load.",
     "shelf_loading": "Reports a wɔakora no reloodi…",

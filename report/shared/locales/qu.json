@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Yanapaqwan allinchay",
     "action_agent_start": "Yanapaqwan qallariy",
+    "agent_prompt_custom_report": "Report aplicacionta mana llamk'achispa, munasqay willakuy qillqata ruway, kayta rikuchinanpaq:",
     "agent_prompt_mixed_group": "\"{book}\" Yupay qillqaypiqa, {group} ayllu tupuchiykunata (Kapuy, Manu) llamk'aykunawan (Haykuq, Lluqsiq) huñun. Yanapaway paykunap kikin ayllunkunaman t'aqanaypaq. Ayllukunallata tikray, ama tinkuykunata.",
     "agent_prompt_no_net_result": "\"{book}\" Yupay qillqayqa manam chaylla resultadoyuqchu: manam ima ayllupas {incoming} {outgoing}-wan huñunchu. Yanapaway ayllunkunata allinchanaypaq, haykuq qullqi lluqsiq qullqiwan huk ayllupi tinkunankupaq. Ayllukunallata tikray, ama tinkuykunata.",
     "agent_prompt_no_net_result_general": "\"{book}\" Yupay qillqayqa manam chaylla resultadoyuqchu: manam ima ayllupas haykuq qullqinta lluqsiq qullqintawan huñunchu. Yanapaway ayllunkunata allinchanaypaq, haykuq qullqi lluqsiq qullqiwan huk ayllupi tinkunankupaq. Ayllukunallata tikray, ama tinkuykunata.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} wata qallariymanta kunankama",
     "retry": "Huktawan ruway",
     "shelf_access_error": "Waqaychasqa willakuykunaman yaykuy tikrakurqan. Yaykuyta qhaway kutimpuy.",
+    "shelf_custom_report": "Munasqayki willakuy qillqa",
     "shelf_label": "Waqaychasqa willaykuna",
     "shelf_load_error": "Waqaychasqa willayniykikuna manam cargakurqachu. Huktawan cargayta yachaykuy.",
     "shelf_loading": "Waqaychasqa willakuykuna apaykachasqa kachkan…",

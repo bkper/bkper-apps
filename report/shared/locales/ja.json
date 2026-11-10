@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "エージェントで整理",
     "action_agent_start": "エージェントで始める",
+    "agent_prompt_custom_report": "Report アプリを使わずに、カスタムレポートを作成してください。内容：",
     "agent_prompt_mixed_group": "私の帳簿「{book}」では、グループ{group}が残高(資産、負債)と動き(流入、流出)を合わせています。それぞれ別のグループに分けるのを手伝ってください。変更するのはグループだけにして、取引は変更しないでください。",
     "agent_prompt_no_net_result": "私の帳簿「{book}」には純損益がありません。{incoming}と{outgoing}を合わせたグループがありません。収入と支出が1つのグループにまとまるよう、グループの整理を手伝ってください。変更するのはグループだけにして、取引は変更しないでください。",
     "agent_prompt_no_net_result_general": "私の帳簿「{book}」には純損益がありません。収入と支出を合わせたグループがありません。収入と支出が1つのグループにまとまるよう、グループの整理を手伝ってください。変更するのはグループだけにして、取引は変更しないでください。",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year}の年初来",
     "retry": "再試行",
     "shelf_access_error": "保存済みレポートへのアクセス権が変更されました。再読み込みしてアクセス権を確認してください。",
+    "shelf_custom_report": "カスタムレポート",
     "shelf_label": "保存済みレポート",
     "shelf_load_error": "保存したレポートを読み込めませんでした。再読み込みしてください。",
     "shelf_loading": "保存済みレポートを読み込み中…",

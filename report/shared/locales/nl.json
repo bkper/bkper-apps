@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ordenen met Agent",
     "action_agent_start": "Beginnen met Agent",
+    "agent_prompt_custom_report": "Maak een aangepast rapport, zonder de Report-app te gebruiken, dat",
     "agent_prompt_mixed_group": "In mijn Boek \"{book}\" combineert de groep {group} saldi (Activa, Passiva) met activiteit (Inkomend, Uitgaand). Help me ze in eigen groepen te scheiden. Wijzig alleen groepen, geen transacties.",
     "agent_prompt_no_net_result": "Mijn Boek \"{book}\" heeft geen nettoresultaat: geen enkele groep combineert {incoming} en {outgoing}. Help me de groepen zo te ordenen dat inkomsten en uitgaven in één groep samenkomen. Wijzig alleen groepen, geen transacties.",
     "agent_prompt_no_net_result_general": "Mijn Boek \"{book}\" heeft geen nettoresultaat: geen enkele groep combineert zijn inkomsten en uitgaven. Help me de groepen zo te ordenen dat inkomsten en uitgaven in één groep samenkomen. Wijzig alleen groepen, geen transacties.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "dit jaar tot nu toe {year}",
     "retry": "Opnieuw proberen",
     "shelf_access_error": "De toegang tot opgeslagen rapporten is gewijzigd. Laad opnieuw om je toegang te controleren.",
+    "shelf_custom_report": "Aangepast rapport",
     "shelf_label": "Opgeslagen rapporten",
     "shelf_load_error": "Opgeslagen rapporten konden niet worden geladen. Probeer opnieuw te laden.",
     "shelf_loading": "Opgeslagen rapporten laden…",

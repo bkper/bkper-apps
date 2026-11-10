@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Òganize ak Ajan",
     "action_agent_start": "Kòmanse ak Ajan",
+    "agent_prompt_custom_report": "Kreye yon rapò pèsonalize, san w pa itilize app Report la, ki",
     "agent_prompt_mixed_group": "Nan Liv kont mwen \"{book}\", gwoup {group} la konbine balans (Byen, Dèt) ak aktivite (Antre, Sòti). Ede m separe yo nan pwòp gwoup pa yo. Chanje gwoup sèlman, pa tranzaksyon.",
     "agent_prompt_no_net_result": "Liv kont mwen \"{book}\" pa gen rezilta nèt: okenn gwoup pa konbine {incoming} ak {outgoing}. Ede m òganize gwoup li yo pou revni ak depans yo rankontre nan yon sèl gwoup. Chanje gwoup sèlman, pa tranzaksyon.",
     "agent_prompt_no_net_result_general": "Liv kont mwen \"{book}\" pa gen rezilta nèt: okenn gwoup pa konbine revni ak depans li. Ede m òganize gwoup li yo pou revni ak depans yo rankontre nan yon sèl gwoup. Chanje gwoup sèlman, pa tranzaksyon.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "depi kòmansman ane a jiska jodi a {year}",
     "retry": "Eseye ankò",
     "shelf_access_error": "Aksè ak rapò ki sove yo chanje. Rechaje pou verifye aksè a.",
+    "shelf_custom_report": "Rapò pèsonalize",
     "shelf_label": "Rapò ki sove",
     "shelf_load_error": "Rapò ki sovgade yo pa t ka chaje. Eseye rechaje.",
     "shelf_loading": "Ap chaje rapò ki sove yo…",

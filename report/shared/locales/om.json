@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Ejentii waliin qindeessi",
     "action_agent_start": "Ejentii waliin jalqabi",
+    "agent_prompt_custom_report": "Appii Report osoo hin fayyadamin, gabaasa addaa kan armaan gadii agarsiisu uumi:",
     "agent_prompt_mixed_group": "Kitaaba herregaa koo \"{book}\" keessatti, gareen {group} madaallii (Qabeenya, Idaa) sochii (Galtee, Bahaa) waliin walitti maka. Gareewwan mataa isaanii keessatti akkan isaan addaan baasu na gargaari. Gareewwan qofa jijjiiri, daldala miti.",
     "agent_prompt_no_net_result": "Kitaabni herregaa koo \"{book}\" bu'aa qulqulluu hin qabu: gareen {incoming} fi {outgoing} walitti makuu hin jiru. Galii fi baasiin garee tokko keessatti akka wal argataniif gareewwan isaa akkan qindeessu na gargaari. Gareewwan qofa jijjiiri, daldala miti.",
     "agent_prompt_no_net_result_general": "Kitaabni herregaa koo \"{book}\" bu'aa qulqulluu hin qabu: gareen galii fi baasii isaa walitti makuu hin jiru. Galii fi baasiin garee tokko keessatti akka wal argataniif gareewwan isaa akkan qindeessu na gargaari. Gareewwan qofa jijjiiri, daldala miti.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "jalqaba waggaatii hanga har'aatti {year}",
     "retry": "Irra deebi'i yaali",
     "shelf_access_error": "Seensi gabaasota olkaa'aman jijjiirameera. Seensa mirkaneessuuf irra deebi'ii fe'i.",
+    "shelf_custom_report": "Gabaasa addaa",
     "shelf_label": "Gabaasawwan olkaa'aman",
     "shelf_load_error": "Gabaasni olkaa'aman fe'amuu hin dandeenye. Irra deebi'iitii fe'ii yaali.",
     "shelf_loading": "Gabaasawwan olkaa'aman fe'aa jira…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Organizi kun Agento",
     "action_agent_start": "Komenci kun Agento",
+    "agent_prompt_custom_report": "Kreu propran raporton, sen uzi la apon Report, kiu",
     "agent_prompt_mixed_group": "En mia Libro \"{book}\", la grupo {group} kombinas saldojn (Aktivo, Pasivo) kun aktiveco (Eniro, Eliro). Helpu min apartigi ilin en proprajn grupojn. Ŝanĝu nur grupojn, ne transakciojn.",
     "agent_prompt_no_net_result": "Mia Libro \"{book}\" ne havas netan rezulton: neniu grupo kombinas {incoming} kaj {outgoing}. Helpu min organizi ĝiajn grupojn tiel, ke enspezoj kaj elspezoj renkontiĝu en unu grupo. Ŝanĝu nur grupojn, ne transakciojn.",
     "agent_prompt_no_net_result_general": "Mia Libro \"{book}\" ne havas netan rezulton: neniu grupo kombinas ĝiajn enspezojn kaj elspezojn. Helpu min organizi ĝiajn grupojn tiel, ke enspezoj kaj elspezoj renkontiĝu en unu grupo. Ŝanĝu nur grupojn, ne transakciojn.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "de la jarkomenco ĝis nun {year}",
     "retry": "Provi denove",
     "shelf_access_error": "La aliro al konservitaj raportoj ŝanĝiĝis. Reŝargu por kontroli la aliron.",
+    "shelf_custom_report": "Propra raporto",
     "shelf_label": "Konservitaj raportoj",
     "shelf_load_error": "Konservitaj raportoj ne povis ŝargiĝi. Provu reŝargi.",
     "shelf_loading": "Ŝargado de konservitaj raportoj…",

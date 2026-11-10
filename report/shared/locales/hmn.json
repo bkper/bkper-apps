@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Npaj nrog Neeg pab AI",
     "action_agent_start": "Pib nrog Neeg pab AI",
+    "agent_prompt_custom_report": "Tsim ib daim ntawv qhia tshwj xeeb, tsis txhob siv Report app, uas",
     "agent_prompt_mixed_group": "Hauv kuv Phau ntawv teev nyiaj \"{book}\", pawg {group} muab nyiaj seem (Khoom muaj, Nuj nqis) thiab kev ua haujlwm (Nkag los, Tawm mus) los ua ke. Pab kuv cais lawv mus rau hauv lawv tus kheej cov pawg. Hloov cov pawg xwb, tsis txhob hloov kev txav nyiaj.",
     "agent_prompt_no_net_result": "Kuv Phau ntawv teev nyiaj \"{book}\" tsis muaj qhov tshwm sim net: tsis muaj pawg twg muab {incoming} thiab {outgoing} los ua ke. Pab kuv npaj nws cov pawg kom nyiaj tau los thiab nyiaj siv los sib ntsib hauv ib pawg. Hloov cov pawg xwb, tsis txhob hloov kev txav nyiaj.",
     "agent_prompt_no_net_result_general": "Kuv Phau ntawv teev nyiaj \"{book}\" tsis muaj qhov tshwm sim net: tsis muaj pawg twg muab nws cov nyiaj tau los thiab nyiaj siv los ua ke. Pab kuv npaj nws cov pawg kom nyiaj tau los thiab nyiaj siv los sib ntsib hauv ib pawg. Hloov cov pawg xwb, tsis txhob hloov kev txav nyiaj.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "txij thaum pib xyoo los txog niaj hnub no {year}",
     "retry": "Sim dua",
     "shelf_access_error": "Kev nkag mus rau cov ntawv qhia khaws cia tau hloov. Rov load dua kom xyuas kev nkag mus.",
+    "shelf_custom_report": "Daim ntawv qhia tshwj xeeb",
     "shelf_label": "Cov ntawv qhia khaws tseg",
     "shelf_load_error": "Cov ntawv qhia khaws cia tsis tuaj load tau. Sim load dua.",
     "shelf_loading": "Tab tom load cov ntawv qhia uas tau txuag…",

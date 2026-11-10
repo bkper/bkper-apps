@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Järjestä Agentin kanssa",
     "action_agent_start": "Aloita Agentin kanssa",
+    "agent_prompt_custom_report": "Luo mukautettu raportti käyttämättä Report-sovellusta, joka",
     "agent_prompt_mixed_group": "Kirjassani ”{book}” ryhmä {group} yhdistää saldoja (Vastaavaa, Vastattavaa) tapahtumiin (Saapuva, Lähtevä). Auta minua erottamaan ne omiin ryhmiinsä. Muuta vain ryhmiä, älä kirjauksia.",
     "agent_prompt_no_net_result": "Kirjallani ”{book}” ei ole nettotulosta: mikään ryhmä ei yhdistä ryhmiä {incoming} ja {outgoing}. Auta minua järjestämään sen ryhmät niin, että tulot ja menot kohtaavat yhdessä ryhmässä. Muuta vain ryhmiä, älä kirjauksia.",
     "agent_prompt_no_net_result_general": "Kirjallani ”{book}” ei ole nettotulosta: mikään ryhmä ei yhdistä sen tuloja ja menoja. Auta minua järjestämään sen ryhmät niin, että tulot ja menot kohtaavat yhdessä ryhmässä. Muuta vain ryhmiä, älä kirjauksia.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "{year} vuoden alusta tähän päivään",
     "retry": "Yritä uudelleen",
     "shelf_access_error": "Tallennettujen raporttien käyttöoikeus muuttui. Lataa uudelleen tarkistaaksesi käyttöoikeuden.",
+    "shelf_custom_report": "Mukautettu raportti",
     "shelf_label": "Tallennetut raportit",
     "shelf_load_error": "Tallennettuja raportteja ei voitu ladata. Yritä ladata uudelleen.",
     "shelf_loading": "Ladataan tallennettuja raportteja…",

@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Bongisa na Agent",
     "action_agent_start": "Banda na Agent",
+    "agent_prompt_custom_report": "Salá rapɔ ya yo moko, kosalelaka te application Report, oyo",
     "agent_prompt_mixed_group": "Na Buku ya kontabilité na ngai \"{book}\", lisanga {group} ekangisi ba solde (Bozwi, Modako) na misala (Biloko ekɔti, Biloko ewuti). Salisa ngai nakabola yango na masanga na yango moko. Bongola masanga kaka, kasi te ba transaction.",
     "agent_prompt_no_net_result": "Buku ya kontabilité na ngai \"{book}\" ezali na mbuma ya net te: lisanga moko te ekangisi {incoming} mpe {outgoing}. Salisa ngai nabongisa masanga na yango mpo mbongo ekɔtaka mpe mbongo ebimaka ekutana na lisanga moko. Bongola masanga kaka, kasi te ba transaction.",
     "agent_prompt_no_net_result_general": "Buku ya kontabilité na ngai \"{book}\" ezali na mbuma ya net te: lisanga moko te ekangisi mbongo ekɔtaka mpe mbongo ebimaka na yango. Salisa ngai nabongisa masanga na yango mpo mbongo ekɔtaka mpe mbongo ebimaka ekutana na lisanga moko. Bongola masanga kaka, kasi te ba transaction.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "banda ebandeli ya mobu tii lelo {year}",
     "retry": "Meká lisusu",
     "shelf_access_error": "Lisungi ya bapoti ebombami ebongwani. Bakisa lisusu mpo na kotala lisungi.",
+    "shelf_custom_report": "Rapɔ ya yo moko",
     "shelf_label": "Ba rapɔ ya batépélami",
     "shelf_load_error": "Mikanda ya rapɔrɛ oyo ebombami ekokaki te kobima. Meka kolongola lisusu.",
     "shelf_loading": "Ezali kokotisa bapap´ ya rapɔ ya bobateli…",

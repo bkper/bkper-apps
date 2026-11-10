@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Mandamina amin'ny Agent",
     "action_agent_start": "Manomboka amin'ny Agent",
+    "agent_prompt_custom_report": "Mamorona tatitra manokana, tsy mampiasa ny fampiharana Report, izay",
     "agent_prompt_mixed_group": "Ao amin'ny Bokin'ny kaonty \"{book}\" ahy, ny vondrona {group} dia mampiray sandan'ny kaonty (Fananana, Trosa) sy hetsika (Miditra, Mivoaka). Ampio aho hanasaraka azy ireo ho vondrona manokana. Ny vondrona ihany no ovay, fa tsy ny fifanakalozana.",
     "agent_prompt_no_net_result": "Tsy manana vokatra net ny Bokin'ny kaonty \"{book}\" ahy: tsy misy vondrona mampiray {incoming} sy {outgoing}. Ampio aho handamina ny vondrony mba hihaonan'ny fidiram-bola sy ny fandaniana ao anaty vondrona iray. Ny vondrona ihany no ovay, fa tsy ny fifanakalozana.",
     "agent_prompt_no_net_result_general": "Tsy manana vokatra net ny Bokin'ny kaonty \"{book}\" ahy: tsy misy vondrona mampiray ny fidiram-bolany sy ny fandaniany. Ampio aho handamina ny vondrony mba hihaonan'ny fidiram-bola sy ny fandaniana ao anaty vondrona iray. Ny vondrona ihany no ovay, fa tsy ny fifanakalozana.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "hatramin'ny fiandohan'ny taona ka hatramin'izao {year}",
     "retry": "Andramo indray",
     "shelf_access_error": "Niova ny fidirana amin'ny tatitra voatahiry. Avereno ampidirina mba hanamarina ny fidirana.",
+    "shelf_custom_report": "Tatitra manokana",
     "shelf_label": "Tatitra voatahiry",
     "shelf_load_error": "Tsy afaka naseho ny tatitra voatahiry. Andramo averina ny mampiditra.",
     "shelf_loading": "Mampiditra ny tatitra voatahiry…",

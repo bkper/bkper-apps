@@ -1,6 +1,7 @@
 {
     "action_agent_organize": "Beakanya le Moemedi",
     "action_agent_start": "Thoma le Moemedi",
+    "agent_prompt_custom_report": "Hlama pego ya go ikgethela, o sa šomiše app ya Report, yeo",
     "agent_prompt_mixed_group": "Ka Pukung ya ka ya ditshepetšo \"{book}\", sehlopha {group} se kopanya dipalanse (Thoto, Kolo) le mošomo (Tše tsenago, Tše tšwago). Nthuše go di aroganya go dihlopha tša tšona. Fetoša dihlopha fela, e sego ditshepetšo.",
     "agent_prompt_no_net_result": "Puku ya ka ya ditshepetšo \"{book}\" ga e na sephetho sa net: ga go na sehlopha seo se kopanyago {incoming} le {outgoing}. Nthuše go beakanya dihlopha tša yona gore letseno le ditshenyegelo di kopane sehlopheng se tee. Fetoša dihlopha fela, e sego ditshepetšo.",
     "agent_prompt_no_net_result_general": "Puku ya ka ya ditshepetšo \"{book}\" ga e na sephetho sa net: ga go na sehlopha seo se kopanyago letseno la yona le ditshenyegelo. Nthuše go beakanya dihlopha tša yona gore letseno le ditshenyegelo di kopane sehlopheng se tee. Fetoša dihlopha fela, e sego ditshepetšo.",
@@ -100,6 +101,7 @@
     "request_year_to_date_in_year": "go tloga mathomong a ngwaga go fihla lehono {year}",
     "retry": "Leka gape",
     "shelf_access_error": "Phihlelo ya dipego tše di bolokilwego e fetogile. Laiša gape o hlahlobe phihlelo.",
+    "shelf_custom_report": "Pego ya go ikgethela",
     "shelf_label": "Dipego tše di bolokilwego",
     "shelf_load_error": "Dipego tše di bolokilwego ga se tša kgona go laišwa. Leka go laiša gape.",
     "shelf_loading": "Go laiwa dipego tše di bolokilwego…",

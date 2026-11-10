@@ -25,7 +25,7 @@ export class EventHandlerBookAudited extends EventHandler {
 
         if (flagged == null) {
             console.log('No statements flagged for improvement');
-            return { result: 'No statements pending improvement' };
+            return { result: false };
         }
 
         // 2. Run ACE pipeline
@@ -33,8 +33,8 @@ export class EventHandlerBookAudited extends EventHandler {
 
         if (result) {
             return { result: `Statement ACE completed for ${flagged.getName()}: ${result}` };
-        } else {
-            return { result: `Statement ACE skipped for ${flagged.getName()} (validation failed or no changes needed)` };
         }
+        console.log('Statement prompt not improved (validation failed or no changes needed)');
+        return { result: false };
     }
 }

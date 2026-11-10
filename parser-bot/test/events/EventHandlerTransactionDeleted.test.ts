@@ -72,6 +72,21 @@ describe('EventHandlerTransactionDeleted', () => {
         const result = await createHandler(flagStatementForImprovement).handleEvent(book, event);
 
         expect(flagStatementForImprovement).not.toHaveBeenCalled();
-        expect(result).toEqual({ result: 'No transaction ID in event' });
+        expect(result).toEqual({ result: false });
+    });
+
+    it('records no response when nothing is flagged', async () => {
+        const flagStatementForImprovement = mock(async (): Promise<string | null> => null);
+        const event: bkper.Event = {
+            data: {
+                object: {
+                    transaction: { id: 'tx_1' },
+                } as bkper.TransactionOperation,
+            },
+        };
+
+        const result = await createHandler(flagStatementForImprovement).handleEvent({} as Book, event);
+
+        expect(result).toEqual({ result: false });
     });
 });

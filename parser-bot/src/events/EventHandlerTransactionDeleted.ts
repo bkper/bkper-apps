@@ -23,7 +23,7 @@ export class EventHandlerTransactionDeleted extends EventHandler {
         const operation = event.data?.object as bkper.TransactionOperation;
         const transactionPayload = operation?.transaction;
         if (!transactionPayload?.id) {
-            return { result: 'No transaction ID in event' };
+            return { result: false };
         }
 
         const transaction = new Transaction(book, { ...transactionPayload, trashed: true });
@@ -33,6 +33,6 @@ export class EventHandlerTransactionDeleted extends EventHandler {
             return { result: 'Statement flagged for improvement after transaction deletion' };
         }
 
-        return { result: 'No flagging needed' };
+        return { result: false };
     }
 }

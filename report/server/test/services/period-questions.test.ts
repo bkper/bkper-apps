@@ -1,17 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildIntentRequest } from '../../src/services/intent-questions';
 import { buildPeriodQuery } from '../../src/services/period-query';
 import {
     PERIOD_QUESTION_IDS,
     PERIOD_THRESHOLDS,
-    buildAtomicIntentRequest,
     buildPeriodQuestions,
     findWrittenYears,
     readPeriod,
     type PeriodAnswers,
     type PeriodQuestionId,
 } from '../../src/services/period-questions';
-import { fixtureSnapshot } from '../fixtures/snapshot-book';
 
 type Choices = Partial<Record<PeriodQuestionId, string | [string, number]>>;
 
@@ -64,6 +61,7 @@ describe('buildPeriodQuestions', () => {
                 '2021',
                 '2023',
                 'last_year',
+                'next_year',
                 'this_year',
                 'unspecified',
                 'year_before_last',
@@ -73,7 +71,8 @@ describe('buildPeriodQuestions', () => {
 
     it('offers every month and quarter, relative ones, and unspecified', () => {
         const questions = buildPeriodQuestions('expenses');
-        expect(Object.keys(questions.month.criteria)).toHaveLength(15);
+        expect(Object.keys(questions.month.criteria)).toHaveLength(16);
+        expect(Object.keys(questions.month.criteria)).toContain('next_month');
         expect(Object.keys(questions.compared_month.criteria)).toContain('last_month');
         expect(Object.keys(questions.quarter.criteria)).toEqual([
             'Q1',
@@ -82,6 +81,7 @@ describe('buildPeriodQuestions', () => {
             'Q4',
             'this_quarter',
             'last_quarter',
+            'next_quarter',
             'unspecified',
         ]);
         expect(Object.keys(questions.span.criteria)).toContain('unspecified');
@@ -93,22 +93,6 @@ describe('buildPeriodQuestions', () => {
         expect(
             new Set(texts(buildPeriodQuestions('expenses in 2015 vs 2014')).flatMap(years))
         ).toEqual(new Set(['2015', '2014']));
-    });
-});
-
-describe('buildAtomicIntentRequest', () => {
-    it('is the app request with the period choice replaced by the period questions', async () => {
-        const snapshot = await fixtureSnapshot();
-        const app = buildIntentRequest('expenses 2016 vs 2014', snapshot);
-        const atomic = buildAtomicIntentRequest('expenses 2016 vs 2014', snapshot);
-        expect(atomic.request.state).toEqual(app.request.state);
-        expect(atomic.roots).toEqual(app.roots);
-        const { period, ...rest } = app.request.questions;
-        expect(period).toBeDefined();
-        expect(atomic.request.questions).toEqual({
-            ...rest,
-            ...buildPeriodQuestions('expenses 2016 vs 2014'),
-        });
     });
 });
 
@@ -154,6 +138,29 @@ describe('readPeriod', () => {
             period: { span: 'year_to_date' },
         });
         expect(readPeriod(answers({ span: 'now' })).request).toEqual({ period: { span: 'now' } });
+    });
+
+    it('reads the next year, month or quarter as a period that has not started', () => {
+        for (const choices of [
+            { span: 'year', year: 'next_year' },
+            { span: 'month', month: 'next_month' },
+            { span: 'quarter', quarter: 'next_quarter' },
+            { month: 'January', year: 'next_year' },
+            // Compared with the next year, the two swap, and the next year has not started.
+            { span: 'year', year: 'this_year', compared_year: 'next_year' },
+        ] satisfies Choices[]) {
+            const reading = readPeriod(answers(choices));
+            expect(reading.request, JSON.stringify(choices)).toBeUndefined();
+            expect(reading.reason, JSON.stringify(choices)).toBe('future_period');
+        }
+        const reading = readPeriod(answers({ span: 'month', month: 'next_month' }));
+        expect(reading.trace.month).toEqual({ answer: 'next_month', score: 0.95, read: 'next' });
+        // Unsure of it, the part is unspecified, as any other.
+        const unsure = readPeriod(
+            answers({ span: 'year', year: ['next_year', PERIOD_THRESHOLDS.year - 0.1] })
+        );
+        expect(unsure.request).toBeUndefined();
+        expect(unsure.reason).toBeUndefined();
     });
 
     it('reads the last 12 months to now, whatever relative year is said with them', () => {
@@ -271,6 +278,15 @@ describe('readPeriod', () => {
             const placed = ['year', 'month', 'quarter'].some(
                 id => choices[id as PeriodQuestionId] !== 'unspecified'
             );
+            const next = Object.values(choices).some(
+                choice => typeof choice === 'string' && choice.startsWith('next_')
+            );
+            if (next) {
+                if (reading.request !== undefined || reading.reason !== 'future_period') {
+                    failures.push(`${JSON.stringify(choices)}: not started`);
+                }
+                return;
+            }
             const named =
                 placed || !['unspecified', 'month', 'quarter', 'year'].includes(choices.span ?? '');
             if ((reading.request !== undefined) !== named) {
@@ -313,7 +329,7 @@ describe('readPeriod', () => {
                 }
             }
         }
-        expect(count).toBe(8 * 6 * 15 * 7 * 2 + 8 * 6 * 15 * 7);
+        expect(count).toBe(8 * 7 * 16 * 8 * 2 + 8 * 7 * 16 * 8);
         expect(failures.slice(0, 10)).toEqual([]);
     });
 });

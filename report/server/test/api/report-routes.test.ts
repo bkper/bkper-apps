@@ -11,6 +11,7 @@ import { createApp } from '../../src/index';
 import type { FakeLedger } from '../fixtures/ledger';
 import { fixtureLedger, simpleRootsLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
+import { periodChoices } from '../fixtures/period-answers';
 
 /** The parts of a period id, as intents now hold them. */
 function p(id: string): PeriodParts {
@@ -85,7 +86,12 @@ function jevResponse(answers: JevAnswers): Response {
         model: 'jev',
         answers: {
             root: choice(answers.root),
-            period: choice(answers.period ?? 'unspecified'),
+            ...Object.fromEntries(
+                Object.entries(periodChoices(answers.period)).map(([id, label]) => [
+                    id,
+                    choice(label),
+                ])
+            ),
             over_time: { type: 'noul', noul: 0.01 },
             composition: { type: 'noul', noul: 0.01 },
             versus_earlier: { type: 'noul', noul: 0.01 },

@@ -126,7 +126,14 @@ export async function savedWorkflow() {
                                     model: 'jev',
                                     answers: {
                                         root: choice('Expenses'),
-                                        period: choice('last_month'),
+                                        // Last month, as the period questions read it.
+                                        span: choice('month'),
+                                        year: choice('unspecified'),
+                                        month: choice('last_month'),
+                                        quarter: choice('unspecified'),
+                                        compared_year: choice('unspecified'),
+                                        compared_month: choice('unspecified'),
+                                        compared_quarter: choice('unspecified'),
                                         language: choice('en'),
                                         chart_named: choice('none'),
                                         over_time: { type: 'noul', noul: 0.01 },

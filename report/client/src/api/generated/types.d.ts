@@ -247,7 +247,7 @@ export interface paths {
          *
          *     With `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.
          *
-         *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
+         *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
         post: {
             parameters: {
@@ -1237,11 +1237,74 @@ export interface components {
                     /** @description How sure the model is of it. */
                     score: number;
                 };
-                /** @description The period asked about, or `unspecified`. */
+                /** @description How long the period asked about is: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, `now` or `unspecified`. With the parts below, code builds the period; a request that names none reads the default period. */
                 period: {
                     /** @description The option chosen. */
                     answer: string;
                     /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The year said for the period: `this_year`, `last_year`, `year_before_last`, `next_year`, a year the request writes, or `unspecified`. */
+                year?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The month said for the period: `January` to `December`, `this_month`, `last_month`, `next_month` or `unspecified`. */
+                month?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The quarter said for the period: `Q1` to `Q4`, `this_quarter`, `last_quarter`, `next_quarter` or `unspecified`. */
+                quarter?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The year said for a second period the request compares with. */
+                compared_year?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The month said for a second period the request compares with. */
+                compared_month?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description The quarter said for a second period the request compares with. */
+                compared_quarter?: {
+                    /** @description The option chosen. */
+                    answer: string;
+                    /** @description How sure the model is of it. */
+                    score: number;
+                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
+                    read?: string | number;
+                };
+                /** @description Whether it compares with the same period a year earlier; read only when it names no second period. */
+                year_earlier?: {
+                    /** @description Yes, from the threshold of the question on. */
+                    answer: boolean;
+                    /** @description The probability of yes. */
                     score: number;
                 };
                 /** @description Whether the request asks how the amounts change over time. */
@@ -1295,6 +1358,13 @@ export interface components {
              *     ]
              */
             names?: string[];
+            /**
+             * @description With a `prompt`: the rules that changed the parts of the period read, in order: `span_alone` (a month, quarter or year with nothing saying which is no period), `rolling_period` (the last 12 months ignore a relative year), `kind_of_period` (a second period said as a month and a quarter is of the period’s kind), `same_as_period` (compared parts equal to the period’s say no other period) or `previous_of_period` (the previous month or quarter of a second period is the default comparison; last year counts back from a written year).
+             * @example [
+             *       "same_as_period"
+             *     ]
+             */
+            periodRules?: ("span_alone" | "rolling_period" | "kind_of_period" | "same_as_period" | "previous_of_period")[];
             /**
              * @description With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).
              * @example named

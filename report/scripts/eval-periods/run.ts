@@ -1,13 +1,13 @@
 /**
  * Evaluates how requests' periods are read, against the real decision model.
  *
- *     npx tsx scripts/eval-periods/run.ts [--mode=list|atomic] [--only=<n>,...] [--category=<c>,...]
+ *     npx tsx scripts/eval-periods/run.ts [--mode=atomic] [--only=<n>,...] [--category=<c>,...]
  *         [--language=<code>,...] [--concurrency=4] [--out=<file.json>]
  *     npx tsx scripts/eval-periods/run.ts --compare=<a.json>,<b.json>
  *
  * Each case of `cases.ts` is a request, the today it is asked on and the period a person means.
- * The mode (`modes.ts`) reads its period: `list` (the default) as the app does, one choice among
- * dated period options; `atomic` with the period questions of `period-questions.ts`; scoring (`score.ts`) builds the queries of the expected
+ * The mode (`modes.ts`) reads its period: `atomic` (the only one, and the default) as the app
+ * does, with the period questions of `period-questions.ts`; scoring (`score.ts`) builds the queries of the expected
  * and of the read parts and compares the months they read. It prints accuracy per part, per
  * whole request, per category and per language, consistency across paraphrases, latency and
  * input tokens, and every miss, and writes the run to a JSON file in `/tmp` that `--compare`
@@ -262,7 +262,7 @@ async function main(): Promise<void> {
         printComparison(compare[0], compare[1]);
         return;
     }
-    const modeName = option('mode') ?? 'list';
+    const modeName = option('mode') ?? 'atomic';
     const mode = MODES[modeName];
     if (!mode) {
         throw new Error(`Unknown mode ${modeName}; modes: ${Object.keys(MODES).join(', ')}`);

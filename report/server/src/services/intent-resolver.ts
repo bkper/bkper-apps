@@ -1,11 +1,13 @@
 /**
  * Intent resolution: a report request, in any language, becomes a {@link ReportIntent} with one
- * decision request. The model makes judgments: it chooses the root, the period, the chart word
- * and the language among the options of {@link buildIntentRequest}, and answers whether the
- * request asks about change over time, a composition, a comparison with an earlier period or a
- * bridge. This code makes the decisions: it applies the thresholds, decides how to show the
- * report with the rule table {@link SHOW_RULES}, picks the default period when the request
- * names none, and reads from the request text itself its hashtags and the exact names of the
+ * decision request. The model makes judgments: it chooses the root, the chart word and the
+ * language among the options of {@link buildIntentRequest}, the parts of the period (its span,
+ * year, month and quarter, and those of the period it compares with, `period-questions.ts`),
+ * and answers whether the request asks about change over time, a composition, a comparison with
+ * an earlier period or a bridge. This code makes the decisions: it applies the thresholds, reads
+ * the period's parts (`readPeriod`), decides how to show the report with the rule table
+ * {@link SHOW_RULES}, picks the default period when the request names none, and reads from the
+ * request text itself its hashtags and the exact names of the
  * Book's groups and accounts (`prompt-names.ts`), which the report is of whenever the request
  * writes any: the model's root is read only when it writes none. Which charts fit the numbers
  * is decided afterwards, by `buildReport`, from the facts of the report.
@@ -16,10 +18,17 @@ import {
     buildIntentRequest,
     NO_ROOT,
     THRESHOLDS,
-    UNSPECIFIED,
     type ChartWord,
 } from './intent-questions.js';
-import { defaultPeriod, isPeriodId, type ReportNature } from './periods.js';
+import {
+    readPeriod,
+    type PeriodAnswers,
+    type PeriodPartTrace,
+    type PeriodRule,
+    type PeriodTrace,
+} from './period-questions.js';
+import { defaultPeriod, type ReportNature } from './periods.js';
+import { ReportError } from './report.js';
 import {
     NET_RESULT_ROOT,
     ReportIntentSchema,
@@ -57,17 +66,15 @@ interface NoulAnswer {
 }
 
 /** The answers {@link readIntent} needs, as the decision model returns them. */
-export interface IntentAnswers {
+export type IntentAnswers = PeriodAnswers & {
     root: ChoiceAnswer;
-    period: ChoiceAnswer;
     over_time: NoulAnswer;
     composition: NoulAnswer;
     versus_earlier: NoulAnswer;
-    year_earlier: NoulAnswer;
     bridge: NoulAnswer;
     chart_named: ChoiceAnswer;
     language: ChoiceAnswer;
-}
+};
 
 /** The judgments of a request, after their thresholds. */
 export interface Judgments {
@@ -159,11 +166,20 @@ export interface JudgmentTrace<T> {
     score: number;
 }
 
-/** How the intent was decided: each answer of the model, and the rule that chose the chart. */
+/**
+ * How the intent was decided: each answer of the model, and the rule that chose the chart. Each
+ * part of the period has its answer, score and the value read, if any; `period` is its span.
+ */
 export interface IntentTrace {
     judgments: {
         root: JudgmentTrace<string>;
-        period: JudgmentTrace<string>;
+        period: PeriodPartTrace;
+        year: PeriodPartTrace;
+        month: PeriodPartTrace;
+        quarter: PeriodPartTrace;
+        compared_year: PeriodPartTrace;
+        compared_month: PeriodPartTrace;
+        compared_quarter: PeriodPartTrace;
         over_time: JudgmentTrace<boolean>;
         composition: JudgmentTrace<boolean>;
         versus_earlier: JudgmentTrace<boolean>;
@@ -173,6 +189,8 @@ export interface IntentTrace {
         language: JudgmentTrace<string>;
     };
     rule: ShowRule;
+    /** The rules of `readPeriod` that changed the period's parts, when any did. */
+    periodRules?: PeriodRule[];
     /** The Book's names the request writes, which the report is of instead of the root judgment. */
     names?: string[];
 }
@@ -216,7 +234,8 @@ export async function resolveIntent(
 /**
  * Turns answers into an intent, or into no report when the request names no root of the
  * Book confidently enough. When the request writes names of the Book (`names`), the report is
- * of them, side by side when several, whatever the root judgment.
+ * of them, side by side when several, whatever the root judgment. A request for the next year,
+ * month or quarter is a report whose period has not started: `ReportError` `future_period`.
  *
  * @param roots What each root option stands for, from {@link buildIntentRequest}.
  * @param names The Book's groups and accounts the request writes, from `findPromptNames`.
@@ -236,6 +255,10 @@ export function readIntent(
         return { recognized: false, ...languageField };
     }
 
+    const reading = readPeriod(answers);
+    if (reading.reason === 'future_period') {
+        throw new ReportError('future_period', 'The period has not started');
+    }
     const judgments = readJudgments(answers);
     if (names.length > 1) {
         // Names side by side are each their own amount, not parts of one: no composition.
@@ -250,27 +273,38 @@ export function readIntent(
         ...(target === undefined ? {} : { target }),
     }));
     const subject = first ?? { root };
-    const named = namedPeriod(answers.period);
+    const named = reading.request;
+    // Whatever chart shows it, the period is compared with the one the request names, or, for
+    // the default period, the same one a year earlier when the request asks so.
+    const compareWith = named
+        ? named.compareWith
+        : reading.trace.year_earlier.answer
+          ? 'year_earlier'
+          : undefined;
     const intent = reportIntentOf(
         ReportIntentSchema.parse({
             ...subject,
             ...(alongside.length > 0 ? { alongside } : {}),
             period:
-                named ??
+                named?.period ??
                 defaultPeriod({
                     nature: periodNature(subject.root, names, snapshot),
                     trend,
                     today: snapshot.today,
                 }),
+            ...(named?.compared ? { compared: named.compared } : {}),
             monthly,
-            // Whatever chart shows it, the period is compared with the one the request names.
-            ...(yes(answers, 'year_earlier') ? { compareWith: 'year_earlier' } : {}),
+            ...(compareWith ? { compareWith } : {}),
             ...(view ? { view } : {}),
             ...(chart ? { chart } : {}),
             ...(hashtags.length > 0 ? { hashtags } : {}),
         })
     );
-    const trace: IntentTrace = { judgments: traceJudgments(answers), rule };
+    const trace: IntentTrace = {
+        judgments: traceJudgments(answers, reading.trace),
+        rule,
+        ...(reading.trace.rules.length > 0 ? { periodRules: reading.trace.rules } : {}),
+    };
     if (names.length > 0) {
         trace.names = names.map(({ name }) => name);
     }
@@ -296,7 +330,7 @@ function periodNature(root: string, names: PromptName[], snapshot: Snapshot): Re
     return node?.permanent ? 'position' : 'activity';
 }
 
-type NoulQuestionId = 'over_time' | 'composition' | 'versus_earlier' | 'year_earlier' | 'bridge';
+type NoulQuestionId = 'over_time' | 'composition' | 'versus_earlier' | 'bridge';
 
 /** Whether the model answered yes to a yes or no question, from its threshold. */
 function yes(answers: IntentAnswers, question: NoulQuestionId): boolean {
@@ -316,7 +350,7 @@ function readJudgments(answers: IntentAnswers): Judgments {
     };
 }
 
-function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
+function traceJudgments(answers: IntentAnswers, period: PeriodTrace): IntentTrace['judgments'] {
     const choice = ({ choice, confidence }: ChoiceAnswer) => ({
         answer: choice,
         score: confidence,
@@ -327,22 +361,19 @@ function traceJudgments(answers: IntentAnswers): IntentTrace['judgments'] {
     });
     return {
         root: choice(answers.root),
-        period: choice(answers.period),
+        period: period.span,
+        year: period.year,
+        month: period.month,
+        quarter: period.quarter,
+        compared_year: period.compared_year,
+        compared_month: period.compared_month,
+        compared_quarter: period.compared_quarter,
         over_time: noul('over_time'),
         composition: noul('composition'),
         versus_earlier: noul('versus_earlier'),
-        year_earlier: noul('year_earlier'),
+        year_earlier: period.year_earlier,
         bridge: noul('bridge'),
         chart_named: choice(answers.chart_named),
         language: choice(answers.language),
     };
-}
-
-/** The period Jev is sure of, when the request names one. */
-function namedPeriod(answer: ChoiceAnswer): string | undefined {
-    return answer.choice !== UNSPECIFIED &&
-        answer.confidence >= THRESHOLDS.period &&
-        isPeriodId(answer.choice)
-        ? answer.choice
-        : undefined;
 }

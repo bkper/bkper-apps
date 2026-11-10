@@ -10,12 +10,12 @@
  * answers. Question ids are not sent to the model, so each instruction refers to the state
  * fields in backticks.
  */
-import type { ChoiceQuestion, SystemOneRequest } from '@typesafe-ai/sdk';
-import { UNSPECIFIED, buildIntentRequest, type IntentQuestions } from './intent-questions.js';
+import type { ChoiceQuestion, NoulQuestion } from '@typesafe-ai/sdk';
 import {
     PERIOD_SPANS,
     type ComparedParts,
     type MonthPart,
+    type PeriodError,
     type PeriodParts,
     type PeriodRequest,
     type PeriodSpan,
@@ -23,7 +23,9 @@ import {
     type RelativeYear,
     type YearPart,
 } from './period-query.js';
-import type { Snapshot } from './snapshot.js';
+
+/** The answer of a period question for a request that names no such part. */
+export const UNSPECIFIED = 'unspecified';
 
 /** How sure the model must be before a part is used; below it, the part is unspecified. */
 export const PERIOD_THRESHOLDS = {
@@ -93,6 +95,12 @@ const SPAN_CRITERIA = {
         '`request` names no time at all; words such as monthly, by month or over time say how to show the amounts, not which period.',
 } as const satisfies Record<PeriodSpan | typeof UNSPECIFIED, string>;
 
+/**
+ * The labels of the next year, month and quarter: a period that has not started, so the
+ * report answers that it has none. They hold no date, like every other option.
+ */
+const NEXT_LABELS = ['next_year', 'next_month', 'next_quarter'] as const;
+
 /** The years relative to today's a request may say, by label. */
 const YEAR_LABELS: Record<string, RelativeYear> = {
     this_year: 'current',
@@ -149,6 +157,16 @@ const COMPARED_MONTH_INSTRUCTIONS =
 const COMPARED_QUARTER_INSTRUCTIONS =
     'Does `request` compare with a second period, such as after vs, compared with, against or than? Which quarter of a year does `request` say for that second period?';
 
+/**
+ * Whether the period is compared with the same one a year earlier, asked among the intent's
+ * yes or no questions, where it has always been in the request.
+ */
+export const YEAR_EARLIER_QUESTION: NoulQuestion = {
+    type: 'noul',
+    instructions:
+        'Does `request` ask to compare two periods, one the same period a year before the other, such as this January against the January before, a quarter against the same quarter a year before, or year over year?',
+};
+
 const NO_YEAR = '`request` says no year for it, such as last month, March or Q3 alone.';
 const NO_MONTH = '`request` says no month for it.';
 const NO_QUARTER = '`request` says no quarter for it.';
@@ -161,9 +179,14 @@ type Criteria = Record<string, string>;
 
 function yearCriteria(years: readonly number[], none: string): Criteria {
     return {
-        this_year: 'This year, the current year of `today`.',
-        last_year: 'Last year, the year before the current one.',
-        year_before_last: 'The year before last, two years before the current one.',
+        this_year:
+            'This year, the current year of `today`. Such as "this year", "este ano", "dieses Jahr", "quest’anno", "今年", "السنة الحالية", "इस वर्ष", "bu yıl".',
+        last_year:
+            'Last year, the year before the current one. Such as "last year", "ano passado", "letztes Jahr", "昨年", "去年", "السنة الماضية", "पिछला वर्ष", "geçen yıl".',
+        year_before_last:
+            'The year before last, two years before the current one. Such as "the year before last", "two years ago", "ano retrasado", "vorletztes Jahr", "一昨年", "قبل سنتين", "2 वर्ष पहले".',
+        next_year:
+            'Next year, the year after the current one. Such as "next year", "próximo ano", "nächstes Jahr", "来年", "明年", "السنة القادمة", "अगला वर्ष", "gelecek yıl".',
         ...Object.fromEntries(years.map(year => [String(year), `The year ${year}.`])),
         [UNSPECIFIED]: none,
     };
@@ -176,8 +199,12 @@ function monthCriteria(none: string): Criteria {
                 .filter(([, month]) => typeof month === 'number')
                 .map(([name]) => [name, `${name}, a month of the year.`])
         ),
-        this_month: 'This month, the current month of `today`.',
-        last_month: 'Last month, the month before the current one.',
+        this_month:
+            'This month, the current month of `today`. Such as "this month", "este mês", "diesen Monat", "今月", "本月", "هذا الشهر", "इस माह", "bu ay".',
+        last_month:
+            'Last month, the month before the current one. Such as "last month", "mês passado", "letzten Monat", "先月", "上个月", "الشهر الماضي", "पिछला माह", "geçen ay".',
+        next_month:
+            'Next month, the month after the current one. Such as "next month", "próximo mês", "nächsten Monat", "来月", "下个月", "الشهر القادم", "अगला माह", "gelecek ay".',
         [UNSPECIFIED]: none,
     };
 }
@@ -188,8 +215,12 @@ function quarterCriteria(none: string): Criteria {
         Q2: 'The second quarter: April to June.',
         Q3: 'The third quarter: July to September.',
         Q4: 'The fourth quarter: October to December.',
-        this_quarter: 'This quarter, the current quarter of `today`.',
-        last_quarter: 'Last quarter, the quarter before the current one.',
+        this_quarter:
+            'This quarter, the current quarter of `today`. Such as "this quarter", "este trimestre", "dieses Quartal", "今四半期", "本季度", "هذا الربع", "इस तिमाही", "bu çeyrek".',
+        last_quarter:
+            'Last quarter, the quarter before the current one. Such as "last quarter", "the previous quarter", "último trimestre", "letztes Quartal", "前四半期", "上季度", "الربع الأخير", "पिछली तिमाही", "अंतिम तिमाही", "geçen çeyrek".',
+        next_quarter:
+            'Next quarter, the quarter after the current one. Such as "next quarter", "próximo trimestre", "nächstes Quartal", "翌四半期", "下季度", "الربع القادم", "अगली तिमाही", "gelecek çeyrek".',
         [UNSPECIFIED]: none,
     };
 }
@@ -282,8 +313,10 @@ export type PeriodTrace = Record<PeriodQuestionId, PeriodPartTrace> & {
 };
 
 export interface PeriodReading {
-    /** The parts of the period, or `undefined` when the request names none. */
+    /** The parts of the period, or `undefined` when the request names none or `reason` says. */
     request?: PeriodRequest;
+    /** The request says the next year, month or quarter: a period that has not started. */
+    reason?: Extract<PeriodError, 'future_period'>;
     trace: PeriodTrace;
 }
 
@@ -359,6 +392,7 @@ export function readPeriod(answers: PeriodAnswers): PeriodReading {
     let comparedYear = yearOf(sure(answers.compared_year, 'compared_year'));
     let comparedMonth = monthOf(sure(answers.compared_month, 'compared_month'));
     let comparedQuarter = quarterOf(sure(answers.compared_quarter, 'compared_quarter'));
+    const next = PERIOD_QUESTION_IDS.map(id => sure(answers[id], id)).some(isNext);
     const placed = year !== undefined || month !== undefined || quarter !== undefined;
     if (!placed && (span === 'month' || span === 'quarter' || span === 'year')) {
         span = undefined;
@@ -407,15 +441,20 @@ export function readPeriod(answers: PeriodAnswers): PeriodReading {
     const yearEarlier = answers.year_earlier.noul >= PERIOD_THRESHOLDS.year_earlier;
     const trace: PeriodTrace = {
         span: traced(answers.span, span),
-        year: traced(answers.year, year),
-        month: traced(answers.month, month),
-        quarter: traced(answers.quarter, quarter),
-        compared_year: traced(answers.compared_year, comparedYear),
-        compared_month: traced(answers.compared_month, comparedMonth),
-        compared_quarter: traced(answers.compared_quarter, comparedQuarter),
+        year: traced(answers.year, year, 'year'),
+        month: traced(answers.month, month, 'month'),
+        quarter: traced(answers.quarter, quarter, 'quarter'),
+        compared_year: traced(answers.compared_year, comparedYear, 'compared_year'),
+        compared_month: traced(answers.compared_month, comparedMonth, 'compared_month'),
+        compared_quarter: traced(answers.compared_quarter, comparedQuarter, 'compared_quarter'),
         year_earlier: { answer: yearEarlier, score: answers.year_earlier.noul },
         rules,
     };
+    if (next) {
+        // The next year, month or quarter, said for either period, has not started: compared
+        // with an earlier one, the two would swap and read it anyway.
+        return { reason: 'future_period', trace };
+    }
     const period: PeriodParts = defined({ span, year, month, quarter });
     if (Object.keys(period).length === 0) {
         return { trace };
@@ -434,37 +473,25 @@ export function readPeriod(answers: PeriodAnswers): PeriodReading {
     return { request, trace };
 }
 
-function traced(answer: ChoiceAnswer, read: string | number | undefined): PeriodPartTrace {
+function isNext(label: string | undefined): boolean {
+    return (NEXT_LABELS as readonly (string | undefined)[]).includes(label);
+}
+
+/** A part's judgment; the next year, month or quarter, when sure, is read as `next`. */
+function traced(
+    answer: ChoiceAnswer,
+    read: string | number | undefined,
+    question?: PeriodQuestionId
+): PeriodPartTrace {
+    const value = question !== undefined && isNext(sure(answer, question)) ? 'next' : read;
     return {
         answer: answer.choice,
         score: answer.confidence,
-        ...(read === undefined ? {} : { read }),
+        ...(value === undefined ? {} : { read: value }),
     };
 }
 
 /** An object without its `undefined` values. */
 function defined<T extends object>(value: T): T {
     return Object.fromEntries(Object.entries(value).filter(([, part]) => part !== undefined)) as T;
-}
-
-/** The app's intent questions with the period choice replaced by the period questions. */
-export type AtomicIntentQuestions = Omit<IntentQuestions, 'period'> & PeriodQuestions;
-
-export interface AtomicIntentRequest {
-    request: SystemOneRequest<AtomicIntentQuestions>;
-    /** What each root option stands for, as in `buildIntentRequest`. */
-    roots: Record<string, string>;
-}
-
-/**
- * The app's decision request of a report request, in one call, with its period choice replaced
- * by the period questions; every other question (and `year_earlier`) is unchanged.
- */
-export function buildAtomicIntentRequest(prompt: string, snapshot: Snapshot): AtomicIntentRequest {
-    const { request, roots } = buildIntentRequest(prompt, snapshot);
-    const { period: _period, ...questions } = request.questions;
-    return {
-        request: { ...request, questions: { ...questions, ...buildPeriodQuestions(prompt) } },
-        roots,
-    };
 }

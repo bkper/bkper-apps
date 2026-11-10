@@ -11,7 +11,7 @@ import {
     caseKey,
     expectations,
 } from '../scripts/eval-periods/cases';
-import { atomicAnswer, listAnswer } from '../scripts/eval-periods/modes';
+import { atomicAnswer } from '../scripts/eval-periods/modes';
 import { readPeriod, type PeriodAnswers } from '../server/src/services/period-questions';
 import {
     compareRuns,
@@ -224,23 +224,6 @@ describe('compareRuns', () => {
     });
 });
 
-describe('listAnswer', () => {
-    it('reads the period id it is sure of, compared a year earlier when so judged', () => {
-        expect(listAnswer({ choice: 'last_month', confidence: 0.9 }, { noul: 0.8 })).toEqual({
-            request: { period: { span: 'month', month: 'previous' }, compareWith: 'year_earlier' },
-        });
-        expect(listAnswer({ choice: '2016-Q3', confidence: 0.9 }, { noul: 0.1 })).toEqual({
-            request: { period: { span: 'quarter', year: 2016, quarter: 3 } },
-        });
-    });
-
-    it('reads no period when unsure or unspecified', () => {
-        const none = { reason: 'unspecified_period' };
-        expect(listAnswer({ choice: '2016', confidence: 0.3 }, { noul: 0 })).toEqual(none);
-        expect(listAnswer({ choice: 'unspecified', confidence: 0.9 }, { noul: 0 })).toEqual(none);
-    });
-});
-
 describe('atomicAnswer', () => {
     const answers = (choices: Partial<Record<string, string>>): PeriodAnswers => {
         const choice = (id: string) => ({ choice: choices[id] ?? 'unspecified', confidence: 0.9 });
@@ -261,6 +244,9 @@ describe('atomicAnswer', () => {
             request: { period: { year: 2016 }, compared: { year: 2014 } },
         });
         expect(atomicAnswer(readPeriod(answers({})))).toEqual({ reason: 'unspecified_period' });
+        expect(atomicAnswer(readPeriod(answers({ span: 'year', year: 'next_year' })))).toEqual({
+            reason: 'future_period',
+        });
     });
 });
 

@@ -211,7 +211,7 @@
             "post": {
                 "tags": ["Reports"],
                 "summary": "Build a financial report of a Book from a request in any language",
-                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`.\n\nWith `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the period among the options the Book has, whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
+                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for `#hashtags`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`.\n\nWith `format: spec` (the default) the report is JSON: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its `#hashtags`; AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
                 "parameters": [
                     {
                         "schema": {
@@ -2238,10 +2238,206 @@
                                     "minimum": 0,
                                     "maximum": 1,
                                     "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
                                 }
                             },
                             "required": ["answer", "score"],
-                            "description": "The period asked about, or `unspecified`."
+                            "description": "How long the period asked about is: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, `now` or `unspecified`. With the parts below, code builds the period; a request that names none reads the default period."
+                        },
+                        "year": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The year said for the period: `this_year`, `last_year`, `year_before_last`, `next_year`, a year the request writes, or `unspecified`."
+                        },
+                        "month": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The month said for the period: `January` to `December`, `this_month`, `last_month`, `next_month` or `unspecified`."
+                        },
+                        "quarter": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The quarter said for the period: `Q1` to `Q4`, `this_quarter`, `last_quarter`, `next_quarter` or `unspecified`."
+                        },
+                        "compared_year": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The year said for a second period the request compares with."
+                        },
+                        "compared_month": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The month said for a second period the request compares with."
+                        },
+                        "compared_quarter": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "string",
+                                    "description": "The option chosen."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "How sure the model is of it."
+                                },
+                                "read": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "description": "The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "The quarter said for a second period the request compares with."
+                        },
+                        "year_earlier": {
+                            "type": "object",
+                            "properties": {
+                                "answer": {
+                                    "type": "boolean",
+                                    "description": "Yes, from the threshold of the question on."
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "The probability of yes."
+                                }
+                            },
+                            "required": ["answer", "score"],
+                            "description": "Whether it compares with the same period a year earlier; read only when it names no second period."
                         },
                         "over_time": {
                             "type": "object",
@@ -2365,6 +2561,21 @@
                     },
                     "description": "With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.",
                     "example": ["Food", "Rent"]
+                },
+                "periodRules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "span_alone",
+                            "rolling_period",
+                            "kind_of_period",
+                            "same_as_period",
+                            "previous_of_period"
+                        ]
+                    },
+                    "description": "With a `prompt`: the rules that changed the parts of the period read, in order: `span_alone` (a month, quarter or year with nothing saying which is no period), `rolling_period` (the last 12 months ignore a relative year), `kind_of_period` (a second period said as a month and a quarter is of the period’s kind), `same_as_period` (compared parts equal to the period’s say no other period) or `previous_of_period` (the previous month or quarter of a second period is the default comparison; last year counts back from a written year).",
+                    "example": ["same_as_period"]
                 },
                 "rule": {
                     "type": "string",

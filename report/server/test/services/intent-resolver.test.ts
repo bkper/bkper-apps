@@ -2,6 +2,8 @@ import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { THRESHOLDS, buildIntentRequest } from '../../src/services/intent-questions';
+import { PERIOD_THRESHOLDS } from '../../src/services/period-questions';
+import { ReportError } from '../../src/services/report';
 import {
     SHOW_RULES,
     SHOW_RULE_NAMES,
@@ -28,10 +30,37 @@ const sure = (choice: string) => ({ choice, confidence: 0.99 });
 const yes = { noul: 0.9 };
 const no = { noul: 0.1 };
 
+/** The period's answers of a request that names none. */
+const UNNAMED = {
+    span: sure('unspecified'),
+    year: sure('unspecified'),
+    month: sure('unspecified'),
+    quarter: sure('unspecified'),
+    compared_year: sure('unspecified'),
+    compared_month: sure('unspecified'),
+    compared_quarter: sure('unspecified'),
+} satisfies Partial<IntentAnswers>;
+
+/** The period's answers of a request for Q3 2026. */
+const Q3_2026 = {
+    ...UNNAMED,
+    span: sure('quarter'),
+    year: sure('2026'),
+    quarter: sure('Q3'),
+} satisfies Partial<IntentAnswers>;
+
+/** The period's answers of a request for October 2026. */
+const OCTOBER_2026 = {
+    ...UNNAMED,
+    span: sure('month'),
+    year: sure('2026'),
+    month: sure('October'),
+} satisfies Partial<IntentAnswers>;
+
 function answers(overrides: Partial<IntentAnswers> = {}): IntentAnswers {
     return {
         root: sure('Expenses'),
-        period: sure('2026-Q3'),
+        ...Q3_2026,
         over_time: no,
         composition: no,
         versus_earlier: no,
@@ -176,7 +205,11 @@ describe('readIntent', () => {
             trace: {
                 judgments: {
                     root: { answer: 'Expenses', score: 0.99 },
-                    period: { answer: '2026-Q3', score: 0.99 },
+                    period: { answer: 'quarter', score: 0.99, read: 'quarter' },
+                    year: { answer: '2026', score: 0.99, read: 2026 },
+                    month: { answer: 'unspecified', score: 0.99 },
+                    quarter: { answer: 'Q3', score: 0.99, read: 3 },
+                    compared_year: { answer: 'unspecified', score: 0.99 },
                     over_time: { answer: true, score: 0.7 },
                     composition: { answer: true, score: 0.6 },
                     versus_earlier: { answer: false, score: 0.1 },
@@ -222,8 +255,8 @@ describe('readIntent', () => {
     });
 
     it('compares with the same period a year earlier when the request asks so', async () => {
-        const at = { noul: THRESHOLDS.year_earlier };
-        const below = { noul: THRESHOLDS.year_earlier - 0.01 };
+        const at = { noul: PERIOD_THRESHOLDS.year_earlier };
+        const below = { noul: PERIOD_THRESHOLDS.year_earlier - 0.01 };
         expect(await intentOf({ versus_earlier: yes, year_earlier: at })).toMatchObject({
             period: p('2026-Q3'),
             chart: 'compare',
@@ -238,6 +271,66 @@ describe('readIntent', () => {
         expect(await read({ year_earlier: at })).toMatchObject({
             trace: { judgments: { year_earlier: { answer: true, score: at.noul } } },
         });
+        // With the default period too.
+        expect(await read({ ...UNNAMED, year_earlier: at })).toMatchObject({
+            intent: { period: p('this_year'), compareWith: 'year_earlier' },
+            defaultPeriod: true,
+        });
+    });
+
+    it('reads the period the parts say, and the one they compare it with', async () => {
+        expect(
+            await read({
+                ...UNNAMED,
+                span: sure('year'),
+                year: sure('last_year'),
+                compared_year: sure('2023'),
+                year_earlier: yes,
+            })
+        ).toMatchObject({
+            intent: { period: { span: 'year', year: 'previous' }, compared: { year: 2023 } },
+            trace: {
+                judgments: {
+                    year: { answer: 'last_year', read: 'previous' },
+                    compared_year: { answer: '2023', read: 2023 },
+                },
+            },
+        });
+        const compared = await intentOf({
+            ...UNNAMED,
+            year: sure('2016'),
+            compared_year: sure('2014'),
+        });
+        expect(compared).toEqual({
+            root: 'g-expenses',
+            period: { year: 2016 },
+            compared: { year: 2014 },
+            monthly: false,
+        });
+        // A rule that changed the parts is traced.
+        expect(
+            await read({ ...UNNAMED, year: sure('2016'), compared_year: sure('last_year') })
+        ).toMatchObject({
+            intent: { period: { year: 2016 }, compared: { year: 2015 } },
+            trace: { periodRules: ['previous_of_period'] },
+        });
+        expect(await read()).not.toHaveProperty('trace.periodRules');
+    });
+
+    it('answers that a period has not started for the next year, month or quarter', async () => {
+        for (const next of [
+            { span: sure('year'), year: sure('next_year') },
+            { span: sure('month'), month: sure('next_month') },
+            { span: sure('quarter'), quarter: sure('next_quarter') },
+        ]) {
+            const error = await read({ ...UNNAMED, ...next }).catch((e: unknown) => e);
+            expect(error, JSON.stringify(next)).toBeInstanceOf(ReportError);
+            expect(error).toMatchObject({ reason: 'future_period' });
+        }
+        // Not a report of the Book first.
+        expect(
+            await read({ ...UNNAMED, root: sure('none'), year: sure('next_year') })
+        ).toMatchObject({ recognized: false });
     });
 
     it('shows the months over time, whichever rule chose the chart', async () => {
@@ -252,7 +345,7 @@ describe('readIntent', () => {
     });
 
     it('reads a trend period over time, or for a chart by month, when no period is named', async () => {
-        const unnamed = { period: sure('unspecified') };
+        const unnamed = UNNAMED;
         expect(await intentOf({ ...unnamed, over_time: yes })).toMatchObject({
             period: p('last_12_months'),
             monthly: true,
@@ -295,7 +388,7 @@ describe('readIntent', () => {
     });
 
     it('reads this year for activity and today for a position when no period is named', async () => {
-        const unnamed = { period: sure('unspecified') };
+        const unnamed = UNNAMED;
         expect(await read(unnamed)).toMatchObject({
             intent: { period: p('this_year') },
             defaultPeriod: true,
@@ -309,8 +402,11 @@ describe('readIntent', () => {
     });
 
     it('reads the default period for an unsure period', async () => {
+        const unsure = PERIOD_THRESHOLDS.span - 0.01;
         const result = await read({
-            period: { choice: '2026-Q3', confidence: THRESHOLDS.period - 0.01 },
+            ...UNNAMED,
+            span: { choice: 'quarter', confidence: unsure },
+            quarter: { choice: 'Q3', confidence: PERIOD_THRESHOLDS.quarter - 0.01 },
         });
         expect(result).toMatchObject({ intent: { period: p('this_year') }, defaultPeriod: true });
     });
@@ -318,7 +414,7 @@ describe('readIntent', () => {
     it('leaves moving a default period to the report, as the map holds no dates', async () => {
         // The report reads the last year with movements when this one has none.
         const later = await laterSnapshot();
-        const unnamed = { period: sure('unspecified') };
+        const unnamed = UNNAMED;
         expect(await read(unnamed, later)).toMatchObject({
             intent: { period: p('this_year') },
             defaultPeriod: true,
@@ -332,7 +428,7 @@ describe('readIntent', () => {
     });
 
     it('reads a longer default period for a trend', async () => {
-        const unnamed = { period: sure('unspecified') };
+        const unnamed = UNNAMED;
         const overTime = { ...unnamed, over_time: yes };
         expect(await read(overTime)).toMatchObject({
             intent: { period: p('last_12_months'), monthly: true },
@@ -343,7 +439,7 @@ describe('readIntent', () => {
     });
 
     it('anchors a root without movements to this year or today', async () => {
-        const unnamed = { period: sure('unspecified'), root: sure('Card') };
+        const unnamed = { ...UNNAMED, root: sure('Card') };
         expect(await read(unnamed, await laterSnapshot())).toMatchObject({
             intent: { period: p('today') },
         });
@@ -425,7 +521,7 @@ describe('readIntent with names the request writes', () => {
     });
 
     it('reads the default period of what the request names', async () => {
-        const unnamed = { period: sure('unspecified'), root: sure('Expenses') };
+        const unnamed = { ...UNNAMED, root: sure('Expenses') };
         expect(await named('banks', unnamed)).toMatchObject({ intent: { period: p('today') } });
         expect(await named('cash and banks', unnamed)).toMatchObject({
             intent: { period: p('today') },
@@ -444,9 +540,9 @@ describe('readIntent with names the request writes', () => {
     });
 
     it('keeps Jev’s period and judgments', async () => {
-        expect(
-            await named('food', { period: sure('2026-10'), chart_named: sure('pie') })
-        ).toMatchObject({ intent: { target: 'a-food', period: p('2026-10'), chart: 'pie' } });
+        expect(await named('food', { ...OCTOBER_2026, chart_named: sure('pie') })).toMatchObject({
+            intent: { target: 'a-food', period: p('2026-10'), chart: 'pie' },
+        });
     });
 
     it('leaves the root to Jev when the request names nothing of the Book', async () => {
@@ -475,7 +571,13 @@ function answerBody() {
         model: 'jev-1.13.0',
         answers: {
             root: choice('Revenue'),
-            period: choice('2026-10'),
+            span: choice('month'),
+            year: choice('2026'),
+            month: choice('October'),
+            quarter: choice('unspecified'),
+            compared_year: choice('unspecified'),
+            compared_month: choice('unspecified'),
+            compared_quarter: choice('unspecified'),
             over_time: { type: 'noul', noul: 0.02 },
             composition: { type: 'noul', noul: 0.8 },
             versus_earlier: { type: 'noul', noul: 0.03 },

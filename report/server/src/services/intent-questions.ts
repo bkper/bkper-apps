@@ -1,9 +1,10 @@
 /**
  * What the decision model is asked about a report request, and how sure it must be.
  *
- * Every question, criterion and threshold of intent resolution lives here, so they can be
+ * Every question, criterion and threshold of intent resolution lives here, but those of the
+ * period, which `period-questions.ts` asks as small judgments of their own, so they can be
  * reviewed and tuned together. The model only chooses among options this code offers (the
- * Book's root groups, the periods within its data, the chart words, the languages) and answers
+ * Book's root groups, the chart words, the languages) and answers
  * yes or no to small recognition questions about how the request asks to see the amounts; it
  * never sees amounts, computes dates or writes queries. Each question stands alone: none
  * refers to another or says when not to answer yes, since code combines the answers
@@ -12,7 +13,12 @@
  */
 import type { ChoiceQuestion, NoulQuestion, SystemOneRequest } from '@typesafe-ai/sdk';
 import { LANGUAGES } from 'report-shared/languages';
-import { buildPeriodOptions } from './periods.js';
+import {
+    UNSPECIFIED,
+    YEAR_EARLIER_QUESTION,
+    buildPeriodQuestions,
+    type PeriodQuestions,
+} from './period-questions.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
 import type { Snapshot, SnapshotGroup } from './snapshot.js';
 
@@ -20,16 +26,12 @@ import type { Snapshot, SnapshotGroup } from './snapshot.js';
 export const THRESHOLDS = {
     /** Below it, or on `none`, the request is not a report of this Book. */
     root: 0.5,
-    /** Below it, the request reads the default period. */
-    period: 0.5,
     /** The probability of yes from which the request asks how amounts change over time. */
     over_time: 0.5,
     /** The probability of yes from which the request asks what makes up the amount. */
     composition: 0.5,
     /** The probability of yes from which the request compares with an earlier period. */
     versus_earlier: 0.5,
-    /** The probability of yes from which the request compares with the same period a year earlier. */
-    year_earlier: 0.5,
     /** The probability of yes from which the request asks how one amount leads to another. */
     bridge: 0.5,
     /** Below it, the request names no chart. */
@@ -52,8 +54,7 @@ const MAX_CHOICE_OPTIONS = 255;
 
 /** The root answer for a request that is not a report of this Book. */
 export const NO_ROOT = 'none';
-/** The period answer for a request that names none. */
-export const UNSPECIFIED = 'unspecified';
+export { UNSPECIFIED };
 
 const NET_RESULT_CRITERION =
     'Income versus expenses: profit or loss, the net result, the bottom line, how much was earned minus how much was spent.';
@@ -64,11 +65,6 @@ const NO_ROOT_CRITERION =
 const ROOT_INSTRUCTIONS =
     'Which group of the Book does `request` ask a financial report about? `request` may be in any language: match by meaning, against a group or anything it contains. Words starting with # in `request` are filters; ignore them here.';
 
-const PERIOD_INSTRUCTIONS =
-    'Which period of time does `request` ask about? `today` is the current date. Choose `unspecified` when `request` names no date, year, month, quarter or period; words such as monthly, by month or over time say how to show the amounts, not which period.';
-
-const UNSPECIFIED_PERIOD_CRITERION = '`request` names no date, year, month, quarter or period.';
-
 const OVER_TIME_INSTRUCTIONS =
     'Does `request` ask to see the amounts month by month, such as monthly amounts, how they evolve or a timeline?';
 
@@ -77,9 +73,6 @@ const COMPOSITION_INSTRUCTIONS =
 
 const VERSUS_EARLIER_INSTRUCTIONS =
     'Does `request` ask to compare the amounts with an earlier period it names, such as last year, the year before or the previous month?';
-
-const YEAR_EARLIER_INSTRUCTIONS =
-    'Does `request` ask to compare the amounts with the same period one year earlier, such as January last year for January, the same quarter last year or year over year?';
 
 const BRIDGE_INSTRUCTIONS =
     'Does `request` ask how one amount leads to another, step by step, such as from revenue through each expense to profit, or from an opening to a closing balance?';
@@ -141,7 +134,6 @@ type Criteria = Record<string, string>;
 
 export type IntentQuestions = {
     root: ChoiceQuestion<Criteria>;
-    period: ChoiceQuestion<Criteria>;
     over_time: NoulQuestion;
     composition: NoulQuestion;
     versus_earlier: NoulQuestion;
@@ -149,7 +141,7 @@ export type IntentQuestions = {
     bridge: NoulQuestion;
     chart_named: ChoiceQuestion<typeof CHART_NAMED_CRITERIA>;
     language: ChoiceQuestion<Criteria>;
-};
+} & PeriodQuestions;
 
 export interface IntentRequest {
     request: SystemOneRequest<IntentQuestions>;
@@ -157,7 +149,10 @@ export interface IntentRequest {
     roots: Record<string, string>;
 }
 
-/** The decision request of a report request against a Book snapshot. */
+/**
+ * The decision request of a report request against a Book snapshot: what it is about and how to
+ * show it, then its period, asked as the questions of `period-questions.ts`.
+ */
 export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRequest {
     const roots = rootOptions(snapshot);
     return {
@@ -171,15 +166,10 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                         roots.map(option => [option.label, option.description])
                     ),
                 },
-                period: {
-                    type: 'choice',
-                    instructions: PERIOD_INSTRUCTIONS,
-                    criteria: periodCriteria(snapshot),
-                },
                 over_time: { type: 'noul', instructions: OVER_TIME_INSTRUCTIONS },
                 composition: { type: 'noul', instructions: COMPOSITION_INSTRUCTIONS },
                 versus_earlier: { type: 'noul', instructions: VERSUS_EARLIER_INSTRUCTIONS },
-                year_earlier: { type: 'noul', instructions: YEAR_EARLIER_INSTRUCTIONS },
+                year_earlier: YEAR_EARLIER_QUESTION,
                 bridge: { type: 'noul', instructions: BRIDGE_INSTRUCTIONS },
                 chart_named: {
                     type: 'choice',
@@ -191,6 +181,7 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                     instructions: LANGUAGE_INSTRUCTIONS,
                     criteria: LANGUAGE_CRITERIA,
                 },
+                ...buildPeriodQuestions(prompt),
             },
         },
         roots: Object.fromEntries(roots.map(option => [option.label, option.target])),
@@ -266,14 +257,6 @@ function descendantNames(root: SnapshotGroup, snapshot: Snapshot): string[] {
         }
     }
     return [...names];
-}
-
-function periodCriteria(snapshot: Snapshot): Criteria {
-    const options = buildPeriodOptions({ today: snapshot.today }).slice(0, MAX_CHOICE_OPTIONS - 1);
-    return {
-        ...Object.fromEntries(options.map(option => [option.id, option.description])),
-        [UNSPECIFIED]: UNSPECIFIED_PERIOD_CRITERION,
-    };
 }
 
 function truncate(name: string): string {

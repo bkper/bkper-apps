@@ -6,6 +6,7 @@ import type { ZodType } from 'zod';
 import { COMPARISON_ERRORS } from '../services/period-query.js';
 import { CHART_KINDS, CHART_RULES, UNFIT_REASON_CODES } from '../services/report.js';
 import { SHOW_RULE_NAMES } from '../services/intent-resolver.js';
+import { PERIOD_RULES } from '../services/period-questions.js';
 import {
     ComparedPartsSchema,
     PeriodIdSchema,
@@ -445,6 +446,13 @@ const YesNoJudgmentSchema = z.object({
     score: z.number().min(0).max(1).openapi({ description: 'The probability of yes.' }),
 });
 
+const PeriodPartJudgmentSchema = ChoiceJudgmentSchema.extend({
+    read: z.union([z.string(), z.number()]).optional().openapi({
+        description:
+            'The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified.',
+    }),
+});
+
 export const ReportTraceSchema = z
     .object({
         judgments: z
@@ -452,8 +460,34 @@ export const ReportTraceSchema = z
                 root: ChoiceJudgmentSchema.openapi({
                     description: 'The group asked about, by name, `net-result` or `none`.',
                 }),
-                period: ChoiceJudgmentSchema.openapi({
-                    description: 'The period asked about, or `unspecified`.',
+                period: PeriodPartJudgmentSchema.openapi({
+                    description:
+                        'How long the period asked about is: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, `now` or `unspecified`. With the parts below, code builds the period; a request that names none reads the default period.',
+                }),
+                year: PeriodPartJudgmentSchema.optional().openapi({
+                    description:
+                        'The year said for the period: `this_year`, `last_year`, `year_before_last`, `next_year`, a year the request writes, or `unspecified`.',
+                }),
+                month: PeriodPartJudgmentSchema.optional().openapi({
+                    description:
+                        'The month said for the period: `January` to `December`, `this_month`, `last_month`, `next_month` or `unspecified`.',
+                }),
+                quarter: PeriodPartJudgmentSchema.optional().openapi({
+                    description:
+                        'The quarter said for the period: `Q1` to `Q4`, `this_quarter`, `last_quarter`, `next_quarter` or `unspecified`.',
+                }),
+                compared_year: PeriodPartJudgmentSchema.optional().openapi({
+                    description: 'The year said for a second period the request compares with.',
+                }),
+                compared_month: PeriodPartJudgmentSchema.optional().openapi({
+                    description: 'The month said for a second period the request compares with.',
+                }),
+                compared_quarter: PeriodPartJudgmentSchema.optional().openapi({
+                    description: 'The quarter said for a second period the request compares with.',
+                }),
+                year_earlier: YesNoJudgmentSchema.optional().openapi({
+                    description:
+                        'Whether it compares with the same period a year earlier; read only when it names no second period.',
                 }),
                 over_time: YesNoJudgmentSchema.openapi({
                     description: 'Whether the request asks how the amounts change over time.',
@@ -487,6 +521,14 @@ export const ReportTraceSchema = z
                 description:
                     'With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.',
                 example: ['Food', 'Rent'],
+            }),
+        periodRules: z
+            .array(z.enum(PERIOD_RULES))
+            .optional()
+            .openapi({
+                description:
+                    'With a `prompt`: the rules that changed the parts of the period read, in order: `span_alone` (a month, quarter or year with nothing saying which is no period), `rolling_period` (the last 12 months ignore a relative year), `kind_of_period` (a second period said as a month and a quarter is of the period’s kind), `same_as_period` (compared parts equal to the period’s say no other period) or `previous_of_period` (the previous month or quarter of a second period is the default comparison; last year counts back from a written year).',
+                example: ['same_as_period'],
             }),
         rule: z.enum(SHOW_RULE_NAMES).optional().openapi({
             description:

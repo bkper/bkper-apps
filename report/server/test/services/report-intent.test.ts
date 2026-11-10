@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { decodeReportState, encodeReportState } from 'report-shared/report-state';
-import { RELATIVE_PERIODS } from '../../src/services/periods';
+import { RELATIVE_PERIODS } from 'report-shared/report-intent';
 import {
     NET_RESULT_ROOT,
     REPORT_CHARTS,

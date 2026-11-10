@@ -5,10 +5,9 @@ import {
     MAX_REQUEST_CHARACTERS,
     NO_CHART,
     NO_ROOT,
-    UNSPECIFIED,
     buildIntentRequest,
 } from '../../src/services/intent-questions';
-import { buildPeriodOptions } from '../../src/services/periods';
+import { PERIOD_QUESTION_IDS, buildPeriodQuestions } from '../../src/services/period-questions';
 import { NET_RESULT_ROOT } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
 import { TODAY, fixtureSnapshot } from '../fixtures/snapshot-book';
@@ -107,30 +106,21 @@ describe('buildIntentRequest', () => {
         expect(criteria['Root 0']).not.toContain('R0-5');
     });
 
-    it('offers every period option and unspecified', async () => {
+    it('asks the period as the period questions, which hold no date', async () => {
         const snapshot = await fixtureSnapshot();
-        const { request } = buildIntentRequest('expenses', snapshot);
-        // The fixed range of years fills the choice: the oldest month gives way to unspecified.
-        const options = buildPeriodOptions({ today: TODAY }).slice(0, -1);
-        expect(request.questions.period.criteria).toEqual({
-            ...Object.fromEntries(options.map(option => [option.id, option.description])),
-            [UNSPECIFIED]: expect.any(String),
-        });
-    });
-
-    it('offers the same periods whatever the Book holds, within 255 options', async () => {
-        const snapshot = await fixtureSnapshot();
-        const { request } = buildIntentRequest('expenses', snapshot);
-        const empty = buildIntentRequest('expenses', {
+        const { request } = buildIntentRequest('expenses 2016 vs 2014', snapshot);
+        expect(request.questions).toMatchObject(buildPeriodQuestions('expenses 2016 vs 2014'));
+        // The same questions whatever the Book holds or its today.
+        const other = buildIntentRequest('expenses 2016 vs 2014', {
             ...snapshot,
+            today: '2031-02-03',
             roots: [],
             groups: {},
             accounts: {},
         }).request;
-        expect(empty.questions.period).toEqual(request.questions.period);
-        const ids = Object.keys(request.questions.period.criteria);
-        expect(ids).toHaveLength(255);
-        expect(ids.at(-1)).toBe(UNSPECIFIED);
+        for (const id of PERIOD_QUESTION_IDS) {
+            expect(other.questions[id]).toEqual(request.questions[id]);
+        }
     });
 
     it('offers every Bkper language', async () => {
@@ -165,7 +155,6 @@ describe('buildIntentRequest', () => {
         }
         expect(Object.keys(questions)).toEqual([
             'root',
-            'period',
             'over_time',
             'composition',
             'versus_earlier',
@@ -173,6 +162,7 @@ describe('buildIntentRequest', () => {
             'bridge',
             'chart_named',
             'language',
+            ...PERIOD_QUESTION_IDS,
         ]);
     });
 

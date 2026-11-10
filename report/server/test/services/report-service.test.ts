@@ -19,6 +19,7 @@ import {
     ledgerSnapshot,
     simpleRootsLedger,
 } from '../fixtures/snapshot-book';
+import { periodChoices } from '../fixtures/period-answers';
 
 /** The parts of a period id, as intents now hold them. */
 function p(id: string): PeriodParts {
@@ -32,6 +33,8 @@ const NOW = new Date('2026-11-05T16:00:00Z');
 interface JevAnswers {
     root: string;
     period?: string;
+    /** Labels of the period questions, over those of `period`. */
+    periodChoices?: Partial<ReturnType<typeof periodChoices>>;
     over_time?: number;
     chart_named?: string;
     language?: string;
@@ -49,7 +52,12 @@ function jevBody(answers: JevAnswers) {
         model: 'jev',
         answers: {
             root: choice(answers.root, answers.rootConfidence),
-            period: choice(answers.period ?? 'unspecified'),
+            ...Object.fromEntries(
+                Object.entries({
+                    ...periodChoices(answers.period),
+                    ...answers.periodChoices,
+                }).map(([id, label]) => [id, choice(label)])
+            ),
             over_time: { type: 'noul', noul: answers.over_time ?? 0.01 },
             composition: { type: 'noul', noul: 0.01 },
             versus_earlier: { type: 'noul', noul: 0.01 },
@@ -399,7 +407,9 @@ describe('createReport by prompt', () => {
         expect(result.trace).toMatchObject({
             judgments: {
                 root: { answer: 'Expenses', score: 0.99 },
-                period: { answer: '2026-10', score: 0.99 },
+                period: { answer: 'month', score: 0.99, read: 'month' },
+                year: { answer: '2026', score: 0.99, read: 2026 },
+                month: { answer: 'October', score: 0.99, read: 10 },
                 over_time: { answer: false, score: 0.01 },
                 composition: { answer: false, score: 0.01 },
                 versus_earlier: { answer: false, score: 0.01 },
@@ -442,6 +452,43 @@ describe('createReport by prompt', () => {
         // An intent asks no judgments.
         expect(result.trace).not.toHaveProperty('judgments');
         expect(result.trace).not.toHaveProperty('rule');
+    });
+
+    it('answers that the next month has not started, reading no balances', async () => {
+        const test = harness({
+            root: 'Expenses',
+            periodChoices: { span: 'month', month: 'next_month' },
+        });
+        const error = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'expenses next month' },
+            {},
+            test.options
+        ).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ReportError);
+        expect(error).toMatchObject({ reason: 'future_period' });
+        expect(test.queries).toEqual([]);
+    });
+
+    it('reads the period a prompt compares with', async () => {
+        const test = harness({
+            root: 'Expenses',
+            periodChoices: { span: 'year', year: 'last_year', compared_year: '2023' },
+        });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'expenses last year vs 2023' },
+            {},
+            test.options
+        );
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:$y-1 by:m",
+            "group:'Expenses' on:2023 by:m",
+        ]);
+        expect(result.intent).toMatchObject({
+            period: { span: 'year', year: 'previous' },
+            compared: { year: 2023 },
+        });
     });
 
     it('prefers the requested language over the detected one', async () => {

@@ -10,7 +10,7 @@ import {
     type QuarterPart,
     type YearPart,
 } from '../../src/services/period-query';
-import { addDays, resolvePeriod, type ReportNature } from '../../src/services/periods';
+import { addDays, type ReportNature } from '../../src/services/periods';
 import { RELATIVE_PERIODS } from 'report-shared/report-intent';
 
 const TODAY = '2026-11-09';
@@ -522,6 +522,20 @@ describe('buildPeriodQuery, every combination of parts', () => {
     }
 });
 
+/** The first and last months a dated id names, read from the id alone. */
+function monthsOfId(id: string): { first: string; last: string } {
+    const [year, rest] = id.split('-');
+    const month = (m: number) => `${year}-${String(m).padStart(2, '0')}`;
+    if (rest === undefined) {
+        return { first: month(1), last: month(12) };
+    }
+    if (rest.startsWith('Q')) {
+        const quarter = Number(rest.slice(1));
+        return { first: month(quarter * 3 - 2), last: month(quarter * 3) };
+    }
+    return { first: month(Number(rest)), last: month(Number(rest)) };
+}
+
 describe('periodRequestOf, dated ids', () => {
     it('reads the months the id names, and rejects those not started', () => {
         const failures: string[] = [];
@@ -538,23 +552,18 @@ describe('periodRequestOf, dated ids', () => {
                 const request = periodRequestOf(id, 'year_earlier');
                 const built =
                     request && buildPeriodQuery(request, { today: TODAY, nature: 'activity' });
-                const range = resolvePeriod(id, { today: TODAY });
-                if (!built || !range?.after) {
+                const { first, last } = monthsOfId(id);
+                if (!built) {
                     failures.push(`${id}: not built`);
                     continue;
                 }
-                if (range.after > TODAY) {
+                if (first > TODAY.slice(0, 7)) {
                     if (built.ok || built.reason !== 'future_period')
                         failures.push(`${id}: future`);
                     continue;
                 }
-                const lastMonth = addDays(range.before, -1).slice(0, 7);
-                const expected = lastMonth > TODAY.slice(0, 7) ? TODAY.slice(0, 7) : lastMonth;
-                if (
-                    !built.ok ||
-                    built.period.first !== range.after.slice(0, 7) ||
-                    built.period.last !== expected
-                ) {
+                const expected = last > TODAY.slice(0, 7) ? TODAY.slice(0, 7) : last;
+                if (!built.ok || built.period.first !== first || built.period.last !== expected) {
                     failures.push(`${id}: ${JSON.stringify(built)}`);
                 }
             }

@@ -686,7 +686,18 @@ try {
         const response = await responsePromise;
         assert.equal(response.status(), 200);
         const body = (await response.json()) as ReportResponse;
-        assert(body.query.includes(`after:${month}-01`));
+        // Last month, as Bkper reads it on the Book's day, which the subtitle names.
+        assert(body.query.endsWith('on:$m-1 by:m'), body.query);
+        const root = body.spec.elements[body.spec.root];
+        assert(root?.type === 'Report');
+        assert.equal(
+            withoutIsolates(root.props.subtitle),
+            new Intl.DateTimeFormat('en', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+            }).format(new Date(`${month}-01T00:00:00Z`))
+        );
         await b.frame.locator('report-view').waitFor();
         return body;
     };
@@ -789,7 +800,7 @@ try {
         period: { span: 'month', month: 'previous' },
         monthly: false,
     });
-    assert.equal(named.query, "account:'Food' after:2026-11-01 before:2026-12-01");
+    assert.equal(named.query, "account:'Food' on:$m-1 by:m");
     await a.frame.locator('report-view').getByText('50.25').first().waitFor();
     await a.shelf.locator('.save:not([disabled])').click();
     await a.shelf.locator('.saved-prompt').waitFor();

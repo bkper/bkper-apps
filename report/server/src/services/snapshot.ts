@@ -50,6 +50,8 @@ export interface Snapshot {
         timeZone?: string;
         /** Decimal places the Book shows. */
         fractionDigits?: number;
+        /** How Bkper writes the Book's dates, such as `dd/MM/yyyy`, in the dates it read. */
+        datePattern?: string;
         permission: string;
     };
     /** The Book's today when the map was read; every period of a report is relative to it. */
@@ -107,6 +109,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
             name: book.getName() ?? '',
             timeZone: book.getTimeZone(),
             fractionDigits: book.getFractionDigits(),
+            datePattern: book.getDatePattern(),
             permission: book.getPermission(),
         },
         today: input.today,

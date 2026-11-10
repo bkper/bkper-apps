@@ -5083,7 +5083,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Revenue",
-                        "subtitle": "Last month",
+                        "subtitle": "November 2025",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2

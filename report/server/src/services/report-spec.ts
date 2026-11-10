@@ -16,7 +16,8 @@ import {
 } from 'report-shared/catalog';
 import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
-import { addDays, type DateRange, type IsoDate, type RelativePeriod } from './periods.js';
+import type { ReadDays } from './bkper-dates.js';
+import { addDays, type IsoDate } from './periods.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
 import {
     viewKindOf,
@@ -27,23 +28,6 @@ import {
     type ReportRow,
     type UnfitReason,
 } from './report.js';
-
-const RELATIVE_PERIOD_LABELS = {
-    today: 'period_today',
-    this_month: 'period_this_month',
-    last_month: 'period_last_month',
-    this_quarter: 'period_this_quarter',
-    last_quarter: 'period_last_quarter',
-    this_year: 'period_this_year',
-    last_year: 'period_last_year',
-    ytd: 'period_ytd',
-    last_12_months: 'period_last_12_months',
-    all: 'period_all',
-} as const satisfies Record<RelativePeriod, StringKey>;
-
-function relativePeriodLabel(id: string): StringKey | undefined {
-    return Object.entries(RELATIVE_PERIOD_LABELS).find(([period]) => period === id)?.[1];
-}
 
 const VIEW_NAMES = {
     bar: 'chart_name_bar',
@@ -340,10 +324,9 @@ function chartProps(
             return {
                 kind: 'compare',
                 label: itemsLabel(report, title, lang),
-                // Both by their dates, so they read alike: never `Last month` against
-                // `September 2026`.
+                // Both by the months each read, in the same form.
                 periods: {
-                    current: labels.dated(report),
+                    current: labels.period(report),
                     previous:
                         report.nature === 'position'
                             ? labels.asOf(previous.before)
@@ -429,34 +412,37 @@ function fill(key: StringKey, lang: string, params: Record<string, string>): str
  */
 class Labels {
     private readonly day: Intl.DateTimeFormat;
+    private readonly monthRange: Intl.DateTimeFormat;
     private readonly number: Intl.NumberFormat;
 
     constructor(readonly lang: string) {
         this.day = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
+        this.monthRange = new Intl.DateTimeFormat(lang, {
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'UTC',
+        });
         this.number = new Intl.NumberFormat(lang);
     }
 
-    /** The period of an activity, by its name; the date of a position. */
+    /**
+     * The months an activity read, by the days Bkper read (all time by its name); the date of a
+     * position.
+     */
     period(report: ReportData): string {
         if (report.nature === 'position') {
             return this.asOf(report.period.before);
         }
-        const relative = relativePeriodLabel(report.period.id);
-        return relative ? t(relative, this.lang) : this.range(report.period);
+        return report.period.after === undefined
+            ? t('period_all', this.lang)
+            : this.months(report.period.after, report.period.before);
     }
 
-    /** The period of an activity by its dates or calendar name, never relative; the date of a position. */
-    dated(report: ReportData): string {
-        return report.nature === 'position'
-            ? this.asOf(report.period.before)
-            : this.range(report.period);
-    }
-
-    /** What a report compares with: an earlier date for a position, else a period. */
-    previous(report: ReportData, previous: DateRange): string {
-        return report.nature === 'position'
+    /** What a report compares with: an earlier date for a position, else the months read. */
+    previous(report: ReportData, previous: ReadDays): string {
+        return report.nature === 'position' || previous.after === undefined
             ? this.date(lastDay(previous.before))
-            : this.range(previous);
+            : this.months(previous.after, previous.before);
     }
 
     /** The exact dates an activity covers; all time starts with the first month of data. */
@@ -468,25 +454,28 @@ class Labels {
             : this.asOf(report.period.before);
     }
 
-    /** A whole year, quarter or month by its name; any other range by its dates. */
-    private range(range: DateRange): string {
-        const { after, before } = range;
-        if (after === undefined) {
-            return this.asOf(before);
-        }
-        const [, month, day] = after.split('-').map(Number);
+    /**
+     * Whole months by their calendar name, short: a year (`2025`), a quarter (`Q3 2024`), a
+     * month (`January 2025`), or a range of months (`Jan – Nov 2026`); days that are no whole
+     * months by their dates.
+     */
+    private months(after: IsoDate, before: IsoDate): string {
         const months = monthsBetween(after, before);
-        if (day === 1 && month === 1 && months === 12) {
+        const month = Number(after.slice(5, 7));
+        if (months === 12 && month === 1) {
             return this.format(after, { year: 'numeric' });
         }
-        if (day === 1 && month % 3 === 1 && months === 3) {
+        if (months === 3 && month % 3 === 1) {
             return fill('period_quarter', this.lang, {
                 quarter: this.number.format((month + 2) / 3),
                 year: this.format(after, { year: 'numeric' }),
             });
         }
-        if (day === 1 && months === 1) {
+        if (months === 1) {
             return this.format(after, { month: 'long', year: 'numeric' });
+        }
+        if (months > 1) {
+            return this.monthRange.formatRange(utc(after), utc(lastDay(before)));
         }
         return this.day.formatRange(utc(after), utc(lastDay(before)));
     }

@@ -4,11 +4,14 @@ import type { ReportFileData } from 'report-shared/report-file';
 import { t, type StringKey } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { decodeReportState } from 'report-shared/report-state';
+import { buildReport, planQueries, planReport } from '../../src/services/report';
 import {
     REPORT_FILE_BUNDLE,
     buildReportFile,
     reportFileOpen,
 } from '../../src/services/report-file';
+import { buildReportSpec } from '../../src/services/report-spec';
+import { fixtureLedger, ledgerBalances, ledgerSnapshot } from '../fixtures/snapshot-book';
 
 const LINK = {
     url: 'https://report.bkper.app/?book=book-1&q=expenses+%3C%2Fscript%3E',
@@ -95,6 +98,30 @@ describe('report file', () => {
         expect(html).toContain(`<script>${BUNDLE.script}</script>`);
         expect(html.indexOf('<report-view>')).toBeLessThan(html.indexOf('id="report-data"'));
         expect(html.indexOf('id="report-data"')).toBeLessThan(html.indexOf(BUNDLE.script));
+    });
+
+    it('is titled by the months its report read, and carries both compared sides', async () => {
+        const ledger = fixtureLedger();
+        const snapshot = await ledgerSnapshot(ledger);
+        const intent = {
+            root: 'g-expenses',
+            period: 'this_year',
+            monthly: false,
+            chart: 'compare',
+        } as const;
+        const balances = planQueries(planReport(intent, snapshot)).map(query =>
+            ledgerBalances(ledger, query)
+        );
+        const built = buildReportSpec(buildReport(intent, snapshot, balances), 'en');
+        const html = buildReportFile(built, { link: LINK }, BUNDLE);
+
+        expect(html).toContain('<title>Expenses · Jan\u2009–\u2009Nov 2026</title>');
+        const chart = Object.values(dataOf(html).data.spec.elements).find(
+            element => element.type === 'Chart'
+        );
+        expect(chart?.props).toMatchObject({
+            periods: { current: 'Jan\u2009–\u2009Nov 2026', previous: 'Jan\u2009–\u2009Nov 2025' },
+        });
     });
 
     it('carries the spec and the link without ending its script early', () => {

@@ -28,6 +28,7 @@ describe('buildSnapshot', () => {
             name: 'Test Ledger',
             timeZone: 'America/Sao_Paulo',
             fractionDigits: 2,
+            datePattern: 'dd/MM/yyyy',
             permission: 'VIEWER',
         });
         expect(snapshot.today).toBe(TODAY);

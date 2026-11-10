@@ -173,51 +173,6 @@
             "book": "name of the Book, verbatim"
         }
     },
-    "period_today": {
-        "text": "Today",
-        "role": "label",
-        "context": "Period of a report: the current day. Shown under the report title, standing alone. Capitalized as a standalone label."
-    },
-    "period_this_month": {
-        "text": "This month",
-        "role": "label",
-        "context": "Period of a report: the current calendar month, up to today. Shown under the report title, standing alone."
-    },
-    "period_last_month": {
-        "text": "Last month",
-        "role": "label",
-        "context": "Period of a report: the previous whole calendar month. Shown under the report title, standing alone."
-    },
-    "period_this_quarter": {
-        "text": "This quarter",
-        "role": "label",
-        "context": "Period of a report: the current calendar quarter (three months), up to today. Shown under the report title, standing alone."
-    },
-    "period_last_quarter": {
-        "text": "Last quarter",
-        "role": "label",
-        "context": "Period of a report: the whole calendar quarter before the current one (not the fourth quarter of a year). Shown under the report title, standing alone."
-    },
-    "period_this_year": {
-        "text": "This year",
-        "role": "label",
-        "context": "Period of a report: the current calendar year, up to today. Shown under the report title, standing alone."
-    },
-    "period_last_year": {
-        "text": "Last year",
-        "role": "label",
-        "context": "Period of a report: the previous whole calendar year. Shown under the report title, standing alone."
-    },
-    "period_ytd": {
-        "text": "Year to date",
-        "role": "label",
-        "context": "Period of a report: from January 1 of the current year up to today, the accounting term year to date. Shown under the report title, standing alone."
-    },
-    "period_last_12_months": {
-        "text": "Last 12 months",
-        "role": "label",
-        "context": "Period of a report: the current month to date and the 11 months before it. Shown under the report title, standing alone."
-    },
     "period_all": {
         "text": "All time",
         "role": "label",

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     expectedRead,
-    parseBookDate,
     readMismatches,
-    readRange,
     type BkperRead,
 } from '../scripts/verify-period-queries/bkper-read';
 import { PERIOD_SAMPLES, sampleQueries } from '../scripts/verify-period-queries/samples';
@@ -16,50 +14,6 @@ function months(...list: string[]): BkperRead['balances'] {
         day: 0,
     }));
 }
-
-describe('parseBookDate', () => {
-    it('reads years, months and days in each date format', () => {
-        expect(parseBookDate('2026', 'dd/MM/yyyy')).toBe('2026-01-01');
-        expect(parseBookDate('11/2026', 'dd/MM/yyyy')).toBe('2026-11-01');
-        expect(parseBookDate('10/11/2026', 'dd/MM/yyyy')).toBe('2026-11-10');
-        expect(parseBookDate('11/2026', 'MM/dd/yyyy')).toBe('2026-11-01');
-        expect(parseBookDate('11/10/2026', 'MM/dd/yyyy')).toBe('2026-11-10');
-        expect(parseBookDate('2026/11', 'yyyy/MM/dd')).toBe('2026-11-01');
-        expect(parseBookDate('2026/11/10', 'yyyy/MM/dd')).toBe('2026-11-10');
-    });
-
-    it('rejects what is not a date in the format', () => {
-        for (const [text, pattern] of [
-            ['31/12/2026', 'MM/dd/yyyy'],
-            ['2026/11', 'dd/MM/yyyy'],
-            ['30/02/2026', 'dd/MM/yyyy'],
-            ['$y-1', 'yyyy/MM/dd'],
-            ['', 'dd/MM/yyyy'],
-            ['1/2/3/4', 'dd/MM/yyyy'],
-        ] as const) {
-            expect(() => parseBookDate(text, pattern), text).toThrow();
-        }
-    });
-});
-
-describe('readRange', () => {
-    it('reads the bounds Bkper writes', () => {
-        expect(readRange(' after:2026 before:2026/12 by:m', 'yyyy/MM/dd')).toEqual({
-            after: '2026-01-01',
-            before: '2026-12-01',
-            by: 'm',
-        });
-        expect(readRange(' before:10/11/2026 by:m', 'dd/MM/yyyy')).toEqual({
-            before: '2026-11-10',
-            by: 'm',
-        });
-    });
-
-    it('rejects other terms and repeated bounds', () => {
-        expect(() => readRange('on:2026 by:m', 'dd/MM/yyyy')).toThrow();
-        expect(() => readRange('before:2026 before:2027', 'dd/MM/yyyy')).toThrow();
-    });
-});
 
 describe('readMismatches', () => {
     it('accepts a running year to date as a year-first Book reads it', () => {

@@ -132,7 +132,7 @@ describe('buildReportSpec', () => {
         const built = await spec(intent('g-expenses', 'last_month'));
         expect(element(built, 'Report').props).toMatchObject({
             title: 'Expenses',
-            subtitle: 'Last month',
+            subtitle: 'October 2026',
             dir: 'ltr',
         });
         expect(element(built, 'Answer').props).toMatchObject({
@@ -160,10 +160,10 @@ describe('buildReportSpec', () => {
         expect(element(year, 'Report').props.subtitle).toBe('2025');
         expect(element(year, 'Answer').props.comparison).toBe(`vs. ${isolate('2024')}`);
         const current = await spec(intent('g-expenses', 'this_year'));
-        expect(element(current, 'Report').props.subtitle).toBe('This year');
+        expect(element(current, 'Report').props.subtitle).toBe(`Jan${TO}Nov 2026`);
         // The same months of last year: the current month is read whole.
         expect(element(current, 'Answer').props.comparison).toBe(
-            `vs. ${isolate(`Jan 1${TO}Nov 30, 2025`)}`
+            `vs. ${isolate(`Jan${TO}Nov 2025`)}`
         );
     });
 
@@ -184,6 +184,135 @@ describe('buildReportSpec', () => {
         expect(element(built, 'Report').props.subtitle).toBe(`As of ${isolate('Nov 5, 2026')}`);
         expect(element(built, 'Answer').props.comparison).toBe(`vs. ${isolate('Oct 31, 2026')}`);
         expect(element(built, 'Source').props.period).toBe(`As of ${isolate('Nov 5, 2026')}`);
+    });
+
+    it('labels each side by the months it read, in the same form', async () => {
+        const quarter = (q: string, year: string) => `Q${isolate(q)} ${isolate(year)}`;
+        const forms: [ReportIntent, string, string][] = [
+            [intent('g-expenses', '2025'), '2025', '2024'],
+            [intent('g-expenses', '2026-10'), 'October 2026', 'September 2026'],
+            [intent('g-expenses', '2026-Q3'), quarter('3', '2026'), quarter('2', '2026')],
+            [intent('g-expenses', 'this_year'), `Jan${TO}Nov 2026`, `Jan${TO}Nov 2025`],
+            [intent('g-expenses', 'this_quarter'), `Oct${TO}Nov 2026`, `Jul${TO}Aug 2026`],
+            [
+                intent('g-expenses', 'last_12_months'),
+                `Dec 2025${TO}Nov 2026`,
+                `Dec 2024${TO}Nov 2025`,
+            ],
+            [intent('g-expenses', 'this_month'), 'November 2026', 'October 2026'],
+            [
+                intent('g-expenses', 'this_quarter', { compareWith: 'year_earlier' }),
+                `Oct${TO}Nov 2026`,
+                `Oct${TO}Nov 2025`,
+            ],
+        ];
+        for (const [request, current, previous] of forms) {
+            const built = await spec({ ...request, chart: 'compare' });
+            const what = request.period;
+            expect(element(built, 'Report').props.subtitle, what).toBe(current);
+            expect(element(built, 'Answer').props.comparison, what).toBe(
+                `vs. ${isolate(previous)}`
+            );
+            const chart = element(built, 'Chart').props;
+            expect('periods' in chart && chart.periods, what).toEqual({ current, previous });
+        }
+    });
+
+    it('dates a balance now and at the end of a month, against the end of a month', async () => {
+        const now = await spec(intent('g-assets', 'today', { chart: 'compare' }));
+        expect(element(now, 'Report').props.subtitle).toBe(`As of ${isolate('Nov 5, 2026')}`);
+        expect(element(now, 'Answer').props.comparison).toBe(`vs. ${isolate('Oct 31, 2026')}`);
+        const ended = await spec(intent('g-assets', 'last_month', { chart: 'compare' }));
+        expect(element(ended, 'Report').props.subtitle).toBe(`As of ${isolate('Oct 31, 2026')}`);
+        expect(element(ended, 'Answer').props.comparison).toBe(`vs. ${isolate('Sep 30, 2026')}`);
+        const chart = element(ended, 'Chart').props;
+        expect('periods' in chart && chart.periods).toEqual({
+            current: `As of ${isolate('Oct 31, 2026')}`,
+            previous: `As of ${isolate('Sep 30, 2026')}`,
+        });
+    });
+
+    it('labels alike whatever the date format Bkper writes the Book in', async () => {
+        const requests = [
+            intent('g-expenses', 'this_year'),
+            intent('g-expenses', '2026-Q3'),
+            intent('g-expenses', 'last_month'),
+            intent('g-expenses', 'all'),
+            intent('g-assets', 'today'),
+        ];
+        const texts = async (pattern: string, lang: string) => {
+            const ledger = fixtureLedger();
+            ledger.book.datePattern = pattern;
+            const built = await Promise.all(
+                requests.map(request => spec(request, lang, undefined, ledger))
+            );
+            return built.map(one => [
+                element(one, 'Report').props.subtitle,
+                element(one, 'Answer').props.comparison,
+                element(one, 'Source').props.period,
+            ]);
+        };
+        for (const lang of ['en', 'ar']) {
+            const dayFirst = await texts('dd/MM/yyyy', lang);
+            expect(dayFirst[0][0]).toBe(
+                lang === 'en'
+                    ? `Jan${TO}Nov 2026`
+                    : new Intl.DateTimeFormat('ar', {
+                          month: 'short',
+                          year: 'numeric',
+                          timeZone: 'UTC',
+                      }).formatRange(Date.UTC(2026, 0, 1), Date.UTC(2026, 10, 30))
+            );
+            expect(await texts('MM/dd/yyyy', lang)).toEqual(dayFirst);
+            expect(await texts('yyyy/MM/dd', lang)).toEqual(dayFirst);
+        }
+    });
+
+    it('labels the forms of a period in right-to-left languages', async () => {
+        addAllLocales();
+        const date = (iso: string) => new Date(`${iso}T00:00:00Z`);
+        for (const lang of ['ar', 'he']) {
+            const format = (options: Intl.DateTimeFormatOptions) =>
+                new Intl.DateTimeFormat(lang, { ...options, timeZone: 'UTC' });
+            const monthRange = format({ month: 'short', year: 'numeric' });
+            const month = format({ month: 'long', year: 'numeric' });
+            const year = format({ year: 'numeric' });
+            const day = format({ dateStyle: 'medium' });
+            const forms: [ReportIntent, string, string][] = [
+                [
+                    intent('g-expenses', '2025'),
+                    year.format(date('2025-01-01')),
+                    year.format(date('2024-01-01')),
+                ],
+                [
+                    intent('g-expenses', 'last_month'),
+                    month.format(date('2026-10-01')),
+                    month.format(date('2026-09-01')),
+                ],
+                [
+                    intent('g-expenses', 'this_year'),
+                    monthRange.formatRange(date('2026-01-01'), date('2026-11-30')),
+                    monthRange.formatRange(date('2025-01-01'), date('2025-11-30')),
+                ],
+                [
+                    intent('g-assets', 'today'),
+                    t('position_as_of', lang, { date: isolate(day.format(date('2026-11-05'))) }),
+                    day.format(date('2026-10-31')),
+                ],
+            ];
+            for (const [request, current, previous] of forms) {
+                const built = await spec(request, lang);
+                const what = `${lang} ${request.period}`;
+                expect(element(built, 'Report').props.subtitle, what).toBe(current);
+                expect(element(built, 'Answer').props.comparison, what).toBe(
+                    t('answer_compared_with', lang, { period: isolate(previous) })
+                );
+                expect(element(built, 'Report').props.dir).toBe('rtl');
+            }
+            expect(
+                element(await spec(intent('g-expenses', 'all'), lang), 'Report').props.subtitle
+            ).toBe(t('period_all', lang));
+        }
     });
 
     it('has no comparison for all time, and reads it from the first month of data', async () => {
@@ -448,10 +577,12 @@ describe('buildReportSpec', () => {
         addAllLocales();
         const day = (lang: string) =>
             new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
+        const months = (lang: string) =>
+            new Intl.DateTimeFormat(lang, { month: 'short', year: 'numeric', timeZone: 'UTC' });
         const date = (iso: string) => new Date(`${iso}T00:00:00Z`);
         for (const lang of ['ar', 'he']) {
             const current = await spec(intent('g-expenses', 'this_year'), lang);
-            const range = day(lang).formatRange(date('2025-01-01'), date('2025-11-30'));
+            const range = months(lang).formatRange(date('2025-01-01'), date('2025-11-30'));
             const comparison = element(current, 'Answer').props.comparison;
             expect(comparison).toBe(t('answer_compared_with', lang, { period: isolate(range) }));
             expect(comparison).not.toMatch(/[A-Za-z]/);

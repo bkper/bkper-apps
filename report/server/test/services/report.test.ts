@@ -292,7 +292,6 @@ describe('buildReport: activity', () => {
             color: 'red',
         });
         expect(data.period).toEqual({
-            id: 'last_month',
             after: '2026-10-01',
             before: '2026-11-01',
             dates: 'on:$m-1 by:m',
@@ -331,7 +330,6 @@ describe('buildReport: activity', () => {
         ledger.transactions.push({ date: '2026-11-20', from: 'Bank A', to: 'Food', amount: '9' });
         const data = await report(intent('g-expenses', 'this_month'), ledger);
         expect(data.period).toEqual({
-            id: 'this_month',
             after: '2026-11-01',
             before: '2026-12-01',
             dates: 'on:$m by:m',
@@ -356,7 +354,6 @@ describe('buildReport: activity', () => {
         const data = await report(intent('g-expenses', '2026', { monthly: true }));
         expect(data.intent.period).toBe('2026');
         expect(data.period).toEqual({
-            id: 'this_year',
             after: '2026-01-01',
             before: '2026-12-01',
             dates: 'after:2026-01 before:2026-12 by:m',
@@ -386,7 +383,7 @@ describe('buildReport: activity', () => {
 
     it('has nothing to compare all time with', async () => {
         const data = await report(intent('g-expenses', 'all'));
-        expect(data.period).toEqual({ id: 'all', before: '2026-12-01', dates: 'before:$m+1 by:m' });
+        expect(data.period).toEqual({ before: '2026-12-01', dates: 'before:$m+1 by:m' });
         expect(data.previous).toBeUndefined();
         expect(data.answer).toEqual({ amount: '4260.75' });
         expect(data.query).toBe("group:'Expenses' before:$m+1 by:m");
@@ -423,12 +420,8 @@ describe('buildReport: position', () => {
         const data = await report(intent('g-assets', 'today'));
         expect(data.nature).toBe('position');
         expect(data.root.color).toBe('blue');
-        expect(data.period).toEqual({
-            id: 'today',
-            after: '2026-11-01',
-            before: '2026-11-06',
-            dates: 'before:$d+1 by:m',
-        });
+        // A position reads every movement before its day: from the start of the Book.
+        expect(data.period).toEqual({ before: '2026-11-06', dates: 'before:$d+1 by:m' });
         expect(data.previous).toEqual({ before: '2026-11-01', dates: 'before:$m by:m' });
         expect(data.answer).toEqual({ amount: '7849.25', previous: '3899.5', change: '1.0129' });
         expect(rows(data.breakdown)).toEqual([
@@ -443,12 +436,7 @@ describe('buildReport: position', () => {
 
     it('shows positions at the end of each month on a line', async () => {
         const data = await report(intent('g-assets', '2026-Q4', { monthly: true }));
-        expect(data.period).toEqual({
-            id: 'this_quarter',
-            after: '2026-10-01',
-            before: '2026-11-06',
-            dates: 'before:$d+1 by:m',
-        });
+        expect(data.period).toEqual({ before: '2026-11-06', dates: 'before:$d+1 by:m' });
         // The end of the same months of the quarter before: July and August.
         expect(data.previous).toEqual({ before: '2026-09-01', dates: 'before:2026-09 by:m' });
         expect(data.answer).toEqual({ amount: '7849.25', previous: '100', change: '77.4925' });
@@ -1500,10 +1488,58 @@ describe('buildReport: chart', () => {
 });
 
 describe('buildReport: any period and hashtags', () => {
+    it('takes the days each side read from Bkper, in any date format', async () => {
+        for (const pattern of ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy/MM/dd']) {
+            const ledger = fixtureLedger();
+            ledger.book.datePattern = pattern;
+            const activity = await report(intent('g-expenses', 'this_quarter'), ledger);
+            expect(activity.period, pattern).toEqual({
+                after: '2026-10-01',
+                before: '2026-12-01',
+                dates: 'after:2026-10 before:2026-12 by:m',
+            });
+            expect(activity.previous, pattern).toEqual({
+                after: '2026-07-01',
+                before: '2026-09-01',
+                dates: 'after:2026-07 before:2026-09 by:m',
+            });
+            const position = await report(intent('g-assets', 'today'), ledger);
+            expect(position.period, pattern).toMatchObject({ before: '2026-11-06' });
+            expect(position.previous, pattern).toMatchObject({ before: '2026-11-01' });
+        }
+    });
+
+    it('labels a period with the days Bkper says it read, not the days it was asked', async () => {
+        const request = intent('g-expenses', 'last_month');
+        const snapshot = await fixtureSnapshot();
+        const balances = balancesOf(request, snapshot, fixtureLedger()).map(entry =>
+            entry.query.includes('on:$m-1 ')
+                ? { ...entry, rangeBeginLabel: '15/09/2026', rangeEndLabel: '14/10/2026' }
+                : entry
+        );
+        const data = buildReport(request, snapshot, balances);
+        expect(data.period).toMatchObject({ after: '2026-09-15', before: '2026-10-15' });
+        expect(data.previous).toMatchObject({ after: '2026-09-01', before: '2026-10-01' });
+    });
+
+    it('resolves the dates of answers without labels in the Book format as Bkper does', async () => {
+        const request = intent('g-expenses', 'this_year');
+        const snapshot = await fixtureSnapshot();
+        const balances = balancesOf(request, snapshot, fixtureLedger()).map(
+            ({ rangeBeginLabel: _begin, rangeEndLabel: _end, ...entry }) => entry
+        );
+        const data = buildReport(request, snapshot, balances);
+        expect(data.period).toMatchObject({ after: '2026-01-01', before: '2026-12-01' });
+        expect(data.previous).toMatchObject({ after: '2025-01-01', before: '2025-12-01' });
+        const unknown = { ...snapshot, book: { ...snapshot.book, datePattern: 'd.M.yyyy' } };
+        const position = intent('g-assets', 'today');
+        const read = buildReport(position, unknown, balancesOf(position, unknown, fixtureLedger()));
+        expect(read.period).toMatchObject({ before: '2026-11-06' });
+    });
+
     it('reads activity today as this month, against the month before', async () => {
         const data = await report(intent('g-expenses', 'today'));
         expect(data.period).toEqual({
-            id: 'this_month',
             after: '2026-11-01',
             before: '2026-12-01',
             dates: 'on:$m by:m',

@@ -30,7 +30,7 @@ Write the way you would ask a colleague, in any language:
 
 - **Names.** Name any group or Account as your Book writes it (case and accents aside). As you type two letters, Report suggests up to five names; press **Tab** or click to take one. Name up to six to see them side by side, all balances (assets, liabilities) or all activity (income, expenses). For their total, add a group that holds them in Bkper and ask for it.
 - **No name?** Report reports the top-level group your request is about, such as Expenses or Assets, or income versus expenses.
-- **Periods** in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today (balances as of today; activity today reads this month). A current period runs through the end of this month. Without one, activity for this year and balances for today, or the last year with movements in an older Book. No custom ranges such as a single week.
+- **Periods** in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today (balances as of today; activity today reads this month). A current period runs through the end of this month, and a report names the months it read, such as _Jan – Nov 2026 vs. Jan – Nov 2025_. Without one, activity for this year and balances for today, or the last year with movements in an older Book. No custom ranges such as a single week.
 - **Hashtags** keep only the transactions that have all of them.
 
 ### The net result

@@ -16,12 +16,11 @@ import { execFileSync } from 'node:child_process';
 import { Bkper, type Book } from 'bkper-js';
 import { quote } from '../server/src/services/snapshot.ts';
 import { todayInTimeZone } from '../server/src/services/periods.ts';
+import { BOOK_DATE_PATTERNS, type BookDatePattern } from '../server/src/services/bkper-dates.ts';
 import {
-    BOOK_DATE_PATTERNS,
     expectedRead,
     readMismatches,
     type BkperRead,
-    type BookDatePattern,
 } from './verify-period-queries/bkper-read.ts';
 import { sampleQueries, type SampleQuery } from './verify-period-queries/samples.ts';
 

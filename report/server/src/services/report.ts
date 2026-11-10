@@ -37,12 +37,16 @@ import {
     type NodeBalances,
     type QueryBalances,
 } from './balances.js';
-import { buildPeriodQuery, periodRequestOf, type PeriodDates } from './period-query.js';
+import { readDays, type ReadDays } from './bkper-dates.js';
 import {
-    addDays,
+    buildPeriodQuery,
+    periodRequestOf,
+    resolveQueryDates,
+    type PeriodDates,
+} from './period-query.js';
+import {
     isoMonth,
     isPlausibleYear,
-    type DateRange,
     type IsoDate,
     type IsoMonth,
     type ReportNature,
@@ -287,15 +291,14 @@ export interface ReportBase {
     /** Activity within a period (Incoming, Outgoing, net result), or a position at its end (Asset, Liability). */
     nature: ReportNature;
     /**
-     * The period read: whole months, through the end of the current month when it is
-     * running, named by the id of its label (a calendar period cut at the current month as its
-     * current period, the current year as `this_year`; activity today as `this_month`, the
-     * month it reads). A position is measured at `before`: the end of its last month, or
-     * tomorrow when running. `dates` is the date part of its queries.
+     * The period read: whole months, through the end of the current month when it is running.
+     * `dates` is the date part of its queries, and `after` and `before` the days Bkper says its
+     * answer read (see {@link readDays}): all time and a position have no `after`, and a
+     * position is measured at `before`, the end of its last month, or tomorrow when running.
      */
-    period: { id: string; after?: IsoDate; before: IsoDate; dates: string };
-    /** The period compared with; a position compares with the position at its `before`. */
-    previous?: DateRange & { dates: string };
+    period: ReadDays & { dates: string };
+    /** The period compared with, the same way; a position compares with the position at its `before`. */
+    previous?: ReadDays & { dates: string };
     /**
      * A net result Report calculates, as no group of the Book combines Incoming and Outgoing
      * ({@link calculatedNetResult}): its amount in each of the {@link ReportData.months}. Its
@@ -547,6 +550,12 @@ export function buildReport(
     const months = reportMonths(period.read, [...sources.values()]);
     const reader = new RowReader(snapshot, nature, period, months);
     const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
+    // Every query of a period has the same dates, so the first source's answers say what each read.
+    const [answers] = sources.values();
+    const days = (dates: PeriodDates, answer: QueryBalances | undefined) => ({
+        ...readDaysOf(dates, answer, snapshot),
+        dates: dates.dates,
+    });
     const base = (filter: string): Omit<ReportBase, 'chart' | 'charts' | 'breakdown'> => {
         // The dates of the queries read, so the link shows exactly what was read.
         const query = `${[filter, ...tags(hashtags)].join(' ')} ${period.read.dates}`;
@@ -559,10 +568,8 @@ export function buildReport(
             },
             intent,
             nature,
-            period: { id: period.id, ...period.range, dates: period.read.dates },
-            ...(period.previous && period.comparison
-                ? { previous: { ...period.previous, dates: period.comparison.dates } }
-                : {}),
+            period: days(period.read, answers?.current),
+            ...(period.comparison ? { previous: days(period.comparison, answers?.previous) } : {}),
             months,
             query,
             url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
@@ -583,7 +590,7 @@ export function buildReport(
         const charts = reportCharts(intent.chart ?? 'auto', view, {
             nature,
             type: types.size === 1 ? lines[0].type : 'MIXED',
-            previous: period.previous !== undefined,
+            previous: period.comparison !== undefined,
             net: false,
             sideBySide: true,
             rows: targets,
@@ -898,16 +905,10 @@ function accountsOf(snapshot: Snapshot, group: SnapshotGroup): Set<string> {
 }
 
 export interface ReportPeriod {
-    /** The id of the period's label (see {@link ReportBase.period}). */
-    id: string;
     /** What the period's queries read. */
     read: PeriodDates;
     /** What the queries of the period compared with read; all time has none. */
     comparison?: PeriodDates;
-    /** The dates the period covers, for its label. */
-    range: DateRange;
-    /** The dates the comparison covers, for its label. */
-    previous?: DateRange;
 }
 
 /**
@@ -929,49 +930,31 @@ function reportPeriod(intent: ReportIntent, nature: ReportNature, today: IsoDate
         throw new Error(`No period for ${id}: ${built.reason}`);
     }
     const { period: read, comparison } = built;
-    return {
-        id: labelId(id, read, nature),
-        read,
-        range: rangeOf(read, nature, today),
-        ...(comparison ? { comparison, previous: comparisonRange(comparison, nature, today) } : {}),
-    };
+    return { read, ...(comparison ? { comparison } : {}) };
 }
 
 /**
- * The id a period is labelled by: a calendar period cut at the current month by its current
- * period's (the current year as `this_year`), and activity today by the month it reads.
+ * The days a query read, as Bkper labels its answer in the Book's date format; for an answer
+ * without labels Bkper wrote in that format, such as one cached before they were kept, the days
+ * its dates resolve to as Bkper resolves them, from the Book's today.
  */
-function labelId(id: string, read: PeriodDates, nature: ReportNature): string {
-    if (id === 'today') {
-        return nature === 'activity' ? 'this_month' : id;
+function readDaysOf(
+    read: PeriodDates,
+    answer: QueryBalances | undefined,
+    snapshot: Snapshot
+): ReadDays {
+    const labelled = answer && readDays(answer, snapshot.book.datePattern);
+    if (labelled) {
+        return labelled;
     }
-    const calendar = /^(\d{4})(?:-Q([1-4])|-(\d{2}))?$/.exec(id);
-    if (!calendar) {
-        return id;
+    const { first, last, beforeDay } = resolveQueryDates(read.dates, snapshot.today);
+    if (last === undefined) {
+        throw new Error(`Query dates read up to no month: ${read.dates}`);
     }
-    const [, year, quarter, month] = calendar;
-    const last = quarter ? isoMonth(Number(year), Number(quarter) * 3) : `${year}-${month ?? '12'}`;
-    if (read.last === last) {
-        return id;
-    }
-    return quarter ? 'this_quarter' : month ? 'this_month' : 'this_year';
-}
-
-/** The dates a period's months cover: a running position up to today, others whole months. */
-function rangeOf(read: PeriodDates, nature: ReportNature, today: IsoDate): DateRange {
     return {
-        ...(read.first === undefined ? {} : { after: `${read.first}-01` }),
-        before:
-            nature === 'position' && read.running
-                ? addDays(today, 1)
-                : `${nextMonth(read.last)}-01`,
+        ...(first === undefined ? {} : { after: `${first}-01` }),
+        before: beforeDay ?? `${nextMonth(last)}-01`,
     };
-}
-
-/** The dates a comparison covers: a position only its end. */
-function comparisonRange(read: PeriodDates, nature: ReportNature, today: IsoDate): DateRange {
-    const range = rangeOf(read, nature, today);
-    return nature === 'position' ? { before: range.before } : range;
 }
 
 /**
@@ -1093,7 +1076,7 @@ class RowReader {
     private measure(current?: NodeBalances, previous?: NodeBalances): Measure {
         return {
             amount: this.total(current),
-            ...(this.period.previous ? { previous: this.total(previous) } : {}),
+            ...(this.period.comparison ? { previous: this.total(previous) } : {}),
             months: this.months.map(month =>
                 this.nature === 'activity'
                     ? new Amount(monthPeriod(current, month))

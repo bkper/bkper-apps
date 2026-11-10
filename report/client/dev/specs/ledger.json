@@ -15,7 +15,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Net income",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -248,7 +248,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Expenses",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -459,7 +459,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Net income",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -969,7 +969,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Net income",
-                        "subtitle": "آخر 12 شهرًا",
+                        "subtitle": "ديسمبر 2025 – نوفمبر 2026",
                         "locale": "ar",
                         "dir": "rtl",
                         "fractionDigits": 2
@@ -990,7 +990,7 @@
                         "color": "grey",
                         "previous": "-1000",
                         "change": "8.1365",
-                        "comparison": "مقابل ⁨1‏/12‏/2024 – 30‏/11‏/2025⁩"
+                        "comparison": "مقابل ⁨ديسمبر 2024 – نوفمبر 2025⁩"
                     }
                 },
                 "chart": {
@@ -1123,8 +1123,8 @@
                                     "kind": "compare",
                                     "label": "تفصيل ⁨Net income⁩",
                                     "periods": {
-                                        "current": "1‏/12‏/2025 – 30‏/11‏/2026",
-                                        "previous": "1‏/12‏/2024 – 30‏/11‏/2025"
+                                        "current": "ديسمبر 2025 – نوفمبر 2026",
+                                        "previous": "ديسمبر 2024 – نوفمبر 2025"
                                     },
                                     "items": [
                                         {
@@ -1581,7 +1581,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Rent",
-                        "subtitle": "This year",
+                        "subtitle": "Jan – Nov 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -1601,7 +1601,7 @@
                         "color": "red",
                         "previous": "1000",
                         "change": "2",
-                        "comparison": "vs. ⁨Jan 1 – Nov 30, 2025⁩"
+                        "comparison": "vs. ⁨Jan – Nov 2025⁩"
                     }
                 },
                 "chart": {
@@ -1750,7 +1750,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Expenses",
-                        "subtitle": "השנה הנוכחית",
+                        "subtitle": "ינו׳–נוב׳ 2026",
                         "locale": "he",
                         "dir": "rtl",
                         "fractionDigits": 2
@@ -1771,7 +1771,7 @@
                         "color": "red",
                         "previous": "1000",
                         "change": "1.8635",
-                        "comparison": "לעומת ⁨1 ינו׳ – 30 נוב׳ 2025⁩"
+                        "comparison": "לעומת ⁨ינו׳–נוב׳ 2025⁩"
                     }
                 },
                 "chart": {
@@ -1953,8 +1953,8 @@
                                     "kind": "compare",
                                     "label": "פירוט של ⁨Expenses⁩",
                                     "periods": {
-                                        "current": "1 ינו׳ – 30 נוב׳ 2026",
-                                        "previous": "1 ינו׳ – 30 נוב׳ 2025"
+                                        "current": "ינו׳–נוב׳ 2026",
+                                        "previous": "ינו׳–נוב׳ 2025"
                                     },
                                     "items": [
                                         {
@@ -2113,7 +2113,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Net income",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -2352,7 +2352,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Net income",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -2593,7 +2593,7 @@
                     "type": "Report",
                     "props": {
                         "title": "⁨Food⁩ and ⁨Rent⁩",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2
@@ -2826,7 +2826,7 @@
                     "type": "Report",
                     "props": {
                         "title": "Expenses",
-                        "subtitle": "Last month",
+                        "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2

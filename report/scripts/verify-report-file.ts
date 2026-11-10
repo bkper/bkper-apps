@@ -15,8 +15,8 @@
  * Report calculated is labelled so in the Source, and nothing else is; that a row opens
  * in place; that values written into texts, such as dates, read in the report's direction;
  * that a click on a chart's preview shows that chart in place of the main one, with no network,
- * and the link then opens it (the time each switch takes is reported); that previews stay above
- * the chart, at the same position even when its height changes, with no Table card and with
+ * and the link then opens it (the time each switch takes is reported); that previews sit beside
+ * the title, level with it, in a report as wide as the Book's panel, and stay above the chart, at the same position even when its height changes, with no Table card and with
  * keyboard access even for table-only reports; and that the link asks
  * the Agent to open the report in the Report app in the Book (`bkper:navigate`) only after the
  * Agent's `bkper:host-ready` and a click, and stays a plain link before. `--screenshots` saves
@@ -250,7 +250,20 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
             const previews = root?.querySelector('.previews')?.getBoundingClientRect();
             const intro = root?.querySelector('.report-intro')?.getBoundingClientRect();
             const report = root?.querySelector('.report')?.getBoundingClientRect();
-            if (previews && intro && report) {
+            const title = root?.querySelector('.report-header h1')?.getBoundingClientRect();
+            const card = root?.querySelector('.preview')?.getBoundingClientRect();
+            if (previews && intro && report && title && card) {
+                // Beside the title, their tops level, where six fit: a report as wide as the
+                // Book's panel shows them (about 47rem), else they wrap below the answer.
+                const beside = previews.top < intro.bottom - 0.5 && intro.top < previews.bottom;
+                if (report.width >= 760 && !beside) {
+                    found.push(
+                        `The previews wrap below the answer in a report ${report.width} px wide`
+                    );
+                }
+                if (beside && Math.abs(card.top - title.top) > 1) {
+                    found.push('The previews beside the title are not level with it');
+                }
                 if (previews.left < report.left - 0.5 || previews.right > report.right + 0.5) {
                     found.push('The previews leave the report');
                 }

@@ -14,7 +14,8 @@
  * area however tall the report, both
  * snapshots at their own size from the top (never scaled to the box), a prefetched report within 150 ms of the click, and the last report clicked shown
  * at the end. A chart chosen from the previews shows within 50 ms, with no transition; with
- * reduced motion, reports change with none. It saves the frames of one change per layout.
+ * reduced motion, reports change with none. In the panel, the previews sit beside the title,
+ * level with it. It saves the frames of one change per layout.
  */
 import assert from 'node:assert/strict';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -441,6 +442,22 @@ function checkRecord(
 async function chooseChart(panel: Frame, frame: FrameLocator, name: string): Promise<void> {
     const preview = frame.locator('report-view .preview[aria-pressed="false"]').first();
     if ((await preview.count()) === 0) return;
+    // In the Book's panel the previews sit beside the title, their tops level with it.
+    if (name.startsWith('1100')) {
+        const level = await frame.locator('report-view .report-header h1').evaluate(title => {
+            const root = title.getRootNode() as ShadowRoot;
+            const card = root.querySelector('.preview')?.getBoundingClientRect();
+            const intro = root.querySelector('.report-intro')?.getBoundingClientRect();
+            const box = title.getBoundingClientRect();
+            return (
+                !!card &&
+                !!intro &&
+                Math.abs(card.top - box.top) <= 1 &&
+                (card.left >= intro.right || card.right <= intro.left)
+            );
+        });
+        check(level, `${name}: the previews are not beside the title, level with it`);
+    }
     const count = (await records(panel)).length;
     const kind = await preview.getAttribute('data-kind');
     // Timed in the page: the click, the report's update, the chart's, then its first frame.

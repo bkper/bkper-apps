@@ -35,8 +35,9 @@ export const reportViewCSS = css`
     }
 
     /*
-     * Header and answer: the amount asked for comes first. The previews share its row, at its
-     * end and level with its last line, while they fit beside it; else they wrap below it.
+     * Header and answer: the amount asked for comes first. The previews sit at the end of the
+     * header, their top level with the title's, while they fit beside it; else they wrap below
+     * the answer. Six previews fit beside a title of 17rem in the Book's panel.
      */
 
     /* Its own minimum is none, so narrow previews scroll inside it rather than widen the report. */
@@ -44,13 +45,13 @@ export const reportViewCSS = css`
         min-inline-size: 0;
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: var(--wa-space-xl) var(--wa-space-2xl);
+        gap: var(--wa-space-xl);
     }
 
     .report-intro {
-        flex: 1 1 20rem;
+        flex: 1 1 17rem;
         display: grid;
         gap: var(--wa-space-xl);
     }
@@ -204,8 +205,11 @@ export const reportViewCSS = css`
         box-sizing: border-box;
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-start;
+        /* Cards of a row are as tall as the one whose name takes most lines. */
+        align-items: stretch;
         gap: var(--wa-space-xs);
+        /* Room for the focus ring, taken back above so the cards' tops meet the title's. */
+        margin-block-start: calc(-1 * var(--wa-space-3xs));
         padding: var(--wa-space-3xs);
         overflow-x: auto;
         overscroll-behavior-inline: contain;
@@ -223,7 +227,7 @@ export const reportViewCSS = css`
         justify-items: center;
         align-content: start;
         gap: var(--wa-space-2xs);
-        inline-size: 4.75rem;
+        inline-size: 4.25rem;
         margin: 0;
         padding: var(--wa-space-xs) var(--wa-space-2xs);
         border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
@@ -257,7 +261,7 @@ export const reportViewCSS = css`
 
     .thumb {
         display: block;
-        inline-size: 3.75rem;
+        inline-size: 3.5rem;
         aspect-ratio: 8 / 5;
     }
 
@@ -273,7 +277,9 @@ export const reportViewCSS = css`
     }
 
     .preview-name {
+        max-inline-size: 100%;
         font-weight: var(--wa-font-weight-semibold);
+        overflow-wrap: break-word;
     }
 
     @container (max-width: 40rem) {

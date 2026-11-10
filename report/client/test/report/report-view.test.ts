@@ -78,7 +78,7 @@ describe('<report-view>', () => {
                 'report-header',
                 answers > 1 ? 'answers' : 'answer',
             ]);
-            // The previews share the answer's row, so the space beside it is not left empty.
+            // The previews share the header's row, beside the title, so its end is not left empty.
             const top = ['report-intro'];
             if (Object.values(spec.elements).some(element => element.type === 'Visualizations')) {
                 top.push('previews');
@@ -427,7 +427,7 @@ describe('<report-view> chart previews', () => {
         preview(view, 'donut').click();
         await view.updateComplete;
         expect(shownKind(view)).toBe('donut');
-        // Right below the answer's row, which holds the previews.
+        // Right below the header's row, which holds the previews.
         const order = [...root(view).querySelectorAll('.report > *')].map(node => node.className);
         expect(order.indexOf('report-top')).toBe(
             order.findIndex(name => name.includes('chart')) - 1

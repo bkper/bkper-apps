@@ -7,7 +7,7 @@
  * draws with; the page provides the Web Awesome theme and `@bkper/web-design` tokens. Rows
  * open in place (`expandRow`), hovering or opening a row highlights it in the chart, and the
  * link to Bkper (`openInBkper`) fires `report-open-in-bkper` (see `events.ts`); a host that
- * cannot navigate gives a plain `link` instead. Above the chart, a preview of every chart that
+ * cannot navigate gives a plain `link` instead. Beside the title, a preview of every chart that
  * fits (`selectChart`) shows it in place of the chart, from the data the spec carries, and
  * fires `report-select-chart`.
  */
@@ -140,7 +140,8 @@ export class ReportView extends LitElement {
             const element = spec.elements[id];
             return element?.type === 'Answer' ? [element.props] : [];
         });
-        // The previews share the answer's row while they fit beside it, else wrap below it.
+        // The previews sit beside the title, level with it, while they fit there, else wrap
+        // below the answer.
         return html`
             <article class="report" lang=${props.locale} dir=${props.dir}>
                 <div class="report-top">

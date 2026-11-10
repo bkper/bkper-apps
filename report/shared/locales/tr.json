@@ -64,7 +64,6 @@
     "error_mixed_targets": "Varlık veya yükümlülük bakiyeleri gelir veya giderlerle yan yana gösterilemez. Bunları ayrı raporlarda isteyin.",
     "error_no_activity_roots": "Bu Defterde net sonuç için gelir veya gider grubu yok.",
     "error_no_net_result": "Bu Defter'de gelir ve giderleri birleştiren bir Grup yok. Net sonucunu görmek için Bkper'de bir tane ekleyin.",
-    "error_query_not_a_report": "Raporunu görmek için Defterde bir grup veya hesap seçin.",
     "error_unexpected": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "error_unknown_root": "Bu grup, bu Defterin üst düzey grubu değil.",
     "error_unknown_target": "Bu grup veya hesap artık bu raporun Defter içinde bulduğu yerde değil.",

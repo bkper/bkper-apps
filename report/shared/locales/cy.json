@@ -64,7 +64,6 @@
     "error_mixed_targets": "Ni ellir dangos balansau asedau neu rwymedigaethau ochr yn ochr ag incwm neu wariant. Gofynnwch amdanynt mewn adroddiadau ar wahân.",
     "error_no_activity_roots": "Nid oes grwpiau incwm na threuliau yn y Llyfr cyfrifon hwn ar gyfer canlyniad net.",
     "error_no_net_result": "Nid oes gan y Llyfr cyfrifon hwn grŵp sy'n cyfuno incwm a threuliau. Ychwanegwch un yn Bkper i weld ei ganlyniad net.",
-    "error_query_not_a_report": "Dewiswch grŵp neu gyfrif yn y Llyfr cyfrifon i weld ei adroddiad.",
     "error_unexpected": "Aeth rhywbeth o'i le. Rhowch gynnig arall arni.",
     "error_unknown_root": "Nid yw'r grŵp hwnnw'n grŵp lefel uchaf yn y Llyfr cyfrifon hwn.",
     "error_unknown_target": "Nid yw'r grŵp neu'r cyfrif hwnnw bellach lle daeth yr adroddiad hwn o hyd iddo yn y Llyfr cyfrifon.",

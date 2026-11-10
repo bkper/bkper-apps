@@ -64,7 +64,6 @@
     "error_mixed_targets": "Umi saldo activo térã pasivo gotyo ndaikatúi oñemoĩ ingreso térã gasto ykére. Eju hemb'e ñemombe'u ñemomba'e ojojaveʼỹvape.",
     "error_no_activity_roots": "Ko Kuatia rembiapo noñembyatýi aty mba'e oike térã osẽvagui net rembiapokuépe guarã.",
     "error_no_net_result": "Ko Kuatia rembiapo noñembyatýi aty ohasáva ingreso ha gasto. Embojoapy peteĩ Bkper-pe ehecha hag̃ua resultado neto.",
-    "error_query_not_a_report": "Eiporavo peteĩ Aty térã cuenta Kuatia rembiapópe rehecha hag̃ua imarandu.",
     "error_unexpected": "Oiko peteĩ jejavy. Eha'ã jey.",
     "error_unknown_root": "Upe aty ndaha'éi aty mba'e ijyvatevéva ko Kuatia rembiapo pegua.",
     "error_unknown_target": "Upe aty térã cuenta ndaipóri ko'ág̃a moõpa ko marandu'i ojuhúva Kuatia rembiapópe.",

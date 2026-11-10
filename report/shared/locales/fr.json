@@ -64,7 +64,6 @@
     "error_mixed_targets": "Les soldes d'actifs ou de passifs ne peuvent pas figurer côte à côte avec des produits ou des charges. Demandez-les dans des rapports distincts.",
     "error_no_activity_roots": "Ce Livre n'a aucun groupe de revenus ou de dépenses pour un résultat net.",
     "error_no_net_result": "Ce Livre n'a aucun groupe combinant les revenus et les dépenses. Ajoutez-en un dans Bkper pour voir son résultat net.",
-    "error_query_not_a_report": "Choisissez un groupe ou un compte dans le Livre pour voir son rapport.",
     "error_unexpected": "Une erreur s'est produite. Veuillez réessayer.",
     "error_unknown_root": "Ce groupe n'est pas un groupe de premier niveau de ce Livre.",
     "error_unknown_target": "Ce groupe ou ce compte n'est plus là où ce rapport l'avait trouvé dans le Livre.",

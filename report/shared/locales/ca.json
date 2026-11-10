@@ -64,7 +64,6 @@
     "error_mixed_targets": "Els saldos d'actius o passius no es poden mostrar al costat dels ingressos o les despeses. Demana'ls en informes separats.",
     "error_no_activity_roots": "Aquest Llibre no té grups d'ingressos o despeses per a un resultat net.",
     "error_no_net_result": "Aquest Llibre no té cap grup que combini ingressos i despeses. Afegeix-ne un a Bkper per veure'n el resultat net.",
-    "error_query_not_a_report": "Tria un grup o un compte al Llibre per veure'n l'informe.",
     "error_unexpected": "Alguna cosa ha anat malament. Torna-ho a provar.",
     "error_unknown_root": "Aquest grup no és un grup de nivell superior d'aquest Llibre.",
     "error_unknown_target": "Aquest grup o compte ja no és on aquest informe el va trobar al Llibre.",

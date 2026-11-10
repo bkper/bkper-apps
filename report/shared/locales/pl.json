@@ -64,7 +64,6 @@
     "error_mixed_targets": "Salda aktywów lub zobowiązań nie mogą być zestawione obok przychodów lub wydatków. Poproś o nie w osobnych raportach.",
     "error_no_activity_roots": "Ta Księga nie ma grup przychodów ani wydatków potrzebnych do wyliczenia wyniku netto.",
     "error_no_net_result": "Ta Księga nie ma grupy łączącej przychody i wydatki. Dodaj ją w Bkper, aby zobaczyć wynik netto.",
-    "error_query_not_a_report": "Wybierz grupę lub konto w Księdze, aby zobaczyć jego raport.",
     "error_unexpected": "Coś poszło nie tak. Spróbuj ponownie.",
     "error_unknown_root": "Ta grupa nie jest grupą najwyższego poziomu tej Księgi.",
     "error_unknown_target": "Ta grupa lub to konto nie znajduje się już tam, gdzie ten raport znalazł je w Księdze.",

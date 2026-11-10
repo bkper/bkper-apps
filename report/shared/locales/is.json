@@ -64,7 +64,6 @@
     "error_mixed_targets": "Stöðu eigna eða skulda er ekki hægt að hafa við hliðina á tekjum eða gjöldum. Biddu um þær í aðskildum skýrslum.",
     "error_no_activity_roots": "Þessi bók er ekki með neina tekju- eða gjaldahópa fyrir nettóniðurstöðu.",
     "error_no_net_result": "Þessi bók er ekki með hóp sem sameinar tekjur og gjöld. Bættu einum við í Bkper til að sjá nettóniðurstöðuna.",
-    "error_query_not_a_report": "Veldu hóp eða reikning í Bókinni til að sjá skýrslu hans.",
     "error_unexpected": "Eitthvað fór úrskeiðis. Reyndu aftur.",
     "error_unknown_root": "Þessi hópur er ekki efsta stigs hópur í þessari bók.",
     "error_unknown_target": "Þessi hópur eða reikningur er ekki lengur þar sem þessi skýrsla fann hann í bókinni.",

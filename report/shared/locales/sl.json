@@ -64,7 +64,6 @@
     "error_mixed_targets": "Salda sredstev ali obveznosti ne morejo biti prikazana poleg prihodkov ali odhodkov. Zahtevajte jih v ločenih poročilih.",
     "error_no_activity_roots": "Ta Knjiga nima skupin prihodkov ali odhodkov za izračun neto rezultata.",
     "error_no_net_result": "Ta Knjiga nima skupine, ki združuje prihodke in odhodke. Dodajte jo v Bkper, da vidite neto rezultat.",
-    "error_query_not_a_report": "Izberite skupino ali konto v Knjigi, da vidite njegovo poročilo.",
     "error_unexpected": "Nekaj je šlo narobe. Poskusite znova.",
     "error_unknown_root": "Ta skupina ni skupina najvišje ravni v tej Knjigi.",
     "error_unknown_target": "Ta skupina ali ta konto ni več tam, kjer ju je to poročilo našlo v Knjigi.",

@@ -64,7 +64,6 @@
     "error_mixed_targets": "Turto ar įsipareigojimų likučių negalima rodyti greta pajamų ar išlaidų. Prašykite jų atskirose ataskaitose.",
     "error_no_activity_roots": "Šioje knygoje nėra pajamų ar išlaidų grupių grynajam rezultatui.",
     "error_no_net_result": "Šioje knygoje nėra grupės, jungiančios pajamas ir išlaidas. Pridėkite ją Bkper, kad matytumėte grynąjį rezultatą.",
-    "error_query_not_a_report": "Pasirinkite grupę arba sąskaitą Knygoje, kad matytumėte jos ataskaitą.",
     "error_unexpected": "Kažkas nepavyko. Bandykite dar kartą.",
     "error_unknown_root": "Ši grupė nėra aukščiausio lygio šios Knygos grupė.",
     "error_unknown_target": "Ši grupė arba sąskaita nebėra ten, kur šią ataskaitą ją rado Knygoje.",

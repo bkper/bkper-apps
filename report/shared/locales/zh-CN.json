@@ -64,7 +64,6 @@
     "error_mixed_targets": "资产或负债的余额不能与收入或支出并排显示。请分别在不同的报表中查询。",
     "error_no_activity_roots": "此账簿没有可用于计算净结果的收入或支出分组。",
     "error_no_net_result": "此账簿没有合并收入和支出的分组。请在 Bkper 中添加一个,以查看其净结果。",
-    "error_query_not_a_report": "在账簿中选择一个分组或账户以查看其报表。",
     "error_unexpected": "出了点问题,请重试。",
     "error_unknown_root": "该分组不是此账簿的顶级分组。",
     "error_unknown_target": "此分组或账户已不在该报表在账簿中找到它的位置。",

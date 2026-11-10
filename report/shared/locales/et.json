@@ -64,7 +64,6 @@
     "error_mixed_targets": "Varade või kohustuste saldosid ei saa kuvada tulude või kuludega kõrvuti. Küsi neid eraldi aruannetes.",
     "error_no_activity_roots": "Selles Raamatus pole netotulemuse jaoks tulude ega kulude gruppe.",
     "error_no_net_result": "Selles Raamatus pole gruppi, mis ühendaks tulud ja kulud. Lisa Bkperis selline, et näha neto tulemust.",
-    "error_query_not_a_report": "Vali Raamatus grupp või konto, et näha selle aruannet.",
     "error_unexpected": "Midagi läks valesti. Proovi uuesti.",
     "error_unknown_root": "See grupp ei ole selle Raamatu ülemise taseme grupp.",
     "error_unknown_target": "See grupp või konto ei asu enam seal, kust see aruanne selle Raamatust leidis.",

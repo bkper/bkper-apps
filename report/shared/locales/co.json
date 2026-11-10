@@ -64,7 +64,6 @@
     "error_mixed_targets": "I saldi d'attivi o passivi ùn ponu micca esse accantu à i ricavi o à e spese. Dumandali in rapporti separati.",
     "error_no_activity_roots": "Stu Libru cuntabile ùn hà micca gruppi di entrate o di spese per un risultatu nettu.",
     "error_no_net_result": "Stu Libru cuntabile ùn hà nisun gruppu chì cumbina i ricavi è e spese. Aghjunghje unu in Bkper per vede u risultatu nettu.",
-    "error_query_not_a_report": "Sceglie un gruppu o un contu in u Libru cuntabile per vede u so rapportu.",
     "error_unexpected": "Qualcosa hè andatu male. Prova torna.",
     "error_unknown_root": "Quessu gruppu ùn hè micca un gruppu di primu livellu di stu Libru cuntabile.",
     "error_unknown_target": "Quellu gruppu o contu ùn hè più induve stu rapportu l'avia trovu in u Libru cuntabile.",

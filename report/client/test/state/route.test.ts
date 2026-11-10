@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Navigation, Route, type RoutePage } from '../../src/state/route';
+import { BookQueryChange, Navigation, Route, type RoutePage } from '../../src/state/route';
 
 function createPage(href: string) {
     const listeners = new Set<() => void>();
@@ -218,6 +218,105 @@ describe('Route', () => {
 
         expect(navigations).toEqual([]);
         expect(writes).toEqual([]);
+    });
+
+    it('reads the Book’s query Bkper puts in the menu URL, if any', () => {
+        const bookQuery = (href: string) => new Route(createPage(href).page, true).bookQuery;
+
+        expect(
+            bookQuery("https://report.bkper.app/?book=b&bookQuery=account%3A'Sales%20Revenue'")
+        ).toBe("account:'Sales Revenue'");
+        expect(bookQuery('https://report.bkper.app/?book=b')).toBeUndefined();
+        expect(bookQuery('https://report.bkper.app/?book=b&bookQuery=')).toBeUndefined();
+        expect(bookQuery('https://report.bkper.app/?book=b&bookQuery=%20%20')).toBeUndefined();
+        // Bkper leaves the expression unreplaced when the Book shows no query.
+        for (const expression of ['${transactions.query}', '${query}', '{query}']) {
+            expect(
+                bookQuery(
+                    `https://report.bkper.app/?book=b&bookQuery=${encodeURIComponent(expression)}`
+                )
+            ).toBeUndefined();
+            expect(
+                bookQuery(`https://report.bkper.app/?book=b&bookQuery=${expression}`)
+            ).toBeUndefined();
+        }
+    });
+
+    it('follows a new query of the Book once, never a URL that repeats it', () => {
+        const { page, writes } = createPage(
+            "https://report.bkper.app/?book=b&state=s1&bookQuery=group%3A'Food'"
+        );
+        const route = new Route(page, true);
+        const events: Event[] = [];
+        route.addEventListener('navigate', event => events.push(event));
+        route.addEventListener('book-query', event => events.push(event));
+
+        // The same query, such as after the app sent its state, or with the state it sent.
+        route.follow("https://report.bkper.app/?book=b&state=s1&bookQuery=group%3A'Food'");
+        route.setState('s2');
+        writes.length = 0;
+        route.follow("https://report.bkper.app/?book=b&state=s2&bookQuery=group%3A'Food'");
+        expect(events).toEqual([]);
+        expect(writes).toEqual([]);
+
+        route.follow("https://report.bkper.app/?book=b&state=s2&bookQuery=account%3A'Rent'");
+        route.follow("https://report.bkper.app/?book=b&state=s2&bookQuery=account%3A'Rent'");
+
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(BookQueryChange);
+        expect((events[0] as BookQueryChange).query).toBe("account:'Rent'");
+        expect(route.bookQuery).toBe("account:'Rent'");
+        expect(route.state).toBe('s2');
+        expect(writes).toEqual([
+            {
+                mode: 'replace',
+                href: 'https://report.bkper.app/?book=b&state=s2&bookQuery=account%3A%27Rent%27',
+            },
+        ]);
+
+        // A query cleared in the Book leaves the report on screen.
+        route.follow('https://report.bkper.app/?book=b&state=s2&bookQuery=${transactions.query}');
+        expect(events).toHaveLength(1);
+        expect(route.bookQuery).toBeUndefined();
+        expect(page.location.href).toBe('https://report.bkper.app/?book=b&state=s2');
+        route.follow("https://report.bkper.app/?book=b&state=s2&bookQuery=account%3A'Rent'");
+        expect(events).toHaveLength(2);
+    });
+
+    it('a new state wins over a new query, which it then does not follow again', () => {
+        const { page } = createPage("https://report.bkper.app/?book=b&state=s2&bookQuery=b%3A'2'");
+        const route = new Route(page, true);
+        const events: Event[] = [];
+        route.addEventListener('navigate', event => events.push(event));
+        route.addEventListener('book-query', event => events.push(event));
+
+        // Back in the Book: the query and the state of the report shown with it.
+        route.follow("https://report.bkper.app/?book=b&state=s1&bookQuery=a%3A'1'");
+        route.follow("https://report.bkper.app/?book=b&state=s1&bookQuery=a%3A'1'");
+
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(Navigation);
+        expect((events[0] as Navigation).state).toBe('s1');
+        expect(route.bookQuery).toBe("a:'1'");
+        expect(new URL(page.location.href).searchParams.get('bookQuery')).toBe("a:'1'");
+    });
+
+    it('another Book carries its query to open with, and selecting one drops it', () => {
+        const { page } = createPage("https://report.bkper.app/?book=b&bookQuery=a%3A'1'");
+        const route = new Route(page, true);
+        const navigations: Navigation[] = [];
+        route.addEventListener('navigate', event => {
+            if (event instanceof Navigation) navigations.push(event);
+        });
+
+        route.follow("https://report.bkper.app/?book=c&bookQuery=a%3A'1'");
+
+        expect(navigations.map(({ bookId, query }) => ({ bookId, query }))).toEqual([
+            { bookId: 'c', query: "a:'1'" },
+        ]);
+        route.select('d');
+        expect(route.bookQuery).toBeUndefined();
+        expect(page.location.href).toBe('https://report.bkper.app/?book=d');
     });
 
     it('reports the state of the URL gone back or forward to', () => {

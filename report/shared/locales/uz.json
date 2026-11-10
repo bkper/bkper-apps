@@ -64,7 +64,6 @@
     "error_mixed_targets": "Aktivlar yoki majburiyatlar balansini daromad yoki xarajatlar bilan yonma-yon ko‘rsatib bo‘lmaydi. Ularni alohida hisobotlarda so‘rang.",
     "error_no_activity_roots": "Bu Kitobda sof natija uchun daromad yoki xarajat guruhlari yo‘q.",
     "error_no_net_result": "Bu Kitobda daromad va xarajatlarni birlashtiradigan guruh yo‘q. Sof natijani ko‘rish uchun Bkper’da bittasini qo‘shing.",
-    "error_query_not_a_report": "Hisobotini ko‘rish uchun Kitobda guruh yoki hisobni tanlang.",
     "error_unexpected": "Nimadir xato ketdi. Qayta urinib ko‘ring.",
     "error_unknown_root": "Bu guruh ushbu Kitobning yuqori darajali guruhi emas.",
     "error_unknown_target": "Bu guruh yoki hisob endi hisobot uni Kitobda topgan joyda emas.",

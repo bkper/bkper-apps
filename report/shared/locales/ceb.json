@@ -64,7 +64,6 @@
     "error_mixed_targets": "Ang mga balanse sa mga asset o liability dili mahimong tapad sa kita o gasto. Hangyoa sila sa managlahing report.",
     "error_no_activity_roots": "Kini nga Libro walay mga Grupo sa kita o gasto alang sa net nga resulta.",
     "error_no_net_result": "Kini nga Libro walay grupo nga naghiusa sa kita ug gasto. Pagdugang ug usa sa Bkper aron makita ang net result niini.",
-    "error_query_not_a_report": "Pili ug grupo o account sa Libro aron makita ang report niini.",
     "error_unexpected": "Naay sayop nga nahitabo. Sulayi pag-usab.",
     "error_unknown_root": "Kanang grupo dili top-level nga grupo niining Libro.",
     "error_unknown_target": "Kanang grupo o account wala na kung asa kini nakita niining report sa Libro.",

@@ -159,11 +159,6 @@
         "role": "message",
         "context": "Error shown when a report asks for several Groups or Accounts side by side, but some are of Asset or Liability Accounts (balances at a date) and others of Incoming or Outgoing Accounts (income or expenses within a period), which cannot be shown together. A Book is a Bkper ledger. Two short sentences."
     },
-    "error_query_not_a_report": {
-        "text": "Choose a group or account in the Book to see its report.",
-        "role": "message",
-        "context": "Shown when Report is asked to follow what the Book shows and the Book's transactions are not filtered by any Group or Account, so there is nothing to report. The person can choose a Group or Account in the Book, such as in its sidebar. A Book is a Bkper ledger. One short sentence."
-    },
     "report_net_result": {
         "text": "Net result",
         "role": "title",

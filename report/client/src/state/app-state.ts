@@ -13,7 +13,7 @@ import { createBookService, type BookService } from '../services/book-service';
 import { AppUrlChange, BookHost, type HostPage } from './book-host';
 import { Books } from './books';
 import { Reports, type ChartKind, type ReportApi } from './reports';
-import { Navigation, Route, type RoutePage } from './route';
+import { BookQueryChange, Navigation, Route, type RoutePage } from './route';
 import { Strings } from './strings';
 import { SavedPrompts, type SavedPromptsApi } from './saved-prompts';
 import { BookNames, type BookNamesApi } from './book-names';
@@ -81,7 +81,12 @@ export class AppState {
                 // The report of the URL starts with the Book, not after it.
                 this.savedPrompts.open(this.route.bookId);
                 this.names.open(this.route.bookId);
-                this.reports.open(this.route.bookId, this.route.prompt, this.routeState());
+                this.reports.open(
+                    this.route.bookId,
+                    this.route.prompt,
+                    this.routeState(),
+                    this.route.bookQuery
+                );
                 this.openFirstLater();
                 return this.books.load();
             },
@@ -114,7 +119,11 @@ export class AppState {
             void this.books.select(event.bookId);
             this.savedPrompts.open(event.bookId);
             this.names.open(event.bookId);
-            this.reports.open(event.bookId, event.prompt, state);
+            this.reports.open(event.bookId, event.prompt, state, event.query);
+        });
+        // The Book shows another query: the report follows it.
+        this.route.addEventListener('book-query', event => {
+            if (event instanceof BookQueryChange) this.reports.follow(event.query);
         });
         this.host.addEventListener('app-url-changed', event => {
             if (event instanceof AppUrlChange) this.route.follow(event.url);
@@ -134,9 +143,10 @@ export class AppState {
     }
 
     /**
-     * A Book opened with nothing asked of it (no request or state in the URL): open its first
-     * report as clicking it would, once the shelf has settled: the first saved prompt, else,
-     * once they arrive, the first suggestion. Never on Back or Forward.
+     * A Book opened with nothing asked of it (no request or state in the URL, and no query of
+     * the Book that has a report): open its first report as clicking it would, once the shelf
+     * has settled: the first saved prompt, else, once they arrive, the first suggestion. Never
+     * on Back or Forward.
      */
     private openFirstLater(): void {
         const bookId = this.reports.bookId;
@@ -146,8 +156,9 @@ export class AppState {
 
     /**
      * Open the first report of the Book opening, when it can. The person wins: anything asked of
-     * the Book first (typing, even cleared, Enter, a chip, a state), a navigation or another
-     * Book cancels it. The input then shows its request selected, so a keystroke replaces it.
+     * the Book first (typing, even cleared, Enter, a chip, a state, the report of the Book's
+     * query), a navigation or another Book cancels it; it waits while the report of the Book's
+     * query is on its way. The input then shows its request selected, so a keystroke replaces it.
      */
     private openFirst(): void {
         const opening = this.opening;
@@ -157,6 +168,7 @@ export class AppState {
             this.opening = undefined;
             return;
         }
+        if (reports.followsQuery) return;
         if (!opening.suggestion) {
             if (shelf.bookId !== opening.bookId || shelf.loading) return;
             const saved = shelf.canList ? shelf.items[0] : undefined;

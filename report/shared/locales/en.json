@@ -64,7 +64,6 @@
     "error_mixed_targets": "Balances of assets or liabilities can't be side by side with income or expenses. Ask for them in separate reports.",
     "error_no_activity_roots": "This Book has no income or expense groups for a net result.",
     "error_no_net_result": "This Book has no group that combines income and expenses. Add one in Bkper to see its net result.",
-    "error_query_not_a_report": "Choose a group or account in the Book to see its report.",
     "error_unexpected": "Something went wrong. Try again.",
     "error_unknown_root": "That group isn't a top-level group of this Book.",
     "error_unknown_target": "That group or account is no longer where this report found it in the Book.",

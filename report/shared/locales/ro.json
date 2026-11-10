@@ -64,7 +64,6 @@
     "error_mixed_targets": "Soldurile activelor sau ale datoriilor nu pot fi afișate alături de venituri sau cheltuieli. Solicitați-le în rapoarte separate.",
     "error_no_activity_roots": "Acest Registru nu are grupuri de venituri sau cheltuieli pentru un rezultat net.",
     "error_no_net_result": "Acest Registru nu are niciun Grup care să combine veniturile și cheltuielile. Adăugați unul în Bkper pentru a vedea rezultatul net.",
-    "error_query_not_a_report": "Alegeți un grup sau un cont din Registru pentru a vedea raportul lui.",
     "error_unexpected": "Ceva nu a funcționat. Încercați din nou.",
     "error_unknown_root": "Acel grup nu este un grup de nivel superior al acestui Registru.",
     "error_unknown_target": "Acest grup sau acest cont nu se mai află acolo unde raportul l-a găsit în Registru.",

@@ -74,12 +74,16 @@ describe('BookHost', () => {
 
     it('tells new URLs of the app, never of another origin or malformed', () => {
         const { send, urls } = createHost();
+        const query = "https://report.bkper.app/?book=b&state=s&bookQuery=account%3A'Rent'";
         send({ type: 'bkper:app-url-changed', url: 'https://report.bkper.app/?book=b&state=s' });
         send({ type: 'bkper:app-url-changed', url: 'https://evil.example/?book=b' });
         send({ type: 'bkper:app-url-changed', url: 'not a url' });
         send({ type: 'bkper:app-url-changed', url: 42 });
+        // Each URL Bkper sends, the same one again too: the route tells what changed.
+        send({ type: 'bkper:app-url-changed', url: query });
+        send({ type: 'bkper:app-url-changed', url: query });
 
-        expect(urls).toEqual(['https://report.bkper.app/?book=b&state=s']);
+        expect(urls).toEqual(['https://report.bkper.app/?book=b&state=s', query, query]);
     });
 
     it('navigates in place only after the Book says it accepts it, on the Book’s origin', () => {

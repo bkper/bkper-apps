@@ -994,6 +994,162 @@ describe('Reports', () => {
         });
     });
 
+    describe('following the Book’s query', () => {
+        const FOOD = "account:'Food' after:2011 before:2012";
+        const RENT = "account:'Rent'";
+        const byQuery = (calls: Call[], query: string) =>
+            calls.find(call => call.body.query === query);
+
+        it('asks for the report of the query in the interface’s language, and shows it with its text', async () => {
+            const { reports, calls, page } = createReports();
+            reports.open('book-1');
+            await settle();
+
+            reports.follow(FOOD);
+            const call = byQuery(calls, FOOD);
+            expect(call?.body).toEqual({ query: FOOD, language: 'pt' });
+            expect(reports.pending).toBe(true);
+            expect(reports.untouched).toBe(true);
+
+            call?.resolve(response('Food', '2011'));
+            await settle();
+
+            expect(title(reports.report)).toBe('Food');
+            expect(reports.text).toBe('Food 2011');
+            expect(reports.originalPrompt).toBe('Food 2011');
+            expect(reports.untouched).toBe(false);
+            expect(new URL(page.location.href).searchParams.get('q')).toBe('Food 2011');
+        });
+
+        it('leaves the report shown as it is, silently, when the query is no report', async () => {
+            const errors: unknown[] = [];
+            const api = createApi([]);
+            const page = createPage('https://report.bkper.app/?book=book-1');
+            const reports = new Reports(api.api, new Route(page, false), {
+                language: 'pt',
+                logger: { error: (...args: unknown[]) => errors.push(args) },
+            });
+            reports.open('book-1');
+            reports.input('despesas 2011');
+            reports.submit();
+            api.calls[0].resolve(response('Despesas', '2011'));
+            await settle();
+            const shown = reports.report;
+
+            for (const error of [
+                new AppApiError('No group', 422, 'query_not_a_report'),
+                new AppApiError('Later', 422, 'future_period'),
+                new AppApiError('Mixed', 422, 'mixed_group', undefined, {
+                    code: 'mixed_group',
+                    book: 'Book',
+                    canOrganize: true,
+                    group: 'Food',
+                }),
+                new AppApiError('Bkper failed', 502, 'upstream_error'),
+                new Error('Offline'),
+            ]) {
+                reports.follow(`is:draft ${String(error)}`);
+                api.calls.at(-1)?.reject(error);
+                await settle();
+
+                expect(reports.report).toBe(shown);
+                expect(reports.text).toBe('despesas 2011');
+                expect(reports.notice).toBeUndefined();
+                expect(reports.problem).toBeUndefined();
+                expect(reports.pending).toBe(false);
+            }
+            expect(errors).toHaveLength(1);
+        });
+
+        it('replaces a request typed or on its way, as the Book changed', async () => {
+            const { reports, calls, prompts } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.input('despesas 2011');
+            reports.submit();
+
+            reports.follow(RENT);
+            reports.input('receitas 2011');
+            reports.follow(FOOD);
+            await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+            expect(calls[0].signal?.aborted).toBe(true);
+            expect(byQuery(calls, RENT)?.signal?.aborted).toBe(true);
+            expect(prompts()).toEqual(['despesas 2011']);
+            byQuery(calls, FOOD)?.resolve(response('Food'));
+            await settle();
+            expect(reports.text).toBe('Food');
+        });
+
+        it('keeps the chart chosen when the next report offers it, else shows its main one', async () => {
+            const { reports, calls } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.follow(FOOD);
+            byQuery(calls, FOOD)?.resolve(offering(response('Food'), 'bar', ['pie']));
+            await settle();
+            reports.chooseChart('pie');
+
+            reports.follow(RENT);
+            const rent = offering(response('Rent'), 'line', ['pie', 'area']);
+            byQuery(calls, RENT)?.resolve(rent);
+            await settle();
+            expect(reports.report).toBe(rent);
+            expect(reports.chart).toBe('pie');
+            expect(reports.reopen).toEqual({ text: 'Rent', language: 'en', chart: 'pie' });
+
+            reports.follow('group:Taxes');
+            byQuery(calls, 'group:Taxes')?.resolve(offering(response('Taxes'), 'bar', ['area']));
+            await settle();
+            expect(reports.chart).toBeUndefined();
+
+            // A chart asked for with a request counts as chosen.
+            reports.input('Food as area');
+            reports.submit();
+            calls.at(-1)?.resolve(withMain(response('Food as area'), 'area', 'area'));
+            await settle();
+            reports.follow(RENT);
+            expect(reports.chart).toBe('area');
+            expect(reports.report).toBe(rent);
+        });
+
+        it('shows a query followed again within a minute from memory', async () => {
+            const { reports, calls } = createReports(undefined, createApi([]));
+            reports.open('book-1');
+            reports.follow(FOOD);
+            byQuery(calls, FOOD)?.resolve(response('Food'));
+            await settle();
+            reports.follow(RENT);
+            byQuery(calls, RENT)?.resolve(response('Rent'));
+            await settle();
+
+            reports.follow(FOOD);
+
+            expect(title(reports.report)).toBe('Food');
+            expect(calls).toHaveLength(2);
+        });
+
+        it('opens a Book on its query, untouched until its report shows', async () => {
+            const { reports, calls } = createReports();
+            reports.open('book-1', '', undefined, FOOD);
+            expect(reports.followsQuery).toBe(true);
+            expect(reports.untouched).toBe(true);
+            byQuery(calls, FOOD)?.reject(new AppApiError('No group', 422, 'query_not_a_report'));
+            await settle();
+            expect(reports.followsQuery).toBe(false);
+            expect(reports.untouched).toBe(true);
+
+            reports.open('book-1', '', undefined, RENT);
+            byQuery(calls, RENT)?.resolve(response('Rent'));
+            await settle();
+            expect(reports.followsQuery).toBe(false);
+            expect(reports.untouched).toBe(false);
+
+            // A request or a state in the URL wins.
+            reports.open('book-1', 'net result', undefined, RENT);
+            reports.open('book-1', '', NET, RENT);
+            expect(calls.filter(call => call.body.query)).toHaveLength(2);
+        });
+    });
+
     describe('a Book nothing was asked of yet', () => {
         it('is untouched until the person or a state asks for something, even a request cleared', () => {
             const acts: [string, (reports: Reports) => void][] = [
@@ -1048,6 +1204,21 @@ describe('Reports', () => {
 function title(report: ReportResponse | undefined): string | undefined {
     const root = report?.spec.elements[report.spec.root];
     return root?.type === 'Report' ? root.props.title : undefined;
+}
+
+/** A report whose main chart is `main`, offering the charts `others` too. */
+function offering(report: ReportResponse, main: ChartKind, others: ChartKind[]): ReportResponse {
+    const views = [main, ...others, 'table' as const].map(kind => ({ kind, name: kind }));
+    return {
+        ...withMain(report, main),
+        spec: {
+            ...report.spec,
+            elements: {
+                ...report.spec.elements,
+                charts: { type: 'Visualizations', props: { label: 'Charts', main, views } },
+            },
+        },
+    };
 }
 
 /** A report whose main chart is `main` (`table` for none), asked for as `asked`, if any. */

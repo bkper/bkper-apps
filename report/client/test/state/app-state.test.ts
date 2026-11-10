@@ -1,10 +1,11 @@
 import { decodeUrlState, encodeUrlState } from 'report-shared/url-state';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-    BookProblem,
-    ReportRequest,
-    ReportResponse,
-    SuggestionsResponse,
+import {
+    AppApiError,
+    type BookProblem,
+    type ReportRequest,
+    type ReportResponse,
+    type SuggestionsResponse,
 } from '../../src/api/app-api';
 import type { AuthSession, AuthSessionCallbacks } from '../../src/auth/auth-session';
 import type { BookListItem, BookService } from '../../src/services/book-service';
@@ -491,6 +492,8 @@ describe('AppState', () => {
                     suggestions: bookId => suggestions(bookId).promise,
                     report: async (bookId, body) => {
                         asked.push({ bookId, body });
+                        if (body.query?.startsWith('is:'))
+                            throw new AppApiError('No group', 422, 'query_not_a_report');
                         return reportOf(body);
                     },
                 }),
@@ -518,12 +521,25 @@ describe('AppState', () => {
             /** Let answered requests run their continuations. */
             const settle = () => new Promise(resolve => setTimeout(resolve));
             const url = () => new URL(page.location.href).searchParams;
-            return { app, page, goTo, shelf, suggestions, signIn, selected, prompts, settle, url };
+            return {
+                app,
+                page,
+                goTo,
+                shelf,
+                suggestions,
+                signIn,
+                selected,
+                prompts,
+                settle,
+                url,
+                asked,
+            };
         }
 
         function reportOf(body: ReportRequest): ReportResponse {
+            const text = body.prompt ?? `Report of ${body.query}`;
             const props = {
-                title: body.prompt,
+                title: text,
                 subtitle: '2012',
                 locale: 'en',
                 dir: 'ltr' as const,
@@ -534,7 +550,7 @@ describe('AppState', () => {
                     root: 'report',
                     elements: { report: { type: 'Report', props, children: [] } },
                 },
-                text: body.prompt,
+                text,
                 language: 'en',
                 query: 'q',
                 dataAt: '2026-11-05T00:00:00Z',
@@ -639,6 +655,34 @@ describe('AppState', () => {
             }
         });
 
+        it('opens on the Book’s query, else, when it is no report, as with nothing asked', async () => {
+            for (const report of [true, false]) {
+                const { app, shelf, suggestions, signIn, selected, prompts, settle, url, asked } =
+                    openingApp(
+                        `https://report.bkper.app/?book=book-1&bookQuery=${report ? 'group%3AFood' : 'is%3Adraft'}`
+                    );
+                const reportApi = app.reports;
+                await signIn();
+                expect(asked.at(-1)?.body).toEqual({
+                    query: report ? 'group:Food' : 'is:draft',
+                    language: 'en',
+                });
+                shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
+                suggestions('book-1').resolve({ suggestions: SUGGESTED });
+                await settle();
+                if (report) {
+                    expect(title(reportApi.report)).toBe('Report of group:Food');
+                    expect(reportApi.text).toBe('Report of group:Food');
+                    expect(prompts()).toEqual([]);
+                    expect(selected).toEqual([]);
+                    expect(url().get('bookQuery')).toBe('group:Food');
+                } else {
+                    expect(prompts()).toEqual([FIRST.prompt]);
+                    expect(selected).toEqual([FIRST.prompt]);
+                }
+            }
+        });
+
         it('opens nothing when the URL asks for a request or a state', async () => {
             const revenue = encodeUrlState({ text: 'Revenue 2012', language: 'en' });
             for (const query of ['q=net%20result', `state=${revenue}`]) {
@@ -736,7 +780,9 @@ describe('AppState', () => {
                 suggestions: async () => ({ suggestions: [] }),
                 report: async (_bookId, body) => {
                     bodies.push(body);
-                    const prompt = body.prompt;
+                    if (body.query?.startsWith('is:'))
+                        throw new AppApiError('No group', 422, 'query_not_a_report');
+                    const prompt = body.prompt ?? `report of ${body.query}`;
                     const text = prompt.charAt(0).toUpperCase() + prompt.slice(1);
                     const props = {
                         title: `Asked ${text}`,
@@ -943,6 +989,47 @@ describe('AppState', () => {
             await signIn();
             await vi.waitFor(() => expect(app.reports.report?.text).toBe(EXPENSES.text));
             expect(sent()).toEqual([]);
+        });
+
+        it('follows the Book’s query once per change, never over typing on a repeated URL', async () => {
+            const { app, bodies, send, ready, sent, signIn } = embeddedApp(
+                'https://report.bkper.app/?book=b&bookQuery=group%3AFood'
+            );
+            ready();
+            await signIn();
+            await vi.waitFor(() => expect(app.reports.report?.text).toBe('Report of group:Food'));
+            expect(bodies).toEqual([{ query: 'group:Food', language: 'en' }]);
+            expect(app.reports.text).toBe('Report of group:Food');
+            const appUrl = (query: string) =>
+                `https://report.bkper.app/?book=b&state=${app.route.state}&bookQuery=${encodeURIComponent(query)}`;
+            const lastState = () => (sent().at(-1)?.message as { state?: string }).state;
+            expect(lastState()).toBe(state('Report of group:Food', 'en'));
+
+            // The Book keeps the state sent, and tells the app its URL again.
+            send({ type: 'bkper:app-url-changed', url: appUrl('group:Food') });
+            expect(bodies).toHaveLength(1);
+
+            send({ type: 'bkper:app-url-changed', url: appUrl("account:'Rent'") });
+            await vi.waitFor(() => expect(app.reports.text).toBe("Report of account:'Rent'"));
+            expect(bodies.at(-1)).toEqual({ query: "account:'Rent'", language: 'en' });
+            expect(lastState()).toBe(state("Report of account:'Rent'", 'en'));
+
+            app.reports.input('receitas 2012');
+            app.reports.submit();
+            await vi.waitFor(() => expect(app.reports.report?.text).toBe(REVENUE));
+            send({ type: 'bkper:app-url-changed', url: appUrl("account:'Rent'") });
+            expect(bodies).toHaveLength(3);
+            expect(app.reports.text).toBe('receitas 2012');
+
+            // A query of no report leaves the report shown, saying nothing.
+            const count = sent().length;
+            send({ type: 'bkper:app-url-changed', url: appUrl('is:draft') });
+            await vi.waitFor(() => expect(app.reports.pending).toBe(false));
+            expect(bodies.at(-1)).toEqual({ query: 'is:draft', language: 'en' });
+            expect(app.reports.report?.text).toBe(REVENUE);
+            expect(app.reports.text).toBe('receitas 2012');
+            expect(app.reports.notice).toBeUndefined();
+            expect(sent()).toHaveLength(count);
         });
 
         it('shows the report of a state Bkper changes the app URL to', async () => {

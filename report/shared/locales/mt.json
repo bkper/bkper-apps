@@ -64,7 +64,6 @@
     "error_mixed_targets": "Il-bilanċ ta' assi jew obbligazzjonijiet ma jistax jitqiegħed maġenb dħul jew nefqa. Itlobhom f'rapporti separati.",
     "error_no_activity_roots": "Dan il-Ktieb m'għandu l-ebda grupp ta' dħul jew nefqa għal riżultat nett.",
     "error_no_net_result": "Dan il-Ktieb m'għandux grupp li jgħaqqad id-dħul u l-infiq. Żid wieħed f'Bkper biex tara r-riżultat nett tiegħu.",
-    "error_query_not_a_report": "Agħżel grupp jew kont fil-Ktieb biex tara r-rapport tiegħu.",
     "error_unexpected": "Ġara xi ħaġa żbaljata. Erġa' pprova.",
     "error_unknown_root": "Dak il-grupp m'huwiex grupp ta' livell ta' fuq ta' dan il-Ktieb.",
     "error_unknown_target": "Dak il-grupp jew il-kont m'għadux fejn dan ir-rapport sabu fil-Ktieb.",

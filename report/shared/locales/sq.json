@@ -64,7 +64,6 @@
     "error_mixed_targets": "Gjendjet e aktiveve ose të detyrimeve nuk mund të shfaqen krah për krah me të ardhurat ose shpenzimet. Kërkojini në raporte të ndara.",
     "error_no_activity_roots": "Ky Libër kontabël nuk ka grupe të ardhurash ose shpenzimesh për një rezultat neto.",
     "error_no_net_result": "Ky Libër kontabël nuk ka asnjë Grup që kombinon të ardhurat dhe shpenzimet. Shtoni një në Bkper për të parë rezultatin neto.",
-    "error_query_not_a_report": "Zgjidhni një grup ose një llogari në Librin kontabël për të parë raportin e tij.",
     "error_unexpected": "Diçka shkoi keq. Provoni përsëri.",
     "error_unknown_root": "Ai grup nuk është grup i nivelit më të lartë i këtij Libri kontabël.",
     "error_unknown_target": "Ky grup ose kjo llogari nuk ndodhet më aty ku e gjeti ky raport në Librin kontabël.",

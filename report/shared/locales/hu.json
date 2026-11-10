@@ -64,7 +64,6 @@
     "error_mixed_targets": "Az eszközök vagy kötelezettségek egyenlege nem jeleníthető meg egymás mellett a bevételekkel vagy a kiadásokkal. Kérje őket külön jelentésekben.",
     "error_no_activity_roots": "Ebben a főkönyvben nincsenek bevételi vagy kiadási csoportok a nettó eredményhez.",
     "error_no_net_result": "Ebben a főkönyvben nincs olyan csoport, amely egyesíti a bevételeket és a kiadásokat. Hozzon létre egyet a Bkperben a nettó eredmény megtekintéséhez.",
-    "error_query_not_a_report": "Válasszon egy csoportot vagy számlát a Főkönyvben a jelentése megtekintéséhez.",
     "error_unexpected": "Valami hiba történt. Próbálja újra.",
     "error_unknown_root": "Ez a csoport nem legfelső szintű csoport ebben a főkönyvben.",
     "error_unknown_target": "Ez a csoport vagy számla már nem ott van a Főkönyvben, ahol ez a jelentés megtalálta.",

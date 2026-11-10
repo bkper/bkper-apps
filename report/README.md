@@ -12,6 +12,8 @@ Type what you want to know about your Book, in your own language, and see the re
 2. Choose **Report** from the Book menu.
 3. Report opens with the first request saved for the Book, else the first suggested report, its words selected: start typing to ask your own instead. There is no button: the report appears as you type. Press **Enter** to ask at once.
 
+**Report follows the Book.** Choose a group or Account in the Book's sidebar, or change the Book's search, and Report shows the report of what the Book shows: its groups and Accounts, one hashtag, and its dates as the smallest whole period that contains them, keeping the chart you chose when it fits. Opened while the Book shows a group or Account, Report starts with its report. A search with no group or Account, or of a period that hasn't started, leaves the report on screen as it is; what you type stays until the Book shows something else.
+
 Report speaks the language you chose in Bkper, else your browser's. A typed request gets its report in the language you typed it in. The page's address keeps your report and the chart you chose, so reloading, bookmarking or sharing the link with someone who can view the Book opens it again with the latest balances.
 
 ## What you can ask

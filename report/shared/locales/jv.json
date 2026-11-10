@@ -64,7 +64,6 @@
     "error_mixed_targets": "Saldo aset utawa kewajiban ora bisa disandhingake karo pemasukan utawa pengeluaran. Jaluka ing laporan sing kapisah.",
     "error_no_activity_roots": "Buku iki ora duwe grup pendhapatan utawa pengeluaran kanggo asil bersih.",
     "error_no_net_result": "Buku iki ora duwe grup sing nggabungake pemasukan lan pengeluaran. Tambahake siji ing Bkper kanggo ndeleng asil bersihe.",
-    "error_query_not_a_report": "Pilih grup utawa akun ing Buku kanggo ndeleng laporane.",
     "error_unexpected": "Ana sing salah. Cobanen maneh.",
     "error_unknown_root": "Grup kuwi dudu grup tingkat paling dhuwur ing Buku iki.",
     "error_unknown_target": "Grup utawa akun iku wis ora ana ing panggonan sing ditemokake laporan iki ing Buku.",

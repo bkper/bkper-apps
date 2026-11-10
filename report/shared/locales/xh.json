@@ -64,7 +64,6 @@
     "error_mixed_targets": "Iibhalansi zezinto ezibalulekileyo okanye amatyala azinakubekwaecaleni kwengeniso okanye inkcitho. Zicele kwiingxelo ezahlukeneyo.",
     "error_no_activity_roots": "Le ncwadi yeeakhaunti ayinawo amaqela engeniso okanye abizi okufumana umphumo ococekileyo.",
     "error_no_net_result": "Le Ncwadi yeeakhaunti ayinaso Iqela elidibanisa ingeniso nenkcitho. Yongeza elinye kwiBkper ukuze ubone isiphumo esiyinet.",
-    "error_query_not_a_report": "Khetha iqela okanye iakhaunti kwiNcwadi yeeakhaunti ukuze ubone ingxelo yayo.",
     "error_unexpected": "Kukho into engahambanga kakuhle. Zama kwakhona.",
     "error_unknown_root": "Eli qela alilo iqela eliphezulu lale Ncwadi yeeakhaunti.",
     "error_unknown_target": "Eli qela okanye iakhaunti ayisekho apho ingxelo le yayifumana khona kwiNcwadi yeeakhaunti.",

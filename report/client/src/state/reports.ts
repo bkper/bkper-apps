@@ -33,7 +33,6 @@ export type Notice = Extract<StringKey, 'hint_not_a_report' | `error_${string}`>
 /** The notice of each API error code; any other failure is `error_unexpected`. */
 const NOTICES: Partial<Record<string, Notice>> = {
     not_a_report: 'hint_not_a_report',
-    query_not_a_report: 'error_query_not_a_report',
     ai_allowance_exhausted: 'error_ai_allowance_exhausted',
     book_not_found: 'error_book_not_found',
     forbidden: 'error_forbidden',
@@ -66,8 +65,11 @@ export interface ReportsOptions {
 interface Entry {
     promise: Promise<ReportResponse>;
     value?: ReportResponse;
-    /** The request's text: a typed request's, a suggestion's, a saved one's or a state's. */
-    prompt: string;
+    /**
+     * The request's text: a typed request's, a suggestion's, a saved one's or a state's; none
+     * for the Book's query, whose report's own text stands for it.
+     */
+    prompt?: string;
     /** When it was asked for: it is reused for {@link CACHE_MS}. */
     at: number;
 }
@@ -81,7 +83,8 @@ interface Entry {
  * the chart asked for with it, for {@link CACHE_MS}, saved requests too, and the suggestions'
  * reports are asked for by their texts as soon as the suggestions arrive, so choosing or typing
  * one shows it from memory. The suggestions come from the Book's map: the first request after {@link CACHE_MS}
- * asks them again.
+ * asks them again. The report also follows the query the Book shows its transactions with
+ * ({@link follow}).
  */
 export class Reports extends Store {
     /** The request, as typed. */
@@ -91,11 +94,15 @@ export class Reports extends Store {
     @reactive private source?: { report: ReportResponse; prompt: string };
     /**
      * The chart the person chose, from its previews, and the report it is for: it holds the
-     * report, so showing another report drops the choice in the same change.
+     * report, so showing another report drops the choice in the same change. Not reactive: it
+     * changes with the report, or tells the change itself, so a report and the chart it shows
+     * as never change apart.
      */
-    @reactive private choice?: { report: ReportResponse; kind: ChartKind };
+    private choice?: { report: ReportResponse; kind: ChartKind };
     /** A request is on its way. */
     @reactive pending = false;
+    /** The request on its way is the Book's query's ({@link follow}). */
+    @reactive private following = false;
     @reactive notice?: Notice;
     /** What keeps the Book from the report asked for: its message, until the next request. */
     @reactive private requestProblem?: BookProblem;
@@ -142,6 +149,11 @@ export class Reports extends Store {
         return { text: report.text, language: report.language, ...(chart ? { chart } : {}) };
     }
 
+    /** The report of the Book's query is on its way ({@link follow}). */
+    get followsQuery(): boolean {
+        return this.following;
+    }
+
     /** The request that produced the shown report, as asked, never the input. */
     get originalPrompt(): string | undefined {
         return this.source?.report === this.report ? this.source?.prompt : undefined;
@@ -186,9 +198,9 @@ export class Reports extends Store {
 
     /**
      * Start over for a Book, or none, and load its suggestions; show the report of `state` at
-     * once, else run `prompt`.
+     * once, else run `prompt`, else follow the Book's `query`.
      */
-    open(bookId: string | undefined, prompt = '', state?: UrlState): void {
+    open(bookId: string | undefined, prompt = '', state?: UrlState, query?: string): void {
         this.cancel();
         this.suggestionsRequest?.abort();
         this.suggestionsRequest = undefined;
@@ -207,6 +219,7 @@ export class Reports extends Store {
         void this.loadSuggestions(bookId);
         if (state) this.openState(state);
         else if (prompt.trim()) this.run(prompt);
+        else if (query) this.follow(query);
     }
 
     /**
@@ -270,11 +283,64 @@ export class Reports extends Store {
         if (prompt.trim()) this.run(prompt, { saved: true });
     }
 
+    /**
+     * The Book shows its transactions with `query`: show its report, asked for in the
+     * interface's language, as the chart chosen when it offers it, with its text in the input.
+     * The Book changed, so it replaces whatever was typed or asked. Any failure, such as a query
+     * of no group or Account, or of a period not started, leaves the report shown as it is,
+     * silently: the person changed the Book, not the request. The Book stays untouched until
+     * the report shows, so a Book opened on a query of no report opens its first report.
+     */
+    follow(query: string): void {
+        const bookId = this.openBookId;
+        if (!bookId) return;
+        this.refreshSuggestions(bookId);
+        const chart = this.reopen?.chart;
+        this.cancel();
+        const sequence = this.sequence;
+        const key = queryKey(query);
+        let entry = this.remembered(key);
+        if (!entry) {
+            const controller = new AbortController();
+            const body = { query, language: this.language };
+            entry = this.request(key, bookId, body, controller.signal);
+            this.inFlight = { key, controller };
+        }
+        const shown = (report: ReportResponse) => {
+            this.nothingAsked = false;
+            this.text = report.text;
+            this.route.setPrompt(report.text);
+            this.show(report, report.text, chart);
+        };
+        if (entry.value) {
+            shown(entry.value);
+            return;
+        }
+        this.pending = true;
+        this.following = true;
+        entry.promise.then(
+            report => {
+                if (sequence !== this.sequence) return;
+                this.inFlight = undefined;
+                shown(report);
+            },
+            (error: unknown) => {
+                if (sequence !== this.sequence) return;
+                this.inFlight = undefined;
+                this.pending = false;
+                this.following = false;
+                if (!isAbort(error) && !(error instanceof AppApiError))
+                    this.options.logger.error('Error building the report:', error);
+            }
+        );
+    }
+
     /** The person chose another chart of the report shown: it shows with no new request. */
     chooseChart(kind: ChartKind): void {
         const report = this.report;
         if (!report) return;
         this.choice = kind === mainChart(report) ? undefined : { report, kind };
+        this.changed();
     }
 
     /** Something outside the requests failed, such as loading the report renderer. */
@@ -314,7 +380,7 @@ export class Reports extends Store {
         const cached = saved && remembered?.prompt !== text.trim() ? undefined : remembered;
         if (cached?.value) {
             this.cancel();
-            this.show(cached.value, cached.prompt);
+            this.show(cached.value, cached.prompt ?? cached.value.text);
             return;
         }
         if (this.inFlight?.key === key && (cached || !saved)) return;
@@ -331,7 +397,7 @@ export class Reports extends Store {
             entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
-        const originalPrompt = entry.prompt;
+        const originalPrompt = entry.prompt ?? text.trim();
         this.pending = true;
         entry.promise.then(
             report => {
@@ -352,12 +418,7 @@ export class Reports extends Store {
      * Ask the API, remembering the answer by request for {@link CACHE_MS} from now; failures
      * are forgotten.
      */
-    private request(
-        key: string,
-        bookId: string,
-        body: ReportRequest & { prompt: string },
-        signal?: AbortSignal
-    ): Entry {
+    private request(key: string, bookId: string, body: ReportRequest, signal?: AbortSignal): Entry {
         this.forgetExpired();
         const cache = this.cache;
         const entry: Entry = {
@@ -394,14 +455,19 @@ export class Reports extends Store {
         return isFresh(at, this.now());
     }
 
-    /** Show a report, asked for with the request `prompt`. */
-    private show(report: ReportResponse, prompt: string): void {
+    /**
+     * Show a report, asked for with the request `prompt`, as `chart` when it offers it, else as
+     * its main chart.
+     */
+    private show(report: ReportResponse, prompt: string, chart?: ChartKind): void {
         this.source = { report, prompt };
         this.pending = false;
+        this.following = false;
         this.quiet();
-        // The report first: its chart is then its main one, and dropping the choice changes nothing.
+        // The chart first, unannounced: the report then shows as it in one change.
+        const kept = chart && chart !== mainChart(report) && offers(report, chart);
+        this.choice = kept ? { report, kind: chart } : undefined;
         this.report = report;
-        this.choice = undefined;
     }
 
     private failed(error: unknown): void {
@@ -477,6 +543,7 @@ export class Reports extends Store {
             this.inFlight = undefined;
         }
         this.pending = false;
+        this.following = false;
     }
 
     private clearTimer(): void {
@@ -506,6 +573,20 @@ function promptKey(text: string, chart?: StateChart): string {
     const words = text.trim().replace(/\s+/g, ' ');
     // Collapsed words hold no line break, so no request reads as another with a chart.
     return chart ? `prompt:${words}\n${chart}` : `prompt:${words}`;
+}
+
+/** The Book's query, as Bkper wrote it: a query differs from any request. */
+function queryKey(query: string): string {
+    return `query:${query}`;
+}
+
+/** Whether a report offers `kind` among the charts it can show (`Visualizations`). */
+function offers(report: ReportResponse, kind: ChartKind): boolean {
+    return Object.values(report.spec.elements).some(
+        element =>
+            element.type === 'Visualizations' &&
+            element.props.views.some(view => view.kind === kind)
+    );
 }
 
 /** The chart a report shows first: its chart, or `table` for none. */

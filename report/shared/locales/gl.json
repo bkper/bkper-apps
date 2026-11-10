@@ -64,7 +64,6 @@
     "error_mixed_targets": "Os saldos de activos ou pasivos non se poden mostrar xunto con ingresos ou gastos. Pídeos en informes separados.",
     "error_no_activity_roots": "Este Libro non ten grupos de ingresos ou gastos para un resultado neto.",
     "error_no_net_result": "Este Libro non ten ningún grupo que combine ingresos e gastos. Engade un en Bkper para ver o seu resultado neto.",
-    "error_query_not_a_report": "Escolle un grupo ou unha conta no Libro para ver o seu informe.",
     "error_unexpected": "Algo foi mal. Téntao de novo.",
     "error_unknown_root": "Ese grupo non é un grupo de nivel superior deste Libro.",
     "error_unknown_target": "Ese grupo ou conta xa non está onde este informe o atopou no Libro.",

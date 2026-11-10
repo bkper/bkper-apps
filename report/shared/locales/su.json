@@ -64,7 +64,6 @@
     "error_mixed_targets": "Saldo aset atawa kawajiban teu bisa dipintonkeun sasambungan jeung panghasilan atawa béaya. Pénta dina laporan nu misah.",
     "error_no_activity_roots": "Buku ieu teu gaduh grup panghasilan atawa biaya pikeun hasil bersih.",
     "error_no_net_result": "Buku ieu teu ngagaduhan Grup anu ngagabungkeun panghasilan jeung biaya. Tambihkeun hiji dina Bkper pikeun ningali hasil bersihna.",
-    "error_query_not_a_report": "Pilih grup atawa Akun dina Buku pikeun ningali laporanana.",
     "error_unexpected": "Aya nu salah. Cobian deui.",
     "error_unknown_root": "Grup éta lain grup tingkat luhur Buku ieu.",
     "error_unknown_target": "Grup atawa Akun ieu geus teu aya deui di tempat laporan ieu manggihanana dina Buku.",

@@ -64,7 +64,6 @@
     "error_mixed_targets": "Asset emaw liability Balance chu income emaw expense nen a kawppui theih loh. Report danglam takah dil rawh.",
     "error_no_activity_roots": "He Ledger-ah hian net result atana income emaw expense Pawl a awm lo.",
     "error_no_net_result": "He Ledger-ah hian income leh expense hmangkawm Pawl a awm lo. A net result en turin Bkper-ah pakhat belhrawh.",
-    "error_query_not_a_report": "A report hmuh nan Ledger-ah Pawl emaw Account pakhat thlang rawh.",
     "error_unexpected": "Engemaw a tha ral a. Intih leh rawh.",
     "error_unknown_root": "Chu Pawl chu he Ledger hi top-level Pawl a ni lo.",
     "error_unknown_target": "Chu Pawl emaw Account chu he report hian Ledger-ah a hmuh hmun ah a awm tawh lo.",

@@ -64,7 +64,6 @@
     "error_mixed_targets": "Saldo's fan aktiva of passiva kinne net njonken ynkomsten of útjeften stean. Freegje se yn aparte rapporten.",
     "error_no_activity_roots": "Dizze Boekhâlding hat gjin ynkomsten- of útjeften-groepen foar in netto resultaat.",
     "error_no_net_result": "Dizze Boekhâlding hat gjin groep dy't ynkomsten en útjeften kombinearret. Foegje der ien ta yn Bkper om it netto resultaat te sjen.",
-    "error_query_not_a_report": "Kies in groep of rekken yn de Boekhâlding om it rapport te sjen.",
     "error_unexpected": "Der gie wat mis. Probearje it opnij.",
     "error_unknown_root": "Dy groep is gjin haadgroep fan dizze Boekhâlding.",
     "error_unknown_target": "Dy groep of rekken is net mear wêr't dit rapport it yn de Boekhâlding fûn.",

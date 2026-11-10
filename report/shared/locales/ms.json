@@ -64,7 +64,6 @@
     "error_mixed_targets": "Baki aset atau liabiliti tidak boleh diletakkan bersebelahan dengan pendapatan atau perbelanjaan. Minta dalam laporan yang berasingan.",
     "error_no_activity_roots": "Buku ini tiada kumpulan pendapatan atau perbelanjaan untuk hasil bersih.",
     "error_no_net_result": "Buku ini tiada kumpulan yang menggabungkan pendapatan dan perbelanjaan. Tambah satu dalam Bkper untuk melihat hasil bersihnya.",
-    "error_query_not_a_report": "Pilih kumpulan atau akaun dalam Buku untuk melihat laporannya.",
     "error_unexpected": "Sesuatu telah berlaku. Cuba lagi.",
     "error_unknown_root": "Kumpulan itu bukan kumpulan peringkat teratas Buku ini.",
     "error_unknown_target": "Kumpulan atau akaun itu tidak lagi berada di tempat laporan ini menemuinya dalam Buku.",

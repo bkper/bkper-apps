@@ -64,7 +64,6 @@
     "error_mixed_targets": "Residua bonorum vel obligationum iuxta reditus vel impensas poni non possunt. Ea in separatis relationibus pete.",
     "error_no_activity_roots": "Hic Liber rationum greges reditus vel impensarum pro eventu neto non habet.",
     "error_no_net_result": "Hic Liber rationum gregem non habet qui reditus et impensas coniungat. Adde unum in Bkper ut eventum eius purum videas.",
-    "error_query_not_a_report": "Elige gregem vel rationem in Libro rationum ut relationem eius videas.",
     "error_unexpected": "Aliquid erravit. Iterum conare.",
     "error_unknown_root": "Ille grex non est grex summi gradus huius Libri rationum.",
     "error_unknown_target": "Grex vel ratio illa iam non est ubi hic relatus eam in Libro rationum invenit.",

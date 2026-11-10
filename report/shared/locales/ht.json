@@ -64,7 +64,6 @@
     "error_mixed_targets": "Balans byen oswa dèt yo pa ka bò kote revni oswa depans yo. Mande yo nan rapò separe.",
     "error_no_activity_roots": "Liv kont sa a pa gen gwoup revni oswa depans pou yon rezilta nèt.",
     "error_no_net_result": "Liv kont sa a pa gen gwoup ki konbine revni ak depans. Ajoute youn nan Bkper pou w wè rezilta nèt li.",
-    "error_query_not_a_report": "Chwazi yon gwoup oswa yon kont nan Liv kont la pou wè rapò li.",
     "error_unexpected": "Gen yon bagay ki pa mache. Eseye ankò.",
     "error_unknown_root": "Gwoup sa a pa yon gwoup nivo siperyè nan Liv kont sa a.",
     "error_unknown_target": "Gwoup oswa kont sa a pa nan kote rapò sa a te jwenn li nan Liv kont la ankò.",

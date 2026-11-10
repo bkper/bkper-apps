@@ -122,6 +122,7 @@
     "source_calculated": "Berechnet von Report",
     "source_calculated_note": "Eingang-Gruppen minus Ausgang-Gruppen. Fügen Sie eine Gruppe hinzu, die beide enthält, und Bkper berechnet das Nettoergebnis.",
     "source_data_at": "Salden gelesen",
+    "source_details": "Details",
     "source_footer": "Berechnet aus den Salden von {book}",
     "source_label": "Quelle",
     "source_open_in_bkper": "In Bkper öffnen",

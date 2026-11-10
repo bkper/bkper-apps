@@ -122,6 +122,7 @@
     "source_calculated": "Kinalkula ng Report",
     "source_calculated_note": "Mga Pumapasok na grupo bawas ang mga Lumalabas na grupo. Magdagdag ng grupo na naglalaman ng pareho, at kakalkulahin ng Bkper ang netong resulta.",
     "source_data_at": "Binasa ang mga balanse noong",
+    "source_details": "Mga detalye",
     "source_footer": "Kinalkula mula sa mga balanse ng {book}",
     "source_label": "Pinagmulan",
     "source_open_in_bkper": "Buksan sa Bkper",

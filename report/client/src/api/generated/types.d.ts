@@ -1031,6 +1031,7 @@ export interface components {
                             query: string;
                             dataAt: string;
                             open: string;
+                            details?: string;
                         };
                     };
                     on?: {

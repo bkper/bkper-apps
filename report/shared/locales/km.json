@@ -122,6 +122,7 @@
     "source_calculated": "គណនាដោយ Report",
     "source_calculated_note": "ក្រុមចូល ដកក្រុមចេញ។ បន្ថែមក្រុមដែលមានទាំងពីរ នោះ Bkper នឹងគណនាលទ្ធផលសុទ្ធ។",
     "source_data_at": "សមតុល្យត្រូវបានអាន",
+    "source_details": "ព័ត៌មានលម្អិត",
     "source_footer": "គណនាពីសមតុល្យរបស់ {book}",
     "source_label": "ប្រភព",
     "source_open_in_bkper": "បើកក្នុង Bkper",

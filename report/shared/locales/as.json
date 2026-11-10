@@ -122,6 +122,7 @@
     "source_calculated": "Report-এ গণনা কৰিছে",
     "source_calculated_note": "অন্তৰ্গামী গোট বিয়োগ বহিৰ্গামী গোট। দুয়োটা ধৰি ৰখা এটা গোট যোগ কৰক, আৰু Bkper-এ নিট ফলাফল গণনা কৰিব।",
     "source_data_at": "স্থিতি পঢ়া সময়",
+    "source_details": "বিৱৰণ",
     "source_footer": "{book}ৰ স্থিতিসমূহৰ পৰা গণনা কৰা হৈছে",
     "source_label": "উৎস",
     "source_open_in_bkper": "Bkper-ত খোলক",

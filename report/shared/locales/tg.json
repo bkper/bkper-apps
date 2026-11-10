@@ -122,6 +122,7 @@
     "source_calculated": "Ҳисоб карда шуд аз ҷониби Report",
     "source_calculated_note": "Гурӯҳҳои Воридшаванда минус гурӯҳҳои Хориҷшаванда. Гурӯҳеро илова кунед, ки ҳардуро дар бар мегирад, ва Bkper натиҷаи софро ҳисоб мекунад.",
     "source_data_at": "Балансҳо хонда шуданд",
+    "source_details": "Тафсилот",
     "source_footer": "Аз рӯи баланси {book} ҳисоб карда шудааст",
     "source_label": "Манбаъ",
     "source_open_in_bkper": "Дар Bkper кушодан",

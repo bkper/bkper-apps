@@ -122,6 +122,7 @@
     "source_calculated": "Розраховано застосунком Report",
     "source_calculated_note": "Групи надходжень мінус групи вибуттів. Додайте групу, що містить обидві, і Bkper обчислить чистий результат.",
     "source_data_at": "Баланси зчитано",
+    "source_details": "Подробиці",
     "source_footer": "Розраховано за балансами книги {book}",
     "source_label": "Джерело",
     "source_open_in_bkper": "Відкрити в Bkper",

@@ -122,6 +122,7 @@
     "source_calculated": "Reportによる計算",
     "source_calculated_note": "流入グループから流出グループを差し引いたものです。両方を含むグループを追加すると、Bkperが純結果を計算します。",
     "source_data_at": "残高の読み取り日時",
+    "source_details": "詳細",
     "source_footer": "{book}の残高から計算",
     "source_label": "出典",
     "source_open_in_bkper": "Bkperで開く",

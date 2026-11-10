@@ -122,6 +122,7 @@
     "source_calculated": "Calculé par Report",
     "source_calculated_note": "Groupes d'Entrée moins groupes de Sortie. Ajoutez un groupe qui contient les deux, et Bkper calculera le résultat net.",
     "source_data_at": "Soldes lus",
+    "source_details": "Détails",
     "source_footer": "Calculé à partir des soldes de {book}",
     "source_label": "Source",
     "source_open_in_bkper": "Ouvrir dans Bkper",

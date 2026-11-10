@@ -122,6 +122,7 @@
     "source_calculated": "Report тооцоолсон",
     "source_calculated_note": "Орох урсгал бүлгүүд хасах Гарах урсгал бүлгүүд. Хоёуланг агуулсан бүлэг нэмбэл Bkper цэвэр дүнг тооцоолно.",
     "source_data_at": "Үлдэгдэл уншсан цаг",
+    "source_details": "Дэлгэрэнгүй",
     "source_footer": "{book}-ийн үлдэгдлээс тооцоолсон",
     "source_label": "Эх сурвалж",
     "source_open_in_bkper": "Bkper-д нээх",

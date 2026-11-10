@@ -128,7 +128,7 @@ export const reportViewCSS = css`
     .answer-comparison > *,
     .answer-part > *,
     .source-facts dd,
-    .source-footer > * {
+    .source-line > * {
         unicode-bidi: isolate;
     }
 
@@ -451,21 +451,54 @@ export const reportViewCSS = css`
         }
     }
 
-    /* Source */
+    /*
+     * Source: one line under the table, Details at its start and the link at its end; what
+     * Details show opens below that line. Whether Report calculated the numbers stays above it.
+     */
 
     .source {
         display: grid;
         gap: var(--wa-space-s);
-        padding-block-start: var(--wa-space-l);
+        padding-block-start: var(--wa-space-m);
         border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
         color: var(--wa-color-text-quiet);
         font-size: var(--wa-font-size-xs);
     }
 
-    .source-title {
+    .source-calculated {
+        display: grid;
+        gap: var(--wa-space-3xs);
+    }
+
+    .source-calculated dt {
         color: var(--wa-color-text-normal);
-        font-size: var(--wa-font-size-s);
         font-weight: var(--wa-font-weight-semibold);
+    }
+
+    .source-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--wa-space-s);
+    }
+
+    .source-toggle {
+        color: var(--wa-color-text-normal);
+        font-weight: var(--wa-font-weight-semibold);
+    }
+
+    .source-toggle[aria-expanded='true'] .chevron {
+        transform: rotate(90deg);
+    }
+
+    .source-details {
+        display: grid;
+        gap: var(--wa-space-s);
+    }
+
+    .source-details[hidden] {
+        display: none;
     }
 
     .source-facts {
@@ -484,34 +517,22 @@ export const reportViewCSS = css`
         min-inline-size: 0;
     }
 
-    .source-calculated dt {
-        color: var(--wa-color-text-normal);
-        font-weight: var(--wa-font-weight-semibold);
-    }
-
     code {
         font-family: var(--wa-font-family-code);
         overflow-wrap: anywhere;
     }
 
-    .source-footer {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        gap: var(--wa-space-s);
-    }
-
-    .source-footer a {
+    .source-line a {
         color: var(--wa-color-text-link);
         text-decoration: none;
         font-weight: var(--wa-font-weight-semibold);
     }
 
-    .source-footer a:hover {
+    .source-line a:hover {
         text-decoration: underline;
     }
 
-    .source-footer a:focus-visible {
+    .source-line a:focus-visible {
         outline: var(--wa-focus-ring);
         outline-offset: var(--wa-focus-ring-offset);
         border-radius: var(--wa-border-radius-s);

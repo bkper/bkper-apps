@@ -122,6 +122,7 @@
     "source_calculated": "Bereken deur Report",
     "source_calculated_note": "Inkomende groepe minus Uitgaande groepe. Voeg 'n groep by wat albei bevat, en Bkper bereken die netto resultaat.",
     "source_data_at": "Saldo's gelees",
+    "source_details": "Besonderhede",
     "source_footer": "Bereken uit die saldo's van {book}",
     "source_label": "Bron",
     "source_open_in_bkper": "Maak oop in Bkper",

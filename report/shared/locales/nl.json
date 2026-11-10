@@ -122,6 +122,7 @@
     "source_calculated": "Berekend door Report",
     "source_calculated_note": "Inkomende groepen min uitgaande groepen. Voeg een groep toe die beide bevat, en Bkper berekent het nettoresultaat.",
     "source_data_at": "Saldi gelezen",
+    "source_details": "Details",
     "source_footer": "Berekend op basis van de saldi van {book}",
     "source_label": "Bron",
     "source_open_in_bkper": "Openen in Bkper",

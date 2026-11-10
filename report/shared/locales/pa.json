@@ -122,6 +122,7 @@
     "source_calculated": "Report ਦੁਆਰਾ ਗਿਣਿਆ ਗਿਆ",
     "source_calculated_note": "ਆਮਦ ਸਮੂਹ ਘਟਾ ਨਿਕਾਸੀ ਸਮੂਹ। ਦੋਵਾਂ ਨੂੰ ਰੱਖਣ ਵਾਲਾ ਇੱਕ ਸਮੂਹ ਸ਼ਾਮਲ ਕਰੋ, ਅਤੇ Bkper ਸ਼ੁੱਧ ਨਤੀਜੇ ਦੀ ਗਣਨਾ ਕਰੇਗਾ।",
     "source_data_at": "ਬਕਾਇਆ ਪੜ੍ਹਨ ਦਾ ਸਮਾਂ",
+    "source_details": "ਵੇਰਵੇ",
     "source_footer": "{book} ਦੇ ਬਕਾਇਆ ਤੋਂ ਗਿਣਿਆ ਗਿਆ",
     "source_label": "ਸਰੋਤ",
     "source_open_in_bkper": "Bkper ਵਿੱਚ ਖੋਲ੍ਹੋ",

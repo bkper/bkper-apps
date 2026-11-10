@@ -122,6 +122,7 @@
     "source_calculated": "Report tarapyndan hasaplandy",
     "source_calculated_note": "Giriş toparlary minus Çykyş toparlary. Ikisini hem saklaýan topar goşuň, Bkper arassa netijäni hasaplar.",
     "source_data_at": "Galyndylar okaldy",
+    "source_details": "Jikme-jiklikler",
     "source_footer": "{book} kitabynyň galyndylaryndan hasaplandy",
     "source_label": "Çeşme",
     "source_open_in_bkper": "Bkper-de açmak",

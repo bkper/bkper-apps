@@ -122,6 +122,7 @@
     "source_calculated": "تم الحساب بواسطة Report",
     "source_calculated_note": "المجموعات الواردة ناقص المجموعات الصادرة. أضف مجموعة تضم كليهما، وسيحسب Bkper صافي النتيجة.",
     "source_data_at": "وقت قراءة الأرصدة",
+    "source_details": "التفاصيل",
     "source_footer": "تم احتسابه من أرصدة {book}",
     "source_label": "المصدر",
     "source_open_in_bkper": "افتح في Bkper",

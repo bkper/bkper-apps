@@ -122,6 +122,7 @@
     "source_calculated": "Report കണക്കാക്കിയത്",
     "source_calculated_note": "ആഗമനം ഗ്രൂപ്പുകൾ കുറച്ചുള്ള നിർഗമനം ഗ്രൂപ്പുകൾ. രണ്ടും ഉൾക്കൊള്ളുന്ന ഒരു ഗ്രൂപ്പ് ചേർക്കുക, Bkper അറ്റ ഫലം കണക്കാക്കും.",
     "source_data_at": "ബാലൻസുകൾ വായിച്ച സമയം",
+    "source_details": "വിശദാംശങ്ങൾ",
     "source_footer": "{book} ന്റെ ബാലൻസുകളിൽ നിന്ന് കണക്കാക്കിയത്",
     "source_label": "ഉറവിടം",
     "source_open_in_bkper": "Bkper-ൽ തുറക്കുക",

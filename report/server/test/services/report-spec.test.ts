@@ -161,6 +161,7 @@ describe('buildReportSpec', () => {
             footer: `Computed from the balances of ${isolate('Test Ledger')}`,
             period: `Oct 1${TO}31, 2026`,
             query: "group:'Expenses' on:$m-1 by:m",
+            labels: { details: 'Details', open: 'Open in Bkper' },
         });
     });
 

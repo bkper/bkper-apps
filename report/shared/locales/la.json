@@ -122,6 +122,7 @@
     "source_calculated": "A Report computatum",
     "source_calculated_note": "Greges Introitus minus greges Exitus. Adde gregem utrumque continentem, et Bkper eventum purum computabit.",
     "source_data_at": "Residua lecta",
+    "source_details": "Singula",
     "source_footer": "Computatum ex residuis {book}",
     "source_label": "Fons",
     "source_open_in_bkper": "Aperi in Bkper",

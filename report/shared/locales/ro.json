@@ -122,6 +122,7 @@
     "source_calculated": "Calculat de Report",
     "source_calculated_note": "Grupurile de Intrări minus grupurile de Ieșiri. Adăugați un grup care le conține pe ambele, iar Bkper calculează rezultatul net.",
     "source_data_at": "Solduri citite la",
+    "source_details": "Detalii",
     "source_footer": "Calculat pe baza soldurilor din {book}",
     "source_label": "Sursă",
     "source_open_in_bkper": "Deschide în Bkper",

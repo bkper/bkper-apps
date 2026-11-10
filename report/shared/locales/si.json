@@ -122,6 +122,7 @@
     "source_calculated": "Report මගින් ගණනය කරන ලදී",
     "source_calculated_note": "ඇතුළුවීම් කාණ්ඩ අඩු පිටවීම් කාණ්ඩ. දෙකම රඳවා ගන්නා කාණ්ඩයක් එක් කරන්න, එවිට Bkper ශුද්ධ ප්‍රතිඵලය ගණනය කරයි.",
     "source_data_at": "ශේෂ කියවූ වේලාව",
+    "source_details": "විස්තර",
     "source_footer": "{book} හි ශේෂ වලින් ගණනය කරන ලදී",
     "source_label": "මූලාශ්‍රය",
     "source_open_in_bkper": "Bkper හි විවෘත කරන්න",

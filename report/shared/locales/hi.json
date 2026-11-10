@@ -122,6 +122,7 @@
     "source_calculated": "Report द्वारा गणना किया गया",
     "source_calculated_note": "आवक समूह घटा जावक समूह। एक ऐसा समूह जोड़ें जिसमें दोनों हों, और Bkper शुद्ध परिणाम की गणना करेगा।",
     "source_data_at": "पढ़ी गई शेष राशि",
+    "source_details": "विवरण",
     "source_footer": "{book} की शेष राशियों से गणना की गई",
     "source_label": "स्रोत",
     "source_open_in_bkper": "Bkper में खोलें",

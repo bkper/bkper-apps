@@ -117,6 +117,7 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
                 query: t('source_query', lang),
                 dataAt: t('source_data_at', lang),
                 open: t('source_open_in_bkper', lang),
+                details: t('source_details', lang),
             },
         },
         on: { open: { action: 'openInBkper', params: { url: report.url } } },

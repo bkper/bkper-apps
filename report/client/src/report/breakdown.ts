@@ -32,7 +32,8 @@ export interface BreakdownState {
 /** Months a row needs for a trend line. */
 const MIN_TREND_MONTHS = 2;
 
-const CHEVRON = svg`<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+/** The disclosure chevron, inline: `wa-icon` would fetch it, which a strict policy blocks. */
+export const CHEVRON = svg`<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export function renderBreakdown(table: TableProps, state: BreakdownState) {
     if (table.rows.length === 0) {

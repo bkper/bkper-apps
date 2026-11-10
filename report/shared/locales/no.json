@@ -122,6 +122,7 @@
     "source_calculated": "Beregnet av Report",
     "source_calculated_note": "Inngående grupper minus utgående grupper. Legg til en gruppe som inneholder begge, så beregner Bkper nettoresultatet.",
     "source_data_at": "Saldoer lest",
+    "source_details": "Detaljer",
     "source_footer": "Beregnet fra saldoene i {book}",
     "source_label": "Kilde",
     "source_open_in_bkper": "Åpne i Bkper",

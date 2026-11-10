@@ -122,6 +122,7 @@
     "source_calculated": "Vypočítáno aplikací Report",
     "source_calculated_note": "Příchozí skupiny minus odchozí skupiny. Přidejte skupinu, která obsahuje obě, a Bkper vypočítá čistý výsledek.",
     "source_data_at": "Zůstatky načteny",
+    "source_details": "Podrobnosti",
     "source_footer": "Vypočteno ze zůstatků knihy {book}",
     "source_label": "Zdroj",
     "source_open_in_bkper": "Otevřít v Bkper",

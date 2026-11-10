@@ -122,6 +122,7 @@
     "source_calculated": "Kiszámította: Report",
     "source_calculated_note": "A Bejövő csoportok mínusz a Kimenő csoportok. Adjon hozzá egy mindkettőt tartalmazó csoportot, és a Bkper kiszámítja a nettó eredményt.",
     "source_data_at": "Egyenlegek beolvasva",
+    "source_details": "Részletek",
     "source_footer": "A(z) {book} egyenlegeiből számítva",
     "source_label": "Forrás",
     "source_open_in_bkper": "Megnyitás a Bkperben",

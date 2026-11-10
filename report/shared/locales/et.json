@@ -122,6 +122,7 @@
     "source_calculated": "Arvutanud Report",
     "source_calculated_note": "Sissevoolu grupid miinus väljavoolu grupid. Lisa grupp, mis sisaldab mõlemat, ja Bkper arvutab netotulemuse.",
     "source_data_at": "Saldod loetud",
+    "source_details": "Üksikasjad",
     "source_footer": "Arvutatud raamatu {book} saldodest",
     "source_label": "Allikas",
     "source_open_in_bkper": "Ava Bkperis",

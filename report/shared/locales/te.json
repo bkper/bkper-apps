@@ -122,6 +122,7 @@
     "source_calculated": "Report ద్వారా లెక్కించబడింది",
     "source_calculated_note": "లోపలికి వచ్చేవి సమూహాలు మైనస్ బయటకు వెళ్లేవి సమూహాలు. రెండింటినీ కలిగి ఉన్న ఒక సమూహాన్ని జోడించండి, Bkper నికర ఫలితాన్ని లెక్కిస్తుంది.",
     "source_data_at": "నిల్వలు చదివిన సమయం",
+    "source_details": "వివరాలు",
     "source_footer": "{book} యొక్క నిల్వల నుండి లెక్కించబడింది",
     "source_label": "మూలం",
     "source_open_in_bkper": "Bkper‌లో తెరవండి",

@@ -122,6 +122,7 @@
     "source_calculated": "Изчислено от Report",
     "source_calculated_note": "Входящите групи минус Изходящите групи. Добавете група, която съдържа и двете, и Bkper ще изчисли нетния резултат.",
     "source_data_at": "Балансите са прочетени",
+    "source_details": "Подробности",
     "source_footer": "Изчислено от балансите на {book}",
     "source_label": "Източник",
     "source_open_in_bkper": "Отворете в Bkper",

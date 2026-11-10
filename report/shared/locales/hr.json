@@ -122,6 +122,7 @@
     "source_calculated": "Izračunao Report",
     "source_calculated_note": "Grupe Ulaz minus grupe Izlaz. Dodaj grupu koja sadrži obje, a Bkper će izračunati neto rezultat.",
     "source_data_at": "Saldi pročitani",
+    "source_details": "Pojedinosti",
     "source_footer": "Izračunato iz salda knjige {book}",
     "source_label": "Izvor",
     "source_open_in_bkper": "Otvori u Bkperu",

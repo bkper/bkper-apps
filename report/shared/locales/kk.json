@@ -122,6 +122,7 @@
     "source_calculated": "Report есептеген",
     "source_calculated_note": "Кіріс топтары минус Шығыс топтары. Екеуін де қамтитын топ қосыңыз, сонда Bkper таза нәтижені есептейді.",
     "source_data_at": "Қалдықтар оқылған уақыт",
+    "source_details": "Мәліметтер",
     "source_footer": "{book} қалдықтарынан есептелген",
     "source_label": "Дереккөз",
     "source_open_in_bkper": "Bkper-де ашу",

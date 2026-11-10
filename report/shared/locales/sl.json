@@ -122,6 +122,7 @@
     "source_calculated": "Izračunal Report",
     "source_calculated_note": "Skupine priliva minus skupine odliva. Dodajte skupino, ki vsebuje obe, in Bkper izračuna neto rezultat.",
     "source_data_at": "Saldi prebrani",
+    "source_details": "Podrobnosti",
     "source_footer": "Izračunano iz saldov knjige {book}",
     "source_label": "Vir",
     "source_open_in_bkper": "Odpri v Bkper",

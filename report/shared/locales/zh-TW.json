@@ -122,6 +122,7 @@
     "source_calculated": "由 Report 計算",
     "source_calculated_note": "流入群組減去流出群組。新增一個同時包含兩者的群組,Bkper 就會計算淨結果。",
     "source_data_at": "餘額讀取時間",
+    "source_details": "詳細資料",
     "source_footer": "根據 {book} 的餘額計算",
     "source_label": "來源",
     "source_open_in_bkper": "在 Bkper 中開啟",

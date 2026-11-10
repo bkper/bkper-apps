@@ -87,6 +87,8 @@ export class ReportView extends LitElement {
     /** Rows open in place, kept across specs so a changed report keeps them open. */
     @state() private expanded: ReadonlySet<string> = new Set();
     @state() private hovered?: string;
+    /** Whether the Source's Details show: hidden until asked for, then kept across specs. */
+    @state() private sourceOpen = false;
     private lastOpened?: string;
 
     private format?: ReportFormat;
@@ -216,12 +218,13 @@ export class ReportView extends LitElement {
                 </section>`;
             case 'Source': {
                 const open = element.on?.open;
-                return renderSource(
-                    element.props,
+                return renderSource(element.props, {
                     format,
-                    open ? event => this.open(event, { url: open.params.url }) : undefined,
-                    this.link
-                );
+                    open: this.sourceOpen,
+                    onToggle: () => (this.sourceOpen = !this.sourceOpen),
+                    onOpen: open ? event => this.open(event, { url: open.params.url }) : undefined,
+                    link: this.link,
+                });
             }
             case 'Report':
                 return nothing;

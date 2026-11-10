@@ -122,6 +122,7 @@
     "source_calculated": "محاسبه‌شده توسط Report",
     "source_calculated_note": "گروه‌های ورودی منهای گروه‌های خروجی. گروهی اضافه کنید که هر دو را در بر بگیرد تا Bkper نتیجه خالص را محاسبه کند.",
     "source_data_at": "زمان خواندن مانده‌ها",
+    "source_details": "جزئیات",
     "source_footer": "محاسبه‌شده از مانده‌های {book}",
     "source_label": "منبع",
     "source_open_in_bkper": "باز کردن در Bkper",

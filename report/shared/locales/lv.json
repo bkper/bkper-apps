@@ -122,6 +122,7 @@
     "source_calculated": "Aprēķinājis Report",
     "source_calculated_note": "Ienākošo grupas mīnus izejošo grupas. Pievienojiet grupu, kas satur abas, un Bkper aprēķinās neto rezultātu.",
     "source_data_at": "Atlikumi nolasīti",
+    "source_details": "Sīkāka informācija",
     "source_footer": "Aprēķināts, pamatojoties uz {book} atlikumiem",
     "source_label": "Avots",
     "source_open_in_bkper": "Atvērt pakalpojumā Bkper",

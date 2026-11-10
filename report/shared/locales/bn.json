@@ -122,6 +122,7 @@
     "source_calculated": "Report দ্বারা গণনা করা হয়েছে",
     "source_calculated_note": "আগত গ্রুপ বিয়োগ নির্গত গ্রুপ। উভয়কে ধারণ করে এমন একটি গ্রুপ যোগ করুন, এবং Bkper নিট ফলাফল হিসাব করবে।",
     "source_data_at": "ব্যালেন্স পড়ার সময়",
+    "source_details": "বিস্তারিত",
     "source_footer": "{book}-এর ব্যালেন্স থেকে গণনা করা হয়েছে",
     "source_label": "উৎস",
     "source_open_in_bkper": "Bkper-এ খুলুন",

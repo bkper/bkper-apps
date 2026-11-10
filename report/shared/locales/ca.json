@@ -122,6 +122,7 @@
     "source_calculated": "Calculat per Report",
     "source_calculated_note": "Grups d'Entrada menys grups de Sortida. Afegeix un grup que contingui tots dos i Bkper calcularà el resultat net.",
     "source_data_at": "Saldos llegits",
+    "source_details": "Detalls",
     "source_footer": "Calculat a partir dels saldos de {book}",
     "source_label": "Font",
     "source_open_in_bkper": "Obrir a Bkper",

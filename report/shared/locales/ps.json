@@ -122,6 +122,7 @@
     "source_calculated": "د Report لخوا محاسبه شوی",
     "source_calculated_note": "د ورتلونکو ډلې منفي د وتلونکو ډلې. یوه ډله ورزیاتوئ چې دواړه ولري، او Bkper به خالص پایله محاسبه کړي.",
     "source_data_at": "د پاتې شمېرو لوستلو وخت",
+    "source_details": "جزئيات",
     "source_footer": "د {book} له پاتې شمېرونو محاسبه شوی",
     "source_label": "سرچینه",
     "source_open_in_bkper": "په Bkper کې پرانیستل",

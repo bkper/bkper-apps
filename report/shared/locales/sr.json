@@ -122,6 +122,7 @@
     "source_calculated": "Израчунао Report",
     "source_calculated_note": "Групе прилива минус групе одлива. Додајте групу која садржи обе, а Bkper израчунава нето резултат.",
     "source_data_at": "Стања прочитана",
+    "source_details": "Детаљи",
     "source_footer": "Израчунато из стања књиге {book}",
     "source_label": "Извор",
     "source_open_in_bkper": "Отвори у Bkper-у",

@@ -122,6 +122,7 @@
     "source_calculated": "Berekkene troch Report",
     "source_calculated_note": "Yngong-groepen minus Útgong-groepen. Foegje in groep ta dy't beide befettet, dan berekkent Bkper it netto resultaat.",
     "source_data_at": "Saldo's lêzen",
+    "source_details": "Details",
     "source_footer": "Berekkene út de saldo's fan {book}",
     "source_label": "Boarne",
     "source_open_in_bkper": "Iepenje yn Bkper",

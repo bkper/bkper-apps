@@ -122,6 +122,7 @@
     "source_calculated": "Υπολογίστηκε από το Report",
     "source_calculated_note": "Ομάδες Εισροής μείον ομάδες Εκροής. Πρόσθεσε μια ομάδα που περιέχει και τις δύο, και το Bkper υπολογίζει το καθαρό αποτέλεσμα.",
     "source_data_at": "Υπόλοιπα που διαβάστηκαν",
+    "source_details": "Λεπτομέρειες",
     "source_footer": "Υπολογίστηκε από τα υπόλοιπα του {book}",
     "source_label": "Πηγή",
     "source_open_in_bkper": "Άνοιγμα στο Bkper",

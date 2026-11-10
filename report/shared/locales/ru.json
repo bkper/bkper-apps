@@ -122,6 +122,7 @@
     "source_calculated": "Рассчитано приложением Report",
     "source_calculated_note": "Группы поступлений минус группы выбытий. Добавьте группу, содержащую обе, и Bkper рассчитает чистый результат.",
     "source_data_at": "Остатки считаны",
+    "source_details": "Подробности",
     "source_footer": "Рассчитано по остаткам книги {book}",
     "source_label": "Источник",
     "source_open_in_bkper": "Открыть в Bkper",

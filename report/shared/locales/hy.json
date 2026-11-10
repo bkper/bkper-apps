@@ -122,6 +122,7 @@
     "source_calculated": "Հաշվարկվել է Report-ի կողմից",
     "source_calculated_note": "Մուտք խմբերը հանած Ելք խմբերը։ Ավելացրեք մի խումբ, որը պարունակում է երկուսն էլ, և Bkper-ը կհաշվարկի զուտ արդյունքը։",
     "source_data_at": "Մնացորդները կարդացվել են",
+    "source_details": "Մանրամասներ",
     "source_footer": "Հաշվարկված է {book}-ի մնացորդներից",
     "source_label": "Աղբյուր",
     "source_open_in_bkper": "Բացել Bkper-ում",

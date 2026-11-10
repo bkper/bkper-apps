@@ -122,6 +122,7 @@
     "source_calculated": "Cyfrifwyd gan Report",
     "source_calculated_note": "Grwpiau Mewnlif namyn grwpiau Alllif. Ychwanegwch grŵp sy'n dal y ddau, a bydd Bkper yn cyfrifo'r canlyniad net.",
     "source_data_at": "Balansau wedi'u darllen",
+    "source_details": "Manylion",
     "source_footer": "Wedi'i gyfrifo o falansau {book}",
     "source_label": "Ffynhonnell",
     "source_open_in_bkper": "Agor yn Bkper",

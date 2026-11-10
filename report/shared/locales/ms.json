@@ -122,6 +122,7 @@
     "source_calculated": "Dikira oleh Report",
     "source_calculated_note": "Kumpulan Masuk tolak kumpulan Keluar. Tambah kumpulan yang memuatkan kedua-duanya, dan Bkper akan mengira hasil bersih.",
     "source_data_at": "Baki dibaca",
+    "source_details": "Butiran",
     "source_footer": "Dikira daripada baki {book}",
     "source_label": "Sumber",
     "source_open_in_bkper": "Buka dalam Bkper",

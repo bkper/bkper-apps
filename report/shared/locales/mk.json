@@ -122,6 +122,7 @@
     "source_calculated": "Пресметано од Report",
     "source_calculated_note": "Групите Прилив минус групите Одлив. Додај група што ги содржи двете, и Bkper ќе го пресмета нето резултатот.",
     "source_data_at": "Салдата прочитани",
+    "source_details": "Детали",
     "source_footer": "Пресметано од салдата на {book}",
     "source_label": "Извор",
     "source_open_in_bkper": "Отвори во Bkper",

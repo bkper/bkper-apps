@@ -12,7 +12,8 @@
  * `<!doctype html>` and Content-Security-Policy, styled as the Agent styles it, while every
  * request is blocked. It checks there are no requests, no policy violations and no console
  * errors; that the answer, the chart and the link to the Report app show; that a net result
- * Report calculated is labelled so in the Source, and nothing else is; that a row opens
+ * Report calculated is labelled so in the Source, and nothing else is; that the Source is one
+ * line, its Details closed until opened and the link at its end; that a row opens
  * in place; that values written into texts, such as dates, read in the report's direction;
  * that a click on a chart's preview shows that chart in place of the main one, with no network,
  * and the link then opens it (the time each switch takes is reported); that previews sit beside
@@ -328,11 +329,11 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
             `The Source shows ${JSON.stringify(shownCalculated)} as calculated by Report, not ${JSON.stringify(calculated)}`
         );
     }
-    const link = frame.locator('report-view .source-footer a');
+    const link = frame.locator('report-view .source-line a');
     if ((await link.count()) !== 1 || !isReportAppLink(await link.getAttribute('href'))) {
         failures.push('The Source has no single link to the Report app');
     }
-    const toggle = frame.locator('report-view button.toggle').first();
+    const toggle = frame.locator('report-view tbody button.toggle').first();
     if ((await toggle.count()) > 0) {
         const rows = await frame.locator('report-view tbody tr').count();
         await toggle.click();
@@ -355,8 +356,48 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
             failures.push('Hovering the chart shows no tooltip');
         }
     }
+    // Read with the Source's Details open, so its dates and footer are read too.
+    failures.push(...(await checkSourceDetails(frame)));
     failures.push(...(await frame.evaluate(readingOrder)));
     failures.push(...(await checkPreviewKeyboard(frame)));
+    return failures;
+}
+
+/**
+ * The Source is one line, Details at its start and the link at its end, in the report's
+ * direction; Details start closed and open in place, showing the period, query, time read and
+ * Book. Leaves them open.
+ */
+async function checkSourceDetails(frame: Frame): Promise<string[]> {
+    const failures: string[] = [];
+    const details = frame.locator('report-view .source-line .source-toggle');
+    const panel = frame.locator('report-view .source-details');
+    if ((await details.count()) !== 1 || (await panel.count()) !== 1) {
+        return ['The Source has no single Details on its line'];
+    }
+    if ((await details.getAttribute('aria-expanded')) !== 'false' || (await panel.isVisible())) {
+        failures.push('The Source opens with its Details shown');
+    }
+    const link = frame.locator('report-view .source-line a');
+    const [start, end] = [await details.boundingBox(), await link.boundingBox()];
+    const rtl = (await frame.locator('report-view article').getAttribute('dir')) === 'rtl';
+    const sameLine =
+        start && end && Math.abs(start.y + start.height / 2 - (end.y + end.height / 2)) < 4;
+    const inOrder =
+        start && end && (rtl ? start.x >= end.x + end.width : start.x + start.width <= end.x);
+    if (!sameLine || !inOrder) {
+        failures.push("Details and the link are not on one line, in the report's direction");
+    }
+    await details.click();
+    const shown = (await frame.locator('report-view .source-details dt').allTextContents()).length;
+    if (
+        (await details.getAttribute('aria-expanded')) !== 'true' ||
+        !(await panel.isVisible()) ||
+        shown !== 3 ||
+        !(await frame.locator('report-view .source-details .source-footer').isVisible())
+    ) {
+        failures.push('Opening Details did not show the period, query, time read and Book');
+    }
     return failures;
 }
 
@@ -521,7 +562,7 @@ async function checkChoice(
         () => JSON.parse(document.getElementById('report-data')?.textContent ?? '{}') as unknown
     );
     const chosen = (data as Partial<ReportFileData>).open?.charts?.[kind as ViewKind];
-    const href = await frame.locator('report-view .source-footer a').getAttribute('href');
+    const href = await frame.locator('report-view .source-line a').getAttribute('href');
     if (chosen && (!href || new URL(href).searchParams.get('state') !== chosen)) {
         failures.push(`After choosing ${kind}, the link does not open it: ${href}`);
     }
@@ -557,7 +598,7 @@ async function checkNavigation(page: Page, frame: Frame, chosen?: string): Promi
     });
     const clicks = () =>
         frame.evaluate(() => (window as Window & { clicks?: boolean[] }).clicks ?? []);
-    const link = frame.locator('report-view .source-footer a');
+    const link = frame.locator('report-view .source-line a');
 
     await link.click();
     if ((await clicks())[0] !== false || (await messages()).length > 0) {

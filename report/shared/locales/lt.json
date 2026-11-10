@@ -122,6 +122,7 @@
     "source_calculated": "Apskaičiavo Report",
     "source_calculated_note": "Įeinančių grupės minus išeinančių grupės. Pridėkite grupę, kurioje yra abi, ir Bkper apskaičiuos grynąjį rezultatą.",
     "source_data_at": "Likučiai nuskaityti",
+    "source_details": "Išsami informacija",
     "source_footer": "Apskaičiuota pagal {book} likučius",
     "source_label": "Šaltinis",
     "source_open_in_bkper": "Atidaryti Bkper",

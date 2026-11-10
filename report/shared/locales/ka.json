@@ -122,6 +122,7 @@
     "source_calculated": "გამოთვლილია Report-ის მიერ",
     "source_calculated_note": "შემომავალი ჯგუფები გამოკლებული გამავალი ჯგუფები. დაამატეთ ჯგუფი, რომელიც ორივეს შეიცავს, და Bkper გამოითვლის წმინდა შედეგს.",
     "source_data_at": "ბალანსები წაკითხულია",
+    "source_details": "დეტალები",
     "source_footer": "გამოთვლილია {book}-ის ბალანსებიდან",
     "source_label": "წყარო",
     "source_open_in_bkper": "Bkper-ში გახსნა",

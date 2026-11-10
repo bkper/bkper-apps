@@ -122,6 +122,7 @@
     "source_calculated": "Llogaritur nga Report",
     "source_calculated_note": "Grupet e Hyrjeve minus grupet e Daljeve. Shtoni një grup që i përmban të dyja dhe Bkper llogarit rezultatin neto.",
     "source_data_at": "Gjendjet u lexuan më",
+    "source_details": "Detajet",
     "source_footer": "Llogaritur nga gjendjet e {book}",
     "source_label": "Burimi",
     "source_open_in_bkper": "Hapeni në Bkper",

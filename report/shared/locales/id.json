@@ -122,6 +122,7 @@
     "source_calculated": "Dihitung oleh Report",
     "source_calculated_note": "Grup Masuk dikurangi grup Keluar. Tambahkan grup yang memuat keduanya, dan Bkper akan menghitung hasil bersihnya.",
     "source_data_at": "Saldo dibaca",
+    "source_details": "Detail",
     "source_footer": "Dihitung dari saldo {book}",
     "source_label": "Sumber",
     "source_open_in_bkper": "Buka di Bkper",

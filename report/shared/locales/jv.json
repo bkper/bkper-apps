@@ -122,6 +122,7 @@
     "source_calculated": "Diitung dening Report",
     "source_calculated_note": "Grup Mlebu dikurangi grup Metu. Tambahna grup sing ngemot loro-lorone, lan Bkper bakal ngitung asil bersih.",
     "source_data_at": "Saldo diwaca",
+    "source_details": "Rincian",
     "source_footer": "Diitung saka saldo {book}",
     "source_label": "Sumber",
     "source_open_in_bkper": "Bukak ing Bkper",

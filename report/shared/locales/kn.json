@@ -122,6 +122,7 @@
     "source_calculated": "Report ಲೆಕ್ಕಹಾಕಿದೆ",
     "source_calculated_note": "ಒಳಹರಿವು ಗುಂಪುಗಳು ಮೈನಸ್ ಹೊರಹರಿವು ಗುಂಪುಗಳು. ಎರಡನ್ನೂ ಹೊಂದಿರುವ ಗುಂಪನ್ನು ಸೇರಿಸಿ, ಆಗ Bkper ನಿವ್ವಳ ಫಲಿತಾಂಶವನ್ನು ಲೆಕ್ಕಹಾಕುತ್ತದೆ.",
     "source_data_at": "ಬಾಕಿಗಳನ್ನು ಓದಿದ ಸಮಯ",
+    "source_details": "ವಿವರಗಳು",
     "source_footer": "{book} ನ ಬಾಕಿಗಳಿಂದ ಲೆಕ್ಕಹಾಕಲಾಗಿದೆ",
     "source_label": "ಮೂಲ",
     "source_open_in_bkper": "Bkper ನಲ್ಲಿ ತೆರೆಯಿರಿ",

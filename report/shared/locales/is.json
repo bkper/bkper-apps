@@ -122,6 +122,7 @@
     "source_calculated": "Reiknað af Report",
     "source_calculated_note": "Innflæðishópar að frádregnum útflæðishópum. Bættu við hópi sem inniheldur bæði og Bkper reiknar nettó niðurstöðuna.",
     "source_data_at": "Stöður lesnar",
+    "source_details": "Nánar",
     "source_footer": "Reiknað út frá stöðu {book}",
     "source_label": "Heimild",
     "source_open_in_bkper": "Opna í Bkper",

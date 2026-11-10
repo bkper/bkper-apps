@@ -122,6 +122,7 @@
     "source_calculated": "Gikalkula sa Report",
     "source_calculated_note": "Mga grupo sa Mosulod minus mga grupo sa Mogawas. Magdugang og grupo nga naglangkob sa duha, ug kuwentahon sa Bkper ang net nga resulta.",
     "source_data_at": "Gibasa ang mga balanse",
+    "source_details": "Mga detalye",
     "source_footer": "Gikuwenta gikan sa mga balanse sa {book}",
     "source_label": "Tinubdan",
     "source_open_in_bkper": "Ablihi sa Bkper",

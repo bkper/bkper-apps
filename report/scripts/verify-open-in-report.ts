@@ -354,7 +354,7 @@ async function main(): Promise<void> {
         );
         if (!fileChosen) throw new Error(`No state for ${fileChart}`);
 
-        await fileFrame.locator('report-view .source-footer a').click();
+        await fileFrame.locator('report-view .source-line a').click();
         await page.waitForURL(url => url.searchParams.get('app') === 'report', {
             timeout: TIMEOUT_MS,
         });

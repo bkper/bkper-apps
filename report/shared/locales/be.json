@@ -122,6 +122,7 @@
     "source_calculated": "Разлічана праграмай Report",
     "source_calculated_note": "Групы Прыход мінус групы Расход. Дадайце групу, якая ўключае абедзве, і Bkper разлічыць чысты вынік.",
     "source_data_at": "Балансы лічаны",
+    "source_details": "Падрабязнасці",
     "source_footer": "Падлічана па балансах Кнігі {book}",
     "source_label": "Крыніца",
     "source_open_in_bkper": "Адкрыць у Bkper",

@@ -122,6 +122,7 @@
     "source_calculated": "Dietung ku Report",
     "source_calculated_note": "Grup Asup dikurangan grup Kaluar. Tambahkeun grup anu ngandung duanana, tuluy Bkper bakal ngitung hasil bersihna.",
     "source_data_at": "Saldo dibaca",
+    "source_details": "Rincian",
     "source_footer": "Dihitung tina saldo {book}",
     "source_label": "Sumber",
     "source_open_in_bkper": "Buka dina Bkper",

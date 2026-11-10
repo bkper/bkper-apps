@@ -122,6 +122,7 @@
     "source_calculated": "Kalkulita de Report",
     "source_calculated_note": "Grupoj de Eniro minus grupoj de Eliro. Aldonu grupon, kiu enhavas ambaŭ, kaj Bkper kalkulos la netan rezulton.",
     "source_data_at": "Saldoj legitaj",
+    "source_details": "Detaloj",
     "source_footer": "Kalkulita el la saldoj de {book}",
     "source_label": "Fonto",
     "source_open_in_bkper": "Malfermi en Bkper",

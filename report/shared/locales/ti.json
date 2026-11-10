@@ -122,6 +122,7 @@
     "source_calculated": "ብReport ተሰሊዑ",
     "source_calculated_note": "ጉጅላት መእተዊ ሲቀነስ ጉጅላት መውጽኢ። ኣብ ክልቲኡ ዝሓዘ ጉጅለ ወስኽ፣ Bkper ድማ ጽሩይ ውጽኢት የሰልዮ።",
     "source_data_at": "ሚዛናት ዝተነበበሉ",
+    "source_details": "ዝርዝራት",
     "source_footer": "ካብ ሚዛናት {book} ዝተሓሰበ",
     "source_label": "ምንጪ",
     "source_open_in_bkper": "ኣብ Bkper ክፈት",

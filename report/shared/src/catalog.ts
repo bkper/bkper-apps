@@ -364,6 +364,11 @@ export const SourceProps = z.strictObject({
         query: Text,
         dataAt: Text,
         open: Text,
+        /**
+         * The control that shows the period, query, time read and footer, which are hidden
+         * until asked for. Specs written before it have none; renderers then use `source`.
+         */
+        details: Text.optional(),
     }),
 });
 

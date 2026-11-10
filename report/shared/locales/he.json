@@ -122,6 +122,7 @@
     "source_calculated": "חושב על ידי Report",
     "source_calculated_note": "קבוצות נכנס פחות קבוצות יוצא. הוספת קבוצה שמכילה את שתיהן, ו-Bkper יחשב את התוצאה נטו.",
     "source_data_at": "קריאת היתרות",
+    "source_details": "פרטים",
     "source_footer": "חושב מתוך היתרות של {book}",
     "source_label": "מקור",
     "source_open_in_bkper": "פתיחה ב-Bkper",

@@ -122,6 +122,7 @@
     "source_calculated": "Obliczone przez Report",
     "source_calculated_note": "Grupy wpływów minus grupy wypływów. Dodaj grupę, która zawiera obie, a Bkper obliczy wynik netto.",
     "source_data_at": "Czas odczytu sald",
+    "source_details": "Szczegóły",
     "source_footer": "Obliczono na podstawie sald księgi {book}",
     "source_label": "Źródło",
     "source_open_in_bkper": "Otwórz w Bkper",

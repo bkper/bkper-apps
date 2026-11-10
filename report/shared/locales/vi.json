@@ -122,6 +122,7 @@
     "source_calculated": "Được tính bởi Report",
     "source_calculated_note": "Các nhóm Khoản vào trừ các nhóm Khoản ra. Hãy thêm một nhóm chứa cả hai, và Bkper sẽ tính kết quả ròng.",
     "source_data_at": "Số dư được đọc lúc",
+    "source_details": "Chi tiết",
     "source_footer": "Được tính từ số dư của {book}",
     "source_label": "Nguồn",
     "source_open_in_bkper": "Mở trong Bkper",

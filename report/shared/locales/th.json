@@ -122,6 +122,7 @@
     "source_calculated": "คำนวณโดย Report",
     "source_calculated_note": "กลุ่มรายการเข้า ลบ กลุ่มรายการออก เพิ่มกลุ่มที่รวมทั้งสองไว้ แล้ว Bkper จะคำนวณผลลัพธ์สุทธิให้",
     "source_data_at": "อ่านยอดคงเหลือเมื่อ",
+    "source_details": "รายละเอียด",
     "source_footer": "คำนวณจากยอดคงเหลือของ {book}",
     "source_label": "แหล่งที่มา",
     "source_open_in_bkper": "เปิดใน Bkper",

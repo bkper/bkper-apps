@@ -213,7 +213,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -419,7 +420,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -649,7 +651,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -895,7 +898,8 @@
                             "period": "Período",
                             "query": "Consulta",
                             "dataAt": "Saldos lidos em",
-                            "open": "Abrir no Bkper"
+                            "open": "Abrir no Bkper",
+                            "details": "Detalhes"
                         }
                     },
                     "on": {
@@ -1235,7 +1239,8 @@
                             "period": "الفترة",
                             "query": "استعلام",
                             "dataAt": "وقت قراءة الأرصدة",
-                            "open": "افتح في Bkper"
+                            "open": "افتح في Bkper",
+                            "details": "التفاصيل"
                         }
                     },
                     "on": {
@@ -1331,7 +1336,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -1493,7 +1499,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -1658,7 +1665,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -2016,7 +2024,8 @@
                             "period": "תקופה",
                             "query": "שאילתה",
                             "dataAt": "קריאת היתרות",
-                            "open": "פתיחה ב-Bkper"
+                            "open": "פתיחה ב-Bkper",
+                            "details": "פרטים"
                         }
                     },
                     "on": {
@@ -2246,7 +2255,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -2475,7 +2485,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -2699,7 +2710,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {
@@ -2906,7 +2918,8 @@
                             "period": "Period",
                             "query": "Query",
                             "dataAt": "Balances read",
-                            "open": "Open in Bkper"
+                            "open": "Open in Bkper",
+                            "details": "Details"
                         }
                     },
                     "on": {

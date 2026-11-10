@@ -122,6 +122,7 @@
     "source_calculated": "Laskenut Report",
     "source_calculated_note": "Saapuvat ryhmät miinus lähtevät ryhmät. Lisää ryhmä, joka sisältää molemmat, niin Bkper laskee nettotuloksen.",
     "source_data_at": "Saldot luettu",
+    "source_details": "Lisätiedot",
     "source_footer": "Laskettu kirjan {book} saldoista",
     "source_label": "Lähde",
     "source_open_in_bkper": "Avaa Bkperissä",

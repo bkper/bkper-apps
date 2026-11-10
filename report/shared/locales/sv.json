@@ -122,6 +122,7 @@
     "source_calculated": "Beräknat av Report",
     "source_calculated_note": "Inflödesgrupper minus utflödesgrupper. Lägg till en grupp som innehåller båda, så beräknar Bkper nettoresultatet.",
     "source_data_at": "Saldon lästes",
+    "source_details": "Detaljer",
     "source_footer": "Beräknat från saldona i {book}",
     "source_label": "Källa",
     "source_open_in_bkper": "Öppna i Bkper",

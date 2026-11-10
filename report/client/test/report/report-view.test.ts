@@ -175,6 +175,9 @@ describe('<report-view>', () => {
         expect(calculated).toBeDefined();
         expect(text(view, '.source-calculated dt')).toEqual([calculated?.label]);
         expect(text(view, '.source-calculated dd')).toEqual([calculated?.note]);
+        // Not hidden in the Source's Details, which start closed.
+        expect(root(view).querySelector('.source-details .source-calculated')).toBeNull();
+        expect(root(view).querySelector('.source-calculated')?.closest('[hidden]')).toBeNull();
         // Bkper's own amounts say nothing of the kind.
         const group = await mount(gallerySpec('net-result-group'));
         expect(text(group, '.source-calculated')).toEqual([]);
@@ -272,6 +275,59 @@ describe('<report-view>', () => {
         root(view).querySelector('tbody')?.dispatchEvent(new Event('pointerleave'));
         await view.updateComplete;
         expect(row(view, 'g-office').classList.contains('highlighted')).toBe(true);
+    });
+
+    it('shows the Source on one line, its Details hidden until asked for', async () => {
+        const spec = gallerySpec('expenses-by-month');
+        const source = elementOf(spec, 'Source').props;
+        const view = await mount(spec);
+        const toggle = root(view).querySelector<HTMLButtonElement>('.source-line .source-toggle');
+        const panel = root(view).querySelector<HTMLElement>('.source-details');
+        expect(toggle?.textContent?.trim()).toBe(source.labels.details);
+        expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+        expect(toggle?.getAttribute('aria-controls')).toBe(panel?.id);
+        expect(panel?.hidden).toBe(true);
+        // The link to Bkper is on the same line, after Details.
+        expect(text(view, '.source-line > *')).toEqual([source.labels.details, source.labels.open]);
+
+        toggle?.click();
+        await view.updateComplete;
+        expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+        expect(panel?.hidden).toBe(false);
+        expect(text(view, '.source-details dt')).toEqual([
+            source.labels.period,
+            source.labels.query,
+            source.labels.dataAt,
+        ]);
+        expect(text(view, '.source-details code')).toEqual([source.query]);
+        expect(text(view, '.source-details .source-footer')).toEqual([source.footer]);
+
+        // A changed report keeps them open, as it keeps rows open.
+        view.spec = gallerySpec('taxes-donut');
+        await view.updateComplete;
+        expect(root(view).querySelector('.source-details')?.hasAttribute('hidden')).toBe(false);
+
+        toggle?.click();
+        await view.updateComplete;
+        expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+        expect(panel?.hidden).toBe(true);
+    });
+
+    it('names Details by the Source label in specs written before they had one', async () => {
+        const spec = gallerySpec('expenses-by-month');
+        const source = spec.elements.source;
+        if (source?.type !== 'Source') {
+            throw new Error('Expected a Source');
+        }
+        const { details: _details, ...labels } = source.props.labels;
+        const view = await mount({
+            ...spec,
+            elements: {
+                ...spec.elements,
+                source: { ...source, props: { ...source.props, labels } },
+            },
+        });
+        expect(text(view, '.source-toggle')).toEqual([source.props.labels.source]);
     });
 
     it('lets the host handle the link to Bkper', async () => {

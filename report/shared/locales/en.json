@@ -122,6 +122,7 @@
     "source_calculated": "Calculated by Report",
     "source_calculated_note": "Incoming groups minus Outgoing groups. Add a group that holds both, and Bkper calculates the net result.",
     "source_data_at": "Balances read",
+    "source_details": "Details",
     "source_footer": "Computed from the balances of {book}",
     "source_label": "Source",
     "source_open_in_bkper": "Open in Bkper",

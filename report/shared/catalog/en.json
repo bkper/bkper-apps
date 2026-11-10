@@ -509,6 +509,11 @@
         "role": "heading",
         "context": "Heading of the section at the end of a report that states where its numbers come from: the Book, the period, the exact Bkper query and when the balances were read. One short noun."
     },
+    "source_details": {
+        "text": "Details",
+        "role": "button",
+        "context": "Button on the line at the end of a report, opposite the link 'Open in Bkper', that shows or hides where the report's numbers come from: its exact dates, the Bkper query, when the balances were read and the Book. One short noun, as on a disclosure control; not an imperative."
+    },
     "source_footer": {
         "text": "Computed from the balances of {book}",
         "role": "message",

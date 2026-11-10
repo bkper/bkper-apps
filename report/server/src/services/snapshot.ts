@@ -28,6 +28,8 @@ export interface SnapshotNode {
 
 export interface SnapshotGroup extends SnapshotNode {
     parent?: string;
+    /** Hidden in the Book, by the people who keep it; absent when shown. */
+    hidden?: true;
     /** Subgroup ids, then account ids, each by name (see {@link byName}), as Bkper lists balances. */
     groups: string[];
     accounts: string[];
@@ -133,6 +135,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
             credit: group.isCredit() ?? false,
             permanent: group.isPermanent() ?? false,
             ...(parent === undefined ? {} : { parent }),
+            ...(group.isHidden() ? { hidden: true as const } : {}),
             groups: [],
             accounts: [],
         };

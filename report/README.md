@@ -78,7 +78,7 @@ Owners and editors get **Organize with Agent**: it opens the Bkper Agent in the 
 ## Good to know
 
 - **Up to two minutes behind.** Report keeps balances and reports for up to a minute each, so a transaction posted in the last two minutes may not show yet.
-- **Bkper AI allowance.** Typed requests and saved requests use it, including the saved request Report opens with; suggested reports and names do not.
+- **Bkper AI allowance.** Typed requests and saved requests use it, including the saved request Report opens with. Suggested reports use it once each time your Book's groups change, to choose which matter most; names never do.
 - **What you share.** Report sends your request to Bkper AI to read it. A saved request is visible to all the Book's collaborators, and a report link contains its request.
 - **Who can use it.** Anyone who can view the Book's balances.
 
@@ -100,7 +100,7 @@ OpenAPI:    https://report.bkper.app/openapi.json
 | Operation | Route | Effect |
 | --- | --- | --- |
 | Build a report | `POST /api/v1/books/{bookId}/report` | One interactive HTML file (`"format": "html"`), or the JSON Report's web client renders (default). Read-only |
-| Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, without AI |
+| Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, the main one first |
 | List names | `GET /api/v1/books/{bookId}/names` | The Book's group and Account names |
 | List saved requests | `GET /api/v1/books/{bookId}/reports` | The Book's shared requests in their order, and what the person may do with them |
 | Save a request | `POST /api/v1/books/{bookId}/reports` | Owner or editor. Writes app metadata only |

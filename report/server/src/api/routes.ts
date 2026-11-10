@@ -65,7 +65,7 @@ const suggestionsRoute = createRoute({
     tags: ['Reports'],
     summary: 'Suggest reports of a Book',
     description:
-        'Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.',
+        'Up to three reports this Book can have, the main one first, each as a request a person would type and its `intent`: the Book’s groups at its first two levels, each as its natural report (income and expenses together this year, income or expenses by month, balances today), ranked by Bkper AI once each time the groups change. Periods: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.',
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
@@ -235,6 +235,8 @@ export function registerApiRoutes(app: App): void {
         const opening = await readOpening(snapshot, lang, {
             loadBalances: bookBalances(context, bookId, snapshot, userId),
             timing: context.timing,
+            decisions: context.decisions,
+            cache: context.env.KV,
         });
         return c.json(opening, 200);
     });
@@ -263,6 +265,7 @@ export function registerApiRoutes(app: App): void {
                 decisions: context.decisions,
                 loadBalances: bookBalances(context, bookId, snapshot, userId),
                 timing: context.timing,
+                cache: context.env.KV,
             }
         );
         const { text, ...report } = result;

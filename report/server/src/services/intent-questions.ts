@@ -206,20 +206,28 @@ function rootOptions(snapshot: Snapshot): RootOption[] {
             description: NET_RESULT_CRITERION,
         });
     }
-    // Labels must be unique: a group may be named like a special option, or two long names
-    // may truncate alike.
     const taken = new Set(special.map(option => option.label.toLowerCase()));
     const names = Math.min(MAX_NAMES_PER_ROOT, Math.floor(MAX_NAMES / Math.max(1, groups.length)));
-    const options = groups.slice(0, MAX_CHOICE_OPTIONS - special.length).map(group => {
-        const name = truncate(group.name);
-        let label = name;
-        for (let n = 2; taken.has(label.toLowerCase()); n++) {
-            label = `${name} (${n})`;
-        }
-        taken.add(label.toLowerCase());
-        return { label, target: group.id, description: describeRoot(group, snapshot, names) };
-    });
+    const options = groups.slice(0, MAX_CHOICE_OPTIONS - special.length).map(group => ({
+        label: uniqueLabel(group.name, taken),
+        target: group.id,
+        description: describeRoot(group, snapshot, names),
+    }));
     return [...options, ...special];
+}
+
+/**
+ * A choice label for a name, unique among those `taken` (which it joins), ignoring case: a group
+ * may be named like a special option, or two long names may truncate alike.
+ */
+export function uniqueLabel(name: string, taken: Set<string>): string {
+    const truncated = truncate(name);
+    let label = truncated;
+    for (let n = 2; taken.has(label.toLowerCase()); n++) {
+        label = `${truncated} (${n})`;
+    }
+    taken.add(label.toLowerCase());
+    return label;
 }
 
 function describeRoot(root: SnapshotGroup, snapshot: Snapshot, limit: number): string {
@@ -228,7 +236,8 @@ function describeRoot(root: SnapshotGroup, snapshot: Snapshot, limit: number): s
     return `${natureDescription(root)}${contents}`;
 }
 
-function natureDescription(group: SnapshotGroup): string {
+/** How a group's nature reads to a person asking for a report. */
+export function natureDescription(group: SnapshotGroup): string {
     if (group.type === 'MIXED') {
         return group.permanent
             ? NATURE_DESCRIPTIONS.MIXED_PERMANENT
@@ -238,7 +247,7 @@ function natureDescription(group: SnapshotGroup): string {
 }
 
 /** Subgroups before accounts, level by level, each name once. */
-function descendantNames(root: SnapshotGroup, snapshot: Snapshot): string[] {
+export function descendantNames(root: SnapshotGroup, snapshot: Snapshot): string[] {
     const names = new Set<string>();
     const queue = [root];
     for (let group = queue.shift(); group; group = queue.shift()) {

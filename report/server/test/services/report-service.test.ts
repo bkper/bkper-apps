@@ -19,6 +19,10 @@ import {
     ledgerSnapshot,
     simpleRootsLedger,
 } from '../fixtures/snapshot-book';
+import { asksRanking, rankingResponse } from '../fixtures/suggestion-answers';
+
+/** The fixture's suggestions as Jev ranks them in these tests (`FIXTURE_RANKING`). */
+const RANKED = ['g-net', 'g-assets', 'g-expenses'];
 import { periodChoices } from '../fixtures/period-answers';
 
 /** The parts of a period id, as intents now hold them. */
@@ -91,7 +95,10 @@ function harness(
         events: [],
         options: {
             decisions: createDecisionClient({
-                fetch: async () => {
+                fetch: async (_url, init) => {
+                    if (asksRanking(init)) {
+                        return rankingResponse();
+                    }
                     state.jevCalls++;
                     state.events.push('jev');
                     // Answer only after anything started in parallel has started.
@@ -288,7 +295,7 @@ describe('createReport by intent', () => {
             harness().options
         ).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(NotAReportError);
-        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en') });
+        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en', RANKED) });
     });
 
     it('has no net result when no group combines Incoming and Outgoing and roots share accounts', async () => {
@@ -584,7 +591,7 @@ describe('createReport by prompt', () => {
         ).catch((e: unknown) => e);
 
         expect(error).toBeInstanceOf(NotAReportError);
-        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en') });
+        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en', RANKED) });
         expect(String(error)).not.toContain('weather');
     });
 
@@ -709,10 +716,10 @@ describe('createReport of a request that names no period', () => {
         const { suggestions } = error as NotAReportError;
         expect(suggestions.map(suggestion => suggestion.intent.period)).toEqual([
             p('2026'),
-            p('2026'),
             p('today'),
+            p('2026'),
         ]);
-        expect(suggestions[1].text).toBe('Expenses by month in 2026');
+        expect(suggestions[2].text).toBe('Expenses by month in 2026');
     });
 
     it('reads a position today, whenever it last moved, with no other query', async () => {

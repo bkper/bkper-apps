@@ -33,7 +33,7 @@
             "get": {
                 "tags": ["Reports"],
                 "summary": "Suggest reports of a Book",
-                "description": "Up to three reports this Book can have, each as a request a person would type and its `intent`, chosen by fixed rules from the Book’s groups and data: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.",
+                "description": "Up to three reports this Book can have, the main one first, each as a request a person would type and its `intent`: the Book’s groups at its first two levels, each as its natural report (income and expenses together this year, income or expenses by month, balances today), ranked by Bkper AI once each time the groups change. Periods: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.",
                 "parameters": [
                     {
                         "schema": {
@@ -757,7 +757,7 @@
                     "items": {
                         "$ref": "#/components/schemas/Suggestion"
                     },
-                    "description": "Up to three reports, chosen from the Book’s own groups and Accounts; none with a `problem`."
+                    "description": "Up to three reports of the Book’s own groups, the main one first; none with a `problem`."
                 },
                 "problem": {
                     "$ref": "#/components/schemas/BookProblem"

@@ -13,6 +13,7 @@ import { createApp } from '../../server/src/index';
 import { createDecisionClient } from '../../server/src/services/decision-client';
 import { snapshotKey } from '../../server/src/services/snapshot-loader';
 import { fixtureLedger, ledgerSnapshot } from '../../server/test/fixtures/snapshot-book';
+import { asksRanking, rankingResponse } from '../../server/test/fixtures/suggestion-answers';
 import { createTestEnv } from '../../server/test/test-env';
 
 export const WORKFLOW_PROMPT = 'Expenses last month';
@@ -112,6 +113,10 @@ export async function savedWorkflow() {
                             new BalancesReport(new Book({ id: book.id }), ledger.balances(query)),
                         decisions: createDecisionClient({
                             fetch: async (_url, init) => {
+                                // Ranking the suggestions is not a report's decision.
+                                if (asksRanking(init)) {
+                                    return rankingResponse();
+                                }
                                 const body = JSON.parse(String(init?.body)) as {
                                     state: { request: string; today: string };
                                 };

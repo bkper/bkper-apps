@@ -29,12 +29,13 @@ export interface SnapshotLoaderOptions {
 
 /**
  * One snapshot per user and Book: a cached snapshot is only served to the user it was read for.
- * `v6` snapshots are the Book's structure, its date format and which accounts have transactions
- * posted; `v5` ones lacked the date format, `v4` ones which accounts have transactions posted,
- * `v3` ones held the months with movements.
+ * `v7` snapshots are the Book's structure, which groups it hides, its date format and which
+ * accounts have transactions posted; `v6` ones lacked the hidden groups, `v5` ones the date
+ * format, `v4` ones which accounts have transactions posted, `v3` ones held the months with
+ * movements.
  */
 export function snapshotKey(userId: string, bookId: string): string {
-    return `snapshot:v6:${userId}:${bookId}`;
+    return `snapshot:v7:${userId}:${bookId}`;
 }
 
 /** The id of the current user, which every cache key needs: Dispatch passes no identity. */

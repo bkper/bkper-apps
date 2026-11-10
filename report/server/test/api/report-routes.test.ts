@@ -12,6 +12,7 @@ import type { FakeLedger } from '../fixtures/ledger';
 import { fixtureLedger, simpleRootsLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
 import { periodChoices } from '../fixtures/period-answers';
+import { asksRanking, rankingResponse } from '../fixtures/suggestion-answers';
 
 /** The parts of a period id, as intents now hold them. */
 function p(id: string): PeriodParts {
@@ -117,6 +118,8 @@ interface Harness {
     env: ReturnType<typeof createTestEnv>;
     bkper: FakeBkper;
     jevCalls: number;
+    /** Requests that ranked the suggestions. */
+    rankings: number;
     queries: string[];
 }
 
@@ -131,11 +134,16 @@ function harness(
         env: createTestEnv(),
         bkper: options.bkper ?? new FakeBkper(),
         jevCalls: 0,
+        rankings: 0,
         queries: [],
         app: createApp(c => {
             return new AppContext(state.bkper, c.env, {
                 decisions: createDecisionClient({
-                    fetch: async () => {
+                    fetch: async (_url, init) => {
+                        if (asksRanking(init)) {
+                            state.rankings++;
+                            return rankingResponse();
+                        }
                         state.jevCalls++;
                         return typeof jev === 'function' ? jev() : jevResponse(jev);
                     },
@@ -238,13 +246,23 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         expect(response.status).toBe(200);
         const body = (await response.json()) as { suggestions: { text: string }[] };
         expect(body.suggestions).toHaveLength(3);
+        // The report Jev ranks first: the Book's own net income.
         expect(body.suggestions[0]).toEqual({
-            text: 'Net result this year',
-            intent: { root: 'net-result', period: p('this_year'), monthly: false },
+            text: 'Net income this year',
+            intent: { root: 'g-net', period: p('this_year'), monthly: false },
         });
-        // This year has movements: the suggestions read only their reports' own queries (a
-        // position today never moves, so it reads none here), in parallel.
-        expect(timings(response)).toEqual(['user', 'kv', 'book', 'compute', 'balances', 'total']);
+        expect(test.rankings).toBe(1);
+        // Jev ranks the map once. This year has movements: the suggestions read only their
+        // reports' own queries (a position today never moves, so it reads none here), in parallel.
+        expect(timings(response)).toEqual([
+            'user',
+            'kv',
+            'book',
+            'jev',
+            'compute',
+            'balances',
+            'total',
+        ]);
         expect([...test.queries].sort()).toEqual([
             "group:'Expenses' after:$y before:$m+1 by:m",
             "group:'Expenses' after:$y-1 before:$m-11 by:m",
@@ -255,6 +273,8 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         const warm = await test.app.request(SUGGESTIONS_URL, {}, test.env);
         expect(warm.status).toBe(200);
         expect(test.bkper.bookLoads).toBe(1);
+        // The ranking of the same map is remembered: Jev is not asked again.
+        expect(test.rankings).toBe(1);
         expect(timings(warm)).toEqual(['user', 'kv', 'compute', 'total']);
         expect(test.queries).toHaveLength(4);
     });
@@ -270,15 +290,15 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
                 suggestions: { text: string; intent: unknown }[];
             };
             expect(suggestions.map(suggestion => suggestion.text)).toEqual([
-                'Net result in 2026',
-                'Expenses by month in 2026',
+                'Net income in 2026',
                 'Assets today',
+                'Expenses by month in 2026',
             ]);
             const read = test.queries.length;
 
             // Their reports, asked for by intent as the client prefetches them, show the
             // Book's data, from the balances the suggestions read.
-            const expenses = await post(test, { intent: suggestions[1].intent });
+            const expenses = await post(test, { intent: suggestions[2].intent });
             const body = (await expenses.json()) as { spec: ReportSpec };
             expect(elementOf(body.spec, 'Answer').props.amount).not.toBe('0');
             expect(test.queries).toHaveLength(read);
@@ -288,8 +308,8 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
     });
 
     it('writes suggestions in the requested language, else the accepted one', async () => {
-        addLocale('eo', { suggestion_net_result_this_year: 'Neta rezulto ĉi-jare' });
-        addLocale('ia', { suggestion_net_result_this_year: 'Resultato net iste anno' });
+        addLocale('eo', { suggestion_breakdown_this_year: '{root} ĉi-jare' });
+        addLocale('ia', { suggestion_breakdown_this_year: '{root} iste anno' });
         const test = harness();
         const first = async (url: string, headers: Record<string, string> = {}) => {
             const response = await test.app.request(url, { headers }, test.env);
@@ -298,10 +318,10 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         };
 
         expect(await first(`${SUGGESTIONS_URL}?language=eo`, { 'Accept-Language': 'ia' })).toBe(
-            'Neta rezulto ĉi-jare'
+            'Net income ĉi-jare'
         );
         expect(await first(SUGGESTIONS_URL, { 'Accept-Language': 'tlh, eo;q=0.5' })).toBe(
-            'Neta rezulto ĉi-jare'
+            'Net income ĉi-jare'
         );
     });
 

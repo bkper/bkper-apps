@@ -45,7 +45,10 @@ const NOTICES: Partial<Record<string, Notice>> = {
     upstream_error: 'error_upstream',
 };
 
-/** Notices that the suggestions answer: they need no AI and are reports of this Book. */
+/**
+ * Notices that the suggestions answer: they are reports of this Book, opened with no AI and
+ * listed even when Bkper AI is unavailable (in Book order).
+ */
 const SUGGESTING: ReadonlySet<Notice> = new Set([
     'hint_not_a_report',
     'error_ai_allowance_exhausted',

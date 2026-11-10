@@ -74,6 +74,16 @@ describe('buildSnapshot', () => {
         expect(Object.keys(accounts)).toHaveLength(8);
     });
 
+    it('marks the groups the Book hides, and only them', async () => {
+        const payload = structuredClone(bookPayload);
+        payload.groups = payload.groups?.map(group =>
+            group.id === 'g-card' ? { ...group, hidden: true } : group
+        );
+        const { groups } = await build(payload);
+        expect(groups['g-card'].hidden).toBe(true);
+        expect(Object.values(groups).filter(group => group.hidden)).toHaveLength(1);
+    });
+
     it('keeps the accounts in no group apart, with their nature', async () => {
         const { accounts, ungrouped } = await build();
         expect(ungrouped).toEqual({

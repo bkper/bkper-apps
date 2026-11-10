@@ -113,13 +113,14 @@ describe('loadSnapshot', () => {
     it('does not read a snapshot cached in an older shape', async () => {
         const kv = createTestEnv().KV;
         // v1 held amounts, v2 lacked the accounts in no group, v3 held months with movements,
-        // v4 lacked which accounts have transactions posted, v5 the Book's date format.
-        for (const version of ['v1', 'v2', 'v3', 'v4', 'v5']) {
+        // v4 lacked which accounts have transactions posted, v5 the Book's date format, v6 which
+        // groups the Book hides.
+        for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6']) {
             await kv.put(`snapshot:${version}:user-1:book-1`, JSON.stringify({ stale: true }));
         }
         const snapshot = await loadSnapshot('book-1', options(new FakeBkper(), kv));
         expect(snapshot).not.toHaveProperty('stale');
-        expect(snapshotKey('user-1', 'book-1')).toBe('snapshot:v6:user-1:book-1');
+        expect(snapshotKey('user-1', 'book-1')).toBe('snapshot:v7:user-1:book-1');
     });
 
     it('fails without caching when the Book fails to load', async () => {

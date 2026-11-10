@@ -33,7 +33,7 @@ import {
 import { reportIntentOf, type ReportIntent, type ReportIntentInput } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
-import { readSuggestions, type Suggestion } from './suggestions.js';
+import { readSuggestions, type Suggestion, type SuggestionStore } from './suggestions.js';
 import type { Timing } from './timing.js';
 
 /** The language of reports whose request names none and whose caller prefers none. */
@@ -58,6 +58,8 @@ export interface ReportServiceOptions {
     /** The balances of each query on the Book of the snapshot, in query order. */
     loadBalances: (queries: string[]) => Promise<QueryBalances[]>;
     timing: Timing;
+    /** Where the suggestions' ranking is remembered (see `suggestions.ts`). */
+    cache?: SuggestionStore;
 }
 
 /**

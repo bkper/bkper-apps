@@ -280,7 +280,7 @@ export const SuggestionsResponseSchema = z
     .object({
         suggestions: z.array(SuggestionSchema).openapi({
             description:
-                'Up to three reports, chosen from the Book’s own groups and Accounts; none with a `problem`.',
+                'Up to three reports of the Book’s own groups, the main one first; none with a `problem`.',
         }),
         problem: BookProblemSchema.optional(),
     })

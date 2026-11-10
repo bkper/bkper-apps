@@ -1442,6 +1442,32 @@ describe('Completing Book names in ReportPage', () => {
         expect(native(view).getAttribute('aria-expanded')).toBe('false');
     });
 
+    it('shows nothing for a request opened for the person until they type', async () => {
+        const names = deferred<BookName[]>();
+        const view = createPage({ namesApi: { names: () => names.promise } });
+        await ready(view);
+        await input(view).updateComplete;
+        // A reload, the Book or a chip writes the request; the input has the focus.
+        view.state.reports.choose('despesas com ca');
+        await settle(view);
+        native(view).focus();
+        native(view).dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }));
+        names.resolve(NAMES);
+        await view.state.names.loaded;
+        await view.updateComplete;
+        await view.updateComplete;
+        expect(native(view).value).toBe('despesas com ca');
+        expect(offered(view)).toEqual([]);
+
+        // A click is not typing.
+        input(view).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+        await view.updateComplete;
+        expect(offered(view)).toEqual([]);
+
+        await type(view, 'despesas com car');
+        expect(offered(view)).toEqual(['Car Account', 'Credit Card Account']);
+    });
+
     it('offers the names that arrive while typing', async () => {
         const names = deferred<BookName[]>();
         const view = createPage({ namesApi: { names: () => names.promise } });

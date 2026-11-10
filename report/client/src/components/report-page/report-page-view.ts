@@ -15,7 +15,7 @@ import type { OPEN_IN_BKPER, SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import { OPEN_SAVED_REPORT } from '../report-shelf';
 import '../report-shelf';
-import { NameCompletionController, type Caret } from './name-completion';
+import { NameCompletionController, type Caret, type CaretChange } from './name-completion';
 import { reportPageCSS } from './report-page-css';
 
 export type ReportPageState = Pick<
@@ -103,7 +103,7 @@ export class ReportPage extends LitElement {
         this.completion.follow(this.state.reports.text);
         // Names that arrive, or change, while the person types complete the word at the caret.
         if (this.completedFrom !== this.state.names.index && this.inputFocused) {
-            this.complete(false);
+            this.complete('none');
         }
     }
 
@@ -295,7 +295,7 @@ export class ReportPage extends LitElement {
         this.state.reports.input(this.input?.value ?? '');
         if (this.composing || (event instanceof InputEvent && event.isComposing)) {
             this.completion.close();
-        } else this.complete(true);
+        } else this.complete('typed');
     };
 
     private onKeyDown = (event: KeyboardEvent) => {
@@ -311,15 +311,15 @@ export class ReportPage extends LitElement {
 
     /** Keys that move the caret: the word at it may complete another name. */
     private onKeyUp = (event: KeyboardEvent) => {
-        if (CARET_KEYS.has(event.key) && !this.composing) this.complete(true);
+        if (CARET_KEYS.has(event.key) && !this.composing) this.complete('moved');
     };
 
     private onCaretMove = () => {
-        if (!this.composing) this.complete(true);
+        if (!this.composing) this.complete('moved');
     };
 
     private onFocus = () => {
-        if (!this.composing) this.complete(false);
+        if (!this.composing) this.complete('none');
     };
 
     private onBlur = () => this.completion.close();
@@ -331,14 +331,14 @@ export class ReportPage extends LitElement {
 
     private onCompositionEnd = () => {
         this.composing = false;
-        this.complete(true);
+        this.complete('typed');
     };
 
-    /** Find the names completing the word at the caret, from memory; `moved` by the person. */
-    private complete(moved: boolean): void {
+    /** Find the names completing the word at the caret, from memory, after what the person did. */
+    private complete(change: CaretChange): void {
         const { names } = this.state;
         this.completedFrom = names.index;
-        this.completion.update(names, this.caret(), moved);
+        this.completion.update(names, this.caret(), change);
     }
 
     /** The input's text and selection, while it has the focus. */

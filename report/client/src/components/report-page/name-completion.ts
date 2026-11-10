@@ -10,6 +10,9 @@ export interface CompletionSource {
     complete(text: string, caret: number): NameCompletion[];
 }
 
+/** What the person did: typed, moved the caret, or neither (focus, names arriving). */
+export type CaretChange = 'typed' | 'moved' | 'none';
+
 /** The text of the input and its selection, as the person left them. */
 export interface Caret {
     text: string;
@@ -30,6 +33,11 @@ export class NameCompletionController {
     active = -1;
     /** The request the names complete. */
     private text = '';
+    /**
+     * The person has typed this request: a request opened for them (a reload, the Book, a
+     * suggestion, a saved prompt) shows no names until they type in it.
+     */
+    private typing = false;
     /** Dismissed, or a name accepted: nothing shows until the person types or moves the caret. */
     private quiet = false;
 
@@ -43,13 +51,15 @@ export class NameCompletionController {
     }
 
     /**
-     * The request or its caret changed: offer the names completing the word at the caret. Typing
-     * or moving the caret (`moved`) undoes a dismissal; focusing again does not.
+     * The request or its caret changed: offer the names completing the word at the caret, once
+     * the person has typed in it. Typing or moving the caret undoes a dismissal; focusing again
+     * does not.
      */
-    update(source: CompletionSource, caret: Caret | undefined, moved: boolean): void {
-        if (moved) this.quiet = false;
+    update(source: CompletionSource, caret: Caret | undefined, change: CaretChange): void {
+        if (change === 'typed') this.typing = true;
+        if (change !== 'none') this.quiet = false;
         const items =
-            caret && !this.quiet && caret.start === caret.end
+            caret && this.typing && !this.quiet && caret.start === caret.end
                 ? source.complete(caret.text, caret.start)
                 : [];
         this.text = caret?.text ?? '';
@@ -70,7 +80,9 @@ export class NameCompletionController {
 
     /** Close the list when the request changed elsewhere (a suggestion, a saved report, a reset). */
     follow(text: string): void {
-        if (text !== this.text) this.close();
+        if (text === this.text) return;
+        this.typing = false;
+        this.close();
     }
 
     /** Write the name at `index` into the request in place of the text it completes. */

@@ -97,7 +97,7 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
-        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt`, it asks for the same report. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
+        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report, and `chart` shows it as another chart. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
         '',
         'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
@@ -272,7 +272,12 @@ export function registerApiRoutes(app: App): void {
         // The link keeps the person's own words; a report by intent opens with its own text.
         const url = reportAppUrl(c.req.url, bookId, body.prompt ?? report.text);
         if (body.format === 'html') {
-            const open = reportFileOpen(bookId, { ...report, charts: report.trace.chart });
+            const open = reportFileOpen(bookId, {
+                text: report.text,
+                language: report.language,
+                chart: report.intent.chart,
+                charts: report.trace.chart,
+            });
             const file = await context.timing.measure('render', async () =>
                 buildReportFile(report.spec, {
                     link: { url, label: t('source_open_in_report', report.language) },
@@ -335,12 +340,13 @@ export function registerApiRoutes(app: App): void {
 }
 
 /** The request of a validated body, which has exactly one of `prompt` and `intent`. */
-function reportRequest({ prompt, intent }: ReportRequestBody): ReportRequest {
+function reportRequest({ prompt, intent, chart }: ReportRequestBody): ReportRequest {
+    const options = chart ? { chart } : {};
     if (intent) {
-        return { intent };
+        return { intent, ...options };
     }
     if (prompt !== undefined) {
-        return { prompt };
+        return { prompt, ...options };
     }
     throw new HTTPException(400, { message: EXACTLY_ONE_REQUEST });
 }

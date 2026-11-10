@@ -1,22 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
-import { decodeReportState, encodeReportState } from 'report-shared/report-state';
-import { RELATIVE_PERIODS } from 'report-shared/report-intent';
 import {
     NET_RESULT_ROOT,
-    REPORT_CHARTS,
-    REPORT_VIEWS,
     ReportIntentSchema,
     reportIntentOf,
-    type ReportIntent,
 } from '../../src/services/report-intent';
-
-/** The parts of a period id, as intents now hold them. */
-function p(id: string): PeriodParts {
-    const request = periodRequestOf(id);
-    if (!request) throw new Error(`Not a period id: ${id}`);
-    return request.period;
-}
 
 describe('ReportIntentSchema', () => {
     it('accepts a minimal intent for a root group', () => {
@@ -168,38 +155,5 @@ describe('ReportIntentSchema periods as parts', () => {
         expect(
             reportIntentOf(ReportIntentSchema.parse({ ...old, period: '2017-Q2' })).period
         ).toEqual({ span: 'quarter', year: 2017, quarter: 2 });
-    });
-});
-
-describe('report state', () => {
-    it('opens every intent it can write as one the API accepts, unchanged', () => {
-        const intents: ReportIntent[] = [
-            ...REPORT_VIEWS.map(view => ({ root: 'a', period: p('ytd'), monthly: true, view })),
-            ...REPORT_CHARTS.filter(chart => chart !== 'auto').map(chart => ({
-                root: NET_RESULT_ROOT,
-                period: p('2017-Q2'),
-                monthly: false,
-                chart,
-            })),
-            ...RELATIVE_PERIODS.map(period => ({
-                root: '191002',
-                period: p(period),
-                monthly: false,
-            })),
-            { root: 'a', period: p('2019-03'), monthly: false, hashtags: ['ação'] },
-            {
-                root: 'a',
-                period: { span: 'year', year: 'previous' },
-                compared: { year: 2023 },
-                monthly: false,
-            },
-            { root: 'a', period: { quarter: 3 }, compared: { quarter: 1 }, monthly: true },
-        ];
-        for (const intent of intents) {
-            const state = encodeReportState({ intent, language: 'ja' });
-            const opened = decodeReportState(state ?? '');
-            expect(opened?.intent, JSON.stringify(intent)).toEqual(intent);
-            expect(ReportIntentSchema.parse(opened?.intent)).toEqual(intent);
-        }
     });
 });

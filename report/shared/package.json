@@ -11,7 +11,8 @@
         "./locale-loader": "./src/locale-loader.ts",
         "./report-file": "./src/report-file.ts",
         "./report-intent": "./src/report-intent.ts",
-        "./report-state": "./src/report-state.ts",
+        "./report-text": "./src/report-text.ts",
+        "./url-state": "./src/url-state.ts",
         "./names": "./src/names.ts",
         "./name-index": "./src/name-index.ts"
     },

@@ -782,18 +782,15 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
     });
 
-    it('offers Save for a chosen suggestion, a request like any other, but not for a restored intent', async () => {
+    it('offers Save for a chosen suggestion and a report opened by state, requests like any other', async () => {
         const view = createPage();
         await ready(view);
         view.state.reports.choose(SUGGESTIONS[0]);
         await settle(view);
         expect(control(view, '.save').title).toBe(SUGGESTIONS[0]);
-        view.state.reports.openState({
-            intent: { root: 'net-result', period: '2011', monthly: false },
-            language: 'en',
-        });
+        view.state.reports.openState({ text: 'Net result last year', language: 'en' });
         await settle(view);
-        expect(shelfRoot(view).querySelector('.save')).toBeNull();
+        expect(control(view, '.save').title).toBe('Net result last year');
     });
 
     it('recovers a failed shelf load explicitly, without hiding the report or input', async () => {

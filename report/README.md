@@ -12,7 +12,7 @@ Type what you want to know about your Book, in your own language, and see the re
 2. Choose **Report** from the Book menu.
 3. Report opens with the first request saved for the Book, else the first suggested report, its words selected: start typing to ask your own instead. There is no button: the report appears as you type. Press **Enter** to ask at once.
 
-Report speaks the language you chose in Bkper, else your browser's. A typed request gets its report in the language you typed it in. The page's address keeps your report, so reloading, bookmarking or sharing the link with someone who can view the Book opens it again with the latest balances.
+Report speaks the language you chose in Bkper, else your browser's. A typed request gets its report in the language you typed it in. The page's address keeps your report and the chart you chose, so reloading, bookmarking or sharing the link with someone who can view the Book opens it again with the latest balances.
 
 ## What you can ask
 
@@ -124,7 +124,7 @@ curl -X POST \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
 
-To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt` to ask for the same report again.
+To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt`, with its `language`, to ask for the same report again, and add `chart` to show it as another chart.
 
 See the [OpenAPI specification](https://report.bkper.app/openapi.json) for every field, error and what to do about it.
 

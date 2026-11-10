@@ -21,6 +21,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Frame, type FrameLocator, type Page } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
+import { reportText } from '../shared/src/report-text.ts';
 
 const APP = 'http://localhost:5207';
 const HOST = 'https://bkper.app';
@@ -604,6 +605,7 @@ function responseOf(fixture: Fixture): ReportResponse {
     return {
         spec: fixture.spec,
         intent: fixture.intent,
+        text: reportText(fixture.spec),
         language: fixture.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',

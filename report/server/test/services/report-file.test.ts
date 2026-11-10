@@ -3,7 +3,7 @@ import { LOCALES } from 'report-shared/locales';
 import type { ReportFileData } from 'report-shared/report-file';
 import { t, type StringKey } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
-import { decodeReportState } from 'report-shared/report-state';
+import { decodeUrlState } from 'report-shared/url-state';
 import { buildReport, planQueries, planReport } from '../../src/services/report';
 import {
     REPORT_FILE_BUNDLE,
@@ -193,31 +193,39 @@ describe('report file', () => {
 });
 
 describe('reportFileOpen', () => {
-    const intent = {
-        root: 'g-expenses',
-        period: { span: 'year' as const, year: 2017 },
-        monthly: true,
-    };
+    const report = { text: 'Gastos por mes en 2017', language: 'es' };
 
     it('gives the report’s state, and the state of each other chart that fits', () => {
         const open = reportFileOpen('book-1', {
-            intent,
-            language: 'es',
+            ...report,
             charts: { fitting: ['bar', 'pie', 'table'], main: 'bar' },
         });
         expect(open?.bookId).toBe('book-1');
-        expect(decodeReportState(open?.state ?? '')).toEqual({ intent, language: 'es' });
+        expect(decodeUrlState(open?.state ?? '')).toEqual(report);
         expect(Object.keys(open?.charts ?? {})).toEqual(['pie', 'table']);
-        expect(decodeReportState(open?.charts?.pie ?? '')).toEqual({
-            intent: { ...intent, chart: 'pie' },
-            language: 'es',
+        expect(decodeUrlState(open?.charts?.pie ?? '')).toEqual({ ...report, chart: 'pie' });
+    });
+
+    it('opens the report with the chart it was asked for, and none for its own choice', () => {
+        const charts = { fitting: ['pie', 'donut'] as const, main: 'pie' as const };
+        const asked = reportFileOpen('book-1', {
+            ...report,
+            chart: 'pie',
+            charts: { ...charts, fitting: [...charts.fitting] },
         });
+        expect(decodeUrlState(asked?.state ?? '')).toEqual({ ...report, chart: 'pie' });
+        const auto = reportFileOpen('book-1', {
+            ...report,
+            chart: 'auto',
+            charts: { ...charts, fitting: [...charts.fitting] },
+        });
+        expect(decodeUrlState(auto?.state ?? '')).toEqual(report);
     });
 
     it('gives nothing for a report whose state does not fit', () => {
         const open = reportFileOpen('book-1', {
-            intent: { ...intent, root: 'x'.repeat(200) },
-            language: 'en',
+            text: 'Gastos '.repeat(140).trim(),
+            language: 'es',
             charts: { fitting: ['bar', 'pie'], main: 'bar' },
         });
         expect(open).toBeUndefined();

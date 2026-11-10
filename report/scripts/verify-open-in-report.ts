@@ -3,10 +3,10 @@
  * the real report file, from the running app's API, in the Agent's file frame, and the real
  * Report app, in the Book's panel. Read-only, with your `bkper auth token`.
  *
- *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--intent=<json>] <bookId>
+ *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--prompt=<text>] <bookId>
  *
- * The file is of the Book's first suggestion (by its text), or of `--intent`, such as a target's
- * (`{"root":"<group id>","target":"<account id>","period":"this_year","monthly":true}`).
+ * The file is of the Book's first suggestion (by its text), or of `--prompt`, such as one that
+ * names an Account (read by Bkper AI).
  *
  * Needs the app running locally (`npm run dev`: `--app` defaults to the client at
  * http://localhost:5207, `--api` to the Worker at http://localhost:8809) and Playwright's
@@ -24,7 +24,7 @@
  *
  * It checks that a chart chosen in the file, then a click on the file's link, opens the Report
  * app in place of the Agent with the state of the report as that chart; that the app shows
- * that report by intent, without AI, as that chart, with its title and period in the input;
+ * that report, asked for by its text in its language, as that chart, with its text in the input;
  * that choosing another chart, then another report, sends each state to the Book; that a
  * state the Book goes back to shows that report again; and that the file reaches no network
  * and sends nothing before the click.
@@ -34,7 +34,7 @@ import { readFile } from 'node:fs/promises';
 import { chromium, type Frame, type Page, type Request } from 'playwright-core';
 import type { ViewKind } from '../shared/src/catalog.ts';
 import type { ReportFileData } from '../shared/src/report-file.ts';
-import { decodeReportState, reportText, type ReportState } from '../shared/src/report-state.ts';
+import { decodeUrlState, type UrlState } from '../shared/src/url-state.ts';
 
 const BKPER = 'https://bkper.app';
 const AGENT = 'https://agent.bkper.app/';
@@ -177,12 +177,12 @@ async function api(base: string, token: string, path: string, body?: unknown): P
     return response;
 }
 
-/** The report file the API gives the Agent for an intent, else the Book's first suggestion. */
+/** The report file the API gives the Agent for a prompt, else the Book's first suggestion. */
 async function reportFile(
     base: string,
     token: string,
     bookId: string,
-    asked?: unknown
+    asked?: string
 ): Promise<ReportFile> {
     const { suggestions } = (await (
         await api(base, token, `/api/v1/books/${bookId}/suggestions?language=en`)
@@ -191,7 +191,7 @@ async function reportFile(
     if (!asked && !suggestion) throw new Error('The Book has no suggestions');
     // A suggestion's text is its report, built with no AI.
     const response = await api(base, token, `/api/v1/books/${bookId}/report`, {
-        ...(asked ? { intent: asked } : { prompt: suggestion }),
+        prompt: asked || suggestion,
         language: 'en',
         format: 'html',
     });
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
     const [bookId] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
     if (!bookId) {
         throw new Error(
-            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--intent=<json>] <bookId>'
+            'Usage: npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--prompt=<text>] <bookId>'
         );
     }
     const token = execFileSync('bkper', ['auth', 'token'], { encoding: 'utf8' }).trim();
@@ -272,18 +272,13 @@ async function main(): Promise<void> {
     const menuUrl =
         appOrigin + menu.slice(new URL(menu.replace(/\$\{[^}]+\}/g, 'x')).origin.length);
 
-    const intent = option('intent', '');
-    const file = await reportFile(
-        apiBase,
-        token,
-        bookId,
-        intent ? (JSON.parse(intent) as unknown) : undefined
-    );
+    const file = await reportFile(apiBase, token, bookId, option('prompt', ''));
     const open = file.data.open;
-    const fileState = open && decodeReportState(open.state);
+    const fileState = open && decodeUrlState(open.state);
     if (!open || !fileState)
         throw new Error(`The file carries no valid report state: ${JSON.stringify(open)}`);
-    const fileLabel = reportText(file.data.spec);
+    // The input shows the report's own text, which its state holds.
+    const fileLabel = fileState.text;
     if (!open.charts) throw new Error('The file carries no state for other charts');
 
     let failed = 0;
@@ -347,10 +342,11 @@ async function main(): Promise<void> {
         // A chart chosen in the file: it shows there, and the link opens the report as it.
         const fileChart = await choosePreview(fileFrame);
         const chosenState = open.charts[fileChart as ViewKind] ?? '';
-        const fileChosen = decodeReportState(chosenState);
+        const fileChosen = decodeUrlState(chosenState);
         check(
             (await shownChart(fileFrame)) === fileChart &&
-                fileChosen?.intent.chart === fileChart &&
+                fileChosen?.chart === fileChart &&
+                fileChosen.text === fileState.text &&
                 (await log(agent, 'agentLog')).length === 0 &&
                 fileRequests.length === 0,
             `choosing ${fileChart} in the file shows it there, sending and loading nothing`,
@@ -380,12 +376,12 @@ async function main(): Promise<void> {
         await until(async () => (await inputValue(app)) === fileLabel);
         check(
             (await inputValue(app)) === fileLabel,
-            'the app shows the report, its title and period in the input',
+            'the app shows the report, its text in the input',
             String(await inputValue(app))
         );
         check(
-            JSON.stringify(reportBodies[0]) === JSON.stringify(withLanguage(fileChosen)),
-            'the app asks for the file’s report by intent, as the chart chosen, without AI',
+            JSON.stringify(reportBodies[0]) === JSON.stringify(requestOf(fileChosen)),
+            'the app asks for the file’s report by its text, in its language, as the chart chosen',
             JSON.stringify(reportBodies[0])
         );
         await until(async () => (await shownChart(app)) === fileChart);
@@ -400,13 +396,13 @@ async function main(): Promise<void> {
         const appChart = await choosePreview(app);
         await until(async () => new URL(page.url()).searchParams.get('appState') !== chosenState);
         const appChartState = new URL(page.url()).searchParams.get('appState') ?? '';
-        const appChosen = decodeReportState(appChartState);
+        const appChosen = decodeUrlState(appChartState);
         const chartSent = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
         check(
             (await shownChart(app)) === appChart &&
-                appChosen?.intent.chart === appChart &&
-                JSON.stringify({ ...appChosen.intent, chart: fileChosen.intent.chart }) ===
-                    JSON.stringify(fileChosen.intent),
+                appChosen?.chart === appChart &&
+                JSON.stringify({ ...appChosen, chart: fileChosen.chart }) ===
+                    JSON.stringify(fileChosen),
             `choosing ${appChart} in the app keeps its state in the Book URL`,
             appChartState
         );
@@ -431,7 +427,7 @@ async function main(): Promise<void> {
         check(chosen !== '', 'another suggestion to choose');
         await until(async () => new URL(page.url()).searchParams.get('appState') !== appChartState);
         const next = new URL(page.url()).searchParams.get('appState') ?? '';
-        const nextState = decodeReportState(next);
+        const nextState = decodeUrlState(next);
         const sent = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
         check(
             !!nextState && JSON.stringify(nextState) !== JSON.stringify(fileState),
@@ -451,7 +447,7 @@ async function main(): Promise<void> {
             app.url()
         );
 
-        // Back in the Book to the file's report: the app shows it again, by intent.
+        // Back in the Book to the file's report: the app shows it again, by its text.
         await page.evaluate(state => Reflect.get(window, 'goToState')(state), open.state);
         await until(async () => (await inputValue(app)) === fileLabel);
         check(
@@ -467,14 +463,16 @@ async function main(): Promise<void> {
             JSON.stringify(after)
         );
         check(
-            // A suggestion's text comes with the suggestions' language; a typed request without.
+            // A suggestion's text comes with the suggestions' language, a state's with its own;
+            // nothing is typed here.
             reportBodies.every(
                 body =>
                     typeof body === 'object' &&
                     body !== null &&
-                    (!('prompt' in body) || 'language' in body)
+                    'prompt' in body &&
+                    'language' in body
             ),
-            'every report is asked for with no AI: by intent, or by a suggestion’s text',
+            'every report is asked for by a text in its language: a state’s or a suggestion’s',
             JSON.stringify(reportBodies)
         );
         check(fileRequests.length === 0, 'the file reaches no network', fileRequests.join(', '));
@@ -487,9 +485,13 @@ async function main(): Promise<void> {
     process.exitCode = failed > 0 ? 1 : 0;
 }
 
-/** The body the app sends for a state: its intent, in its language. */
-function withLanguage(state: ReportState): { intent: ReportState['intent']; language?: string } {
-    return { intent: state.intent, ...(state.language ? { language: state.language } : {}) };
+/** The body the app sends for a state: its text, in its language, as its chart. */
+function requestOf(state: UrlState): { prompt: string; language: string; chart?: string } {
+    return {
+        prompt: state.text,
+        language: state.language,
+        ...(state.chart ? { chart: state.chart } : {}),
+    };
 }
 
 await main();

@@ -36,6 +36,7 @@ function response(title: string, subtitle = ''): ReportResponse {
             },
         },
         intent: { root: 'net-result', period: '2011', monthly: false },
+        text: subtitle ? `${title} ${subtitle}` : title,
         language: 'en',
         query: 'q',
         dataAt: '2026-11-05T00:00:00Z',
@@ -46,9 +47,8 @@ function response(title: string, subtitle = ''): ReportResponse {
 
 const SUGGESTIONS = ['Net result in 2011', 'Despesas by month in 2011', 'Investidores today'];
 
-/** Intents of reports opened by state. */
-const NET = { root: 'net-result', period: '2011', monthly: false };
-const DESPESAS = { root: 'g-1', period: '2011', monthly: true };
+/** A report opened by state: its text, in its language. */
+const NET = { text: 'Net result in 2011', language: 'pt' };
 
 interface Call {
     bookId: string;
@@ -80,8 +80,7 @@ function createApi(suggestions: string[] = SUGGESTIONS, problem?: BookProblem) {
         calls.flatMap(call => (call.body.prompt && !call.body.language ? [call.body.prompt] : []));
     /** Requests of a suggestion's text, in the interface's language. */
     const suggested = () => calls.filter(call => call.body.prompt && call.body.language);
-    const intentCalls = () => calls.filter(call => call.body.intent);
-    return { api, calls, prompts, suggested, intentCalls, suggestionCalls, nextSuggestions };
+    return { api, calls, prompts, suggested, suggestionCalls, nextSuggestions };
 }
 
 function createReports(href = 'https://report.bkper.app/?book=book-1', api = createApi()) {
@@ -331,118 +330,27 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBe('FOOD last month');
     });
 
-    it('remembers reports of one intent with different charts apart', async () => {
-        const { reports, calls, intentCalls } = createReports();
+    it('remembers reports of one text with different charts apart', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
         reports.open('book-1');
-        await settle();
-        reports.input('net result 2011 as a pie');
-        reports.submit();
-        calls.at(-1)?.resolve({
-            ...response('Pie'),
-            intent: { ...NET, chart: 'pie' },
-            language: 'pt',
-        });
+        reports.openState(NET);
+        calls[0].resolve({ ...response('Net'), language: 'pt' });
         await settle();
 
-        reports.openState({ intent: NET, language: 'pt' });
-        intentCalls()[0].resolve({ ...response('Net'), language: 'pt' });
+        reports.openState({ ...NET, chart: 'pie' });
+        expect(calls).toHaveLength(2);
+        expect(calls[1].body).toEqual({ prompt: NET.text, language: 'pt', chart: 'pie' });
+        calls[1].resolve({ ...response('Pie'), language: 'pt' });
         await settle();
+        expect(title(reports.report)).toBe('Pie');
 
+        reports.openState(NET);
         expect(title(reports.report)).toBe('Net');
-    });
-
-    it('remembers reports of one period compared otherwise apart, and its parts in any order alike', async () => {
-        const { reports, intentCalls } = createReports();
-        reports.open('book-1');
-        await settle();
-        const base = { root: 'g-1', monthly: false, period: { span: 'year', year: 'previous' } };
-        const named = { ...base, compared: { year: 2023 } } as const;
-        const asked = intentCalls().length;
-        reports.openState({ intent: named, language: 'pt' });
-        intentCalls()
-            .at(-1)
-            ?.resolve({ ...response('Vs 2023'), intent: named, language: 'pt' });
-        await settle();
-        expect(intentCalls()).toHaveLength(asked + 1);
-
-        reports.openState({ intent: { ...base, compareWith: 'year_earlier' }, language: 'pt' });
-        expect(intentCalls()).toHaveLength(asked + 2);
-        intentCalls()
-            .at(-1)
-            ?.resolve({ ...response('A year earlier'), language: 'pt' });
-        await settle();
-        expect(title(reports.report)).toBe('A year earlier');
-
-        reports.openState({
-            intent: {
-                monthly: false,
-                compared: { year: 2023 },
-                period: { year: 'previous', span: 'year' },
-                root: 'g-1',
-            },
-            language: 'pt',
-        });
-        await settle();
-        expect(intentCalls()).toHaveLength(asked + 2);
-        expect(title(reports.report)).toBe('Vs 2023');
-    });
-
-    it('remembers reports of one root with different targets apart', async () => {
-        const { reports, calls } = createReports(undefined, createApi([]));
-        const root = { intent: DESPESAS, language: 'pt' };
-        const target = { intent: { ...root.intent, target: 'a-rent' }, language: 'pt' };
-        reports.open('book-1', '', root);
-        calls[0].resolve({ ...response('Despesas'), intent: root.intent, language: 'pt' });
-        await settle();
-
-        reports.openState(target);
+        // Typed, however spaced, it is the same request.
+        reports.input('Net  result in 2011');
+        reports.submit();
         expect(calls).toHaveLength(2);
-        expect(calls[1].body).toEqual({ intent: target.intent, language: 'pt' });
-        calls[1].resolve({ ...response('Rent'), intent: target.intent, language: 'pt' });
-        await settle();
-        expect(title(reports.report)).toBe('Rent');
-
-        reports.openState(root);
-        reports.openState(target);
-        expect(calls).toHaveLength(2);
-        expect(title(reports.report)).toBe('Rent');
-    });
-
-    it('remembers targets side by side apart from their first, and by their order', async () => {
-        const { reports, calls } = createReports(undefined, createApi([]));
-        const first = { intent: { ...DESPESAS, target: 'a-food' }, language: 'pt' };
-        const both = {
-            intent: { ...first.intent, alongside: [{ root: first.intent.root, target: 'a-rent' }] },
-            language: 'pt',
-        };
-        const reversed = {
-            intent: {
-                ...first.intent,
-                target: 'a-rent',
-                alongside: [{ root: first.intent.root, target: 'a-food' }],
-            },
-            language: 'pt',
-        };
-        reports.open('book-1', '', first);
-        calls[0].resolve({ ...response('Food'), intent: first.intent, language: 'pt' });
-        await settle();
-
-        reports.openState(both);
-        expect(calls).toHaveLength(2);
-        expect(calls[1].body).toEqual({ intent: both.intent, language: 'pt' });
-        calls[1].resolve({ ...response('Food e Rent'), intent: both.intent, language: 'pt' });
-        await settle();
-        expect(title(reports.report)).toBe('Food e Rent');
-
-        reports.openState(reversed);
-        expect(calls).toHaveLength(3);
-        calls[2].resolve({ ...response('Rent e Food'), intent: reversed.intent, language: 'pt' });
-        await settle();
-
-        reports.openState(first);
-        reports.openState(both);
-        expect(calls).toHaveLength(3);
-        expect(title(reports.report)).toBe('Food e Rent');
+        expect(title(reports.report)).toBe('Net');
     });
 
     it('answers a typed suggestion text from memory', async () => {
@@ -585,8 +493,7 @@ describe('Reports', () => {
 
     it('says why balances and activity cannot be side by side', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        const intent = { ...DESPESAS, alongside: [{ root: 'g-assets' }] };
-        reports.open('book-1', '', { intent, language: 'en' });
+        reports.open('book-1', '', { text: 'Despesas e Ativos', language: 'en' });
         calls[0].reject(new AppApiError('Mixed', 422, 'mixed_targets'));
         await settle();
 
@@ -681,23 +588,52 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBeUndefined();
     });
 
-    it('never labels a restored intent or its generated title as an original prompt', async () => {
+    it('takes a report opened by state as asked for with its text', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        reports.open('book-1', 'Untrusted URL text', { intent: NET });
+        reports.open('book-1', 'Untrusted URL text', NET);
+        expect(reports.text).toBe(NET.text);
         calls[0].resolve(withMain(response('Net result', '2011'), 'bar'));
         await settle();
-        expect(reports.text).toBe('Net result 2011');
-        expect(reports.originalPrompt).toBeUndefined();
+        expect(reports.originalPrompt).toBe(NET.text);
         reports.chooseChart('pie');
-        expect(reports.originalPrompt).toBeUndefined();
-        reports.input('Net result this year');
+        expect(reports.originalPrompt).toBe(NET.text);
+    });
+
+    it('opens the report shown again by its text and language, as the chart shown', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        expect(reports.reopen).toBeUndefined();
+        reports.input('despesas em pizza');
         reports.submit();
-        calls[1].resolve(withMain(response('Net result', '2026'), 'bar'));
+        const asked = withMain(
+            {
+                ...response('Despesas', 'este ano'),
+                intent: { root: 'g-1', period: '2011', monthly: false, chart: 'pie' },
+                language: 'pt',
+            },
+            'pie'
+        );
+        calls[0].resolve(asked);
         await settle();
-        expect(reports.originalPrompt).toBe('Net result this year');
-        // Even an intent answered by a previously prompt-generated cache entry has no source.
-        reports.openState({ intent: NET, language: 'en' });
-        expect(reports.originalPrompt).toBeUndefined();
+        // Its text names no chart, so the chart asked for goes with it.
+        expect(reports.reopen).toEqual({ text: 'Despesas este ano', language: 'pt', chart: 'pie' });
+        reports.chooseChart('table');
+        expect(reports.reopen).toEqual({
+            text: 'Despesas este ano',
+            language: 'pt',
+            chart: 'table',
+        });
+        reports.chooseChart('pie');
+        expect(reports.reopen?.chart).toBe('pie');
+
+        reports.input('receitas este ano');
+        reports.submit();
+        calls[1].resolve({
+            ...withMain(response('Receitas', 'este ano'), 'bar'),
+            intent: { root: 'g-2', period: '2011', monthly: false, chart: 'auto' },
+        });
+        await settle();
+        expect(reports.reopen).toEqual({ text: 'Receitas este ano', language: 'en' });
     });
 
     it('reuses a saved click’s report for a minute, then resolves its text again', async () => {
@@ -848,9 +784,9 @@ describe('Reports', () => {
             expect(title(reports.report)).toBe('Later');
         });
 
-        it('forgets the report of an intent after a minute too, including by state', async () => {
+        it('forgets the report of a state after a minute too', async () => {
             const { reports, calls, tick } = createReports(undefined, createApi([]));
-            const state = { intent: DESPESAS, language: 'pt' };
+            const state = NET;
             reports.open('book-1', '', state);
             calls[0].resolve(response('Despesas'));
             await settle();
@@ -860,7 +796,7 @@ describe('Reports', () => {
             tick(CACHE_MS);
             reports.openState(state);
             expect(calls).toHaveLength(2);
-            expect(calls[1].body).toEqual({ intent: state.intent, language: 'pt' });
+            expect(calls[1].body).toEqual({ prompt: NET.text, language: 'pt' });
         });
 
         it('shows a stale answer that arrives late once, but never reuses it', async () => {
@@ -1006,34 +942,27 @@ describe('Reports', () => {
     });
 
     describe('opened by state', () => {
-        const STATE = {
-            intent: { root: 'g-1', period: '2011', monthly: true, chart: 'stacked' as const },
-            language: 'es',
-        };
-        const byState = (call: Call) => call.body.intent?.chart === 'stacked';
+        const STATE = { text: 'Gastos por mes en 2011', language: 'es', chart: 'stacked' as const };
+        const byState = (call: Call) => call.body.chart === 'stacked';
 
-        it('asks for the report by intent, in its language, and shows its label', async () => {
+        it('asks for its text, in its language and with its chart, showing the text at once', async () => {
             const { reports, calls, prompts } = createReports();
             reports.open('book-1', '', STATE);
 
             const call = calls.find(byState);
-            expect(call?.body).toEqual({ intent: STATE.intent, language: 'es' });
+            expect(call?.body).toEqual({ prompt: STATE.text, language: 'es', chart: 'stacked' });
             expect(prompts()).toEqual([]);
-            expect(reports.text).toBe('');
+            expect(reports.text).toBe(STATE.text);
 
-            const report = {
-                ...response('Gastos', '\u20682011\u2069'),
-                intent: STATE.intent,
-                language: 'es',
-            };
+            const report = { ...response('Gastos', '2011'), language: 'es' };
             call?.resolve(report);
             await settle();
 
             expect(reports.report).toBe(report);
-            expect(reports.text).toBe('Gastos 2011');
+            expect(reports.text).toBe(STATE.text);
         });
 
-        it('wins over a request in the URL, and its label never overwrites typing', async () => {
+        it('wins over a request in the URL, and its answer never overwrites typing', async () => {
             const { reports, calls, prompts } = createReports();
             reports.open('book-1', 'net result', STATE);
             expect(prompts()).toEqual([]);
@@ -1049,20 +978,19 @@ describe('Reports', () => {
             const { reports, calls, suggestionCalls } = createReports();
             reports.open('book-1');
             await settle();
-            // A suggestion's report is remembered by its intent too.
             calls
                 .find(call => call.body.prompt === SUGGESTIONS[0])
                 ?.resolve({ ...response('Net result', '2011'), language: 'pt' });
             await settle();
             const count = calls.length;
 
-            reports.openState({ intent: NET, language: 'pt' });
+            reports.openState({ text: SUGGESTIONS[0], language: 'pt' });
             await settle();
 
             expect(calls.length).toBe(count);
             expect(suggestionCalls.length).toBe(1);
             expect(title(reports.report)).toBe('Net result');
-            expect(reports.text).toBe('Net result 2011');
+            expect(reports.text).toBe(SUGGESTIONS[0]);
         });
     });
 
@@ -1073,7 +1001,7 @@ describe('Reports', () => {
                 ['submit', reports => reports.submit()],
                 ['choose', reports => reports.choose(SUGGESTIONS[0])],
                 ['saved', reports => reports.runSaved('Net result')],
-                ['state', reports => reports.openState({ intent: NET })],
+                ['state', reports => reports.openState(NET)],
             ];
             for (const [, act] of acts) {
                 const { reports } = createReports();
@@ -1094,7 +1022,7 @@ describe('Reports', () => {
             const { reports } = createReports();
             reports.open('book-1', 'net result');
             expect(reports.untouched).toBe(false);
-            reports.open('book-1', '', { intent: NET });
+            reports.open('book-1', '', NET);
             expect(reports.untouched).toBe(false);
             reports.open(undefined);
             expect(reports.untouched).toBe(false);

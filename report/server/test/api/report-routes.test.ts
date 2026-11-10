@@ -1,5 +1,5 @@
 import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
-import { decodeReportState } from 'report-shared/report-state';
+import { decodeUrlState } from 'report-shared/url-state';
 import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
@@ -715,15 +715,16 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
         // Where the Agent lets it, the file opens the same report in the Report app in the Book.
         expect(data.open?.bookId).toBe(BOOK);
-        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+        const opened = { text: 'Expenses October 2026', language: 'en' };
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual(opened);
         // A chart chosen in the file opens as that chart: each other chart that fits has a state.
         const choices = elementOf(data.spec, 'Visualizations').props;
         const others = choices.views.map(view => view.kind).filter(kind => kind !== choices.main);
         expect(Object.keys(data.open?.charts ?? {}).sort()).toEqual([...others].sort());
         for (const kind of others) {
-            expect(decodeReportState(data.open?.charts?.[kind] ?? '')).toEqual({
-                intent: { ...intent, chart: kind },
-                language: 'en',
+            expect(decodeUrlState(data.open?.charts?.[kind] ?? '')).toEqual({
+                ...opened,
+                chart: kind,
             });
         }
         expect(timings(response)).toEqual([
@@ -735,6 +736,32 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             'render',
             'total',
         ]);
+    });
+
+    it('draws the chart a request asks for, and the file opens the report with it', async () => {
+        const test = harness();
+        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
+        const response = await post(test, { intent, chart: 'ranked-bar', language: 'en' });
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+            chart: { kind: 'ranked-bar', fallback: false },
+            text: 'Expenses October 2026',
+        });
+
+        const file = await post(test, { intent, chart: 'ranked-bar', format: 'html' });
+        const data = JSON.parse(
+            /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
+                await file.text()
+            )?.[1] ?? ''
+        ) as ReportFileData;
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
+            text: 'Expenses October 2026',
+            language: 'en',
+            chart: 'ranked-bar',
+        });
+
+        const invalid = await post(test, { intent, chart: 'radar' });
+        expect(invalid.status).toBe(400);
     });
 
     it('builds a report of a group target from its own queries, titled by the target', async () => {
@@ -759,10 +786,14 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+        // By its own text, which asks for the same report.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
+            text: body.text,
+            language: 'en',
+        });
     });
 
-    it('shows targets side by side, one query per group, and opens them again by state', async () => {
+    it('shows targets side by side, one query per group, and opens them again by text', async () => {
         const test = harness();
         const intent = {
             root: 'g-expenses',
@@ -801,7 +832,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        expect(decodeReportState(data.open?.state ?? '')).toEqual({ intent, language: 'en' });
+        // By its own text, which asks for the same report.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
+            text: body.text,
+            language: 'en',
+        });
     });
 
     it('builds a report of an account in no group with a query of its own', async () => {

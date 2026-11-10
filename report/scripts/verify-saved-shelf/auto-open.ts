@@ -10,8 +10,8 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Browser, Frame, FrameLocator, Page } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../../client/src/api/app-api.ts';
-import { intentWithParts } from '../../shared/src/report-intent.ts';
-import { encodeReportState, reportText } from '../../shared/src/report-state.ts';
+import { reportText } from '../../shared/src/report-text.ts';
+import { encodeUrlState } from '../../shared/src/url-state.ts';
 
 export interface Fixture {
     id: string;
@@ -128,8 +128,8 @@ export async function verifyAutoOpen(
     const titles = new Set(Object.values(reports).map(titleOf));
     assert.equal(titles.size, Object.keys(reports).length, 'Each report has its own title');
     // A state holds a Bkper language, such as `ar` for a report recorded in `ar-EG`.
-    const intent = intentWithParts(reports.state.intent);
-    const state = intent && encodeReportState({ intent, language });
+    const stateText = reportText(reports.state.spec);
+    const state = encodeUrlState({ text: stateText, language });
     assert(state, 'The state fits the URL');
     const context = await env.browser.newContext({
         viewport: { width, height: 800 },
@@ -326,25 +326,19 @@ async function open(
                 });
             }
             if (path.endsWith('/report')) {
-                const body = req.postDataJSON() as {
-                    prompt?: string;
-                    language?: string;
-                    intent?: ReportResponse['intent'];
-                };
-                // A suggestion's text, in the suggestions' language, needs no Bkper AI.
-                if (body.prompt !== undefined && body.language === undefined)
-                    prompts.push(body.prompt);
-                const fixture =
-                    body.prompt !== undefined
+                const body = req.postDataJSON() as { prompt: string; language?: string };
+                const stateText = reportText(reports.state.spec);
+                // A suggestion's text and a state's, each in its language, are not typed.
+                if (body.language === undefined) prompts.push(body.prompt);
+                const fixture = (
+                    body.language === undefined
                         ? {
-                              [texts.suggestion]: reports.suggestion,
                               [texts.saved[0]]: reports.saved,
                               [texts.typed]: reports.typed,
                               [texts.query]: reports.query,
-                          }[body.prompt]
-                        : [reports.state].find(
-                              candidate => body.intent && sameIntent(candidate.intent, body.intent)
-                          );
+                          }
+                        : { [texts.suggestion]: reports.suggestion, [stateText]: reports.state }
+                )[body.prompt];
                 if (!fixture) {
                     errors.push(`Unexpected report request ${JSON.stringify(body)}`);
                     return json({ success: false, error: { code: 'internal_error' } }, 500);
@@ -438,16 +432,6 @@ function queryOf(panel: Frame): Promise<string | null> {
 }
 
 /** The same intent, whatever the order of its fields, with no chart and `auto` alike. */
-function sameIntent(a: ReportResponse['intent'], b: ReportResponse['intent']): boolean {
-    const canonical = (intent: ReportResponse['intent']) =>
-        JSON.stringify(
-            Object.entries(intent)
-                .filter(([, value]) => value !== undefined && value !== 'auto')
-                .sort(([x], [y]) => x.localeCompare(y))
-        );
-    return canonical(a) === canonical(b);
-}
-
 function titleOf(fixture: Fixture): string {
     const root = fixture.spec.elements[fixture.spec.root];
     assert(root?.type === 'Report');
@@ -465,6 +449,7 @@ function responseOf(fixture: Fixture, app: string): ReportResponse {
     return {
         spec: fixture.spec,
         intent: fixture.intent,
+        text: reportText(fixture.spec),
         language: fixture.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',

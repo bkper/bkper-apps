@@ -1,6 +1,6 @@
 /**
  * The values a report intent may hold, shared by the Worker that validates intents and the
- * places that write them down, such as a report's compact state (`report-state.ts`).
+ * places that read them, such as the report's request text.
  */
 
 /** The `root` of a net result report: every Incoming root versus every Outgoing root. */

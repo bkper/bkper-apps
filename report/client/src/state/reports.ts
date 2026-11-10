@@ -1,10 +1,9 @@
-import { reportText, type ReportState } from 'report-shared/report-state';
 import type { StringKey } from 'report-shared/strings';
+import type { StateChart, UrlState } from 'report-shared/url-state';
 import {
     AppApiError,
     type AppApi,
     type BookProblem,
-    type ReportIntent,
     type ReportRequest,
     type ReportResponse,
 } from '../api/app-api';
@@ -65,8 +64,8 @@ export interface ReportsOptions {
 interface Entry {
     promise: Promise<ReportResponse>;
     value?: ReportResponse;
-    /** Only a request actually made by prompt, a suggestion's too, has an original prompt. */
-    prompt?: string;
+    /** The request's text: a typed request's, a suggestion's, a saved one's or a state's. */
+    prompt: string;
     /** When it was asked for: it is reused for {@link CACHE_MS}. */
     at: number;
 }
@@ -76,10 +75,10 @@ interface Entry {
  *
  * A request goes out {@link DEBOUNCE_MS} after the last keystroke once it has {@link MIN_WORDS}
  * words, or at once on Enter. A newer request cancels the one in flight, and only the latest
- * answer is shown; the last report stays until then. Reports are remembered by request and by
- * intent for {@link CACHE_MS}, saved requests too, and the suggestions' reports are asked for
- * by their texts as soon as the suggestions arrive, so choosing or typing one shows it from
- * memory. The suggestions come from the Book's map: the first request after {@link CACHE_MS}
+ * answer is shown; the last report stays until then. Reports are remembered by request, and
+ * the chart asked for with it, for {@link CACHE_MS}, saved requests too, and the suggestions'
+ * reports are asked for by their texts as soon as the suggestions arrive, so choosing or typing
+ * one shows it from memory. The suggestions come from the Book's map: the first request after {@link CACHE_MS}
  * asks them again.
  */
 export class Reports extends Store {
@@ -104,7 +103,7 @@ export class Reports extends Store {
     @reactive suggestions?: string[];
 
     private openBookId?: string;
-    /** Nothing was asked of the open Book yet: no request typed, sent or chosen, no state shown. */
+    /** Nothing was asked of the open Book yet: no request typed, sent or chosen, no state opened. */
     private nothingAsked = false;
     private cache = new Map<string, Entry>();
     /** Identifies the latest request: an answer to any other is stale. */
@@ -130,7 +129,19 @@ export class Reports extends Store {
         return this.choice?.report === this.report ? this.choice?.kind : undefined;
     }
 
-    /** The original request that produced the shown report, never the input or a restored title. */
+    /**
+     * What asks for the report shown again, as it shows: its own text, its language, and the
+     * chart chosen from its previews, else the one it was asked for.
+     */
+    get reopen(): UrlState | undefined {
+        const report = this.report;
+        if (!report) return undefined;
+        const asked = report.intent.chart;
+        const chart = this.chart ?? (asked && asked !== 'auto' ? asked : undefined);
+        return { text: report.text, language: report.language, ...(chart ? { chart } : {}) };
+    }
+
+    /** The request that produced the shown report, as asked, never the input. */
     get originalPrompt(): string | undefined {
         return this.source?.report === this.report ? this.source?.prompt : undefined;
     }
@@ -146,7 +157,7 @@ export class Reports extends Store {
 
     /**
      * The open Book was opened with no request or state, and since then nothing was typed (even
-     * a request cleared), sent, chosen or shown from a state.
+     * a request cleared), sent, chosen or opened from a state.
      */
     get untouched(): boolean {
         return this.nothingAsked;
@@ -176,7 +187,7 @@ export class Reports extends Store {
      * Start over for a Book, or none, and load its suggestions; show the report of `state` at
      * once, else run `prompt`.
      */
-    open(bookId: string | undefined, prompt = '', state?: ReportState): void {
+    open(bookId: string | undefined, prompt = '', state?: UrlState): void {
         this.cancel();
         this.suggestionsRequest?.abort();
         this.suggestionsRequest = undefined;
@@ -198,14 +209,16 @@ export class Reports extends Store {
     }
 
     /**
-     * Show the report of a state, such as one Bkper kept in the Book's URL, by its intent (no
-     * AI), in its language; once it shows, the input holds its title and period.
+     * Show the report of a state, such as one Bkper kept in the Book's URL: the input holds its
+     * text, asked for in its language (read from a short text, the language can be unsure) and
+     * with its chart.
      */
-    openState(state: ReportState): void {
+    openState(state: UrlState): void {
         this.nothingAsked = false;
         this.clearTimer();
+        this.text = state.text;
         this.quiet();
-        this.run('', state.intent, { language: state.language, label: true });
+        this.run(state.text, { language: state.language, chart: state.chart });
     }
 
     /** The person typed: keep the request in the URL and ask once typing pauses. */
@@ -239,7 +252,7 @@ export class Reports extends Store {
         this.text = suggestion;
         this.route.setPrompt(suggestion);
         this.quiet();
-        this.run(suggestion, undefined, { language: this.language });
+        this.run(suggestion, { language: this.language });
     }
 
     /**
@@ -253,7 +266,7 @@ export class Reports extends Store {
         this.text = prompt;
         this.route.setPrompt(prompt);
         this.quiet();
-        if (prompt.trim()) this.run(prompt, undefined, { saved: true });
+        if (prompt.trim()) this.run(prompt, { saved: true });
     }
 
     /** The person chose another chart of the report shown: it shows with no new request. */
@@ -276,35 +289,31 @@ export class Reports extends Store {
     }
 
     /**
-     * Ask for the report of `text`, or of `intent`, in `language` (for an intent, by default the
-     * interface's; for a text, by default the one the Worker detects); with `label`, the input
-     * then holds the report's title and period.
+     * Ask for the report of `text` in `language` (by default the one the Worker detects), shown
+     * as `chart` when it fits.
      */
     private run(
         text: string,
-        intent?: ReportIntent,
         {
             language,
-            label = false,
+            chart,
             saved = false,
         }: {
             language?: string;
-            label?: boolean;
+            chart?: StateChart;
             saved?: boolean;
         } = {}
     ): void {
         const bookId = this.openBookId;
         if (!bookId) return;
         this.refreshSuggestions(bookId);
-        const key = intent ? intentKey(intent, language ?? this.language) : promptKey(text);
+        const key = promptKey(text, chart);
         const remembered = this.remembered(key);
         // A saved request is its exact text, so its source stays that text.
         const cached = saved && remembered?.prompt !== text.trim() ? undefined : remembered;
-        // The label replaces only the text the report was asked with, never later typing.
-        const labelFor = label ? this.text : undefined;
         if (cached?.value) {
             this.cancel();
-            this.show(cached.value, intent ? undefined : cached.prompt, labelFor);
+            this.show(cached.value, cached.prompt);
             return;
         }
         if (this.inFlight?.key === key && (cached || !saved)) return;
@@ -313,19 +322,21 @@ export class Reports extends Store {
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
-            const body: ReportRequest = intent
-                ? { intent, language: language ?? this.language }
-                : { prompt: text.trim(), ...(language ? { language } : {}) };
+            const body = {
+                prompt: text.trim(),
+                ...(language ? { language } : {}),
+                ...(chart ? { chart } : {}),
+            };
             entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
-        const originalPrompt = intent ? undefined : entry.prompt;
+        const originalPrompt = entry.prompt;
         this.pending = true;
         entry.promise.then(
             report => {
                 if (sequence !== this.sequence) return;
                 this.inFlight = undefined;
-                this.show(report, originalPrompt, labelFor);
+                this.show(report, originalPrompt);
             },
             (error: unknown) => {
                 if (sequence !== this.sequence) return;
@@ -337,10 +348,15 @@ export class Reports extends Store {
     }
 
     /**
-     * Ask the API, remembering the answer by request and by intent for {@link CACHE_MS} from
-     * now; failures are forgotten.
+     * Ask the API, remembering the answer by request for {@link CACHE_MS} from now; failures
+     * are forgotten.
      */
-    private request(key: string, bookId: string, body: ReportRequest, signal?: AbortSignal): Entry {
+    private request(
+        key: string,
+        bookId: string,
+        body: ReportRequest & { prompt: string },
+        signal?: AbortSignal
+    ): Entry {
         this.forgetExpired();
         const cache = this.cache;
         const entry: Entry = {
@@ -349,7 +365,6 @@ export class Reports extends Store {
             promise: this.api.report(bookId, body, { signal }).then(
                 report => {
                     entry.value = report;
-                    cache.set(intentKey(report.intent, report.language), entry);
                     return report;
                 },
                 (error: unknown) => {
@@ -378,15 +393,14 @@ export class Reports extends Store {
         return isFresh(at, this.now());
     }
 
-    /** Show a report; when the input still holds `labelFor`, its title and period replace it. */
-    private show(report: ReportResponse, prompt?: string, labelFor?: string): void {
-        this.source = prompt === undefined ? undefined : { report, prompt };
+    /** Show a report, asked for with the request `prompt`. */
+    private show(report: ReportResponse, prompt: string): void {
+        this.source = { report, prompt };
         this.pending = false;
         this.quiet();
         // The report first: its chart is then its main one, and dropping the choice changes nothing.
         this.report = report;
         this.choice = undefined;
-        if (labelFor !== undefined && this.text === labelFor) this.text = reportText(report.spec);
     }
 
     private failed(error: unknown): void {
@@ -484,43 +498,13 @@ export function wordCount(text: string): number {
 }
 
 /**
- * A request by its words, however spaced. Case stays: it tells apart names of the Book written
- * alike but for it, as the Worker reads them (`report-shared/names`).
+ * A request by its words, however spaced, and the chart asked for. Case stays: it tells apart
+ * names of the Book written alike but for it, as the Worker reads them (`report-shared/names`).
  */
-function promptKey(text: string): string {
-    return `prompt:${text.trim().replace(/\s+/g, ' ')}`;
-}
-
-function intentKey(intent: ReportIntent, language: string): string {
-    const { root, target, alongside, period, compared, monthly, view, hashtags } = intent;
-    const tags = hashtags?.length ? [...hashtags].sort() : undefined;
-    // No chart is the same as `auto`, and no comparison the same as the previous period.
-    const chart = intent.chart === 'auto' ? undefined : intent.chart;
-    const compareWith = intent.compareWith === 'year_earlier' ? 'year_earlier' : null;
-    const parts = [
-        root,
-        target ?? null,
-        // In order: the targets side by side show in it.
-        alongside?.map(subject => [subject.root, subject.target ?? null]) ?? null,
-        typeof period === 'string' ? period : periodKey(period),
-        compared ? periodKey(compared) : null,
-        compareWith,
-        monthly,
-        view ?? null,
-        tags ?? null,
-        chart ?? null,
-    ];
-    return `intent:${language}:${JSON.stringify(parts)}`;
-}
-
-/** The parts of a period in one order, whatever order they were written in. */
-function periodKey(parts: Exclude<ReportIntent['period'], string>): unknown[] {
-    return [
-        'span' in parts ? (parts.span ?? null) : null,
-        parts.year ?? null,
-        parts.month ?? null,
-        parts.quarter ?? null,
-    ];
+function promptKey(text: string, chart?: StateChart): string {
+    const words = text.trim().replace(/\s+/g, ' ');
+    // Collapsed words hold no line break, so no request reads as another with a chart.
+    return chart ? `prompt:${words}\n${chart}` : `prompt:${words}`;
 }
 
 function isAbort(error: unknown): boolean {

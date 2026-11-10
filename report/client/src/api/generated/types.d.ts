@@ -245,7 +245,7 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.
          *
-         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt`, it asks for the same report. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.
+         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report, and `chart` shows it as another chart. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.
          *
          *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
@@ -1467,6 +1467,12 @@ export interface components {
              */
             prompt?: string;
             intent?: components["schemas"]["ReportIntent"];
+            /**
+             * @description The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.
+             * @example pie
+             * @enum {string}
+             */
+            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             /**
              * @description Language of the report’s texts, as a BCP 47 tag of one of the 133 Bkper languages, such as `pt` or `pt-BR`. Leave it out to write the report in the language of `prompt`, else `Accept-Language`, else English.
              * @example pt-BR

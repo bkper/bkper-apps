@@ -4,7 +4,7 @@ import { addAllLocales } from 'report-shared/locales';
 import { addLocale, t } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { RELATIVE_PERIODS } from 'report-shared/report-intent';
-import { reportText } from 'report-shared/report-state';
+import { reportText } from 'report-shared/report-text';
 import { buildReport, planQueries, planReport, type ReportData } from '../../src/services/report';
 import type { PeriodParts } from 'report-shared/report-intent';
 import { reportIntentOf, type ReportIntent } from '../../src/services/report-intent';

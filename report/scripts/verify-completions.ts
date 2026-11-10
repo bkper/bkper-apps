@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import type { BookName, ReportResponse } from '../client/src/api/app-api.ts';
 import { NameIndex } from '../shared/src/name-index.ts';
+import { reportText } from '../shared/src/report-text.ts';
 import { t } from '../shared/src/strings.ts';
 import { addAllLocales } from '../shared/src/locales.ts';
 
@@ -185,6 +186,7 @@ try {
                 const response: ReportResponse = {
                     spec: fixture.spec,
                     intent: fixture.intent,
+                    text: reportText(fixture.spec),
                     language: fixture.lang,
                     query: 'mock-only',
                     dataAt: '2025-12-31T21:00:00Z',

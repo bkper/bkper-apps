@@ -4,8 +4,7 @@ import {
     type AuthSessionCallbacks,
 } from '../auth/auth-session';
 import { personLanguage } from './language';
-import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
-import { intentWithParts } from 'report-shared/report-intent';
+import { decodeUrlState, encodeUrlState, type UrlState } from 'report-shared/url-state';
 import { createAppApi, type AppApi, type BookProblem, type ReportResponse } from '../api/app-api';
 import { agentPrompt, agentUrl } from '../agent-link';
 import { PRODUCTION_BKPER_ORIGIN } from '../bkper-host';
@@ -180,8 +179,8 @@ export class AppState {
     }
 
     /** The report the URL's state names, if it is a valid one. */
-    private routeState(): ReportState | undefined {
-        return this.route.state === undefined ? undefined : decodeReportState(this.route.state);
+    private routeState(): UrlState | undefined {
+        return this.route.state === undefined ? undefined : decodeUrlState(this.route.state);
     }
 
     /**
@@ -191,13 +190,11 @@ export class AppState {
      * long drops it.
      */
     private syncState(): void {
-        const { report, chart } = this.reports;
+        const { report, chart, reopen } = this.reports;
         if (!report || (report === this.synced?.report && chart === this.synced.chart)) return;
         if (this.embedded && !this.host.acceptsState) return;
         this.synced = { report, chart };
-        // Answers give the period as parts; an id of an older intent reads as its parts.
-        const intent = intentWithParts(chart ? { ...report.intent, chart } : report.intent);
-        const state = intent && encodeReportState({ intent, language: report.language });
+        const state = reopen && encodeUrlState(reopen);
         if (state === this.route.state) return;
         this.route.setState(state);
         this.host.sendState(state ?? '');

@@ -29,7 +29,9 @@ import { chromium, type Frame, type Page } from 'playwright-core';
 import { validateReportSpec } from '../shared/src/catalog.ts';
 import type { ViewKind } from '../shared/src/catalog.ts';
 import type { ReportFileData } from '../shared/src/report-file.ts';
-import { decodeReportState } from '../shared/src/report-state.ts';
+import { supportedLanguage } from '../shared/src/languages.ts';
+import { reportText } from '../shared/src/report-text.ts';
+import { decodeUrlState } from '../shared/src/url-state.ts';
 import { buildReportFile, reportFileOpen } from '../server/src/services/report-file.ts';
 
 /** The Agent's frame policy and document (bkper-clients `packages/agent`, `file-views.ts`). */
@@ -78,17 +80,8 @@ const SPEC_FILES = ['client/dev/specs/studio.json', 'client/dev/specs/ledger.jso
 
 const LINK = { url: 'https://report.bkper.app/?book=book-1&q=report', label: 'Open in Report' };
 
-/** Recorded specs carry no intent: any report's state shows the file opens what it carries. */
-const OPEN = {
-    bookId: 'book-1',
-    intent: {
-        root: 'net-result',
-        period: { span: 'year' as const, year: 2018 },
-        monthly: true,
-        chart: 'compare' as const,
-    },
-    language: 'en',
-};
+/** The Book of every recorded file, whose state is its report's own text, in its language. */
+const OPEN_BOOK_ID = 'book-1';
 
 interface ReportFile {
     name: string;
@@ -129,9 +122,11 @@ async function recordedFiles(): Promise<ReportFile[]> {
             const choices = Object.values(validation.spec.elements).find(
                 element => element.type === 'Visualizations'
             );
-            const open = reportFileOpen(OPEN.bookId, {
-                intent: OPEN.intent,
-                language: OPEN.language,
+            const report = validation.spec.elements[validation.spec.root];
+            const locale = report?.type === 'Report' ? report.props.locale : 'en';
+            const open = reportFileOpen(OPEN_BOOK_ID, {
+                text: reportText(validation.spec),
+                language: supportedLanguage(locale) ?? 'en',
                 charts:
                     choices?.type === 'Visualizations'
                         ? {
@@ -588,7 +583,7 @@ async function checkNavigation(page: Page, frame: Frame, chosen?: string): Promi
     if ((await clicks())[1] !== true) {
         failures.push('After host-ready, the click still opens a tab');
     }
-    if (!decodeReportState(state)) {
+    if (!decodeUrlState(state)) {
         failures.push(`The file's state does not open a report: ${state}`);
     }
     return failures;

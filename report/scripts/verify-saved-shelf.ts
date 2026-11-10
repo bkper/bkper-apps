@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
 import { withoutIsolates } from 'report-shared/bidi';
+import { reportText } from '../shared/src/report-text.ts';
 import { CACHE_MS } from '../client/src/state/cache-window.ts';
 import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
 import { verifyAutoOpen, type AutoOpenLayout } from './verify-saved-shelf/auto-open.ts';
@@ -77,6 +78,7 @@ try {
                 const response: ReportResponse = {
                     spec: fixture.spec,
                     intent: fixture.intent,
+                    text: reportText(fixture.spec),
                     language: fixture.lang,
                     query: 'mock-only',
                     dataAt: '2025-12-31T21:00:00Z',
@@ -521,6 +523,7 @@ try {
                 report: {
                     spec: dragFixture.spec,
                     intent: dragFixture.intent,
+                    text: reportText(dragFixture.spec),
                     language: dragFixture.lang,
                     query: 'mock-only',
                     dataAt: '2025-12-31T21:00:00Z',

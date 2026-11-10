@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyCompletion } from 'report-shared/name-index';
-import { reportText } from 'report-shared/report-state';
+import { reportText } from 'report-shared/report-text';
 import { savedWorkflow, WORKFLOW_PROMPT } from '../scripts/fixtures/saved-workflow';
 import type { AuthSessionCallbacks } from '../client/src/auth/auth-session';
 import { createAppApi, type ReportResponse } from '../client/src/api/app-api';
@@ -234,15 +234,21 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify(WORKFLOW_PROMPT),
         ]);
-        // Recreate all stores from the URL: intent restoration has no savable source.
+        // Recreate all stores from the URL: its state asks for the report again by the report's
+        // own text, in its language, a request like any other.
         b.state.disconnect();
-        const reopened = await client(editor, b.page.location.href);
-        expect(reportText(reopened.state.reports.report!.spec)).toBe(reopened.state.reports.text);
-        expect(reopened.state.reports.originalPrompt).toBeUndefined();
-        expect(reopened.state.savedPrompts.canSave).toBe(false);
-        expect(reopened.state.savedPrompts.items).toEqual([item]);
         const before = fixture.decisions.length;
-        await click(reopened.state, item.id);
+        const reopened = await client(editor, b.page.location.href);
+        const shown = reopened.state.reports.report!;
+        expect(reportText(shown.spec)).toBe(reopened.state.reports.text);
+        expect(reopened.state.reports.originalPrompt).toBe(WORKFLOW_PROMPT);
+        expect(shown.query).toBe(later.query);
+        expect(fixture.decisions).toHaveLength(before + 1);
+        // Already on the shelf; clicked within a minute, it shows from memory.
+        expect(reopened.state.savedPrompts.isSaved(WORKFLOW_PROMPT)).toBe(true);
+        expect(reopened.state.savedPrompts.items).toEqual([item]);
+        reopened.state.openSavedPrompt(item.id);
+        expect(reopened.state.reports.report).toBe(shown);
         expect(fixture.decisions).toHaveLength(before + 1);
         a.state.select('fixture-b');
         await settled(a.state);

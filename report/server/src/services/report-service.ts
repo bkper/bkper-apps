@@ -13,7 +13,8 @@
  * answered before anything is asked or read.
  */
 import type { ReportSpec } from 'report-shared/catalog';
-import { reportText } from 'report-shared/report-state';
+import type { ChartPreference } from 'report-shared/report-intent';
+import { reportText } from 'report-shared/report-text';
 import type { DecisionClient } from './decision-client.js';
 import type { ComparisonError } from './period-query.js';
 import { readReport, type ReadReport } from './default-period.js';
@@ -42,9 +43,12 @@ export const DEFAULT_LANGUAGE = 'en';
 
 /**
  * A report request: a text in any language, or an intent, such as a suggestion's, its period
- * as parts or as a period id of older intents.
+ * as parts or as a period id of older intents; and the chart to show when it fits, over the one
+ * the request names. How to show a report is not what it is.
  */
-export type ReportRequest = { prompt: string } | { intent: ReportIntentInput };
+export type ReportRequest = ({ prompt: string } | { intent: ReportIntentInput }) & {
+    chart?: ChartPreference;
+};
 
 /** Languages the caller prefers, each already one of the Bkper languages. */
 export interface ReportLanguages {
@@ -153,6 +157,7 @@ export async function createReport(
         intentTrace = resolution.trace;
         defaultPeriod = resolution.defaultPeriod === true;
     }
+    if (request.chart !== undefined) intent = { ...intent, chart: request.chart };
     const language = languages.requested ?? detected ?? languages.accepted ?? DEFAULT_LANGUAGE;
 
     let read: ReadReport;

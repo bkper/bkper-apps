@@ -1,4 +1,4 @@
-import { stateFromUrlValue } from 'report-shared/report-state';
+import { stateFromUrlValue } from 'report-shared/url-state';
 import { reactive, Store } from './store';
 
 /** The URL query parameter that selects the Book, as the Book menu opens the app. */
@@ -6,7 +6,7 @@ const BOOK_PARAM = 'book';
 /** The URL query parameter that holds the report request, so a report can be reloaded or shared. */
 const PROMPT_PARAM = 'q';
 /**
- * The URL query parameter that holds the report's compact state (`report-shared/report-state`),
+ * The URL query parameter that holds the report's state (`report-shared/url-state`),
  * as the Book menu opens the app with the state Bkper keeps in the Book's URL (`${app.state}`).
  */
 const STATE_PARAM = 'state';

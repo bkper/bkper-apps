@@ -326,6 +326,11 @@ export const ReportRequestSchema = z
             example: 'show my expenses by category this year',
         }),
         intent: IntentSchema.optional(),
+        chart: shape.chart.meta({
+            description:
+                'The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.',
+            example: 'pie',
+        }),
         language: LanguageSchema.optional().openapi({
             description:
                 'Language of the report’s texts, as a BCP 47 tag of one of the 133 Bkper languages, such as `pt` or `pt-BR`. Leave it out to write the report in the language of `prompt`, else `Accept-Language`, else English.',

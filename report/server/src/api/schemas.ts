@@ -361,7 +361,7 @@ const SavedPromptIdSchema = z
     });
 
 export const SavedPromptParamsSchema = BookParamsSchema.extend({
-    reportId: SavedPromptIdSchema.openapi({ param: { name: 'reportId', in: 'path' } }),
+    promptId: SavedPromptIdSchema.openapi({ param: { name: 'promptId', in: 'path' } }),
 }).strict();
 
 export const SavePromptRequestSchema = z
@@ -398,7 +398,7 @@ export const SavedPromptSchema = z
 
 export const SavedPromptsResponseSchema = z
     .strictObject({
-        reports: z.array(SavedPromptSchema).openapi({
+        prompts: z.array(SavedPromptSchema).openapi({
             description:
                 'All saved prompts in the shelf’s order: a new prompt goes last, and moves change it. The server follows every storage page. Visibility after saves, removals and moves is eventually consistent.',
         }),
@@ -424,12 +424,6 @@ export const SavedPromptsResponseSchema = z
             }),
     })
     .openapi('SavedPromptsResponse');
-
-export const SavePromptResponseSchema = z
-    .strictObject({
-        report: SavedPromptSchema,
-    })
-    .openapi('SavePromptResponse');
 
 const ViewKindSchema = z.enum(VIEW_KINDS).openapi({
     description:

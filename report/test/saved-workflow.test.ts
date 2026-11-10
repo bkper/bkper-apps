@@ -71,7 +71,7 @@ async function start(session: Session, href = 'http://localhost:5207/?book=fixtu
             getBook: async id => ({ id, name: id }),
         }),
         createReportApi: () => session.api,
-        createSavedReportsApi: () => session.api,
+        createSavedPromptsApi: () => session.api,
         createBookNamesApi: () => session.api,
         loadRenderer: async () => undefined,
         loadStrings: async () => undefined,
@@ -84,8 +84,8 @@ async function start(session: Session, href = 'http://localhost:5207/?book=fixtu
 
 async function settled(state: AppState) {
     await vi.waitFor(() => {
-        expect(state.savedReports.loading).toBe(false);
-        expect(state.savedReports.capabilities).toBeDefined();
+        expect(state.savedPrompts.loading).toBe(false);
+        expect(state.savedPrompts.capabilities).toBeDefined();
         expect(state.reports.suggestions).toBeDefined();
         expect(state.reports.pending).toBe(false);
     });
@@ -93,7 +93,7 @@ async function settled(state: AppState) {
 
 async function click(state: AppState, id: string) {
     const previous = state.reports.report;
-    state.openSavedReport(id);
+    state.openSavedPrompt(id);
     await vi.waitFor(() => {
         expect(state.reports.pending).toBe(false);
         expect(state.reports.report).toBeDefined();
@@ -173,17 +173,17 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(answer(a.state.reports.report!).amount).toBe('1200.5');
         a.state.reports.chooseChart('ranked-bar');
         a.state.reports.input('Draft');
-        await a.state.savedReports.save();
-        const [item] = a.state.savedReports.items;
+        await a.state.savedPrompts.save();
+        const [item] = a.state.savedPrompts.items;
         expect(item.prompt).toBe(WORKFLOW_PROMPT);
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify(WORKFLOW_PROMPT),
         ]);
-        await b.state.savedReports.load();
-        expect(b.state.savedReports.items).toEqual([item]);
+        await b.state.savedPrompts.load();
+        expect(b.state.savedPrompts.items).toEqual([item]);
         // Independent collaborator's identical save addresses the same per-item key.
         expect(
-            await editor.api.saveReport('fixture-a', { prompt: ` ${WORKFLOW_PROMPT} ` })
+            await editor.api.savePrompt('fixture-a', { prompt: ` ${WORKFLOW_PROMPT} ` })
         ).toEqual(item);
         expect(fixture.savedValues()).toHaveLength(1);
         // This independent client's own typed request of the same text answers its saved click.
@@ -192,7 +192,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         await vi.waitFor(() => expect(b.state.reports.originalPrompt).toBe(WORKFLOW_PROMPT));
         const typed = b.state.reports.report!;
         b.state.reports.chooseChart('ranked-bar');
-        b.state.openSavedReport(item.id);
+        b.state.openSavedPrompt(item.id);
         expect(b.state.reports.report).toBe(typed);
         expect(b.state.reports.pending).toBe(false);
         expect(b.state.reports.chart).toBeUndefined();
@@ -203,7 +203,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(sourcePeriod(first)).toMatch(/^Oct 1\s–\s31, 2026$/);
         // Within a minute a click shows the same report, though the date has changed since.
         fixture.advance();
-        b.state.openSavedReport(item.id);
+        b.state.openSavedPrompt(item.id);
         expect(b.state.reports.report).toBe(first);
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
@@ -237,22 +237,22 @@ describe('saved-prompt route/service and independent app clients', () => {
         const reopened = await client(editor, b.page.location.href);
         expect(reportText(reopened.state.reports.report!.spec)).toBe(reopened.state.reports.text);
         expect(reopened.state.reports.originalPrompt).toBeUndefined();
-        expect(reopened.state.savedReports.canSave).toBe(false);
-        expect(reopened.state.savedReports.items).toEqual([item]);
+        expect(reopened.state.savedPrompts.canSave).toBe(false);
+        expect(reopened.state.savedPrompts.items).toEqual([item]);
         const before = fixture.decisions.length;
         await click(reopened.state, item.id);
         expect(fixture.decisions).toHaveLength(before + 1);
         a.state.select('fixture-b');
         await settled(a.state);
-        expect(a.state.savedReports.items).toEqual([]);
+        expect(a.state.savedPrompts.items).toEqual([]);
         // An id valid in A cannot remove A's prompt through B.
-        await owner.api.removeReport('fixture-b', item.id);
-        expect((await owner.api.savedReports('fixture-a')).reports).toEqual([item]);
-        await editor.api.removeReport('fixture-a', item.id);
-        await a.state.savedReports.load();
+        await owner.api.removePrompt('fixture-b', item.id);
+        expect((await owner.api.savedPrompts('fixture-a')).prompts).toEqual([item]);
+        await editor.api.removePrompt('fixture-a', item.id);
+        await a.state.savedPrompts.load();
         a.state.select('fixture-a');
         await settled(a.state);
-        expect(a.state.savedReports.items).toEqual([]);
+        expect(a.state.savedPrompts.items).toEqual([]);
         a.state.disconnect();
         reopened.state.disconnect();
     });
@@ -261,7 +261,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         const fixture = await savedWorkflow();
         const owner = fixture.session('owner', 'OWNER');
         const prompt = 'Food last month';
-        const saved = await owner.api.saveReport('fixture-a', { prompt });
+        const saved = await owner.api.savePrompt('fixture-a', { prompt });
         // The Book opens with its first saved prompt, as a click does.
         const { state } = await client(owner);
         const title = (report: ReportResponse) => report.spec.elements[report.spec.root].props;
@@ -297,7 +297,7 @@ describe('saved-prompt route/service and independent app clients', () => {
     it('drops a late real report response across A → B → A without restoring its source', async () => {
         const fixture = await savedWorkflow();
         const owner = fixture.session('owner', 'OWNER');
-        const saved = await owner.api.saveReport('fixture-a', { prompt: WORKFLOW_PROMPT });
+        const saved = await owner.api.savePrompt('fixture-a', { prompt: WORKFLOW_PROMPT });
         let hold = true;
         let release: (() => void) | undefined;
         let oldSignal: AbortSignal | undefined;
@@ -324,7 +324,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         await vi.waitFor(() => expect(release).toBeDefined());
         state.select('fixture-b');
         await settled(state);
-        expect(state.savedReports.items).toEqual([]);
+        expect(state.savedPrompts.items).toEqual([]);
         fixture.advance();
         // Back on A, it opens again, read afresh on the new date.
         state.select('fixture-a');
@@ -336,8 +336,8 @@ describe('saved-prompt route/service and independent app clients', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
         expect(state.reports.report).toBe(current);
         expect(state.reports.originalPrompt).toBe(WORKFLOW_PROMPT);
-        expect(state.savedReports.items).toEqual([saved]);
-        expect(state.savedReports.loadError).toBeUndefined();
+        expect(state.savedPrompts.items).toEqual([saved]);
+        expect(state.savedPrompts.loadError).toBeUndefined();
         state.disconnect();
     });
 
@@ -350,15 +350,15 @@ describe('saved-prompt route/service and independent app clients', () => {
         a.state.reports.runSaved(WORKFLOW_PROMPT);
         await vi.waitFor(() => expect(a.state.reports.originalPrompt).toBe(WORKFLOW_PROMPT));
         fixture.failWrites(true);
-        await a.state.savedReports.save();
-        expect(a.state.savedReports.saveError).toBe('storage_error');
-        expect(a.state.savedReports.items).toEqual([]);
+        await a.state.savedPrompts.save();
+        expect(a.state.savedPrompts.saveError).toBe('storage_error');
+        expect(a.state.savedPrompts.items).toEqual([]);
         fixture.failWrites(false);
-        await a.state.savedReports.save();
-        const [item] = a.state.savedReports.items;
-        await b.state.savedReports.load();
-        expect(b.state.savedReports.items).toEqual([item]);
-        expect(b.state.savedReports.canRemove).toBe(false);
+        await a.state.savedPrompts.save();
+        const [item] = a.state.savedPrompts.items;
+        await b.state.savedPrompts.load();
+        expect(b.state.savedPrompts.items).toEqual([item]);
+        expect(b.state.savedPrompts.canRemove).toBe(false);
         // Shelf listing follows native saved-query roles, not the narrower balances policy.
         const decisionsBefore = fixture.decisions.length;
         await expect(
@@ -366,32 +366,32 @@ describe('saved-prompt route/service and independent app clients', () => {
         ).rejects.toMatchObject({ code: 'forbidden', status: 403 });
         expect(fixture.decisions).toHaveLength(decisionsBefore);
         await expect(
-            viewer.api.saveReport('fixture-a', { prompt: 'No write' })
+            viewer.api.savePrompt('fixture-a', { prompt: 'No write' })
         ).rejects.toMatchObject({ code: 'forbidden', status: 403 });
         owner.identity.permission = 'VIEWER';
         const before = fixture.authorizations.length;
-        await a.state.savedReports.remove(item.id);
+        await a.state.savedPrompts.remove(item.id);
         expect(fixture.authorizations).toHaveLength(before + 1);
-        expect(a.state.savedReports.removeError).toBe('forbidden');
-        expect(a.state.savedReports.items).toEqual([item]);
-        expect(a.state.savedReports.canRemove).toBe(false);
+        expect(a.state.savedPrompts.removeError).toBe('forbidden');
+        expect(a.state.savedPrompts.items).toEqual([item]);
+        expect(a.state.savedPrompts.canRemove).toBe(false);
         owner.identity.permission = 'NONE';
-        await a.state.savedReports.load();
-        expect(a.state.savedReports.items).toEqual([]);
-        expect(a.state.savedReports.loadError).toBe('forbidden');
+        await a.state.savedPrompts.load();
+        expect(a.state.savedPrompts.items).toEqual([]);
+        expect(a.state.savedPrompts.loadError).toBe('forbidden');
         owner.identity.permission = 'EDITOR';
-        await a.state.savedReports.load();
-        expect(a.state.savedReports.items).toEqual([item]);
-        expect(a.state.savedReports.canRemove).toBe(true);
-        expect(a.state.savedReports.loadError).toBeUndefined();
+        await a.state.savedPrompts.load();
+        expect(a.state.savedPrompts.items).toEqual([item]);
+        expect(a.state.savedPrompts.canRemove).toBe(true);
+        expect(a.state.savedPrompts.loadError).toBeUndefined();
         fixture.failWrites(true);
-        await a.state.savedReports.remove(item.id);
-        expect(a.state.savedReports.removeError).toBe('storage_error');
-        expect(a.state.savedReports.items).toEqual([item]);
+        await a.state.savedPrompts.remove(item.id);
+        expect(a.state.savedPrompts.removeError).toBe('storage_error');
+        expect(a.state.savedPrompts.items).toEqual([item]);
         fixture.failWrites(false);
-        await a.state.savedReports.remove(item.id);
-        await b.state.savedReports.load();
-        expect(b.state.savedReports.items).toEqual([]);
+        await a.state.savedPrompts.remove(item.id);
+        await b.state.savedPrompts.load();
+        expect(b.state.savedPrompts.items).toEqual([]);
         a.state.disconnect();
         b.state.disconnect();
     });
@@ -442,8 +442,8 @@ describe('completed names, through the real routes, reports, the shelf and other
             { request: 'Food last month', today: '2026-11-05' },
         ]);
 
-        await a.state.savedReports.save();
-        const [item] = a.state.savedReports.items;
+        await a.state.savedPrompts.save();
+        const [item] = a.state.savedPrompts.items;
         expect(item.prompt).toBe('Food last month');
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify('Food last month'),
@@ -452,13 +452,13 @@ describe('completed names, through the real routes, reports, the shelf and other
         // Another collaborator reopens the text: the same Account, from its own query.
         // It opens with the Book, as a click does.
         const b = await client(editor);
-        expect(b.state.savedReports.items).toEqual([item]);
+        expect(b.state.savedPrompts.items).toEqual([item]);
         const reopened = b.state.reports.report!;
         expect(reopened.intent).toEqual(named.intent);
         expect(answer(reopened).amount).toBe('200.5');
         expect(b.state.reports.originalPrompt).toBe('Food last month');
         const asked = fixture.requests.filter(request => request.session === 'editor').length;
-        b.state.openSavedReport(item.id);
+        b.state.openSavedPrompt(item.id);
         expect(b.state.reports.report).toBe(reopened);
         expect(fixture.requests.filter(request => request.session === 'editor')).toHaveLength(
             asked
@@ -516,8 +516,8 @@ describe('completed names, through the real routes, reports, the shelf and other
         expect(shown.trace.chart.fitting).not.toContain('pie');
         expect(shown.trace.chart.fitting).not.toContain('stacked');
 
-        await a.state.savedReports.save();
-        const [item] = a.state.savedReports.items;
+        await a.state.savedPrompts.save();
+        const [item] = a.state.savedPrompts.items;
         expect(item.prompt).toBe('Food versus Rent last month');
 
         // "and" or "versus": the same report, reopened from the saved text by a viewer.
@@ -532,7 +532,7 @@ describe('completed names, through the real routes, reports, the shelf and other
         expect(reopened.intent).toEqual(typed.intent);
         expect(reopened.query).toBe(shown.query);
         expect(answers(reopened)).toEqual(answers(typed));
-        expect(b.state.savedReports.canSave).toBe(false);
+        expect(b.state.savedPrompts.canSave).toBe(false);
         expect(fixture.savedValues()).toHaveLength(1);
         a.state.disconnect();
         b.state.disconnect();

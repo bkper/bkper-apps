@@ -16,10 +16,10 @@ describe('server OpenAPI contract', () => {
 
         expect(Object.keys(spec.paths).sort()).toEqual([
             '/api/v1/books/{bookId}/names',
+            '/api/v1/books/{bookId}/prompts',
+            '/api/v1/books/{bookId}/prompts/{promptId}',
+            '/api/v1/books/{bookId}/prompts/{promptId}/position',
             '/api/v1/books/{bookId}/report',
-            '/api/v1/books/{bookId}/reports',
-            '/api/v1/books/{bookId}/reports/{reportId}',
-            '/api/v1/books/{bookId}/reports/{reportId}/position',
             '/api/v1/books/{bookId}/suggestions',
             '/api/v1/ping',
         ]);

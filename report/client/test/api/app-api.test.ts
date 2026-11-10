@@ -53,7 +53,7 @@ describe('createAppApi', () => {
 describe('saved-prompt API', () => {
     const item = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
     const shelf = {
-        reports: [item],
+        prompts: [item],
         capabilities: { list: true, save: true, remove: true, move: true },
     };
 
@@ -64,21 +64,21 @@ describe('saved-prompt API', () => {
             fetch: async request => {
                 requests.push(request);
                 if (request.method === 'DELETE') return new Response(null, { status: 204 });
-                if (request.method === 'POST') return jsonResponse({ report: item });
+                if (request.method === 'POST') return jsonResponse(item);
                 return jsonResponse(shelf);
             },
         });
         const controller = new AbortController();
         const options = { signal: controller.signal };
-        await expect(api.savedReports('book /1', options)).resolves.toEqual(shelf);
-        await expect(api.saveReport('book /1', { prompt: item.prompt }, options)).resolves.toEqual(
+        await expect(api.savedPrompts('book /1', options)).resolves.toEqual(shelf);
+        await expect(api.savePrompt('book /1', { prompt: item.prompt }, options)).resolves.toEqual(
             item
         );
-        await expect(api.removeReport('book /1', item.id, options)).resolves.toBeUndefined();
+        await expect(api.removePrompt('book /1', item.id, options)).resolves.toBeUndefined();
         await expect(
-            api.moveReport('book /1', item.id, { before: null }, options)
+            api.movePrompt('book /1', item.id, { before: null }, options)
         ).resolves.toEqual(shelf);
-        const url = 'https://app.example.test/api/v1/books/book%20%2F1/reports';
+        const url = 'https://app.example.test/api/v1/books/book%20%2F1/prompts';
         expect(requests.map(request => [request.method, request.url])).toEqual([
             ['GET', url],
             ['POST', url],
@@ -107,12 +107,12 @@ describe('saved-prompt API', () => {
             });
             const call = (signal?: AbortSignal) =>
                 operation === 'list'
-                    ? api.savedReports('b', { signal })
+                    ? api.savedPrompts('b', { signal })
                     : operation === 'save'
-                      ? api.saveReport('b', { prompt: item.prompt }, { signal })
+                      ? api.savePrompt('b', { prompt: item.prompt }, { signal })
                       : operation === 'remove'
-                        ? api.removeReport('b', item.id, { signal })
-                        : api.moveReport('b', item.id, { before: item.id }, { signal });
+                        ? api.removePrompt('b', item.id, { signal })
+                        : api.movePrompt('b', item.id, { before: item.id }, { signal });
             await expect(call()).rejects.toMatchObject({
                 name: 'AppApiError',
                 status: 502,
@@ -153,12 +153,12 @@ describe('saved-prompt API', () => {
             const options = { signal: controller.signal };
             const result =
                 operation === 'list'
-                    ? api.savedReports('b', options)
+                    ? api.savedPrompts('b', options)
                     : operation === 'save'
-                      ? api.saveReport('b', { prompt: item.prompt }, options)
+                      ? api.savePrompt('b', { prompt: item.prompt }, options)
                       : operation === 'remove'
-                        ? api.removeReport('b', item.id, options)
-                        : api.moveReport('b', item.id, { before: null }, options);
+                        ? api.removePrompt('b', item.id, options)
+                        : api.movePrompt('b', item.id, { before: null }, options);
             controller.abort();
             await expect(result).rejects.toMatchObject({ name: 'AbortError' });
         }
@@ -170,7 +170,7 @@ describe('saved-prompt API', () => {
             fetch: async () =>
                 new Response(null, { status: 403, headers: { 'content-length': '0' } }),
         });
-        await expect(api.removeReport('b', item.id)).rejects.toMatchObject({
+        await expect(api.removePrompt('b', item.id)).rejects.toMatchObject({
             name: 'AppApiError',
             status: 403,
         });
@@ -186,10 +186,10 @@ describe('saved-prompt API', () => {
             });
             const result =
                 operation === 'list'
-                    ? api.savedReports('b')
+                    ? api.savedPrompts('b')
                     : operation === 'save'
-                      ? api.saveReport('b', { prompt: item.prompt })
-                      : api.moveReport('b', item.id, { before: null });
+                      ? api.savePrompt('b', { prompt: item.prompt })
+                      : api.movePrompt('b', item.id, { before: null });
             await expect(result).rejects.toBeInstanceOf(AppApiError);
         }
     );

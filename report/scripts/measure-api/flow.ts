@@ -3,7 +3,7 @@
  * typed prompts, against a running app, read-only (`measure-api.ts --flow`).
  *
  * The client, once signed in (`AppState`), sends at once and in parallel: the saved-prompt shelf
- * (`GET /reports`), the Book's names (`GET /names`) and the suggestions (`GET /suggestions`);
+ * (`GET /prompts`), the Book's names (`GET /names`) and the suggestions (`GET /suggestions`);
  * when the suggestions arrive, it fetches each one's report by intent, in parallel (no AI). The
  * Book's name comes from Bkper directly (bkper-js), not through the app, so it is not measured.
  * A typed prompt is one `POST /report` with `{ prompt }` only, after the 250 ms debounce, which is
@@ -225,7 +225,7 @@ export async function measureFlow(options: FlowOptions): Promise<void> {
             if (sinceOpen !== undefined) loaded.push(`${step} ${Math.round(sinceOpen)}`);
         };
 
-        const shelf = send(book, 'reports').then(answer =>
+        const shelf = send(book, 'prompts').then(answer =>
             record('shelf', answer, answer.end - opened)
         );
         const names = send(book, 'names').then(answer => {

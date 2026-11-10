@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AppApiError, type SavedPrompt, type SavedPromptsResponse } from '../../src/api/app-api';
-import { beforeFor, SavedReports, type SavedReportsApi } from '../../src/state/saved-reports';
+import { beforeFor, SavedPrompts, type SavedPromptsApi } from '../../src/state/saved-prompts';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -42,32 +42,32 @@ function setup() {
         signal?: AbortSignal;
         result: ReturnType<typeof deferred<SavedPromptsResponse>>;
     }[] = [];
-    const api: SavedReportsApi = {
-        savedReports: (book, options) => {
+    const api: SavedPromptsApi = {
+        savedPrompts: (book, options) => {
             const result = deferred<SavedPromptsResponse>();
             loads.push({ book, signal: options?.signal, result });
             return result.promise;
         },
-        saveReport: (book, body, options) => {
+        savePrompt: (book, body, options) => {
             const result = deferred<SavedPrompt>();
             saves.push({ book, prompt: body.prompt, signal: options?.signal, result });
             return result.promise;
         },
-        removeReport: (book, id, options) => {
+        removePrompt: (book, id, options) => {
             const result = deferred<void>();
             removals.push({ book, id, signal: options?.signal, result });
             return result.promise;
         },
-        moveReport: (book, id, body, options) => {
+        movePrompt: (book, id, body, options) => {
             const result = deferred<SavedPromptsResponse>();
             moves.push({ book, id, before: body.before, signal: options?.signal, result });
             return result.promise;
         },
     };
-    const shelf = new SavedReports(api);
-    const ready = async (capabilities = WRITE, reports = [ITEM]) => {
+    const shelf = new SavedPrompts(api);
+    const ready = async (capabilities = WRITE, prompts = [ITEM]) => {
         shelf.open('book-1');
-        loads.at(-1)!.result.resolve({ reports, capabilities });
+        loads.at(-1)!.result.resolve({ prompts, capabilities });
         await shelf.load();
         shelf.setSource('book-1', OTHER.prompt);
     };
@@ -76,7 +76,7 @@ function setup() {
     return { shelf, loads, saves, removals, moves, ready, three };
 }
 
-describe('SavedReports', () => {
+describe('SavedPrompts', () => {
     it('loads a Book-shared shelf and fails closed until capabilities arrive', async () => {
         const { shelf, loads } = setup();
         expect(shelf.canSave).toBe(false);
@@ -85,7 +85,7 @@ describe('SavedReports', () => {
         expect(shelf.canRemove).toBe(false);
         const same = shelf.load();
         expect(loads).toHaveLength(1);
-        loads[0].result.resolve({ reports: [ITEM], capabilities: READ });
+        loads[0].result.resolve({ prompts: [ITEM], capabilities: READ });
         await same;
         expect(shelf.items).toEqual([ITEM]);
         expect(shelf.canList).toBe(true);
@@ -157,7 +157,7 @@ describe('SavedReports', () => {
         expect(shelf.canSave).toBe(false);
         expect(shelf.items).toEqual([ITEM, OTHER]);
         const reload = shelf.load();
-        loads.at(-1)!.result.resolve({ reports: [ITEM, OTHER], capabilities: WRITE });
+        loads.at(-1)!.result.resolve({ prompts: [ITEM, OTHER], capabilities: WRITE });
         await reload;
         expect(shelf.loadError).toBeUndefined();
         expect(shelf.canSave).toBe(true);
@@ -198,7 +198,7 @@ describe('SavedReports', () => {
         expect(moves).toEqual([
             expect.objectContaining({ book: 'book-1', id: OTHER.id, before: THIRD.id }),
         ]);
-        moves[0].result.resolve({ reports: [OTHER, ITEM, THIRD], capabilities: WRITE });
+        moves[0].result.resolve({ prompts: [OTHER, ITEM, THIRD], capabilities: WRITE });
         await moving;
         expect(shelf.items).toEqual([OTHER, ITEM, THIRD]);
         expect(shelf.moving).toBeUndefined();
@@ -206,7 +206,7 @@ describe('SavedReports', () => {
         const toEnd = shelf.move(OTHER.id, null);
         expect(shelf.items).toEqual([ITEM, THIRD, OTHER]);
         expect(moves[1].before).toBeNull();
-        moves[1].result.resolve({ reports: [ITEM, THIRD, OTHER], capabilities: READ });
+        moves[1].result.resolve({ prompts: [ITEM, THIRD, OTHER], capabilities: READ });
         await toEnd;
         expect(shelf.capabilities).toEqual(READ);
         expect(shelf.canMove).toBe(false);
@@ -237,7 +237,7 @@ describe('SavedReports', () => {
         expect(loads).toHaveLength(1);
         const retry = shelf.move(ITEM.id, THIRD.id);
         expect(shelf.moveError).toBeUndefined();
-        moves[1].result.resolve({ reports: [ITEM, THIRD, OTHER], capabilities: WRITE });
+        moves[1].result.resolve({ prompts: [ITEM, THIRD, OTHER], capabilities: WRITE });
         await retry;
         expect(shelf.items).toEqual([ITEM, THIRD, OTHER]);
     });
@@ -253,7 +253,7 @@ describe('SavedReports', () => {
         expect(shelf.canMove).toBe(true);
     });
 
-    it.each(['shelf_changed', 'report_not_found'] as const)(
+    it.each(['shelf_changed', 'prompt_not_found'] as const)(
         'lists the shelf again after %s',
         async code => {
             const { shelf, moves, loads, three } = setup();
@@ -265,7 +265,7 @@ describe('SavedReports', () => {
             expect(shelf.items).toEqual([THIRD, ITEM, OTHER]);
             expect(shelf.moveError).toBe(code);
             expect(loads).toHaveLength(2);
-            loads[1].result.resolve({ reports: [ITEM, OTHER], capabilities: WRITE });
+            loads[1].result.resolve({ prompts: [ITEM, OTHER], capabilities: WRITE });
             await moving;
             expect(shelf.items).toEqual([ITEM, OTHER]);
             expect(shelf.loading).toBe(false);
@@ -296,7 +296,7 @@ describe('SavedReports', () => {
         await shelf.remove(ITEM.id);
         await shelf.load();
         expect([moves.length, saves.length, removals.length, loads.length]).toEqual([1, 0, 0, 1]);
-        moves[0].result.resolve({ reports: [OTHER, THIRD, ITEM], capabilities: WRITE });
+        moves[0].result.resolve({ prompts: [OTHER, THIRD, ITEM], capabilities: WRITE });
         await moving;
         shelf.setSource('book-1', 'Assets today');
         const saving = shelf.save();
@@ -327,9 +327,9 @@ describe('SavedReports', () => {
         const latest = shelf.load();
         expect(loads[0].signal?.aborted).toBe(true);
         expect(loads[1].signal?.aborted).toBe(true);
-        loads[2].result.resolve({ reports: [OTHER], capabilities: READ });
+        loads[2].result.resolve({ prompts: [OTHER], capabilities: READ });
         await latest;
-        loads[0].result.resolve({ reports: [ITEM], capabilities: WRITE });
+        loads[0].result.resolve({ prompts: [ITEM], capabilities: WRITE });
         loads[1].result.reject(new Error('late failure'));
         await Promise.resolve();
         expect(shelf.bookId).toBe('a');
@@ -361,13 +361,13 @@ describe('SavedReports', () => {
             shelf.open('book-2');
             shelf.open('book-1');
             const current = shelf.load();
-            loads.at(-1)!.result.resolve({ reports: [], capabilities: READ });
+            loads.at(-1)!.result.resolve({ prompts: [], capabilities: READ });
             await current;
             expect(call.signal?.aborted).toBe(true);
             if (!success) call.result.reject(new AppApiError('old', 403, 'forbidden'));
             else if (operation === 'save') saves[0].result.resolve(OTHER);
             else if (operation === 'remove') removals[0].result.resolve();
-            else moves[0].result.resolve({ reports: [THIRD, ITEM], capabilities: WRITE });
+            else moves[0].result.resolve({ prompts: [THIRD, ITEM], capabilities: WRITE });
             await old;
             expect(shelf.items).toEqual([]);
             expect(shelf.capabilities).toEqual(READ);
@@ -398,9 +398,9 @@ describe('SavedReports', () => {
             expect(loads).toHaveLength(2);
             if (operation === 'save') saves[0].result.resolve(OTHER);
             else if (operation === 'remove') removals[0].result.resolve();
-            else moves[0].result.resolve({ reports: [OTHER, ITEM], capabilities: WRITE });
+            else moves[0].result.resolve({ prompts: [OTHER, ITEM], capabilities: WRITE });
             await mutation;
-            loads[1].result.resolve({ reports: [ITEM, OTHER], capabilities: READ });
+            loads[1].result.resolve({ prompts: [ITEM, OTHER], capabilities: READ });
             await oldLoad;
             expect(shelf.items).toEqual(
                 operation === 'save' ? [ITEM, OTHER] : operation === 'remove' ? [] : [OTHER, ITEM]

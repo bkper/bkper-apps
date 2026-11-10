@@ -17,7 +17,7 @@ import { AppState } from '../../../src/state/app-state';
 import { CACHE_MS } from '../../../src/state/cache-window';
 import { DEBOUNCE_MS, type ReportApi } from '../../../src/state/reports';
 import type { RoutePage } from '../../../src/state/route';
-import type { SavedReportsApi } from '../../../src/state/saved-reports';
+import type { SavedPromptsApi } from '../../../src/state/saved-prompts';
 import type { BookNamesApi } from '../../../src/state/book-names';
 import type { HostPage } from '../../../src/state/book-host';
 
@@ -67,7 +67,7 @@ function createPage(
         href?: string;
         content?: HTMLElement;
         api?: ReportApi;
-        shelfApi?: SavedReportsApi;
+        shelfApi?: SavedPromptsApi;
         getBook?: () => Promise<{ id: string; name: string }>;
         now?: () => number;
         names?: BookName[];
@@ -104,7 +104,7 @@ function createPage(
             refresh: async () => undefined,
         }),
         createReportApi: () => api,
-        createSavedReportsApi: () => options.shelfApi ?? emptyShelf(),
+        createSavedPromptsApi: () => options.shelfApi ?? emptyShelf(),
         createBookNamesApi: () => options.namesApi ?? { names: async () => options.names ?? [] },
         createBookService: () => ({
             listBooksDirect: async () => [],
@@ -541,12 +541,12 @@ describe('ReportPage', () => {
 
 const WRITE = { list: true, save: true, remove: true, move: true };
 const ITEM = { id: 'a'.repeat(64), prompt: 'Expenses this year' };
-function emptyShelf(): SavedReportsApi {
+function emptyShelf(): SavedPromptsApi {
     return {
-        savedReports: async () => ({ reports: [], capabilities: WRITE }),
-        saveReport: async (_book, body) => ({ id: ITEM.id, prompt: body.prompt }),
-        removeReport: async () => undefined,
-        moveReport: async () => ({ reports: [], capabilities: WRITE }),
+        savedPrompts: async () => ({ prompts: [], capabilities: WRITE }),
+        savePrompt: async (_book, body) => ({ id: ITEM.id, prompt: body.prompt }),
+        removePrompt: async () => undefined,
+        movePrompt: async () => ({ prompts: [], capabilities: WRITE }),
     };
 }
 function deferred<T>() {
@@ -634,9 +634,9 @@ describe('Book-shared prompt shelf in ReportPage', () => {
     afterEach(() => document.body.replaceChildren());
 
     it('replaces initial suggestions with saved prompts, kept during typing, reports and errors', async () => {
-        const loaded = deferred<Awaited<ReturnType<SavedReportsApi['savedReports']>>>();
+        const loaded = deferred<Awaited<ReturnType<SavedPromptsApi['savedPrompts']>>>();
         const view = createPage({
-            shelfApi: { ...emptyShelf(), savedReports: () => loaded.promise },
+            shelfApi: { ...emptyShelf(), savedPrompts: () => loaded.promise },
         });
         view.state.select('book-1');
         await settle(view);
@@ -644,7 +644,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(shelfRoot(view).querySelector('[role="status"]')?.textContent).toContain(
             t('shelf_loading', 'en')
         );
-        loaded.resolve({ reports: [ITEM], capabilities: WRITE });
+        loaded.resolve({ prompts: [ITEM], capabilities: WRITE });
         await settle(view);
         expect(shelfRoot(view).querySelector('report-suggestions')).toBeNull();
         expect(control(view, '.saved-prompt').textContent).toContain(ITEM.prompt);
@@ -667,8 +667,8 @@ describe('Book-shared prompt shelf in ReportPage', () => {
             api: { suggestions: async () => ({ suggestions: SUGGESTIONS }), report: request },
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: async () => ({
-                    reports: [{ ...ITEM, prompt: SUGGESTIONS[0].text }],
+                savedPrompts: async () => ({
+                    prompts: [{ ...ITEM, prompt: SUGGESTIONS[0].text }],
                     capabilities: WRITE,
                 }),
             },
@@ -695,7 +695,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
     it('saves the shown original prompt with one click, not the later draft, and prevents duplicates', async () => {
         const saved = deferred<typeof ITEM>();
         const save = vi.fn((_book: string, _body: { prompt: string }) => saved.promise);
-        const view = createPage({ shelfApi: { ...emptyShelf(), saveReport: save } });
+        const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: save } });
         await ready(view);
         await run(view);
         view.state.reports.chooseChart('pie');
@@ -724,7 +724,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
             .fn()
             .mockRejectedValueOnce(new Error('private token details'))
             .mockResolvedValue(ITEM);
-        const view = createPage({ shelfApi: { ...emptyShelf(), saveReport: save } });
+        const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: save } });
         await ready(view);
         await run(view, ITEM.prompt);
         control(view, '.save').click();
@@ -750,8 +750,8 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         const view = createPage({
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: async () => ({ reports: [ITEM], capabilities: WRITE }),
-                removeReport: remove,
+                savedPrompts: async () => ({ prompts: [ITEM], capabilities: WRITE }),
+                removePrompt: remove,
             },
         });
         await ready(view);
@@ -777,8 +777,8 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         const view = createPage({
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: async () => ({
-                    reports: [ITEM],
+                savedPrompts: async () => ({
+                    prompts: [ITEM],
                     capabilities: { list: true, save: false, remove: false, move: false },
                 }),
             },
@@ -805,8 +805,8 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         const load = vi
             .fn()
             .mockRejectedValueOnce(new AppApiError('private', 502, 'storage_error'))
-            .mockResolvedValue({ reports: [ITEM], capabilities: WRITE });
-        const view = createPage({ shelfApi: { ...emptyShelf(), savedReports: load } });
+            .mockResolvedValue({ prompts: [ITEM], capabilities: WRITE });
+        const view = createPage({ shelfApi: { ...emptyShelf(), savedPrompts: load } });
         await ready(view);
         await run(view);
         expect(shelfRoot(view).querySelector('[role="alert"]')?.textContent).toContain(
@@ -822,7 +822,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
 
     it('drops old pending saves and stale shelf controls on Book switches and exit', async () => {
         const saved = deferred<typeof ITEM>();
-        const view = createPage({ shelfApi: { ...emptyShelf(), saveReport: () => saved.promise } });
+        const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: () => saved.promise } });
         await ready(view);
         await run(view);
         control(view, '.save').click();
@@ -853,7 +853,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
 
     it('rechecks access after server denial and never trusts the old mutation capabilities', async () => {
         const save = vi.fn().mockRejectedValue(new AppApiError('private', 403, 'forbidden'));
-        const view = createPage({ shelfApi: { ...emptyShelf(), saveReport: save } });
+        const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: save } });
         await ready(view);
         await run(view);
         control(view, '.save').click();
@@ -870,13 +870,13 @@ describe('Book-shared prompt shelf in ReportPage', () => {
     });
 
     it('hides old shelf data on Book switching even when the new list is still loading', async () => {
-        const load = deferred<Awaited<ReturnType<SavedReportsApi['savedReports']>>>();
+        const load = deferred<Awaited<ReturnType<SavedPromptsApi['savedPrompts']>>>();
         const view = createPage({
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: book =>
+                savedPrompts: book =>
                     book === 'book-1'
-                        ? Promise.resolve({ reports: [ITEM], capabilities: WRITE })
+                        ? Promise.resolve({ prompts: [ITEM], capabilities: WRITE })
                         : load.promise,
             },
         });
@@ -889,7 +889,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(shelfRoot(view).querySelector('[role="status"]')?.textContent).toContain(
             t('shelf_loading', 'en')
         );
-        load.resolve({ reports: [], capabilities: WRITE });
+        load.resolve({ prompts: [], capabilities: WRITE });
         await settle(view);
     });
 
@@ -899,7 +899,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
             language: 'ar',
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: async () => ({ reports: [{ ...ITEM, prompt }], capabilities: WRITE }),
+                savedPrompts: async () => ({ prompts: [{ ...ITEM, prompt }], capabilities: WRITE }),
             },
         });
         await ready(view);
@@ -925,21 +925,21 @@ describe('Saved prompt menu in ReportPage', () => {
         options: {
             capabilities?: typeof WRITE;
             language?: string;
-            moveReport?: SavedReportsApi['moveReport'];
+            movePrompt?: SavedPromptsApi['movePrompt'];
         } = {}
     ) {
         return createPage({
             language: options.language,
             shelfApi: {
                 ...emptyShelf(),
-                savedReports: async () => ({
-                    reports: SHELF,
+                savedPrompts: async () => ({
+                    prompts: SHELF,
                     capabilities: options.capabilities ?? WRITE,
                 }),
-                moveReport:
-                    options.moveReport ??
+                movePrompt:
+                    options.movePrompt ??
                     (async (_book, id, { before }) => ({
-                        reports: reorder(SHELF, id, before),
+                        prompts: reorder(SHELF, id, before),
                         capabilities: WRITE,
                     })),
             },
@@ -1001,11 +1001,11 @@ describe('Saved prompt menu in ReportPage', () => {
             ['ar', 'shelf_move_right', A.id],
         ] as const;
         for (const [language, key, before] of cases) {
-            const move = vi.fn<SavedReportsApi['moveReport']>(async (_book, id, body) => ({
-                reports: reorder(SHELF, id, body.before),
+            const move = vi.fn<SavedPromptsApi['movePrompt']>(async (_book, id, body) => ({
+                prompts: reorder(SHELF, id, body.before),
                 capabilities: WRITE,
             }));
-            const view = shelfPage({ language, moveReport: move });
+            const view = shelfPage({ language, movePrompt: move });
             await view.state.strings.load();
             await ready(view);
             await choose(view, B.id, t(key, language));
@@ -1043,15 +1043,15 @@ describe('Saved prompt menu in ReportPage', () => {
     });
 
     it("keeps focus on the moved prompt's menu and announces its new place", async () => {
-        const moved = deferred<Awaited<ReturnType<SavedReportsApi['moveReport']>>>();
+        const moved = deferred<Awaited<ReturnType<SavedPromptsApi['movePrompt']>>>();
         const move = vi
-            .fn<SavedReportsApi['moveReport']>()
+            .fn<SavedPromptsApi['movePrompt']>()
             .mockReturnValueOnce(moved.promise)
             .mockImplementation(async (_book, id, body) => ({
-                reports: reorder([C, A, B], id, body.before),
+                prompts: reorder([C, A, B], id, body.before),
                 capabilities: WRITE,
             }));
-        const view = shelfPage({ moveReport: move });
+        const view = shelfPage({ movePrompt: move });
         await ready(view);
         menuButton(view, C.id).focus();
         await choose(view, C.id, FIRST);
@@ -1060,7 +1060,7 @@ describe('Saved prompt menu in ReportPage', () => {
         expect(menu(view, A.id).every(([label, disabled]) => label === REMOVE || disabled)).toBe(
             true
         );
-        moved.resolve({ reports: [C, A, B], capabilities: WRITE });
+        moved.resolve({ prompts: [C, A, B], capabilities: WRITE });
         await settle(view);
         expect(shelfRoot(view).querySelector('[role="status"]')?.textContent?.trim()).toBe(
             t('shelf_moved', 'en', { position: '1', count: '3' })
@@ -1074,7 +1074,7 @@ describe('Saved prompt menu in ReportPage', () => {
 
     it('restores the order of a failed move, keeps focus, and offers to reload', async () => {
         const view = shelfPage({
-            moveReport: async () => {
+            movePrompt: async () => {
                 throw new AppApiError('private', 502, 'storage_error');
             },
         });

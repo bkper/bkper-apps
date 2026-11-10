@@ -346,7 +346,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/books/{bookId}/reports": {
+    "/api/v1/books/{bookId}/prompts": {
         parameters: {
             query?: never;
             header?: never;
@@ -355,7 +355,7 @@ export interface paths {
         };
         /**
          * List the Book’s shared saved prompts and current capabilities
-         * @description Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.
+         * @description Lists original requests shared by every collaborator of this Book, including RECORDER. This is the saved-prompt shelf; POST /api/v1/books/{bookId}/report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.
          */
         get: {
             parameters: {
@@ -452,7 +452,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SavePromptResponse"];
+                        "application/json": components["schemas"]["SavedPrompt"];
                     };
                 };
                 /** @description Invalid request (`invalid_request`, naming the field) */
@@ -508,7 +508,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/books/{bookId}/reports/{reportId}": {
+    "/api/v1/books/{bookId}/prompts/{promptId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -530,7 +530,7 @@ export interface paths {
                     /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
                     bookId: string;
                     /** @description Opaque saved-prompt id returned by this API. Scoped to the Book. */
-                    reportId: string;
+                    promptId: string;
                 };
                 cookie?: never;
             };
@@ -595,7 +595,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/books/{bookId}/reports/{reportId}/position": {
+    "/api/v1/books/{bookId}/prompts/{promptId}/position": {
         parameters: {
             query?: never;
             header?: never;
@@ -615,7 +615,7 @@ export interface paths {
                     /** @description Id of the Book, as Bkper gives it (`bkper book list`). */
                     bookId: string;
                     /** @description Opaque saved-prompt id returned by this API. Scoped to the Book. */
-                    reportId: string;
+                    promptId: string;
                 };
                 cookie?: never;
             };
@@ -652,7 +652,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`). */
+                /** @description The saved prompt is not on the shelf (`prompt_not_found`), or the Book was not found (`book_not_found`). */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1485,7 +1485,7 @@ export interface components {
         };
         SavedPromptsResponse: {
             /** @description All saved prompts in the shelf’s order: a new prompt goes last, and moves change it. The server follows every storage page. Visibility after saves, removals and moves is eventually consistent. */
-            reports: components["schemas"]["SavedPrompt"][];
+            prompts: components["schemas"]["SavedPrompt"][];
             /** @description Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata. */
             capabilities: {
                 /** @description True for OWNER, EDITOR, POSTER, RECORDER and VIEWER. Unknown or NONE roles are denied. */
@@ -1504,9 +1504,6 @@ export interface components {
             id: string;
             /** @description Only the saved request text. To build it against current Book data, send this as `prompt` to the singular POST /api/v1/books/{bookId}/report. */
             prompt: string;
-        };
-        SavePromptResponse: {
-            report: components["schemas"]["SavedPrompt"];
         };
         SavePromptRequest: {
             /**
@@ -1546,7 +1543,6 @@ export type ReportErrorResponse = components['schemas']['ReportErrorResponse'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type SavedPromptsResponse = components['schemas']['SavedPromptsResponse'];
 export type SavedPrompt = components['schemas']['SavedPrompt'];
-export type SavePromptResponse = components['schemas']['SavePromptResponse'];
 export type SavePromptRequest = components['schemas']['SavePromptRequest'];
 export type MoveSavedPromptRequest = components['schemas']['MoveSavedPromptRequest'];
 export type $defs = Record<string, never>;

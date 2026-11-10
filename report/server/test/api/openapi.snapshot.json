@@ -327,11 +327,11 @@
                 }
             }
         },
-        "/api/v1/books/{bookId}/reports": {
+        "/api/v1/books/{bookId}/prompts": {
             "get": {
                 "tags": ["Saved prompts"],
                 "summary": "List the Book’s shared saved prompts and current capabilities",
-                "description": "Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.",
+                "description": "Lists original requests shared by every collaborator of this Book, including RECORDER. This is the saved-prompt shelf; POST /api/v1/books/{bookId}/report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.",
                 "parameters": [
                     {
                         "schema": {
@@ -443,7 +443,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SavePromptResponse"
+                                    "$ref": "#/components/schemas/SavedPrompt"
                                 }
                             }
                         }
@@ -501,7 +501,7 @@
                 }
             }
         },
-        "/api/v1/books/{bookId}/reports/{reportId}": {
+        "/api/v1/books/{bookId}/prompts/{promptId}": {
             "delete": {
                 "tags": ["Saved prompts"],
                 "summary": "Remove a prompt from the Book’s shared shelf",
@@ -529,7 +529,7 @@
                         },
                         "required": true,
                         "description": "Opaque saved-prompt id returned by this API. Scoped to the Book.",
-                        "name": "reportId",
+                        "name": "promptId",
                         "in": "path"
                     }
                 ],
@@ -590,7 +590,7 @@
                 }
             }
         },
-        "/api/v1/books/{bookId}/reports/{reportId}/position": {
+        "/api/v1/books/{bookId}/prompts/{promptId}/position": {
             "put": {
                 "tags": ["Saved prompts"],
                 "summary": "Move a prompt on the Book’s shared shelf",
@@ -618,7 +618,7 @@
                         },
                         "required": true,
                         "description": "Opaque saved-prompt id returned by this API. Scoped to the Book.",
-                        "name": "reportId",
+                        "name": "promptId",
                         "in": "path"
                     }
                 ],
@@ -664,7 +664,7 @@
                         }
                     },
                     "404": {
-                        "description": "The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`).",
+                        "description": "The saved prompt is not on the shelf (`prompt_not_found`), or the Book was not found (`book_not_found`).",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2823,7 +2823,7 @@
         "SavedPromptsResponse": {
             "type": "object",
             "properties": {
-                "reports": {
+                "prompts": {
                     "type": "array",
                     "items": {
                         "$ref": "#/components/schemas/SavedPrompt"
@@ -2855,7 +2855,7 @@
                     "description": "Freshly authorized capabilities, not a substitute for authorization on the next request. Native saved-query role rules apply; its owner-plan billing restriction is not inherited by app metadata."
                 }
             },
-            "required": ["reports", "capabilities"],
+            "required": ["prompts", "capabilities"],
             "additionalProperties": false
         },
         "SavedPrompt": {
@@ -2878,16 +2878,6 @@
             "required": ["id", "prompt"],
             "additionalProperties": false,
             "description": "Book-shared original prompt, not a report snapshot or executable saved query. No HTML, intent, resolved period, amounts, inferred language or separately selected chart is saved."
-        },
-        "SavePromptResponse": {
-            "type": "object",
-            "properties": {
-                "report": {
-                    "$ref": "#/components/schemas/SavedPrompt"
-                }
-            },
-            "required": ["report"],
-            "additionalProperties": false
         },
         "SavePromptRequest": {
             "type": "object",

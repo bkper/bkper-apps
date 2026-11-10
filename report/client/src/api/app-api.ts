@@ -145,11 +145,11 @@ export function createAppApi(options: AppApiOptions) {
         },
 
         /** Original prompts shared by the Book, with freshly authorized capabilities. */
-        async savedReports(
+        async savedPrompts(
             bookId: string,
             options: RequestOptions = {}
         ): Promise<SavedPromptsResponse> {
-            const { data, error, response } = await client.GET('/api/v1/books/{bookId}/reports', {
+            const { data, error, response } = await client.GET('/api/v1/books/{bookId}/prompts', {
                 params: { path: { bookId } },
                 cache: 'no-store',
                 signal: options.signal,
@@ -159,44 +159,44 @@ export function createAppApi(options: AppApiOptions) {
         },
 
         /** Saves only original request text, never a resolved report or chart choice. */
-        async saveReport(
+        async savePrompt(
             bookId: string,
             body: SavePromptRequest,
             options: RequestOptions = {}
         ): Promise<SavedPrompt> {
-            const { data, error, response } = await client.POST('/api/v1/books/{bookId}/reports', {
+            const { data, error, response } = await client.POST('/api/v1/books/{bookId}/prompts', {
                 params: { path: { bookId } },
                 body: { prompt: body.prompt },
                 signal: options.signal,
             });
             if (!response.ok) throw toAppApiError(error, response);
-            return requireData(data, response).report;
+            return requireData(data, response);
         },
 
         /** Idempotent removal of app metadata only; 204 has no JSON body. */
-        async removeReport(
+        async removePrompt(
             bookId: string,
-            reportId: string,
+            promptId: string,
             options: RequestOptions = {}
         ): Promise<void> {
             const { error, response } = await client.DELETE(
-                '/api/v1/books/{bookId}/reports/{reportId}',
-                { params: { path: { bookId, reportId } }, signal: options.signal }
+                '/api/v1/books/{bookId}/prompts/{promptId}',
+                { params: { path: { bookId, promptId } }, signal: options.signal }
             );
             if (!response.ok) throw toAppApiError(error, response);
         },
 
         /** Moves a prompt just before `before` (`null`: the end); answers the shelf in its new order. */
-        async moveReport(
+        async movePrompt(
             bookId: string,
-            reportId: string,
+            promptId: string,
             body: MoveSavedPromptRequest,
             options: RequestOptions = {}
         ): Promise<SavedPromptsResponse> {
             const { data, error, response } = await client.PUT(
-                '/api/v1/books/{bookId}/reports/{reportId}/position',
+                '/api/v1/books/{bookId}/prompts/{promptId}/position',
                 {
-                    params: { path: { bookId, reportId } },
+                    params: { path: { bookId, promptId } },
                     body: { before: body.before },
                     signal: options.signal,
                 }

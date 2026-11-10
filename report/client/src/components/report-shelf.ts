@@ -6,12 +6,12 @@ import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { SavedPrompt } from '../api/app-api';
 import type { AppState } from '../state/app-state';
-import type { SavedReportsError, ShelfPlace } from '../state/saved-reports';
+import type { SavedPromptsError, ShelfPlace } from '../state/saved-prompts';
 import { watch } from '../state/store';
 import './report-suggestions';
 import { ShelfDrag } from './shelf-drag';
 
-export type ReportShelfState = Pick<AppState, 'route' | 'reports' | 'savedReports' | 'strings'>;
+export type ReportShelfState = Pick<AppState, 'route' | 'reports' | 'savedPrompts' | 'strings'>;
 
 export const OPEN_SAVED_REPORT = 'report-open-saved';
 
@@ -155,17 +155,17 @@ export class ReportShelf extends LitElement {
     private readonly drag = new ShelfDrag(this, {
         row: () => this.renderRoot.querySelector<HTMLElement>('.items'),
         chips: () => this.chips(),
-        ids: () => this.state.savedReports.items.map(item => item.id),
+        ids: () => this.state.savedPrompts.items.map(item => item.id),
         canMove: () =>
-            this.state.savedReports.canMove &&
-            this.state.savedReports.bookId === this.state.route.bookId,
+            this.state.savedPrompts.canMove &&
+            this.state.savedPrompts.bookId === this.state.route.bookId,
         move: (id, before) => this.moveTo(id, before, false),
     });
 
     constructor() {
         super();
         watch(this, () => [
-            this.state.savedReports,
+            this.state.savedPrompts,
             this.state.reports,
             this.state.strings,
             this.state.route,
@@ -173,7 +173,7 @@ export class ReportShelf extends LitElement {
     }
 
     render() {
-        const { savedReports: shelf, reports } = this.state;
+        const { savedPrompts: shelf, reports } = this.state;
         // Never expose the previous Book's items or source during navigation.
         if (shelf.bookId !== this.state.route.bookId) return this.suggestions();
         const lang = this.state.strings.language;
@@ -265,7 +265,7 @@ export class ReportShelf extends LitElement {
 
     /** One menu per saved prompt: the moves the person may make, then Remove. */
     private menu(item: SavedPrompt) {
-        const shelf = this.state.savedReports;
+        const shelf = this.state.savedPrompts;
         const lang = this.state.strings.language;
         const move = shelf.capabilities?.move === true;
         const remove = shelf.capabilities?.remove === true;
@@ -320,7 +320,7 @@ export class ReportShelf extends LitElement {
 
     private select(id: string, event: WaSelectEvent): void {
         const value = event.detail.item.getAttribute('value');
-        if (value === REMOVE) void this.state.savedReports.remove(id);
+        if (value === REMOVE) void this.state.savedPrompts.remove(id);
         else if (value === 'first' || value === 'earlier' || value === 'later') {
             // Once the menu has closed, so it fades where it was rather than following its chip.
             event.detail.item
@@ -333,7 +333,7 @@ export class ReportShelf extends LitElement {
 
     /** Move a prompt from its menu, keeping it in view. */
     private async move(id: string, place: ShelfPlace): Promise<void> {
-        const shelf = this.state.savedReports;
+        const shelf = this.state.savedPrompts;
         const before = shelf.beforeFor(id, place);
         if (before === undefined || !shelf.canMove) return;
         await this.moveTo(id, before, true);
@@ -344,7 +344,7 @@ export class ReportShelf extends LitElement {
      * order, announce where it is. A dragged chip is in view already, so only the menu reveals.
      */
     private async moveTo(id: string, before: string | null, reveal: boolean): Promise<void> {
-        const shelf = this.state.savedReports;
+        const shelf = this.state.savedPrompts;
         const done = shelf.move(id, before);
         await this.updateComplete;
         if (reveal) this.reveal(id);
@@ -435,7 +435,7 @@ export class ReportShelf extends LitElement {
         ></report-suggestions>`;
     }
 
-    private error(error: SavedReportsError | undefined, key: StringKey, accessRestored = false) {
+    private error(error: SavedPromptsError | undefined, key: StringKey, accessRestored = false) {
         if (!error) return nothing;
         const access =
             error === 'forbidden' || error === 'unauthorized' || error === 'book_not_found';

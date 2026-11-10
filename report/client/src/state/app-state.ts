@@ -16,7 +16,7 @@ import { Books } from './books';
 import { Reports, type ChartKind, type ReportApi } from './reports';
 import { Navigation, Route, type RoutePage } from './route';
 import { Strings } from './strings';
-import { SavedReports, type SavedReportsApi } from './saved-reports';
+import { SavedPrompts, type SavedPromptsApi } from './saved-prompts';
 import { BookNames, type BookNamesApi } from './book-names';
 
 export interface AppStateOptions {
@@ -29,7 +29,7 @@ export interface AppStateOptions {
     createAuthSession?: (callbacks: AuthSessionCallbacks) => AuthSession;
     createBookService?: (auth: AuthSession) => BookService;
     createReportApi?: (auth: AuthSession) => ReportApi;
-    createSavedReportsApi?: (auth: AuthSession) => SavedReportsApi;
+    createSavedPromptsApi?: (auth: AuthSession) => SavedPromptsApi;
     createBookNamesApi?: (auth: AuthSession) => BookNamesApi;
     /** Loads the report renderer; by default its code-split bundle. */
     loadRenderer?: () => Promise<void>;
@@ -47,7 +47,7 @@ export class AppState {
     readonly host: BookHost;
     readonly books: Books;
     readonly reports: Reports;
-    readonly savedReports: SavedReports;
+    readonly savedPrompts: SavedPrompts;
     /** The open Book's group and account names, to complete requests as they are typed. */
     readonly names: BookNames;
     /** The language of the interface's texts. */
@@ -80,7 +80,7 @@ export class AppState {
         this.auth = (options.createAuthSession ?? createAuthSession)({
             onLoginSuccess: () => {
                 // The report of the URL starts with the Book, not after it.
-                this.savedReports.open(this.route.bookId);
+                this.savedPrompts.open(this.route.bookId);
                 this.names.open(this.route.bookId);
                 this.reports.open(this.route.bookId, this.route.prompt, this.routeState());
                 this.openFirstLater();
@@ -98,7 +98,7 @@ export class AppState {
             logger,
             now: options.now,
         });
-        this.savedReports = new SavedReports(options.createSavedReportsApi?.(this.auth) ?? api);
+        this.savedPrompts = new SavedPrompts(options.createSavedPromptsApi?.(this.auth) ?? api);
         this.names = new BookNames(options.createBookNamesApi?.(this.auth) ?? api, {
             now: options.now,
             logger,
@@ -113,7 +113,7 @@ export class AppState {
                 return;
             }
             void this.books.select(event.bookId);
-            this.savedReports.open(event.bookId);
+            this.savedPrompts.open(event.bookId);
             this.names.open(event.bookId);
             this.reports.open(event.bookId, event.prompt, state);
         });
@@ -125,13 +125,13 @@ export class AppState {
             this.syncState();
         });
         this.reports.addEventListener('change', () => {
-            this.savedReports.setSource(this.reports.bookId, this.reports.originalPrompt);
+            this.savedPrompts.setSource(this.reports.bookId, this.reports.originalPrompt);
             // Like the suggestions, the names follow the map's minute as the person types.
             this.names.refresh();
             this.syncState();
             this.openFirst();
         });
-        this.savedReports.addEventListener('change', () => this.openFirst());
+        this.savedPrompts.addEventListener('change', () => this.openFirst());
     }
 
     /**
@@ -153,7 +153,7 @@ export class AppState {
     private openFirst(): void {
         const opening = this.opening;
         if (!opening) return;
-        const { reports, savedReports: shelf } = this;
+        const { reports, savedPrompts: shelf } = this;
         if (reports.bookId !== opening.bookId || !reports.untouched) {
             this.opening = undefined;
             return;
@@ -163,7 +163,7 @@ export class AppState {
             const saved = shelf.canList ? shelf.items[0] : undefined;
             if (saved) {
                 this.opening = undefined;
-                this.openSavedReport(saved.id);
+                this.openSavedPrompt(saved.id);
                 reports.selectText();
                 return;
             }
@@ -206,7 +206,7 @@ export class AppState {
     /** Open a Book, or the Book list without one. */
     readonly select = (bookId: string | undefined): void => {
         void this.books.select(bookId);
-        this.savedReports.open(bookId);
+        this.savedPrompts.open(bookId);
         this.names.open(bookId);
         this.reports.open(bookId);
         this.openFirstLater();
@@ -216,9 +216,9 @@ export class AppState {
      * Open the active shelf's original text: its report of the last minute, else the text
      * resolved again (see `Reports.runSaved`).
      */
-    readonly openSavedReport = (id: string): void => {
-        if (!this.savedReports.canList || this.savedReports.bookId !== this.reports.bookId) return;
-        const item = this.savedReports.items.find(report => report.id === id);
+    readonly openSavedPrompt = (id: string): void => {
+        if (!this.savedPrompts.canList || this.savedPrompts.bookId !== this.reports.bookId) return;
+        const item = this.savedPrompts.items.find(prompt => prompt.id === id);
         if (item) this.reports.runSaved(item.prompt);
     };
 

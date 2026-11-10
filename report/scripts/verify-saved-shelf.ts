@@ -156,9 +156,9 @@ try {
                             requested.push(req.postDataJSON());
                             return json(response);
                         }
-                        if (path.endsWith('/reports') && req.method() === 'GET')
+                        if (path.endsWith('/prompts') && req.method() === 'GET')
                             return json({
-                                reports: items,
+                                prompts: items,
                                 capabilities: {
                                     list: true,
                                     save: writable,
@@ -166,7 +166,7 @@ try {
                                     move: writable,
                                 },
                             });
-                        if (path.endsWith('/reports') && req.method() === 'POST') {
+                        if (path.endsWith('/prompts') && req.method() === 'POST') {
                             await new Promise(resolve => setTimeout(resolve, 350));
                             if (saveFails) {
                                 saveFails = false;
@@ -196,7 +196,7 @@ try {
                                     prompt: text,
                                 })),
                             ];
-                            return json({ report: item });
+                            return json(item);
                         }
                         if (path.endsWith('/position') && req.method() === 'PUT') {
                             const id = path.split('/').at(-2);
@@ -210,11 +210,11 @@ try {
                                     : rest.findIndex(entry => entry.id === before);
                             items = [...rest.slice(0, at), item, ...rest.slice(at)];
                             return json({
-                                reports: items,
+                                prompts: items,
                                 capabilities: { list: true, save: true, remove: true, move: true },
                             });
                         }
-                        if (path.includes('/reports/') && req.method() === 'DELETE') {
+                        if (path.includes('/prompts/') && req.method() === 'DELETE') {
                             if (removeFails) {
                                 removeFails = false;
                                 return json(

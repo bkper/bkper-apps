@@ -24,7 +24,7 @@ type Operation = keyof SavedPromptCapabilities;
 
 export class SavedPromptsError extends Error {
     constructor(
-        readonly reason: 'forbidden' | 'storage_error' | 'report_not_found' | 'shelf_changed'
+        readonly reason: 'forbidden' | 'storage_error' | 'prompt_not_found' | 'shelf_changed'
     ) {
         super(reason);
         this.name = 'SavedPromptsError';
@@ -190,7 +190,7 @@ async function readShelf(keyPrefix: string, dependencies: Dependencies): Promise
     return items.filter(item => item !== undefined).sort(compareShelf);
 }
 
-function reportsOf(items: readonly ShelfItem[]): SavedPrompt[] {
+function promptsOf(items: readonly ShelfItem[]): SavedPrompt[] {
     return items.map(({ id, prompt }) => ({ id, prompt }));
 }
 
@@ -198,7 +198,7 @@ function reportsOf(items: readonly ShelfItem[]): SavedPrompt[] {
 export async function listSavedPrompts(bookId: string, dependencies: Dependencies) {
     const authorized = await authorize(bookId, 'list', dependencies);
     const items = await stored(() => readShelf(prefix(authorized.bookId), dependencies));
-    return { reports: reportsOf(items), capabilities: authorized.capabilities };
+    return { prompts: promptsOf(items), capabilities: authorized.capabilities };
 }
 
 /** The route validates the prompt with ReportPromptSchema before calling this service. */
@@ -227,7 +227,7 @@ export async function savePrompt(bookId: string, prompt: string, dependencies: D
             ? dependencies.kv.put(key, value, options)
             : dependencies.kv.put(key, value));
     });
-    return { report: { id, prompt } };
+    return { id, prompt };
 }
 
 /** The route validates the id. Deleting an absent item is an idempotent success. */
@@ -296,12 +296,12 @@ export async function moveSavedPrompt(
     const keyPrefix = prefix(authorized.bookId);
     const items = await stored(() => readShelf(keyPrefix, dependencies));
     const index = items.findIndex(item => item.id === id);
-    if (index === -1) throw new SavedPromptsError('report_not_found');
+    if (index === -1) throw new SavedPromptsError('prompt_not_found');
     if (before !== null && !items.some(item => item.id === before)) {
         throw new SavedPromptsError('shelf_changed');
     }
     if (before === id || (items[index + 1]?.id ?? null) === before) {
-        return { reports: reportsOf(items), capabilities: authorized.capabilities };
+        return { prompts: promptsOf(items), capabilities: authorized.capabilities };
     }
 
     const { normalized, placed } = movePositions(items, items[index], before);
@@ -323,5 +323,5 @@ export async function moveSavedPrompt(
     const reordered = items
         .map(item => ({ ...item, position: positions.get(item) ?? item.position }))
         .sort(compareShelf);
-    return { reports: reportsOf(reordered), capabilities: authorized.capabilities };
+    return { prompts: promptsOf(reordered), capabilities: authorized.capabilities };
 }

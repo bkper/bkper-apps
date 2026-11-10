@@ -250,9 +250,9 @@ try {
                                 prompts.push(String(body.prompt));
                             return json(response);
                         }
-                        if (path.endsWith('/reports') && req.method() === 'GET')
+                        if (path.endsWith('/prompts') && req.method() === 'GET')
                             return json({
-                                reports: [{ id: 'a'.repeat(64), prompt: saved }],
+                                prompts: [{ id: 'a'.repeat(64), prompt: saved }],
                                 capabilities: { list: true, save: true, remove: true, move: true },
                             });
                         throw new Error(`Unmocked API: ${req.method()} ${path}`);

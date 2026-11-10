@@ -24,8 +24,8 @@ export type ReportPageState = Pick<
     | 'books'
     | 'reports'
     | 'strings'
-    | 'savedReports'
-    | 'openSavedReport'
+    | 'savedPrompts'
+    | 'openSavedPrompt'
     | 'names'
     | 'agentLink'
     | 'openAgent'
@@ -398,7 +398,7 @@ export class ReportPage extends LitElement {
     };
 
     private onOpenSaved = (event: HTMLElementEventMap[typeof OPEN_SAVED_REPORT]) => {
-        this.state.openSavedReport(event.detail);
+        this.state.openSavedPrompt(event.detail);
         this.input?.focus();
     };
 

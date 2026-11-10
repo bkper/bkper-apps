@@ -40,9 +40,9 @@ import {
     SuggestionsResponseSchema,
     MoveSavedPromptRequestSchema,
     SavedPromptParamsSchema,
+    SavedPromptSchema,
     SavedPromptsResponseSchema,
     SavePromptRequestSchema,
-    SavePromptResponseSchema,
 } from './schemas.js';
 
 type App = OpenAPIHono<AppEnv>;
@@ -143,11 +143,11 @@ const savedPromptErrors = {
 
 const listSavedPromptsRoute = createRoute({
     method: 'get',
-    path: '/api/v1/books/{bookId}/reports',
+    path: '/api/v1/books/{bookId}/prompts',
     tags: ['Saved prompts'],
     summary: 'List the Book’s shared saved prompts and current capabilities',
     description:
-        'Lists original requests shared by every collaborator of this Book, including RECORDER. The plural /reports is the saved-prompt shelf; the singular /report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.',
+        'Lists original requests shared by every collaborator of this Book, including RECORDER. This is the saved-prompt shelf; POST /api/v1/books/{bookId}/report builds a report. Authorization reads the Book afresh, never the balances cache. Every storage page is read; visibility is eventually consistent. This never computes a report or changes the Book. Responses must not be cached.',
     request: { params: BookParamsSchema },
     responses: {
         200: jsonResponse(
@@ -160,7 +160,7 @@ const listSavedPromptsRoute = createRoute({
 
 const savePromptRoute = createRoute({
     method: 'post',
-    path: '/api/v1/books/{bookId}/reports',
+    path: '/api/v1/books/{bookId}/prompts',
     tags: ['Saved prompts'],
     summary: 'Save an original prompt on the Book’s shared shelf',
     description:
@@ -173,14 +173,14 @@ const savePromptRoute = createRoute({
         },
     },
     responses: {
-        200: jsonResponse('Saved prompt, also for an identical retry', SavePromptResponseSchema),
+        200: jsonResponse('Saved prompt, also for an identical retry', SavedPromptSchema),
         ...savedPromptErrors,
     },
 });
 
 const removeSavedPromptRoute = createRoute({
     method: 'delete',
-    path: '/api/v1/books/{bookId}/reports/{reportId}',
+    path: '/api/v1/books/{bookId}/prompts/{promptId}',
     tags: ['Saved prompts'],
     summary: 'Remove a prompt from the Book’s shared shelf',
     description:
@@ -194,7 +194,7 @@ const removeSavedPromptRoute = createRoute({
 
 const moveSavedPromptRoute = createRoute({
     method: 'put',
-    path: '/api/v1/books/{bookId}/reports/{reportId}/position',
+    path: '/api/v1/books/{bookId}/prompts/{promptId}/position',
     tags: ['Saved prompts'],
     summary: 'Move a prompt on the Book’s shared shelf',
     description:
@@ -210,7 +210,7 @@ const moveSavedPromptRoute = createRoute({
         200: jsonResponse('The shelf in its new order', SavedPromptsResponseSchema),
         ...savedPromptErrors,
         404: jsonResponse(
-            'The saved prompt is not on the shelf (`report_not_found`), or the Book was not found (`book_not_found`).',
+            'The saved prompt is not on the shelf (`prompt_not_found`), or the Book was not found (`book_not_found`).',
             ErrorResponseSchema
         ),
         409: jsonResponse(
@@ -307,18 +307,18 @@ export function registerApiRoutes(app: App): void {
     app.openapi(removeSavedPromptRoute, async c => {
         c.header('Cache-Control', 'no-store');
         const context = c.var.appContext;
-        const { bookId, reportId } = c.req.valid('param');
-        await removeSavedPrompt(bookId, reportId, { bkper: context.bkper, kv: context.env.KV });
+        const { bookId, promptId } = c.req.valid('param');
+        await removeSavedPrompt(bookId, promptId, { bkper: context.bkper, kv: context.env.KV });
         return c.body(null, 204);
     });
 
     app.openapi(moveSavedPromptRoute, async c => {
         c.header('Cache-Control', 'no-store');
         const context = c.var.appContext;
-        const { bookId, reportId } = c.req.valid('param');
+        const { bookId, promptId } = c.req.valid('param');
         const { before } = c.req.valid('json');
         return c.json(
-            await moveSavedPrompt(bookId, reportId, before, {
+            await moveSavedPrompt(bookId, promptId, before, {
                 bkper: context.bkper,
                 kv: context.env.KV,
             }),

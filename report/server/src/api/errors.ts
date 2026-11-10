@@ -27,7 +27,7 @@ export type ApiErrorCode =
     | 'ai_allowance_exhausted'
     | 'upstream_error'
     | 'storage_error'
-    | 'report_not_found'
+    | 'prompt_not_found'
     | 'shelf_changed'
     | 'internal_error';
 
@@ -83,7 +83,7 @@ const SAVED_PROMPT_ERRORS = {
         502,
         'Saved-prompt storage failed. Retry the same operation; a failed write may have reached storage.',
     ],
-    report_not_found: [404, 'This saved prompt is not on the Book’s shelf. List the shelf again.'],
+    prompt_not_found: [404, 'This saved prompt is not on the Book’s shelf. List the shelf again.'],
     shelf_changed: [
         409,
         'The shelf changed: the saved prompt to move before is no longer on it. List the shelf again and retry with its current order.',

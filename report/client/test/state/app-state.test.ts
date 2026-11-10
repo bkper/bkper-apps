@@ -13,7 +13,7 @@ import { AppState } from '../../src/state/app-state';
 import { SELECT_TEXT, type ReportApi } from '../../src/state/reports';
 import type { HostPage } from '../../src/state/book-host';
 import type { RoutePage } from '../../src/state/route';
-import type { SavedReportsApi } from '../../src/state/saved-reports';
+import type { SavedPromptsApi } from '../../src/state/saved-prompts';
 import type { BookNamesApi } from '../../src/state/book-names';
 import { CACHE_MS } from '../../src/state/cache-window';
 
@@ -22,17 +22,17 @@ const WRITE = { list: true, save: true, remove: true, move: true };
 function createShelfApi() {
     const loaded: string[] = [];
     const saved: { book: string; prompt: string }[] = [];
-    const api: SavedReportsApi = {
-        savedReports: async book => {
+    const api: SavedPromptsApi = {
+        savedPrompts: async book => {
             loaded.push(book);
-            return { reports: [SAVED], capabilities: WRITE };
+            return { prompts: [SAVED], capabilities: WRITE };
         },
-        saveReport: async (book, body) => {
+        savePrompt: async (book, body) => {
             saved.push({ book, prompt: body.prompt });
             return { id: 'b'.repeat(64), prompt: body.prompt };
         },
-        removeReport: async () => undefined,
-        moveReport: async () => ({ reports: [SAVED], capabilities: WRITE }),
+        removePrompt: async () => undefined,
+        movePrompt: async () => ({ prompts: [SAVED], capabilities: WRITE }),
     };
     return { api, loaded, saved };
 }
@@ -117,7 +117,7 @@ function createApp(href: string, bookService = createBookService()) {
         embedded: false,
         language: 'en',
         createReportApi: () => reportApi.api,
-        createSavedReportsApi: () => shelfApi.api,
+        createSavedPromptsApi: () => shelfApi.api,
         createBookNamesApi: () => namesApi.api,
         now: () => clock.now,
         loadRenderer: async () => undefined,
@@ -142,25 +142,25 @@ describe('AppState', () => {
         );
         expect(shelfApi.loaded).toEqual([]);
         void signIn();
-        await vi.waitFor(() => expect(state.savedReports.items).toEqual([SAVED]));
+        await vi.waitFor(() => expect(state.savedPrompts.items).toEqual([SAVED]));
         expect(shelfApi.loaded).toEqual(['book-1']);
         expect(asked).toEqual(['suggestions book-1', 'report book-1 expenses this year']);
-        state.openSavedReport(SAVED.id);
-        state.openSavedReport(SAVED.id);
+        state.openSavedPrompt(SAVED.id);
+        state.openSavedPrompt(SAVED.id);
         // The typed request differs in casing, so the saved text is asked once, by itself.
         expect(asked.slice(-2)).toEqual([
             'report book-1 expenses this year',
             'report book-1 Expenses this year',
         ]);
         state.select('book-2');
-        expect(state.savedReports.bookId).toBe('book-2');
-        expect(state.savedReports.items).toEqual([]);
+        expect(state.savedPrompts.bookId).toBe('book-2');
+        expect(state.savedPrompts.items).toEqual([]);
         await vi.waitFor(() => expect(shelfApi.loaded).toEqual(['book-1', 'book-2']));
         goTo('https://report.bkper.app/?book=book-3');
-        expect(state.savedReports.bookId).toBe('book-3');
+        expect(state.savedPrompts.bookId).toBe('book-3');
         state.select(undefined);
-        expect(state.savedReports.bookId).toBeUndefined();
-        expect(state.savedReports.items).toEqual([]);
+        expect(state.savedPrompts.bookId).toBeUndefined();
+        expect(state.savedPrompts.items).toEqual([]);
     });
 
     it('loads the Book’s names after auth, per Book, and asks again only after a minute of typing', async () => {
@@ -473,7 +473,7 @@ describe('AppState', () => {
             book: 'Main Book',
             canOrganize: true,
         };
-        type Shelf = Awaited<ReturnType<SavedReportsApi['savedReports']>>;
+        type Shelf = Awaited<ReturnType<SavedPromptsApi['savedPrompts']>>;
 
         function deferred<T>() {
             let resolve!: (value: T) => void;
@@ -512,9 +512,9 @@ describe('AppState', () => {
                         return reportOf(body);
                     },
                 }),
-                createSavedReportsApi: () => ({
+                createSavedPromptsApi: () => ({
                     ...createShelfApi().api,
-                    savedReports: bookId => shelf(bookId).promise,
+                    savedPrompts: bookId => shelf(bookId).promise,
                 }),
                 createBookNamesApi: () => createNamesApi().api,
                 loadRenderer: async () => undefined,
@@ -589,7 +589,7 @@ describe('AppState', () => {
             expect(app.reports.text).toBe('');
             expect(selected).toEqual([]);
 
-            shelf('book-1').resolve({ reports: [FIRST, SECOND], capabilities: WRITE });
+            shelf('book-1').resolve({ prompts: [FIRST, SECOND], capabilities: WRITE });
             await settle();
 
             expect(prompts()).toEqual([FIRST.prompt]);
@@ -600,7 +600,7 @@ describe('AppState', () => {
             expect(url().get('state')).toBe(stateOf(app.reports.report));
 
             // Within a minute, clicking it shows it from memory: one Bkper AI call in all.
-            app.openSavedReport(FIRST.id);
+            app.openSavedPrompt(FIRST.id);
             await settle();
             expect(prompts()).toEqual([FIRST.prompt]);
             expect(selected).toEqual([FIRST.prompt]);
@@ -611,7 +611,7 @@ describe('AppState', () => {
                 const { app, shelf, suggestions, signIn, selected, prompts, settle, url } =
                     openingApp();
                 await signIn();
-                const empty = () => shelf('book-1').resolve({ reports: [], capabilities: WRITE });
+                const empty = () => shelf('book-1').resolve({ prompts: [], capabilities: WRITE });
                 if (shelfFirst) empty();
                 await settle();
                 expect(app.reports.text).toBe('');
@@ -640,12 +640,12 @@ describe('AppState', () => {
             shelf('book-1').reject(new Error('Offline'));
             await settle();
 
-            expect(app.savedReports.loadError).toBe('unexpected');
+            expect(app.savedPrompts.loadError).toBe('unexpected');
             expect(app.reports.text).toBe(SUGGESTED[0].text);
             expect(selected).toEqual([SUGGESTED[0].text]);
 
             // A shelf that loads later does not open again.
-            shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+            shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
             await settle();
             expect(selected).toEqual([SUGGESTED[0].text]);
         });
@@ -657,7 +657,7 @@ describe('AppState', () => {
             ] satisfies SuggestionsResponse[]) {
                 const { app, shelf, suggestions, signIn, selected, settle, url } = openingApp();
                 await signIn();
-                shelf('book-1').resolve({ reports: [], capabilities: WRITE });
+                shelf('book-1').resolve({ prompts: [], capabilities: WRITE });
                 suggestions('book-1').resolve(answer);
                 await settle();
                 expect(app.reports.text).toBe('');
@@ -680,7 +680,7 @@ describe('AppState', () => {
                     `https://report.bkper.app/?book=book-1&${query}`
                 );
                 await signIn();
-                shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+                shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
                 suggestions('book-1').resolve({ suggestions: SUGGESTED });
                 await settle();
                 expect(selected).toEqual([]);
@@ -706,7 +706,7 @@ describe('AppState', () => {
                     openingApp();
                 await signIn();
                 act(app, goTo);
-                shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+                shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
                 suggestions('book-1').resolve({ suggestions: SUGGESTED });
                 await settle();
                 expect(selected).toEqual([]);
@@ -721,12 +721,12 @@ describe('AppState', () => {
             await signIn();
             app.select('book-1');
             app.select('book-2');
-            shelf('book-1').resolve({ reports: [FIRST], capabilities: WRITE });
+            shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
             suggestions('book-1').resolve({ suggestions: SUGGESTED });
             await settle();
             expect(selected).toEqual([]);
 
-            shelf('book-2').resolve({ reports: [SECOND], capabilities: WRITE });
+            shelf('book-2').resolve({ prompts: [SECOND], capabilities: WRITE });
             suggestions('book-2').resolve({ suggestions: SUGGESTED });
             await settle();
             expect(app.reports.bookId).toBe('book-2');
@@ -734,12 +734,12 @@ describe('AppState', () => {
             expect(url().get('q')).toBe(SECOND.prompt);
 
             app.reports.input('');
-            await app.savedReports.load();
+            await app.savedPrompts.load();
             await settle();
             expect(app.reports.text).toBe('');
 
             goTo('https://report.bkper.app/?book=book-3');
-            shelf('book-3').resolve({ reports: [FIRST], capabilities: WRITE });
+            shelf('book-3').resolve({ prompts: [FIRST], capabilities: WRITE });
             suggestions('book-3').resolve({ suggestions: SUGGESTED });
             await settle();
             expect(app.reports.bookId).toBe('book-3');
@@ -827,7 +827,7 @@ describe('AppState', () => {
                 embedded,
                 language: 'en',
                 createReportApi: () => api,
-                createSavedReportsApi: () => shelfApi.api,
+                createSavedPromptsApi: () => shelfApi.api,
                 loadRenderer: async () => undefined,
                 loadStrings: async () => undefined,
                 createAuthSession: callbacks => {
@@ -857,22 +857,22 @@ describe('AppState', () => {
             );
             await signIn();
             await vi.waitFor(() => expect(app.reports.report).toBeDefined());
-            expect(app.savedReports.canSave).toBe(false);
-            await app.savedReports.save();
+            expect(app.savedPrompts.canSave).toBe(false);
+            await app.savedPrompts.save();
             expect(shelfApi.saved).toEqual([]);
             app.reports.input('Receitas este ano');
             app.reports.submit();
-            await vi.waitFor(() => expect(app.savedReports.canSave).toBe(true));
+            await vi.waitFor(() => expect(app.savedPrompts.canSave).toBe(true));
             app.reports.chooseChart('pie');
             app.reports.input('Not yet shown');
-            await app.savedReports.save();
+            await app.savedPrompts.save();
             expect(shelfApi.saved).toEqual([{ book: 'b', prompt: 'Receitas este ano' }]);
             send({
                 type: 'bkper:app-url-changed',
                 url: `https://report.bkper.app/?book=b&state=${state(REVENUE)}`,
             });
             await vi.waitFor(() => expect(app.reports.originalPrompt).toBeUndefined());
-            expect(app.savedReports.canSave).toBe(false);
+            expect(app.savedPrompts.canSave).toBe(false);
             expect(shelfApi.loaded).toEqual(['b']);
             app.reports.input('');
         });

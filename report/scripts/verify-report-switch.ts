@@ -536,9 +536,9 @@ async function open(
                     })),
                 });
             if (path.endsWith('/names')) return json({ names: [] });
-            if (path.endsWith('/reports') && req.method() === 'GET')
+            if (path.endsWith('/prompts') && req.method() === 'GET')
                 return json({
-                    reports: saved,
+                    prompts: saved,
                     capabilities: { list: true, save: true, remove: true, move: true },
                 });
             if (path.endsWith('/report')) {

@@ -4,7 +4,7 @@ import { AppContext } from '../../src/app-context';
 import { createApp } from '../../src/index';
 import { createTestEnv } from '../test-env';
 
-const BASE = '/api/v1/books/book-a/reports';
+const BASE = '/api/v1/books/book-a/prompts';
 const PROMPT = 'Despesas por mês este ano #viagens';
 
 // Every Bkper call is injected. A mistaken SDK write/network call must fail locally.
@@ -89,20 +89,19 @@ function harness(permission: string | undefined = 'OWNER', storage = memoryStora
         });
     /** The shelf's order as GET lists it. */
     const order = async (url = BASE) =>
-        ((await (await request(url)).json()) as { reports: { id: string; prompt: string }[] })
-            .reports;
+        ((await (await request(url)).json()) as { prompts: { id: string; prompt: string }[] })
+            .prompts;
     return { ...storage, state, getBook, getUser, request, save, move, order };
 }
 
 async function saved(response: Response): Promise<{ id: string; prompt: string }> {
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(Object.keys(body)).toEqual(['report']);
-    expect(body.report).toEqual({
+    expect(body).toEqual({
         id: expect.stringMatching(/^[a-f0-9]{64}$/),
         prompt: expect.any(String),
     });
-    return body.report;
+    return body;
 }
 
 function expectNoStorage(kv: ReturnType<typeof memoryStorage>['kv']) {
@@ -117,7 +116,7 @@ describe('Book-shared saved prompt API', () => {
             const response = await h.request();
             expect(response.status).toBe(200);
             expect(await response.json()).toEqual({
-                reports: [],
+                prompts: [],
                 capabilities: {
                     list: true,
                     save: ['OWNER', 'EDITOR'].includes(permission),
@@ -136,23 +135,23 @@ describe('Book-shared saved prompt API', () => {
         async permission => {
             const storage = memoryStorage();
             const h = harness(permission, storage);
-            const report = await saved(await h.save());
-            expect(report.prompt).toBe(PROMPT);
+            const item = await saved(await h.save());
+            expect(item.prompt).toBe(PROMPT);
             expect([...h.values.values()]).toEqual([JSON.stringify(PROMPT)]); // Only the original prompt, JSON-encoded.
             // Durable: no TTL, and only its place on the shelf as metadata.
             expect(h.kv.put.mock.calls[0][2]).toEqual({ metadata: { position: 'a0' } });
             const collaborator = harness('RECORDER', storage);
             expect(await (await collaborator.request()).json()).toMatchObject({
-                reports: [report],
+                prompts: [item],
             });
             const remover = harness('EDITOR', storage);
-            const removed = await remover.request(`${BASE}/${report.id}`, { method: 'DELETE' });
+            const removed = await remover.request(`${BASE}/${item.id}`, { method: 'DELETE' });
             expect(removed.status).toBe(204);
             expect(await removed.text()).toBe('');
             expect(h.values.size).toBe(0);
-            expect(
-                (await remover.request(`${BASE}/${report.id}`, { method: 'DELETE' })).status
-            ).toBe(204);
+            expect((await remover.request(`${BASE}/${item.id}`, { method: 'DELETE' })).status).toBe(
+                204
+            );
         }
     );
 
@@ -184,14 +183,14 @@ describe('Book-shared saved prompt API', () => {
 
     it('rechecks authorization on every operation, even after a successful save or list', async () => {
         const h = harness();
-        const report = await saved(await h.save());
+        const item = await saved(await h.save());
         expect((await h.request()).status).toBe(200);
         vi.clearAllMocks();
         h.state.permission = 'NONE';
         expect((await h.request()).status).toBe(403);
         expect((await h.save()).status).toBe(403);
-        expect((await h.request(`${BASE}/${report.id}`, { method: 'DELETE' })).status).toBe(403);
-        expect((await h.move(report.id, null)).status).toBe(403);
+        expect((await h.request(`${BASE}/${item.id}`, { method: 'DELETE' })).status).toBe(403);
+        expect((await h.move(item.id, null)).status).toBe(403);
         expect(h.getBook).toHaveBeenCalledTimes(4);
         expectNoStorage(h.kv);
         expect(h.values.size).toBe(1);
@@ -202,19 +201,19 @@ describe('Book-shared saved prompt API', () => {
         const owner = harness('OWNER', storage);
         const editor = harness('EDITOR', storage);
         const results = await Promise.all([owner.save(), editor.save(), owner.save()]);
-        const reports = await Promise.all(results.map(saved));
-        expect(reports[0]).toEqual(reports[1]);
-        expect(reports[1]).toEqual(reports[2]);
+        const prompts = await Promise.all(results.map(saved));
+        expect(prompts[0]).toEqual(prompts[1]);
+        expect(prompts[1]).toEqual(prompts[2]);
         expect(storage.values.size).toBe(1);
-        expect(await (await editor.request()).json()).toMatchObject({ reports: [reports[0]] });
+        expect(await (await editor.request()).json()).toMatchObject({ prompts: [prompts[0]] });
     });
 
     it('uses the current trimmed prompt rules but preserves case, internal whitespace and language', async () => {
         const h = harness();
         const prompt = '売上  の推移\n今年 #東京';
-        const report = await saved(await h.save(`  ${prompt}  `));
-        expect(report.prompt).toBe(prompt);
-        expect(await saved(await h.save(prompt))).toEqual(report);
+        const item = await saved(await h.save(`  ${prompt}  `));
+        expect(item.prompt).toBe(prompt);
+        expect(await saved(await h.save(prompt))).toEqual(item);
         expect((await h.save('x'.repeat(1000))).status).toBe(200);
         expect((await h.save('x'.repeat(1001))).status).toBe(400);
     });
@@ -222,25 +221,25 @@ describe('Book-shared saved prompt API', () => {
     it('does not conflate case, internal whitespace or distinct UTF-16 text', async () => {
         const h = harness();
         const prompts = ['X', 'x', 'a  b', 'a b', '\uFFFD', '\uD800', '\uD801'];
-        const reports = await Promise.all(prompts.map(async prompt => saved(await h.save(prompt))));
-        expect(new Set(reports.map(report => report.id)).size).toBe(prompts.length);
+        const items = await Promise.all(prompts.map(async prompt => saved(await h.save(prompt))));
+        expect(new Set(items.map(item => item.id)).size).toBe(prompts.length);
         expect(await (await h.request()).json()).toMatchObject({
-            reports: expect.arrayContaining(reports),
+            prompts: expect.arrayContaining(items),
         });
     });
 
     it('isolates Books when the same prompt has the same id', async () => {
         const h = harness();
         const a = await saved(await h.save());
-        const other = '/api/v1/books/book-b/reports';
-        expect(await (await h.request(other)).json()).toMatchObject({ reports: [] });
+        const other = '/api/v1/books/book-b/prompts';
+        expect(await (await h.request(other)).json()).toMatchObject({ prompts: [] });
         expect((await h.request(`${other}/${a.id}`, { method: 'DELETE' })).status).toBe(204);
         expect(h.values.size).toBe(1);
         const b = await saved(await h.save(PROMPT, other));
         expect(b).toEqual(a);
         expect(h.values.size).toBe(2);
         expect((await h.request(`${BASE}/${a.id}`, { method: 'DELETE' })).status).toBe(204);
-        expect(await (await h.request(other)).json()).toMatchObject({ reports: [b] });
+        expect(await (await h.request(other)).json()).toMatchObject({ prompts: [b] });
     });
 
     it('does not lose independent concurrent saves or resurrect independent removals', async () => {
@@ -253,11 +252,11 @@ describe('Book-shared saved prompt API', () => {
             b.save('Receitas este ano'),
             a.request(`${BASE}/${old.id}`, { method: 'DELETE' }),
         ]);
-        const reports = await Promise.all(results.slice(0, 2).map(saved));
+        const prompts = await Promise.all(results.slice(0, 2).map(saved));
         expect(results[2].status).toBe(204);
         expect(storage.values.size).toBe(2);
         expect(await (await b.request()).json()).toMatchObject({
-            reports: expect.arrayContaining(reports),
+            prompts: expect.arrayContaining(prompts),
         });
         // Saves list keys for their place but never read prompts or rewrite other items.
         expect(storage.kv.get).toHaveBeenCalledTimes(2);
@@ -266,7 +265,7 @@ describe('Book-shared saved prompt API', () => {
 
     it('reads every KV page, including an empty non-final page, in stable id order', async () => {
         const h = harness();
-        const reports = await Promise.all(
+        const prompts = await Promise.all(
             ['a', 'b', 'c', 'd', 'e'].map(async text => saved(await h.save(text)))
         );
         // Saved before ordering existed: no position.
@@ -275,7 +274,7 @@ describe('Book-shared saved prompt API', () => {
         h.kv.list.mockClear();
         h.kv.list.mockResolvedValueOnce({ keys: [], list_complete: false, cursor: '0' });
         expect(await (await h.request()).json()).toMatchObject({
-            reports: reports.sort((a, b) => a.id.localeCompare(b.id)),
+            prompts: prompts.sort((a, b) => a.id.localeCompare(b.id)),
         });
         expect(h.kv.list).toHaveBeenCalledTimes(4);
         for (const [options] of h.kv.list.mock.calls) expect(options?.prefix).toBe(prefix);
@@ -285,7 +284,7 @@ describe('Book-shared saved prompt API', () => {
         const h = harness();
         await h.save();
         h.kv.get.mockResolvedValueOnce(null);
-        expect(await (await h.request()).json()).toMatchObject({ reports: [] });
+        expect(await (await h.request()).json()).toMatchObject({ prompts: [] });
     });
 
     it.each([
@@ -370,13 +369,13 @@ describe('Book-shared saved prompt API', () => {
         'maps KV %s failures without leaking data or claiming success',
         async operation => {
             const h = harness();
-            const report = await saved(await h.save());
+            const item = await saved(await h.save());
             h.kv[operation].mockRejectedValueOnce(new Error(`private storage details: ${PROMPT}`));
             const response =
                 operation === 'put'
                     ? await h.save('Another prompt')
                     : operation === 'delete'
-                      ? await h.request(`${BASE}/${report.id}`, { method: 'DELETE' })
+                      ? await h.request(`${BASE}/${item.id}`, { method: 'DELETE' })
                       : await h.request();
             expect(response.status).toBe(502);
             const body = await response.json();
@@ -428,16 +427,16 @@ describe('Book-shared saved prompt API', () => {
 describe('Saved prompt order', () => {
     /** Saves prompts one at a time, so each goes after the last. */
     async function shelf(h: ReturnType<typeof harness>, prompts: string[]) {
-        const reports = [];
-        for (const prompt of prompts) reports.push(await saved(await h.save(prompt)));
-        return reports;
+        const items = [];
+        for (const prompt of prompts) items.push(await saved(await h.save(prompt)));
+        return items;
     }
 
     async function moved(response: Response) {
         expect(response.status).toBe(200);
         expect(response.headers.get('Cache-Control')).toBe('no-store');
         return (await response.json()) as {
-            reports: { id: string; prompt: string }[];
+            prompts: { id: string; prompt: string }[];
             capabilities: Record<string, boolean>;
         };
     }
@@ -448,9 +447,9 @@ describe('Saved prompt order', () => {
 
     it('saves a new prompt after the last one, not in id order', async () => {
         const h = harness();
-        const reports = await shelf(h, ['c', 'a', 'b', 'z', 'y']);
+        const prompts = await shelf(h, ['c', 'a', 'b', 'z', 'y']);
         expect(h.kv.get).not.toHaveBeenCalled(); // Saves read no prompts.
-        expect(await h.order()).toEqual(reports);
+        expect(await h.order()).toEqual(prompts);
         expect(h.kv.put.mock.calls.map(([, , options]) => options)).toEqual([
             { metadata: { position: 'a0' } },
             { metadata: { position: 'a1' } },
@@ -493,7 +492,7 @@ describe('Saved prompt order', () => {
         for (const { id, before, order } of cases) {
             h.kv.put.mockClear();
             const body = await moved(await h.move(id, before));
-            expect(body.reports).toEqual(order);
+            expect(body.prompts).toEqual(order);
             expect(body.capabilities).toEqual({ list: true, save: true, remove: true, move: true });
             expect(h.kv.put).toHaveBeenCalledExactlyOnceWith(
                 key(id),
@@ -515,7 +514,7 @@ describe('Saved prompt order', () => {
             [b.id, c.id],
             [c.id, null],
         ] as const) {
-            expect((await moved(await h.move(id, before))).reports).toEqual([a, b, c]);
+            expect((await moved(await h.move(id, before))).prompts).toEqual([a, b, c]);
         }
         expect(h.kv.put).not.toHaveBeenCalled();
         expect(h.kv.delete).not.toHaveBeenCalled();
@@ -523,16 +522,16 @@ describe('Saved prompt order', () => {
 
     it('gives prompts saved before ordering a position once, in their order, on the first move', async () => {
         const h = harness();
-        const reports = await shelf(h, ['p', 'q', 'r', 's']);
+        const prompts = await shelf(h, ['p', 'q', 'r', 's']);
         const [x] = await shelf(h, ['Positioned']);
-        for (const report of reports) h.metadata.delete(key(report.id));
+        for (const item of prompts) h.metadata.delete(key(item.id));
         h.metadata.set(key(x.id), { position: 'a0' });
-        const legacy = [...reports].sort((a, b) => (a.id < b.id ? -1 : 1));
+        const legacy = [...prompts].sort((a, b) => (a.id < b.id ? -1 : 1));
         expect(await h.order()).toEqual([...legacy, x]);
         h.kv.put.mockClear();
         const [first, second, third, fourth] = legacy;
         const body = await moved(await h.move(fourth.id, second.id));
-        expect(body.reports).toEqual([first, fourth, second, third, x]);
+        expect(body.prompts).toEqual([first, fourth, second, third, x]);
         // The others before the first positioned one ('a0'), then the moved one between.
         expect(writes(h)).toEqual([
             [key(first.id), JSON.stringify(first.prompt), { metadata: { position: 'Zx' } }],
@@ -540,7 +539,7 @@ describe('Saved prompt order', () => {
             [key(third.id), JSON.stringify(third.prompt), { metadata: { position: 'Zz' } }],
             [key(fourth.id), JSON.stringify(fourth.prompt), { metadata: { position: 'ZxV' } }],
         ]);
-        expect(await h.order()).toEqual(body.reports);
+        expect(await h.order()).toEqual(body.prompts);
         // Once: the next move writes only the moved prompt.
         h.kv.put.mockClear();
         await moved(await h.move(first.id, null));
@@ -557,7 +556,7 @@ describe('Saved prompt order', () => {
         expect(await h.order()).toEqual([low, high, c]);
         h.kv.put.mockClear();
         const body = await moved(await h.move(c.id, high.id));
-        expect(body.reports).toEqual([low, c, high]);
+        expect(body.prompts).toEqual([low, c, high]);
         expect(await h.order()).toEqual([low, c, high]);
         expect(writes(h)).toEqual([
             [key(c.id), JSON.stringify('c'), { metadata: { position: 'a1' } }],
@@ -572,7 +571,7 @@ describe('Saved prompt order', () => {
         const missing = 'f'.repeat(64);
         const notFound = await h.move(missing, a.id);
         expect(notFound.status).toBe(404);
-        expect(await notFound.json()).toMatchObject({ error: { code: 'report_not_found' } });
+        expect(await notFound.json()).toMatchObject({ error: { code: 'prompt_not_found' } });
         const changed = await h.move(a.id, missing);
         expect(changed.status).toBe(409);
         expect(await changed.json()).toMatchObject({ error: { code: 'shelf_changed' } });
@@ -583,15 +582,15 @@ describe('Saved prompt order', () => {
     it('never writes a prompt removed between listing and reading', async () => {
         const h = harness();
         const [a, b, c] = await shelf(h, ['a', 'b', 'c']);
-        for (const report of [a, b, c]) h.metadata.delete(key(report.id));
+        for (const item of [a, b, c]) h.metadata.delete(key(item.id));
         h.kv.put.mockClear();
         const removed = [a, b, c].sort((x, y) => (x.id < y.id ? -1 : 1))[0];
         h.kv.get.mockImplementation(async name =>
             name === key(removed.id) ? null : (h.values.get(name) ?? null)
         );
-        const [stays, moving] = [a, b, c].filter(report => report !== removed);
+        const [stays, moving] = [a, b, c].filter(item => item !== removed);
         const body = await moved(await h.move(moving.id, stays.id));
-        expect(body.reports).toEqual([moving, stays]);
+        expect(body.prompts).toEqual([moving, stays]);
         expect(h.kv.put.mock.calls.map(([name]) => name)).not.toContain(key(removed.id));
     });
 
@@ -599,7 +598,7 @@ describe('Saved prompt order', () => {
         const storage = memoryStorage();
         const [a, b] = await shelf(harness('OWNER', storage), ['a', 'b']);
         const h = harness(permission, storage);
-        expect((await moved(await h.move(b.id, a.id))).reports).toEqual([b, a]);
+        expect((await moved(await h.move(b.id, a.id))).prompts).toEqual([b, a]);
     });
 
     it.each([
@@ -656,11 +655,11 @@ describe('Saved prompt order', () => {
 
     it('isolates the order of each Book', async () => {
         const h = harness();
-        const other = '/api/v1/books/book-b/reports';
+        const other = '/api/v1/books/book-b/prompts';
         const [a, b] = await shelf(h, ['a', 'b']);
         await saved(await h.save('b', other));
         await saved(await h.save('a', other));
-        expect((await moved(await h.move(b.id, a.id))).reports).toEqual([b, a]);
+        expect((await moved(await h.move(b.id, a.id))).prompts).toEqual([b, a]);
         expect(await h.order(other)).toEqual([b, a]);
         expect(await h.order()).toEqual([b, a]);
         expect((await h.move(a.id, b.id, other)).status).toBe(200);

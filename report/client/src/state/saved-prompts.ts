@@ -6,23 +6,23 @@ import {
 } from '../api/app-api';
 import { reactive, Store } from './store';
 
-export type SavedReportsApi = Pick<
+export type SavedPromptsApi = Pick<
     AppApi,
-    'savedReports' | 'saveReport' | 'removeReport' | 'moveReport'
+    'savedPrompts' | 'savePrompt' | 'removePrompt' | 'movePrompt'
 >;
 
 /** Where a prompt can move on the shelf, in its order (first is leftmost in LTR). */
 export type ShelfPlace = 'first' | 'earlier' | 'later';
 
 /** Stable reasons for the future UI to localize; never expose upstream messages or prompts. */
-export type SavedReportsError =
+export type SavedPromptsError =
     | 'unauthorized'
     | 'forbidden'
     | 'book_not_found'
     | 'invalid_request'
     | 'storage_error'
     | 'upstream_error'
-    | 'report_not_found'
+    | 'prompt_not_found'
     | 'shelf_changed'
     | 'unexpected';
 
@@ -32,7 +32,7 @@ export type SavedReportsError =
  * capabilities. These are UI hints only: the server authorizes every request afresh. Nothing
  * is persisted in the browser.
  */
-export class SavedReports extends Store {
+export class SavedPrompts extends Store {
     @reactive bookId?: string;
     @reactive items: readonly SavedPrompt[] = [];
     @reactive capabilities?: SavedPromptCapabilities;
@@ -41,10 +41,10 @@ export class SavedReports extends Store {
     @reactive saving?: string;
     @reactive removing?: string;
     @reactive moving?: string;
-    @reactive loadError?: SavedReportsError;
-    @reactive saveError?: SavedReportsError;
-    @reactive removeError?: SavedReportsError;
-    @reactive moveError?: SavedReportsError;
+    @reactive loadError?: SavedPromptsError;
+    @reactive saveError?: SavedPromptsError;
+    @reactive removeError?: SavedPromptsError;
+    @reactive moveError?: SavedPromptsError;
     /** Only the source of the report actually shown, supplied by AppState, never input text. */
     @reactive private source?: string;
 
@@ -52,7 +52,7 @@ export class SavedReports extends Store {
     private listRequest?: { controller: AbortController; promise: Promise<void> };
     private mutation?: { controller: AbortController; promise: Promise<void> };
 
-    constructor(private readonly api: SavedReportsApi) {
+    constructor(private readonly api: SavedPromptsApi) {
         super();
     }
 
@@ -119,11 +119,11 @@ export class SavedReports extends Store {
         this.loading = true;
         this.loadError = undefined;
         const promise = this.api
-            .savedReports(bookId, { signal: controller.signal })
+            .savedPrompts(bookId, { signal: controller.signal })
             .then(
                 result => {
                     if (session !== this.session || controller.signal.aborted) return;
-                    this.items = unique(result.reports);
+                    this.items = unique(result.prompts);
                     this.capabilities = result.capabilities;
                 },
                 (error: unknown) => {
@@ -153,7 +153,7 @@ export class SavedReports extends Store {
         const prompt = this.source;
         this.saveError = undefined;
         return this.mutate('save', prompt, async signal => {
-            const item = await this.api.saveReport(bookId, { prompt }, { signal });
+            const item = await this.api.savePrompt(bookId, { prompt }, { signal });
             return () => {
                 // A new prompt goes last on the server; one saved again keeps its place.
                 this.items = this.items.some(row => row.id === item.id)
@@ -170,7 +170,7 @@ export class SavedReports extends Store {
         const bookId = this.bookId;
         this.removeError = undefined;
         return this.mutate('remove', id, async signal => {
-            await this.api.removeReport(bookId, id, { signal });
+            await this.api.removePrompt(bookId, id, { signal });
             return () => {
                 this.items = this.items.filter(item => item.id !== id);
             };
@@ -196,9 +196,9 @@ export class SavedReports extends Store {
             async signal => {
                 // Reordered only once `moving` is set, so no change shows it while moves are on.
                 this.items = items;
-                const result = await this.api.moveReport(bookId, id, { before }, { signal });
+                const result = await this.api.movePrompt(bookId, id, { before }, { signal });
                 return () => {
-                    this.items = unique(result.reports);
+                    this.items = unique(result.prompts);
                     this.capabilities = result.capabilities;
                 };
             },
@@ -248,7 +248,7 @@ export class SavedReports extends Store {
                         this.capabilities = undefined;
                         this.items = [];
                     }
-                    reload = failure === 'shelf_changed' || failure === 'report_not_found';
+                    reload = failure === 'shelf_changed' || failure === 'prompt_not_found';
                 }
             )
             .finally(() => {
@@ -314,11 +314,11 @@ function isAbort(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError';
 }
 
-function inaccessible(error: SavedReportsError): boolean {
+function inaccessible(error: SavedPromptsError): boolean {
     return error === 'forbidden' || error === 'unauthorized' || error === 'book_not_found';
 }
 
-function reason(error: unknown): SavedReportsError {
+function reason(error: unknown): SavedPromptsError {
     if (error instanceof AppApiError) {
         switch (error.code) {
             case 'unauthorized':
@@ -327,7 +327,7 @@ function reason(error: unknown): SavedReportsError {
             case 'invalid_request':
             case 'storage_error':
             case 'upstream_error':
-            case 'report_not_found':
+            case 'prompt_not_found':
             case 'shelf_changed':
                 return error.code;
         }

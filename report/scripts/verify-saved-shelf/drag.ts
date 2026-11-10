@@ -313,8 +313,8 @@ export async function verifyDrag(env: DragEnvironment, layout: DragLayout): Prom
             if (path.endsWith('/names')) return json({ names: [] });
             if (path.endsWith('/report')) return json(env.report);
             const capabilities = { list: true, save: true, remove: true, move: movable };
-            if (path.endsWith('/reports') && req.method() === 'GET')
-                return json({ reports: items, capabilities });
+            if (path.endsWith('/prompts') && req.method() === 'GET')
+                return json({ prompts: items, capabilities });
             if (path.endsWith('/position') && req.method() === 'PUT') {
                 const id = path.split('/').at(-2)!;
                 const { before } = req.postDataJSON() as { before: string | null };
@@ -333,7 +333,7 @@ export async function verifyDrag(env: DragEnvironment, layout: DragLayout): Prom
                 const at = before === null ? rest.length : rest.findIndex(e => e.id === before);
                 assert(at !== -1, 'Moves before a prompt on the shelf');
                 items = [...rest.slice(0, at), item, ...rest.slice(at)];
-                return json({ reports: items, capabilities });
+                return json({ prompts: items, capabilities });
             }
             throw new Error(`Unmocked API: ${req.method()} ${path}`);
         }

@@ -315,7 +315,7 @@ async function open(
                 return;
             }
             if (path.endsWith('/names')) return json({ names: [] });
-            if (path.endsWith('/reports') && req.method() === 'GET') {
+            if (path.endsWith('/prompts') && req.method() === 'GET') {
                 if (item.held) await held;
                 if (item.shelf === 'fails')
                     return json(
@@ -323,7 +323,7 @@ async function open(
                         502
                     );
                 return json({
-                    reports: item.shelf === 'saved' ? saved : [],
+                    prompts: item.shelf === 'saved' ? saved : [],
                     capabilities: { list: true, save: true, remove: true, move: true },
                 });
             }

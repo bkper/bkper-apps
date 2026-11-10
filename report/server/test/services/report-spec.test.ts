@@ -1,7 +1,7 @@
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
 import { isolate } from 'report-shared/bidi';
 import { addAllLocales } from 'report-shared/locales';
-import { addLocale, t } from 'report-shared/strings';
+import { addLocale, t, type StringKey } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { RELATIVE_PERIODS } from 'report-shared/report-intent';
 import { reportText } from 'report-shared/report-text';
@@ -44,6 +44,16 @@ async function report(
 
 async function spec(request: ReportIntent, lang = 'en', snapshot?: Snapshot, ledger?: FakeLedger) {
     return buildReportSpec(await report(request, snapshot, ledger), lang);
+}
+
+/** The note under the report's title: what it could not do as asked. */
+function notice(built: ReportSpec): string | undefined {
+    return element(built, 'Report').props.notice;
+}
+
+/** The note on a chart asked for that does not fit, in a language. */
+function chartNotice(lang: string, kind: StringKey, reason: string): string {
+    return t('notice_chart_unfit', lang, { chart: t(kind, lang), reason });
 }
 
 function element<T extends ReportElement['type']>(
@@ -315,6 +325,23 @@ describe('buildReportSpec', () => {
         );
         expect(element(fine, 'Report').props.notice).toBeUndefined();
         expect(element(fine, 'Answer').props.comparison).toBe(`vs. ${isolate('2023')}`);
+    });
+
+    it('says both in one line when neither the comparison nor the chart can be as asked', async () => {
+        const built = await spec(
+            intent(
+                'net-result',
+                { span: 'year', year: 2025 },
+                { compared: { month: 3 }, chart: 'donut' }
+            )
+        );
+        expect(notice(built)).toBe(
+            `${t('notice_comparison_fallback', 'en', { period: isolate('2024') })} ${chartNotice(
+                'en',
+                'chart_name_donut',
+                t('chart_unfit_net_result', 'en')
+            )}`
+        );
     });
 
     it('writes the request a report answers with its period as asked, relative words relative', async () => {
@@ -650,15 +677,15 @@ describe('buildReportSpec', () => {
             alongside: [{ root: 'g-expenses', target: 'a-rent' }],
             chart: 'pie',
         });
-        const unfit = element(await spec(request), 'Visualizations').props.unfit;
-        expect(unfit).toEqual({
-            kind: 'pie',
-            name: 'Pie',
-            reason: t('chart_unfit_side_by_side', 'en'),
-        });
+        const built = await spec(request);
+        expect(notice(built)).toBe(
+            chartNotice('en', 'chart_name_donut', t('chart_unfit_side_by_side', 'en'))
+        );
+        expect(element(built, 'Visualizations').props.unfit).toBeUndefined();
         addAllLocales();
-        const pt = element(await spec(request, 'pt'), 'Visualizations').props.unfit;
-        expect(pt?.reason).toBe(t('chart_unfit_side_by_side', 'pt'));
+        expect(notice(await spec(request, 'pt'))).toBe(
+            chartNotice('pt', 'chart_name_donut', t('chart_unfit_side_by_side', 'pt'))
+        );
         expect(element(await spec(request, 'pt'), 'Report').props.title).toBe(
             `${isolate('Food')} e ${isolate('Rent')}`
         );
@@ -784,10 +811,11 @@ describe('buildReportSpec', () => {
         );
     });
 
-    it('draws a pie of the parts like a donut', async () => {
+    it('draws a donut for a pie asked for, with no note', async () => {
         const built = await spec(intent('g-expenses', 'last_month', { chart: 'pie' }));
+        expect(notice(built)).toBeUndefined();
         expect(element(built, 'Chart').props).toEqual({
-            kind: 'pie',
+            kind: 'donut',
             label: `Breakdown of ${isolate('Expenses')}`,
             items: [
                 { rowId: 'a-rent', label: 'Rent', color: 'red', value: '1000' },
@@ -868,11 +896,11 @@ describe('buildReportSpec', () => {
         ]) {
             const built = await spec(request);
             expect(element(built, 'Chart').props.kind).toBe('compare');
-            expect(element(built, 'Visualizations').props.unfit).toEqual({
-                kind: 'waterfall',
-                name: 'Bridge',
-                reason: t('chart_unfit_no_bridge', 'en'),
-            });
+            expect(notice(built)).toBe(
+                chartNotice('en', 'chart_name_waterfall', t('chart_unfit_no_bridge', 'en'))
+            );
+            const kinds = element(built, 'Visualizations').props.views.map(view => view.kind);
+            expect(kinds).not.toContain('waterfall');
         }
     });
 
@@ -889,7 +917,6 @@ describe('buildReportSpec', () => {
             ['stacked', 'Stacked'],
             ['ranked-bar', 'Ranked'],
             ['donut', 'Donut'],
-            ['pie', 'Pie'],
             ['compare', 'Compared'],
             ['table', 'Table'],
         ]);
@@ -899,20 +926,21 @@ describe('buildReportSpec', () => {
             'table',
         ]);
         expect(views.props.unfit).toBeUndefined();
-        for (const kind of ['area', 'stacked', 'pie', 'compare'] as const) {
+        expect(notice(built)).toBeUndefined();
+        for (const kind of ['area', 'stacked', 'donut', 'compare'] as const) {
             const preferred = await spec({ ...request, chart: kind });
             expect(views.props.views.find(view => view.kind === kind)?.chart, kind).toEqual(
                 element(preferred, 'Chart').props
             );
         }
-        const pie = element(await spec({ ...request, chart: 'pie' }), 'Visualizations').props;
-        expect(pie.main).toBe('pie');
-        expect(pie.views.find(view => view.kind === 'bar')?.chart).toEqual(
+        const donut = element(await spec({ ...request, chart: 'donut' }), 'Visualizations').props;
+        expect(donut.main).toBe('donut');
+        expect(donut.views.find(view => view.kind === 'bar')?.chart).toEqual(
             element(built, 'Chart').props
         );
     });
 
-    it('dims the preferred chart that does not fit, naming the part and its amount', async () => {
+    it('says why the preferred chart does not fit, naming the part and its amount', async () => {
         // A refund of taxes in October: the account shows below zero, as in Bkper.
         const ledger = fixtureLedger();
         const food = ledger.book.accounts?.find(account => account.name === 'Food');
@@ -931,56 +959,53 @@ describe('buildReportSpec', () => {
             amount: '387.24',
         });
         const snapshot = await ledgerSnapshot(ledger);
-        const request = intent('g-expenses', 'last_month', { chart: 'pie' });
-        const english = element(
-            await spec(request, 'en', snapshot, ledger),
-            'Visualizations'
-        ).props;
-        expect(english.unfit).toEqual({
-            kind: 'pie',
-            name: 'Pie',
-            reason: t('chart_unfit_negative_part', 'en', {
-                name: isolate('IMPOSTOS'),
-                amount: isolate('-186.74'),
-            }),
-        });
-        expect(english.main).toBe('ranked-bar');
-        expect(english.views.map(view => view.kind)).not.toContain('pie');
-        const portuguese = element(
-            await spec(request, 'pt-BR', snapshot, ledger),
-            'Visualizations'
+        const request = intent('g-expenses', 'last_month', { chart: 'donut' });
+        const built = await spec(request, 'en', snapshot, ledger);
+        expect(notice(built)).toBe(
+            chartNotice(
+                'en',
+                'chart_name_donut',
+                t('chart_unfit_negative_part', 'en', {
+                    name: isolate('IMPOSTOS'),
+                    amount: isolate('-186.74'),
+                })
+            )
         );
-        expect(portuguese.props.unfit?.reason).toContain(isolate('-186,74'));
+        const english = element(built, 'Visualizations').props;
+        expect(english.unfit).toBeUndefined();
+        expect(english.main).toBe('ranked-bar');
+        expect(english.views.map(view => view.kind)).not.toContain('donut');
+        expect(notice(await spec(request, 'pt-BR', snapshot, ledger))).toContain(
+            isolate('-186,74')
+        );
     });
 
     it('says why a preferred chart does not fit, in the words of that chart', async () => {
-        const reason = async (request: ReportIntent) =>
-            element(await spec(request), 'Visualizations').props.unfit?.reason;
-        expect(await reason(intent('net-result', 'last_month', { chart: 'pie' }))).toBe(
-            t('chart_unfit_pie_net_result', 'en')
+        const said = async (request: ReportIntent, snapshot?: Snapshot, ledger?: FakeLedger) =>
+            notice(await spec(request, 'en', snapshot, ledger));
+        expect(await said(intent('net-result', 'last_month', { chart: 'pie' }))).toBe(
+            chartNotice('en', 'chart_name_donut', t('chart_unfit_net_result', 'en'))
         );
-        expect(await reason(intent('net-result', '2026', { chart: 'stacked' }))).toBe(
-            t('chart_unfit_stacked_net_result', 'en')
+        expect(await said(intent('net-result', '2026', { chart: 'stacked' }))).toBe(
+            chartNotice('en', 'chart_name_stacked', t('chart_unfit_stacked_net_result', 'en'))
         );
-        expect(await reason(intent('g-expenses', 'all', { chart: 'compare' }))).toBe(
-            t('chart_unfit_no_previous', 'en')
+        expect(await said(intent('g-expenses', 'all', { chart: 'compare' }))).toBe(
+            chartNotice('en', 'chart_name_compare', t('chart_unfit_no_previous', 'en'))
         );
-        expect(await reason(intent('g-expenses', 'last_month', { chart: 'waterfall' }))).toBe(
-            t('chart_unfit_no_bridge', 'en')
+        expect(await said(intent('g-expenses', 'last_month', { chart: 'waterfall' }))).toBe(
+            chartNotice('en', 'chart_name_waterfall', t('chart_unfit_no_bridge', 'en'))
         );
         const mixed = withAccounts(fixtureLedger(), ['50']);
         const snapshot = await ledgerSnapshot(mixed);
         snapshot.accounts['extra-0'].type = 'ASSET';
         const stacked = intent('g-expenses', '2026', { monthly: true, chart: 'stacked' });
-        expect(
-            element(await spec(stacked, 'en', snapshot, mixed), 'Visualizations').props.unfit
-                ?.reason
-        ).toBe(t('chart_unfit_stacked_mixed_parts', 'en'));
+        expect(await said(stacked, snapshot, mixed)).toBe(
+            chartNotice('en', 'chart_name_stacked', t('chart_unfit_stacked_mixed_parts', 'en'))
+        );
         const many = withAccounts(fixtureLedger(), ['5', '4', '3', '2', '1']);
-        expect(
-            element(await spec(stacked, 'en', undefined, many), 'Visualizations').props.unfit
-                ?.reason
-        ).toBe(t('chart_unfit_stacked_too_many_parts', 'en'));
+        expect(await said(stacked, undefined, many)).toBe(
+            chartNotice('en', 'chart_name_stacked', t('chart_unfit_stacked_too_many_parts', 'en'))
+        );
     });
 
     it('says the parts Bkper returns are no whole of the total', async () => {
@@ -994,8 +1019,8 @@ describe('buildReportSpec', () => {
             return read;
         });
         const built = buildReportSpec(buildReport(request, snapshot, balances), 'en');
-        expect(element(built, 'Visualizations').props.unfit?.reason).toBe(
-            t('chart_unfit_not_a_whole', 'en')
+        expect(notice(built)).toBe(
+            chartNotice('en', 'chart_name_donut', t('chart_unfit_not_a_whole', 'en'))
         );
     });
 

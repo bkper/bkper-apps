@@ -42,29 +42,22 @@ export function renderChart(view: ChartView, kind: string, label: string, dir: '
                   dir=${dir}
                   without-legend
               ></wa-doughnut-chart>`
-            : view.element === 'pie'
-              ? html`<wa-pie-chart
+            : view.element === 'line'
+              ? html`<wa-line-chart
                     .config=${view.config}
                     label=${label}
                     dir=${dir}
-                    without-legend
-                ></wa-pie-chart>`
-              : view.element === 'line'
-                ? html`<wa-line-chart
-                      .config=${view.config}
-                      label=${label}
-                      dir=${dir}
-                      grid="y"
-                      ?without-legend=${!view.legend}
-                  ></wa-line-chart>`
-                : html`<wa-bar-chart
-                      .config=${view.config}
-                      label=${label}
-                      dir=${dir}
-                      orientation=${view.horizontal ? 'horizontal' : 'vertical'}
-                      grid=${view.horizontal ? 'x' : 'y'}
-                      ?without-legend=${!view.legend}
-                  ></wa-bar-chart>`;
+                    grid="y"
+                    ?without-legend=${!view.legend}
+                ></wa-line-chart>`
+              : html`<wa-bar-chart
+                    .config=${view.config}
+                    label=${label}
+                    dir=${dir}
+                    orientation=${view.horizontal ? 'horizontal' : 'vertical'}
+                    grid=${view.horizontal ? 'x' : 'y'}
+                    ?without-legend=${!view.legend}
+                ></wa-bar-chart>`;
     return html`<figure
         class="chart ${view.horizontal ? 'ranked' : view.element}"
         data-kind=${kind}

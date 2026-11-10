@@ -448,7 +448,8 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Net income last month"
+                        "request": "Net income last month",
+                        "notice": "Can’t show Bridge: A bridge would show amounts that aren't Bkper balances."
                     },
                     "children": [
                         "answer",
@@ -565,12 +566,7 @@
                                 "kind": "table",
                                 "name": "Table"
                             }
-                        ],
-                        "unfit": {
-                            "kind": "waterfall",
-                            "name": "Bridge",
-                            "reason": "A bridge would show amounts that aren't Bkper balances"
-                        }
+                        ]
                     },
                     "on": {
                         "select": {
@@ -776,28 +772,6 @@
                             {
                                 "kind": "donut",
                                 "name": "Rosca"
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pizza",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Detalhamento de ⁨Assets⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-banks",
-                                            "label": "Banks",
-                                            "color": "blue",
-                                            "value": "8136.49"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "100"
-                                        }
-                                    ]
-                                }
                             },
                             {
                                 "kind": "compare",
@@ -2058,7 +2032,7 @@
         }
     },
     {
-        "id": "mixed-pie-fallback",
+        "id": "mixed-donut-fallback",
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2071,7 +2045,8 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Net income last month"
+                        "request": "Net income last month",
+                        "notice": "Can’t show Donut: Income and expenses aren't slices of a net result."
                     },
                     "children": [
                         "answer",
@@ -2188,12 +2163,7 @@
                                 "kind": "table",
                                 "name": "Table"
                             }
-                        ],
-                        "unfit": {
-                            "kind": "pie",
-                            "name": "Pie",
-                            "reason": "A pie can't show a net result"
-                        }
+                        ]
                     },
                     "on": {
                         "select": {
@@ -2521,7 +2491,7 @@
         }
     },
     {
-        "id": "targets-pie-unfit",
+        "id": "targets-donut-unfit",
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2534,7 +2504,8 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "⁨Food⁩ and ⁨Rent⁩ last month"
+                        "request": "⁨Food⁩ and ⁨Rent⁩ last month",
+                        "notice": "Can’t show Donut: Side by side, they aren't parts of one total."
                     },
                     "children": [
                         "answer-1",
@@ -2657,12 +2628,7 @@
                                 "kind": "table",
                                 "name": "Table"
                             }
-                        ],
-                        "unfit": {
-                            "kind": "pie",
-                            "name": "Pie",
-                            "reason": "Side by side, they aren't parts of one total"
-                        }
+                        ]
                     },
                     "on": {
                         "select": {
@@ -2749,7 +2715,7 @@
         }
     },
     {
-        "id": "expenses-pie-negative",
+        "id": "expenses-donut-negative",
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2762,7 +2728,8 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Expenses last month"
+                        "request": "Expenses last month",
+                        "notice": "Can’t show Donut: ⁨Food⁩ is below zero (⁨-186.74⁩)."
                     },
                     "children": [
                         "answer",
@@ -2866,12 +2833,7 @@
                                 "kind": "table",
                                 "name": "Table"
                             }
-                        ],
-                        "unfit": {
-                            "kind": "pie",
-                            "name": "Pie",
-                            "reason": "A pie can't show ⁨Food⁩ (⁨-186.74⁩)"
-                        }
+                        ]
                     },
                     "on": {
                         "select": {

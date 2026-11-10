@@ -113,6 +113,8 @@ function namedChart(word: ChartWord, judgments: Judgments): ChartPreference {
             // Bars of months, of a period against an earlier one, or of the parts.
             return judgments.overTime ? 'bar' : judgments.versusEarlier ? 'compare' : 'ranked-bar';
         case 'pie':
+            // A pie is drawn as a donut, the one round chart.
+            return 'donut';
         case 'line':
         case 'area':
         case 'stacked':
@@ -144,7 +146,7 @@ export const SHOW_RULES: readonly {
         shows: () => ({ chart: 'stacked' }),
     },
     { rule: 'over_time', applies: j => j.overTime, shows: () => ({ view: 'trend' }) },
-    // A donut or a pie of the parts, chosen by the report's facts, else ranked bars.
+    // A donut of the parts when the report's facts allow it, else ranked bars.
     { rule: 'composition', applies: j => j.composition, shows: () => ({ view: 'breakdown' }) },
     { rule: 'auto', applies: () => true, shows: () => ({}) },
 ];

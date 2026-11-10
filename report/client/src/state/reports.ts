@@ -295,7 +295,7 @@ export class Reports extends Store {
         const bookId = this.openBookId;
         if (!bookId) return;
         this.refreshSuggestions(bookId);
-        const chart = this.reopen?.chart;
+        const chart = this.chart ?? this.report?.chart.asked;
         this.cancel();
         const sequence = this.sequence;
         const key = queryKey(query);

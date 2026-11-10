@@ -488,10 +488,11 @@ describe('createReport by prompt', () => {
                 fitting: ['bar', 'ranked-bar', 'compare', 'table'],
                 main: 'ranked-bar',
                 rule: 'closest',
-                unfit: { kind: 'pie', reason: { code: 'net_result' } },
+                unfit: { kind: 'donut', reason: { code: 'net_result' } },
             },
         });
-        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true, asked: 'pie' });
+        // A pie asked for is a donut.
+        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true, asked: 'donut' });
         // An intent asks no judgments.
         expect(result.trace).not.toHaveProperty('judgments');
         expect(result.trace).not.toHaveProperty('rule');

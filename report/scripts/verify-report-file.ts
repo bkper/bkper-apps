@@ -416,7 +416,7 @@ async function checkChoice(
     const alternatives = frame.locator('report-view .preview[aria-pressed="false"]');
     const round = alternatives
         .filter({ has: frame.locator('svg') })
-        .and(frame.locator('[data-kind="pie"], [data-kind="donut"]'));
+        .and(frame.locator('[data-kind="donut"]'));
     const preview = (await round.count()) > 0 ? round.first() : alternatives.first();
     if ((await preview.count()) === 0) {
         return { failures: [] };
@@ -486,7 +486,7 @@ async function checkChoice(
     }
     const heightChange = Math.abs(after.height - initial.height);
     // The recorded monthly report is the explicit differing-height regression, not a same-size switch.
-    if (before === 'bar' && (kind === 'pie' || kind === 'donut') && heightChange < 1) {
+    if (before === 'bar' && kind === 'donut' && heightChange < 1) {
         failures.push('The monthly-to-round chart regression did not exercise different heights');
     }
     // Drawn by Chart.js: its elements of the first dataset. (Reading the canvas's pixels

@@ -32,7 +32,7 @@ Write the way you would ask a colleague, in any language:
 | #travel expenses this year | This year's expenses on transactions tagged `#travel` |
 | Food last month | Your _Food_ group or Account alone |
 | Food versus Rent by month | _Food_ and _Rent_ side by side, month by month, never added up |
-| despesas por categoria em pizza | This year's expenses as a pie chart |
+| despesas por categoria em pizza | This year's expenses as a donut chart |
 
 - **Names.** Name any group or Account as your Book writes it (case and accents aside). As you type two letters, Report suggests up to five names; press **Tab** or click to take one. Name up to six to see them side by side, all balances (assets, liabilities) or all activity (income, expenses). For their total, add a group that holds them in Bkper and ask for it.
 - **No name?** Report reports the top-level group your request is about, such as Expenses or Assets, or income versus expenses.
@@ -50,15 +50,15 @@ Report picks the chart that fits. To start with another, name it in your request
 
 | Ask for | You see |
 | --- | --- |
-| a pie, a donut | Each part's share of the total |
-| bars, a line | Amounts month by month, or the parts, largest first |
+| a donut, a pie | Each part's share of the total, as a donut |
+| bars, a line | Amounts month by month (the one you ask for replaces the usual one), or the parts, largest first |
 | stacked by month | The parts piled up, month by month |
 | an area chart | Amounts over time, as a filled area |
 | versus last month, versus last year, versus 2023 | Each part beside the period compared with |
 | versus January last year, year over year | Each part beside the same period a year earlier |
 | just the numbers | The answer and the table, without a chart |
 
-A chart that cannot show your numbers honestly is not drawn. It appears dimmed among the previews with the reason, such as _A pie can't show Taxes (-186.74)_, and the closest chart that fits is shown instead. For example, a pie needs two or more positive parts that make up the total, and side-by-side names never get a chart that suggests a total. Report never draws a bridge (waterfall), because its bars would be sums Report makes itself.
+Every chart that fits is offered as a small preview, up to six; click one to switch. A chart that cannot show your numbers honestly is not drawn: a line under the title says why, such as _Can’t show Donut: Taxes is below zero (-186.74)._, and the closest chart that fits is shown instead. For example, a donut needs two to six positive parts that make up the total, and side-by-side names never get a chart that suggests a total. Report never draws a bridge (waterfall), because its bars would be sums Report makes itself.
 
 ## Save a request for the Book
 

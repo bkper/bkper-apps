@@ -1692,34 +1692,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Bank accounts⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-checking",
-                                            "label": "Checking",
-                                            "color": "blue",
-                                            "value": "59034.29"
-                                        },
-                                        {
-                                            "rowId": "a-savings",
-                                            "label": "Savings",
-                                            "color": "blue",
-                                            "value": "39000"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "343.05"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -2031,28 +2003,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Detalhamento de ⁨Loans⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-bank-loan",
-                                            "label": "Bank loan",
-                                            "color": "yellow",
-                                            "value": "41300"
-                                        },
-                                        {
-                                            "rowId": "a-credit-card",
-                                            "label": "Credit card",
-                                            "color": "yellow",
-                                            "value": "2406.66"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -2281,28 +2231,6 @@
                                 "name": "Donut",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "Breakdown of ⁨Assets⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-banks",
-                                            "label": "Banks",
-                                            "color": "blue",
-                                            "value": "7749.25"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "100"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "Breakdown of ⁨Assets⁩",
                                     "items": [
                                         {

@@ -360,52 +360,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -1252,52 +1206,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -1979,34 +1887,6 @@
                                 "name": "Donut"
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Taxes⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-income-tax",
-                                            "label": "Income tax",
-                                            "color": "red",
-                                            "value": "6708.13"
-                                        },
-                                        {
-                                            "rowId": "a-payroll-tax",
-                                            "label": "Payroll tax",
-                                            "color": "red",
-                                            "value": "4739.65"
-                                        },
-                                        {
-                                            "rowId": "a-sales-tax",
-                                            "label": "Sales tax",
-                                            "color": "red",
-                                            "value": "2866.18"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -2448,34 +2328,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Bank accounts⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-checking",
-                                            "label": "Checking",
-                                            "color": "blue",
-                                            "value": "64280.81"
-                                        },
-                                        {
-                                            "rowId": "a-savings",
-                                            "label": "Savings",
-                                            "color": "blue",
-                                            "value": "42600"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "334.29"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -2770,28 +2622,6 @@
                             {
                                 "kind": "donut",
                                 "name": "Donut"
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Loans⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-bank-loan",
-                                            "label": "Bank loan",
-                                            "color": "yellow",
-                                            "value": "34700"
-                                        },
-                                        {
-                                            "rowId": "a-credit-card",
-                                            "label": "Credit card",
-                                            "color": "yellow",
-                                            "value": "1842.61"
-                                        }
-                                    ]
-                                }
                             },
                             {
                                 "kind": "compare",
@@ -4253,40 +4083,6 @@
                                 "name": "ドーナツ"
                             },
                             {
-                                "kind": "pie",
-                                "name": "円グラフ",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "⁨Revenue⁩の内訳",
-                                    "items": [
-                                        {
-                                            "rowId": "a-design-projects",
-                                            "label": "Design projects",
-                                            "color": "green",
-                                            "value": "263357.41"
-                                        },
-                                        {
-                                            "rowId": "a-subscriptions",
-                                            "label": "Subscriptions",
-                                            "color": "green",
-                                            "value": "98573.67"
-                                        },
-                                        {
-                                            "rowId": "a-workshops",
-                                            "label": "Workshops",
-                                            "color": "green",
-                                            "value": "36533.79"
-                                        },
-                                        {
-                                            "rowId": "a-interest",
-                                            "label": "Interest",
-                                            "color": "green",
-                                            "value": "2259.31"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "比較",
                                 "chart": {
@@ -4621,52 +4417,6 @@
                                 "name": "دونات",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "تفصيل ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "17037.18"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "3973.97"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "1847.25"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "1717.76"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "1308.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "389.37"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "دائري",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "تفصيل ⁨Expenses⁩",
                                     "items": [
                                         {
@@ -5159,40 +4909,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Revenue⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-design-projects",
-                                            "label": "Design projects",
-                                            "color": "green",
-                                            "value": "21037.25"
-                                        },
-                                        {
-                                            "rowId": "a-subscriptions",
-                                            "label": "Subscriptions",
-                                            "color": "green",
-                                            "value": "9288.43"
-                                        },
-                                        {
-                                            "rowId": "a-workshops",
-                                            "label": "Workshops",
-                                            "color": "green",
-                                            "value": "4593.55"
-                                        },
-                                        {
-                                            "rowId": "a-interest",
-                                            "label": "Interest",
-                                            "color": "green",
-                                            "value": "213.22"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared",
                                 "chart": {
@@ -5357,7 +5073,7 @@
         }
     },
     {
-        "id": "revenue-pie",
+        "id": "revenue-donut",
         "lang": "en",
         "spec": {
             "root": "report",
@@ -5394,7 +5110,7 @@
                 "chart": {
                     "type": "Chart",
                     "props": {
-                        "kind": "pie",
+                        "kind": "donut",
                         "label": "Breakdown of ⁨Revenue⁩",
                         "items": [
                             {
@@ -5428,7 +5144,7 @@
                     "type": "Visualizations",
                     "props": {
                         "label": "Charts",
-                        "main": "pie",
+                        "main": "donut",
                         "views": [
                             {
                                 "kind": "bar",
@@ -5652,41 +5368,7 @@
                             },
                             {
                                 "kind": "donut",
-                                "name": "Donut",
-                                "chart": {
-                                    "kind": "donut",
-                                    "label": "Breakdown of ⁨Revenue⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-design-projects",
-                                            "label": "Design projects",
-                                            "color": "green",
-                                            "value": "263357.41"
-                                        },
-                                        {
-                                            "rowId": "a-subscriptions",
-                                            "label": "Subscriptions",
-                                            "color": "green",
-                                            "value": "98573.67"
-                                        },
-                                        {
-                                            "rowId": "a-workshops",
-                                            "label": "Workshops",
-                                            "color": "green",
-                                            "value": "36533.79"
-                                        },
-                                        {
-                                            "rowId": "a-interest",
-                                            "label": "Interest",
-                                            "color": "green",
-                                            "value": "2259.31"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie"
+                                "name": "Donut"
                             },
                             {
                                 "kind": "compare",
@@ -6226,52 +5908,6 @@
                                 "name": "Donut",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "Breakdown of ⁨Expenses⁩",
                                     "items": [
                                         {
@@ -7160,52 +6796,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "עוגה",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "פירוט של ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "השוואה",
                                 "chart": {
@@ -7935,34 +7525,6 @@
                                 "name": "Donut",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "Breakdown of ⁨Bank accounts⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-checking",
-                                            "label": "Checking",
-                                            "color": "blue",
-                                            "value": "64280.81"
-                                        },
-                                        {
-                                            "rowId": "a-savings",
-                                            "label": "Savings",
-                                            "color": "blue",
-                                            "value": "42600"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "334.29"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "Breakdown of ⁨Bank accounts⁩",
                                     "items": [
                                         {
@@ -9625,52 +9187,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared"
                             },
@@ -10518,52 +10034,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared"
                             },
@@ -11272,34 +10742,6 @@
                                 "name": "دونات",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "تفصيل ⁨Bank accounts⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-checking",
-                                            "label": "Checking",
-                                            "color": "blue",
-                                            "value": "64280.81"
-                                        },
-                                        {
-                                            "rowId": "a-savings",
-                                            "label": "Savings",
-                                            "color": "blue",
-                                            "value": "42600"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "334.29"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "دائري",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "تفصيل ⁨Bank accounts⁩",
                                     "items": [
                                         {
@@ -13117,7 +12559,8 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Bank accounts Q⁨3⁩ ⁨2025⁩"
+                        "request": "Bank accounts Q⁨3⁩ ⁨2025⁩",
+                        "notice": "Can’t show Bridge: A bridge would show amounts that aren't Bkper balances."
                     },
                     "children": [
                         "answer",
@@ -13330,34 +12773,6 @@
                                 }
                             },
                             {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
-                                    "label": "Breakdown of ⁨Bank accounts⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "a-checking",
-                                            "label": "Checking",
-                                            "color": "blue",
-                                            "value": "59034.29"
-                                        },
-                                        {
-                                            "rowId": "a-savings",
-                                            "label": "Savings",
-                                            "color": "blue",
-                                            "value": "39000"
-                                        },
-                                        {
-                                            "rowId": "a-cash",
-                                            "label": "Cash",
-                                            "color": "blue",
-                                            "value": "343.05"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
                                 "kind": "compare",
                                 "name": "Compared"
                             },
@@ -13365,12 +12780,7 @@
                                 "kind": "table",
                                 "name": "Table"
                             }
-                        ],
-                        "unfit": {
-                            "kind": "waterfall",
-                            "name": "Bridge",
-                            "reason": "A bridge would show amounts that aren't Bkper balances"
-                        }
+                        ]
                     },
                     "on": {
                         "select": {
@@ -13797,52 +13207,6 @@
                                 "name": "Donut",
                                 "chart": {
                                     "kind": "donut",
-                                    "label": "Breakdown of ⁨Expenses⁩",
-                                    "items": [
-                                        {
-                                            "rowId": "g-people",
-                                            "label": "People",
-                                            "color": "red",
-                                            "value": "190099.76"
-                                        },
-                                        {
-                                            "rowId": "g-office",
-                                            "label": "Office",
-                                            "color": "red",
-                                            "value": "47311.68"
-                                        },
-                                        {
-                                            "rowId": "a-marketing",
-                                            "label": "Marketing",
-                                            "color": "red",
-                                            "value": "19671.15"
-                                        },
-                                        {
-                                            "rowId": "a-software",
-                                            "label": "Software",
-                                            "color": "red",
-                                            "value": "18881.36"
-                                        },
-                                        {
-                                            "rowId": "a-travel",
-                                            "label": "Travel",
-                                            "color": "red",
-                                            "value": "10160.05"
-                                        },
-                                        {
-                                            "rowId": "g-admin",
-                                            "label": "Admin",
-                                            "color": "red",
-                                            "value": "4741.53"
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "kind": "pie",
-                                "name": "Pie",
-                                "chart": {
-                                    "kind": "pie",
                                     "label": "Breakdown of ⁨Expenses⁩",
                                     "items": [
                                         {

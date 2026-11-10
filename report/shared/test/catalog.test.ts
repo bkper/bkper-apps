@@ -229,7 +229,6 @@ describe('validateReportSpec', () => {
         },
         'ranked-bar': { kind: 'ranked-bar', label: 'Parts', items: [item('a-1', '-3')] },
         donut: { kind: 'donut', label: 'Parts', items: [item('a-1', '3'), item('a-2', '1')] },
-        pie: { kind: 'pie', label: 'Parts', items: [item('a-1', '3'), item('a-2', '1')] },
         compare: {
             kind: 'compare',
             label: 'Parts',
@@ -269,8 +268,10 @@ describe('validateReportSpec', () => {
             { ...(charts.compare as object), periods: undefined },
             { ...(charts.waterfall as object), steps: [] },
             { ...(charts.waterfall as object), end: undefined },
-            { ...(charts.pie as object), items: [{ ...item('a-1', '3'), previous: '1' }] },
+            { ...(charts.donut as object), items: [{ ...item('a-1', '3'), previous: '1' }] },
             { kind: 'table', label: 'None' },
+            // Reports draw a donut for a pie.
+            { ...(charts.donut as object), kind: 'pie' },
         ];
         for (const props of invalid) {
             expect(issuesOf(withChart(props)), JSON.stringify(props)).not.toEqual([]);
@@ -297,7 +298,7 @@ describe('validateReportSpec', () => {
                         main: 'bar',
                         views: [
                             { kind: 'bar', name: 'By month' },
-                            { kind: 'pie', name: 'Pie', chart: charts.pie },
+                            { kind: 'donut', name: 'Donut', chart: charts.donut },
                             { kind: 'table', name: 'Table' },
                         ],
                         ...props,
@@ -340,13 +341,24 @@ describe('validateReportSpec', () => {
             {
                 views: [
                     { kind: 'bar', name: 'By month' },
-                    { kind: 'pie', name: 'Pie', chart: charts.donut },
+                    { kind: 'donut', name: 'Donut', chart: charts['ranked-bar'] },
                 ],
             },
             {
                 views: [
                     { kind: 'bar', name: 'By month' },
-                    { kind: 'pie', name: 'Pie' },
+                    { kind: 'donut', name: 'Donut' },
+                ],
+            },
+            // No pie among the views.
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    {
+                        kind: 'pie',
+                        name: 'Pie',
+                        chart: { ...(charts.donut as object), kind: 'pie' },
+                    },
                 ],
             },
             // The main chart's data is the Chart's; the table has none.
@@ -358,14 +370,14 @@ describe('validateReportSpec', () => {
                 ],
             },
             // The main view must be among them, each once, and the unfit one not.
-            { main: 'pie' },
+            { main: 'area' },
             {
                 views: [
                     { kind: 'bar', name: 'By month' },
                     { kind: 'bar', name: 'By month' },
                 ],
             },
-            { unfit: { kind: 'pie', name: 'Pie', reason: 'No' } },
+            { unfit: { kind: 'donut', name: 'Donut', reason: 'No' } },
             { views: [] },
         ];
         for (const props of invalid) {
@@ -375,10 +387,10 @@ describe('validateReportSpec', () => {
 
     it('rejects a main view that is not the Chart', () => {
         const spec = withViews({
-            main: 'pie',
+            main: 'donut',
             views: [
                 { kind: 'bar', name: 'By month', chart: charts.bar },
-                { kind: 'pie', name: 'Pie' },
+                { kind: 'donut', name: 'Donut' },
             ],
         });
         expect(issuesOf(spec).join()).toMatch(/main view/);

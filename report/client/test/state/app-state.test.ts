@@ -767,7 +767,7 @@ describe('AppState', () => {
         } as const;
         /** The text of the report of `receitas 2012`, as the Worker writes it. */
         const REVENUE = 'Receitas 2012';
-        const state = (text: string, language = 'pt', chart?: 'area' | 'pie') =>
+        const state = (text: string, language = 'pt', chart?: 'area' | 'donut') =>
             encodeUrlState({ text, language, ...(chart ? { chart } : {}) }) ?? '';
 
         /**
@@ -862,7 +862,7 @@ describe('AppState', () => {
             app.reports.submit();
             await vi.waitFor(() => expect(app.reports.originalPrompt).toBe('Receitas este ano'));
             await vi.waitFor(() => expect(app.savedPrompts.canSave).toBe(true));
-            app.reports.chooseChart('pie');
+            app.reports.chooseChart('donut');
             app.reports.input('Not yet shown');
             await app.savedPrompts.save();
             expect(shelfApi.saved).toEqual([{ book: 'b', prompt: 'Receitas este ano' }]);
@@ -933,14 +933,14 @@ describe('AppState', () => {
             const stateIn = () => new URL(page.location.href).searchParams.get('state');
             expect(stateIn()).toBe(state(REVENUE));
 
-            app.reports.chooseChart('pie');
+            app.reports.chooseChart('donut');
 
-            const pie = state(REVENUE, 'pt', 'pie');
+            const donut = state(REVENUE, 'pt', 'donut');
             expect(sent().at(-1)).toEqual({
-                message: { type: 'bkper:app-state', state: pie },
+                message: { type: 'bkper:app-state', state: donut },
                 origin: BKPER,
             });
-            expect(stateIn()).toBe(pie);
+            expect(stateIn()).toBe(donut);
 
             // Back to the main chart: the report's own state.
             app.reports.chooseChart('bar');
@@ -952,7 +952,7 @@ describe('AppState', () => {
             expect(sent()).toHaveLength(3);
 
             // Another report drops the chart chosen at once: one state, its own.
-            app.reports.chooseChart('pie');
+            app.reports.chooseChart('donut');
             app.reports.openState({ text: 'Receitas 2013', language: 'pt' });
             await vi.waitFor(() => expect(app.reports.report?.text).toBe('Receitas 2013'));
             expect(app.reports.chart).toBeUndefined();
@@ -974,9 +974,9 @@ describe('AppState', () => {
             const stateIn = () => new URL(page.location.href).searchParams.get('state');
             expect(stateIn()).toBe(state(REVENUE));
 
-            app.reports.chooseChart('pie');
+            app.reports.chooseChart('donut');
 
-            expect(stateIn()).toBe(state(REVENUE, 'pt', 'pie'));
+            expect(stateIn()).toBe(state(REVENUE, 'pt', 'donut'));
             expect(new URL(page.location.href).searchParams.get('q')).toBe('receitas 2012');
             expect(sent()).toEqual([]);
         });

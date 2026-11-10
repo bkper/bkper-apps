@@ -51,7 +51,10 @@ export const ReportProps = z.strictObject({
      * asked, relative words staying relative, such as `Expenses last year vs. 2023`.
      */
     request: Text.optional(),
-    /** What the report could not do as asked, and what it shows instead. */
+    /**
+     * What the report could not do as asked, and what it shows instead: a comparison it could
+     * not make, or a chart asked for that does not fit, with why.
+     */
     notice: Text.optional(),
 });
 
@@ -156,7 +159,7 @@ export const ChartProps = z
             .superRefine(oneValuePerMonth),
         /** The top breakdown rows, in breakdown order. */
         z.strictObject({
-            kind: z.enum(['ranked-bar', 'donut', 'pie']),
+            kind: z.enum(['ranked-bar', 'donut']),
             label: Text,
             items: z.array(ChartItem).min(1),
         }),
@@ -191,7 +194,6 @@ export const VIEW_KINDS = [
     'stacked',
     'ranked-bar',
     'donut',
-    'pie',
     'compare',
     'waterfall',
     'table',
@@ -203,7 +205,7 @@ const ViewKindSchema = z.enum(VIEW_KINDS);
 
 const ChartView = z.strictObject({
     kind: ViewKindSchema,
-    /** A short name, such as `Pie`, under its preview. */
+    /** A short name, such as `Donut`, under its preview. */
     name: Text,
     /** What to draw; absent for the table and for the main chart, which is the report's Chart. */
     chart: ChartProps.optional(),
@@ -211,8 +213,8 @@ const ChartView = z.strictObject({
 
 /**
  * Every chart that fits the report, the main one among them, with the data of each other one,
- * so a renderer can show any of them with no network; and the chart the person asked for when
- * it does not fit, with why.
+ * so a renderer can show any of them with no network. A chart asked for that does not fit is
+ * said in the Report's `notice`.
  */
 export const VisualizationsProps = z
     .strictObject({
@@ -222,6 +224,7 @@ export const VisualizationsProps = z
         main: ViewKindSchema,
         /** In the order to offer them. */
         views: z.array(ChartView).min(1),
+        /** No longer given: the Report's `notice` says why a chart asked for is not shown. */
         unfit: z.strictObject({ kind: ViewKindSchema, name: Text, reason: Text }).optional(),
     })
     .superRefine((props, context) => {

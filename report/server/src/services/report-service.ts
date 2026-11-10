@@ -25,12 +25,14 @@ import {
     ReportError,
     assertReportable,
     buildReport,
+    shownPreference,
     viewKindOf,
     type ChartFacts,
     type ChartRule,
     type ReportChart,
     type ReportCharts,
     type ReportData,
+    type ShownPreference,
     type ViewKind,
 } from './report.js';
 import { queryIntent } from './query-intent.js';
@@ -92,8 +94,8 @@ export interface ReportTrace extends Partial<IntentTrace> {
     };
 }
 
-/** A chart a request asks for: any but `auto`, which asks for none. */
-export type AskedChart = Exclude<ChartPreference, 'auto'>;
+/** A chart a request asks for: any but `auto`, which asks for none, and a pie, asked for as a donut. */
+export type AskedChart = Exclude<ShownPreference, 'auto'>;
 
 /**
  * A report, with its intent and trace, which stay in the Worker: the API answers the rest.
@@ -110,7 +112,7 @@ export interface ReportResult {
     dataAt: string;
     /**
      * The chart drawn, whether it stands in for the chart asked for, which does not fit, and the
-     * chart asked for (the intent's `chart`, but `auto`).
+     * chart asked for (the intent's `chart`, but `auto`; a pie as the donut drawn for it).
      */
     chart: { kind: ReportChart['kind']; fallback: boolean; asked?: AskedChart };
     /**
@@ -194,6 +196,7 @@ export async function createReport(
     );
 
     const spec = await timing.measure('render', async () => buildReportSpec(report, language));
+    const asked = intent.chart && shownPreference(intent.chart);
     return {
         spec,
         intent,
@@ -203,7 +206,7 @@ export async function createReport(
         chart: {
             kind: report.chart.kind,
             fallback: report.chart.fallback === true,
-            ...(intent.chart && intent.chart !== 'auto' ? { asked: intent.chart } : {}),
+            ...(asked && asked !== 'auto' ? { asked } : {}),
         },
         text: reportText(spec),
         trace: {

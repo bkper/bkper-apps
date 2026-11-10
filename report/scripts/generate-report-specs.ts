@@ -105,7 +105,8 @@ const STUDIO_CASES: Case[] = [
         intent: intent('g-revenue', 'last_month', { view: 'total' }),
         lang: 'en',
     },
-    { id: 'revenue-pie', intent: intent('g-revenue', '2025', { chart: 'pie' }), lang: 'en' },
+    // A pie asked for is drawn as a donut.
+    { id: 'revenue-donut', intent: intent('g-revenue', '2025', { chart: 'pie' }), lang: 'en' },
     {
         id: 'expenses-stacked',
         intent: intent('g-expenses', '2025', { monthly: true, chart: 'stacked' }),
@@ -208,7 +209,7 @@ const LEDGER_CASES: Case[] = [
     },
     { id: 'expenses-this-year-he', intent: intent('g-expenses', 'this_year'), lang: 'he' },
     {
-        id: 'mixed-pie-fallback',
+        id: 'mixed-donut-fallback',
         intent: intent('g-net', 'last_month', { chart: 'pie' }),
         lang: 'en',
     },
@@ -218,7 +219,7 @@ const LEDGER_CASES: Case[] = [
         lang: 'en',
     },
     {
-        id: 'targets-pie-unfit',
+        id: 'targets-donut-unfit',
         intent: intent('g-expenses', 'last_month', {
             target: 'a-food',
             alongside: [{ root: 'g-expenses', target: 'a-rent' }],
@@ -227,7 +228,7 @@ const LEDGER_CASES: Case[] = [
         lang: 'en',
     },
     {
-        id: 'expenses-pie-negative',
+        id: 'expenses-donut-negative',
         intent: intent('g-expenses', 'last_month', { chart: 'pie' }),
         lang: 'en',
     },

@@ -186,8 +186,7 @@ export const reportViewCSS = css`
         min-inline-size: 0;
     }
 
-    .chart.doughnut,
-    .chart.pie {
+    .chart.doughnut {
         --chart-height: 13rem;
     }
 
@@ -238,7 +237,7 @@ export const reportViewCSS = css`
         cursor: pointer;
     }
 
-    .preview:not(.unfit):hover {
+    .preview:hover {
         border-color: var(--wa-color-neutral-border-normal);
         color: var(--wa-color-text-normal);
     }
@@ -254,20 +253,6 @@ export const reportViewCSS = css`
     .preview:focus-visible {
         outline: var(--wa-focus-ring);
         outline-offset: var(--wa-focus-ring-offset);
-    }
-
-    /* The chart asked for that does not fit: dimmed, with why. */
-    .preview.unfit {
-        inline-size: auto;
-        max-inline-size: 11rem;
-        border-style: dashed;
-        background: none;
-        cursor: default;
-    }
-
-    .preview.unfit .thumb,
-    .preview.unfit .preview-name {
-        opacity: 0.45;
     }
 
     .thumb {
@@ -289,10 +274,6 @@ export const reportViewCSS = css`
 
     .preview-name {
         font-weight: var(--wa-font-weight-semibold);
-    }
-
-    .preview-reason {
-        overflow-wrap: break-word;
     }
 
     @container (max-width: 40rem) {

@@ -14,7 +14,6 @@
 import '@awesome.me/webawesome-pro/dist/components/bar-chart/bar-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/doughnut-chart/doughnut-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/line-chart/line-chart.js';
-import '@awesome.me/webawesome-pro/dist/components/pie-chart/pie-chart.js';
 import '@awesome.me/webawesome-pro/dist/components/sparkline/sparkline.js';
 import type WaChart from '@awesome.me/webawesome-pro/dist/components/chart/chart.js';
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
@@ -246,15 +245,14 @@ export class ReportView extends LitElement {
     }
 
     /**
-     * A toolbar of previews, in the spec's order: the chart asked for that does not fit first,
-     * dimmed with why, then every chart that fits, the one shown pressed. The table stays below
-     * the chart, not among the previews. Only the one shown is in the tab order, or the first
-     * chart for a table-only report; arrows move between them, a click, Enter or Space shows one.
+     * A toolbar of previews, in the spec's order: every chart that fits, the one shown pressed.
+     * The table stays below the chart, not among the previews. Only the one shown is in the tab
+     * order, or the first chart for a table-only report; arrows move between them, a click,
+     * Enter or Space shows one.
      */
     private renderPreviews(shown: Shown, choices: VisualizationsProps, dir: 'ltr' | 'rtl') {
         const views = choices.views.filter(view => view.kind !== 'table');
-        const unfit = choices.unfit?.kind === 'table' ? undefined : choices.unfit;
-        if (views.length === 0 && !unfit) return nothing;
+        if (views.length === 0) return nothing;
         const tabKind = views.find(view => view.kind === shown.kind)?.kind ?? views[0]?.kind;
         const drawings = this.drawings(choices, shown.main);
         return html`<div
@@ -263,20 +261,6 @@ export class ReportView extends LitElement {
             aria-label=${choices.label}
             @keydown=${(event: KeyboardEvent) => this.movePreviewFocus(event, dir)}
         >
-            ${
-                unfit
-                    ? html`<button
-                          type="button"
-                          class="preview unfit"
-                          aria-disabled="true"
-                          tabindex="-1"
-                      >
-                          <span class="thumb">${renderPreview(unfit.kind)}</span>
-                          <span class="preview-name">${unfit.name}</span>
-                          <span class="preview-reason">${unfit.reason}</span>
-                      </button>`
-                    : nothing
-            }
             ${views.map(
                 view =>
                     html`<button
@@ -362,7 +346,7 @@ export class ReportView extends LitElement {
                 .filter(view => view.kind !== 'table')
                 .map(view => [
                     view.kind,
-                    renderPreview(view.kind, view.kind === choices.main ? main : view.chart),
+                    renderPreview(view.kind === choices.main ? main : view.chart),
                 ])
         );
         if (spec) {

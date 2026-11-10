@@ -25,7 +25,7 @@
  *   exactly the queries each reads alone, each once; that each is a row of its own, in the order
  *   asked for, checked as a report of it alone is, with no total, no share and no
  *   calculation, so nothing adds them up; that charts by month draw each target's own months,
- *   ranked bars rank them by size, and no pie, donut or stacked chart fits; that one asked for
+ *   ranked bars rank them by size, and no donut or stacked chart fits; that one asked for
  *   twice shows once; and that positions and activity together are `mixed_targets`;
  * - every row of the breakdown, at any depth, as Bkper's own balance of its group or account,
  *   now, before and in each month: no sign changed, no remainder; and that every group or
@@ -35,11 +35,12 @@
  *   share no account (and the CLI table shows none twice), else none (`no_net_result`);
  * - every chart that fits each report, the main one and every other one a renderer may switch
  *   to: each month of a chart by month; the parts of a breakdown chart, exactly the rows with an
- *   amount, positive in a pie or donut and adding up to the root's CLI total; each stacked part
+ *   amount, positive in a donut and adding up to the root's CLI total; each stacked part
  *   in every month (at most six) and their sum against the root; each compared row; that no
  *   bridge is ever drawn and a bridge asked for is unfit (`no_bridge`); that the main chart is
- *   among them, and a preferred chart that does not fit is not, with its reason. Each line shows
- *   the preference, the main chart, the rule and the reason.
+ *   among them, and a preferred chart that does not fit is not, with its reason (a pie asked for
+ *   is a donut); that no report offers more than six charts. Each line shows the preference, the
+ *   main chart, the rule and the reason.
  *
  * The app reads its own queries, with their variables (`on:$m-1 by:m`); the CLI reads the same
  * dates in ISO months, `on:` as `after:` and `before:`, as it lists activity by month only for a
@@ -70,6 +71,7 @@ import {
     buildReport,
     planQueries,
     planReport,
+    shownPreference,
     viewKindOf,
     type ReportAmounts,
     type ReportChart,
@@ -984,7 +986,7 @@ async function verifySideBySide(
         })
     );
     const kinds = report.charts.views.map(viewKindOf);
-    for (const whole of ['donut', 'pie', 'stacked', 'waterfall'] as const) {
+    for (const whole of ['donut', 'stacked', 'waterfall'] as const) {
         if (kinds.includes(whole)) problems.push(`${whole} of targets side by side`);
     }
     const preferred = intent.chart;
@@ -1232,7 +1234,10 @@ function choiceProblems(report: ReportData): string[] {
     if ((chart.fallback === true) !== (charts.unfit !== undefined)) {
         problems.push('A fallback without an unfit preference, or the reverse');
     }
-    const preferred = report.intent.chart;
+    if (kinds.filter(kind => kind !== 'table').length > 6) {
+        problems.push(`More than six charts: ${kinds.join(', ')}`);
+    }
+    const preferred = report.intent.chart && shownPreference(report.intent.chart);
     if (preferred && preferred !== 'auto' && !charts.unfit && charts.main !== preferred) {
         problems.push(`The preferred ${preferred} fits, but ${charts.main} is drawn`);
     }
@@ -1272,7 +1277,7 @@ function chartProblems(report: OneReport, chart: ReportChart, cli: CliCheck): st
             }
         }
     }
-    if (chart.kind === 'ranked-bar' || chart.kind === 'donut' || chart.kind === 'pie') {
+    if (chart.kind === 'ranked-bar' || chart.kind === 'donut') {
         const drawn = report.breakdown.filter(row => !new Amount(row.amount).eq(0));
         if (chart.rows.join() !== drawn.map(row => row.id).join()) {
             problems.push('Does not draw exactly the parts with an amount, in order');

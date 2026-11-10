@@ -1,7 +1,7 @@
 /**
  * The Chart.js configuration of a report chart, for Web Awesome's chart elements: by month
  * (bars for activity, a line for positions, areas, or parts stacked), the top rows of the
- * breakdown (ranked horizontal bars, a donut or a pie), each row now and before (paired
+ * breakdown (ranked horizontal bars or a donut), each row now and before (paired
  * horizontal bars), or a bridge (floating horizontal bars). Values are drawn from the spec's
  * decimals; tooltips show the exact amounts. A highlighted breakdown row stands out, and the
  * rest fades.
@@ -14,14 +14,14 @@ import { findRow, topRow, type BreakdownRow, type PropsOf, type TypeColor } from
 
 type ChartProps = PropsOf<'Chart'>;
 type ChartKind<K extends ChartProps['kind']> = Extract<ChartProps, { kind: K }>;
-type ChartElement = 'bar' | 'line' | 'doughnut' | 'pie';
+type ChartElement = 'bar' | 'line' | 'doughnut';
 /** A value, a floating bar's start and end, or nothing to draw. */
 type Datum = number | [number, number] | null;
 type Dataset = ChartDataset<ChartElement, Datum[]>;
 type Config = ChartConfiguration<ChartElement, Datum[], string>;
 
 export interface ChartView {
-    /** The Web Awesome chart to draw with: `wa-bar-chart`, `wa-line-chart`, `wa-doughnut-chart` or `wa-pie-chart`. */
+    /** The Web Awesome chart to draw with: `wa-bar-chart`, `wa-line-chart` or `wa-doughnut-chart`. */
     element: ChartElement;
     /** Bars along the inline axis, a row each: ranked parts, comparisons and bridges. */
     horizontal: boolean;
@@ -85,7 +85,6 @@ export function chartConfig(chart: ChartProps, context: ChartContext): ChartView
             return byMonth(chart, context);
         case 'ranked-bar':
         case 'donut':
-        case 'pie':
             return breakdown(chart, context);
         case 'compare':
             return compare(chart, context);
@@ -104,8 +103,7 @@ export function chartSwatches(chart: ChartProps): ReadonlyMap<string, string> {
             return new Map(chart.items.map(item => [item.rowId, typeColor(item.color, 'medium')]));
         case 'compare':
             return new Map(chart.items.map(item => [item.rowId, typeColor(item.color, 'high')]));
-        case 'donut':
-        case 'pie': {
+        case 'donut': {
             const colors = shades(chart.items.map(item => item.color));
             return new Map(chart.items.map((item, index) => [item.rowId, colors[index]]));
         }
@@ -271,11 +269,10 @@ function highlightedItem(items: { rowId: string }[], context: ChartContext): str
     return items.some(item => item.rowId === top) ? top : undefined;
 }
 
-function breakdown(chart: ChartKind<'ranked-bar' | 'donut' | 'pie'>, context: ChartContext) {
+function breakdown(chart: ChartKind<'ranked-bar' | 'donut'>, context: ChartContext) {
     const { format } = context;
-    const round = chart.kind !== 'ranked-bar';
-    const element: ChartElement =
-        chart.kind === 'ranked-bar' ? 'bar' : chart.kind === 'donut' ? 'doughnut' : 'pie';
+    const round = chart.kind === 'donut';
+    const element: ChartElement = round ? 'doughnut' : 'bar';
     const highlighted = highlightedItem(chart.items, context);
     const base = [...chartSwatches(chart).values()];
     const colors = chart.items.map((item, index) => {
@@ -304,7 +301,7 @@ function breakdown(chart: ChartKind<'ranked-bar' | 'donut' | 'pie'>, context: Ch
                   labels: chart.items.map(item => item.label),
                   datasets: [
                       {
-                          type: element === 'pie' ? 'pie' : 'doughnut',
+                          type: 'doughnut',
                           label: chart.label,
                           data,
                           backgroundColor: colors,
@@ -315,7 +312,7 @@ function breakdown(chart: ChartKind<'ranked-bar' | 'donut' | 'pie'>, context: Ch
                   ],
               },
               options: {
-                  ...(element === 'doughnut' ? { cutout: '62%' } : {}),
+                  cutout: '62%',
                   plugins: { title: { display: false }, legend: { display: false }, tooltip },
               },
           }

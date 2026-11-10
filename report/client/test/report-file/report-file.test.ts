@@ -58,7 +58,7 @@ describe('report file', () => {
         const data: ReportFileData = {
             spec: gallerySpec('expenses-by-month'),
             link: { url: 'https://report.bkper.app/?book=b&q=expenses', label: 'Open in Report' },
-            open: { bookId: 'b', state: 'main-state', charts: { pie: 'pie-state' } },
+            open: { bookId: 'b', state: 'main-state', charts: { donut: 'donut-state' } },
         };
         const script = document.createElement('script');
         script.type = 'application/json';
@@ -70,12 +70,12 @@ describe('report file', () => {
         const view = startReportFile(document, new FakeColorScheme(false), page);
         await view?.updateComplete;
 
-        view?.shadowRoot?.querySelector<HTMLElement>('.preview[data-kind="pie"]')?.click();
+        view?.shadowRoot?.querySelector<HTMLElement>('.preview[data-kind="donut"]')?.click();
         await view?.updateComplete;
 
         expect(view?.link).toEqual({
             label: 'Open in Report',
-            url: 'https://report.bkper.app/?book=b&q=expenses&state=pie-state',
+            url: 'https://report.bkper.app/?book=b&q=expenses&state=donut-state',
         });
         expect(parent.postMessage).not.toHaveBeenCalled();
         view?.shadowRoot?.querySelector<HTMLElement>('.preview[data-kind="bar"]')?.click();
@@ -182,7 +182,7 @@ describe('opening the report in the Report app from the file', () => {
     });
 
     it('opens the chart chosen in the file, with its state', () => {
-        const charts = { pie: 'pie-state' };
+        const charts = { donut: 'donut-state' };
         const { page, parent, link } = filePage({ link: LINK, open: { ...OPEN, charts } });
         page.dispatchEvent(message(READY, parent));
         const choose = (kind: SelectChartDetail['kind']) =>
@@ -190,9 +190,9 @@ describe('opening the report in the Report app from the file', () => {
                 new CustomEvent(SELECT_CHART, { detail: { kind }, bubbles: true, composed: true })
             );
 
-        choose('pie');
+        choose('donut');
         // The view links to the chart chosen.
-        link.href = `${LINK.url}&state=pie-state`;
+        link.href = `${LINK.url}&state=donut-state`;
         expect(click(link).defaultPrevented).toBe(true);
         choose('bar');
         link.href = LINK.url;
@@ -203,7 +203,7 @@ describe('opening the report in the Report app from the file', () => {
                 type: 'bkper:navigate',
                 url: openInReportUrl('https://bkper.app', {
                     bookId: OPEN.bookId,
-                    state: 'pie-state',
+                    state: 'donut-state',
                 }),
             },
             { type: 'bkper:navigate', url: openInReportUrl('https://bkper.app', OPEN) },

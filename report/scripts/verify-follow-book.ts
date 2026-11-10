@@ -65,10 +65,13 @@ const ANSWERS: Record<string, string | { status: number; code: string }> = {
     [QUERIES.future]: { status: 422, code: 'future_period' },
 };
 /** Suggestions, and the report a typed request asks for. */
-const SUGGESTED = ['revenue-pie', 'loans-today'];
+const SUGGESTED = ['revenue-donut', 'loans-today'];
 const TYPED = 'revenue-total';
-/** The chart chosen from the previews: offered by the group's, Account's and period's reports. */
-const CHOSEN = 'pie';
+/**
+ * The chart chosen from the previews: offered by the group's, Account's and period's reports,
+ * none of which shows it first, and not by the other group's.
+ */
+const CHOSEN = 'stacked';
 
 const recorded = JSON.parse(await readFile('client/dev/specs/studio.json', 'utf8')) as Fixture[];
 const fixture = (id: string): Fixture => {
@@ -211,7 +214,12 @@ async function following(name: string, width: number, theme: 'light' | 'dark'): 
     check(bodies.length === 1, `${name}: the Book’s URL with its state asked again`);
 
     await panel.locator(`report-view .preview[data-kind="${CHOSEN}"]`).click();
-    await waitFor(panel, () => window.pressedChart() === 'pie', `${name}: choosing ${CHOSEN}`);
+    await waitFor(
+        panel,
+        chosen => window.pressedChart() === chosen,
+        `${name}: choosing ${CHOSEN}`,
+        CHOSEN
+    );
     await stateKept(page, `${name} chose ${CHOSEN}`, 'expenses-by-month', CHOSEN);
 
     await follow(app, `${name} Account`, QUERIES.account, 'taxes-donut', CHOSEN);

@@ -879,22 +879,22 @@ export interface components {
             /** @description The chart drawn, and the one asked for, if any. */
             chart: {
                 /**
-                 * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.
-                 * @example pie
+                 * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.
+                 * @example donut
                  * @enum {string}
                  */
-                kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall";
+                kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall";
                 /**
-                 * @description True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Visualizations` offers the asked-for chart dimmed with why.
+                 * @description True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why.
                  * @example false
                  */
                 fallback: boolean;
                 /**
-                 * @description The chart asked for: the request’s `chart`, else the one its `prompt` names; left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.
-                 * @example pie
+                 * @description The chart asked for: the request’s `chart`, else the one its `prompt` names (`donut` for a pie); left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.
+                 * @example donut
                  * @enum {string}
                  */
-                asked?: "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
+                asked?: "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             };
             /**
              * @description The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag. Send it as `prompt` to ask for the same report again, or show it to the person to edit.
@@ -907,7 +907,7 @@ export interface components {
              */
             url: string;
         };
-        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare, or draw the chart asked for, as asked, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, at most six, with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -957,16 +957,16 @@ export interface components {
                     props: {
                         label: string;
                         /** @enum {string} */
-                        main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                        main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
                         views: {
                             /** @enum {string} */
-                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
                             name: string;
                             chart?: components["schemas"]["ChartProps"];
                         }[];
                         unfit?: {
                             /** @enum {string} */
-                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
+                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
                             name: string;
                             reason: string;
                         };
@@ -1074,7 +1074,7 @@ export interface components {
             }[];
         } | {
             /** @enum {string} */
-            kind: "ranked-bar" | "donut" | "pie";
+            kind: "ranked-bar" | "donut";
             label: string;
             items: {
                 rowId: string;
@@ -1156,8 +1156,8 @@ export interface components {
              */
             query?: string;
             /**
-             * @description The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.
-             * @example pie
+             * @description The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month (`line` for activity, or `bar` for a balance, in place of the usual one); `ranked-bar` or `donut` of the parts (`pie` is drawn as `donut`); `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and a line under its title says why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.
+             * @example donut
              * @enum {string}
              */
             chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";

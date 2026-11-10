@@ -439,7 +439,7 @@ function checkRecord(
 
 /** A chart chosen from the previews shows at once, with no transition. */
 async function chooseChart(panel: Frame, frame: FrameLocator, name: string): Promise<void> {
-    const preview = frame.locator('report-view .preview[aria-pressed="false"]:not(.unfit)').first();
+    const preview = frame.locator('report-view .preview[aria-pressed="false"]').first();
     if ((await preview.count()) === 0) return;
     const count = (await records(panel)).length;
     const kind = await preview.getAttribute('data-kind');

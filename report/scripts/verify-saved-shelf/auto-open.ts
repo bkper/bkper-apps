@@ -47,7 +47,7 @@ type Role = 'suggestion' | 'saved' | 'state' | 'typed' | 'query';
 const REPORTS: Record<AutoOpenLayout['language'], Record<Role, string>> = {
     en: {
         suggestion: 'expenses-by-month',
-        saved: 'revenue-pie',
+        saved: 'revenue-donut',
         state: 'loans-today',
         typed: 'bank-accounts-by-month',
         query: 'taxes-donut',

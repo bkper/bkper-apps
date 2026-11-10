@@ -294,6 +294,15 @@
         "role": "message",
         "context": "Note under a report's title when the request compared the whole history of the Book (all time) with another period: there is nothing earlier, so the report shows no comparison. One short sentence."
     },
+    "notice_chart_unfit": {
+        "text": "Can’t show {chart}: {reason}.",
+        "role": "message",
+        "context": "Note under a report's title when the person asked for a chart that cannot show the report's numbers honestly: the report shows the closest chart that fits instead. Names the chart asked for, then why it is not shown. One short line.",
+        "placeholders": {
+            "chart": "the short name of the chart asked for, already translated, as under its small preview, such as Donut, Stacked or By month",
+            "reason": "why it is not shown, already translated, a short sentence without ending punctuation, such as Taxes is below zero (-186.74)"
+        }
+    },
     "answer_compared_with": {
         "text": "vs. {period}",
         "role": "label",
@@ -361,11 +370,6 @@
         "role": "label",
         "context": "Short name of a chart, under a small preview of it that the person clicks to show the report as that chart. One or two words; keep it as short as possible. This one: a donut chart (a ring) of each part's share of the total."
     },
-    "chart_name_pie": {
-        "text": "Pie",
-        "role": "label",
-        "context": "Short name of a chart, under a small preview of it that the person clicks to show the report as that chart. One or two words; keep it as short as possible. This one: a pie chart of each part's share of the total."
-    },
     "chart_name_compare": {
         "text": "Compared",
         "role": "label",
@@ -382,78 +386,78 @@
         "context": "Short name of a chart, under a small preview of it that the person clicks to show the report as that chart. One or two words; keep it as short as possible. This one: no chart at all, only the table of numbers under it."
     },
     "chart_unfit_negative_part": {
-        "text": "A pie can't show {name} ({amount})",
+        "text": "{name} is below zero ({amount})",
         "role": "message",
-        "context": "Why the pie (or donut) chart the person asked for is not shown: one of the parts is below zero, and a slice cannot be negative. Shown under a dimmed preview of the pie. No ending punctuation.",
+        "context": "Why the donut chart the person asked for is not shown: one of its parts is below zero, and a slice cannot be negative. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation.",
         "placeholders": {
             "name": "the name of a Group or Account of the Book, verbatim, such as Taxes",
             "amount": "its amount, already formatted in the language, with its minus sign, such as -186.74"
         }
     },
     "chart_unfit_mixed_parts": {
-        "text": "A pie can't show parts of different types",
+        "text": "The parts are of different types",
         "role": "message",
-        "context": "Why the pie chart the person asked for is not shown: the parts are of different Bkper types (such as Assets and Liabilities, or Incoming and Outgoing), so they are not slices of one whole. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the donut chart the person asked for is not shown: its parts are of different Bkper types (such as Assets and Liabilities, or Incoming and Outgoing), so they are not slices of one whole. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_stacked_mixed_parts": {
         "text": "Parts of different types don't stack up",
         "role": "message",
-        "context": "Why the stacked bar chart the person asked for is not shown: the parts are of different Bkper types (such as Assets and Liabilities), so piling them up makes no total. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the stacked bar chart the person asked for is not shown: the parts are of different Bkper types (such as Assets and Liabilities), so piling them up makes no total. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
-    "chart_unfit_pie_net_result": {
-        "text": "A pie can't show a net result",
+    "chart_unfit_net_result": {
+        "text": "Income and expenses aren't slices of a net result",
         "role": "message",
-        "context": "Why the pie chart the person asked for is not shown: the report is a net result (income minus expenses), which is not a whole made of slices. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the donut chart the person asked for is not shown: the report is a net result (income minus expenses), which is not a whole made of slices. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_stacked_net_result": {
         "text": "Income and expenses don't stack up to a net result",
         "role": "message",
-        "context": "Why the stacked bar chart the person asked for is not shown: a net result is income minus expenses, so piling them up does not make it. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the stacked bar chart the person asked for is not shown: a net result is income minus expenses, so piling them up does not make it. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_few_parts": {
         "text": "There are fewer than two parts to show",
         "role": "message",
-        "context": "Why the chart the person asked for is not shown: the report's amount has fewer than two parts (sub-Groups or Accounts) with an amount. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the chart the person asked for is not shown: the report's amount has fewer than two parts (sub-Groups or Accounts) with an amount. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_too_many_parts": {
         "text": "There are too many parts for a donut",
         "role": "message",
-        "context": "Why the donut chart the person asked for is not shown: more parts than a donut can show clearly. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the donut chart the person asked for is not shown: more parts than a donut can show clearly. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_stacked_too_many_parts": {
         "text": "There are too many parts to stack",
         "role": "message",
-        "context": "Why the stacked bar chart the person asked for is not shown: the amount has more parts (Groups or Accounts) than stacked bars draw, each of its own. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the stacked bar chart the person asked for is not shown: the amount has more parts (Groups or Accounts) than stacked bars draw, each of its own. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_few_months": {
         "text": "The period has fewer than two months",
         "role": "message",
-        "context": "Why the chart over time the person asked for is not shown: the report's period covers fewer than two months. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the chart over time the person asked for is not shown: the report's period covers fewer than two months. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_no_amounts": {
         "text": "There are no amounts to show",
         "role": "message",
-        "context": "Why the chart the person asked for is not shown: every amount it would draw is zero. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the chart the person asked for is not shown: every amount it would draw is zero. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_no_previous": {
         "text": "There is no earlier period to compare with",
         "role": "message",
-        "context": "Why the comparison or bridge chart the person asked for is not shown: the report has no previous period, as when it covers all time. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the comparison or bridge chart the person asked for is not shown: the report has no previous period, as when it covers all time. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_not_a_whole": {
         "text": "The parts don't add up to the total",
         "role": "message",
-        "context": "Why the pie, donut or stacked bar chart the person asked for is not shown: the parts Bkper lists (Groups or Accounts) do not add up to the Group's own total, so they cannot be shown as slices of it. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the donut or stacked bar chart the person asked for is not shown: the parts Bkper lists (Groups or Accounts) do not add up to the Group's own total, so they cannot be shown as slices of it. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_no_bridge": {
         "text": "A bridge would show amounts that aren't Bkper balances",
         "role": "message",
-        "context": "Why the bridge (waterfall) chart the person asked for is not shown: Report shows only balances that Bkper calculates, and the bars of a bridge would be sums Report makes itself. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the bridge (waterfall) chart the person asked for is not shown: Report shows only balances that Bkper calculates, and the bars of a bridge would be sums Report makes itself. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "chart_unfit_side_by_side": {
         "text": "Side by side, they aren't parts of one total",
         "role": "message",
-        "context": "Why the pie, donut or stacked bar chart the person asked for is not shown: the report shows several Groups or Accounts side by side, each with its own amount, and they are not slices of one total. Shown under a dimmed preview. No ending punctuation."
+        "context": "Why the donut or stacked bar chart the person asked for is not shown: the report shows several Groups or Accounts side by side, each with its own amount, and they are not slices of one total. Shown in a note under the report's title, after Can’t show and the chart's name. No ending punctuation."
     },
     "breakdown_label": {
         "text": "Breakdown",

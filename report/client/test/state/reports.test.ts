@@ -544,18 +544,18 @@ describe('Reports', () => {
         await settle();
         expect(reports.chart).toBeUndefined();
 
-        reports.chooseChart('pie');
-        expect(reports.chart).toBe('pie');
+        reports.chooseChart('donut');
+        expect(reports.chart).toBe('donut');
         expect(reports.report).toBe(report);
         // The main chart again is no choice.
         reports.chooseChart('bar');
         expect(reports.chart).toBeUndefined();
 
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
         reports.input('receitas 2011');
         await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
         // The chart stays while the next report is on its way.
-        expect(reports.chart).toBe('pie');
+        expect(reports.chart).toBe('donut');
         calls.at(-1)?.resolve(withMain(response('Receitas', '2011'), 'donut'));
         await settle();
         expect(reports.chart).toBeUndefined();
@@ -564,7 +564,7 @@ describe('Reports', () => {
     it('chooses no chart without a report', () => {
         const { reports } = createReports();
         reports.open('book-1');
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
         expect(reports.chart).toBeUndefined();
     });
 
@@ -577,7 +577,7 @@ describe('Reports', () => {
         calls[0].resolve(withMain(response('Despesas', '2026'), 'bar'));
         await settle();
         expect(reports.originalPrompt).toBe('Despesas   este ano');
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
         expect(reports.originalPrompt).toBe('Despesas   este ano');
         reports.input('Receitas este mês');
         reports.submit();
@@ -601,7 +601,7 @@ describe('Reports', () => {
         calls[0].resolve(withMain(response('Net result', '2011'), 'bar'));
         await settle();
         expect(reports.originalPrompt).toBe(NET.text);
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
         expect(reports.originalPrompt).toBe(NET.text);
     });
 
@@ -613,21 +613,25 @@ describe('Reports', () => {
         reports.submit();
         const asked = withMain(
             { ...response('Despesas', 'este ano'), language: 'pt' },
-            'pie',
-            'pie'
+            'donut',
+            'donut'
         );
         calls[0].resolve(asked);
         await settle();
         // Its text names no chart, so the chart asked for goes with it.
-        expect(reports.reopen).toEqual({ text: 'Despesas este ano', language: 'pt', chart: 'pie' });
+        expect(reports.reopen).toEqual({
+            text: 'Despesas este ano',
+            language: 'pt',
+            chart: 'donut',
+        });
         reports.chooseChart('table');
         expect(reports.reopen).toEqual({
             text: 'Despesas este ano',
             language: 'pt',
             chart: 'table',
         });
-        reports.chooseChart('pie');
-        expect(reports.reopen?.chart).toBe('pie');
+        reports.chooseChart('donut');
+        expect(reports.reopen?.chart).toBe('donut');
 
         reports.input('receitas este ano');
         reports.submit();
@@ -645,7 +649,7 @@ describe('Reports', () => {
         expect(prompts()).toEqual(['Expenses last month']);
         calls[0].resolve(withMain(response('October'), 'bar'));
         await settle();
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
 
         tick(CACHE_MS - 1);
         reports.runSaved('Expenses last month');
@@ -676,7 +680,7 @@ describe('Reports', () => {
         suggested().forEach(call => call.resolve(withMain(response('Prefetched'), 'bar')));
         await settle();
         reports.choose(SUGGESTIONS[0]);
-        reports.chooseChart('pie');
+        reports.chooseChart('donut');
 
         // A suggestion's text asks for its report: the saved text is the same request.
         reports.runSaved(SUGGESTIONS[0]);
@@ -1084,17 +1088,17 @@ describe('Reports', () => {
             const { reports, calls } = createReports(undefined, createApi([]));
             reports.open('book-1');
             reports.follow(FOOD);
-            byQuery(calls, FOOD)?.resolve(offering(response('Food'), 'bar', ['pie']));
+            byQuery(calls, FOOD)?.resolve(offering(response('Food'), 'bar', ['donut']));
             await settle();
-            reports.chooseChart('pie');
+            reports.chooseChart('donut');
 
             reports.follow(RENT);
-            const rent = offering(response('Rent'), 'line', ['pie', 'area']);
+            const rent = offering(response('Rent'), 'line', ['donut', 'area']);
             byQuery(calls, RENT)?.resolve(rent);
             await settle();
             expect(reports.report).toBe(rent);
-            expect(reports.chart).toBe('pie');
-            expect(reports.reopen).toEqual({ text: 'Rent', language: 'en', chart: 'pie' });
+            expect(reports.chart).toBe('donut');
+            expect(reports.reopen).toEqual({ text: 'Rent', language: 'en', chart: 'donut' });
 
             reports.follow('group:Taxes');
             byQuery(calls, 'group:Taxes')?.resolve(offering(response('Taxes'), 'bar', ['area']));
@@ -1165,7 +1169,7 @@ describe('Reports', () => {
                 reports.open('book-1');
                 expect(reports.untouched).toBe(true);
                 reports.fail('error_unexpected');
-                reports.chooseChart('pie');
+                reports.chooseChart('donut');
                 expect(reports.untouched).toBe(true);
                 act(reports);
                 expect(reports.untouched).toBe(false);

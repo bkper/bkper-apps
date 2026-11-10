@@ -14,7 +14,7 @@ import {
     type ReportRow,
     type ViewKind,
 } from '../../src/services/report';
-import type { PeriodParts } from 'report-shared/report-intent';
+import { REPORT_CHARTS, type PeriodParts } from 'report-shared/report-intent';
 import { reportIntentOf, type ReportIntent } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
 import type { FakeLedger } from '../fixtures/ledger';
@@ -1002,7 +1002,7 @@ describe('buildReport: targets side by side', () => {
         for (const chart of ['pie', 'donut', 'stacked'] as const) {
             const preferred = await report({ ...request, chart });
             expect(preferred.charts.unfit, chart).toEqual({
-                kind: chart,
+                kind: chart === 'pie' ? 'donut' : chart,
                 reason: { code: 'side_by_side' },
             });
             expect(preferred.chart.fallback).toBe(true);
@@ -1168,7 +1168,7 @@ describe('buildReport: mixed groups', () => {
             'Cash 100 (prev 100, change 0, share -)',
             'Credit Card 30 (prev 30, change 0, share -)',
         ]);
-        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'mixed_parts' } });
+        expect(data.charts.unfit).toEqual({ kind: 'donut', reason: { code: 'mixed_parts' } });
         expect(data.charts.facts).toMatchObject({ mixed: true, net: false, permanent: true });
     });
 });
@@ -1266,9 +1266,9 @@ describe('buildReport: net result from a group that combines Incoming and Outgoi
         expect(planReport(intent('net-result', 'last_month'), snapshot).sources).toEqual(['g-net']);
     });
 
-    it('fits no pie, donut or stacked parts, as for any net result', async () => {
+    it('fits no donut or stacked parts, as for any net result', async () => {
         const data = await report(intent('g-net', '2026', { monthly: true, chart: 'pie' }));
-        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
+        expect(data.charts.unfit).toEqual({ kind: 'donut', reason: { code: 'net_result' } });
         expect(kinds(data)).toEqual(['bar', 'area', 'ranked-bar', 'compare', 'table']);
         expect(data.charts.facts).toMatchObject({ mixed: true, net: true });
     });
@@ -1378,7 +1378,7 @@ describe('buildReport: net result Report calculates from simple roots', () => {
         expect(data.answer).toMatchObject({ amount: '3949.75', previous: '3799.5' });
     });
 
-    it('fits no pie, donut or stacked parts', async () => {
+    it('fits no donut or stacked parts', async () => {
         const data = await report(
             intent('net-result', '2026', { monthly: true }),
             simpleRootsLedger()
@@ -1465,7 +1465,7 @@ describe('buildReport: only the rows Bkper returns', () => {
             'Old Supplier 10 (prev -, change -, share 0.0023)',
         ]);
         // The parts are no whole of the total, so no chart implies they are.
-        expect(data.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'not_a_whole' } });
+        expect(data.charts.unfit).toEqual({ kind: 'donut', reason: { code: 'not_a_whole' } });
         expect(kinds(data)).not.toContain('donut');
         expect(data.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
     });
@@ -1736,11 +1736,6 @@ describe('buildReport: chart preference', () => {
         }
     });
 
-    it('draws a pie of parts that are all positive', async () => {
-        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }));
-        expect(data.chart).toEqual({ kind: 'pie', rows: ['a-rent', 'a-food'] });
-    });
-
     it('falls back from a pie to the rules for a mixed group or a net result', async () => {
         const mixed = await report(intent('g-net', 'last_month', { chart: 'pie' }));
         expect(mixed.chart).toEqual({
@@ -1749,7 +1744,7 @@ describe('buildReport: chart preference', () => {
             fallback: true,
         });
         const net = await report(intent('net-result', 'last_month', { chart: 'pie' }));
-        expect(net.chart.kind).not.toBe('pie');
+        expect(net.chart.kind).not.toBe('donut');
         expect(net.chart.fallback).toBe(true);
     });
 
@@ -1928,7 +1923,6 @@ describe('buildReport: chart views', () => {
             'stacked',
             'ranked-bar',
             'donut',
-            'pie',
             'compare',
             'table',
         ]);
@@ -1948,7 +1942,7 @@ describe('buildReport: chart views', () => {
 
     it('computes the charts of a position', async () => {
         const data = await report(intent('g-assets', 'today'));
-        expect(kinds(data)).toEqual(['line', 'ranked-bar', 'donut', 'pie', 'compare', 'table']);
+        expect(kinds(data)).toEqual(['line', 'ranked-bar', 'donut', 'compare', 'table']);
         expect(data.charts.facts).toMatchObject({ months: 1, previous: true, permanent: true });
         expect(data.charts.main).toBe('donut');
     });
@@ -1960,9 +1954,9 @@ describe('buildReport: chart views', () => {
     });
 
     it('draws the preferred chart when it fits, and still offers the others', async () => {
-        const data = await report(intent('g-expenses', '2026', { monthly: true, chart: 'pie' }));
-        expect(data.chart.kind).toBe('pie');
-        expect(data.charts).toMatchObject({ main: 'pie', rule: 'preference' });
+        const data = await report(intent('g-expenses', '2026', { monthly: true, chart: 'donut' }));
+        expect(data.chart.kind).toBe('donut');
+        expect(data.charts).toMatchObject({ main: 'donut', rule: 'preference' });
         expect(kinds(data)).toContain('bar');
         const table = await report(intent('g-expenses', '2026', { chart: 'table' }));
         expect(table.chart).toEqual({ kind: 'none' });
@@ -1970,36 +1964,35 @@ describe('buildReport: chart views', () => {
         expect(kinds(table)).toContain('donut');
     });
 
-    it('tells why a pie cannot show a negative part, and draws the closest chart', async () => {
+    it('tells why a donut cannot show a negative part, and draws the closest chart', async () => {
         const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['-186.74']);
-        const data = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), ledger);
+        const data = await report(intent('g-expenses', 'last_month', { chart: 'donut' }), ledger);
         expect(data.charts.unfit).toEqual({
-            kind: 'pie',
+            kind: 'donut',
             reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
         });
         expect(data.charts.facts).toMatchObject({ rows: 3, negative: 1, mixed: false });
-        expect(kinds(data)).not.toContain('pie');
         expect(kinds(data)).not.toContain('donut');
         expect(data.chart).toMatchObject({ kind: 'ranked-bar', fallback: true });
         expect(data.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
     });
 
-    it('tells why a pie cannot show a net result or a mixed group', async () => {
-        const net = await report(intent('net-result', 'last_month', { chart: 'pie' }));
-        expect(net.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
+    it('tells why a donut cannot show a net result or a mixed group', async () => {
+        const net = await report(intent('net-result', 'last_month', { chart: 'donut' }));
+        expect(net.charts.unfit).toEqual({ kind: 'donut', reason: { code: 'net_result' } });
         expect(net.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
         // A group that combines Incoming and Outgoing is a net result too.
-        const mixed = await report(intent('g-net', 'last_month', { chart: 'pie' }));
-        expect(mixed.charts.unfit).toEqual({ kind: 'pie', reason: { code: 'net_result' } });
+        const mixed = await report(intent('g-net', 'last_month', { chart: 'donut' }));
+        expect(mixed.charts.unfit).toEqual({ kind: 'donut', reason: { code: 'net_result' } });
     });
 
-    it('tells why a pie cannot show parts of different types', async () => {
+    it('tells why a donut cannot show parts of different types', async () => {
         const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['50']);
         const snapshot = await ledgerSnapshot(ledger);
         // Positive in the root's sense, but not Outgoing.
         snapshot.accounts['g-expenses-extra-0'].type = 'ASSET';
         const data = await report(
-            intent('g-expenses', 'last_month', { chart: 'pie' }),
+            intent('g-expenses', 'last_month', { chart: 'donut' }),
             ledger,
             snapshot
         );
@@ -2007,8 +2000,8 @@ describe('buildReport: chart views', () => {
         expect(data.charts.facts).toMatchObject({ negative: 0, mixed: true });
     });
 
-    it('tells why a pie cannot show fewer than two parts', async () => {
-        const data = await report(intent('g-revenue', 'last_month', { chart: 'pie' }));
+    it('tells why a donut cannot show fewer than two parts', async () => {
+        const data = await report(intent('g-revenue', 'last_month', { chart: 'donut' }));
         expect(data.charts.unfit?.reason).toEqual({ code: 'few_parts' });
         // Nothing close fits, so the rules choose.
         expect(data.charts).toMatchObject({ main: 'table', rule: 'rules' });
@@ -2080,7 +2073,6 @@ describe('buildReport: every chart a person may prefer', () => {
         const line = await report(intent('g-expenses', '2026', { monthly: true, chart: 'line' }));
         expect(line.chart).toMatchObject({ kind: 'line', series: [{ id: 'g-expenses' }] });
         expect(line.charts).toMatchObject({ main: 'line', rule: 'preference' });
-        expect(kinds(line)).toEqual(expect.arrayContaining(['bar', 'line']));
         const bars = await report(intent('g-assets', '2026', { monthly: true, chart: 'bar' }));
         expect(bars.chart).toMatchObject({ kind: 'bar', series: [{ id: 'g-assets' }] });
         expect(bars.charts).toMatchObject({ main: 'bar', rule: 'preference' });
@@ -2114,6 +2106,48 @@ describe('buildReport: every chart a person may prefer', () => {
     });
 });
 
+describe('buildReport: fewer chart choices', () => {
+    it('draws a donut for a pie asked for, and tells why when the donut does not fit', async () => {
+        const pie = await report(intent('g-expenses', 'last_month', { chart: 'pie' }));
+        expect(pie.chart).toEqual({ kind: 'donut', rows: ['a-rent', 'a-food'] });
+        expect(pie.charts).toMatchObject({ main: 'donut', rule: 'preference' });
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['-186.74']);
+        const negative = await report(intent('g-expenses', 'last_month', { chart: 'pie' }), ledger);
+        expect(negative.charts.unfit).toEqual({
+            kind: 'donut',
+            reason: { code: 'negative_part', rowId: 'g-expenses-extra-0' },
+        });
+        expect(negative.charts).toMatchObject({ main: 'ranked-bar', rule: 'closest' });
+    });
+
+    it('replaces the usual chart by month with the other one asked for', async () => {
+        const line = await report(intent('g-expenses', '2026', { monthly: true, chart: 'line' }));
+        expect(kinds(line)).toContain('line');
+        expect(kinds(line)).not.toContain('bar');
+        const bars = await report(intent('g-assets', '2026', { monthly: true, chart: 'bar' }));
+        expect(kinds(bars)).toContain('bar');
+        expect(kinds(bars)).not.toContain('line');
+    });
+
+    it('never offers more than six charts', async () => {
+        const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', ['3', '2']);
+        const roots = ['g-expenses', 'g-assets', 'g-net', 'net-result', 'g-revenue'];
+        const periods = ['2026', 'last_month', 'this_month', 'today', 'all', 'last_12_months'];
+        for (const root of roots) {
+            for (const period of periods) {
+                for (const chart of REPORT_CHARTS) {
+                    for (const monthly of [false, true]) {
+                        const data = await report(intent(root, period, { chart, monthly }), ledger);
+                        const charts = kinds(data).filter(kind => kind !== 'table');
+                        expect(charts.length, `${root} ${period} ${chart}`).toBeLessThanOrEqual(6);
+                        expect(new Set(charts).size).toBe(charts.length);
+                    }
+                }
+            }
+        }
+    });
+});
+
 describe('buildReport: a composition asked for', () => {
     it('draws a donut of a few positive parts', async () => {
         const data = await report(intent('g-expenses', 'last_month', { view: 'breakdown' }));
@@ -2121,7 +2155,7 @@ describe('buildReport: a composition asked for', () => {
         expect(data.charts.rule).toBe('rules');
     });
 
-    it('draws a pie of more parts than a donut holds, where the rules alone rank them', async () => {
+    it('ranks more parts than a donut holds in bars', async () => {
         const ledger = withAccounts(fixtureLedger(), 'g-expenses', '2026-10', [
             '6',
             '5',
@@ -2134,7 +2168,7 @@ describe('buildReport: a composition asked for', () => {
             ledger
         );
         expect(asked.charts.facts).toMatchObject({ rows: 7, negative: 0 });
-        expect(asked.chart.kind).toBe('pie');
+        expect(asked.chart.kind).toBe('ranked-bar');
         const unasked = await report(intent('g-expenses', 'last_month'), ledger);
         expect(unasked.chart.kind).toBe('ranked-bar');
     });
@@ -2153,7 +2187,7 @@ describe('buildReport: a composition asked for', () => {
 
 /**
  * What in a view is not drawn from the report's own rows: every part is a breakdown row with
- * its amounts, a pie or donut's parts and stacked parts are a whole of the root, and a net
+ * its amounts, a donut's parts and stacked parts are a whole of the root, and a net
  * result Report calculates is its Incoming roots minus its Outgoing roots.
  */
 function viewProblems(data: ReportData, view: ReportChart): string[] {
@@ -2214,13 +2248,12 @@ function viewProblems(data: ReportData, view: ReportChart): string[] {
             break;
         case 'ranked-bar':
         case 'donut':
-        case 'pie':
         case 'compare': {
             const rows = view.rows.map(id => rowOf(id));
             if (rows.some(row => row === undefined)) {
                 problems.push('draws a row the breakdown lacks');
             }
-            if (view.kind === 'donut' || view.kind === 'pie') {
+            if (view.kind === 'donut') {
                 same('whole', total(rows.map(row => row?.amount)), data.answer.amount);
             }
             break;

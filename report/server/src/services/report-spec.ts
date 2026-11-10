@@ -38,7 +38,6 @@ const VIEW_NAMES = {
     stacked: 'chart_name_stacked',
     'ranked-bar': 'chart_name_ranked_bar',
     donut: 'chart_name_donut',
-    pie: 'chart_name_pie',
     compare: 'chart_name_compare',
     waterfall: 'chart_name_waterfall',
     table: 'chart_name_table',
@@ -55,11 +54,10 @@ const UNFIT_REASONS = {
     not_a_whole: 'chart_unfit_not_a_whole',
     no_bridge: 'chart_unfit_no_bridge',
     side_by_side: 'chart_unfit_side_by_side',
-    // Said of the chart it is about.
-    net_result: 'chart_unfit_pie_net_result',
+    net_result: 'chart_unfit_net_result',
 } as const satisfies Record<UnfitReason['code'], StringKey>;
 
-/** Reasons said in the words of stacked bars rather than of a pie. */
+/** Reasons said in the words of stacked bars rather than of a donut. */
 const STACKED_UNFIT_REASONS = {
     net_result: 'chart_unfit_stacked_net_result',
     mixed_parts: 'chart_unfit_stacked_mixed_parts',
@@ -136,7 +134,7 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
                     dir: textDirection(lang),
                     fractionDigits: report.book.fractionDigits ?? 2,
                     request: requestText(report.intent, title, lang),
-                    ...(report.comparisonError ? { notice: comparisonNotice(report, labels) } : {}),
+                    ...notice(report, labels),
                 },
                 children: Object.keys(elements),
             },
@@ -148,6 +146,26 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
         throw new Error(`Invalid report spec: ${validation.issues.join('; ')}`);
     }
     return validation.spec;
+}
+
+/**
+ * What the report could not do as asked, in one line: the comparison asked for, and the chart
+ * asked for, which does not fit, with why.
+ */
+function notice(report: ReportData, labels: Labels): { notice?: string } {
+    const unfit = report.charts.unfit;
+    const notices = [
+        ...(report.comparisonError ? [comparisonNotice(report, labels)] : []),
+        ...(unfit
+            ? [
+                  t('notice_chart_unfit', labels.lang, {
+                      chart: t(VIEW_NAMES[unfit.kind], labels.lang),
+                      reason: unfitReason(unfit.kind, unfit.reason, report, labels),
+                  }),
+              ]
+            : []),
+    ];
+    return notices.length > 0 ? { notice: notices.join(' ') } : {};
 }
 
 /**
@@ -238,16 +256,16 @@ function answerProps(
 type ChartProps = Extract<ReportElement, { type: 'Chart' }>['props'];
 
 /**
- * Every other chart that fits the report, with its data, and the preferred one that does not
- * fit with why; left out when the report fits no chart but its main one and nothing was asked.
+ * Every other chart that fits the report, with its data; left out when the report fits no
+ * chart but its main one.
  */
 function visualizations(
     report: ReportData,
     title: string,
     labels: Labels
 ): Extract<ReportElement, { type: 'Visualizations' }> | undefined {
-    const { views, main, unfit } = report.charts;
-    if (views.length < 2 && !unfit) {
+    const { views, main } = report.charts;
+    if (views.length < 2) {
         return undefined;
     }
     const lang = labels.lang;
@@ -261,15 +279,6 @@ function visualizations(
                 const chart = kind === main ? undefined : chartProps(view, report, title, labels);
                 return { kind, name: t(VIEW_NAMES[kind], lang), ...(chart ? { chart } : {}) };
             }),
-            ...(unfit
-                ? {
-                      unfit: {
-                          kind: unfit.kind,
-                          name: t(VIEW_NAMES[unfit.kind], lang),
-                          reason: unfitReason(unfit.kind, unfit.reason, report, labels),
-                      },
-                  }
-                : {}),
         },
         on: { select: { action: 'selectChart' } },
     };
@@ -318,7 +327,6 @@ function chartProps(
             };
         case 'ranked-bar':
         case 'donut':
-        case 'pie':
             return {
                 kind: chart.kind,
                 label: itemsLabel(report, title, lang),

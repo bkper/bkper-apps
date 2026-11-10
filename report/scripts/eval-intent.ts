@@ -360,7 +360,7 @@ const CASES: Case[] = [
         root: 'Despesas',
         period: '2015',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'en',
     },
     {
@@ -406,7 +406,7 @@ const CASES: Case[] = [
         root: 'Despesas',
         period: '2013',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'pt',
     },
     {
@@ -451,7 +451,7 @@ const CASES: Case[] = [
         root: 'Despesas',
         period: '2012',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'de',
     },
     {
@@ -506,7 +506,7 @@ const CASES: Case[] = [
         root: 'Expenses',
         period: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'ar',
     },
     {
@@ -601,7 +601,7 @@ const CASES: Case[] = [
         period: UNSPECIFIED,
         intentPeriod: '2018',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'pt',
     },
     {
@@ -610,7 +610,7 @@ const CASES: Case[] = [
         root: 'Despesas',
         period: '2017',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'pt',
     },
     {
@@ -630,7 +630,7 @@ const CASES: Case[] = [
         period: UNSPECIFIED,
         intentPeriod: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'de',
     },
     {
@@ -640,7 +640,7 @@ const CASES: Case[] = [
         period: UNSPECIFIED,
         intentPeriod: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'ja',
     },
     {
@@ -650,7 +650,7 @@ const CASES: Case[] = [
         period: UNSPECIFIED,
         intentPeriod: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'ar',
     },
     {
@@ -669,7 +669,7 @@ const CASES: Case[] = [
         root: 'Despesas',
         period: '2015',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'fr',
     },
     {
@@ -678,7 +678,7 @@ const CASES: Case[] = [
         root: 'Expenses',
         period: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'zh-CN',
     },
     {
@@ -885,7 +885,7 @@ const CASES: Case[] = [
         targets: ['Food', 'Entertainment'],
         period: '2019',
         view: ['breakdown', UNSPECIFIED],
-        chart: 'pie',
+        chart: 'donut',
         language: 'de',
     },
     {

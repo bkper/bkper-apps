@@ -304,15 +304,15 @@ describe('ReportPage', () => {
 
         shown?.dispatchEvent(
             new CustomEvent(SELECT_CHART, {
-                detail: { kind: 'pie' },
+                detail: { kind: 'donut' },
                 bubbles: true,
                 composed: true,
             })
         );
         await settle(view);
 
-        expect(view.state.reports.chart).toBe('pie');
-        expect(shown?.chart).toBe('pie');
+        expect(view.state.reports.chart).toBe('donut');
+        expect(shown?.chart).toBe('donut');
     });
 
     it('changes into the next report in a transition that captures it once its chart has drawn', async () => {
@@ -678,7 +678,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: save } });
         await ready(view);
         await run(view);
-        view.state.reports.chooseChart('pie');
+        view.state.reports.chooseChart('donut');
         view.state.reports.input('An unsent later draft');
         await settle(view);
         control(view, '.save').click();

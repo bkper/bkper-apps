@@ -136,7 +136,6 @@ export const CHART_KINDS = [
     'stacked',
     'ranked-bar',
     'donut',
-    'pie',
     'compare',
     'waterfall',
 ] as const satisfies readonly (ReportChart['kind'] | 'waterfall')[];
@@ -148,7 +147,7 @@ export type ReportChart = (
     /** By month, a series for each top breakdown row, stacked: in every month they make the root. */
     | { kind: 'stacked'; series: ChartSeries[] }
     /** The top breakdown rows with an amount, by id, in breakdown order. */
-    | { kind: 'ranked-bar' | 'donut' | 'pie'; rows: string[] }
+    | { kind: 'ranked-bar' | 'donut'; rows: string[] }
     /** The top breakdown rows with an amount in the period or the previous one, by id. */
     | { kind: 'compare'; rows: string[] }
 ) & {
@@ -186,7 +185,7 @@ export const CHART_RULES = [
 
 /** Why a chart does not fit a report, from its facts. */
 export type UnfitReason =
-    /** A pie or donut of a net result, or its parts stacked. */
+    /** A donut of a net result, or its parts stacked. */
     | { code: 'net_result' }
     /** A part below zero cannot be a slice. */
     | { code: 'negative_part'; rowId: string }
@@ -1311,16 +1310,23 @@ function isFit(fit: Fit | undefined): fit is { chart: ReportChart } {
     return fit !== undefined && 'chart' in fit;
 }
 
+/** A chart a report may draw as preferred: a pie is drawn as a donut, the one round chart. */
+export type ShownPreference = Exclude<ChartPreference, 'pie'>;
+
+/** The chart drawn for a preference: a donut for a pie, else the preference itself. */
+export function shownPreference(preference: ChartPreference): ShownPreference {
+    return preference === 'pie' ? 'donut' : preference;
+}
+
 /**
  * The fitting charts closest to each preference, in order, when it does not fit: the same
  * parts drawn another way, then the same months.
  */
-const CLOSEST: Record<Exclude<ChartPreference, 'auto' | 'table'>, ViewKind[]> = {
+const CLOSEST: Record<Exclude<ShownPreference, 'auto' | 'table'>, ViewKind[]> = {
     bar: ['line', 'area', 'ranked-bar', 'donut'],
     line: ['bar', 'area', 'ranked-bar', 'donut'],
     'ranked-bar': ['bar', 'line', 'donut'],
-    donut: ['pie', 'ranked-bar'],
-    pie: ['donut', 'ranked-bar'],
+    donut: ['ranked-bar'],
     stacked: ['bar', 'line', 'area', 'donut', 'ranked-bar'],
     area: ['bar', 'line', 'stacked', 'donut', 'ranked-bar'],
     compare: ['ranked-bar', 'donut'],
@@ -1329,18 +1335,23 @@ const CLOSEST: Record<Exclude<ChartPreference, 'auto' | 'table'>, ViewKind[]> = 
 
 /**
  * Every chart that fits the report, and the main one: the preference when it fits; else the
- * fitting chart closest to it; else, as for `auto`, the rules' chart.
+ * fitting chart closest to it; else, as for `auto`, the rules' chart. A pie asked for is a
+ * donut. One chart by month is offered: the nature's own (bars for activity, a line for
+ * positions), or the other one in its place when preferred.
  */
 function reportCharts(
-    preference: ChartPreference,
+    asked: ChartPreference,
     view: ReportView | undefined,
     input: ChartInput
 ): { chart: ReportChart; charts: ReportCharts } {
-    // Each nature has its own chart by month; the other one only when preferred.
+    const preference = shownPreference(asked);
+    const other = otherByMonth(input.nature);
+    const byMonth = preference === other ? other : usualByMonth(input.nature);
     const fits = new Map(
-        VIEW_KINDS.filter(kind => kind !== otherByMonth(input.nature) || kind === preference).map(
-            kind => [kind, fitChart(kind, input)]
-        )
+        VIEW_KINDS.filter(kind => !isByMonth(kind) || kind === byMonth).map(kind => [
+            kind,
+            fitChart(kind, input),
+        ])
     );
     const fitting = (kind: ViewKind): ReportChart | undefined => {
         const fit = fits.get(kind);
@@ -1350,7 +1361,7 @@ function reportCharts(
     const chosen = mainChoice(
         preference,
         fits,
-        () => rulesKind(view, input, fits),
+        () => rulesKind(view, input, fits, byMonth),
         input.months.length
     );
     const main = fitting(chosen.main);
@@ -1371,7 +1382,7 @@ function reportCharts(
 
 /** The main chart's kind, the rule that chose it, and the preference when it does not fit. */
 function mainChoice(
-    preference: ChartPreference,
+    preference: ShownPreference,
     fits: ReadonlyMap<ViewKind, Fit>,
     byRules: () => ViewKind,
     months: number
@@ -1394,6 +1405,11 @@ function mainChoice(
     return closest
         ? { main: closest, rule: 'closest', unfit }
         : { main: byRules(), rule: 'rules', unfit };
+}
+
+/** The chart by month of a nature: bars for activity, a line for a position. */
+function usualByMonth(nature: ReportNature): ViewKind {
+    return nature === 'activity' ? 'bar' : 'line';
 }
 
 /** The chart by month a report of the other nature has: a line for activity, bars for a position. */
@@ -1421,30 +1437,27 @@ function chartFacts(input: ChartInput): ChartFacts {
 }
 
 /**
- * The rules' chart: by month for a trend (bars for activity, a line for positions); else, for a
- * composition asked for, a donut of a few parts, a pie of more, else ranked bars; else, with no
- * view named, a donut of a few parts of one whole, else ranked bars; else the table.
+ * The rules' chart: by month for a trend (the chart by month offered); else, for a composition
+ * asked for or with no view named, a donut of a few parts of one whole, else ranked bars; else
+ * the table.
  */
 function rulesKind(
     view: ReportView | undefined,
     input: ChartInput,
-    fits: ReadonlyMap<ViewKind, Fit>
+    fits: ReadonlyMap<ViewKind, Fit>,
+    byMonth: ViewKind
 ): ViewKind {
-    const { nature, series, months } = input;
+    const { series, months } = input;
     if (view === 'trend' && months.length > 0) {
         // A chart whose every value is zero shows nothing, as charts leave out empty rows.
         if (!hasValues(series)) {
             return 'table';
         }
-        return nature === 'activity' ? 'bar' : 'line';
+        return byMonth;
     }
-    // Like Bkper charts: a donut or a pie only shows parts of one type that add up to a whole.
+    // Like Bkper charts: a donut only shows parts of one type that add up to a whole.
     const candidates: ViewKind[] =
-        view === 'breakdown'
-            ? ['donut', 'pie', 'ranked-bar']
-            : view === undefined
-              ? ['donut', 'ranked-bar']
-              : [];
+        view === 'breakdown' || view === undefined ? ['donut', 'ranked-bar'] : [];
     return candidates.find(kind => isFit(fits.get(kind))) ?? 'table';
 }
 
@@ -1453,7 +1466,7 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
     const { type, total, net, rows, series, months, sideBySide } = input;
     const drawn = rows.filter(hasAmount);
     // Targets side by side are no slices or stacked parts of one whole.
-    if (sideBySide && (kind === 'stacked' || kind === 'donut' || kind === 'pie')) {
+    if (sideBySide && (kind === 'stacked' || kind === 'donut')) {
         return { reason: { code: 'side_by_side' } };
     }
     const ids = (parts: ReportRow[]) => parts.map(row => row.id);
@@ -1491,8 +1504,7 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
                       },
                   }
                 : { reason: { code: 'few_parts' } };
-        case 'donut':
-        case 'pie': {
+        case 'donut': {
             const reason = compositionReason(drawn, type, net);
             if (reason) {
                 return { reason };
@@ -1506,7 +1518,7 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
             ) {
                 return { reason: { code: 'not_a_whole' } };
             }
-            if (kind === 'donut' && drawn.length > MAX_DONUT_ROWS) {
+            if (drawn.length > MAX_DONUT_ROWS) {
                 return { reason: { code: 'too_many_parts' } };
             }
             return { chart: { kind, rows: ids(drawn) } };

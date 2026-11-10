@@ -130,7 +130,7 @@ describe('<report-view>', () => {
 
     it('draws every chart kind with its Web Awesome chart, and no chart for a table', async () => {
         const drawn: Record<string, string> = {
-            'revenue-pie': 'wa-pie-chart',
+            'revenue-donut': 'wa-doughnut-chart',
             'revenue-donut-ja': 'wa-doughnut-chart',
             'expenses-stacked': 'wa-bar-chart',
             'bank-accounts-area': 'wa-line-chart',
@@ -146,8 +146,8 @@ describe('<report-view>', () => {
         expect(root(table).querySelector('.breakdown-section')).not.toBeNull();
     });
 
-    it('shows the swatches of a pie and of a stacked chart in the table', async () => {
-        for (const id of ['revenue-pie', 'expenses-stacked']) {
+    it('shows the swatches of a donut and of a stacked chart in the table', async () => {
+        for (const id of ['revenue-donut', 'expenses-stacked']) {
             const view = await mount(gallerySpec(id));
             expect(root(view).querySelectorAll('tbody .swatch').length, id).toBeGreaterThan(1);
         }
@@ -403,15 +403,15 @@ describe('<report-view> chart previews', () => {
         document.body.addEventListener(SELECT_CHART, event => chosen.push(event.detail));
         expect(shownKind(view)).toBe('bar');
 
-        preview(view, 'pie').click();
+        preview(view, 'donut').click();
         await view.updateComplete;
 
-        expect(shownKind(view)).toBe('pie');
-        expect(root(view).querySelector('.chart > wa-pie-chart')).not.toBeNull();
-        expect(preview(view, 'pie').getAttribute('aria-pressed')).toBe('true');
+        expect(shownKind(view)).toBe('donut');
+        expect(root(view).querySelector('.chart > wa-doughnut-chart')).not.toBeNull();
+        expect(preview(view, 'donut').getAttribute('aria-pressed')).toBe('true');
         expect(preview(view, 'bar').getAttribute('aria-pressed')).toBe('false');
-        expect(view.chart).toBe('pie');
-        expect(chosen).toEqual([{ kind: 'pie' }]);
+        expect(view.chart).toBe('donut');
+        expect(chosen).toEqual([{ kind: 'donut' }]);
         // The table's swatches follow the chart shown.
         expect(root(view).querySelectorAll('tbody .swatch').length).toBeGreaterThan(1);
 
@@ -485,23 +485,15 @@ describe('<report-view> chart previews', () => {
         expect(shownKind(view)).toBe('ranked-bar');
     });
 
-    it('dims the chart asked for that does not fit, with why, and never shows it', async () => {
-        const spec = gallerySpec('expenses-pie-negative');
+    it('says under the title why the chart asked for does not fit, and offers no preview of it', async () => {
+        const spec = gallerySpec('expenses-donut-negative');
         const view = await mount(spec);
-        const unfit = root(view).querySelector<HTMLButtonElement>('.preview.unfit');
-        expect(unfit?.getAttribute('aria-disabled')).toBe('true');
-        expect(unfit?.getAttribute('aria-pressed')).toBeNull();
-        // Its reason is visible, and part of what is read out.
-        const reason = elementOf(spec, 'Visualizations').props.unfit?.reason;
-        expect(reason).toContain('Food');
-        expect(unfit?.querySelector('.preview-reason')?.textContent?.trim()).toBe(reason);
-        expect(unfit?.textContent).toContain('Pie');
-        const chosen: SelectChartDetail[] = [];
-        document.body.addEventListener(SELECT_CHART, event => chosen.push(event.detail));
-        unfit?.click();
-        await view.updateComplete;
+        const notice = elementOf(spec, 'Report').props.notice;
+        expect(notice).toContain('Food');
+        expect(text(view, '.report-header .report-notice')).toEqual([notice]);
+        expect(root(view).querySelector('.preview[data-kind="donut"]')).toBeNull();
+        expect(root(view).querySelector('.preview[aria-disabled]')).toBeNull();
         expect(shownKind(view)).toBe('ranked-bar');
-        expect(chosen).toEqual([]);
     });
 
     it('moves between previews with the arrow keys, in the report’s direction', async () => {

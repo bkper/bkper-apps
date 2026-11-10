@@ -483,7 +483,12 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             return (await response.json()) as { chart: unknown; spec: ReportSpec };
         };
 
-        expect((await ask('pie')).chart).toEqual({ kind: 'pie', fallback: false, asked: 'pie' });
+        // A pie is still asked for, and drawn as a donut.
+        expect((await ask('pie')).chart).toEqual({
+            kind: 'donut',
+            fallback: false,
+            asked: 'donut',
+        });
         expect((await ask('table')).chart).toEqual({
             kind: 'none',
             fallback: false,
@@ -498,11 +503,13 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             'bar',
             'ranked-bar',
             'donut',
-            'pie',
             'compare',
             'table',
         ]);
-        expect(choices.unfit).toMatchObject({ kind: 'area' });
+        expect(choices.unfit).toBeUndefined();
+        expect(elementOf(area.spec, 'Report').props.notice).toBe(
+            'Can’t show Area: The period has fewer than two months.'
+        );
 
         const invalid = await post(test, { prompt: 'expenses october 2026', chart: 'bars' });
         expect(invalid.status).toBe(400);
@@ -515,7 +522,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         const body = (await response.json()) as { chart: unknown; spec: ReportSpec };
         expect(body.chart).toEqual({ kind: 'compare', fallback: true, asked: 'waterfall' });
         const choices = elementOf(body.spec, 'Visualizations').props;
-        expect(choices.unfit).toMatchObject({ kind: 'waterfall' });
+        expect(elementOf(body.spec, 'Report').props.notice).toMatch(/^Can’t show Bridge: /);
         expect(choices.views.map(view => view.kind)).not.toContain('waterfall');
     });
 
@@ -832,7 +839,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             // The current quarter, which Bkper has no variable for.
             query: "group:'Expenses' #trip after:2026-10 before:2026-12 by:m",
             text: 'Expenses this quarter #trip',
-            chart: { asked: 'pie' },
+            chart: { asked: 'donut' },
         });
     });
 

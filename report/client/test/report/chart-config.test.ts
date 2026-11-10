@@ -214,17 +214,17 @@ describe('chartConfig', () => {
         expect(datasets(view('taxes-donut', property?.id))[0].backgroundColor).toEqual(plain);
     });
 
-    it('draws a pie of the parts of a whole, shaded like a donut but without a hole', () => {
-        const chart = view('revenue-pie');
-        expect(chart.element).toBe('pie');
+    it('draws a donut for a pie asked for, a shade for each part of the whole', () => {
+        const chart = view('revenue-donut');
+        expect(chart.element).toBe('doughnut');
         expect(chart.legend).toBe(false);
         const [slices] = datasets(chart);
-        expect(slices.type).toBe('pie');
+        expect(slices.type).toBe('doughnut');
         expect(slices.data).toEqual(
-            chartOf('revenue-pie', 'pie').items.map(item => Number(item.value))
+            chartOf('revenue-donut', 'donut').items.map(item => Number(item.value))
         );
         expect(new Set(slices.backgroundColor as string[]).size).toBe(slices.data.length);
-        expect(chart.config.options).not.toHaveProperty('cutout');
+        expect(chart.config.options).toHaveProperty('cutout');
     });
 
     it('fills the areas of a chart by month from zero, and keeps the net result a line', () => {

@@ -131,7 +131,7 @@ describe('decideShown', () => {
         };
         expect(decideShown({ ...unnamed, chartNamed: 'pie' })).toEqual({
             rule: 'named',
-            chart: 'pie',
+            chart: 'donut',
         });
         expect(decideShown(unnamed)).toEqual({ rule: 'bridge', chart: 'waterfall' });
         expect(decideShown({ ...unnamed, bridge: false })).toEqual({
@@ -154,9 +154,11 @@ describe('decideShown', () => {
     it('prefers the chart each chart word names', () => {
         const named = (chartNamed: Judgments['chartNamed'], more: Partial<Judgments> = {}) =>
             decideShown({ ...NONE, ...more, chartNamed }).chart;
-        for (const word of ['pie', 'line', 'area', 'stacked', 'waterfall', 'table'] as const) {
+        for (const word of ['line', 'area', 'stacked', 'waterfall', 'table'] as const) {
             expect(named(word)).toBe(word);
         }
+        // A pie is drawn as a donut, the one round chart.
+        expect(named('pie')).toBe('donut');
         // Bars of the months, of a period against an earlier one, or of the parts.
         expect(named('bars', { overTime: true, versusEarlier: true })).toBe('bar');
         expect(named('bars', { versusEarlier: true })).toBe('compare');
@@ -226,7 +228,7 @@ describe('readIntent', () => {
     });
 
     it('reads a sure chart word, and leaves an unsure one or none to the other rules', async () => {
-        expect(await intentOf({ chart_named: sure('pie') })).toMatchObject({ chart: 'pie' });
+        expect(await intentOf({ chart_named: sure('pie') })).toMatchObject({ chart: 'donut' });
         expect(await intentOf({ chart_named: sure('table') })).toMatchObject({ chart: 'table' });
         const unsure = await intentOf({
             chart_named: { choice: 'pie', confidence: THRESHOLDS.chart_named - 0.01 },
@@ -359,7 +361,7 @@ describe('readIntent', () => {
         }
         expect(await intentOf({ ...unnamed, chart_named: sure('pie') })).toMatchObject({
             period: p('this_year'),
-            chart: 'pie',
+            chart: 'donut',
         });
         expect(await intentOf({ ...unnamed, chart_named: sure('bars') })).toMatchObject({
             period: p('this_year'),
@@ -515,9 +517,9 @@ describe('readIntent with names the request writes', () => {
             intent: { chart: 'stacked' },
             trace: { rule: 'over_time_composition' },
         });
-        // A chart the request names is still asked for, and shown dimmed when it does not fit.
+        // A chart the request names is still asked for, and the report says why it does not fit.
         expect(await named('rent and food as a pie', { chart_named: sure('pie') })).toMatchObject({
-            intent: { chart: 'pie' },
+            intent: { chart: 'donut' },
         });
     });
 
@@ -542,7 +544,7 @@ describe('readIntent with names the request writes', () => {
 
     it('keeps Jev’s period and judgments', async () => {
         expect(await named('food', { ...OCTOBER_2026, chart_named: sure('pie') })).toMatchObject({
-            intent: { target: 'a-food', period: p('2026-10'), chart: 'pie' },
+            intent: { target: 'a-food', period: p('2026-10'), chart: 'donut' },
         });
     });
 

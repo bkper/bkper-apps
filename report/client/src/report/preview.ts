@@ -1,13 +1,12 @@
 /**
  * Tiny drawings of a report's charts, for the previews above its chart: the shape of each chart
  * from the spec's numbers, in the colors the chart uses, with no labels, axes or tooltips. Plain
- * SVG, so a dozen of them cost next to nothing to draw. A kind without data (the table, or a
- * chart asked for that does not fit) gets a sketch of its shape, in the text's color.
+ * SVG, so a dozen of them cost next to nothing to draw.
  */
 import { html, svg, type SVGTemplateResult, type TemplateResult } from 'lit';
 import { hollow, shades, typeColor } from './colors.js';
 import { ReportFormat } from './format.js';
-import type { PropsOf, ViewKind } from './spec-types.js';
+import type { PropsOf } from './spec-types.js';
 
 type ChartProps = PropsOf<'Chart'>;
 
@@ -25,9 +24,6 @@ const MAX_PAIRS = 4;
 /** The widest bar or group of bars of a month, so a few months do not fill the drawing. */
 const MAX_GROUP = 9;
 
-/** Sketches take the text's color, which reads on either theme. */
-const SKETCH = 'currentColor';
-
 /** Rings start at the top. */
 const ROTATE = `rotate(-90 ${WIDTH / 2} ${HEIGHT / 2})`;
 
@@ -42,9 +38,9 @@ interface Part {
     color: string;
 }
 
-/** The drawing of a chart, or a sketch of its kind when there is no chart to draw. */
-export function renderPreview(kind: ViewKind, chart?: ChartProps): TemplateResult {
-    const drawn = chart ? drawing(chart) : sketch(kind);
+/** The drawing of a chart; empty without one. */
+export function renderPreview(chart?: ChartProps): TemplateResult {
+    const drawn = chart ? drawing(chart) : [];
     return html`<svg viewBox=${VIEW_BOX} aria-hidden="true" focusable="false">${drawn}</svg>`;
 }
 
@@ -77,15 +73,13 @@ function drawing(chart: ChartProps): SVGTemplateResult[] {
                     color: typeColor(item.color, 'medium'),
                 }))
             );
-        case 'donut':
-        case 'pie': {
+        case 'donut': {
             const colors = shades(chart.items.map(item => item.color));
             return ring(
                 chart.items.map((item, index) => ({
                     value: plot(item.value),
                     color: colors[index],
-                })),
-                chart.kind === 'donut'
+                }))
             );
         }
         case 'compare':
@@ -106,44 +100,6 @@ function drawing(chart: ChartProps): SVGTemplateResult[] {
                 typeColor(chart.start.color, 'high'),
                 typeColor(chart.end.color, 'high')
             );
-    }
-}
-
-/** The shape of a kind, with made-up numbers, for the table or a chart that does not fit. */
-function sketch(kind: ViewKind): SVGTemplateResult[] {
-    const months = [3, 5, 4, 6, 5, 7];
-    switch (kind) {
-        case 'bar':
-        case 'line':
-        case 'area':
-            return byMonth(kind, [{ values: months, color: SKETCH }]);
-        case 'stacked':
-            return byMonth(kind, [
-                { values: months, color: SKETCH },
-                { values: months.map(value => value / 2), color: hollow(SKETCH) },
-            ]);
-        case 'ranked-bar':
-            return ranked([6, 4, 3, 2].map(value => ({ value, color: SKETCH })));
-        case 'donut':
-        case 'pie':
-            return ring(
-                [5, 3, 2].map((value, index) => ({
-                    value,
-                    color: index === 1 ? hollow(SKETCH) : SKETCH,
-                })),
-                kind === 'donut'
-            );
-        case 'compare':
-            return pairs([6, 4, 3].map(value => ({ value, previous: value - 1, color: SKETCH })));
-        case 'waterfall':
-            return bridge(
-                6,
-                [-2, -1.5, -1].map(value => ({ value, color: SKETCH })),
-                SKETCH,
-                SKETCH
-            );
-        case 'table':
-            return table();
     }
 }
 
@@ -256,12 +212,11 @@ function ranked(parts: Part[]): SVGTemplateResult[] {
     );
 }
 
-/** Each part's share of a circle: a pie, or a ring with a hole. */
-function ring(parts: Part[], hole: boolean): SVGTemplateResult[] {
+/** Each part's share of a ring. */
+function ring(parts: Part[]): SVGTemplateResult[] {
     const total = parts.reduce((sum, part) => sum + Math.abs(part.value), 0) || 1;
     const outer = HEIGHT / 2 - PAD / 2;
-    // A stroke as wide as the radius draws a pie; a narrower one a ring.
-    const width = hole ? outer * 0.42 : outer;
+    const width = outer * 0.42;
     const radius = outer - width / 2;
     const circumference = 2 * Math.PI * radius;
     let offset = 0;
@@ -333,17 +288,6 @@ function bridge(start: number, steps: Part[], startColor: string, endColor: stri
             entry.down ? entry.color : undefined
         )
     );
-}
-
-/** Rows of a table: a name and an amount each. */
-function table(): SVGTemplateResult[] {
-    const rows = 4;
-    const row = (HEIGHT - 2 * PAD) / rows;
-    return Array.from({ length: rows }, (_, index) => {
-        const y = PAD + index * row + row / 2;
-        return svg`<line x1=${PAD} y1=${round(y)} x2=${WIDTH * 0.55} y2=${round(y)} stroke=${SKETCH} stroke-width=${STROKE} stroke-linecap="round"></line>
-            <line x1=${WIDTH * 0.72} y1=${round(y)} x2=${WIDTH - PAD} y2=${round(y)} stroke=${SKETCH} stroke-width=${STROKE} stroke-linecap="round"></line>`;
-    });
 }
 
 function round(value: number): number {

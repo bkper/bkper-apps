@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-11-07",
-  "endpoint": "https://ai-dev.bkper.app/v1/systemone",
+  "recordedAt": "2026-11-08",
+  "endpoint": "https://ai.bkper.app/v1/systemone",
   "release": "2026-11-07",
   "pricing": {
     "jev": {
@@ -17,7 +17,7 @@
       "caseId": "acme-github",
       "model": "jev",
       "status": 200,
-      "latencyMs": 796,
+      "latencyMs": 1453,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 84.00\nDescription: GITHUB, INC. GITHUB.COM CA 2291",
@@ -59,15 +59,15 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.84
+            "noul": 0.83
           },
           "account": {
             "type": "choice",
             "choice": "Software Subscriptions",
-            "confidence": 0.91,
+            "confidence": 0.86,
             "probabilities": {
-              "Software Subscriptions": 0.92,
-              "Cloud Hosting": 0.08,
+              "Software Subscriptions": 0.87,
+              "Cloud Hosting": 0.13,
               "Travel": 0,
               "Meals & Entertainment": 0,
               "Payroll": 0,
@@ -95,7 +95,7 @@
       "caseId": "acme-github",
       "model": "clef",
       "status": 200,
-      "latencyMs": 1138,
+      "latencyMs": 997,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 84.00\nDescription: GITHUB, INC. GITHUB.COM CA 2291",
@@ -173,7 +173,7 @@
       "caseId": "acme-aws",
       "model": "jev",
       "status": 200,
-      "latencyMs": 197,
+      "latencyMs": 251,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,243.17\nDescription: AWS EMEA aws.amazon.co WA",
@@ -251,7 +251,7 @@
       "caseId": "acme-aws",
       "model": "clef",
       "status": 200,
-      "latencyMs": 511,
+      "latencyMs": 416,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,243.17\nDescription: AWS EMEA aws.amazon.co WA",
@@ -329,7 +329,7 @@
       "caseId": "acme-gusto",
       "model": "jev",
       "status": 200,
-      "latencyMs": 220,
+      "latencyMs": 213,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 48,210.55\nDescription: GUSTO PAYROLL 2291 NET PAY ACME LABS",
@@ -371,7 +371,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.93
+            "noul": 0.94
           },
           "account": {
             "type": "choice",
@@ -407,7 +407,7 @@
       "caseId": "acme-gusto",
       "model": "clef",
       "status": 200,
-      "latencyMs": 425,
+      "latencyMs": 537,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 48,210.55\nDescription: GUSTO PAYROLL 2291 NET PAY ACME LABS",
@@ -485,7 +485,7 @@
       "caseId": "acme-upwork",
       "model": "jev",
       "status": 200,
-      "latencyMs": 244,
+      "latencyMs": 314,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 2,400.00\nDescription: UPWORK -ESCROW 88412 A-88412",
@@ -527,7 +527,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.72
+            "noul": 0.71
           },
           "account": {
             "type": "choice",
@@ -563,7 +563,7 @@
       "caseId": "acme-upwork",
       "model": "clef",
       "status": 200,
-      "latencyMs": 468,
+      "latencyMs": 501,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 2,400.00\nDescription: UPWORK -ESCROW 88412 A-88412",
@@ -641,7 +641,7 @@
       "caseId": "acme-wework",
       "model": "jev",
       "status": 200,
-      "latencyMs": 194,
+      "latencyMs": 217,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 3,500.00\nDescription: WEWORK 1 MARKET ST MEMBERSHIP",
@@ -683,27 +683,27 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.9
+            "noul": 0.88
           },
           "account": {
             "type": "choice",
             "choice": "Office Rent",
-            "confidence": 0.98,
+            "confidence": 0.97,
             "probabilities": {
-              "Software Subscriptions": 0.01,
+              "Software Subscriptions": 0.03,
               "Cloud Hosting": 0,
               "Travel": 0,
               "Meals & Entertainment": 0,
               "Payroll": 0,
               "Contractors": 0,
-              "Office Rent": 0.98,
+              "Office Rent": 0.97,
               "Utilities": 0,
               "Advertising": 0,
               "Bank Fees": 0,
               "Subscription Revenue": 0,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.01,
+              "Amex Card": 0,
               "Sales Tax Payable": 0,
               "Savings": 0
             }
@@ -719,7 +719,7 @@
       "caseId": "acme-wework",
       "model": "clef",
       "status": 200,
-      "latencyMs": 399,
+      "latencyMs": 510,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 3,500.00\nDescription: WEWORK 1 MARKET ST MEMBERSHIP",
@@ -797,7 +797,7 @@
       "caseId": "acme-united",
       "model": "jev",
       "status": 200,
-      "latencyMs": 268,
+      "latencyMs": 220,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 612.30\nDescription: UNITED 0162345678901 HOUSTON TX",
@@ -839,29 +839,29 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.5
+            "noul": 0.36
           },
           "account": {
             "type": "choice",
             "choice": "Travel",
-            "confidence": 0.79,
+            "confidence": 0.5,
             "probabilities": {
               "Software Subscriptions": 0,
-              "Cloud Hosting": 0,
-              "Travel": 0.8,
+              "Cloud Hosting": 0.01,
+              "Travel": 0.53,
               "Meals & Entertainment": 0.01,
-              "Payroll": 0.03,
-              "Contractors": 0.05,
-              "Office Rent": 0.01,
-              "Utilities": 0.01,
-              "Advertising": 0,
+              "Payroll": 0.11,
+              "Contractors": 0.13,
+              "Office Rent": 0.03,
+              "Utilities": 0.03,
+              "Advertising": 0.01,
               "Bank Fees": 0.01,
-              "Subscription Revenue": 0,
+              "Subscription Revenue": 0.01,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.06,
-              "Sales Tax Payable": 0,
-              "Savings": 0.02
+              "Amex Card": 0.08,
+              "Sales Tax Payable": 0.01,
+              "Savings": 0.03
             }
           }
         },
@@ -875,7 +875,7 @@
       "caseId": "acme-united",
       "model": "clef",
       "status": 200,
-      "latencyMs": 499,
+      "latencyMs": 628,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 612.30\nDescription: UNITED 0162345678901 HOUSTON TX",
@@ -953,7 +953,7 @@
       "caseId": "acme-coffee",
       "model": "jev",
       "status": 200,
-      "latencyMs": 206,
+      "latencyMs": 247,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 38.50\nDescription: SQ *BLUE BOTTLE COFFEE OAKLAND",
@@ -995,17 +995,17 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.69
+            "noul": 0.64
           },
           "account": {
             "type": "choice",
             "choice": "Meals & Entertainment",
-            "confidence": 0.98,
+            "confidence": 0.97,
             "probabilities": {
               "Software Subscriptions": 0,
               "Cloud Hosting": 0,
               "Travel": 0,
-              "Meals & Entertainment": 0.98,
+              "Meals & Entertainment": 0.97,
               "Payroll": 0,
               "Contractors": 0,
               "Office Rent": 0,
@@ -1015,7 +1015,7 @@
               "Subscription Revenue": 0,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.02,
+              "Amex Card": 0.03,
               "Sales Tax Payable": 0,
               "Savings": 0
             }
@@ -1031,7 +1031,7 @@
       "caseId": "acme-coffee",
       "model": "clef",
       "status": 200,
-      "latencyMs": 447,
+      "latencyMs": 460,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 38.50\nDescription: SQ *BLUE BOTTLE COFFEE OAKLAND",
@@ -1109,7 +1109,7 @@
       "caseId": "acme-google-ads",
       "model": "jev",
       "status": 200,
-      "latencyMs": 172,
+      "latencyMs": 253,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,500.00\nDescription: GOOGLE *ADS4471-2291 CC@GOOGLE.COM",
@@ -1156,7 +1156,7 @@
           "account": {
             "type": "choice",
             "choice": "Advertising",
-            "confidence": 0.98,
+            "confidence": 0.99,
             "probabilities": {
               "Software Subscriptions": 0,
               "Cloud Hosting": 0,
@@ -1166,12 +1166,12 @@
               "Contractors": 0,
               "Office Rent": 0,
               "Utilities": 0,
-              "Advertising": 0.98,
+              "Advertising": 0.99,
               "Bank Fees": 0,
               "Subscription Revenue": 0,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.02,
+              "Amex Card": 0.01,
               "Sales Tax Payable": 0,
               "Savings": 0
             }
@@ -1187,7 +1187,7 @@
       "caseId": "acme-google-ads",
       "model": "clef",
       "status": 200,
-      "latencyMs": 502,
+      "latencyMs": 511,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,500.00\nDescription: GOOGLE *ADS4471-2291 CC@GOOGLE.COM",
@@ -1265,7 +1265,7 @@
       "caseId": "acme-stripe",
       "model": "jev",
       "status": 200,
-      "latencyMs": 232,
+      "latencyMs": 229,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money into the bank account\nAmount: USD 12,840.22\nDescription: STRIPE TRANSFER ST-A1B2C3D4 ACME LABS",
@@ -1307,7 +1307,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.52
+            "noul": 0.55
           },
           "account": {
             "type": "choice",
@@ -1325,9 +1325,9 @@
               "Advertising": 0,
               "Bank Fees": 0,
               "Subscription Revenue": 0.75,
-              "Consulting Revenue": 0.22,
+              "Consulting Revenue": 0.23,
               "Interest Income": 0,
-              "Amex Card": 0.01,
+              "Amex Card": 0,
               "Sales Tax Payable": 0,
               "Savings": 0.02
             }
@@ -1343,7 +1343,7 @@
       "caseId": "acme-stripe",
       "model": "clef",
       "status": 200,
-      "latencyMs": 693,
+      "latencyMs": 442,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money into the bank account\nAmount: USD 12,840.22\nDescription: STRIPE TRANSFER ST-A1B2C3D4 ACME LABS",
@@ -1421,7 +1421,7 @@
       "caseId": "acme-wire-in",
       "model": "jev",
       "status": 200,
-      "latencyMs": 280,
+      "latencyMs": 244,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money into the bank account\nAmount: USD 9,000.00\nDescription: WIRE IN ORIG: GLOBEX CORP REF INV-2291 ADVISORY SVCS",
@@ -1499,7 +1499,7 @@
       "caseId": "acme-wire-in",
       "model": "clef",
       "status": 200,
-      "latencyMs": 421,
+      "latencyMs": 389,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money into the bank account\nAmount: USD 9,000.00\nDescription: WIRE IN ORIG: GLOBEX CORP REF INV-2291 ADVISORY SVCS",
@@ -1577,7 +1577,7 @@
       "caseId": "acme-amex",
       "model": "jev",
       "status": 200,
-      "latencyMs": 261,
+      "latencyMs": 184,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 5,870.00\nDescription: AMEX EPAYMENT ACH PMT W4412",
@@ -1655,7 +1655,7 @@
       "caseId": "acme-amex",
       "model": "clef",
       "status": 200,
-      "latencyMs": 642,
+      "latencyMs": 385,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 5,870.00\nDescription: AMEX EPAYMENT ACH PMT W4412",
@@ -1733,7 +1733,7 @@
       "caseId": "acme-cdtfa",
       "model": "jev",
       "status": 200,
-      "latencyMs": 240,
+      "latencyMs": 203,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,830.00\nDescription: CA DEPT TAX FEE CDTFA EPMT 0045",
@@ -1811,7 +1811,7 @@
       "caseId": "acme-cdtfa",
       "model": "clef",
       "status": 200,
-      "latencyMs": 511,
+      "latencyMs": 393,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 1,830.00\nDescription: CA DEPT TAX FEE CDTFA EPMT 0045",
@@ -1889,7 +1889,7 @@
       "caseId": "acme-peloton",
       "model": "jev",
       "status": 200,
-      "latencyMs": 275,
+      "latencyMs": 234,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 44.00\nDescription: PELOTON* MEMBERSHIP",
@@ -1936,22 +1936,22 @@
           "account": {
             "type": "choice",
             "choice": "Software Subscriptions",
-            "confidence": 0.84,
+            "confidence": 0.72,
             "probabilities": {
-              "Software Subscriptions": 0.85,
+              "Software Subscriptions": 0.74,
               "Cloud Hosting": 0,
               "Travel": 0,
-              "Meals & Entertainment": 0.09,
+              "Meals & Entertainment": 0.17,
               "Payroll": 0,
               "Contractors": 0,
               "Office Rent": 0,
               "Utilities": 0,
               "Advertising": 0,
               "Bank Fees": 0,
-              "Subscription Revenue": 0.05,
+              "Subscription Revenue": 0.07,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.01,
+              "Amex Card": 0.02,
               "Sales Tax Payable": 0,
               "Savings": 0
             }
@@ -1967,7 +1967,7 @@
       "caseId": "acme-peloton",
       "model": "clef",
       "status": 200,
-      "latencyMs": 394,
+      "latencyMs": 459,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 44.00\nDescription: PELOTON* MEMBERSHIP",
@@ -2045,7 +2045,7 @@
       "caseId": "acme-check",
       "model": "jev",
       "status": 200,
-      "latencyMs": 243,
+      "latencyMs": 232,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 750.00\nDescription: CHECK 1043",
@@ -2087,29 +2087,29 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.17
+            "noul": 0.15
           },
           "account": {
             "type": "choice",
             "choice": "Contractors",
-            "confidence": 0.26,
+            "confidence": 0.31,
             "probabilities": {
               "Software Subscriptions": 0,
-              "Cloud Hosting": 0.01,
+              "Cloud Hosting": 0,
               "Travel": 0,
               "Meals & Entertainment": 0.02,
               "Payroll": 0.06,
-              "Contractors": 0.31,
-              "Office Rent": 0.05,
+              "Contractors": 0.35,
+              "Office Rent": 0.04,
               "Utilities": 0.03,
               "Advertising": 0,
-              "Bank Fees": 0.11,
+              "Bank Fees": 0.13,
               "Subscription Revenue": 0.01,
               "Consulting Revenue": 0,
               "Interest Income": 0,
-              "Amex Card": 0.11,
+              "Amex Card": 0.1,
               "Sales Tax Payable": 0.03,
-              "Savings": 0.26
+              "Savings": 0.23
             }
           }
         },
@@ -2123,7 +2123,7 @@
       "caseId": "acme-check",
       "model": "clef",
       "status": 200,
-      "latencyMs": 702,
+      "latencyMs": 533,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 750.00\nDescription: CHECK 1043",
@@ -2201,7 +2201,7 @@
       "caseId": "acme-legalzoom",
       "model": "jev",
       "status": 200,
-      "latencyMs": 198,
+      "latencyMs": 222,
       "request": {
         "model": "jev",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 299.00\nDescription: LEGALZOOM*ANNUAL REPORT FILING",
@@ -2243,7 +2243,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.24
+            "noul": 0.23
           },
           "account": {
             "type": "choice",
@@ -2255,16 +2255,16 @@
               "Travel": 0,
               "Meals & Entertainment": 0,
               "Payroll": 0,
-              "Contractors": 0.18,
+              "Contractors": 0.2,
               "Office Rent": 0,
               "Utilities": 0,
               "Advertising": 0,
-              "Bank Fees": 0.19,
+              "Bank Fees": 0.21,
               "Subscription Revenue": 0,
               "Consulting Revenue": 0,
               "Interest Income": 0,
               "Amex Card": 0.01,
-              "Sales Tax Payable": 0.26,
+              "Sales Tax Payable": 0.22,
               "Savings": 0.01
             }
           }
@@ -2279,7 +2279,7 @@
       "caseId": "acme-legalzoom",
       "model": "clef",
       "status": 200,
-      "latencyMs": 462,
+      "latencyMs": 542,
       "request": {
         "model": "clef",
         "state": "Bank account: Chase Checking\nDirection: money out of the bank account\nAmount: USD 299.00\nDescription: LEGALZOOM*ANNUAL REPORT FILING",
@@ -2357,7 +2357,7 @@
       "caseId": "padaria-moinho",
       "model": "jev",
       "status": 200,
-      "latencyMs": 215,
+      "latencyMs": 187,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 3.200,00\nDescription: PIX ENVIADO MOINHO SAO JORGE LTDA",
@@ -2396,15 +2396,15 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.56
+            "noul": 0.59
           },
           "account": {
             "type": "choice",
             "choice": "Fornecedores de Farinha",
-            "confidence": 0.89,
+            "confidence": 0.88,
             "probabilities": {
-              "Fornecedores de Farinha": 0.9,
-              "Laticínios": 0.09,
+              "Fornecedores de Farinha": 0.89,
+              "Laticínios": 0.1,
               "Energia Elétrica": 0,
               "Aluguel": 0,
               "Internet e Telefone": 0,
@@ -2429,7 +2429,7 @@
       "caseId": "padaria-moinho",
       "model": "clef",
       "status": 200,
-      "latencyMs": 519,
+      "latencyMs": 566,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 3.200,00\nDescription: PIX ENVIADO MOINHO SAO JORGE LTDA",
@@ -2501,7 +2501,7 @@
       "caseId": "padaria-laticinios",
       "model": "jev",
       "status": 200,
-      "latencyMs": 212,
+      "latencyMs": 262,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 1.450,80\nDescription: BOLETO PAGO LATICINIOS SERRA AZUL",
@@ -2540,7 +2540,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.92
+            "noul": 0.91
           },
           "account": {
             "type": "choice",
@@ -2573,7 +2573,7 @@
       "caseId": "padaria-laticinios",
       "model": "clef",
       "status": 200,
-      "latencyMs": 588,
+      "latencyMs": 669,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 1.450,80\nDescription: BOLETO PAGO LATICINIOS SERRA AZUL",
@@ -2645,7 +2645,7 @@
       "caseId": "padaria-enel",
       "model": "jev",
       "status": 200,
-      "latencyMs": 200,
+      "latencyMs": 196,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 980,15\nDescription: DEB AUTOMATICO ENEL SP 0045521",
@@ -2717,7 +2717,7 @@
       "caseId": "padaria-enel",
       "model": "clef",
       "status": 200,
-      "latencyMs": 1135,
+      "latencyMs": 579,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 980,15\nDescription: DEB AUTOMATICO ENEL SP 0045521",
@@ -2789,7 +2789,7 @@
       "caseId": "padaria-das",
       "model": "jev",
       "status": 200,
-      "latencyMs": 191,
+      "latencyMs": 217,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 2.115,42\nDescription: DAS SIMPLES NACIONAL 10/2026",
@@ -2861,7 +2861,7 @@
       "caseId": "padaria-das",
       "model": "clef",
       "status": 200,
-      "latencyMs": 551,
+      "latencyMs": 412,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 2.115,42\nDescription: DAS SIMPLES NACIONAL 10/2026",
@@ -2933,7 +2933,7 @@
       "caseId": "padaria-tarifa",
       "model": "jev",
       "status": 200,
-      "latencyMs": 190,
+      "latencyMs": 187,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 59,90\nDescription: TAR PACOTE SERVICOS",
@@ -2972,22 +2972,22 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.74
+            "noul": 0.75
           },
           "account": {
             "type": "choice",
             "choice": "Tarifas Bancárias",
-            "confidence": 0.96,
+            "confidence": 0.97,
             "probabilities": {
               "Fornecedores de Farinha": 0,
               "Laticínios": 0,
               "Energia Elétrica": 0,
               "Aluguel": 0,
-              "Internet e Telefone": 0.03,
+              "Internet e Telefone": 0.02,
               "Salários": 0,
               "Manutenção de Equipamentos": 0.01,
               "Impostos - Simples Nacional": 0,
-              "Tarifas Bancárias": 0.96,
+              "Tarifas Bancárias": 0.97,
               "Vendas no Balcão": 0,
               "Vendas iFood": 0,
               "Recebimentos Cartão": 0,
@@ -3005,7 +3005,7 @@
       "caseId": "padaria-tarifa",
       "model": "clef",
       "status": 200,
-      "latencyMs": 639,
+      "latencyMs": 895,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 59,90\nDescription: TAR PACOTE SERVICOS",
@@ -3077,7 +3077,7 @@
       "caseId": "padaria-cielo",
       "model": "jev",
       "status": 200,
-      "latencyMs": 216,
+      "latencyMs": 220,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 7.842,10\nDescription: CIELO VENDAS CRED 31/10",
@@ -3116,12 +3116,12 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.85
+            "noul": 0.88
           },
           "account": {
             "type": "choice",
             "choice": "Recebimentos Cartão",
-            "confidence": 0.98,
+            "confidence": 0.99,
             "probabilities": {
               "Fornecedores de Farinha": 0,
               "Laticínios": 0,
@@ -3132,9 +3132,9 @@
               "Manutenção de Equipamentos": 0,
               "Impostos - Simples Nacional": 0,
               "Tarifas Bancárias": 0,
-              "Vendas no Balcão": 0.02,
+              "Vendas no Balcão": 0.01,
               "Vendas iFood": 0,
-              "Recebimentos Cartão": 0.98,
+              "Recebimentos Cartão": 0.99,
               "Empréstimo BNDES": 0
             }
           }
@@ -3149,7 +3149,7 @@
       "caseId": "padaria-cielo",
       "model": "clef",
       "status": 200,
-      "latencyMs": 681,
+      "latencyMs": 785,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 7.842,10\nDescription: CIELO VENDAS CRED 31/10",
@@ -3221,7 +3221,7 @@
       "caseId": "padaria-ifood",
       "model": "jev",
       "status": 200,
-      "latencyMs": 179,
+      "latencyMs": 244,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 2.301,55\nDescription: IFOOD.COM AGENCIA REPASSE",
@@ -3260,7 +3260,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.81
+            "noul": 0.79
           },
           "account": {
             "type": "choice",
@@ -3293,7 +3293,7 @@
       "caseId": "padaria-ifood",
       "model": "clef",
       "status": 200,
-      "latencyMs": 519,
+      "latencyMs": 804,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 2.301,55\nDescription: IFOOD.COM AGENCIA REPASSE",
@@ -3365,7 +3365,7 @@
       "caseId": "padaria-deposito",
       "model": "jev",
       "status": 200,
-      "latencyMs": 177,
+      "latencyMs": 217,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 1.120,00\nDescription: DEP DINHEIRO CAIXA ESTAB",
@@ -3409,20 +3409,20 @@
           "account": {
             "type": "choice",
             "choice": "Vendas no Balcão",
-            "confidence": 0.77,
+            "confidence": 0.75,
             "probabilities": {
               "Fornecedores de Farinha": 0,
               "Laticínios": 0,
               "Energia Elétrica": 0,
               "Aluguel": 0,
               "Internet e Telefone": 0,
-              "Salários": 0.01,
+              "Salários": 0,
               "Manutenção de Equipamentos": 0,
               "Impostos - Simples Nacional": 0,
               "Tarifas Bancárias": 0.03,
-              "Vendas no Balcão": 0.79,
-              "Vendas iFood": 0.03,
-              "Recebimentos Cartão": 0.14,
+              "Vendas no Balcão": 0.77,
+              "Vendas iFood": 0.04,
+              "Recebimentos Cartão": 0.16,
               "Empréstimo BNDES": 0
             }
           }
@@ -3437,7 +3437,7 @@
       "caseId": "padaria-deposito",
       "model": "clef",
       "status": 200,
-      "latencyMs": 497,
+      "latencyMs": 561,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money into the bank account\nAmount: BRL 1.120,00\nDescription: DEP DINHEIRO CAIXA ESTAB",
@@ -3509,7 +3509,7 @@
       "caseId": "padaria-vivo",
       "model": "jev",
       "status": 200,
-      "latencyMs": 262,
+      "latencyMs": 237,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 149,99\nDescription: VIVO FIBRA DEB AUT",
@@ -3581,7 +3581,7 @@
       "caseId": "padaria-vivo",
       "model": "clef",
       "status": 200,
-      "latencyMs": 382,
+      "latencyMs": 410,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 149,99\nDescription: VIVO FIBRA DEB AUT",
@@ -3653,7 +3653,7 @@
       "caseId": "padaria-tecnico",
       "model": "jev",
       "status": 200,
-      "latencyMs": 180,
+      "latencyMs": 207,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 650,00\nDescription: PIX ENVIADO JOAO TECNICO FORNOS",
@@ -3692,20 +3692,20 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.66
+            "noul": 0.67
           },
           "account": {
             "type": "choice",
             "choice": "Manutenção de Equipamentos",
-            "confidence": 0.95,
+            "confidence": 0.98,
             "probabilities": {
-              "Fornecedores de Farinha": 0.01,
+              "Fornecedores de Farinha": 0,
               "Laticínios": 0,
               "Energia Elétrica": 0,
               "Aluguel": 0,
               "Internet e Telefone": 0,
-              "Salários": 0.04,
-              "Manutenção de Equipamentos": 0.95,
+              "Salários": 0.02,
+              "Manutenção de Equipamentos": 0.98,
               "Impostos - Simples Nacional": 0,
               "Tarifas Bancárias": 0,
               "Vendas no Balcão": 0,
@@ -3725,7 +3725,7 @@
       "caseId": "padaria-tecnico",
       "model": "clef",
       "status": 200,
-      "latencyMs": 390,
+      "latencyMs": 1040,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 650,00\nDescription: PIX ENVIADO JOAO TECNICO FORNOS",
@@ -3797,7 +3797,7 @@
       "caseId": "padaria-netflix",
       "model": "jev",
       "status": 200,
-      "latencyMs": 206,
+      "latencyMs": 217,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 55,90\nDescription: NETFLIX.COM",
@@ -3836,18 +3836,18 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.1
+            "noul": 0.11
           },
           "account": {
             "type": "choice",
             "choice": "Internet e Telefone",
-            "confidence": 0.95,
+            "confidence": 0.96,
             "probabilities": {
               "Fornecedores de Farinha": 0,
               "Laticínios": 0,
-              "Energia Elétrica": 0.02,
+              "Energia Elétrica": 0.01,
               "Aluguel": 0.02,
-              "Internet e Telefone": 0.95,
+              "Internet e Telefone": 0.96,
               "Salários": 0,
               "Manutenção de Equipamentos": 0,
               "Impostos - Simples Nacional": 0,
@@ -3869,7 +3869,7 @@
       "caseId": "padaria-netflix",
       "model": "clef",
       "status": 200,
-      "latencyMs": 422,
+      "latencyMs": 688,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 55,90\nDescription: NETFLIX.COM",
@@ -3941,7 +3941,7 @@
       "caseId": "padaria-uber",
       "model": "jev",
       "status": 200,
-      "latencyMs": 225,
+      "latencyMs": 220,
       "request": {
         "model": "jev",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 32,40\nDescription: UBER *TRIP HELP.UBER.COM",
@@ -3980,25 +3980,25 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.14
+            "noul": 0.15
           },
           "account": {
             "type": "choice",
             "choice": "Manutenção de Equipamentos",
-            "confidence": 0.47,
+            "confidence": 0.54,
             "probabilities": {
               "Fornecedores de Farinha": 0,
               "Laticínios": 0,
               "Energia Elétrica": 0.01,
-              "Aluguel": 0.08,
-              "Internet e Telefone": 0.21,
+              "Aluguel": 0.07,
+              "Internet e Telefone": 0.19,
               "Salários": 0.01,
-              "Manutenção de Equipamentos": 0.51,
+              "Manutenção de Equipamentos": 0.58,
               "Impostos - Simples Nacional": 0,
-              "Tarifas Bancárias": 0.11,
+              "Tarifas Bancárias": 0.09,
               "Vendas no Balcão": 0,
               "Vendas iFood": 0.02,
-              "Recebimentos Cartão": 0.05,
+              "Recebimentos Cartão": 0.03,
               "Empréstimo BNDES": 0
             }
           }
@@ -4013,7 +4013,7 @@
       "caseId": "padaria-uber",
       "model": "clef",
       "status": 200,
-      "latencyMs": 674,
+      "latencyMs": 1246,
       "request": {
         "model": "clef",
         "state": "Bank account: Itaú Conta Corrente\nDirection: money out of the bank account\nAmount: BRL 32,40\nDescription: UBER *TRIP HELP.UBER.COM",
@@ -4085,7 +4085,7 @@
       "caseId": "personal-paodeacucar",
       "model": "jev",
       "status": 200,
-      "latencyMs": 198,
+      "latencyMs": 216,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 412,37\nDescription: Compra no debito - PAO DE ACUCAR 1234",
@@ -4127,10 +4127,10 @@
           "account": {
             "type": "choice",
             "choice": "Groceries",
-            "confidence": 0.9,
+            "confidence": 0.93,
             "probabilities": {
-              "Groceries": 0.91,
-              "Restaurants": 0.01,
+              "Groceries": 0.94,
+              "Restaurants": 0,
               "Transport": 0,
               "Housing": 0,
               "Health": 0,
@@ -4138,7 +4138,7 @@
               "Streaming": 0,
               "Salary": 0,
               "Freelance Income": 0,
-              "Nubank Credit Card": 0.08,
+              "Nubank Credit Card": 0.06,
               "Investments": 0
             }
           }
@@ -4153,7 +4153,7 @@
       "caseId": "personal-paodeacucar",
       "model": "clef",
       "status": 200,
-      "latencyMs": 486,
+      "latencyMs": 818,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 412,37\nDescription: Compra no debito - PAO DE ACUCAR 1234",
@@ -4221,7 +4221,7 @@
       "caseId": "personal-ifood",
       "model": "jev",
       "status": 200,
-      "latencyMs": 216,
+      "latencyMs": 227,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 68,90\nDescription: Compra no debito - IFD*RESTAURANTE SABOR",
@@ -4258,7 +4258,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.94
+            "noul": 0.95
           },
           "account": {
             "type": "choice",
@@ -4289,7 +4289,7 @@
       "caseId": "personal-ifood",
       "model": "clef",
       "status": 200,
-      "latencyMs": 633,
+      "latencyMs": 797,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 68,90\nDescription: Compra no debito - IFD*RESTAURANTE SABOR",
@@ -4357,7 +4357,7 @@
       "caseId": "personal-99",
       "model": "jev",
       "status": 200,
-      "latencyMs": 226,
+      "latencyMs": 198,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 27,50\nDescription: Pix enviado - 99 TECNOLOGIA LTDA",
@@ -4394,24 +4394,24 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.15
+            "noul": 0.17
           },
           "account": {
             "type": "choice",
             "choice": "Nubank Credit Card",
-            "confidence": 0.16,
+            "confidence": 0.13,
             "probabilities": {
-              "Groceries": 0.09,
+              "Groceries": 0.1,
               "Restaurants": 0.04,
               "Transport": 0.13,
-              "Housing": 0.04,
+              "Housing": 0.03,
               "Health": 0.02,
-              "Gym": 0.04,
+              "Gym": 0.03,
               "Streaming": 0.11,
-              "Salary": 0.1,
-              "Freelance Income": 0.15,
-              "Nubank Credit Card": 0.24,
-              "Investments": 0.04
+              "Salary": 0.12,
+              "Freelance Income": 0.18,
+              "Nubank Credit Card": 0.21,
+              "Investments": 0.03
             }
           }
         },
@@ -4425,7 +4425,7 @@
       "caseId": "personal-99",
       "model": "clef",
       "status": 200,
-      "latencyMs": 650,
+      "latencyMs": 431,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 27,50\nDescription: Pix enviado - 99 TECNOLOGIA LTDA",
@@ -4493,7 +4493,7 @@
       "caseId": "personal-salario",
       "model": "jev",
       "status": 200,
-      "latencyMs": 247,
+      "latencyMs": 209,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money into the bank account\nAmount: BRL 8.900,00\nDescription: Transferencia recebida - EMPRESA XYZ LTDA SALARIO",
@@ -4561,7 +4561,7 @@
       "caseId": "personal-salario",
       "model": "clef",
       "status": 200,
-      "latencyMs": 391,
+      "latencyMs": 552,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money into the bank account\nAmount: BRL 8.900,00\nDescription: Transferencia recebida - EMPRESA XYZ LTDA SALARIO",
@@ -4629,7 +4629,7 @@
       "caseId": "personal-fatura",
       "model": "jev",
       "status": 200,
-      "latencyMs": 222,
+      "latencyMs": 196,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 3.204,11\nDescription: Pagamento de fatura",
@@ -4697,7 +4697,7 @@
       "caseId": "personal-fatura",
       "model": "clef",
       "status": 200,
-      "latencyMs": 423,
+      "latencyMs": 389,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 3.204,11\nDescription: Pagamento de fatura",
@@ -4765,7 +4765,7 @@
       "caseId": "personal-rdb",
       "model": "jev",
       "status": 200,
-      "latencyMs": 286,
+      "latencyMs": 270,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 1.000,00\nDescription: Aplicacao RDB",
@@ -4802,7 +4802,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.9
+            "noul": 0.91
           },
           "account": {
             "type": "choice",
@@ -4833,7 +4833,7 @@
       "caseId": "personal-rdb",
       "model": "clef",
       "status": 200,
-      "latencyMs": 673,
+      "latencyMs": 512,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 1.000,00\nDescription: Aplicacao RDB",
@@ -4901,7 +4901,7 @@
       "caseId": "personal-drogasil",
       "model": "jev",
       "status": 200,
-      "latencyMs": 232,
+      "latencyMs": 209,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 89,40\nDescription: DROGASIL 0451 SAO PAULO BR",
@@ -4938,7 +4938,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.84
+            "noul": 0.82
           },
           "account": {
             "type": "choice",
@@ -4969,7 +4969,7 @@
       "caseId": "personal-drogasil",
       "model": "clef",
       "status": 200,
-      "latencyMs": 484,
+      "latencyMs": 574,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 89,40\nDescription: DROGASIL 0451 SAO PAULO BR",
@@ -5037,7 +5037,7 @@
       "caseId": "personal-smartfit",
       "model": "jev",
       "status": 200,
-      "latencyMs": 220,
+      "latencyMs": 240,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 119,90\nDescription: SMARTFIT MENSALIDADE",
@@ -5074,7 +5074,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.96
+            "noul": 0.97
           },
           "account": {
             "type": "choice",
@@ -5105,7 +5105,7 @@
       "caseId": "personal-smartfit",
       "model": "clef",
       "status": 200,
-      "latencyMs": 428,
+      "latencyMs": 432,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 119,90\nDescription: SMARTFIT MENSALIDADE",
@@ -5173,7 +5173,7 @@
       "caseId": "personal-condominio",
       "model": "jev",
       "status": 200,
-      "latencyMs": 182,
+      "latencyMs": 230,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 780,00\nDescription: Boleto - CONDOMINIO ED. AURORA",
@@ -5241,7 +5241,7 @@
       "caseId": "personal-condominio",
       "model": "clef",
       "status": 200,
-      "latencyMs": 399,
+      "latencyMs": 606,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 780,00\nDescription: Boleto - CONDOMINIO ED. AURORA",
@@ -5309,7 +5309,7 @@
       "caseId": "personal-pix-maria",
       "model": "jev",
       "status": 200,
-      "latencyMs": 192,
+      "latencyMs": 199,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money into the bank account\nAmount: BRL 150,00\nDescription: Pix recebido - Maria Souza",
@@ -5346,12 +5346,12 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.25
+            "noul": 0.24
           },
           "account": {
             "type": "choice",
             "choice": "Freelance Income",
-            "confidence": 0.66,
+            "confidence": 0.58,
             "probabilities": {
               "Groceries": 0,
               "Restaurants": 0,
@@ -5360,8 +5360,8 @@
               "Health": 0,
               "Gym": 0,
               "Streaming": 0,
-              "Salary": 0.27,
-              "Freelance Income": 0.69,
+              "Salary": 0.34,
+              "Freelance Income": 0.62,
               "Nubank Credit Card": 0.03,
               "Investments": 0.01
             }
@@ -5377,7 +5377,7 @@
       "caseId": "personal-pix-maria",
       "model": "clef",
       "status": 200,
-      "latencyMs": 691,
+      "latencyMs": 827,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money into the bank account\nAmount: BRL 150,00\nDescription: Pix recebido - Maria Souza",
@@ -5445,7 +5445,7 @@
       "caseId": "personal-cobasi",
       "model": "jev",
       "status": 200,
-      "latencyMs": 198,
+      "latencyMs": 230,
       "request": {
         "model": "jev",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 236,80\nDescription: COBASI PET SHOP 0087",
@@ -5482,7 +5482,7 @@
         "answers": {
           "fits": {
             "type": "noul",
-            "noul": 0.18
+            "noul": 0.16
           },
           "account": {
             "type": "choice",
@@ -5492,9 +5492,9 @@
               "Groceries": 0.54,
               "Restaurants": 0.01,
               "Transport": 0,
-              "Housing": 0.01,
+              "Housing": 0,
               "Health": 0.37,
-              "Gym": 0.01,
+              "Gym": 0.02,
               "Streaming": 0,
               "Salary": 0,
               "Freelance Income": 0,
@@ -5513,7 +5513,7 @@
       "caseId": "personal-cobasi",
       "model": "clef",
       "status": 200,
-      "latencyMs": 929,
+      "latencyMs": 451,
       "request": {
         "model": "clef",
         "state": "Bank account: Nubank Checking\nDirection: money out of the bank account\nAmount: BRL 236,80\nDescription: COBASI PET SHOP 0087",

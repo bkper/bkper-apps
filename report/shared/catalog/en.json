@@ -200,6 +200,14 @@
         "role": "label",
         "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. The period from the start of the current year through the current month, as in Expenses year to date."
     },
+    "request_year_to_date_in_year": {
+        "text": "year to date {year}",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. The months from the start of another year through the same month as today's, as in Expenses year to date last year, or Expenses year to date 2024. Never repeat a word: the year may be said in words that end the phrase the same way, such as last year.",
+        "placeholders": {
+            "year": "a year in digits (2024) or relative to today (last year, 2 years ago), already in the language"
+        }
+    },
     "request_last_12_months": {
         "text": "last 12 months",
         "role": "label",
@@ -213,9 +221,18 @@
     "request_quarter": {
         "text": "Q{quarter}",
         "role": "label",
-        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A calendar quarter named without its year, such as Q3 for July to September. Use the language's usual short form for a quarter, the same as in a quarter with its year.",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A calendar quarter named without its year, such as Q3 for July to September. Write it as a person types a quarter so that it cannot be read as anything else, such as Q3 in English or 3º trimestre in Portuguese, where a bare letter and number (T3) is not read as a quarter; the same form as in a quarter with its year in a request.",
         "placeholders": {
             "quarter": "number of the quarter, 1 to 4"
+        }
+    },
+    "request_quarter_in_year": {
+        "text": "Q{quarter} {year}",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A calendar quarter of a year written in digits, such as Q3 2024 for July to September 2024. Write the quarter as in a quarter named without its year, such as Q3 in English or 3º trimestre in Portuguese, so that it cannot be read as anything else.",
+        "placeholders": {
+            "quarter": "number of the quarter, 1 to 4",
+            "year": "the year, in digits, such as 2024"
         }
     },
     "request_in_year": {
@@ -231,6 +248,21 @@
         "text": "the same period a year earlier",
         "role": "label",
         "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. What a period is compared with: the same months one year before, as in Expenses this quarter vs. the same period a year earlier. Short noun phrase."
+    },
+    "request_same_month": {
+        "text": "the same month",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. What a month is compared with: the same month of the year that follows it, written in digits or said relative to today, as in Expenses last month vs. the same month last year, or Expenses this month vs. the same month 2023. Short noun phrase."
+    },
+    "request_same_quarter": {
+        "text": "the same quarter",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. What a quarter of a year is compared with: the same quarter of the year that follows it, written in digits or said relative to today, as in Expenses this quarter vs. the same quarter last year. Short noun phrase."
+    },
+    "request_same_months": {
+        "text": "the same months",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. What a run of months, such as year to date or the last 12 months, is compared with: the same months of the year that follows it, written in digits or said relative to today, as in Expenses year to date vs. the same months last year. Short noun phrase."
     },
     "request_versus": {
         "text": "{period} vs. {compared}",

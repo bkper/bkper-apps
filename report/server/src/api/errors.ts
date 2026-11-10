@@ -5,7 +5,6 @@ import type { BookProblem } from '../services/book-problems.js';
 import { BkperAiError } from '../services/decision-client.js';
 import { MissingBalancesError, ReportError } from '../services/report.js';
 import { NotAReportError } from '../services/report-service.js';
-import type { Suggestion } from '../services/suggestions.js';
 import { SavedPromptsError } from '../services/saved-prompts.js';
 
 /** The `error.code` of every API error response. */
@@ -39,7 +38,7 @@ export function buildApiError(code: ApiErrorCode, message: string) {
 }
 
 export type ApiErrorBody = ReturnType<typeof buildApiError> & {
-    suggestions?: Suggestion[];
+    suggestions?: string[];
     problem?: BookProblem;
 };
 
@@ -64,7 +63,7 @@ const REPORT_ERROR_MESSAGES = {
     unknown_root:
         'The intent names no root group of this Book, no Account in no group, nor `net-result`.',
     unknown_target:
-        'The intent’s target is no group or Account under its root group. Take the intent of a suggestion or of an earlier report, or send the person’s words as `prompt`.',
+        'The intent’s target is no group or Account under its root group. Take the intent of an earlier report, or send the person’s words, or a suggestion, as `prompt`.',
     mixed_targets:
         'Balances at a date (Asset, Liability) and activity in a period (Incoming, Outgoing) cannot be side by side. Ask for them in separate reports.',
     no_net_result: `This Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts. Reports of one of its groups still work. To have a net result, income and expenses must meet in one top-level group. ${ORGANIZE}`,
@@ -125,7 +124,7 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
             ? respond(
                   429,
                   'ai_allowance_exhausted',
-                  'The Bkper AI allowance is used up. Reports by `intent`, such as suggestions, still work.'
+                  'The Bkper AI allowance is used up. Suggestions sent as they are, and reports by `intent`, still work.'
               )
             : respond(502, 'upstream_error', 'Bkper AI failed to answer.');
     }

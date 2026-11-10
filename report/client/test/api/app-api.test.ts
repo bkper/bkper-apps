@@ -204,12 +204,12 @@ describe('report API', () => {
             baseUrl: 'https://app.example.test',
             fetch: async request => {
                 requests.push(request);
-                return jsonResponse({ suggestions: [{ text: 'Net result in 2011', intent }] });
+                return jsonResponse({ suggestions: ['Net result in 2011'] });
             },
         });
 
         await expect(api.suggestions('book 1', { language: 'pt' })).resolves.toEqual({
-            suggestions: [{ text: 'Net result in 2011', intent }],
+            suggestions: ['Net result in 2011'],
         });
         expect(requests[0].url).toBe(
             'https://app.example.test/api/v1/books/book%201/suggestions?language=pt'
@@ -269,7 +269,7 @@ describe('report API', () => {
                     {
                         success: false,
                         error: { code: 'not_a_report', message: 'Not a report' },
-                        suggestions: [{ text: 'Net result in 2011', intent }],
+                        suggestions: ['Net result in 2011'],
                     },
                     422
                 ),
@@ -281,7 +281,7 @@ describe('report API', () => {
         expect(error).toMatchObject({
             code: 'not_a_report',
             status: 422,
-            suggestions: [{ text: 'Net result in 2011', intent }],
+            suggestions: ['Net result in 2011'],
         });
     });
 

@@ -7,7 +7,6 @@ import {
     type ReportIntent,
     type ReportRequest,
     type ReportResponse,
-    type Suggestion,
 } from '../api/app-api';
 import { CACHE_MS, isFresh } from './cache-window';
 import type { Route } from './route';
@@ -46,8 +45,8 @@ const NOTICES: Partial<Record<string, Notice>> = {
 };
 
 /**
- * Notices that the suggestions answer: they are reports of this Book, opened with no AI and
- * listed even when Bkper AI is unavailable (in Book order).
+ * Notices that the suggestions answer: they are reports of this Book, whose texts the Worker
+ * builds with no AI, listed even when Bkper AI is unavailable (in Book order).
  */
 const SUGGESTING: ReadonlySet<Notice> = new Set([
     'hint_not_a_report',
@@ -66,7 +65,7 @@ export interface ReportsOptions {
 interface Entry {
     promise: Promise<ReportResponse>;
     value?: ReportResponse;
-    /** Only a request actually made by prompt has an original prompt. */
+    /** Only a request actually made by prompt, a suggestion's too, has an original prompt. */
     prompt?: string;
     /** When it was asked for: it is reused for {@link CACHE_MS}. */
     at: number;
@@ -78,9 +77,10 @@ interface Entry {
  * A request goes out {@link DEBOUNCE_MS} after the last keystroke once it has {@link MIN_WORDS}
  * words, or at once on Enter. A newer request cancels the one in flight, and only the latest
  * answer is shown; the last report stays until then. Reports are remembered by request and by
- * intent for {@link CACHE_MS}, saved requests too, and the suggestions' reports are fetched as
- * soon as the suggestions arrive, so choosing one shows it from memory. The suggestions come
- * from the Book's map: the first request after {@link CACHE_MS} asks them again.
+ * intent for {@link CACHE_MS}, saved requests too, and the suggestions' reports are asked for
+ * by their texts as soon as the suggestions arrive, so choosing or typing one shows it from
+ * memory. The suggestions come from the Book's map: the first request after {@link CACHE_MS}
+ * asks them again.
  */
 export class Reports extends Store {
     /** The request, as typed. */
@@ -100,8 +100,8 @@ export class Reports extends Store {
     @reactive private requestProblem?: BookProblem;
     /** What keeps the Book from having any report, as its suggestions say. */
     @reactive private bookProblem?: BookProblem;
-    /** Reports the Book can have; `undefined` while they load. */
-    @reactive suggestions?: Suggestion[];
+    /** Reports the Book can have, as requests; `undefined` while they load. */
+    @reactive suggestions?: string[];
 
     private openBookId?: string;
     /** Nothing was asked of the open Book yet: no request typed, sent or chosen, no state shown. */
@@ -229,20 +229,23 @@ export class Reports extends Store {
         if (this.text.trim()) this.run(this.text);
     }
 
-    /** A suggestion was chosen: show it as the request, and its report, by intent. */
-    choose(suggestion: Suggestion): void {
+    /**
+     * A suggestion was chosen: show it as the request, and its report, asked for by its text in
+     * the interface's language, the suggestions' own, so the Worker builds it with no AI.
+     */
+    choose(suggestion: string): void {
         this.nothingAsked = false;
         this.clearTimer();
-        this.text = suggestion.text;
-        this.route.setPrompt(suggestion.text);
+        this.text = suggestion;
+        this.route.setPrompt(suggestion);
         this.quiet();
-        this.run(suggestion.text, suggestion.intent);
+        this.run(suggestion, undefined, { language: this.language });
     }
 
     /**
      * Open a saved original request: the report of exactly its text within {@link CACHE_MS},
-     * else its text resolved again. Never a resolved intent, such as a suggestion's with the same
-     * text, nor the report of another spacing or casing of it.
+     * else its text resolved again. Never a report asked for otherwise, nor the report of
+     * another spacing or casing of it.
      */
     runSaved(prompt: string): void {
         this.nothingAsked = false;
@@ -273,14 +276,15 @@ export class Reports extends Store {
     }
 
     /**
-     * Ask for the report of `text`, or of `intent` in `language` (by default the interface's);
-     * with `label`, the input then holds the report's title and period.
+     * Ask for the report of `text`, or of `intent`, in `language` (for an intent, by default the
+     * interface's; for a text, by default the one the Worker detects); with `label`, the input
+     * then holds the report's title and period.
      */
     private run(
         text: string,
         intent?: ReportIntent,
         {
-            language = this.language,
+            language,
             label = false,
             saved = false,
         }: {
@@ -292,7 +296,7 @@ export class Reports extends Store {
         const bookId = this.openBookId;
         if (!bookId) return;
         this.refreshSuggestions(bookId);
-        const key = intent ? intentKey(intent, language) : promptKey(text);
+        const key = intent ? intentKey(intent, language ?? this.language) : promptKey(text);
         const remembered = this.remembered(key);
         // A saved request is its exact text, so its source stays that text.
         const cached = saved && remembered?.prompt !== text.trim() ? undefined : remembered;
@@ -309,7 +313,9 @@ export class Reports extends Store {
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
-            const body: ReportRequest = intent ? { intent, language } : { prompt: text.trim() };
+            const body: ReportRequest = intent
+                ? { intent, language: language ?? this.language }
+                : { prompt: text.trim(), ...(language ? { language } : {}) };
             entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
@@ -435,18 +441,14 @@ export class Reports extends Store {
         }
     }
 
-    private prefetch(bookId: string, suggestion: Suggestion): void {
-        const key = intentKey(suggestion.intent, this.language);
-        const entry =
-            this.remembered(key) ??
-            this.request(key, bookId, { intent: suggestion.intent, language: this.language });
-        // The text of a suggestion asks for its report too.
-        const textKey = promptKey(suggestion.text);
-        const cache = this.cache;
-        if (!this.remembered(textKey)) cache.set(textKey, entry);
-        entry.promise.catch(() => {
-            if (cache.get(textKey) === entry) cache.delete(textKey);
-        });
+    /** Ask for a suggestion's report by its text, as choosing it does, unless it is remembered. */
+    private prefetch(bookId: string, suggestion: string): void {
+        const key = promptKey(suggestion);
+        if (this.remembered(key)) return;
+        // Failures are forgotten by `request`; choosing the suggestion then asks again.
+        this.request(key, bookId, { prompt: suggestion, language: this.language }).promise.catch(
+            () => undefined
+        );
     }
 
     /** Stop waiting: abort the request in flight and drop any answer still to come. */

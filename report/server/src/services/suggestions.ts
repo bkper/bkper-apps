@@ -1,6 +1,7 @@
 /**
  * Suggested reports: a few example requests for a Book, each with the intent it stands for,
- * so picking one builds the report without asking the decision model.
+ * so a request of exactly a suggestion's text builds its report without asking the decision
+ * model (`findSuggestion`).
  *
  * Code offers the candidates from the snapshot (the Book's map, its structure alone, which holds
  * no amounts or dates): the groups the Book shows at its first two levels, each as its natural
@@ -16,6 +17,7 @@ import type { QueryBalances } from './balances.js';
 import { bookProblem, mixedGroupProblem, type BookProblem } from './book-problems.js';
 import { decide, type DecisionClient } from './decision-client.js';
 import { readReport } from './default-period.js';
+import { findWrittenYears } from './period-questions.js';
 import { netResultOf } from './report.js';
 import { NET_RESULT_ROOT, type ReportIntent } from './report-intent.js';
 import type { Snapshot, SnapshotGroup } from './snapshot.js';
@@ -28,6 +30,7 @@ export type { SuggestionCandidate };
 export interface Suggestion {
     /** The request as a person would type it, in the requested language. */
     text: string;
+    /** What the text stands for: its report is built from it, with no decision. */
     intent: ReportIntent;
 }
 
@@ -101,6 +104,43 @@ export async function readSuggestions(
             }
         })
     );
+}
+
+/**
+ * The suggestion of {@link readSuggestions} in `lang` whose text the request is, whitespace
+ * runs as one space and trimmed; case kept, as it tells apart names of the Book written alike
+ * but for it (`report-shared/names`). Only a request a candidate could be written as (in the
+ * default period, or a year the request writes) reads the suggestions, so any other costs
+ * nothing more.
+ */
+export async function findSuggestion(
+    prompt: string,
+    snapshot: Snapshot,
+    lang: string,
+    options: SuggestionOptions
+): Promise<Suggestion | undefined> {
+    const text = sameText(prompt);
+    if (!couldSuggest(text, snapshot, lang)) {
+        return undefined;
+    }
+    const suggestions = await readSuggestions(snapshot, lang, options);
+    return suggestions.find(suggestion => sameText(suggestion.text) === text);
+}
+
+/** Whether a candidate's text, in its default period or a year `text` writes, is `text`. */
+function couldSuggest(text: string, snapshot: Snapshot, lang: string): boolean {
+    const years = findWrittenYears(text);
+    return suggestionCandidates(snapshot).some(({ intent }) =>
+        [
+            intent,
+            ...years.map(year => ({ ...intent, period: { span: 'year' as const, year } })),
+        ].some(each => sameText(suggestionText(snapshot, each, lang)) === text)
+    );
+}
+
+/** A request by its words, however spaced. */
+function sameText(text: string): string {
+    return text.trim().replace(/\s+/g, ' ');
 }
 
 /**

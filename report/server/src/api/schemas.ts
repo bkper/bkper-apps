@@ -42,7 +42,7 @@ export const ErrorResponseSchema = z
                         '`forbidden` (403, the person cannot view the Book),',
                         '`not_found` (404, no such API route),',
                         '`book_not_found` (404, no such Book, or not shared with the person),',
-                        '`not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or use a suggestion),',
+                        '`not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or send a suggestion),',
                         '`future_period` (422, the period has not started),',
                         '`unknown_root` (422, the intent names no root group of the Book),',
                         '`unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group),',
@@ -51,7 +51,7 @@ export const ErrorResponseSchema = z
                         '`empty_book` (422, the Book has no transactions yet),',
                         '`nothing_to_report` (422, the Book has no groups, or most of its Accounts with transactions are in no group; organizing them into groups fixes it),',
                         '`mixed_group` (422, the group asked for holds both balances, Asset or Liability, and activity, Incoming or Outgoing; separating them into groups of their own fixes it),',
-                        '`ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: requests by `intent` still work),',
+                        '`ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: suggestions sent as they are, and requests by `intent`, still work),',
                         '`upstream_error` (502, Bkper or Bkper AI failed: try again) or',
                         '`internal_error` (500).',
                     ].join(' '),
@@ -191,21 +191,15 @@ const IntentSchema = ReportIntentSchema.extend({
 }).meta({
     id: 'ReportIntent',
     description:
-        'Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, what it is compared with, an optional view, chart and hashtags. Take it from a suggestion or from an earlier report’s `intent`.',
+        'Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, what it is compared with, an optional view, chart and hashtags. Take it from an earlier report’s `intent`.',
 });
 
-export const SuggestionSchema = z
-    .object({
-        text: z.string().openapi({
-            description: 'The report as a person would ask for it, in the requested language.',
-            example: 'Expenses by month this year',
-        }),
-        intent: IntentSchema,
-    })
-    .openapi('Suggestion', {
-        description:
-            'A report this Book can have. Send its `intent` to `POST /api/v1/books/{bookId}/report` to build it without AI.',
-    });
+/** A suggested report: a request as a person would type it, built without AI. */
+const SuggestionSchema = z.string().openapi({
+    description:
+        'A report this Book can have, as a person would ask for it, in the language of the suggestions. Send it as `prompt` to `POST /api/v1/books/{bookId}/report`, with the same `language`: exactly this text (spacing aside, case kept) builds it with no AI.',
+    example: 'Expenses by month this year',
+});
 
 const ProblemBaseSchema = z.object({
     bookName: z.string().openapi({
@@ -328,7 +322,7 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: ReportPromptSchema.optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none.',
             example: 'show my expenses by category this year',
         }),
         intent: IntentSchema.optional(),
@@ -347,7 +341,7 @@ export const ReportRequestSchema = z
     })
     .openapi('ReportRequest', {
         description:
-            'Exactly one of `prompt` (the person’s request, in any language) or `intent` (from a suggestion or an earlier report, with no AI). Usually `{ "prompt": "…", "format": "html" }`.',
+            'Exactly one of `prompt` (the person’s request, in any language) or `intent` (from an earlier report, with no AI); a suggestion is sent as `prompt`. Usually `{ "prompt": "…", "format": "html" }`.',
     });
 
 export type ReportRequestBody = z.infer<typeof ReportRequestSchema>;
@@ -669,7 +663,7 @@ export const ReportFileSchema = z.string().openapi({
 export const ReportErrorResponseSchema = ErrorResponseSchema.extend({
     suggestions: z.array(SuggestionSchema).optional().openapi({
         description:
-            'With `not_a_report`: reports this Book can have, to offer the person instead.',
+            'With `not_a_report`: reports this Book can have, to offer the person instead; send one as `prompt`, with the same `language`, to build it with no AI.',
     }),
     problem: BookProblemSchema.optional(),
 }).openapi('ReportErrorResponse', {

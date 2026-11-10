@@ -5,7 +5,7 @@
  *
  *     npx tsx scripts/verify-open-in-report.ts [--app=<url>] [--api=<url>] [--intent=<json>] <bookId>
  *
- * The file is of the Book's first suggestion, or of `--intent`, such as a target's
+ * The file is of the Book's first suggestion (by its text), or of `--intent`, such as a target's
  * (`{"root":"<group id>","target":"<account id>","period":"this_year","monthly":true}`).
  *
  * Needs the app running locally (`npm run dev`: `--app` defaults to the client at
@@ -186,11 +186,12 @@ async function reportFile(
 ): Promise<ReportFile> {
     const { suggestions } = (await (
         await api(base, token, `/api/v1/books/${bookId}/suggestions?language=en`)
-    ).json()) as { suggestions?: { intent: unknown }[] };
-    const intent = asked ?? suggestions?.[0]?.intent;
-    if (!intent) throw new Error('The Book has no suggestions');
+    ).json()) as { suggestions?: string[] };
+    const suggestion = suggestions?.[0];
+    if (!asked && !suggestion) throw new Error('The Book has no suggestions');
+    // A suggestion's text is its report, built with no AI.
     const response = await api(base, token, `/api/v1/books/${bookId}/report`, {
-        intent,
+        ...(asked ? { intent: asked } : { prompt: suggestion }),
         language: 'en',
         format: 'html',
     });
@@ -466,10 +467,14 @@ async function main(): Promise<void> {
             JSON.stringify(after)
         );
         check(
+            // A suggestion's text comes with the suggestions' language; a typed request without.
             reportBodies.every(
-                body => typeof body === 'object' && body !== null && !('prompt' in body)
+                body =>
+                    typeof body === 'object' &&
+                    body !== null &&
+                    (!('prompt' in body) || 'language' in body)
             ),
-            'every report is asked for by intent',
+            'every report is asked for with no AI: by intent, or by a suggestion’s text',
             JSON.stringify(reportBodies)
         );
         check(fileRequests.length === 0, 'the file reaches no network', fileRequests.join(', '));

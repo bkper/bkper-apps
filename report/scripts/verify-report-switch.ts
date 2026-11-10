@@ -529,12 +529,7 @@ async function open(
         if (url.origin === APP && url.pathname.startsWith('/api/')) {
             const path = url.pathname;
             if (path.endsWith('/suggestions'))
-                return json({
-                    suggestions: fixtures.map(fixture => ({
-                        text: fixture.id,
-                        intent: fixture.intent,
-                    })),
-                });
+                return json({ suggestions: fixtures.map(fixture => fixture.id) });
             if (path.endsWith('/names')) return json({ names: [] });
             if (path.endsWith('/prompts') && req.method() === 'GET')
                 return json({
@@ -543,10 +538,13 @@ async function open(
                 });
             if (path.endsWith('/report')) {
                 const body = req.postDataJSON() as { intent?: unknown; prompt?: string };
-                // A request the network answers takes a moment, as Bkper's would.
-                if (body.prompt) await new Promise(resolve => setTimeout(resolve, 200));
+                // A suggestion's text is its report; another request the network answers takes
+                // a moment, as Bkper AI's would.
+                const suggested = fixtures.find(item => body.prompt === item.id);
+                if (body.prompt && !suggested)
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 const fixture = body.prompt
-                    ? fixtures.find(item => body.prompt?.endsWith(` ${item.id}`))
+                    ? (suggested ?? fixtures.find(item => body.prompt?.endsWith(` ${item.id}`)))
                     : byIntent.get(JSON.stringify(body.intent));
                 assert(fixture, `A recorded report for ${JSON.stringify(body)}`);
                 return json(responseOf(tall ? tallOf(fixture) : fixture));

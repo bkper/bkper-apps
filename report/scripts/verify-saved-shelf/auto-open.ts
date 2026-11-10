@@ -308,9 +308,7 @@ async function open(
         if (url.origin === env.app && url.pathname.startsWith('/api/')) {
             const path = url.pathname;
             if (path.endsWith('/suggestions')) {
-                await json({
-                    suggestions: [{ text: texts.suggestion, intent: reports.suggestion.intent }],
-                });
+                await json({ suggestions: [texts.suggestion] });
                 answered();
                 return;
             }
@@ -330,17 +328,21 @@ async function open(
             if (path.endsWith('/report')) {
                 const body = req.postDataJSON() as {
                     prompt?: string;
+                    language?: string;
                     intent?: ReportResponse['intent'];
                 };
-                if (body.prompt !== undefined) prompts.push(body.prompt);
+                // A suggestion's text, in the suggestions' language, needs no Bkper AI.
+                if (body.prompt !== undefined && body.language === undefined)
+                    prompts.push(body.prompt);
                 const fixture =
                     body.prompt !== undefined
                         ? {
+                              [texts.suggestion]: reports.suggestion,
                               [texts.saved[0]]: reports.saved,
                               [texts.typed]: reports.typed,
                               [texts.query]: reports.query,
                           }[body.prompt]
-                        : [reports.suggestion, reports.state].find(
+                        : [reports.state].find(
                               candidate => body.intent && sameIntent(candidate.intent, body.intent)
                           );
                 if (!fixture) {

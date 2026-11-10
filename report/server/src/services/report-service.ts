@@ -1,6 +1,7 @@
 /**
  * Builds a report of a Book: by intent, or by a request in any language that one decision
- * request, whose options come from the Book snapshot (its map), turns into an intent.
+ * request, whose options come from the Book snapshot (its map), turns into an intent. A
+ * request of exactly one of the Book's suggestions is its intent, with no decision.
  *
  * The intent names the report's balances queries (its period and the previous one, per
  * root), which run in parallel; every amount of the report comes from their responses. A
@@ -33,7 +34,7 @@ import {
 import { reportIntentOf, type ReportIntent, type ReportIntentInput } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
-import { readSuggestions, type Suggestion, type SuggestionStore } from './suggestions.js';
+import { findSuggestion, readSuggestions, type SuggestionStore } from './suggestions.js';
 import type { Timing } from './timing.js';
 
 /** The language of reports whose request names none and whose caller prefers none. */
@@ -99,9 +100,9 @@ export interface ReportResult {
     trace: ReportTrace;
 }
 
-/** The request is not a report of this Book; the suggestions are reports it can have. */
+/** The request is not a report of this Book; the suggestions' texts are reports it can have. */
 export class NotAReportError extends Error {
-    constructor(readonly suggestions: Suggestion[]) {
+    constructor(readonly suggestions: string[]) {
         super('The request is not a report of this Book.');
         this.name = 'NotAReportError';
     }
@@ -115,12 +116,22 @@ export async function createReport(
 ): Promise<ReportResult> {
     const { timing } = options;
     assertReportable(snapshot);
+    options = { ...options, loadBalances: readOnce(options.loadBalances) };
     let intent: ReportIntent;
     let intentTrace: IntentTrace | undefined;
     let detected: string | undefined;
     let defaultPeriod = false;
+    // A suggestion's text, in the language it would be suggested in, needs no decision.
+    const suggested = languages.requested ?? languages.accepted ?? DEFAULT_LANGUAGE;
+    const suggestion =
+        'prompt' in request
+            ? await findSuggestion(request.prompt, snapshot, suggested, options)
+            : undefined;
     if ('intent' in request) {
         intent = reportIntentOf(request.intent);
+    } else if (suggestion) {
+        intent = suggestion.intent;
+        detected = suggested;
     } else {
         const resolution = await resolveIntent(request.prompt, snapshot, {
             client: options.decisions,
@@ -187,5 +198,33 @@ async function notAReport(
     options: ReportServiceOptions,
     language = DEFAULT_LANGUAGE
 ): Promise<NotAReportError> {
-    return new NotAReportError(await readSuggestions(snapshot, language, options));
+    const suggestions = await readSuggestions(snapshot, language, options);
+    return new NotAReportError(suggestions.map(suggestion => suggestion.text));
+}
+
+type LoadBalances = ReportServiceOptions['loadBalances'];
+
+/**
+ * Reads each query once per request: the report of a suggestion reads the queries its
+ * suggestion was just read with.
+ */
+function readOnce(load: LoadBalances): LoadBalances {
+    const read = new Map<string, Promise<QueryBalances>>();
+    return queries => {
+        const missing = [...new Set(queries)].filter(query => !read.has(query));
+        if (missing.length > 0) {
+            const loaded = load(missing);
+            missing.forEach((query, i) =>
+                read.set(
+                    query,
+                    loaded.then(balances => balances[i])
+                )
+            );
+        }
+        return Promise.all(
+            queries.map(
+                query => read.get(query) ?? Promise.reject(new Error('A query was not read'))
+            )
+        );
+    };
 }

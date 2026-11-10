@@ -142,13 +142,7 @@ try {
                         if (path.endsWith('/suggestions'))
                             return json({
                                 suggestions: [
-                                    {
-                                        text:
-                                            language === 'ar'
-                                                ? 'المصروفات حسب الشهر'
-                                                : 'Expenses by month',
-                                        intent: fixture.intent,
-                                    },
+                                    language === 'ar' ? 'المصروفات حسب الشهر' : 'Expenses by month',
                                 ],
                             });
                         if (path.endsWith('/names')) return json({ names: [] });
@@ -259,7 +253,13 @@ try {
                 await field.fill(prompt);
                 await field.press('Enter');
                 await frame.locator('report-view').waitFor();
+                // Save offers the typed request once its report shows, no longer the suggestion
+                // the Book opened on.
                 await save.waitFor();
+                for (let i = 0; (await save.getAttribute('title')) !== prompt.trim(); i++) {
+                    assert(i < 100, 'Save offers the typed request');
+                    await page.waitForTimeout(50);
+                }
                 await field.fill('Draft');
                 await save.click();
                 await page.waitForTimeout(50);
@@ -834,6 +834,10 @@ try {
 }
 console.log(`${scenarios} browser scenarios; ${screenshotCount} screenshots in ${screenshots}`);
 
+/**
+ * A typed or saved request, which the Worker reads with Bkper AI; a suggestion's text comes
+ * with the suggestions' language.
+ */
 function isPromptBody(body: unknown): boolean {
-    return typeof body === 'object' && body !== null && 'prompt' in body;
+    return typeof body === 'object' && body !== null && 'prompt' in body && !('language' in body);
 }

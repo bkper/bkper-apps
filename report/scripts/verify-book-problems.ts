@@ -236,14 +236,7 @@ async function route(page: Page, item: Case, theme: 'light' | 'dark'): Promise<v
                 return json(
                     whole
                         ? { suggestions: [], problem: item.problem }
-                        : {
-                              suggestions: [
-                                  {
-                                      text: 'Expenses by month',
-                                      intent: { root: 'g', period: 'this_year', monthly: true },
-                                  },
-                              ],
-                          }
+                        : { suggestions: ['Expenses by month'] }
                 );
             if (path.endsWith('/names')) return json({ names: [] });
             if (path.endsWith('/prompts') && req.method() === 'GET')

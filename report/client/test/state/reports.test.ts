@@ -4,7 +4,6 @@ import {
     type BookProblem,
     type ReportRequest,
     type ReportResponse,
-    type Suggestion,
 } from '../../src/api/app-api';
 import { CACHE_MS } from '../../src/state/cache-window';
 import { DEBOUNCE_MS, Reports, SELECT_TEXT, type ReportApi } from '../../src/state/reports';
@@ -45,11 +44,11 @@ function response(title: string, subtitle = ''): ReportResponse {
     };
 }
 
-const SUGGESTIONS: Suggestion[] = [
-    { text: 'Net result in 2011', intent: { root: 'net-result', period: '2011', monthly: false } },
-    { text: 'Despesas by month in 2011', intent: { root: 'g-1', period: '2011', monthly: true } },
-    { text: 'Investidores today', intent: { root: 'g-2', period: 'this_month', monthly: false } },
-];
+const SUGGESTIONS = ['Net result in 2011', 'Despesas by month in 2011', 'Investidores today'];
+
+/** Intents of reports opened by state. */
+const NET = { root: 'net-result', period: '2011', monthly: false };
+const DESPESAS = { root: 'g-1', period: '2011', monthly: true };
 
 interface Call {
     bookId: string;
@@ -60,11 +59,11 @@ interface Call {
 }
 
 /** An API whose report requests answer only when a test says so; suggestions answer at once. */
-function createApi(suggestions: Suggestion[] = SUGGESTIONS, problem?: BookProblem) {
+function createApi(suggestions: string[] = SUGGESTIONS, problem?: BookProblem) {
     const calls: Call[] = [];
     const suggestionCalls: { bookId: string; language?: string }[] = [];
     /** What the next suggestions requests answer, in order; then `suggestions`. */
-    const nextSuggestions: (() => Promise<Suggestion[]>)[] = [];
+    const nextSuggestions: (() => Promise<string[]>)[] = [];
     const api: ReportApi = {
         suggestions: async (bookId, options) => {
             suggestionCalls.push({ bookId, language: options.language });
@@ -76,9 +75,13 @@ function createApi(suggestions: Suggestion[] = SUGGESTIONS, problem?: BookProble
                 calls.push({ bookId, body, signal: options.signal, resolve, reject });
             }),
     };
-    const prompts = () => calls.flatMap(call => (call.body.prompt ? [call.body.prompt] : []));
+    /** Requests typed or saved: in the language the Worker detects. */
+    const prompts = () =>
+        calls.flatMap(call => (call.body.prompt && !call.body.language ? [call.body.prompt] : []));
+    /** Requests of a suggestion's text, in the interface's language. */
+    const suggested = () => calls.filter(call => call.body.prompt && call.body.language);
     const intentCalls = () => calls.filter(call => call.body.intent);
-    return { api, calls, prompts, intentCalls, suggestionCalls, nextSuggestions };
+    return { api, calls, prompts, suggested, intentCalls, suggestionCalls, nextSuggestions };
 }
 
 function createReports(href = 'https://report.bkper.app/?book=book-1', api = createApi()) {
@@ -239,15 +242,15 @@ describe('Reports', () => {
         expect(reports.showsSuggestions).toBe(true);
     });
 
-    it('prefetches the suggested reports, so choosing one shows it from memory', async () => {
-        const { reports, calls, intentCalls, page } = createReports();
+    it('prefetches the suggested reports by their texts, so choosing one shows it from memory', async () => {
+        const { reports, calls, suggested, page } = createReports();
         reports.open('book-1');
         await settle();
 
-        expect(intentCalls().map(call => call.body)).toEqual(
-            SUGGESTIONS.map(suggestion => ({ intent: suggestion.intent, language: 'pt' }))
+        expect(calls.map(call => call.body)).toEqual(
+            SUGGESTIONS.map(text => ({ prompt: text, language: 'pt' }))
         );
-        intentCalls().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
+        suggested().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
         await settle();
 
         reports.choose(SUGGESTIONS[1]);
@@ -259,16 +262,31 @@ describe('Reports', () => {
             'https://report.bkper.app/?book=book-1&q=Despesas+by+month+in+2011'
         );
         expect(calls).toHaveLength(3);
+        // A suggestion is a request like any other.
+        expect(reports.originalPrompt).toBe('Despesas by month in 2011');
+    });
+
+    it('asks for a suggestion chosen after its prefetch failed by its text, in the interface’s language', async () => {
+        const { reports, calls, suggested } = createReports();
+        reports.open('book-1');
+        await settle();
+        suggested()[1].reject(new AppApiError('Bkper failed', 502, 'upstream_error'));
+        await settle();
+
+        reports.choose(SUGGESTIONS[1]);
+
+        expect(calls.at(-1)?.body).toEqual({ prompt: SUGGESTIONS[1], language: 'pt' });
+        expect(reports.pending).toBe(true);
     });
 
     it('shows a suggestion chosen before its prefetch answers, without asking twice', async () => {
-        const { reports, calls, intentCalls } = createReports();
+        const { reports, calls, suggested } = createReports();
         reports.open('book-1');
         await settle();
 
         reports.choose(SUGGESTIONS[0]);
         expect(reports.pending).toBe(true);
-        intentCalls()[0].resolve(response('Net'));
+        suggested()[0].resolve(response('Net'));
         await settle();
 
         expect(title(reports.report)).toBe('Net');
@@ -321,12 +339,12 @@ describe('Reports', () => {
         reports.submit();
         calls.at(-1)?.resolve({
             ...response('Pie'),
-            intent: { ...SUGGESTIONS[0].intent, chart: 'pie' },
+            intent: { ...NET, chart: 'pie' },
             language: 'pt',
         });
         await settle();
 
-        reports.choose(SUGGESTIONS[0]);
+        reports.openState({ intent: NET, language: 'pt' });
         intentCalls()[0].resolve({ ...response('Net'), language: 'pt' });
         await settle();
 
@@ -371,7 +389,7 @@ describe('Reports', () => {
 
     it('remembers reports of one root with different targets apart', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        const root = { intent: SUGGESTIONS[1].intent, language: 'pt' };
+        const root = { intent: DESPESAS, language: 'pt' };
         const target = { intent: { ...root.intent, target: 'a-rent' }, language: 'pt' };
         reports.open('book-1', '', root);
         calls[0].resolve({ ...response('Despesas'), intent: root.intent, language: 'pt' });
@@ -392,7 +410,7 @@ describe('Reports', () => {
 
     it('remembers targets side by side apart from their first, and by their order', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        const first = { intent: { ...SUGGESTIONS[1].intent, target: 'a-food' }, language: 'pt' };
+        const first = { intent: { ...DESPESAS, target: 'a-food' }, language: 'pt' };
         const both = {
             intent: { ...first.intent, alongside: [{ root: first.intent.root, target: 'a-rent' }] },
             language: 'pt',
@@ -428,10 +446,10 @@ describe('Reports', () => {
     });
 
     it('answers a typed suggestion text from memory', async () => {
-        const { reports, intentCalls, prompts } = createReports();
+        const { reports, suggested, prompts } = createReports();
         reports.open('book-1');
         await settle();
-        intentCalls().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
+        suggested().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
         await settle();
 
         reports.input('Net result  in 2011');
@@ -567,7 +585,7 @@ describe('Reports', () => {
 
     it('says why balances and activity cannot be side by side', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        const intent = { ...SUGGESTIONS[1].intent, alongside: [{ root: 'g-assets' }] };
+        const intent = { ...DESPESAS, alongside: [{ root: 'g-assets' }] };
         reports.open('book-1', '', { intent, language: 'en' });
         calls[0].reject(new AppApiError('Mixed', 422, 'mixed_targets'));
         await settle();
@@ -665,7 +683,7 @@ describe('Reports', () => {
 
     it('never labels a restored intent or its generated title as an original prompt', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
-        reports.open('book-1', 'Untrusted URL text', { intent: SUGGESTIONS[0].intent });
+        reports.open('book-1', 'Untrusted URL text', { intent: NET });
         calls[0].resolve(withMain(response('Net result', '2011'), 'bar'));
         await settle();
         expect(reports.text).toBe('Net result 2011');
@@ -678,7 +696,7 @@ describe('Reports', () => {
         await settle();
         expect(reports.originalPrompt).toBe('Net result this year');
         // Even an intent answered by a previously prompt-generated cache entry has no source.
-        reports.openState({ intent: SUGGESTIONS[0].intent, language: 'en' });
+        reports.openState({ intent: NET, language: 'en' });
         expect(reports.originalPrompt).toBeUndefined();
     });
 
@@ -715,22 +733,21 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBe('Expenses last month');
     });
 
-    it('reuses for a saved click only a report of the same text, never an intent or other casing', async () => {
-        const { reports, calls, intentCalls, prompts } = createReports();
+    it('reuses for a saved click only a report of the same text, a suggestion’s too, never other casing', async () => {
+        const { reports, calls, suggested, prompts } = createReports();
         reports.open('book-1');
         await settle();
-        intentCalls().forEach(call => call.resolve(withMain(response('Prefetched'), 'bar')));
+        suggested().forEach(call => call.resolve(withMain(response('Prefetched'), 'bar')));
         await settle();
         reports.choose(SUGGESTIONS[0]);
         reports.chooseChart('pie');
 
-        reports.runSaved(SUGGESTIONS[0].text);
-        expect(prompts()).toEqual([SUGGESTIONS[0].text]);
-        calls.at(-1)?.resolve(withMain(response('Resolved'), 'bar'));
-        await settle();
-        expect(title(reports.report)).toBe('Resolved');
+        // A suggestion's text asks for its report: the saved text is the same request.
+        reports.runSaved(SUGGESTIONS[0]);
+        expect(prompts()).toEqual([]);
+        expect(title(reports.report)).toBe('Prefetched');
         expect(reports.chart).toBeUndefined();
-        expect(reports.originalPrompt).toBe(SUGGESTIONS[0].text);
+        expect(reports.originalPrompt).toBe(SUGGESTIONS[0]);
 
         reports.input('expenses   THIS year');
         reports.submit();
@@ -833,7 +850,7 @@ describe('Reports', () => {
 
         it('forgets the report of an intent after a minute too, including by state', async () => {
             const { reports, calls, tick } = createReports(undefined, createApi([]));
-            const state = { intent: SUGGESTIONS[1].intent, language: 'pt' };
+            const state = { intent: DESPESAS, language: 'pt' };
             reports.open('book-1', '', state);
             calls[0].resolve(response('Despesas'));
             await settle();
@@ -874,19 +891,17 @@ describe('Reports', () => {
         });
 
         it('fetches prefetched suggestions afresh after a minute', async () => {
-            const { reports, intentCalls, tick } = createReports();
+            const { reports, suggested, tick } = createReports();
             reports.open('book-1');
             await settle();
-            intentCalls().forEach((call, index) => call.resolve(response(`Old ${index}`)));
+            suggested().forEach((call, index) => call.resolve(response(`Old ${index}`)));
             await settle();
 
             tick(CACHE_MS);
             reports.choose(SUGGESTIONS[1]);
             expect(reports.pending).toBe(true);
             expect(title(reports.report)).toBeUndefined();
-            const fresh = intentCalls().filter(
-                call => call.body.intent?.root === SUGGESTIONS[1].intent.root
-            );
+            const fresh = suggested().filter(call => call.body.prompt === SUGGESTIONS[1]);
             expect(fresh).toHaveLength(2);
             fresh[1].resolve(response('New 1'));
             await settle();
@@ -894,11 +909,11 @@ describe('Reports', () => {
         });
 
         it('asks the suggestions of the Book’s map again after a minute, keeping them until they answer', async () => {
-            const { reports, calls, intentCalls, suggestionCalls, nextSuggestions, tick } =
+            const { reports, calls, suggested, suggestionCalls, nextSuggestions, tick } =
                 createReports();
             reports.open('book-1');
             await settle();
-            intentCalls().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
+            suggested().forEach((call, index) => call.resolve(response(`Suggestion ${index}`)));
             await settle();
 
             tick(CACHE_MS - 1);
@@ -907,13 +922,8 @@ describe('Reports', () => {
             await settle();
             expect(suggestionCalls).toHaveLength(1);
 
-            const later: Suggestion[] = [
-                {
-                    text: 'Receitas em 2012',
-                    intent: { root: 'g-3', period: '2012', monthly: false },
-                },
-            ];
-            let answer: (value: Suggestion[]) => void = () => undefined;
+            const later = ['Receitas em 2012'];
+            let answer: (value: string[]) => void = () => undefined;
             nextSuggestions.push(() => new Promise(resolve => (answer = resolve)));
             tick(1);
             reports.input('despesas 2011');
@@ -928,7 +938,7 @@ describe('Reports', () => {
             answer(later);
             await settle();
             expect(reports.suggestions).toEqual(later);
-            expect(calls.at(-1)?.body).toEqual({ intent: later[0].intent, language: 'pt' });
+            expect(calls.at(-1)?.body).toEqual({ prompt: later[0], language: 'pt' });
         });
 
         it('keeps the suggestions, without a notice, when asking them again fails', async () => {
@@ -959,7 +969,7 @@ describe('Reports', () => {
             const { reports, suggestionCalls, nextSuggestions, tick } = createReports();
             reports.open('book-1');
             await settle();
-            let answer: (value: Suggestion[]) => void = () => undefined;
+            let answer: (value: string[]) => void = () => undefined;
             nextSuggestions.push(() => new Promise(resolve => (answer = resolve)));
             tick(CACHE_MS);
             reports.input('despesas 2011');
@@ -968,9 +978,7 @@ describe('Reports', () => {
 
             reports.open('book-2');
             await settle();
-            answer([
-                { text: 'Book 1 only', intent: { root: 'g-9', period: '2011', monthly: false } },
-            ]);
+            answer(['Book 1 only']);
             await settle();
 
             expect(suggestionCalls.map(call => call.bookId)).toEqual([
@@ -1041,13 +1049,14 @@ describe('Reports', () => {
             const { reports, calls, suggestionCalls } = createReports();
             reports.open('book-1');
             await settle();
+            // A suggestion's report is remembered by its intent too.
             calls
-                .find(call => call.body.intent?.root === 'net-result')
-                ?.resolve(response('Net result', '2011'));
+                .find(call => call.body.prompt === SUGGESTIONS[0])
+                ?.resolve({ ...response('Net result', '2011'), language: 'pt' });
             await settle();
             const count = calls.length;
 
-            reports.openState({ intent: SUGGESTIONS[0].intent, language: 'pt' });
+            reports.openState({ intent: NET, language: 'pt' });
             await settle();
 
             expect(calls.length).toBe(count);
@@ -1064,7 +1073,7 @@ describe('Reports', () => {
                 ['submit', reports => reports.submit()],
                 ['choose', reports => reports.choose(SUGGESTIONS[0])],
                 ['saved', reports => reports.runSaved('Net result')],
-                ['state', reports => reports.openState({ intent: SUGGESTIONS[0].intent })],
+                ['state', reports => reports.openState({ intent: NET })],
             ];
             for (const [, act] of acts) {
                 const { reports } = createReports();
@@ -1085,7 +1094,7 @@ describe('Reports', () => {
             const { reports } = createReports();
             reports.open('book-1', 'net result');
             expect(reports.untouched).toBe(false);
-            reports.open('book-1', '', { intent: SUGGESTIONS[0].intent });
+            reports.open('book-1', '', { intent: NET });
             expect(reports.untouched).toBe(false);
             reports.open(undefined);
             expect(reports.untouched).toBe(false);

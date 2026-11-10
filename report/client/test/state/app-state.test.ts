@@ -4,7 +4,6 @@ import type {
     BookProblem,
     ReportRequest,
     ReportResponse,
-    Suggestion,
     SuggestionsResponse,
 } from '../../src/api/app-api';
 import type { AuthSession, AuthSessionCallbacks } from '../../src/auth/auth-session';
@@ -450,24 +449,7 @@ describe('AppState', () => {
     describe('opening a Book with nothing asked', () => {
         const FIRST = { id: 'f'.repeat(64), prompt: 'Saved first' };
         const SECOND = { id: 'e'.repeat(64), prompt: 'Saved second' };
-        const SUGGESTED: Suggestion[] = [
-            {
-                text: 'Suggested first',
-                intent: {
-                    root: 'g-1',
-                    period: { span: 'year' as const, year: 2011 },
-                    monthly: true,
-                },
-            },
-            {
-                text: 'Suggested second',
-                intent: {
-                    root: 'g-2',
-                    period: { span: 'year' as const, year: 2011 },
-                    monthly: false,
-                },
-            },
-        ];
+        const SUGGESTED = ['Suggested first', 'Suggested second'];
         const PROBLEM: BookProblem = {
             code: 'empty_book',
             book: 'Main Book',
@@ -530,7 +512,9 @@ describe('AppState', () => {
             const selected: string[] = [];
             app.reports.addEventListener(SELECT_TEXT, () => selected.push(app.reports.text));
             const signIn = async () => auth.callbacks?.onLoginSuccess?.();
-            const prompts = () => asked.flatMap(({ body }) => (body.prompt ? [body.prompt] : []));
+            /** Requests typed or saved, which the Worker reads with Bkper AI. */
+            const prompts = () =>
+                asked.flatMap(({ body }) => (body.prompt && !body.language ? [body.prompt] : []));
             /** Let answered requests run their continuations. */
             const settle = () => new Promise(resolve => setTimeout(resolve));
             const url = () => new URL(page.location.href).searchParams;
@@ -576,6 +560,11 @@ describe('AppState', () => {
                 url: 'https://report.bkper.app/',
             };
         }
+
+        const title = (report: ReportResponse | undefined) => {
+            const root = report?.spec.elements[report.spec.root];
+            return root?.type === 'Report' ? root.props.title : undefined;
+        };
 
         const stateOf = (report: ReportResponse | undefined) =>
             report && encodeReportState({ intent: report.intent, language: report.language });
@@ -623,12 +612,13 @@ describe('AppState', () => {
                 }
                 await settle();
 
-                expect(app.reports.text).toBe(SUGGESTED[0].text);
-                expect(app.reports.report?.intent).toEqual(SUGGESTED[0].intent);
-                expect(app.reports.originalPrompt).toBeUndefined();
+                expect(app.reports.text).toBe(SUGGESTED[0]);
+                expect(title(app.reports.report)).toBe(SUGGESTED[0]);
+                expect(app.reports.originalPrompt).toBe(SUGGESTED[0]);
+                // Its text, in the suggestions' language, which the Worker builds with no AI.
                 expect(prompts()).toEqual([]);
-                expect(selected).toEqual([SUGGESTED[0].text]);
-                expect(url().get('q')).toBe(SUGGESTED[0].text);
+                expect(selected).toEqual([SUGGESTED[0]]);
+                expect(url().get('q')).toBe(SUGGESTED[0]);
                 expect(url().get('state')).toBe(stateOf(app.reports.report));
             }
         });
@@ -641,13 +631,13 @@ describe('AppState', () => {
             await settle();
 
             expect(app.savedPrompts.loadError).toBe('unexpected');
-            expect(app.reports.text).toBe(SUGGESTED[0].text);
-            expect(selected).toEqual([SUGGESTED[0].text]);
+            expect(app.reports.text).toBe(SUGGESTED[0]);
+            expect(selected).toEqual([SUGGESTED[0]]);
 
             // A shelf that loads later does not open again.
             shelf('book-1').resolve({ prompts: [FIRST], capabilities: WRITE });
             await settle();
-            expect(selected).toEqual([SUGGESTED[0].text]);
+            expect(selected).toEqual([SUGGESTED[0]]);
         });
 
         it('opens nothing without suggestions, or with a Book problem', async () => {
@@ -685,7 +675,7 @@ describe('AppState', () => {
                 await settle();
                 expect(selected).toEqual([]);
                 expect(prompts()).not.toContain(FIRST.prompt);
-                expect(app.reports.text).not.toBe(SUGGESTED[0].text);
+                expect(app.reports.text).not.toBe(SUGGESTED[0]);
             }
         });
 
@@ -697,7 +687,11 @@ describe('AppState', () => {
                 ['opening a saved prompt', app => app.reports.runSaved(SECOND.prompt)],
                 [
                     'a state',
-                    app => app.reports.openState({ intent: SUGGESTED[1].intent, language: 'en' }),
+                    app =>
+                        app.reports.openState({
+                            intent: { root: 'g-2', period: 'this_year', monthly: false },
+                            language: 'en',
+                        }),
                 ],
                 ['Back or Forward', (_app, goTo) => goTo('https://report.bkper.app/?book=book-1')],
             ];

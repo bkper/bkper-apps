@@ -239,17 +239,14 @@ describe('GET /api/v1/books/{bookId}/names', () => {
 });
 
 describe('GET /api/v1/books/{bookId}/suggestions', () => {
-    it('suggests three reports with their intents and warms the snapshot', async () => {
+    it('suggests three reports as requests and warms the snapshot', async () => {
         const test = harness();
         const response = await test.app.request(SUGGESTIONS_URL, {}, test.env);
 
         expect(response.status).toBe(200);
-        const body = (await response.json()) as { suggestions: { text: string }[] };
-        expect(body.suggestions).toHaveLength(3);
         // The report Jev ranks first: the Book's own net income.
-        expect(body.suggestions[0]).toEqual({
-            text: 'Net income this year',
-            intent: { root: 'g-net', period: p('this_year'), monthly: false },
+        expect(await response.json()).toEqual({
+            suggestions: ['Net income this year', 'Assets today', 'Expenses by month this year'],
         });
         expect(test.rankings).toBe(1);
         // Jev ranks the map once. This year has movements: the suggestions read only their
@@ -286,22 +283,22 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
             const test = harness();
             test.bkper.ledger.today = '2028-03-10';
             const response = await test.app.request(SUGGESTIONS_URL, {}, test.env);
-            const { suggestions } = (await response.json()) as {
-                suggestions: { text: string; intent: unknown }[];
-            };
-            expect(suggestions.map(suggestion => suggestion.text)).toEqual([
+            const { suggestions } = (await response.json()) as { suggestions: string[] };
+            expect(suggestions).toEqual([
                 'Net income in 2026',
                 'Assets today',
                 'Expenses by month in 2026',
             ]);
             const read = test.queries.length;
 
-            // Their reports, asked for by intent as the client prefetches them, show the
-            // Book's data, from the balances the suggestions read.
-            const expenses = await post(test, { intent: suggestions[2].intent });
-            const body = (await expenses.json()) as { spec: ReportSpec };
+            // Their reports, asked for by their texts as the client prefetches them, show the
+            // Book's data, from the balances the suggestions read, with no AI.
+            const expenses = await post(test, { prompt: suggestions[2], language: 'en' });
+            const body = (await expenses.json()) as { spec: ReportSpec; query: string };
             expect(elementOf(body.spec, 'Answer').props.amount).not.toBe('0');
+            expect(body.query).toBe("group:'Expenses' on:2026 by:m");
             expect(test.queries).toHaveLength(read);
+            expect(test.jevCalls).toBe(0);
         } finally {
             vi.setSystemTime(NOW);
         }
@@ -313,8 +310,8 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         const test = harness();
         const first = async (url: string, headers: Record<string, string> = {}) => {
             const response = await test.app.request(url, { headers }, test.env);
-            const body = (await response.json()) as { suggestions: { text: string }[] };
-            return body.suggestions[0].text;
+            const body = (await response.json()) as { suggestions: string[] };
+            return body.suggestions[0];
         };
 
         expect(await first(`${SUGGESTIONS_URL}?language=eo`, { 'Accept-Language': 'ia' })).toBe(
@@ -911,7 +908,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(text).not.toContain('Lisbon');
         const body = JSON.parse(text) as { error: { code: string }; suggestions: unknown[] };
         expect(body.error.code).toBe('not_a_report');
-        expect(body.suggestions).toHaveLength(3);
+        expect(body.suggestions).toEqual([
+            'Net income this year',
+            'Assets today',
+            'Expenses by month this year',
+        ]);
     });
 
     it.each([

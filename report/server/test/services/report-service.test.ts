@@ -1,4 +1,5 @@
 import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
+import { addLocale } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { ReportError } from '../../src/services/report';
@@ -23,6 +24,10 @@ import { asksRanking, rankingResponse } from '../fixtures/suggestion-answers';
 
 /** The fixture's suggestions as Jev ranks them in these tests (`FIXTURE_RANKING`). */
 const RANKED = ['g-net', 'g-assets', 'g-expenses'];
+
+/** The texts of the fixture's suggestions, in English, as Jev ranks them. */
+const suggestionTexts = (snapshot: Snapshot): string[] =>
+    buildSuggestions(snapshot, 'en', RANKED).map(suggestion => suggestion.text);
 import { periodChoices } from '../fixtures/period-answers';
 
 /** The parts of a period id, as intents now hold them. */
@@ -77,6 +82,8 @@ function jevBody(answers: JevAnswers) {
 interface Harness {
     options: ReportServiceOptions & { timing: ServerTiming };
     jevCalls: number;
+    /** Requests that ranked the suggestions. */
+    rankings: number;
     queries: string[];
     /** Events in the order they started. */
     events: string[];
@@ -91,12 +98,14 @@ function harness(
     ledger.today = today;
     const state: Harness = {
         jevCalls: 0,
+        rankings: 0,
         queries: [],
         events: [],
         options: {
             decisions: createDecisionClient({
                 fetch: async (_url, init) => {
                     if (asksRanking(init)) {
+                        state.rankings++;
                         return rankingResponse();
                     }
                     state.jevCalls++;
@@ -295,7 +304,7 @@ describe('createReport by intent', () => {
             harness().options
         ).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(NotAReportError);
-        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en', RANKED) });
+        expect(error).toMatchObject({ suggestions: suggestionTexts(snapshot) });
     });
 
     it('has no net result when no group combines Incoming and Outgoing and roots share accounts', async () => {
@@ -608,7 +617,7 @@ describe('createReport by prompt', () => {
         ).catch((e: unknown) => e);
 
         expect(error).toBeInstanceOf(NotAReportError);
-        expect(error).toMatchObject({ suggestions: buildSuggestions(snapshot, 'en', RANKED) });
+        expect(error).toMatchObject({ suggestions: suggestionTexts(snapshot) });
         expect(String(error)).not.toContain('weather');
     });
 
@@ -633,6 +642,90 @@ describe('createReport by prompt', () => {
         ).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(BkperAiError);
         expect(error).toMatchObject({ code: 'usage_limit_exceeded' });
+    });
+});
+
+describe('createReport of a suggestion’s text', () => {
+    it('builds the suggestion’s report from its intent, asking Jev nothing of the request', async () => {
+        const snapshot = await fixtureSnapshot();
+        const test = harness();
+        const result = await createReport(
+            snapshot,
+            { prompt: ' Expenses  by month\tthis year ' },
+            {},
+            test.options
+        );
+
+        expect(test.jevCalls).toBe(0);
+        expect(result.intent).toEqual(buildSuggestions(snapshot, 'en', RANKED)[2].intent);
+        expect(result.language).toBe('en');
+        expect(result.query).toBe("group:'Expenses' after:$y before:$m+1 by:m");
+        // The suggestions read their reports' queries; the report reads them no more.
+        expect(test.queries).toHaveLength(new Set(test.queries).size);
+    });
+
+    it('reads the suggestions in the language asked for, else the accepted one', async () => {
+        addLocale('eo', { suggestion_position_today: '{root} hodiaŭ' });
+        const snapshot = await fixtureSnapshot();
+        const accepted = harness();
+        const result = await createReport(
+            snapshot,
+            { prompt: 'Assets hodiaŭ' },
+            { accepted: 'eo' },
+            accepted.options
+        );
+        expect(accepted.jevCalls).toBe(0);
+        expect(result.intent).toEqual(intent('g-assets', 'today'));
+        expect(result.language).toBe('eo');
+
+        // Asked for in Esperanto, the English text is any request.
+        const other = harness({ root: 'Assets' });
+        await createReport(
+            snapshot,
+            { prompt: 'Assets today' },
+            { requested: 'eo', accepted: 'en' },
+            other.options
+        );
+        expect(other.jevCalls).toBe(1);
+    });
+
+    it('builds a suggestion of the last year with movements, as it names it', async () => {
+        const snapshot: Snapshot = { ...(await fixtureSnapshot()), today: '2028-03-10' };
+        const test = harness(undefined, '2028-03-10');
+        const result = await createReport(
+            snapshot,
+            { prompt: 'Expenses by month in 2026' },
+            {},
+            test.options
+        );
+        expect(test.jevCalls).toBe(0);
+        expect(result.intent).toEqual(intent('g-expenses', '2026', { monthly: true }));
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '3250.75' } });
+    });
+
+    it('asks Jev for any other text, ranking no suggestions and reading none of theirs', async () => {
+        const snapshot = await fixtureSnapshot();
+        const test = harness({ root: 'Expenses', period: '2026-10' });
+        await createReport(snapshot, { prompt: 'expenses in October' }, {}, test.options);
+        expect(test.jevCalls).toBe(1);
+        expect(test.rankings).toBe(0);
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
+        ]);
+    });
+
+    it('asks Jev for a text cased otherwise, or of a report not suggested now', async () => {
+        const snapshot = await fixtureSnapshot();
+        for (const prompt of [
+            'expenses by month this year',
+            'Banks today',
+            'Expenses by month in 2025',
+        ]) {
+            const test = harness({ root: 'Expenses' });
+            await createReport(snapshot, { prompt }, {}, test.options);
+            expect(test.jevCalls).toBe(1);
+        }
     });
 });
 
@@ -730,13 +823,11 @@ describe('createReport of a request that names no period', () => {
             test.options
         ).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(NotAReportError);
-        const { suggestions } = error as NotAReportError;
-        expect(suggestions.map(suggestion => suggestion.intent.period)).toEqual([
-            p('2026'),
-            p('today'),
-            p('2026'),
+        expect((error as NotAReportError).suggestions).toEqual([
+            'Net income in 2026',
+            'Assets today',
+            'Expenses by month in 2026',
         ]);
-        expect(suggestions[2].text).toBe('Expenses by month in 2026');
     });
 
     it('reads a position today, whenever it last moved, with no other query', async () => {

@@ -5,12 +5,13 @@
  *     npx tsx scripts/measure-api.ts --flow [--base=<url>] [--cold=<n>] [--runs=<n>] [--offset=<n>] <bookId>...
  *
  * `--base` is the app (default the local `bkper app dev` Worker, `http://localhost:8809`). For
- * each Book it asks for the suggestions, then times three paths, `--runs` times each (default 10):
- * a report by each suggestion's intent (no AI), by a prompt (one Jev decision, then the report's
- * balances queries), and by a prompt with `#<hashtag>` (default `trip`). Intents vary their
- * period and prompts name a root group with a period, so each run reads balances of other
- * periods: the app caches each exact query for 60 seconds. Prompts are each sent once: Bkper AI
- * caches identical requests for 15 minutes, so a rerun within that time measures the cache.
+ * each Book it asks for the suggestions, then times four paths, `--runs` times each (default 10):
+ * a report by each suggestion's text (no AI), once, then by its intent from that answer (no AI),
+ * by a prompt (one Jev decision, then the report's balances queries), and by a prompt with
+ * `#<hashtag>` (default `trip`). Intents vary their period and prompts name a root group with a
+ * period, so each run reads balances of other periods: the app caches each exact query for 60
+ * seconds. Prompts are each sent once: Bkper AI caches identical requests for 15 minutes, so a
+ * rerun within that time measures the cache.
  *
  * Samples are `cold` when the snapshot (the Book's map, also cached for 60 seconds) had expired
  * and was loaded from Bkper (`book` in `Server-Timing`), `warm` when it was cached and the
@@ -29,12 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { measureFlow } from './measure-api/flow';
 import { percentile, readTiming } from './measure-api/timing';
 
-interface Suggestion {
-    text: string;
-    intent: unknown;
-}
-
-type Path = 'suggestions' | 'intent' | 'prompt' | 'hashtag';
+type Path = 'suggestions' | 'suggestion' | 'intent' | 'prompt' | 'hashtag';
 
 /** The caches a request found: none, the snapshot only, or the snapshot and every balance. */
 type Cache = 'cold' | 'warm' | 'cached';
@@ -134,31 +130,42 @@ async function main(): Promise<void> {
         return json;
     }
 
-    const suggestions = new Map<string, Suggestion[]>();
+    const suggestions = new Map<string, string[]>();
     for (const book of books) {
-        const body = (await call('suggestions', book)) as { suggestions?: Suggestion[] };
+        const body = (await call('suggestions', book)) as { suggestions?: string[] };
         suggestions.set(book, body.suggestions ?? []);
-        console.log(`${book}: ${(body.suggestions ?? []).map(s => s.text).join(' | ')}`);
+        console.log(`${book}: ${(body.suggestions ?? []).join(' | ')}`);
     }
+    // The intent of each suggestion, from its report asked for by its text.
+    const intents = new Map<string, unknown[]>();
     const prompts = (book: string, round: number, suffix = '') => {
         const names = roots.get(book) ?? [];
         const root = names[round % names.length] ?? 'expenses';
         const period = PROMPT_PERIODS[Math.floor(round / names.length) % PROMPT_PERIODS.length];
         return `${root} ${period}${suffix}`;
     };
-    const intentOf = (suggestion: Suggestion | undefined, run: number): unknown => {
-        const intent = suggestion?.intent;
-        if (run === 0 || typeof intent !== 'object' || intent === null) {
+    const intentOf = (intent: unknown, run: number): unknown => {
+        if (typeof intent !== 'object' || intent === null) {
             return intent;
         }
-        return { ...intent, period: INTENT_PERIODS[(run - 1) % INTENT_PERIODS.length] };
+        return { ...intent, period: INTENT_PERIODS[run % INTENT_PERIODS.length] };
     };
 
     for (const book of books) {
         const list = suggestions.get(book) ?? [];
+        const found: unknown[] = [];
+        for (const suggestion of list) {
+            const answer = await call('suggestion', book, { prompt: suggestion });
+            found.push(
+                typeof answer === 'object' && answer && 'intent' in answer
+                    ? answer.intent
+                    : undefined
+            );
+        }
+        intents.set(book, found);
         for (let run = 0; run < runs; run++) {
-            for (const suggestion of list) {
-                await call('intent', book, { intent: intentOf(suggestion, run) });
+            for (const intent of found) {
+                await call('intent', book, { intent: intentOf(intent, run) });
             }
             await call('prompt', book, { prompt: prompts(book, run) });
             await call('hashtag', book, { prompt: prompts(book, run, ` #${hashtag}`) });
@@ -170,7 +177,7 @@ async function main(): Promise<void> {
         await sleep(SNAPSHOT_EXPIRY_MS);
         await Promise.all(
             books.map((book, index) => {
-                const list = suggestions.get(book) ?? [];
+                const list = intents.get(book) ?? [];
                 return (round + index) % 2 === 0
                     ? call('intent', book, { intent: intentOf(list[round % list.length], round) })
                     : call('prompt', book, { prompt: prompts(book, runs + round, ' (cold)') });

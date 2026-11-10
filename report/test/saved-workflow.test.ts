@@ -102,8 +102,9 @@ async function click(state: AppState, id: string) {
     return state.reports.report!;
 }
 
-function isIntentBody(body: unknown): boolean {
-    return typeof body === 'object' && body !== null && 'intent' in body;
+/** A request of a suggestion's text, in the client's language, which needs no decision. */
+function isSuggestionBody(body: unknown): boolean {
+    return typeof body === 'object' && body !== null && 'prompt' in body && 'language' in body;
 }
 
 function answer(report: ReportResponse) {
@@ -219,16 +220,17 @@ describe('saved-prompt route/service and independent app clients', () => {
             { request: WORKFLOW_PROMPT, today: '2026-12-05' },
         ]);
         // The typed request and the two clicks after a minute each; the suggestions' reports,
-        // by intent, are fetched again with the suggestions after each minute.
+        // by their texts with no decision, are fetched again with the suggestions after each
+        // minute.
         const editorBodies = () =>
             fixture.requests.filter(item => item.session === 'editor').map(item => item.body);
-        expect(editorBodies().filter(body => !isIntentBody(body))).toEqual([
+        expect(editorBodies().filter(body => !isSuggestionBody(body))).toEqual([
             { prompt: WORKFLOW_PROMPT },
             { prompt: WORKFLOW_PROMPT },
             { prompt: WORKFLOW_PROMPT },
         ]);
         expect(b.state.reports.suggestions).toHaveLength(3);
-        await vi.waitFor(() => expect(editorBodies().filter(isIntentBody)).toHaveLength(9));
+        await vi.waitFor(() => expect(editorBodies().filter(isSuggestionBody)).toHaveLength(9));
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify(WORKFLOW_PROMPT),
         ]);

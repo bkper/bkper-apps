@@ -65,7 +65,7 @@ const suggestionsRoute = createRoute({
     tags: ['Reports'],
     summary: 'Suggest reports of a Book',
     description:
-        'Up to three reports this Book can have, the main one first, each as a request a person would type and its `intent`: the Book’s groups at its first two levels, each as its natural report (income and expenses together this year, income or expenses by month, balances today), ranked by Bkper AI once each time the groups change. Periods: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send its `intent` (no AI) and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.',
+        'Up to three reports this Book can have, the main one first, each as a request a person would type, in `language`: the Book’s groups at its first two levels, each as its natural report (income and expenses together this year, income or expenses by month, balances today), ranked by Bkper AI once each time the groups change. Periods: activity this year, or the last year with movements when this year has none (the text names that year), and balances today. Use them when the person does not know what to ask, or after `not_a_report`; to build one, send it as `prompt`, with the same `language`, and, to show it, `format: html` to `POST /api/v1/books/{bookId}/report`: exactly a suggestion’s text (spacing aside, case kept) is built with no AI. When the Book has no reports at all, there are none and `problem` tells why: `empty_book` (no transactions yet) or `nothing_to_report` (no groups, or most Accounts with transactions in no group); if the person may (`problem.canOrganize`), offer to help organize its groups, changing groups only, never transactions. Read-only.',
     request: { params: BookParamsSchema, query: SuggestionsQuerySchema },
     responses: {
         200: jsonResponse('Suggested reports', SuggestionsResponseSchema),
@@ -97,7 +97,7 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
-        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a suggestion’s or a previous report’s, builds the report without AI.',
+        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
         '',
         'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
@@ -122,7 +122,7 @@ const reportRoute = createRoute({
             ReportErrorResponseSchema
         ),
         429: jsonResponse(
-            'The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); requests by `intent` still work',
+            'The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); suggestions sent as they are, and requests by `intent`, still work',
             ErrorResponseSchema
         ),
         ...bookErrorResponses,
@@ -232,13 +232,14 @@ export function registerApiRoutes(app: App): void {
             (language && supportedLanguage(language)) ??
             acceptedLanguage(c.req.header('Accept-Language')) ??
             DEFAULT_LANGUAGE;
-        const opening = await readOpening(snapshot, lang, {
+        const { suggestions, problem } = await readOpening(snapshot, lang, {
             loadBalances: bookBalances(context, bookId, snapshot, userId),
             timing: context.timing,
             decisions: context.decisions,
             cache: context.env.KV,
         });
-        return c.json(opening, 200);
+        const texts = suggestions.map(suggestion => suggestion.text);
+        return c.json(problem ? { suggestions: texts, problem } : { suggestions: texts }, 200);
     });
 
     app.openapi(namesRoute, async c => {

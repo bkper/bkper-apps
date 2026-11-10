@@ -4,7 +4,8 @@
  *
  * The client, once signed in (`AppState`), sends at once and in parallel: the saved-prompt shelf
  * (`GET /prompts`), the Book's names (`GET /names`) and the suggestions (`GET /suggestions`);
- * when the suggestions arrive, it fetches each one's report by intent, in parallel (no AI). The
+ * when the suggestions arrive, it fetches each one's report by its text in the suggestions'
+ * language, in parallel (no AI: the Worker builds a suggestion's text from its own). The
  * Book's name comes from Bkper directly (bkper-js), not through the app, so it is not measured.
  * A typed prompt is one `POST /report` with `{ prompt }` only, after the 250 ms debounce, which is
  * not included here.
@@ -17,11 +18,6 @@ export interface BookName {
     name: string;
     kind: 'group' | 'account';
     root: string;
-}
-
-interface Suggestion {
-    text: string;
-    intent: unknown;
 }
 
 /** The periods the prompts name, one per open; their own list, so no earlier measure repeats. */
@@ -234,10 +230,10 @@ export async function measureFlow(options: FlowOptions): Promise<void> {
         });
         const suggestions = send(book, `suggestions?language=${LANGUAGE}`).then(async answer => {
             record('suggestions', answer, answer.end - opened);
-            const list = listOf<Suggestion>(answer.json, 'suggestions').slice(0, 3);
+            const list = listOf<string>(answer.json, 'suggestions').slice(0, 3);
             await Promise.all(
                 list.map((suggestion, i) =>
-                    send(book, 'report', { intent: suggestion.intent, language: LANGUAGE }).then(
+                    send(book, 'report', { prompt: suggestion, language: LANGUAGE }).then(
                         prefetch => record(STEPS[3 + i], prefetch, prefetch.end - opened)
                     )
                 )
@@ -257,11 +253,7 @@ export async function measureFlow(options: FlowOptions): Promise<void> {
         });
         console.log(`${book} ${cache} open: ready ${Math.round(ready)} ms (${loaded.join(', ')})`);
 
-        const prompts = choosePrompts(
-            bookNames,
-            list.map(suggestion => suggestion.text),
-            round
-        );
+        const prompts = choosePrompts(bookNames, list, round);
         const kinds: ['named' | 'plain', string | undefined][] = [
             ['named', prompts.named],
             ['plain', prompts.plain],

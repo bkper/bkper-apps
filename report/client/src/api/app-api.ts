@@ -3,7 +3,6 @@ import type { components, ErrorResponse, paths, PingResponse } from './generated
 
 export type { PingResponse };
 export type ApiErrorResponse = ErrorResponse;
-export type Suggestion = components['schemas']['Suggestion'];
 export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type BookProblem = components['schemas']['BookProblem'];
 export type BookName = components['schemas']['BookName'];
@@ -31,8 +30,8 @@ export class AppApiError extends Error {
         message: string,
         readonly status: number,
         readonly code?: string,
-        /** With `not_a_report`: reports the Book can have. */
-        readonly suggestions?: Suggestion[],
+        /** With `not_a_report`: reports the Book can have, as requests. */
+        readonly suggestions?: string[],
         /** With a problem of the Book's groups: what keeps it from the report, and who can fix it. */
         readonly problem?: BookProblem
     ) {
@@ -69,7 +68,7 @@ function readApiErrorResponse(value: unknown): ApiErrorResponse | undefined {
 function toAppApiError(
     error: unknown,
     response: Response,
-    suggestions?: Suggestion[],
+    suggestions?: string[],
     problem?: BookProblem
 ): AppApiError {
     const apiError = readApiErrorResponse(error);
@@ -112,7 +111,7 @@ export function createAppApi(options: AppApiOptions) {
         },
 
         /**
-         * Up to three reports the Book can have, with texts in `language`; or none and the
+         * Up to three reports the Book can have, as requests in `language`; or none and the
          * `problem` of a Book that has no reports at all.
          */
         async suggestions(
@@ -206,8 +205,9 @@ export function createAppApi(options: AppApiOptions) {
         },
 
         /**
-         * A report of the Book, by `prompt` (one AI decision) or by `intent` (no AI), as a spec:
-         * the web client renders it, so it never asks for the HTML file.
+         * A report of the Book, by `prompt` (one AI decision, none for a suggestion's text) or
+         * by `intent` (no AI), as a spec: the web client renders it, so it never asks for the
+         * HTML file.
          */
         async report(
             bookId: string,

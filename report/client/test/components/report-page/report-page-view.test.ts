@@ -7,7 +7,6 @@ import {
     type BookName,
     type BookProblem,
     type ReportResponse,
-    type Suggestion,
 } from '../../../src/api/app-api';
 import '../../../src/web-awesome';
 import { ReportPage } from '../../../src/components/report-page/report-page-view';
@@ -24,9 +23,7 @@ import type { HostPage } from '../../../src/state/book-host';
 beforeEach(() => vi.stubGlobal('matchMedia', window.matchMedia.bind(window)));
 afterEach(() => vi.unstubAllGlobals());
 
-const SUGGESTIONS: Suggestion[] = [
-    { text: 'Net result in 2011', intent: { root: 'net-result', period: '2011', monthly: false } },
-];
+const SUGGESTIONS = ['Net result in 2011'];
 
 function report(title: string): ReportResponse {
     return {
@@ -40,7 +37,7 @@ function report(title: string): ReportResponse {
                 },
             },
         },
-        intent: SUGGESTIONS[0].intent,
+        intent: { root: 'net-result', period: '2011', monthly: false },
         language: 'en',
         query: 'q',
         dataAt: '2026-11-05T00:00:00Z',
@@ -216,12 +213,9 @@ describe('ReportPage', () => {
         await ready(view);
 
         const field = input(view).input;
-        expect(view.state.reports.text).toBe(SUGGESTIONS[0].text);
-        expect(field?.value).toBe(SUGGESTIONS[0].text);
-        expect([field?.selectionStart, field?.selectionEnd]).toEqual([
-            0,
-            SUGGESTIONS[0].text.length,
-        ]);
+        expect(view.state.reports.text).toBe(SUGGESTIONS[0]);
+        expect(field?.value).toBe(SUGGESTIONS[0]);
+        expect([field?.selectionStart, field?.selectionEnd]).toEqual([0, SUGGESTIONS[0].length]);
         expect(shadow(view).activeElement).toBe(input(view));
         expect(shadow(view).querySelector('report-view')).not.toBeNull();
     });
@@ -659,7 +653,7 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(layout(view).at(-2)).toBe('report-shelf');
     });
 
-    it('opens a saved prompt by its text, from memory within a minute, even matching a suggestion', async () => {
+    it('opens a saved prompt by its text, from memory within a minute, a suggestion’s too', async () => {
         const request = vi.fn<ReportApi['report']>(async () => report('Fresh'));
         const clock = { now: 1_000_000 };
         const view = createPage({
@@ -668,27 +662,25 @@ describe('Book-shared prompt shelf in ReportPage', () => {
             shelfApi: {
                 ...emptyShelf(),
                 savedPrompts: async () => ({
-                    prompts: [{ ...ITEM, prompt: SUGGESTIONS[0].text }],
+                    prompts: [{ ...ITEM, prompt: SUGGESTIONS[0] }],
                     capabilities: WRITE,
                 }),
             },
         });
-        const prompts = () => request.mock.calls.filter(call => call[1].prompt !== undefined);
-        // The Book opens its first saved prompt, as a click does: by its text.
+        // The Book opens its first saved prompt, as a click does: by its text, which is also
+        // the suggestion's, asked for once.
         await ready(view);
-        expect(prompts()).toHaveLength(1);
+        expect(request).toHaveBeenCalledTimes(1);
         control(view, '.saved-prompt').click();
         await settle(view);
         control(view, '.saved-prompt').click();
         await settle(view);
-        expect(prompts()).toHaveLength(1);
+        expect(request).toHaveBeenCalledTimes(1);
         clock.now += CACHE_MS;
         control(view, '.saved-prompt').click();
         await settle(view);
-        expect(prompts().map(call => call[1])).toEqual([
-            { prompt: SUGGESTIONS[0].text },
-            { prompt: SUGGESTIONS[0].text },
-        ]);
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(request.mock.calls[1][1]).toEqual({ prompt: SUGGESTIONS[0] });
         expect(shadow(view).activeElement).toBe(input(view));
     });
 
@@ -790,13 +782,16 @@ describe('Book-shared prompt shelf in ReportPage', () => {
         expect(shelfRoot(view).querySelector('wa-dropdown')).toBeNull();
     });
 
-    it('does not offer Save for a restored intent or a prefetched suggestion', async () => {
+    it('offers Save for a chosen suggestion, a request like any other, but not for a restored intent', async () => {
         const view = createPage();
         await ready(view);
         view.state.reports.choose(SUGGESTIONS[0]);
         await settle(view);
-        expect(shelfRoot(view).querySelector('.save')).toBeNull();
-        view.state.reports.openState({ intent: SUGGESTIONS[0].intent, language: 'en' });
+        expect(control(view, '.save').title).toBe(SUGGESTIONS[0]);
+        view.state.reports.openState({
+            intent: { root: 'net-result', period: '2011', monthly: false },
+            language: 'en',
+        });
         await settle(view);
         expect(shelfRoot(view).querySelector('.save')).toBeNull();
     });
@@ -822,7 +817,16 @@ describe('Book-shared prompt shelf in ReportPage', () => {
 
     it('drops old pending saves and stale shelf controls on Book switches and exit', async () => {
         const saved = deferred<typeof ITEM>();
-        const view = createPage({ shelfApi: { ...emptyShelf(), savePrompt: () => saved.promise } });
+        const view = createPage({
+            // The other Book has no suggestion to open, so it shows nothing to save.
+            api: {
+                suggestions: async bookId => ({
+                    suggestions: bookId === 'book-1' ? SUGGESTIONS : [],
+                }),
+                report: async () => report('Net result'),
+            },
+            shelfApi: { ...emptyShelf(), savePrompt: () => saved.promise },
+        });
         await ready(view);
         await run(view);
         control(view, '.save').click();

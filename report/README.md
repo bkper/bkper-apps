@@ -100,7 +100,7 @@ OpenAPI:    https://report.bkper.app/openapi.json
 | Operation | Route | Effect |
 | --- | --- | --- |
 | Build a report | `POST /api/v1/books/{bookId}/report` | One interactive HTML file (`"format": "html"`), or the JSON Report's web client renders (default). Read-only |
-| Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, the main one first |
+| Suggest reports | `GET /api/v1/books/{bookId}/suggestions` | Up to three reports the Book can have, as requests, the main one first |
 | List names | `GET /api/v1/books/{bookId}/names` | The Book's group and Account names |
 | List saved requests | `GET /api/v1/books/{bookId}/prompts` | The Book's shared requests in their order, and what the person may do with them |
 | Save a request | `POST /api/v1/books/{bookId}/prompts` | Owner or editor. Writes app metadata only |
@@ -124,7 +124,7 @@ curl -X POST \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
 
-To open a saved request with current data, send its `prompt` to `/report`. A suggestion's `intent` builds its report without AI.
+To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI.
 
 See the [OpenAPI specification](https://report.bkper.app/openapi.json) for every field, error and what to do about it.
 

@@ -39,6 +39,7 @@ Write the way you would ask a colleague, in any language:
 - **Periods** in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today (balances as of today; activity today reads this month). A balance as of today or the end of a month also shows the 12 month-ends ending then on a line. A current period runs through the end of this month, and a report names what it read: a whole year, quarter or month by its name (_2025_, _Q3 2024_), the months so far as a range (_Jan – Nov 2026 vs. Jan – Nov 2025_). Without one, activity for this year and balances for today, or the last year with movements in an older Book. A period that hasn't started, such as next month, has no report yet. No custom ranges such as a single week.
 - **Comparisons.** A report compares with the previous period, or with the same period a year earlier when you ask. Name any other period of the same kind to compare with it: _revenue last year vs 2023_, _Q3 vs Q1_, _January vs January 2019_. A comparison that can't be made, such as a month against a year, or two periods that overlap, shows the previous period instead and says so.
 - **A hashtag** keeps only the transactions that have it. One per report, as Bkper filters balances by one: with several, Report reads the first.
+- **A Bkper query.** Type one with `group:` or `account:`, such as `group:'Expenses' after:01/2026 before:01/2027`, and Report reads it exactly as the Book does, with the same balances.
 
 ### The net result
 
@@ -58,7 +59,9 @@ Report picks the chart that fits. To start with another, name it in your request
 | versus January last year, year over year | Each part beside the same period a year earlier |
 | just the numbers | The answer and the table, without a chart |
 
-Every chart that fits is offered as a small preview, up to six; click one to switch. A chart that cannot show your numbers honestly is not drawn: a line under the title says why, such as _Can’t show Donut: Taxes is below zero (-186.74)._, and the closest chart that fits is shown instead. For example, a donut needs two to six positive parts that make up the total, and side-by-side names never get a chart that suggests a total. Report never draws a bridge (waterfall), because its bars would be sums Report makes itself.
+Every chart that fits is offered as a small preview beside the title, up to six; click one to switch. A chart that cannot show your numbers honestly is not drawn: a line under the title says why, such as _Can’t show Donut: Taxes is below zero (-186.74)._, and the closest chart that fits is shown instead. For example, a donut needs two to six positive parts that make up the total, and side-by-side names never get a chart that suggests a total. Report never draws a bridge (waterfall), because its bars would be sums Report makes itself.
+
+Under the table, **Details** shows the period, the exact Bkper query and when the balances were read, and **Open in Bkper** shows the report's transactions in the Book.
 
 ## Save a request for the Book
 
@@ -128,7 +131,7 @@ curl -X POST \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
 
-To report a Bkper query, such as the one a Book shows its transactions with, send it as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper shows for that query, and the report's `text` is the query itself.
+To report a Bkper query, such as the one a Book shows its transactions with, send it as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper shows for that query, and the report's `text` is the query itself. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too.
 
 To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt`, with its `language` and the chart it was asked for (`chart.asked`) as `chart`, to ask for the same report again; another `chart` shows it as another chart.
 

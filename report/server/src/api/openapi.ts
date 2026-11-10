@@ -1,4 +1,4 @@
-const REPORT_GUIDE = `Read-only financial reports of a Bkper Book, from a request in any language. Report never creates, changes or deletes anything in a Book.
+const REPORT_GUIDE = `Read-only financial reports of a Bkper Book, from a request in any language or a Bkper query. Report never creates, changes or deletes anything in a Book.
 
 ## Show a person a report
 
@@ -8,7 +8,7 @@ When a person asks to see a report of a Book (expenses, revenue, income versus e
 { "prompt": "<the person's request, in their own words and language>", "format": "html" }
 \`\`\`
 
-and give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart with small previews of every other chart that fits, to switch to in place, a breakdown table whose rows open in place, and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:
+and give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart with small previews of every other chart that fits, to switch to in place, a breakdown table whose rows open in place, and its source: the period and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:
 
 \`\`\`bash
 bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"show my expenses by category this year","format":"html"}' > report.html
@@ -28,14 +28,14 @@ A request for a custom report, or one that says it is not for the Report app, is
 - A period in whole months: this or last month, quarter or year, the year before last, year to date, the last 12 months, all time, any year, quarter or month the person writes, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data. One that has not started, such as next month, is \`future_period\`.
 - What the period is compared with: the previous period, the same period a year earlier, or any other period of the same kind the prompt names (last year vs 2023, Q3 vs Q1). A comparison that cannot be made, such as a month against a year, compares with the previous period instead and says so in the report.
 - By month, or a breakdown, a trend or a total.
-- A chart, when the person names one: a donut (a pie is drawn as one), bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it. A chart that does not fit the numbers (such as a donut with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and a line under its title says why. Every chart that fits is offered as a preview in the report (at most six), so there is no need to ask again for another chart.
+- A chart, when the person names one: a donut (a pie is drawn as one), bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it. A line for activity, or bars for balances, replaces the usual chart by month. A chart that does not fit the numbers (such as a donut with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and a line under its title says why. Every chart that fits is offered as a preview beside the report's title (at most six), so there is no need to ask again for another chart.
 - A \`#hashtag\`: only transactions with it. One per report, as Bkper filters balances by one; a prompt's first hashtag is read and the others are left out.
 
-Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.
+Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end; a balance today, or at the end of a month, also shows a line of the 12 month-ends ending then. Balances may be up to 60 seconds old.
 
 ## Report a Bkper query
 
-To report what a Book shows, send its Bkper query as \`query\` instead of \`prompt\`; a person's words always go as \`prompt\`. A query is read exactly as sent, with no AI: every amount is Bkper's balance for that very query, as the Book's sidebar shows it, future-dated transactions included, and nothing in it is rewritten or cut off. Its \`group:\` and \`account:\` names are what the report is of (several side by side, up to six); its period is the days Bkper read (\`after:01/01/2026 before:01/01/2027\` is Jan 1 – Dec 31, 2026; \`before:\` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month, and the comparison from the same query with its dates moved to the period before; each is left out unless it reads as the query does. The report's \`text\` is the query, which sent back as \`prompt\` is read as that query. A query that names no group or Account Bkper finds answers 422 \`query_not_a_report\`.
+To report what a Book shows, send its Bkper query as \`query\` instead of \`prompt\`; a person's words always go as \`prompt\`. A \`prompt\` with a \`group:\`, \`account:\` or \`acc:\` term is read as a query too. A query is read exactly as sent, with no AI: every amount is Bkper's balance for that very query, as the Book's sidebar shows it, future-dated transactions included, and nothing in it is rewritten or cut off. Its \`group:\` and \`account:\` names are what the report is of (several side by side, up to six); its period is the days Bkper read (\`after:01/01/2026 before:01/01/2027\` is Jan 1 – Dec 31, 2026; \`before:\` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month, and the comparison from the same query with its dates moved to the period before; each is left out unless it reads as the query does. The report's \`text\` is the query, which sent back as \`prompt\` is read as that query. A query that names no group or Account Bkper finds answers 422 \`query_not_a_report\`.
 
 ## Saved prompts
 

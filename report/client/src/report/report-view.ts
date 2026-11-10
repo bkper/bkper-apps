@@ -135,33 +135,44 @@ export class ReportView extends LitElement {
         const rows = table?.props.rows ?? [];
         const highlight = this.highlight(rows);
         const shown = this.shown(spec);
-        // Several Answers, of targets side by side, show together where the first one is.
+        // Several Answers, of targets side by side, show together.
         const answers = root.children.flatMap(id => {
             const element = spec.elements[id];
             return element?.type === 'Answer' ? [element.props] : [];
         });
-        const firstAnswer = root.children.find(id => spec.elements[id]?.type === 'Answer');
+        // The previews share the answer's row while they fit beside it, else wrap below it.
         return html`
             <article class="report" lang=${props.locale} dir=${props.dir}>
-                <header class="report-header">
-                    <h1>${props.title}</h1>
-                    <p class="subtitle">${props.subtitle}</p>
+                <div class="report-top">
+                    <div class="report-intro">
+                        <header class="report-header">
+                            <h1>${props.title}</h1>
+                            <p class="subtitle">${props.subtitle}</p>
+                            ${
+                                props.notice
+                                    ? html`<p class="report-notice" role="note">${props.notice}</p>`
+                                    : nothing
+                            }
+                        </header>
+                        ${
+                            answers.length > 1
+                                ? html`<div class="answers">
+                                      ${answers.map(answer =>
+                                          renderAnswer(answer, format, props.title)
+                                      )}
+                                  </div>`
+                                : answers.map(answer => renderAnswer(answer, format, props.title))
+                        }
+                    </div>
                     ${
-                        props.notice
-                            ? html`<p class="report-notice" role="note">${props.notice}</p>`
+                        shown.choices
+                            ? this.renderPreviews(shown, shown.choices, props.dir)
                             : nothing
                     }
-                </header>
+                </div>
                 ${root.children.map(id => {
                     const element = spec.elements[id];
-                    if (element?.type === 'Answer' && answers.length > 1) {
-                        return id === firstAnswer
-                            ? html`<div class="answers">
-                                  ${answers.map(answer => renderAnswer(answer, format, props.title))}
-                              </div>`
-                            : nothing;
-                    }
-                    return element
+                    return element && element.type !== 'Answer'
                         ? this.renderElement(element, props, format, rows, highlight, shown)
                         : nothing;
                 })}
@@ -181,14 +192,13 @@ export class ReportView extends LitElement {
             case 'Answer':
                 return renderAnswer(element.props, format, report.title);
             case 'Chart':
-                // With a choice of charts, the one shown goes just after its previews.
+                // With a choice of charts, the one shown goes where its previews are in the spec.
                 return shown.choices
                     ? nothing
                     : this.renderShown(shown, report, format, rows, highlight);
             case 'Visualizations':
                 return shown.choices
-                    ? html`${this.renderPreviews(shown, shown.choices, report.dir)}
-                      ${this.renderShown(shown, report, format, rows, highlight)}`
+                    ? this.renderShown(shown, report, format, rows, highlight)
                     : nothing;
             case 'BreakdownTable':
                 return html`<section class="breakdown-section" aria-label=${element.props.label}>

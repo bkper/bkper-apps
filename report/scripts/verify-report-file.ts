@@ -240,6 +240,35 @@ async function check(page: Page, frame: Frame): Promise<string[]> {
             failures.push('The answers side by side overlap or leave the report');
         }
     }
+    // Nothing widens the page: previews scroll inside their row when they are too many for it,
+    // and beside the answer they stay within the report without covering it.
+    failures.push(
+        ...(await frame.evaluate(() => {
+            const found: string[] = [];
+            const page = document.documentElement;
+            if (page.scrollWidth > page.clientWidth + 1) {
+                found.push(
+                    `The report is wider than its frame (${page.scrollWidth} > ${page.clientWidth} px)`
+                );
+            }
+            const root = document.querySelector('report-view')?.shadowRoot;
+            const previews = root?.querySelector('.previews')?.getBoundingClientRect();
+            const intro = root?.querySelector('.report-intro')?.getBoundingClientRect();
+            const report = root?.querySelector('.report')?.getBoundingClientRect();
+            if (previews && intro && report) {
+                if (previews.left < report.left - 0.5 || previews.right > report.right + 0.5) {
+                    found.push('The previews leave the report');
+                }
+                const covers =
+                    previews.left < intro.right - 0.5 &&
+                    intro.left < previews.right - 0.5 &&
+                    previews.top < intro.bottom - 0.5 &&
+                    intro.top < previews.bottom - 0.5;
+                if (covers) found.push('The previews cover the answer');
+            }
+            return found;
+        }))
+    );
     const hasChart = await frame.evaluate(() => {
         const data = document.getElementById('report-data')?.textContent ?? '{}';
         const spec = JSON.parse(data) as { spec?: { elements?: Record<string, { type: string }> } };

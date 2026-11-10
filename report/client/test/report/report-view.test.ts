@@ -64,21 +64,27 @@ function barColors(view: ReportView): unknown {
 }
 
 describe('<report-view>', () => {
-    it('renders every recorded spec, answer first, then previews, chart, table and source', async () => {
+    it('renders every recorded spec, answer first with the previews beside it, then chart, table and source', async () => {
         for (const id of galleryIds()) {
             const spec = gallerySpec(id);
             const view = await mount(spec);
-            const order = [...root(view).querySelectorAll('.report > *')].map(
-                node => node.className
-            );
+            const classes = (selector: string) =>
+                [...root(view).querySelectorAll(selector)].map(node => node.className);
             // Targets side by side have an Answer each, together.
             const answers = Object.values(spec.elements).filter(
                 element => element.type === 'Answer'
             ).length;
-            const expected = ['report-header', answers > 1 ? 'answers' : 'answer'];
+            expect(classes('.report-intro > *'), id).toEqual([
+                'report-header',
+                answers > 1 ? 'answers' : 'answer',
+            ]);
+            // The previews share the answer's row, so the space beside it is not left empty.
+            const top = ['report-intro'];
             if (Object.values(spec.elements).some(element => element.type === 'Visualizations')) {
-                expected.push('previews');
+                top.push('previews');
             }
+            expect(classes('.report-top > *'), id).toEqual(top);
+            const expected = ['report-top'];
             if (Object.values(spec.elements).some(element => element.type === 'Chart')) {
                 expected.push(expect.stringContaining('chart'));
             }
@@ -86,7 +92,7 @@ describe('<report-view>', () => {
             if (Object.values(spec.elements).some(element => element.type === 'BreakdownTable')) {
                 expected.push('breakdown-section');
             }
-            expect(order, id).toEqual([...expected, 'source']);
+            expect(classes('.report > *'), id).toEqual([...expected, 'source']);
         }
     });
 
@@ -414,13 +420,17 @@ describe('<report-view> chart previews', () => {
         await view.updateComplete;
         expect(shownKind(view)).toBe('donut');
         const order = [...root(view).querySelectorAll('.report > *')].map(node => node.className);
-        expect(order.indexOf('previews')).toBe(order.findIndex(name => name.includes('chart')) - 1);
+        expect(order.indexOf('report-top')).toBe(
+            order.findIndex(name => name.includes('chart')) - 1
+        );
+        expect(root(view).querySelector('.report-top > .previews')).not.toBeNull();
     });
 
     it('keeps table-only reports keyboard-accessible without a pressed preview', async () => {
         for (const id of ['expenses-table', 'revenue-total']) {
             const view = await mount(gallerySpec(id));
             expect(shownKind(view), id).toBeNull();
+        // Right below the answer's row, which holds the previews.
             expect(root(view).querySelector('.breakdown-section'), id).not.toBeNull();
             expect(root(view).querySelector('.preview[data-kind="table"]'), id).toBeNull();
             const buttons = previews(view);

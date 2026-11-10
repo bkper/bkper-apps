@@ -34,7 +34,26 @@ export const reportViewCSS = css`
         white-space: nowrap;
     }
 
-    /* Header and answer: the amount asked for comes first. */
+    /*
+     * Header and answer: the amount asked for comes first. The previews share its row, at its
+     * end and level with its last line, while they fit beside it; else they wrap below it.
+     */
+
+    /* Its own minimum is none, so narrow previews scroll inside it rather than widen the report. */
+    .report-top {
+        min-inline-size: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--wa-space-xl) var(--wa-space-2xl);
+    }
+
+    .report-intro {
+        flex: 1 1 20rem;
+        display: grid;
+        gap: var(--wa-space-xl);
+    }
 
     .report-header h1 {
         font-size: var(--wa-font-size-l);
@@ -180,6 +199,10 @@ export const reportViewCSS = css`
     /* Previews of every chart that fits: quiet cards that scroll sideways; the one shown stands out. */
 
     .previews {
+        flex: 0 1 auto;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+        box-sizing: border-box;
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
@@ -190,7 +213,7 @@ export const reportViewCSS = css`
         scrollbar-width: thin;
     }
 
-    .previews + .chart {
+    .report-top:has(> .previews) + .chart {
         margin-block-start: calc(-1 * var(--wa-space-m));
     }
 

@@ -2,7 +2,8 @@
  * Events a report fires for its host. They bubble and cross shadow roots.
  *
  * - `report-open-in-bkper`: the person follows the link to the report's query in Bkper (the
- *   spec's `openInBkper` action). Cancel it to navigate another way; otherwise the link opens.
+ *   spec's `openInBkper` action) with a plain click. Cancel it to navigate another way;
+ *   otherwise the link opens in a new tab, as it does for a click that asks for one.
  * - `report-expand-row`: a breakdown row opened or closed in place (the `expandRow` action).
  * - `report-select-chart`: the person chose one of the charts that fit, which the report now
  *   shows (the `selectChart` action). Hosts may keep it, such as in the report's state.

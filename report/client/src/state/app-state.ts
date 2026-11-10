@@ -244,6 +244,18 @@ export class AppState {
         return url !== undefined && this.host.navigate(url);
     };
 
+    /**
+     * The person clicked the link to the report's query in Bkper, `url`: in a Book that navigates
+     * for the app, ask it to open that page in place, on its own origin, where the Book keeps
+     * Report open beside it. Whether it did; else the link opens in a new tab.
+     */
+    readonly openInBkper = (url: string): boolean => {
+        const origin = this.host.navigationOrigin;
+        if (!this.embedded || !origin) return false;
+        const target = new URL(url);
+        return this.host.navigate(new URL(target.pathname + target.search, origin).href);
+    };
+
     private agentUrl(problem: BookProblem, origin: string): string | undefined {
         const bookId = this.reports.bookId;
         if (!bookId || !problem.canOrganize) return undefined;

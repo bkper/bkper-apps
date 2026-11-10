@@ -19,6 +19,7 @@ import '@awesome.me/webawesome-pro/dist/components/sparkline/sparkline.js';
 import type WaChart from '@awesome.me/webawesome-pro/dist/components/chart/chart.js';
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { plainClick } from '../bkper-host.js';
 import { renderAnswer } from './answer.js';
 import { renderBreakdown } from './breakdown.js';
 import { drawnAtSize, renderChart } from './chart.js';
@@ -392,7 +393,8 @@ export class ReportView extends LitElement {
     }
 
     private open(event: MouseEvent, detail: OpenInBkperDetail): void {
-        if (!this.dispatchEvent(reportEvent(OPEN_IN_BKPER, detail, true))) {
+        // A click that asks for a new tab or window keeps the link's own way.
+        if (plainClick(event) && !this.dispatchEvent(reportEvent(OPEN_IN_BKPER, detail, true))) {
             event.preventDefault();
         }
     }

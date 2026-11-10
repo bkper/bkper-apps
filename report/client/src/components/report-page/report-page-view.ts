@@ -11,7 +11,7 @@ import { plainClick } from '../../bkper-host';
 import type { AppState } from '../../state/app-state';
 import { SELECT_TEXT } from '../../state/reports';
 import { on, watch } from '../../state/store';
-import type { SELECT_CHART } from '../../report/index';
+import type { OPEN_IN_BKPER, SELECT_CHART } from '../../report/index';
 import { CHOOSE_SUGGESTION } from '../report-suggestions';
 import { OPEN_SAVED_REPORT } from '../report-shelf';
 import '../report-shelf';
@@ -29,6 +29,7 @@ export type ReportPageState = Pick<
     | 'names'
     | 'agentLink'
     | 'openAgent'
+    | 'openInBkper'
 >;
 
 /** Notices that say something failed, rather than hint. */
@@ -147,6 +148,7 @@ export class ReportPage extends LitElement {
                                           this.shown === reports.report ? reports.chart : undefined
                                       }
                                       @report-select-chart=${this.onSelectChart}
+                                      @report-open-in-bkper=${this.onOpenInBkper}
                                   ></report-view>`
                                 : nothing
                         }
@@ -384,6 +386,11 @@ export class ReportPage extends LitElement {
 
     private onSelectChart = (event: HTMLElementEventMap[typeof SELECT_CHART]) =>
         this.state.reports.chooseChart(event.detail.kind);
+
+    /** In a Book that navigates for the app, the report's query opens in place, not in a new tab. */
+    private onOpenInBkper = (event: HTMLElementEventMap[typeof OPEN_IN_BKPER]) => {
+        if (this.state.openInBkper(event.detail.url)) event.preventDefault();
+    };
 
     private onChoose = (event: HTMLElementEventMap[typeof CHOOSE_SUGGESTION]) => {
         this.state.reports.choose(event.detail);

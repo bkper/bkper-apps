@@ -11,7 +11,7 @@ import {
 } from '../../../src/api/app-api';
 import '../../../src/web-awesome';
 import { ReportPage } from '../../../src/components/report-page/report-page-view';
-import { SELECT_CHART } from '../../../src/report/index';
+import { OPEN_IN_BKPER, SELECT_CHART } from '../../../src/report/index';
 import { CHOOSE_SUGGESTION } from '../../../src/components/report-suggestions';
 import { AppState } from '../../../src/state/app-state';
 import { CACHE_MS } from '../../../src/state/cache-window';
@@ -1609,6 +1609,52 @@ describe('ReportPage with a Book whose groups keep it from reports', () => {
         view.state.reports.input('expenses this year');
         await view.updateComplete;
         expect(shadow(view).querySelector('.problem')).toBeNull();
+    });
+
+    it('opens the report in Bkper in place in a Book that navigates for the app', async () => {
+        const parent = { postMessage: vi.fn() };
+        const host = createHostPage('https://report.bkper.app', parent);
+        const view = createPage({ embedded: true, host });
+        view.state.connect();
+        view.state.reports.open('book-1');
+        await settle(view);
+        view.state.reports.choose(SUGGESTIONS[0]);
+        await settle(view);
+        const shown = shadow(view).querySelector('report-view');
+        const url =
+            'https://bkper.app/books/book-1/transactions?query=group%3A%27Expenses%27%20on%3A%24y-1';
+        const open = () => {
+            const event = new CustomEvent(OPEN_IN_BKPER, {
+                detail: { url },
+                bubbles: true,
+                composed: true,
+                cancelable: true,
+            });
+            shown?.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+
+        // Until the Book says it navigates, the link opens in a new tab.
+        expect(open()).toBe(false);
+        expect(parent.postMessage).not.toHaveBeenCalled();
+
+        const ready = new MessageEvent('message', {
+            data: { type: 'bkper:host-ready', supports: ['navigate'] },
+            origin: 'https://dev.bkper.app',
+        });
+        Object.defineProperty(ready, 'source', { value: parent });
+        host.dispatchEvent(ready);
+
+        // The Book's own page of the query, in place, on the Book's origin.
+        expect(open()).toBe(true);
+        expect(parent.postMessage).toHaveBeenCalledExactlyOnceWith(
+            {
+                type: 'bkper:navigate',
+                url: 'https://dev.bkper.app/books/book-1/transactions?query=group%3A%27Expenses%27%20on%3A%24y-1',
+            },
+            'https://dev.bkper.app'
+        );
+        view.state.disconnect();
     });
 
     it('opens the Agent in place in a Book that navigates for the app', async () => {

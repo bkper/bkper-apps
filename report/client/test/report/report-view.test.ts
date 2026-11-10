@@ -285,11 +285,19 @@ describe('<report-view>', () => {
             event.preventDefault();
         };
         document.body.addEventListener(OPEN_IN_BKPER, handle);
-        const click = new Event('click', { bubbles: true, cancelable: true });
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true });
         link?.dispatchEvent(click);
+        // A click that asks for a new tab or window is the browser's, not the host's.
+        const modified = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            ctrlKey: true,
+        });
+        link?.dispatchEvent(modified);
         document.body.removeEventListener(OPEN_IN_BKPER, handle);
         expect(opened).toEqual([elementOf(spec, 'Source').props.url]);
         expect(click.defaultPrevented).toBe(true);
+        expect(modified.defaultPrevented).toBe(false);
     });
 
     it('leaves the link out where the spec binds no openInBkper action', async () => {
@@ -419,6 +427,7 @@ describe('<report-view> chart previews', () => {
         preview(view, 'donut').click();
         await view.updateComplete;
         expect(shownKind(view)).toBe('donut');
+        // Right below the answer's row, which holds the previews.
         const order = [...root(view).querySelectorAll('.report > *')].map(node => node.className);
         expect(order.indexOf('report-top')).toBe(
             order.findIndex(name => name.includes('chart')) - 1
@@ -430,7 +439,6 @@ describe('<report-view> chart previews', () => {
         for (const id of ['expenses-table', 'revenue-total']) {
             const view = await mount(gallerySpec(id));
             expect(shownKind(view), id).toBeNull();
-        // Right below the answer's row, which holds the previews.
             expect(root(view).querySelector('.breakdown-section'), id).not.toBeNull();
             expect(root(view).querySelector('.preview[data-kind="table"]'), id).toBeNull();
             const buttons = previews(view);

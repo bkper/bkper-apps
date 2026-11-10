@@ -82,6 +82,7 @@ function jevResponse(answers: JevAnswers): Response {
         model: 'jev',
         answers: {
             root: choice(answers.root),
+            target: choice('whole'),
             ...Object.fromEntries(
                 Object.entries({ ...periodChoices(answers.period), ...answers.parts }).map(
                     ([id, label]) => [id, choice(label)]

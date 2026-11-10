@@ -131,6 +131,7 @@ export async function savedWorkflow() {
                                     model: 'jev',
                                     answers: {
                                         root: choice('Expenses'),
+                                        target: choice('whole'),
                                         // Last month, as the period questions read it.
                                         span: choice('month'),
                                         year: choice('unspecified'),

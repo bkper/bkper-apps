@@ -61,6 +61,7 @@ function jevBody(answers: JevAnswers) {
         model: 'jev',
         answers: {
             root: choice(answers.root, answers.rootConfidence),
+            target: choice('whole'),
             ...Object.fromEntries(
                 Object.entries({
                     ...periodChoices(answers.period),

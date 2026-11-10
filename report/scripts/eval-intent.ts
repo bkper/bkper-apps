@@ -1,5 +1,5 @@
 /**
- * Evaluates intent resolution against the real decision model, on the two test Books.
+ * Evaluates intent resolution against the real decision model, on the test Books.
  *
  *     BKPER_AI_TOKEN=<token> npx tsx scripts/eval-intent.ts [--only=<case number>,...]
  *
@@ -33,7 +33,11 @@ import { Bkper, type Book } from 'bkper-js';
 import { readQueryBalances } from '../server/src/services/balances.ts';
 import { createDecisionClient, decide } from '../server/src/services/decision-client.ts';
 import { readReport } from '../server/src/services/default-period.ts';
-import { UNSPECIFIED, buildIntentRequest } from '../server/src/services/intent-questions.ts';
+import {
+    UNSPECIFIED,
+    buildIntentRequest,
+    type IntentOptions,
+} from '../server/src/services/intent-questions.ts';
 import {
     extractHashtags,
     readIntent,
@@ -76,6 +80,9 @@ import { ReportError } from '../server/src/services/report.ts';
 const BOOKS = {
     nimbus: 'agtzfmJrcGVyLWhyZHINCxIGTGVkZ2VyGNEPDA',
     personal: 'agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICAgIOLzLQKDA',
+    // EN - Simple General Ledger, Bkper's public template: its income and expense groups sit
+    // inside one root, Net Income, with a closing root, Summary, beside it.
+    template: 'agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICAgKD_4bMLDA',
 } as const;
 
 type BookKey = keyof typeof BOOKS;
@@ -84,7 +91,8 @@ type Accepted = string | string[];
 /**
  * A request and what it should resolve to. Roots are group names (or the name of an account
  * in no group), `net-result` or `none`; `targets` are the names of the groups and accounts
- * the report is of, in order, when the request writes them (left out: the root itself);
+ * the report is of, in order, when the request writes them or means one below its root
+ * (left out: the root itself);
  * `period` is the model's expected choice (`unspecified` when the request names none), and
  * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`,
  * `chart` and `compareWith` are the intent's (`view` is `unspecified` when left out, `chart` is
@@ -167,6 +175,7 @@ const CASES: Case[] = [
         book: 'nimbus',
         prompt: 'gastos en comidas en 2014',
         root: 'Despesas',
+        targets: ['Refeições'],
         period: '2014',
         language: 'es',
     },
@@ -174,6 +183,7 @@ const CASES: Case[] = [
         book: 'nimbus',
         prompt: 'how much did we spend on office supplies in 2016?',
         root: 'Despesas',
+        targets: ['Mat. Escritório'],
         period: '2016',
         view: ['total', UNSPECIFIED],
         language: 'en',
@@ -280,6 +290,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'Kontostand meiner Bankkonten',
         root: 'Assets',
+        targets: ['Bank Account'],
         period: UNSPECIFIED,
         intentPeriod: 'today',
         view: ['total', UNSPECIFIED],
@@ -296,6 +307,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'dépenses de transport en juillet 2019',
         root: ['Expenses', 'Net income'],
+        targets: ['Transportation'],
         period: '2019-07',
         language: 'fr',
     },
@@ -458,6 +470,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'Kontostand meiner Bankkonten Monat für Monat 2019 als Flächendiagramm',
         root: 'Assets',
+        targets: ['Bank Account'],
         period: '2019',
         monthly: true,
         view: ['trend', UNSPECIFIED],
@@ -530,6 +543,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'mes comptes bancaires mois par mois en 2019, en graphique en aires',
         root: 'Assets',
+        targets: ['Bank Account'],
         period: '2019',
         monthly: true,
         view: ['trend', UNSPECIFIED],
@@ -580,6 +594,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: '2019年の銀行口座の残高',
         root: 'Assets',
+        targets: ['Bank Account'],
         period: ['2019', '2019-12', '2019-Q4'],
         view: ['total', UNSPECIFIED],
         language: 'ja',
@@ -588,6 +603,7 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'كم أنفقت على الطعام في 2019؟',
         root: ['Expenses', 'Net income'],
+        targets: ['Food'],
         period: '2019',
         view: ['total', UNSPECIFIED],
         language: 'ar',
@@ -993,6 +1009,119 @@ const CASES: Case[] = [
         chart: 'compare',
         language: 'pt',
     },
+    // A group or account below a root, meant but not written as the Book writes it: in another
+    // language or in other words. The report is of what the request means, not of its root.
+    // Appended last, so the cases before keep their numbers.
+    {
+        book: 'template',
+        prompt: 'How much did we spend last year?',
+        root: 'Net Income',
+        targets: ['Expenses'],
+        period: `${YEAR - 1}`,
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'total costs in 2025',
+        root: 'Net Income',
+        targets: ['Expenses'],
+        period: '2025',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'despesas de 2025',
+        root: 'Net Income',
+        targets: ['Expenses'],
+        period: '2025',
+        language: 'pt',
+    },
+    {
+        book: 'template',
+        prompt: 'receitas do segundo trimestre de 2025',
+        root: 'Net Income',
+        targets: ['Revenue'],
+        period: '2025-Q2',
+        language: 'pt',
+    },
+    {
+        book: 'template',
+        prompt: 'income in Q2 2025',
+        root: 'Net Income',
+        targets: ['Revenue'],
+        period: '2025-Q2',
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: '2025年の売上',
+        root: 'Net Income',
+        targets: ['Revenue'],
+        period: '2025',
+        language: 'ja',
+    },
+    {
+        book: 'template',
+        prompt: '¿cuánto gastamos en alquiler en 2025?',
+        root: 'Net Income',
+        targets: ['Rent'],
+        period: '2025',
+        view: ['total', UNSPECIFIED],
+        language: 'es',
+    },
+    {
+        book: 'template',
+        prompt: 'what did we pay for housing in 2025',
+        root: 'Net Income',
+        targets: ['Rent'],
+        period: '2025',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    // The same Book, asked for its roots or with names written as it writes them: these read
+    // right already and must keep reading so.
+    {
+        book: 'template',
+        prompt: 'net income last year',
+        root: 'Net Income',
+        period: `${YEAR - 1}`,
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'profit in 2025',
+        root: ['Net Income', NET_RESULT_ROOT],
+        period: '2025',
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'how much did we spend on rent in 2025',
+        root: 'Net Income',
+        targets: ['Rent'],
+        period: '2025',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'revenue in Q2 2025',
+        root: 'Net Income',
+        targets: ['Revenue'],
+        period: '2025-Q2',
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'cash today',
+        root: 'Total Equity',
+        targets: ['Cash'],
+        period: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
 ];
 
 const QUESTIONS = [
@@ -1093,7 +1222,7 @@ async function readPeriod(
 /** The model's answers to a request, asked as the app asks. */
 interface Asked {
     answers: IntentAnswers;
-    roots: Record<string, string>;
+    options: IntentOptions;
     latencyMs: number;
     inputTokens: number;
     model: string;
@@ -1104,12 +1233,12 @@ async function ask(
     prompt: string,
     snapshot: Snapshot
 ): Promise<Asked> {
-    const { request, roots } = buildIntentRequest(prompt, snapshot);
+    const { request, ...options } = buildIntentRequest(prompt, snapshot);
     const start = performance.now();
     const result = await decide(client, request);
     return {
         answers: result.answers,
-        roots,
+        options,
         latencyMs: performance.now() - start,
         inputTokens: result.usage.input_tokens,
         model: result.model,
@@ -1127,7 +1256,7 @@ function resolve(
     names: ReturnType<typeof findPromptNames>
 ): IntentResolution | { recognized: true; future: true } {
     try {
-        return readIntent(asked.answers, asked.roots, snapshot, hashtags, names);
+        return readIntent(asked.answers, asked.options, snapshot, hashtags, names);
     } catch (error) {
         if (error instanceof ReportError && error.reason === 'future_period') {
             return { recognized: true, future: true };
@@ -1309,7 +1438,9 @@ async function main(): Promise<void> {
         const yes = (answer: { noul: number }) => answer.noul.toFixed(2);
         const named = got.targets.length > 0 ? ` targets=${got.targets.join('|')}` : '';
         const detail =
-            `root=${got.root}(${answers.root.choice} ${answers.root.confidence.toFixed(2)})${named}` +
+            `root=${got.root}(${answers.root.choice} ${answers.root.confidence.toFixed(2)})` +
+            ` target=${answers.target.choice}(${answers.target.confidence.toFixed(2)})` +
+            `${resolution.recognized ? `:${resolution.trace.targetRule}` : ''}${named}` +
             ` ${PERIOD_QUESTION_IDS.filter(id => atomic.trace[id].answer !== UNSPECIFIED)
                 .map(id => `${id}=${atomic.trace[id].answer}(${atomic.trace[id].score.toFixed(2)})`)
                 .join(

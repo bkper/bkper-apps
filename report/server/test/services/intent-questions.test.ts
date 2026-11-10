@@ -5,6 +5,7 @@ import {
     MAX_REQUEST_CHARACTERS,
     NO_CHART,
     NO_ROOT,
+    WHOLE,
     buildIntentRequest,
 } from '../../src/services/intent-questions';
 import { PERIOD_QUESTION_IDS, buildPeriodQuestions } from '../../src/services/period-questions';
@@ -14,6 +15,13 @@ import { TODAY, fixtureSnapshot } from '../fixtures/snapshot-book';
 
 function withRoots(snapshot: Snapshot, ids: string[]): Snapshot {
     return { ...snapshot, roots: ids };
+}
+
+function hidden(snapshot: Snapshot, id: string): Snapshot {
+    return {
+        ...snapshot,
+        groups: { ...snapshot.groups, [id]: { ...snapshot.groups[id], hidden: true } },
+    };
 }
 
 function renamed(snapshot: Snapshot, id: string, name: string): Snapshot {
@@ -78,6 +86,107 @@ describe('buildIntentRequest', () => {
         expect(criteria.Revenue).toMatch(/^Incoming: money received/);
         expect(criteria.Card).toMatch(/^Liabilities: what is owed/);
         expect(criteria['Net income']).toMatch(/^Money received and spent together/);
+    });
+
+    it('never offers a root the Book hides', async () => {
+        const { roots } = buildIntentRequest('card', hidden(await fixtureSnapshot(), 'g-card'));
+        expect(Object.values(roots)).not.toContain('g-card');
+        expect(Object.values(roots)).toContain('g-assets');
+    });
+
+    it('offers the groups below the roots, then their accounts, each once, and the whole', async () => {
+        const { request, targets } = buildIntentRequest('rent', await fixtureSnapshot());
+        // Old Supplier is archived; Owner, in no group, is a root of its own.
+        expect(Object.keys(targets)).toEqual([
+            'Banks',
+            'Bank A',
+            'Bank B',
+            'Cash',
+            'Credit Card',
+            'Food',
+            'Rent',
+            'Salary',
+        ]);
+        expect(targets.Banks).toEqual({ id: 'g-banks', roots: ['g-assets'] });
+        // An account under several roots names each, in Book order.
+        expect(targets.Rent).toEqual({ id: 'a-rent', roots: ['g-expenses', 'g-net'] });
+        const criteria = request.questions.target.criteria;
+        expect(Object.keys(criteria)).toEqual([...Object.keys(targets), WHOLE]);
+        expect(criteria['Bank A']).toBe('Account in Assets › Banks. Asset: owned.');
+        expect(criteria.Cash).toBe('Account in Assets. Asset: owned.');
+        expect(criteria.Banks).toBe('Group in Assets. Asset: owned.');
+        expect(criteria.Rent).toBe('Account in Expenses. Outgoing: money spent.');
+        expect(criteria[WHOLE]).toMatch(/^None of these/);
+    });
+
+    it('never offers a target the Book hides, or one under it', async () => {
+        const banks = buildIntentRequest('bank', hidden(await fixtureSnapshot(), 'g-banks'));
+        expect(Object.keys(banks.targets)).not.toContain('Banks');
+        expect(Object.keys(banks.targets)).not.toContain('Bank A');
+        expect(Object.keys(banks.targets)).toContain('Cash');
+
+        // Rent is also under Net income, which the Book shows.
+        const expenses = buildIntentRequest('rent', hidden(await fixtureSnapshot(), 'g-expenses'));
+        expect(expenses.targets.Rent).toEqual({ id: 'a-rent', roots: ['g-net'] });
+        expect(Object.keys(expenses.targets)).not.toContain('Old Supplier');
+    });
+
+    it('offers no group without an account with transactions posted', async () => {
+        const snapshot = await fixtureSnapshot();
+        for (const id of ['a-bank-a', 'a-bank-b']) {
+            snapshot.accounts[id] = { ...snapshot.accounts[id], posted: false };
+        }
+        const { targets } = buildIntentRequest('bank', snapshot);
+        expect(Object.keys(targets)).not.toContain('Banks');
+        expect(Object.keys(targets)).not.toContain('Bank A');
+    });
+
+    it('offers at most 254 targets and the whole, groups first, in Book order', async () => {
+        const { request, targets } = buildIntentRequest(
+            'x',
+            wideSnapshot(await fixtureSnapshot(), 2, 200)
+        );
+        expect(Object.keys(request.questions.target.criteria)).toHaveLength(255);
+        expect(Object.keys(request.questions.target.criteria).at(-1)).toBe(WHOLE);
+        expect(Object.keys(targets)[0]).toBe('R0-0');
+        expect(Object.keys(targets).at(-1)).toBe('R1-53');
+    });
+
+    it('keeps the targets of deep Books with long names bounded', async () => {
+        const base = await fixtureSnapshot();
+        const long = (prefix: string, n: number) => `${prefix}${n}`.padEnd(80, 'x');
+        const groups: Snapshot['groups'] = {};
+        const accounts: Snapshot['accounts'] = {};
+        const node = { type: 'OUTGOING' as const, credit: false, permanent: false };
+        // 300 roots, each a chain of 6 groups, the last holding one account.
+        for (let r = 0; r < 300; r++) {
+            for (let d = 0; d < 6; d++) {
+                const id = `r${r}-${d}`;
+                groups[id] = {
+                    ...node,
+                    id,
+                    name: long(`G${r}-${d}`, 0),
+                    ...(d > 0 ? { parent: `r${r}-${d - 1}` } : {}),
+                    groups: d < 5 ? [`r${r}-${d + 1}`] : [],
+                    accounts: d === 5 ? [`a${r}`] : [],
+                };
+            }
+            accounts[`a${r}`] = {
+                ...node,
+                id: `a${r}`,
+                name: long('A', r),
+                archived: false,
+                posted: true,
+            };
+        }
+        const roots = Array.from({ length: 300 }, (_, r) => `r${r}-0`);
+        const { request } = buildIntentRequest('x', { ...base, roots, groups, accounts });
+        const criteria = request.questions.target.criteria;
+        expect(Object.keys(criteria)).toHaveLength(255);
+        expect(criteria[long('G0-5', 0).slice(0, 60)]).toBe(
+            `Group in ${long('G0-0', 0).slice(0, 60)} › … › ${long('G0-4', 0).slice(0, 60)}. Outgoing: money spent.`
+        );
+        expect(JSON.stringify(request.questions.target).length).toBeLessThan(60_000);
     });
 
     it('offers the net result only to Books with activity roots', async () => {
@@ -155,6 +264,7 @@ describe('buildIntentRequest', () => {
         }
         expect(Object.keys(questions)).toEqual([
             'root',
+            'target',
             'over_time',
             'composition',
             'versus_earlier',

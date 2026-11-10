@@ -1,7 +1,8 @@
 /**
  * Intent resolution: a report request, in any language, becomes a {@link ReportIntent} with one
- * decision request. The model makes judgments: it chooses the root, the chart word and the
- * language among the options of {@link buildIntentRequest}, the parts of the period (its span,
+ * decision request. The model makes judgments: it chooses the root, the group or account below
+ * it (the target), the chart word and the language among the options of
+ * {@link buildIntentRequest}, the parts of the period (its span,
  * year, month and quarter, and those of the period it compares with, `period-questions.ts`),
  * and answers whether the request asks about change over time, a composition, a comparison with
  * an earlier period or a bridge. This code makes the decisions: it applies the thresholds, reads
@@ -9,7 +10,8 @@
  * {@link SHOW_RULES}, picks the default period when the request names none, and reads from the
  * request text itself its first hashtag and the exact names of the
  * Book's groups and accounts (`prompt-names.ts`), which the report is of whenever the request
- * writes any: the model's root is read only when it writes none. Which charts fit the numbers
+ * writes any: the model's root and target are read only when it writes none, by the rules of
+ * {@link TARGET_RULE_NAMES}. Which charts fit the numbers
  * is decided afterwards, by `buildReport`, from the facts of the report.
  */
 import { decide, type DecisionClient } from './decision-client.js';
@@ -19,6 +21,8 @@ import {
     NO_ROOT,
     THRESHOLDS,
     type ChartWord,
+    type IntentOptions,
+    type TargetOption,
 } from './intent-questions.js';
 import {
     readPeriod,
@@ -69,6 +73,7 @@ interface NoulAnswer {
 /** The answers {@link readIntent} needs, as the decision model returns them. */
 export type IntentAnswers = PeriodAnswers & {
     root: ChoiceAnswer;
+    target: ChoiceAnswer;
     over_time: NoulAnswer;
     composition: NoulAnswer;
     versus_earlier: NoulAnswer;
@@ -160,6 +165,71 @@ export function decideShown(judgments: Judgments): Shown & { rule: ShowRule } {
     return { rule: match.rule, ...match.shows(judgments) };
 }
 
+/**
+ * How the subject of a report is chosen, the first that applies, in order:
+ *
+ * - `written`: the request writes names of the Book, and the report is of them, whatever the
+ *   model chose.
+ * - `net_result`: the model is sure of the net result, which stays whole: no target.
+ * - `root`: the model is unsure of a target, or chose the whole: the root alone.
+ * - `target`: a sure target under the sure root.
+ * - `other_root`: a sure target not under the sure root, which is read alone: of two sure
+ *   answers that disagree, the root is the one the model chooses from the Book's top level,
+ *   as before targets were asked.
+ * - `target_root`: a sure target, and no root or an unsure one: the target under the root it
+ *   chose when that root holds it, else under the first root in Book order that holds it.
+ *
+ * Neither a sure root nor a sure target is no report.
+ */
+export const TARGET_RULE_NAMES = [
+    'written',
+    'net_result',
+    'root',
+    'target',
+    'other_root',
+    'target_root',
+] as const;
+
+export type TargetRule = (typeof TARGET_RULE_NAMES)[number];
+
+interface Subject {
+    root: string;
+    target?: string;
+}
+
+/**
+ * The subject the model's answers mean, by the rules of {@link TARGET_RULE_NAMES} but
+ * `written`, or undefined when it is no report of the Book.
+ */
+function judgedSubject(
+    answers: IntentAnswers,
+    options: IntentOptions
+): (Subject & { rule: TargetRule }) | undefined {
+    const chosen = Object.hasOwn(options.roots, answers.root.choice)
+        ? options.roots[answers.root.choice]
+        : NO_ROOT;
+    const root = chosen === NO_ROOT ? undefined : chosen;
+    const sureRoot = root !== undefined && answers.root.confidence >= THRESHOLDS.root;
+    const target: TargetOption | undefined =
+        Object.hasOwn(options.targets, answers.target.choice) &&
+        answers.target.confidence >= THRESHOLDS.target
+            ? options.targets[answers.target.choice]
+            : undefined;
+    if (sureRoot && root === NET_RESULT_ROOT) {
+        return { root, rule: target ? 'net_result' : 'root' };
+    }
+    if (!target) {
+        return sureRoot ? { root, rule: 'root' } : undefined;
+    }
+    if (sureRoot) {
+        return target.roots.includes(root)
+            ? { root, target: target.id, rule: 'target' }
+            : { root, rule: 'other_root' };
+    }
+    const holding = root !== undefined && target.roots.includes(root) ? root : target.roots[0];
+    return { root: holding, target: target.id, rule: 'target_root' };
+}
+
 /** Charts drawn by month, which read a trend's default period. */
 const CHARTS_BY_MONTH: readonly ChartPreference[] = ['bar', 'line', 'area', 'stacked'];
 
@@ -176,6 +246,7 @@ export interface JudgmentTrace<T> {
 export interface IntentTrace {
     judgments: {
         root: JudgmentTrace<string>;
+        target: JudgmentTrace<string>;
         period: PeriodPartTrace;
         year: PeriodPartTrace;
         month: PeriodPartTrace;
@@ -192,6 +263,8 @@ export interface IntentTrace {
         language: JudgmentTrace<string>;
     };
     rule: ShowRule;
+    /** The rule that chose the report's subject, of {@link TARGET_RULE_NAMES}. */
+    targetRule: TargetRule;
     /** The rules of `readPeriod` that changed the period's parts, when any did. */
     periodRules?: PeriodRule[];
     /** The Book's names the request writes, which the report is of instead of the root judgment. */
@@ -221,13 +294,13 @@ export async function resolveIntent(
     snapshot: Snapshot,
     options: ResolveIntentOptions
 ): Promise<IntentResolution> {
-    const { request, roots } = buildIntentRequest(prompt, snapshot);
+    const { request, ...meanings } = buildIntentRequest(prompt, snapshot);
     const result = await options.timing.measure('jev', () =>
         decide(options.client, request, options.signal)
     );
     return readIntent(
         result.answers,
-        roots,
+        meanings,
         snapshot,
         extractHashtags(prompt),
         findPromptNames(prompt, snapshot)
@@ -235,17 +308,18 @@ export async function resolveIntent(
 }
 
 /**
- * Turns answers into an intent, or into no report when the request names no root of the
- * Book confidently enough. When the request writes names of the Book (`names`), the report is
- * of them, side by side when several, whatever the root judgment. A request for the next year,
- * month or quarter is a report whose period has not started: `ReportError` `future_period`.
+ * Turns answers into an intent, or into no report when the request names no root or target of
+ * the Book confidently enough. When the request writes names of the Book (`names`), the report
+ * is of them, side by side when several, whatever the root and target judgments. A request for
+ * the next year, month or quarter is a report whose period has not started: `ReportError`
+ * `future_period`.
  *
- * @param roots What each root option stands for, from {@link buildIntentRequest}.
+ * @param options What each root and target option stands for, from {@link buildIntentRequest}.
  * @param names The Book's groups and accounts the request writes, from `findPromptNames`.
  */
 export function readIntent(
     answers: IntentAnswers,
-    roots: Record<string, string>,
+    options: IntentOptions,
     snapshot: Snapshot,
     hashtags: string[],
     names: PromptName[] = []
@@ -253,8 +327,8 @@ export function readIntent(
     const language =
         answers.language.confidence >= THRESHOLDS.language ? answers.language.choice : undefined;
     const languageField = language ? { language } : {};
-    const root = Object.hasOwn(roots, answers.root.choice) ? roots[answers.root.choice] : NO_ROOT;
-    if (names.length === 0 && (root === NO_ROOT || answers.root.confidence < THRESHOLDS.root)) {
+    const judged = names.length === 0 ? judgedSubject(answers, options) : undefined;
+    if (names.length === 0 && !judged) {
         return { recognized: false, ...languageField };
     }
 
@@ -275,7 +349,10 @@ export function readIntent(
         root,
         ...(target === undefined ? {} : { target }),
     }));
-    const subject = first ?? { root };
+    const subject: Subject = first ?? {
+        root: judged?.root ?? NO_ROOT,
+        ...(judged?.target === undefined ? {} : { target: judged.target }),
+    };
     const named = reading.request;
     // Whatever chart shows it, the period is compared with the one the request names, or, for
     // the default period, the same one a year earlier when the request asks so.
@@ -291,7 +368,7 @@ export function readIntent(
             period:
                 named?.period ??
                 defaultPeriod({
-                    nature: periodNature(subject.root, names, snapshot),
+                    nature: periodNature(subject, snapshot),
                     trend,
                     today: snapshot.today,
                 }),
@@ -306,6 +383,7 @@ export function readIntent(
     const trace: IntentTrace = {
         judgments: traceJudgments(answers, reading.trace),
         rule,
+        targetRule: judged?.rule ?? 'written',
         ...(reading.trace.rules.length > 0 ? { periodRules: reading.trace.rules } : {}),
     };
     if (names.length > 0) {
@@ -321,15 +399,15 @@ export function readIntent(
 }
 
 /**
- * The nature of a default period: of the first name written, else of the root (a position for
- * a permanent root group or account in no group; a net result is activity).
+ * The nature of a default period: of the subject, the first name written or the target, else
+ * the root (a position for a permanent group or account; a net result is activity).
  */
-function periodNature(root: string, names: PromptName[], snapshot: Snapshot): ReportNature {
+function periodNature({ root, target }: Subject, snapshot: Snapshot): ReportNature {
+    const id = target ?? root;
     const node =
-        names[0] ??
-        (root === NET_RESULT_ROOT
+        id === NET_RESULT_ROOT
             ? undefined
-            : (snapshot.groups[root] ?? snapshot.ungrouped[root]));
+            : (snapshot.groups[id] ?? snapshot.accounts[id] ?? snapshot.ungrouped[id]);
     return node?.permanent ? 'position' : 'activity';
 }
 
@@ -364,6 +442,7 @@ function traceJudgments(answers: IntentAnswers, period: PeriodTrace): IntentTrac
     });
     return {
         root: choice(answers.root),
+        target: choice(answers.target),
         period: period.span,
         year: period.year,
         month: period.month,

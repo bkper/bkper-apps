@@ -4,12 +4,17 @@
  * Every question, criterion and threshold of intent resolution lives here, but those of the
  * period, which `period-questions.ts` asks as small judgments of their own, so they can be
  * reviewed and tuned together. The model only chooses among options this code offers (the
- * Book's root groups, the chart words, the languages) and answers
+ * Book's root groups, the groups and accounts below them, the chart words, the languages) and
+ * answers
  * yes or no to small recognition questions about how the request asks to see the amounts; it
  * never sees amounts, computes dates or writes queries. Each question stands alone: none
  * refers to another or says when not to answer yes, since code combines the answers
  * (`intent-resolver.ts`). Question ids are not sent to the model, so each instruction refers to
  * the state fields in backticks.
+ *
+ * Groups the Book hides, and everything under them, are never offered: the people who keep the
+ * Book hide closing or working groups, which are no report they mean. A request that writes a
+ * hidden group's name still finds it (`prompt-names.ts`).
  */
 import type { ChoiceQuestion, NoulQuestion, SystemOneRequest } from '@typesafe-ai/sdk';
 import { LANGUAGES } from 'report-shared/languages';
@@ -20,12 +25,18 @@ import {
     type PeriodQuestions,
 } from './period-questions.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
-import type { Snapshot, SnapshotGroup } from './snapshot.js';
+import type { Snapshot, SnapshotAccount, SnapshotGroup } from './snapshot.js';
 
 /** How sure the model must be before an answer is used. */
 export const THRESHOLDS = {
     /** Below it, or on `none`, the request is not a report of this Book. */
     root: 0.5,
+    /**
+     * Below it, or on `whole`, the report is of the root, not of a group or account below it.
+     * Between the two in the intent evaluation: the targets requests single out scored 0.83 or
+     * more, and those Jev chose for a request of a whole root 0.54 or less.
+     */
+    target: 0.7,
     /** The probability of yes from which the request asks how amounts change over time. */
     over_time: 0.5,
     /** The probability of yes from which the request asks what makes up the amount. */
@@ -54,6 +65,8 @@ const MAX_CHOICE_OPTIONS = 255;
 
 /** The root answer for a request that is not a report of this Book. */
 export const NO_ROOT = 'none';
+/** The target answer for a request of a root as a whole, or of nothing below one. */
+export const WHOLE = 'whole';
 export { UNSPECIFIED };
 
 const NET_RESULT_CRITERION =
@@ -64,6 +77,12 @@ const NO_ROOT_CRITERION =
 
 const ROOT_INSTRUCTIONS =
     'Which group of the Book does `request` ask a financial report about? `request` may be in any language: match by meaning, against a group or anything it contains. Words starting with # in `request` are filters; ignore them here.';
+
+const TARGET_INSTRUCTIONS =
+    'Which group or account inside a larger group of the Book does `request` single out, by its name or by what it is, such as a kind of expense, a client, a supplier or a bank? `request` may be in any language: match by meaning, as words of money mean in bookkeeping, such as receitas, ingresos, Einnahmen, 収入 or إيرادات for money received, and despesas, gastos, Ausgaben, 費用 or مصروفات for money spent. Words starting with # in `request` are filters; ignore them here.';
+
+const WHOLE_CRITERION =
+    'None of these: `request` asks about a top-level group as a whole, by its name or by what it holds, such as all revenue, all expenses, all debts, all investors or all employees, the profit or the net result, or singles out nothing listed here.';
 
 const OVER_TIME_INSTRUCTIONS =
     'Does `request` ask to see the amounts month by month, such as monthly amounts, how they evolve or a timeline?';
@@ -130,10 +149,21 @@ const NATURE_DESCRIPTIONS = {
     MIXED_ACTIVITY: 'Money received and spent together, such as net income or profit.',
 } as const;
 
+/** How each nature reads in a target's description, short as targets are many. */
+const SHORT_NATURES = {
+    ASSET: 'Asset: owned.',
+    LIABILITY: 'Liability: owed.',
+    INCOMING: 'Incoming: money received.',
+    OUTGOING: 'Outgoing: money spent.',
+    MIXED_PERMANENT: 'Assets and liabilities together.',
+    MIXED_ACTIVITY: 'Money received and spent together.',
+} as const;
+
 type Criteria = Record<string, string>;
 
 export type IntentQuestions = {
     root: ChoiceQuestion<Criteria>;
+    target: ChoiceQuestion<Criteria>;
     over_time: NoulQuestion;
     composition: NoulQuestion;
     versus_earlier: NoulQuestion;
@@ -143,10 +173,23 @@ export type IntentQuestions = {
     language: ChoiceQuestion<Criteria>;
 } & PeriodQuestions;
 
-export interface IntentRequest {
-    request: SystemOneRequest<IntentQuestions>;
+/** What a target option stands for: a group or account, and the root groups holding it. */
+export interface TargetOption {
+    id: string;
+    /** The root groups the Book shows that hold it, at any depth, in Book order. */
+    roots: string[];
+}
+
+/** What the options of the subject's questions stand for, to read their answers. */
+export interface IntentOptions {
     /** What each root option stands for: a root group id, {@link NET_RESULT_ROOT} or {@link NO_ROOT}. */
     roots: Record<string, string>;
+    /** What each target option stands for; {@link WHOLE} stands for none. */
+    targets: Record<string, TargetOption>;
+}
+
+export interface IntentRequest extends IntentOptions {
+    request: SystemOneRequest<IntentQuestions>;
 }
 
 /**
@@ -155,6 +198,7 @@ export interface IntentRequest {
  */
 export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRequest {
     const roots = rootOptions(snapshot);
+    const targets = targetOptions(snapshot);
     return {
         request: {
             state: { request: prompt.slice(0, MAX_REQUEST_CHARACTERS), today: snapshot.today },
@@ -164,6 +208,13 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
                     instructions: ROOT_INSTRUCTIONS,
                     criteria: Object.fromEntries(
                         roots.map(option => [option.label, option.description])
+                    ),
+                },
+                target: {
+                    type: 'choice',
+                    instructions: TARGET_INSTRUCTIONS,
+                    criteria: Object.fromEntries(
+                        targets.map(option => [option.label, option.description])
                     ),
                 },
                 over_time: { type: 'noul', instructions: OVER_TIME_INSTRUCTIONS },
@@ -185,6 +236,9 @@ export function buildIntentRequest(prompt: string, snapshot: Snapshot): IntentRe
             },
         },
         roots: Object.fromEntries(roots.map(option => [option.label, option.target])),
+        targets: Object.fromEntries(
+            targets.flatMap(option => (option.target ? [[option.label, option.target]] : []))
+        ),
     };
 }
 
@@ -194,8 +248,13 @@ interface RootOption {
     description: string;
 }
 
+/** The root groups the Book shows, in Book order. */
+function shownRoots(snapshot: Snapshot): SnapshotGroup[] {
+    return snapshot.roots.map(id => snapshot.groups[id]).filter(group => !group.hidden);
+}
+
 function rootOptions(snapshot: Snapshot): RootOption[] {
-    const groups = snapshot.roots.map(id => snapshot.groups[id]);
+    const groups = shownRoots(snapshot);
     const special: RootOption[] = [
         { label: NO_ROOT, target: NO_ROOT, description: NO_ROOT_CRITERION },
     ];
@@ -214,6 +273,101 @@ function rootOptions(snapshot: Snapshot): RootOption[] {
         description: describeRoot(group, snapshot, names),
     }));
     return [...options, ...special];
+}
+
+interface TargetChoice {
+    label: string;
+    description: string;
+    /** Absent for {@link WHOLE}. */
+    target?: TargetOption;
+}
+
+/**
+ * The groups and accounts below the root groups, as the person sees them in the Book: none the
+ * Book hides, nor under one, and only those with an account with transactions posted and not
+ * archived (the accounts themselves, and groups holding one at any depth). Groups first, then
+ * accounts, each in Book order (root groups in order, each with its subgroups, then its
+ * accounts), each once; at most {@link MAX_CHOICE_OPTIONS} with {@link WHOLE}, last. Accounts in
+ * no group are roots of their own and none is offered here: their names, written, find them.
+ */
+function targetOptions(snapshot: Snapshot): TargetChoice[] {
+    const groups: TargetNode[] = [];
+    const accounts = new Map<string, TargetNode>();
+    for (const root of shownRoots(snapshot)) {
+        // Whether the group holds an offered account, at any depth. A group is offered before its
+        // subgroups, and taken back when it holds none (its subgroups, holding none, already are).
+        const visit = (group: SnapshotGroup, path: string[]): boolean => {
+            const inside = [...path, group.name];
+            if (group.id !== root.id) {
+                groups.push({ id: group.id, kind: 'Group', node: group, path, roots: [root.id] });
+            }
+            let holds = false;
+            for (const id of group.groups) {
+                const child = snapshot.groups[id];
+                if (child && !child.hidden && visit(child, inside)) {
+                    holds = true;
+                }
+            }
+            for (const id of group.accounts) {
+                const account = snapshot.accounts[id];
+                if (!account?.posted || account.archived) {
+                    continue;
+                }
+                holds = true;
+                const known = accounts.get(id);
+                if (!known) {
+                    accounts.set(id, {
+                        id,
+                        kind: 'Account',
+                        node: account,
+                        path: inside,
+                        roots: [root.id],
+                    });
+                } else if (!known.roots.includes(root.id)) {
+                    known.roots.push(root.id);
+                }
+            }
+            if (!holds && group.id !== root.id) {
+                groups.pop();
+            }
+            return holds;
+        };
+        visit(root, []);
+    }
+    const taken = new Set([WHOLE]);
+    const options: TargetChoice[] = [...groups, ...accounts.values()]
+        .slice(0, MAX_CHOICE_OPTIONS - 1)
+        .map(entry => ({
+            label: uniqueLabel(entry.node.name, taken),
+            description: `${entry.kind} in ${place(entry.path)}. ${shortNature(entry.node)}`,
+            target: { id: entry.id, roots: entry.roots },
+        }));
+    return [...options, { label: WHOLE, description: WHOLE_CRITERION }];
+}
+
+interface TargetNode {
+    id: string;
+    kind: 'Group' | 'Account';
+    node: SnapshotGroup | SnapshotAccount;
+    /** The names of the groups it is in, from its root: of the first in Book order. */
+    path: string[];
+    roots: string[];
+}
+
+/**
+ * Where a target is: its root and the group it is in, with `…` between them when deeper, so a
+ * description stays short however deep the Book's groups go.
+ */
+function place(path: string[]): string {
+    const names = path.map(truncate);
+    return (names.length > 2 ? [names[0], '…', names.at(-1)] : names).join(' › ');
+}
+
+function shortNature(node: SnapshotGroup | SnapshotAccount): string {
+    if (node.type === 'MIXED') {
+        return node.permanent ? SHORT_NATURES.MIXED_PERMANENT : SHORT_NATURES.MIXED_ACTIVITY;
+    }
+    return SHORT_NATURES[node.type];
 }
 
 /**

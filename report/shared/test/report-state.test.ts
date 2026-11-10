@@ -1,12 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { RELATIVE_PERIODS, REPORT_CHARTS, REPORT_VIEWS } from '../src/report-intent';
+import { isolate } from '../src/bidi';
+import type { ReportSpec } from '../src/catalog';
+import {
+    RELATIVE_PERIODS,
+    REPORT_CHARTS,
+    REPORT_VIEWS,
+    periodRequestOf,
+    type PeriodParts,
+} from '../src/report-intent';
 import {
     MAX_STATE_LENGTH,
     decodeReportState,
     encodeReportState,
+    reportText,
     stateFromUrlValue,
     type ReportState,
 } from '../src/report-state';
+
+/** The parts of a period id. */
+function p(id: string): PeriodParts {
+    const request = periodRequestOf(id);
+    if (!request) throw new Error(`Not a period id: ${id}`);
+    return request.period;
+}
 
 const STATE_RULE = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -24,7 +40,7 @@ describe('report state', () => {
                     const state: ReportState = {
                         intent: {
                             root: '191002',
-                            period: '2017',
+                            period: p('2017'),
                             monthly,
                             ...(view ? { view } : {}),
                             chart,
@@ -40,7 +56,7 @@ describe('report state', () => {
         expect(decodeReportState('1MGJwLjIwMTcucHQuLjE5MTAwMg')).toEqual({
             intent: {
                 root: '191002',
-                period: '2017',
+                period: p('2017'),
                 monthly: false,
                 view: 'breakdown',
                 chart: 'pie',
@@ -48,13 +64,15 @@ describe('report state', () => {
             language: 'pt',
         });
         expect(decodeReportState('1MXRhLjIwMTcuLi4xOTEwMDI')).toEqual({
-            intent: { root: '191002', period: '2017', monthly: true, view: 'trend' },
+            intent: { root: '191002', period: p('2017'), monthly: true, view: 'trend' },
         });
     });
 
     it('round-trips every kind of period', () => {
         for (const period of [...RELATIVE_PERIODS, '2017', '2017-Q4', '2017-03', '1999-12']) {
-            const state: ReportState = { intent: { root: 'net-result', period, monthly: false } };
+            const state: ReportState = {
+                intent: { root: 'net-result', period: p(period), monthly: false },
+            };
             expect(roundTrip(state)).toEqual(state);
         }
     });
@@ -63,7 +81,7 @@ describe('report state', () => {
         const state: ReportState = {
             intent: {
                 root: 'grupo-ÿ.com/é|x',
-                period: 'last_12_months',
+                period: p('last_12_months'),
                 monthly: true,
                 view: 'trend',
                 chart: 'stacked',
@@ -79,7 +97,7 @@ describe('report state', () => {
             intent: {
                 root: 'grupo-ÿ.com/é|x',
                 target: '5687803178385408',
-                period: '2017-Q4',
+                period: p('2017-Q4'),
                 monthly: true,
                 chart: 'line',
                 hashtags: ['viagem'],
@@ -103,7 +121,7 @@ describe('report state', () => {
                         { root: '130003' },
                         { root: '5694067388186624', target: '613367181' },
                     ],
-                    period: 'this_year',
+                    period: p('this_year'),
                     monthly: false,
                 },
                 language: 'pt',
@@ -112,10 +130,10 @@ describe('report state', () => {
             expect(encodeReportState(state)?.[0]).toBe('3');
         }
         const forward = encodeReportState({
-            intent: { root: 'a', alongside: [{ root: 'b' }], period: '2018', monthly: false },
+            intent: { root: 'a', alongside: [{ root: 'b' }], period: p('2018'), monthly: false },
         });
         const backward = encodeReportState({
-            intent: { root: 'b', alongside: [{ root: 'a' }], period: '2018', monthly: false },
+            intent: { root: 'b', alongside: [{ root: 'a' }], period: p('2018'), monthly: false },
         });
         expect(forward).not.toBe(backward);
     });
@@ -126,7 +144,7 @@ describe('report state', () => {
             root: id('1'),
             target: id('2'),
             alongside: [{ root: id('1'), target: id('3') }],
-            period: 'this_year',
+            period: p('this_year'),
             monthly: true,
         };
         const state = encodeReportState({ intent, language: 'pt' });
@@ -155,7 +173,7 @@ describe('report state', () => {
     it('round-trips a comparison with the same period a year earlier, in every version', () => {
         const base = {
             root: '191002',
-            period: '2026-01',
+            period: p('2026-01'),
             monthly: false,
             chart: 'compare' as const,
         };
@@ -176,7 +194,7 @@ describe('report state', () => {
     });
 
     it('leaves out a comparison with the period before, so states written before stay the same', () => {
-        const intent = { root: 'r', period: '2018', monthly: false };
+        const intent = { root: 'r', period: p('2018'), monthly: false };
         expect(encodeReportState({ intent: { ...intent, compareWith: 'previous' } })).toBe(
             encodeReportState({ intent })
         );
@@ -184,7 +202,7 @@ describe('report state', () => {
     });
 
     it('leaves out no chart and auto alike, so both open the rules’ chart', () => {
-        const intent = { root: 'r', period: '2018', monthly: false };
+        const intent = { root: 'r', period: p('2018'), monthly: false };
         expect(encodeReportState({ intent: { ...intent, chart: 'auto' } })).toBe(
             encodeReportState({ intent })
         );
@@ -192,7 +210,7 @@ describe('report state', () => {
     });
 
     it('fits the length limit, or gives no state', () => {
-        const intent = { period: '2018', monthly: false };
+        const intent = { period: p('2018'), monthly: false };
         const fits = (root: string) => encodeReportState({ intent: { ...intent, root } });
         let length = 1;
         while (fits('a'.repeat(length + 1))) length++;
@@ -208,9 +226,11 @@ describe('report state', () => {
     });
 
     it('gives no state for an intent it could not open again', () => {
-        const intent = { root: 'r', period: '2018', monthly: false };
+        const intent = { root: 'r', period: p('2018'), monthly: false };
         expect(encodeReportState({ intent: { ...intent, root: '' } })).toBeUndefined();
-        expect(encodeReportState({ intent: { ...intent, period: '2018-13' } })).toBeUndefined();
+        expect(
+            encodeReportState({ intent: { ...intent, period: { month: 13 as 1 } } })
+        ).toBeUndefined();
         expect(encodeReportState({ intent: { ...intent, hashtags: ['a b'] } })).toBeUndefined();
         expect(encodeReportState({ intent, language: 'xx-unknown' })).toBeUndefined();
         expect(encodeReportState({ intent: { ...intent, target: '' } })).toBeUndefined();
@@ -249,7 +269,7 @@ describe('report state', () => {
         const intent = {
             root: '5694067388186624',
             target: '5687803178385408',
-            period: 'last_12_months',
+            period: p('last_12_months'),
             monthly: true,
             view: 'trend' as const,
             chart: 'stacked' as const,
@@ -262,7 +282,9 @@ describe('report state', () => {
     });
 
     it('ignores states that are not one it wrote', () => {
-        const valid = encodeReportState({ intent: { root: 'r', period: '2018', monthly: false } });
+        const valid = encodeReportState({
+            intent: { root: 'r', period: p('2018'), monthly: false },
+        });
         const invalid = [
             '',
             'x',
@@ -302,6 +324,134 @@ describe('report state', () => {
         for (const state of invalid) expect(decodeReportState(state), state).toBeUndefined();
         // Malformed UTF-8.
         expect(decodeReportState('1' + 'wA')).toBeUndefined();
+    });
+
+    it('round-trips periods as parts no period id says, compared or not', () => {
+        const periods: Pick<ReportState['intent'], 'period' | 'compared' | 'compareWith'>[] = [
+            // Revenue last year vs 2023.
+            { period: { span: 'year', year: 'previous' }, compared: { year: 2023 } },
+            // Q3 vs Q1, in no year.
+            { period: { span: 'quarter', quarter: 3 }, compared: { quarter: 1 } },
+            // January vs January 2019.
+            { period: { month: 1 }, compared: { year: 2019 } },
+            { period: { span: 'month', month: 1, year: 'previous' } },
+            { period: { span: 'month', month: 'current', year: 'before_previous' } },
+            { period: { year: 'current' } },
+            { period: { span: 'year_to_date', year: 'previous' } },
+            { period: { span: 'quarter', quarter: 'previous', year: 2024 } },
+            { period: { span: 'month', month: 12, year: 2999 }, compared: { month: 'previous' } },
+            { period: { span: 'all_time' }, compareWith: 'year_earlier' },
+            { period: { span: 'quarter', quarter: 2 }, compareWith: 'year_earlier' },
+        ];
+        const subjects = [
+            { root: '191002' },
+            { root: '191002', target: '5687803178385408' },
+            { root: '191002', alongside: [{ root: '130003' }, { root: 'a', target: 'b' }] },
+            { root: '191002', target: 't', alongside: [{ root: '130003' }] },
+        ];
+        for (const period of periods) {
+            for (const subject of subjects) {
+                const state: ReportState = {
+                    intent: { ...subject, ...period, monthly: true, chart: 'compare' },
+                    language: 'pt',
+                };
+                const encoded = encodeReportState(state);
+                expect(encoded?.[0], JSON.stringify(period)).toBe('4');
+                expect(roundTrip(state), JSON.stringify(period)).toEqual(state);
+            }
+        }
+    });
+
+    it('writes periods a period id says as before, so their states stay the same', () => {
+        const intent = { root: '191002', period: p('2017'), monthly: false };
+        expect(encodeReportState({ intent, language: 'pt' })).toBe(
+            encodeReportState({ intent: { ...intent }, language: 'pt' })
+        );
+        expect(
+            encodeReportState({
+                intent: { ...intent, view: 'breakdown', chart: 'pie' },
+                language: 'pt',
+            })
+        ).toBe('1MGJwLjIwMTcucHQuLjE5MTAwMg');
+        // A state of parts an id says, written another way, is not one this module writes.
+        expect(decodeReportState('4' + base64url('0_a.yc__.pt....191002'))).toBeUndefined();
+        expect(decodeReportState('4' + base64url('0_a.yp__~2023__.pt....191002'))).toEqual({
+            intent: {
+                root: '191002',
+                period: { span: 'year', year: 'previous' },
+                compared: { year: 2023 },
+                monthly: false,
+            },
+            language: 'pt',
+        });
+    });
+
+    it('opens states written with period ids as the same report, with parts', () => {
+        expect(decodeReportState('1MXRhLjIwMTcuLi4xOTEwMDI')?.intent.period).toEqual({
+            span: 'year',
+            year: 2017,
+        });
+        // All time compared with a year earlier read no comparison, as it still does.
+        const state = '1' + base64url('0_ay.all...r');
+        expect(decodeReportState(state)).toEqual({
+            intent: { root: 'r', period: { span: 'all_time' }, monthly: false },
+        });
+    });
+
+    it('fits a comparison of two targets with their roots of Bkper ids', () => {
+        const id = (digit: string) => digit.repeat(16);
+        const intent = {
+            root: id('1'),
+            target: id('2'),
+            alongside: [{ root: id('1'), target: id('3') }],
+            period: { span: 'year' as const, year: 'previous' as const },
+            compared: { year: 2023 },
+            monthly: true,
+        };
+        const state = encodeReportState({ intent, language: 'pt' });
+        expect(state?.length).toBeLessThanOrEqual(MAX_STATE_LENGTH);
+        expect(decodeReportState(state ?? '')).toEqual({ intent, language: 'pt' });
+    });
+
+    it('ignores parts it could not open again', () => {
+        for (const text of [
+            '0_a.____.pt....r',
+            '0_a.x___.pt....r',
+            '0_a.y0999__.pt....r',
+            '0_a.yp__~___.pt....r',
+            '0_a.yp__~.pt....r',
+            '0_a.mpM_.pt....r',
+            '0_a.qp_5.pt....r',
+            '0_a.yp__.pt...r',
+            '0_a.yp__.pt..s,..r',
+        ]) {
+            expect(decodeReportState('4' + base64url(text)), text).toBeUndefined();
+        }
+    });
+
+    it('stands for a report by the request it answers, else by its title and period', () => {
+        const spec = (request?: string): ReportSpec => ({
+            root: 'report',
+            elements: {
+                report: {
+                    type: 'Report',
+                    props: {
+                        title: 'Expenses',
+                        subtitle: `Jan${'\u2009–\u2009'}Nov 2026`,
+                        locale: 'en',
+                        dir: 'ltr',
+                        fractionDigits: 2,
+                        ...(request ? { request } : {}),
+                    },
+                    children: ['answer'],
+                },
+                answer: { type: 'Answer', props: { label: 'Expenses', amount: '1', color: 'red' } },
+            },
+        });
+        expect(reportText(spec(`Expenses last year vs. ${isolate('2023')}`))).toBe(
+            'Expenses last year vs. 2023'
+        );
+        expect(reportText(spec())).toBe(`Expenses Jan${'\u2009–\u2009'}Nov 2026`);
     });
 
     it('reads a missing, empty or unreplaced menu URL value as no state', () => {

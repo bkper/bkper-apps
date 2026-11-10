@@ -1,3 +1,4 @@
+import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { decodeReportState } from 'report-shared/report-state';
 import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
@@ -10,6 +11,13 @@ import { createApp } from '../../src/index';
 import type { FakeLedger } from '../fixtures/ledger';
 import { fixtureLedger, simpleRootsLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
+
+/** The parts of a period id, as intents now hold them. */
+function p(id: string): PeriodParts {
+    const request = periodRequestOf(id);
+    if (!request) throw new Error(`Not a period id: ${id}`);
+    return request.period;
+}
 
 const BOOK = 'book-1';
 const REPORT_URL = `http://localhost:8809/api/v1/books/${BOOK}/report`;
@@ -226,7 +234,7 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
         expect(body.suggestions).toHaveLength(3);
         expect(body.suggestions[0]).toEqual({
             text: 'Net result this year',
-            intent: { root: 'net-result', period: 'this_year', monthly: false },
+            intent: { root: 'net-result', period: p('this_year'), monthly: false },
         });
         // This year has movements: the suggestions read only their reports' own queries (a
         // position today never moves, so it reads none here), in parallel.
@@ -344,7 +352,7 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
 describe('POST /api/v1/books/{bookId}/report', () => {
     it('builds a report by intent without Bkper AI', async () => {
         const test = harness();
-        const intent = { root: 'g-expenses', period: '2026-10', monthly: false };
+        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
         const response = await post(test, { intent }, { headers: { 'Accept-Language': 'pt-BR' } });
 
         expect(response.status).toBe(200);
@@ -373,14 +381,89 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ]);
     });
 
+    it('takes the period id of an older intent, and answers with its parts', async () => {
+        const test = harness();
+        const response = await post(test, {
+            intent: {
+                root: 'g-expenses',
+                period: '2026-10',
+                compareWith: 'year_earlier',
+                monthly: false,
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+            intent: {
+                root: 'g-expenses',
+                period: { span: 'month', year: 2026, month: 10 },
+                compareWith: 'year_earlier',
+                monthly: false,
+            },
+            query: "group:'Expenses' on:2026-10 by:m",
+        });
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2025-10 by:m",
+        ]);
+    });
+
+    it('compares the period with the one the intent names, and links to it as asked', async () => {
+        const test = harness();
+        const intent = {
+            root: 'g-expenses',
+            period: { span: 'year', year: 'previous' },
+            compared: { year: 2023 },
+            monthly: false,
+        };
+        const response = await post(test, { intent });
+
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as { trace: Record<string, unknown> };
+        expect(body).toMatchObject({
+            intent,
+            query: "group:'Expenses' on:$y-1 by:m",
+            url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+last+year+vs.+2023`,
+        });
+        expect(body.trace.comparisonError).toBeUndefined();
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:$y-1 by:m",
+            "group:'Expenses' on:2023 by:m",
+        ]);
+    });
+
+    it('says why it compares with the previous period when the one named cannot be', async () => {
+        const test = harness();
+        const response = await post(test, {
+            intent: {
+                root: 'g-expenses',
+                period: { span: 'year', year: 2025 },
+                compared: { month: 3 },
+                monthly: false,
+            },
+        });
+
+        expect(response.status).toBe(200);
+        const body = (await response.json()) as {
+            spec: { root: string; elements: Record<string, { props: { notice?: string } }> };
+            trace: { comparisonError?: string };
+        };
+        expect(body.trace.comparisonError).toBe('comparison_kind_mismatch');
+        expect(body.spec.elements[body.spec.root].props.notice).toBeTruthy();
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:2025 by:m",
+            "group:'Expenses' on:2024 by:m",
+        ]);
+    });
+
     it('reuses the balances of the same queries within a minute, for the same user', async () => {
         const test = harness();
-        const october = { root: 'g-expenses', period: '2026-10', monthly: false };
+        const october = { root: 'g-expenses', period: p('2026-10'), monthly: false };
         const first = await post(test, { intent: october });
         // The same report, drawn another way: the same queries.
         const again = await post(test, { intent: { ...october, chart: 'table' } });
         // September is October's previous period: only its own previous one is read.
-        await post(test, { intent: { ...october, period: '2026-09' } });
+        await post(test, { intent: { ...october, period: p('2026-09') } });
 
         expect([first.status, again.status]).toEqual([200, 200]);
         expect(test.queries).toEqual([
@@ -396,7 +479,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     it('draws the chart an intent prefers, and tells when it does not fit', async () => {
         const test = harness();
         const ask = async (chart: string) => {
-            const intent = { root: 'g-expenses', period: '2026-10', monthly: false, chart };
+            const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false, chart };
             const response = await post(test, { intent });
             expect(response.status).toBe(200);
             const body = (await response.json()) as { intent: unknown; chart: unknown };
@@ -408,7 +491,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(await ask('table')).toEqual({ kind: 'none', fallback: false });
         expect(await ask('stacked')).toEqual({ kind: 'donut', fallback: true });
         const traced = await post(test, {
-            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'area' },
+            intent: { root: 'g-expenses', period: p('2026-10'), monthly: false, chart: 'area' },
         });
         expect(((await traced.json()) as { trace: unknown }).trace).toEqual({
             facts: {
@@ -428,7 +511,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             },
         });
         const invalid = await post(test, {
-            intent: { root: 'g-expenses', period: '2026-10', monthly: false, chart: 'bars' },
+            intent: { root: 'g-expenses', period: p('2026-10'), monthly: false, chart: 'bars' },
         });
         expect(invalid.status).toBe(400);
     });
@@ -437,7 +520,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         const test = harness();
         const intent = {
             root: 'net-result',
-            period: '2026-10',
+            period: p('2026-10'),
             monthly: false,
             chart: 'waterfall',
         };
@@ -463,7 +546,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
     it('labels a net result Report calculates, in the spec and in the file', async () => {
         const test = harness({ bkper: new FakeBkper({ ledger: simpleRootsLedger() }) });
-        const intent = { root: 'net-result', period: '2026-10', monthly: false };
+        const intent = { root: 'net-result', period: p('2026-10'), monthly: false };
         const response = await post(test, { intent });
         expect(response.status).toBe(200);
         const body = (await response.json()) as { spec: ReportSpec };
@@ -487,7 +570,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         );
         const test = harness({ bkper: new FakeBkper({ ledger }) });
         const response = await post(test, {
-            intent: { root: 'net-result', period: '2026-10', monthly: false },
+            intent: { root: 'net-result', period: p('2026-10'), monthly: false },
         });
         expect(response.status).toBe(422);
         const body = (await response.json()) as {
@@ -516,7 +599,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         }
         const test = harness({ bkper: new FakeBkper({ ledger, permission: 'EDITOR' }) });
         const response = await post(test, {
-            intent: { root: 'g-assets', period: 'today', monthly: false },
+            intent: { root: 'g-assets', period: p('today'), monthly: false },
             format: 'html',
         });
         expect(response.status).toBe(422);
@@ -557,7 +640,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(response.status).toBe(200);
         expect(test.jevCalls).toBe(1);
         expect(await response.json()).toMatchObject({
-            intent: { root: 'g-revenue', period: '2026-10', monthly: false },
+            intent: { root: 'g-revenue', period: p('2026-10'), monthly: false },
             language: 'es',
             query: "group:'Revenue' on:2026-10 by:m",
             url: `https://report.bkper.app/?book=${BOOK}&q=ingresos+de+octubre`,
@@ -582,7 +665,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
     it('returns a self-contained HTML file of the report that links to the Report app', async () => {
         const test = harness();
-        const intent = { root: 'g-expenses', period: '2026-10', monthly: false };
+        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
         const response = await post(test, { intent, language: 'en', format: 'html' });
 
         expect(response.status).toBe(200);
@@ -629,7 +712,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
     it('builds a report of a group target from its own queries, titled by the target', async () => {
         const test = harness();
-        const intent = { root: 'g-assets', target: 'g-banks', period: 'today', monthly: false };
+        const intent = { root: 'g-assets', target: 'g-banks', period: p('today'), monthly: false };
         const response = await post(test, { intent, language: 'en' });
 
         expect(response.status).toBe(200);
@@ -658,7 +741,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             root: 'g-expenses',
             target: 'a-food',
             alongside: [{ root: 'g-revenue' }, { root: 'g-expenses', target: 'a-rent' }],
-            period: 'last_month',
+            period: p('last_month'),
             monthly: false,
         };
         const response = await post(test, { intent, language: 'en' });
@@ -697,7 +780,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     it('builds a report of an account in no group with a query of its own', async () => {
         const test = harness();
         const response = await post(test, {
-            intent: { root: 'a-owner', period: 'today', monthly: false },
+            intent: { root: 'a-owner', period: p('today'), monthly: false },
         });
 
         expect(response.status).toBe(200);
@@ -718,7 +801,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             query.startsWith('account:') ? { periodicity: 'MONTHLY' } : answer(query);
         const test = harness({ bkper: new FakeBkper({ ledger }) });
         const response = await post(test, {
-            intent: { root: 'a-owner', period: 'today', monthly: false },
+            intent: { root: 'a-owner', period: p('today'), monthly: false },
         });
 
         expect(response.status).toBe(502);
@@ -744,7 +827,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ['neither prompt nor intent', {}],
         [
             'both prompt and intent',
-            { prompt: 'x', intent: { root: 'r', period: 'all', monthly: false } },
+            { prompt: 'x', intent: { root: 'r', period: p('all'), monthly: false } },
         ],
         ['a blank prompt', { prompt: '   ' }],
         ['an invalid period', { intent: { root: 'g-expenses', period: 'soon', monthly: false } }],
@@ -765,11 +848,26 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     it.each([
         [{}, 'Send exactly one of `prompt` or `intent`.'],
         [
-            { prompt: 'x', intent: { root: 'r', period: 'all', monthly: false } },
+            { prompt: 'x', intent: { root: 'r', period: p('all'), monthly: false } },
             'Send exactly one of `prompt` or `intent`.',
         ],
         [{ prompt: 'expenses', format: 'pdf' }, 'format: '],
         [{ intent: { root: 'g-expenses', period: 'soon', monthly: false } }, 'intent.period: '],
+        [
+            { intent: { root: 'g-expenses', period: { month: 13 }, monthly: false } },
+            'intent.period',
+        ],
+        [
+            {
+                intent: {
+                    root: 'g-expenses',
+                    period: { year: 2023 },
+                    compared: {},
+                    monthly: false,
+                },
+            },
+            'intent.compared',
+        ],
     ])('tells what is invalid in %j', async (body, message) => {
         const response = await post(harness(), body);
 
@@ -791,18 +889,18 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it.each([
-        ['future_period', { root: 'g-expenses', period: '2099', monthly: false }],
-        ['unknown_root', { root: 'g-missing', period: 'this_year', monthly: false }],
+        ['future_period', { root: 'g-expenses', period: p('2099'), monthly: false }],
+        ['unknown_root', { root: 'g-missing', period: p('this_year'), monthly: false }],
         [
             'unknown_target',
-            { root: 'g-expenses', target: 'a-salary', period: 'this_year', monthly: false },
+            { root: 'g-expenses', target: 'a-salary', period: p('this_year'), monthly: false },
         ],
         [
             'mixed_targets',
             {
                 root: 'g-expenses',
                 alongside: [{ root: 'g-assets' }],
-                period: 'this_year',
+                period: p('this_year'),
                 monthly: false,
             },
         ],

@@ -46,6 +46,13 @@ export const ReportProps = z.strictObject({
     dir: z.enum(['ltr', 'rtl']),
     /** Decimal places of the Book's amounts. */
     fractionDigits: z.int().min(0).max(8),
+    /**
+     * The request the report answers, as a person would type it: its title and its period as
+     * asked, relative words staying relative, such as `Expenses last year vs. 2023`.
+     */
+    request: Text.optional(),
+    /** What the report could not do as asked, and what it shows instead. */
+    notice: Text.optional(),
 });
 
 const AnswerPart = z.strictObject({

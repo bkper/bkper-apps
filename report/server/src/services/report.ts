@@ -40,9 +40,10 @@ import {
 import { readDays, type ReadDays } from './bkper-dates.js';
 import {
     buildPeriodQuery,
-    periodRequestOf,
     resolveQueryDates,
+    type ComparisonError,
     type PeriodDates,
+    type PeriodSpan,
 } from './period-query.js';
 import {
     isoMonth,
@@ -296,9 +297,14 @@ export interface ReportBase {
      * answer read (see {@link readDays}): all time and a position have no `after`, and a
      * position is measured at `before`, the end of its last month, or tomorrow when running.
      */
-    period: ReadDays & { dates: string };
+    period: ReadDays & { dates: string; kind: PeriodSpan };
     /** The period compared with, the same way; a position compares with the position at its `before`. */
-    previous?: ReadDays & { dates: string };
+    previous?: ReadDays & { dates: string; kind: PeriodSpan };
+    /**
+     * Why the comparison the intent asks for cannot be made: the report then compares with the
+     * previous period instead (all time with nothing), and says so.
+     */
+    comparisonError?: ComparisonError;
     /**
      * A net result Report calculates, as no group of the Book combines Incoming and Outgoing
      * ({@link calculatedNetResult}): its amount in each of the {@link ReportData.months}. Its
@@ -555,6 +561,7 @@ export function buildReport(
     const days = (dates: PeriodDates, answer: QueryBalances | undefined) => ({
         ...readDaysOf(dates, answer, snapshot),
         dates: dates.dates,
+        kind: dates.kind,
     });
     const base = (filter: string): Omit<ReportBase, 'chart' | 'charts' | 'breakdown'> => {
         // The dates of the queries read, so the link shows exactly what was read.
@@ -570,6 +577,7 @@ export function buildReport(
             nature,
             period: days(period.read, answers?.current),
             ...(period.comparison ? { previous: days(period.comparison, answers?.previous) } : {}),
+            ...(period.comparisonError ? { comparisonError: period.comparisonError } : {}),
             months,
             query,
             url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(query)}`,
@@ -909,28 +917,37 @@ export interface ReportPeriod {
     read: PeriodDates;
     /** What the queries of the period compared with read; all time has none. */
     comparison?: PeriodDates;
+    /** Why the comparison asked for cannot be made, so `comparison` is the default one. */
+    comparisonError?: ComparisonError;
 }
 
 /**
- * The period of an intent as the period query builder writes it: whole months, a running
- * period through the end of the current month, compared with the same months of the previous
- * period or a year earlier; a position at the end of its period.
+ * The period of an intent as the period query builder writes it from its parts: whole months,
+ * a running period through the end of the current month, compared with the period the intent
+ * names, or the same months of the previous period or a year earlier; a position at the end of
+ * its period. A comparison that cannot be made (another kind of period, one that is not
+ * earlier, or anything before all time) is never left out silently: the report compares with
+ * the previous period instead, and keeps why.
  */
 function reportPeriod(intent: ReportIntent, nature: ReportNature, today: IsoDate): ReportPeriod {
-    const id = intent.period;
-    const request = periodRequestOf(id, intent.compareWith);
-    if (!request) {
-        throw new Error(`Invalid period id: ${id}`);
-    }
-    const built = buildPeriodQuery(request, { today, nature });
+    const context = { today, nature };
+    const built = buildPeriodQuery(
+        { period: intent.period, compared: intent.compared, compareWith: intent.compareWith },
+        context
+    );
     if (!built.ok) {
         if (built.reason === 'future_period') {
             throw new ReportError('future_period', 'The period has not started');
         }
-        throw new Error(`No period for ${id}: ${built.reason}`);
+        throw new Error(`No period for ${JSON.stringify(intent.period)}: ${built.reason}`);
     }
-    const { period: read, comparison } = built;
-    return { read, ...(comparison ? { comparison } : {}) };
+    const fallback = built.comparisonError && buildPeriodQuery({ period: intent.period }, context);
+    const { period: read, comparison } = fallback?.ok ? fallback : built;
+    return {
+        read,
+        ...(comparison ? { comparison } : {}),
+        ...(built.comparisonError ? { comparisonError: built.comparisonError } : {}),
+    };
 }
 
 /**

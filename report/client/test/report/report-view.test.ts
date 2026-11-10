@@ -185,6 +185,23 @@ describe('<report-view>', () => {
         expect(row(view, 'a-income-tax').querySelector('.swatch')).not.toBeNull();
     });
 
+    it('says under the title what the report could not do as asked, and only then', async () => {
+        const spec = gallerySpec('taxes-donut');
+        expect(text(await mount(spec), '.report-notice')).toEqual([]);
+        const report = spec.elements[spec.root];
+        if (report.type !== 'Report') throw new Error('No Report');
+        const notice = 'The comparison asked for cannot be made, so this compares with 2024.';
+        const view = await mount({
+            ...spec,
+            elements: {
+                ...spec.elements,
+                [spec.root]: { ...report, props: { ...report.props, notice } },
+            },
+        });
+        expect(text(view, '.report-header .report-notice')).toEqual([notice]);
+        expect(root(view).querySelector('.report-notice')?.getAttribute('role')).toBe('note');
+    });
+
     it('formats in Japanese and lays out Arabic right to left', async () => {
         const ja = await mount(gallerySpec('revenue-donut-ja'));
         expect(root(ja).querySelector('.report')?.getAttribute('lang')).toBe('ja');

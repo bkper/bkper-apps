@@ -42,15 +42,23 @@ describe('buildSuggestions', () => {
         expect(buildSuggestions(await fixtureSnapshot(), 'en')).toEqual([
             {
                 text: 'Net result this year',
-                intent: { root: 'net-result', period: 'this_year', monthly: false },
+                intent: {
+                    root: 'net-result',
+                    period: { span: 'year', year: 'current' },
+                    monthly: false,
+                },
             },
             {
                 text: 'Expenses by month this year',
-                intent: { root: 'g-expenses', period: 'this_year', monthly: true },
+                intent: {
+                    root: 'g-expenses',
+                    period: { span: 'year', year: 'current' },
+                    monthly: true,
+                },
             },
             {
                 text: 'Assets today',
-                intent: { root: 'g-assets', period: 'today', monthly: false },
+                intent: { root: 'g-assets', period: { span: 'now' }, monthly: false },
             },
         ]);
     });
@@ -142,11 +150,15 @@ describe('buildSuggestions', () => {
         expect(buildSuggestions(snapshot, 'en')).toEqual([
             {
                 text: 'Expenses by month this year',
-                intent: { root: 'g-expenses', period: 'this_year', monthly: true },
+                intent: {
+                    root: 'g-expenses',
+                    period: { span: 'year', year: 'current' },
+                    monthly: true,
+                },
             },
             {
                 text: 'Assets today',
-                intent: { root: 'g-assets', period: 'today', monthly: false },
+                intent: { root: 'g-assets', period: { span: 'now' }, monthly: false },
             },
         ]);
         expect(buildSuggestions({ ...snapshot, roots: ['g-card'] }, 'en')).toEqual([]);
@@ -173,15 +185,19 @@ describe('readSuggestions', () => {
         expect(suggestions).toEqual([
             {
                 text: 'Net result in 2026',
-                intent: { root: 'net-result', period: '2026', monthly: false },
+                intent: {
+                    root: 'net-result',
+                    period: { span: 'year', year: 2026 },
+                    monthly: false,
+                },
             },
             {
                 text: 'Expenses by month in 2026',
-                intent: { root: 'g-expenses', period: '2026', monthly: true },
+                intent: { root: 'g-expenses', period: { span: 'year', year: 2026 }, monthly: true },
             },
             {
                 text: 'Assets today',
-                intent: { root: 'g-assets', period: 'today', monthly: false },
+                intent: { root: 'g-assets', period: { span: 'now' }, monthly: false },
             },
         ]);
         // One query of history per suggested root that can move, never one per root group.

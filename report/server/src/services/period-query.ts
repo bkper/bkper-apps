@@ -22,10 +22,23 @@
  * month, and its comparison covers the same months. A position (Asset, Liability) is read at the
  * end of its period. Bkper's own `previousRange` is not used: it is wrong for mixed ranges.
  */
-import type { CompareWith } from 'report-shared/report-intent';
+import {
+    PERIOD_SPANS,
+    RELATIVE_YEARS,
+    periodRequestOf,
+    type ComparedParts,
+    type MonthOfYear,
+    type MonthPart,
+    type PeriodParts,
+    type PeriodRequest,
+    type PeriodSpan,
+    type QuarterOfYear,
+    type QuarterPart,
+    type RelativeYear,
+    type YearPart,
+} from 'report-shared/report-intent';
 import {
     addDays,
-    isPeriodId,
     isPlausibleYear,
     isoMonth,
     type IsoDate,
@@ -33,63 +46,21 @@ import {
     type ReportNature,
 } from './periods.js';
 
-/** The kind of period a request names. */
-export const PERIOD_SPANS = [
-    'month',
-    'quarter',
-    'year',
-    'year_to_date',
-    'last_12_months',
-    'all_time',
-    'now',
-] as const;
-
-export type PeriodSpan = (typeof PERIOD_SPANS)[number];
-
-/** Years relative to today's. */
-export const RELATIVE_YEARS = ['current', 'previous', 'before_previous'] as const;
-
-export type RelativeYear = (typeof RELATIVE_YEARS)[number];
-
-/** A year relative to today's, or a year written in the request, such as `2023`. */
-export type YearPart = RelativeYear | number;
-
-/** January is 1. */
-export type MonthOfYear = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-
-/** A named month, or the current or previous month. */
-export type MonthPart = MonthOfYear | 'current' | 'previous';
-
-export type QuarterOfYear = 1 | 2 | 3 | 4;
-
-/** A named quarter, or the current or previous quarter. */
-export type QuarterPart = QuarterOfYear | 'current' | 'previous';
-
-/**
- * The parts of a period a request names; a part left out is unspecified. Without a span, the
- * period is a month when a month is named, else a quarter when one is, else a year.
- */
-export interface PeriodParts {
-    span?: PeriodSpan;
-    year?: YearPart;
-    month?: MonthPart;
-    quarter?: QuarterPart;
-}
-
-/** The parts of the period compared with; those left out are the period's own. */
-export interface ComparedParts {
-    year?: YearPart;
-    month?: MonthPart;
-    quarter?: QuarterPart;
-}
-
-export interface PeriodRequest {
-    period: PeriodParts;
-    /** Given, the period compared with; else the default comparison of {@link compareWith}. */
-    compared?: ComparedParts;
-    /** Without compared parts: the previous period (the default), or the same months a year earlier. */
-    compareWith?: CompareWith;
-}
+export {
+    PERIOD_SPANS,
+    RELATIVE_YEARS,
+    periodRequestOf,
+    type ComparedParts,
+    type MonthOfYear,
+    type MonthPart,
+    type PeriodParts,
+    type PeriodRequest,
+    type PeriodSpan,
+    type QuarterOfYear,
+    type QuarterPart,
+    type RelativeYear,
+    type YearPart,
+};
 
 /** Why a request has no period to read. */
 export type PeriodError =
@@ -98,14 +69,19 @@ export type PeriodError =
     /** The period starts after the current month. */
     | 'future_period';
 
-/** Why a period has no comparison it asked for; the period itself is read. */
-export type ComparisonError =
-    /** All time has nothing before it. */
-    | 'comparison_unavailable'
-    /** The comparison is another kind of period, such as a month for a year. */
-    | 'comparison_kind_mismatch'
-    /** The comparison does not end before the period starts. */
-    | 'comparison_not_earlier';
+/**
+ * Why a period has no comparison it asked for; the period itself is read. `comparison_unavailable`:
+ * all time has nothing before it; `comparison_kind_mismatch`: the comparison is another kind of
+ * period, such as a month for a year; `comparison_not_earlier`: it does not end before the period
+ * starts.
+ */
+export const COMPARISON_ERRORS = [
+    'comparison_unavailable',
+    'comparison_kind_mismatch',
+    'comparison_not_earlier',
+] as const;
+
+export type ComparisonError = (typeof COMPARISON_ERRORS)[number];
 
 /** A period as its query reads it. */
 export interface PeriodDates {
@@ -556,45 +532,6 @@ function assertParts(parts: ComparedParts): void {
     ) {
         throw new Error(`Invalid quarter: ${quarter}`);
     }
-}
-
-const RELATIVE_ID_PARTS: Record<string, PeriodParts> = {
-    today: { span: 'now' },
-    this_month: { span: 'month', month: 'current' },
-    last_month: { span: 'month', month: 'previous' },
-    this_quarter: { span: 'quarter', quarter: 'current' },
-    last_quarter: { span: 'quarter', quarter: 'previous' },
-    this_year: { span: 'year', year: 'current' },
-    last_year: { span: 'year', year: 'previous' },
-    ytd: { span: 'year_to_date' },
-    last_12_months: { span: 'last_12_months' },
-    all: { span: 'all_time' },
-};
-
-/**
- * The parts of a period id (a relative id, `YYYY`, `YYYY-Qn` or `YYYY-MM`) and what it is
- * compared with, or `undefined` for anything else. Relative ids stay relative; dated ids are
- * fixed. All time had no comparison, so it keeps none.
- */
-export function periodRequestOf(id: string, compareWith?: CompareWith): PeriodRequest | undefined {
-    if (!isPeriodId(id)) {
-        return undefined;
-    }
-    const relative = RELATIVE_ID_PARTS[id];
-    const period = relative ? { ...relative } : datedParts(id);
-    return compareWith === 'year_earlier' && id !== 'all' ? { period, compareWith } : { period };
-}
-
-function datedParts(id: string): PeriodParts {
-    const [yearText, rest] = id.split('-');
-    const year = Number(yearText);
-    if (rest === undefined) {
-        return { span: 'year', year };
-    }
-    if (rest.startsWith('Q')) {
-        return { span: 'quarter', year, quarter: Number(rest.slice(1)) as QuarterOfYear };
-    }
-    return { span: 'month', year, month: Number(rest) as MonthOfYear };
 }
 
 /**

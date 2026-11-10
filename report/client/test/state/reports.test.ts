@@ -333,6 +333,42 @@ describe('Reports', () => {
         expect(title(reports.report)).toBe('Net');
     });
 
+    it('remembers reports of one period compared otherwise apart, and its parts in any order alike', async () => {
+        const { reports, intentCalls } = createReports();
+        reports.open('book-1');
+        await settle();
+        const base = { root: 'g-1', monthly: false, period: { span: 'year', year: 'previous' } };
+        const named = { ...base, compared: { year: 2023 } } as const;
+        const asked = intentCalls().length;
+        reports.openState({ intent: named, language: 'pt' });
+        intentCalls()
+            .at(-1)
+            ?.resolve({ ...response('Vs 2023'), intent: named, language: 'pt' });
+        await settle();
+        expect(intentCalls()).toHaveLength(asked + 1);
+
+        reports.openState({ intent: { ...base, compareWith: 'year_earlier' }, language: 'pt' });
+        expect(intentCalls()).toHaveLength(asked + 2);
+        intentCalls()
+            .at(-1)
+            ?.resolve({ ...response('A year earlier'), language: 'pt' });
+        await settle();
+        expect(title(reports.report)).toBe('A year earlier');
+
+        reports.openState({
+            intent: {
+                monthly: false,
+                compared: { year: 2023 },
+                period: { year: 'previous', span: 'year' },
+                root: 'g-1',
+            },
+            language: 'pt',
+        });
+        await settle();
+        expect(intentCalls()).toHaveLength(asked + 2);
+        expect(title(reports.report)).toBe('Vs 2023');
+    });
+
     it('remembers reports of one root with different targets apart', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
         const root = { intent: SUGGESTIONS[1].intent, language: 'pt' };

@@ -54,6 +54,7 @@ import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Amount, Bkper, type Book } from 'bkper-js';
 import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
+import { periodIdOf } from 'report-shared/report-intent';
 import { readReport } from '../server/src/services/default-period.ts';
 import { resolveQueryDates } from '../server/src/services/period-query.ts';
 import {
@@ -78,7 +79,9 @@ import {
 import {
     NET_RESULT_ROOT,
     REPORT_CHARTS,
+    reportIntentOf,
     type ReportIntent,
+    type ReportIntentInput,
 } from '../server/src/services/report-intent.ts';
 import { quote, type Snapshot } from '../server/src/services/snapshot.ts';
 import {
@@ -317,7 +320,7 @@ function intentsFor(
     // The net result may read roots that are not checked: only when every root is.
     const roots = checked === snapshot.roots ? [...checked, NET_RESULT_ROOT] : checked;
     const charts = REPORT_CHARTS.filter(chart => chart !== 'auto');
-    const intents: ReportIntent[] = roots.flatMap(root => [
+    const intents: ReportIntentInput[] = roots.flatMap(root => [
         { root, period: firstYear, monthly: false },
         { root, period: lastYear, monthly: true },
         { root, period: quarter, monthly: false },
@@ -372,7 +375,7 @@ function intentsFor(
             }))
         );
     }
-    return intents;
+    return intents.map(reportIntentOf);
 }
 
 type Subject = Pick<ReportIntent, 'root' | 'target'>;
@@ -414,7 +417,12 @@ function mixedOf(snapshot: Snapshot): ReportIntent | undefined {
     const activity = snapshot.roots.find(root => !snapshot.groups[root].permanent);
     const position = snapshot.roots.find(root => snapshot.groups[root].permanent);
     return activity && position
-        ? { root: activity, alongside: [{ root: position }], period: 'this_year', monthly: false }
+        ? reportIntentOf({
+              root: activity,
+              alongside: [{ root: position }],
+              period: 'this_year',
+              monthly: false,
+          })
         : undefined;
 }
 
@@ -652,7 +660,7 @@ async function defaultPeriodReports(
         for (const trend of [false, true]) {
             const today = snapshot.today;
             const asked = defaultPeriod({ nature, trend, today });
-            const intent: ReportIntent = { root, period: asked, monthly: trend };
+            const intent = reportIntentOf({ root, period: asked, monthly: trend });
             const last = [...months].sort().at(-1);
             const expected = defaultPeriod({ nature, trend, today, lastActiveMonth: last });
             const count = { queries: 0 };
@@ -669,18 +677,27 @@ async function defaultPeriodReports(
                       1 +
                       (expected === asked
                           ? 0
-                          : planQueries(planReport({ ...intent, period: expected }, snapshot))
-                                .length);
+                          : planQueries(
+                                planReport(
+                                    reportIntentOf({ ...intent, period: expected }),
+                                    snapshot
+                                )
+                            ).length);
             const label = `${nodeOf(snapshot, root)?.name ?? root} default ${asked}${trend ? ' monthly' : ''}`;
             check(
-                read.intent.period === expected && count.queries === expectedQueries,
-                `${label}: reads ${read.intent.period} (last movement ${last ?? 'none'}), ` +
+                periodText(read.intent) === expected && count.queries === expectedQueries,
+                `${label}: reads ${periodText(read.intent)} (last movement ${last ?? 'none'}), ` +
                     `${count.queries} queries`
             );
             reports.push({ label, report: buildReport(read.intent, snapshot, read.balances) });
         }
     }
     return reports;
+}
+
+/** An intent's period as its id, or its parts when no id says them. */
+function periodText(intent: ReportIntent): string {
+    return periodIdOf({ period: intent.period }) ?? JSON.stringify(intent.period);
 }
 
 /** Whether a month is within an intent's period, as the CLI's history lists months. */
@@ -1400,7 +1417,7 @@ async function verifyBook(
             `${nodeOf(snapshot, intent.root)?.name ?? intent.root}` +
             (target ? ` › ${target.name}` : '') +
             alongside.map(name => ` | ${name}`).join('') +
-            ` ${intent.period}` +
+            ` ${periodText(intent)}` +
             (intent.monthly ? ' monthly' : '') +
             (intent.chart ? ` ${intent.chart}` : '') +
             (intent.hashtags ? ` #${intent.hashtags.join(' #')}` : '');

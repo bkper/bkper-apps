@@ -14,8 +14,17 @@
  * cannot hold a `.`. A report of targets side by side is version `3`,
  * `….<hashtags>.<alongside>.<target>.<root>`: the first target (empty for a root) and its root
  * as in version `2`, after the others joined by `,`, each `<root>` or `<target>:<root>`, so
- * their ids cannot hold a `.`, `,` or `:`. Every other report keeps version `1`, so states
- * written before open the same report.
+ * their ids cannot hold a `.`, `,` or `:`. Every other report keeps version `1`.
+ *
+ * Those three versions write the period as a period id (`last_year`, `2023`, `2023-Q3`, …),
+ * and are still written for every period an id says, so states written before stay the same
+ * and open the same report. Any other period is version `4`,
+ * `….<hashtags>.<alongside>.<target>.<root>` as in version `3` (both may be empty), its
+ * period written as its parts: a letter for the span, the year (a letter, or four digits),
+ * the month (a letter: `A` January to `L` December) and the quarter (a digit), `_` for each
+ * part left out, `c` and `p` for the current and previous ones, `b` for the year before last,
+ * then `~` and the compared year, month and quarter when there are some: `yp__~2023__` is
+ * last year compared with 2023.
  */
 import type { ReportSpec } from './catalog';
 import { withoutIsolates } from './bidi';
@@ -26,8 +35,18 @@ import {
     MAX_HASHTAGS,
     MAX_HASHTAG_LENGTH,
     MAX_ROOT_LENGTH,
+    MONTHS_OF_YEAR,
     PERIOD_ID_PATTERN,
+    QUARTERS_OF_YEAR,
+    intentWithParts,
+    periodIdOf,
+    validComparedParts,
+    validPeriodParts,
     type ChartPreference,
+    type ComparedParts,
+    type PeriodSpan,
+    type RelativeUnit,
+    type RelativeYear,
     type ReportIntentData,
     type ReportSubjectData,
     type ReportView,
@@ -42,16 +61,21 @@ const STATE_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 /** The menu URL's expression, which older Bkper versions leave in the URL unreplaced. */
 const STATE_EXPRESSION = '${app.state}';
 
-/** The version of a state without a target, of one with a target, and of targets side by side. */
+/**
+ * The version of a state without a target, of one with a target, and of targets side by side,
+ * each with a period id; and of a state with a period as parts.
+ */
 const VERSION = '1';
 const TARGET_VERSION = '2';
 const ALONGSIDE_VERSION = '3';
+const PARTS_VERSION = '4';
 
 /** The fields before the root, in each version. */
 const FIELDS: Record<string, number> = {
     [VERSION]: 4,
     [TARGET_VERSION]: 5,
     [ALONGSIDE_VERSION]: 6,
+    [PARTS_VERSION]: 6,
 };
 
 /** Each letter names one value forever: states written before must open the same report. */
@@ -80,6 +104,42 @@ const CHART_CODES: Record<ChartPreference, string> = {
 /** The flag of a comparison with the same period a year earlier, after the chart's letter. */
 const YEAR_EARLIER_CODE = 'y';
 
+/** Each letter names one part forever, as the letters of views and charts. */
+const SPAN_CODES: Record<PeriodSpan | 'none', string> = {
+    none: '_',
+    month: 'm',
+    quarter: 'q',
+    year: 'y',
+    year_to_date: 't',
+    last_12_months: 'l',
+    all_time: 'a',
+    now: 'n',
+};
+
+const YEAR_CODES: Record<RelativeYear | 'none', string> = {
+    none: '_',
+    current: 'c',
+    previous: 'p',
+    before_previous: 'b',
+};
+
+/** A month or quarter: none, the current or previous one, or a named one. */
+const UNIT_CODES: Record<RelativeUnit | 'none', string> = {
+    none: '_',
+    current: 'c',
+    previous: 'p',
+};
+
+/** January to December. */
+const MONTH_LETTERS = 'ABCDEFGHIJKL';
+
+/** The separator of the compared parts, after the period's. */
+const COMPARED_CODE = '~';
+
+/** The period's span, year, month and quarter, then optionally the compared year, month and quarter. */
+const PARTS_PATTERN =
+    /^([_mqytlan])([_cpb]|\d{4})([_cpA-L])([_cp1-4])(?:~([_cpb]|\d{4})([_cpA-L])([_cp1-4]))?$/;
+
 const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 /** A report to open again: its intent, and the language of its texts when known. */
@@ -93,7 +153,27 @@ export interface ReportState {
  * intent is not one {@link decodeReportState} would open.
  */
 export function encodeReportState({ intent, language }: ReportState): string | undefined {
-    if (!validIntent(intent) || (language !== undefined && !validLanguage(language))) {
+    if (
+        !validPeriodParts(intent.period) ||
+        (intent.compared !== undefined && !validComparedParts(intent.compared))
+    ) {
+        return undefined;
+    }
+    const id = periodIdOf(intent);
+    return writeState(intent, id ?? partsCode(intent), id === undefined, language);
+}
+
+/**
+ * The state of an intent with its period written as `period`: a period id in the versions
+ * before parts, or the code of its parts.
+ */
+function writeState(
+    intent: Omit<ReportIntentData, 'period'>,
+    period: string,
+    parts: boolean,
+    language: string | undefined
+): string | undefined {
+    if (!validSubjects(intent) || (language !== undefined && !validLanguage(language))) {
         return undefined;
     }
     const flags =
@@ -102,34 +182,34 @@ export function encodeReportState({ intent, language }: ReportState): string | u
         CHART_CODES[intent.chart ?? 'auto'] +
         (intent.compareWith === 'year_earlier' ? YEAR_EARLIER_CODE : '');
     const { alongside, target } = intent;
+    const alongsideText = alongside
+        ?.map(subject =>
+            subject.target === undefined ? subject.root : `${subject.target}:${subject.root}`
+        )
+        .join(',');
+    const subjects =
+        parts || alongsideText !== undefined
+            ? [alongsideText ?? '', target ?? '']
+            : target !== undefined
+              ? [target]
+              : [];
     const text = [
         flags,
-        intent.period,
+        period,
         language ?? '',
         // No hashtags and an empty list are alike.
         (intent.hashtags ?? []).join(','),
-        ...(alongside === undefined
-            ? []
-            : [
-                  alongside
-                      .map(subject =>
-                          subject.target === undefined
-                              ? subject.root
-                              : `${subject.target}:${subject.root}`
-                      )
-                      .join(','),
-                  target ?? '',
-              ]),
-        ...(alongside === undefined && target !== undefined ? [target] : []),
+        ...subjects,
         intent.root,
     ].join('.');
     const bytes = utf8(text);
-    const version =
-        alongside !== undefined
-            ? ALONGSIDE_VERSION
-            : target === undefined
-              ? VERSION
-              : TARGET_VERSION;
+    const version = parts
+        ? PARTS_VERSION
+        : alongside !== undefined
+          ? ALONGSIDE_VERSION
+          : target === undefined
+            ? VERSION
+            : TARGET_VERSION;
     const state = bytes && version + toBase64url(bytes);
     return state && state.length <= MAX_STATE_LENGTH ? state : undefined;
 }
@@ -154,8 +234,8 @@ export function decodeReportState(state: string): ReportState | undefined {
     }
     const [flags, period, language, hashtags, ...subjects] = fields;
     const [alongside, target] =
-        version === ALONGSIDE_VERSION
-            ? [subjects[0], subjects[1] || undefined]
+        version === ALONGSIDE_VERSION || version === PARTS_VERSION
+            ? [subjects[0] || undefined, subjects[1] || undefined]
             : [undefined, subjects[0]];
     if (flags.length < 3 || flags.length > 4 || (flags[0] !== '0' && flags[0] !== '1')) {
         return undefined;
@@ -164,20 +244,83 @@ export function decodeReportState(state: string): ReportState | undefined {
     const view = codeOf(VIEW_CODES, flags[1]);
     const chart = codeOf(CHART_CODES, flags[2]);
     if (view === undefined || chart === undefined) return undefined;
-    const intent: ReportIntentData = {
+    const intent = {
         root: rest,
         ...(target !== undefined ? { target } : {}),
         ...(alongside !== undefined ? { alongside: alongside.split(',').map(subjectOf) } : {}),
-        period,
         monthly: flags[0] === '1',
         ...(flags.length === 4 ? { compareWith: 'year_earlier' as const } : {}),
         ...(view !== 'none' ? { view } : {}),
         ...(chart !== 'auto' ? { chart } : {}),
         ...(hashtags ? { hashtags: hashtags.split(',') } : {}),
     };
-    const decoded: ReportState = { intent, ...(language ? { language } : {}) };
-    // One state per report: anything else, such as other padding bits, is not one written here.
-    return encodeReportState(decoded) === state ? decoded : undefined;
+    const languageField = language ? { language } : {};
+    if (version === PARTS_VERSION) {
+        const parts = partsOf(period);
+        const decoded: ReportState | undefined = parts && {
+            intent: { ...intent, ...parts },
+            ...languageField,
+        };
+        // One state per report: anything else, such as parts a period id says, is not one written here.
+        return decoded && encodeReportState(decoded) === state ? decoded : undefined;
+    }
+    // A period id, written as before; one state per report, so it is written back the same.
+    const withParts = PERIOD_ID_PATTERN.test(period)
+        ? intentWithParts({ ...intent, period })
+        : undefined;
+    return withParts && writeState(intent, period, false, language || undefined) === state
+        ? { intent: withParts, ...languageField }
+        : undefined;
+}
+
+/** The code of a period's parts and of the compared ones, such as `yp__~2023__`. */
+function partsCode({ period, compared }: Pick<ReportIntentData, 'period' | 'compared'>): string {
+    const code = (parts: ComparedParts) =>
+        (typeof parts.year === 'number' ? String(parts.year) : YEAR_CODES[parts.year ?? 'none']) +
+        (typeof parts.month === 'number'
+            ? MONTH_LETTERS[parts.month - 1]
+            : UNIT_CODES[parts.month ?? 'none']) +
+        (typeof parts.quarter === 'number'
+            ? String(parts.quarter)
+            : UNIT_CODES[parts.quarter ?? 'none']);
+    return (
+        SPAN_CODES[period.span ?? 'none'] +
+        code(period) +
+        (compared === undefined ? '' : COMPARED_CODE + code(compared))
+    );
+}
+
+/** The parts of a period code, or `undefined` when it is none. */
+function partsOf(text: string): Pick<ReportIntentData, 'period' | 'compared'> | undefined {
+    const match = PARTS_PATTERN.exec(text);
+    if (!match) return undefined;
+    const [, span, year, month, quarter, comparedYear, comparedMonth, comparedQuarter] = match;
+    const parts = (yearCode: string, monthCode: string, quarterCode: string): ComparedParts => {
+        const yearPart = /^\d{4}$/.test(yearCode) ? Number(yearCode) : codeOf(YEAR_CODES, yearCode);
+        const monthIndex = MONTH_LETTERS.indexOf(monthCode);
+        const monthPart =
+            monthIndex >= 0 ? MONTHS_OF_YEAR[monthIndex] : codeOf(UNIT_CODES, monthCode);
+        const quarterPart = /^[1-4]$/.test(quarterCode)
+            ? QUARTERS_OF_YEAR[Number(quarterCode) - 1]
+            : codeOf(UNIT_CODES, quarterCode);
+        return {
+            ...(yearPart !== undefined && yearPart !== 'none' ? { year: yearPart } : {}),
+            ...(monthPart !== undefined && monthPart !== 'none' ? { month: monthPart } : {}),
+            ...(quarterPart !== undefined && quarterPart !== 'none'
+                ? { quarter: quarterPart }
+                : {}),
+        };
+    };
+    const spanPart = codeOf(SPAN_CODES, span);
+    return {
+        period: {
+            ...(spanPart !== undefined && spanPart !== 'none' ? { span: spanPart } : {}),
+            ...parts(year, month, quarter),
+        },
+        ...(comparedYear !== undefined
+            ? { compared: parts(comparedYear, comparedMonth, comparedQuarter) }
+            : {}),
+    };
 }
 
 /**
@@ -188,11 +331,15 @@ export function stateFromUrlValue(value: string | null | undefined): string | un
     return value && value !== STATE_EXPRESSION ? value : undefined;
 }
 
-/** The report's title and period, which read like the request for it, as plain words. */
+/**
+ * The request a report answers, as plain words: its title and its period as asked, so editing
+ * it keeps a relative period relative; for a spec written before it said so, its title and the
+ * period it read.
+ */
 export function reportText(spec: ReportSpec): string {
     const root = spec.elements[spec.root];
     return root?.type === 'Report'
-        ? withoutIsolates(`${root.props.title} ${root.props.subtitle}`).trim()
+        ? withoutIsolates(root.props.request ?? `${root.props.title} ${root.props.subtitle}`).trim()
         : '';
 }
 
@@ -213,8 +360,9 @@ function validId(id: string, separators: string): boolean {
     );
 }
 
-function validIntent(intent: ReportIntentData): boolean {
-    const { root, target, alongside, period, hashtags } = intent;
+/** Whether the root, the targets and the hashtags of an intent can be written. */
+function validSubjects(intent: Omit<ReportIntentData, 'period'>): boolean {
+    const { root, target, alongside, hashtags } = intent;
     return (
         root.length > 0 &&
         root.length <= MAX_ROOT_LENGTH &&
@@ -227,7 +375,6 @@ function validIntent(intent: ReportIntentData): boolean {
                         validId(subject.root, '.,:') &&
                         (subject.target === undefined || validId(subject.target, '.,:'))
                 ))) &&
-        PERIOD_ID_PATTERN.test(period) &&
         (hashtags === undefined ||
             (hashtags.length <= MAX_HASHTAGS &&
                 hashtags.every(

@@ -3,9 +3,16 @@ import { ReportSpecSchema, VIEW_KINDS } from 'report-shared/catalog';
 import { supportedLanguage } from 'report-shared/languages';
 import { MAX_ALONGSIDE } from 'report-shared/report-intent';
 import type { ZodType } from 'zod';
+import { COMPARISON_ERRORS } from '../services/period-query.js';
 import { CHART_KINDS, CHART_RULES, UNFIT_REASON_CODES } from '../services/report.js';
 import { SHOW_RULE_NAMES } from '../services/intent-resolver.js';
-import { ReportIntentSchema, ReportSubjectSchema } from '../services/report-intent.js';
+import {
+    ComparedPartsSchema,
+    PeriodIdSchema,
+    PeriodPartsSchema,
+    ReportIntentSchema,
+    ReportSubjectSchema,
+} from '../services/report-intent.js';
 import { ReportPromptSchema } from '../services/report-prompt.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -110,6 +117,15 @@ export const SuggestionsQuerySchema = z.object({
 // Schemas made outside this module are named with zod's `meta`: `.openapi` exists only on
 // schemas created after @hono/zod-openapi extends zod.
 const { shape } = ReportIntentSchema;
+const PeriodPartsMeta = PeriodPartsSchema.meta({
+    id: 'PeriodParts',
+    description:
+        'A period as its parts; at least one. Without `span`, a month when `month` is given, else a quarter when `quarter` is, else a year. Examples: last year `{ "span": "year", "year": "previous" }`; this year to date `{ "span": "year_to_date" }`; Q3 2024 `{ "span": "quarter", "year": 2024, "quarter": 3 }`; March `{ "span": "month", "month": 3 }`; January last year `{ "span": "month", "month": 1, "year": "previous" }`; a balance now `{ "span": "now" }`.',
+});
+const PeriodIdMeta = PeriodIdSchema.meta({
+    description: 'A period id of older intents, still accepted.',
+    example: 'last_year',
+});
 const SubjectSchema = ReportSubjectSchema.extend({
     root: ReportSubjectSchema.shape.root.meta({
         description:
@@ -140,15 +156,21 @@ const IntentSchema = ReportIntentSchema.extend({
         description:
             'More groups or Accounts to show side by side with the first (`root` and `target`), in order: each with its own Bkper balance, never added up, with no total and no shares of one. All balances at a date (Asset, Liability) or all activity in a period (Incoming, Outgoing), else `mixed_targets`. One asked for twice shows once. Only charts that imply no whole fit: by month, area, ranked bars, compared and the table; a pie, donut or stacked chart shows dimmed with why. To show their total, the person adds a group that holds them in Bkper. Not with `net-result`.',
     }),
-    period: shape.period.meta({
+    period: z.union([PeriodPartsMeta, PeriodIdMeta]).meta({
         description:
-            'The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Periods are whole months: a current one runs through the end of this month (activity `today` reads this month, balances `today` are as of today); past ones are whole calendar periods.',
-        example: 'this_year',
+            'The period, in the Book’s time zone, as its parts, as the person said them: relative words stay relative (`{ "span": "year", "year": "previous" }` is last year whenever it is read) and written years stay written (`{ "span": "quarter", "year": 2024, "quarter": 3 }` is Q3 2024). Periods are whole months: a running one (this month, quarter or year, year to date, the last 12 months) runs through the end of this month, and its comparison covers the same months; past ones are whole calendar periods. Responses always give parts; the period ids of older intents (`today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year `2025`, a quarter `2025-Q3` or a month `2025-10`) are still accepted.',
+        example: { span: 'year', year: 'previous' },
+    }),
+    compared: ComparedPartsSchema.optional().meta({
+        id: 'ComparedParts',
+        description:
+            'The period to compare with, as its parts; those left out are the period’s own, and a month or quarter without a year is the latest one before the period. It must be the same kind of period: `{ "year": 2023 }` compares last year with 2023, `{ "quarter": 1 }` compares Q3 with Q1, `{ "year": 2019 }` compares January with January 2019. Named later than the period, the two swap, so change reads from the earlier to the later. A comparison of another kind, one that overlaps the period, or one with all time cannot be made: the report then compares with the previous period instead (all time with nothing) and says so (`trace.comparisonError`, and a notice in the spec). Left out, `compareWith` says what the period is compared with.',
+        example: { year: 2023 },
     }),
     monthly: shape.monthly.meta({ description: 'Show the period month by month.' }),
     compareWith: shape.compareWith.meta({
         description:
-            'What the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year, the same days of the previous month for this month so far), or `year_earlier`, the same period a year earlier (January last year for January, the same days a year earlier for a period not yet over). A balance at a date (Asset, Liability) compares with the balance at the start of the period, or a year before its date. `all` compares with nothing. Left out, `previous`.',
+            'Without `compared`, what the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year; for a running period the same months of the previous one), or `year_earlier`, the same months a year earlier. A balance at a date (Asset, Liability) compares with the balance at the end of the previous period, or a year before its date. All time compares with nothing. Left out, `previous`.',
         example: 'year_earlier',
     }),
     view: shape.view.meta({
@@ -471,6 +493,11 @@ export const ReportTraceSchema = z
                 'With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).',
             example: 'named',
         }),
+        comparisonError: z.enum(COMPARISON_ERRORS).optional().openapi({
+            description:
+                'Present when the comparison the intent asks for cannot be made: `comparison_kind_mismatch` (another kind of period, such as a month for a year), `comparison_not_earlier` (it overlaps the period) or `comparison_unavailable` (all time has nothing before it). The report then compares with the previous period instead (all time with nothing), and the spec’s `Report` says so in its `notice`.',
+            example: 'comparison_kind_mismatch',
+        }),
         facts: z
             .object({
                 rows: z.int().min(0).openapi({
@@ -557,7 +584,7 @@ export const ReportResponseSchema = z
         spec: ReportSpecSchema.meta({
             id: 'ReportSpec',
             description:
-                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO.',
+                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO.',
         }),
         intent: IntentSchema,
         language: z.string().openapi({

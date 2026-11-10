@@ -786,7 +786,7 @@ try {
     assert.deepEqual(named.intent, {
         root: 'g-expenses',
         target: 'a-food',
-        period: 'last_month',
+        period: { span: 'month', month: 'previous' },
         monthly: false,
     });
     assert.equal(named.query, "account:'Food' after:2026-11-01 before:2026-12-01");

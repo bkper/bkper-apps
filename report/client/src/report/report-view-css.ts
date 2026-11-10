@@ -47,6 +47,15 @@ export const reportViewCSS = css`
         font-size: var(--wa-font-size-s);
     }
 
+    /* What the report could not do as asked, and what it shows instead. */
+    .report-notice {
+        margin-block-start: var(--wa-space-xs);
+        padding-inline-start: var(--wa-space-s);
+        border-inline-start: var(--wa-border-width-l) solid var(--wa-color-warning-border-loud);
+        color: var(--wa-color-text-normal);
+        font-size: var(--wa-font-size-s);
+    }
+
     .report-header + .answer,
     .report-header + .answers {
         margin-block-start: calc(-1 * var(--wa-space-m));

@@ -1,7 +1,8 @@
+import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { ReportError } from '../../src/services/report';
-import type { ReportIntent } from '../../src/services/report-intent';
+import { reportIntentOf, type ReportIntent } from '../../src/services/report-intent';
 import {
     NotAReportError,
     createReport,
@@ -18,6 +19,13 @@ import {
     ledgerSnapshot,
     simpleRootsLedger,
 } from '../fixtures/snapshot-book';
+
+/** The parts of a period id, as intents now hold them. */
+function p(id: string): PeriodParts {
+    const request = periodRequestOf(id);
+    if (!request) throw new Error(`Not a period id: ${id}`);
+    return request.period;
+}
 
 const NOW = new Date('2026-11-05T16:00:00Z');
 
@@ -96,12 +104,9 @@ function harness(
     return state;
 }
 
-const intent = (root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent => ({
-    root,
-    period,
-    monthly: false,
-    ...extra,
-});
+/** An intent, its period as parts, from a period id as older intents wrote it. */
+const intent = (root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent =>
+    reportIntentOf({ root, period, monthly: false, ...extra });
 
 describe('createReport by intent', () => {
     it('builds the spec without asking Jev, in the requested language', async () => {
@@ -132,7 +137,7 @@ describe('createReport by intent', () => {
         expect(test.options.timing.header()).toMatch(/^compute;dur=[\d.]+, render;dur=[\d.]+$/);
     });
 
-    it('writes a report as a request without the isolates of its dates', async () => {
+    it('writes a report as a request, its period as asked, without isolates', async () => {
         const test = harness();
         const result = await createReport(
             await fixtureSnapshot(),
@@ -141,7 +146,69 @@ describe('createReport by intent', () => {
             test.options
         );
 
-        expect(result.text).toBe('Assets As of Nov 5, 2026');
+        expect(result.text).toBe('Assets now');
+    });
+
+    it('accepts the period id of an older intent, and answers with its parts', async () => {
+        const result = await createReport(
+            await fixtureSnapshot(),
+            {
+                intent: {
+                    root: 'g-expenses',
+                    period: 'last_year',
+                    compareWith: 'year_earlier',
+                    monthly: false,
+                },
+            },
+            { requested: 'en' },
+            harness().options
+        );
+
+        expect(result.intent).toEqual({
+            root: 'g-expenses',
+            period: { span: 'year', year: 'previous' },
+            compareWith: 'year_earlier',
+            monthly: false,
+        });
+        expect(result.query).toBe("group:'Expenses' on:$y-1 by:m");
+    });
+
+    it('compares as the intent names it, or says why it compares with the previous period', async () => {
+        const snapshot = await fixtureSnapshot();
+        const named = await createReport(
+            snapshot,
+            {
+                intent: {
+                    root: 'g-expenses',
+                    period: { span: 'year', year: 'previous' },
+                    compared: { year: 2023 },
+                    monthly: false,
+                },
+            },
+            { requested: 'en' },
+            harness().options
+        );
+        expect(named.text).toBe('Expenses last year vs. 2023');
+        expect(named.trace.comparisonError).toBeUndefined();
+
+        const mismatch = await createReport(
+            snapshot,
+            {
+                intent: {
+                    root: 'g-expenses',
+                    period: { span: 'year', year: 2025 },
+                    compared: { month: 3 },
+                    monthly: false,
+                },
+            },
+            { requested: 'en' },
+            harness().options
+        );
+        expect(mismatch.trace.comparisonError).toBe('comparison_kind_mismatch');
+        const report = mismatch.spec.elements[mismatch.spec.root];
+        expect(report.type === 'Report' && report.props.notice).toBeTruthy();
+        // What was asked stays the intent's, so it can be asked again as said.
+        expect(mismatch.intent.compared).toEqual({ month: 3 });
     });
 
     it('falls back to the accepted language, then English', async () => {
@@ -594,9 +661,9 @@ describe('createReport of a request that names no period', () => {
         expect(error).toBeInstanceOf(NotAReportError);
         const { suggestions } = error as NotAReportError;
         expect(suggestions.map(suggestion => suggestion.intent.period)).toEqual([
-            '2026',
-            '2026',
-            'today',
+            p('2026'),
+            p('2026'),
+            p('today'),
         ]);
         expect(suggestions[1].text).toBe('Expenses by month in 2026');
     });
@@ -627,7 +694,7 @@ describe('createReport of a request that names no period', () => {
             {},
             byIntent.options
         );
-        expect(suggested.intent.period).toBe('this_year');
+        expect(suggested.intent.period).toEqual(p('this_year'));
         expect(byIntent.queries).toHaveLength(2);
     });
 });

@@ -23,6 +23,8 @@ Write the way you would ask a colleague, in any language:
 | receitas por mês em 2025 | Revenue of each month of 2025 |
 | ¿cuánto tengo en mis cuentas hoy? | Your asset balances today, by Account |
 | 去年第四季度的支出 | Expenses in the fourth quarter of last year |
+| revenue last year vs 2023 | Last year's revenue beside 2023's |
+| expenses Q3 vs Q1 | The third quarter's expenses beside the first quarter's |
 | #travel expenses this year | This year's expenses on transactions tagged `#travel` |
 | Food last month | Your _Food_ group or Account alone |
 | Food versus Rent by month | _Food_ and _Rent_ side by side, month by month, never added up |
@@ -30,7 +32,8 @@ Write the way you would ask a colleague, in any language:
 
 - **Names.** Name any group or Account as your Book writes it (case and accents aside). As you type two letters, Report suggests up to five names; press **Tab** or click to take one. Name up to six to see them side by side, all balances (assets, liabilities) or all activity (income, expenses). For their total, add a group that holds them in Bkper and ask for it.
 - **No name?** Report reports the top-level group your request is about, such as Expenses or Assets, or income versus expenses.
-- **Periods** in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today (balances as of today; activity today reads this month). A current period runs through the end of this month, and a report names the months it read, such as _Jan – Nov 2026 vs. Jan – Nov 2025_. Without one, activity for this year and balances for today, or the last year with movements in an older Book. No custom ranges such as a single week.
+- **Periods** in whole months: this or last month, quarter or year, year to date, the last 12 months, all time, a specific month, quarter or year, or today (balances as of today; activity today reads this month). A current period runs through the end of this month, and a report names what it read: a whole year, quarter or month by its name (_2025_, _Q3 2024_), the months so far as a range (_Jan – Nov 2026 vs. Jan – Nov 2025_). Without one, activity for this year and balances for today, or the last year with movements in an older Book. No custom ranges such as a single week.
+- **Comparisons.** A report compares with the previous period, or with the same period a year earlier when you ask. Name any other period of the same kind to compare with it: _revenue last year vs 2023_, _Q3 vs Q1_, _January vs January 2019_. A comparison that can't be made, such as a month against a year, or two periods that overlap, shows the previous period instead and says so.
 - **Hashtags** keep only the transactions that have all of them.
 
 ### The net result
@@ -47,7 +50,7 @@ Report picks the chart that fits. To start with another, name it in your request
 | bars, a line | Amounts month by month, or the parts, largest first |
 | stacked by month | The parts piled up, month by month |
 | an area chart | Amounts over time, as a filled area |
-| versus last month, versus last year | Each part beside the previous period |
+| versus last month, versus last year, versus 2023 | Each part beside the period compared with |
 | versus January last year, year over year | Each part beside the same period a year earlier |
 | just the numbers | The answer and the table, without a chart |
 

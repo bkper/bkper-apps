@@ -23,6 +23,7 @@ import { defaultPeriod, isPeriodId, type ReportNature } from './periods.js';
 import {
     NET_RESULT_ROOT,
     ReportIntentSchema,
+    reportIntentOf,
     type ChartPreference,
     type ReportIntent,
     type ReportView,
@@ -250,23 +251,25 @@ export function readIntent(
     }));
     const subject = first ?? { root };
     const named = namedPeriod(answers.period);
-    const intent = ReportIntentSchema.parse({
-        ...subject,
-        ...(alongside.length > 0 ? { alongside } : {}),
-        period:
-            named ??
-            defaultPeriod({
-                nature: periodNature(subject.root, names, snapshot),
-                trend,
-                today: snapshot.today,
-            }),
-        monthly,
-        // Whatever chart shows it, the period is compared with the one the request names.
-        ...(yes(answers, 'year_earlier') ? { compareWith: 'year_earlier' } : {}),
-        ...(view ? { view } : {}),
-        ...(chart ? { chart } : {}),
-        ...(hashtags.length > 0 ? { hashtags } : {}),
-    });
+    const intent = reportIntentOf(
+        ReportIntentSchema.parse({
+            ...subject,
+            ...(alongside.length > 0 ? { alongside } : {}),
+            period:
+                named ??
+                defaultPeriod({
+                    nature: periodNature(subject.root, names, snapshot),
+                    trend,
+                    today: snapshot.today,
+                }),
+            monthly,
+            // Whatever chart shows it, the period is compared with the one the request names.
+            ...(yes(answers, 'year_earlier') ? { compareWith: 'year_earlier' } : {}),
+            ...(view ? { view } : {}),
+            ...(chart ? { chart } : {}),
+            ...(hashtags.length > 0 ? { hashtags } : {}),
+        })
+    );
     const trace: IntentTrace = { judgments: traceJudgments(answers), rule };
     if (names.length > 0) {
         trace.names = names.map(({ name }) => name);

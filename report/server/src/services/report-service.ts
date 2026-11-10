@@ -14,6 +14,7 @@
 import type { ReportSpec } from 'report-shared/catalog';
 import { reportText } from 'report-shared/report-state';
 import type { DecisionClient } from './decision-client.js';
+import type { ComparisonError } from './period-query.js';
 import { readReport, type ReadReport } from './default-period.js';
 import { resolveIntent, type IntentTrace } from './intent-resolver.js';
 import type { QueryBalances } from './balances.js';
@@ -29,7 +30,7 @@ import {
     type ReportData,
     type ViewKind,
 } from './report.js';
-import type { ReportIntent } from './report-intent.js';
+import { reportIntentOf, type ReportIntent, type ReportIntentInput } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
 import { readSuggestions, type Suggestion } from './suggestions.js';
@@ -38,8 +39,11 @@ import type { Timing } from './timing.js';
 /** The language of reports whose request names none and whose caller prefers none. */
 export const DEFAULT_LANGUAGE = 'en';
 
-/** A report request: a text in any language, or an intent, such as a suggestion's. */
-export type ReportRequest = { prompt: string } | { intent: ReportIntent };
+/**
+ * A report request: a text in any language, or an intent, such as a suggestion's, its period
+ * as parts or as a period id of older intents.
+ */
+export type ReportRequest = { prompt: string } | { intent: ReportIntentInput };
 
 /** Languages the caller prefers, each already one of the Bkper languages. */
 export interface ReportLanguages {
@@ -61,6 +65,11 @@ export interface ReportServiceOptions {
  * chart it prefers; the facts of its data, the charts that fit them, and the main one.
  */
 export interface ReportTrace extends Partial<IntentTrace> {
+    /**
+     * Why the comparison the intent asks for cannot be made: the report compares with the
+     * previous period instead (all time with nothing), and its spec says so.
+     */
+    comparisonError?: ComparisonError;
     facts: ChartFacts;
     chart: {
         /** Every chart that fits, in the order a renderer offers them; `table` for none. */
@@ -73,6 +82,7 @@ export interface ReportTrace extends Partial<IntentTrace> {
 
 export interface ReportResult {
     spec: ReportSpec;
+    /** The intent read, its period as parts. */
     intent: ReportIntent;
     /** The language of the spec's texts. */
     language: string;
@@ -108,7 +118,7 @@ export async function createReport(
     let detected: string | undefined;
     let defaultPeriod = false;
     if ('intent' in request) {
-        intent = request.intent;
+        intent = reportIntentOf(request.intent);
     } else {
         const resolution = await resolveIntent(request.prompt, snapshot, {
             client: options.decisions,
@@ -154,7 +164,11 @@ export async function createReport(
         dataAt: report.dataAt,
         chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: 'prompt' in request ? request.prompt : reportText(spec),
-        trace: { ...intentTrace, ...reportTrace(report.charts) },
+        trace: {
+            ...intentTrace,
+            ...(report.comparisonError ? { comparisonError: report.comparisonError } : {}),
+            ...reportTrace(report.charts),
+        },
     };
 }
 

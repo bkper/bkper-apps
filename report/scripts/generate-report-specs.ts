@@ -23,7 +23,11 @@ import { addAllLocales } from 'report-shared/locales';
 import { readQueryBalances, type QueryBalances } from '../server/src/services/balances.ts';
 import { readReport } from '../server/src/services/default-period.ts';
 import { buildReport } from '../server/src/services/report.ts';
-import { NET_RESULT_ROOT, type ReportIntent } from '../server/src/services/report-intent.ts';
+import {
+    NET_RESULT_ROOT,
+    reportIntentOf,
+    type ReportIntent,
+} from '../server/src/services/report-intent.ts';
 import { buildReportSpec } from '../server/src/services/report-spec.ts';
 import type { Snapshot } from '../server/src/services/snapshot.ts';
 import {
@@ -58,8 +62,9 @@ export interface GalleryEntry {
     spec: ReportSpec;
 }
 
+/** An intent of a period id, its period as the parts it says. */
 function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
-    return { root, period, monthly: false, ...extra };
+    return reportIntentOf({ root, period, monthly: false, ...extra });
 }
 
 const STUDIO_CASES: Case[] = [
@@ -124,6 +129,12 @@ const STUDIO_CASES: Case[] = [
     {
         id: 'expenses-compare',
         intent: intent('g-expenses', '2025', { chart: 'compare' }),
+        lang: 'en',
+    },
+    {
+        // A month asked as the comparison of a year: compared with the year before, saying so.
+        id: 'expenses-compare-fallback',
+        intent: intent('g-expenses', '2025', { chart: 'compare', compared: { month: 3 } }),
         lang: 'en',
     },
     {

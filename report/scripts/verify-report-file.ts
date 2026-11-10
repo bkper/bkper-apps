@@ -81,7 +81,12 @@ const LINK = { url: 'https://report.bkper.app/?book=book-1&q=report', label: 'Op
 /** Recorded specs carry no intent: any report's state shows the file opens what it carries. */
 const OPEN = {
     bookId: 'book-1',
-    intent: { root: 'net-result', period: '2018', monthly: true, chart: 'compare' as const },
+    intent: {
+        root: 'net-result',
+        period: { span: 'year' as const, year: 2018 },
+        monthly: true,
+        chart: 'compare' as const,
+    },
     language: 'en',
 };
 

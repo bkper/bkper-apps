@@ -1,3 +1,4 @@
+import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
 import { THRESHOLDS, buildIntentRequest } from '../../src/services/intent-questions';
@@ -15,6 +16,13 @@ import { findPromptNames } from '../../src/services/prompt-names';
 import type { Snapshot } from '../../src/services/snapshot';
 import { ServerTiming } from '../../src/services/timing';
 import { fixtureSnapshot } from '../fixtures/snapshot-book';
+
+/** The parts of a period id, as intents now hold them. */
+function p(id: string): PeriodParts {
+    const request = periodRequestOf(id);
+    if (!request) throw new Error(`Not a period id: ${id}`);
+    return request.period;
+}
 
 const sure = (choice: string) => ({ choice, confidence: 0.99 });
 const yes = { noul: 0.9 };
@@ -130,7 +138,7 @@ describe('readIntent', () => {
     it('reads a confident answer as an intent with the root id', async () => {
         expect(await read()).toEqual({
             recognized: true,
-            intent: { root: 'g-expenses', period: '2026-Q3', monthly: false },
+            intent: { root: 'g-expenses', period: p('2026-Q3'), monthly: false },
             language: 'pt',
             trace: expect.objectContaining({ rule: 'auto' }),
         });
@@ -149,7 +157,7 @@ describe('readIntent', () => {
             recognized: true,
             intent: {
                 root: 'net-result',
-                period: '2026-Q3',
+                period: p('2026-Q3'),
                 monthly: true,
                 view: 'trend',
                 hashtags: ['travel'],
@@ -217,7 +225,7 @@ describe('readIntent', () => {
         const at = { noul: THRESHOLDS.year_earlier };
         const below = { noul: THRESHOLDS.year_earlier - 0.01 };
         expect(await intentOf({ versus_earlier: yes, year_earlier: at })).toMatchObject({
-            period: '2026-Q3',
+            period: p('2026-Q3'),
             chart: 'compare',
             compareWith: 'year_earlier',
         });
@@ -246,25 +254,25 @@ describe('readIntent', () => {
     it('reads a trend period over time, or for a chart by month, when no period is named', async () => {
         const unnamed = { period: sure('unspecified') };
         expect(await intentOf({ ...unnamed, over_time: yes })).toMatchObject({
-            period: 'last_12_months',
+            period: p('last_12_months'),
             monthly: true,
         });
         for (const word of ['stacked', 'area', 'line']) {
             expect(await intentOf({ ...unnamed, chart_named: sure(word) })).toMatchObject({
-                period: 'last_12_months',
+                period: p('last_12_months'),
                 chart: word,
             });
         }
         expect(await intentOf({ ...unnamed, chart_named: sure('pie') })).toMatchObject({
-            period: 'this_year',
+            period: p('this_year'),
             chart: 'pie',
         });
         expect(await intentOf({ ...unnamed, chart_named: sure('bars') })).toMatchObject({
-            period: 'this_year',
+            period: p('this_year'),
             chart: 'ranked-bar',
         });
         expect(await intentOf({ ...unnamed, composition: yes })).toMatchObject({
-            period: 'this_year',
+            period: p('this_year'),
         });
     });
 
@@ -281,7 +289,7 @@ describe('readIntent', () => {
         });
         expect(result).toEqual({
             recognized: true,
-            intent: { root: 'g-expenses', period: '2026-Q3', monthly: false },
+            intent: { root: 'g-expenses', period: p('2026-Q3'), monthly: false },
             trace: expect.anything(),
         });
     });
@@ -289,14 +297,14 @@ describe('readIntent', () => {
     it('reads this year for activity and today for a position when no period is named', async () => {
         const unnamed = { period: sure('unspecified') };
         expect(await read(unnamed)).toMatchObject({
-            intent: { period: 'this_year' },
+            intent: { period: p('this_year') },
             defaultPeriod: true,
         });
         expect(await read({ ...unnamed, root: sure('Assets') })).toMatchObject({
-            intent: { period: 'today' },
+            intent: { period: p('today') },
         });
         expect(await read({ ...unnamed, root: sure('net-result') })).toMatchObject({
-            intent: { period: 'this_year' },
+            intent: { period: p('this_year') },
         });
     });
 
@@ -304,7 +312,7 @@ describe('readIntent', () => {
         const result = await read({
             period: { choice: '2026-Q3', confidence: THRESHOLDS.period - 0.01 },
         });
-        expect(result).toMatchObject({ intent: { period: 'this_year' }, defaultPeriod: true });
+        expect(result).toMatchObject({ intent: { period: p('this_year') }, defaultPeriod: true });
     });
 
     it('leaves moving a default period to the report, as the map holds no dates', async () => {
@@ -312,14 +320,14 @@ describe('readIntent', () => {
         const later = await laterSnapshot();
         const unnamed = { period: sure('unspecified') };
         expect(await read(unnamed, later)).toMatchObject({
-            intent: { period: 'this_year' },
+            intent: { period: p('this_year') },
             defaultPeriod: true,
         });
         expect(await read({ ...unnamed, root: sure('net-result') }, later)).toMatchObject({
-            intent: { period: 'this_year' },
+            intent: { period: p('this_year') },
         });
         expect(await read({ ...unnamed, root: sure('Assets') }, later)).toMatchObject({
-            intent: { period: 'today' },
+            intent: { period: p('today') },
         });
     });
 
@@ -327,20 +335,20 @@ describe('readIntent', () => {
         const unnamed = { period: sure('unspecified') };
         const overTime = { ...unnamed, over_time: yes };
         expect(await read(overTime)).toMatchObject({
-            intent: { period: 'last_12_months', monthly: true },
+            intent: { period: p('last_12_months'), monthly: true },
         });
         expect(
             await read({ ...overTime, root: sure('Assets') }, await laterSnapshot())
-        ).toMatchObject({ intent: { period: 'last_12_months' }, defaultPeriod: true });
+        ).toMatchObject({ intent: { period: p('last_12_months') }, defaultPeriod: true });
     });
 
     it('anchors a root without movements to this year or today', async () => {
         const unnamed = { period: sure('unspecified'), root: sure('Card') };
         expect(await read(unnamed, await laterSnapshot())).toMatchObject({
-            intent: { period: 'today' },
+            intent: { period: p('today') },
         });
         expect(await read({ ...unnamed, over_time: yes }, await laterSnapshot())).toMatchObject({
-            intent: { period: 'last_12_months' },
+            intent: { period: p('last_12_months') },
         });
     });
 });
@@ -356,7 +364,7 @@ describe('readIntent with names the request writes', () => {
     it('reports what the request names, over the root Jev chose', async () => {
         expect(await named('food in 2026-Q3', { root: sure('Revenue') })).toMatchObject({
             recognized: true,
-            intent: { root: 'g-expenses', target: 'a-food', period: '2026-Q3', monthly: false },
+            intent: { root: 'g-expenses', target: 'a-food', period: p('2026-Q3'), monthly: false },
             trace: { names: ['Food'], judgments: { root: { answer: 'Revenue' } } },
         });
         expect(await named('banks', { root: sure('Assets') })).toMatchObject({
@@ -418,27 +426,27 @@ describe('readIntent with names the request writes', () => {
 
     it('reads the default period of what the request names', async () => {
         const unnamed = { period: sure('unspecified'), root: sure('Expenses') };
-        expect(await named('banks', unnamed)).toMatchObject({ intent: { period: 'today' } });
+        expect(await named('banks', unnamed)).toMatchObject({ intent: { period: p('today') } });
         expect(await named('cash and banks', unnamed)).toMatchObject({
-            intent: { period: 'today' },
+            intent: { period: p('today') },
         });
         // Food last moved in November 2026: read years later, the report moves its period.
         const later = await laterSnapshot();
         expect(await named('food', unnamed, later)).toMatchObject({
-            intent: { period: 'this_year' },
+            intent: { period: p('this_year') },
             defaultPeriod: true,
         });
         expect(await named('food by month', { ...unnamed, over_time: yes }, later)).toMatchObject({
-            intent: { period: 'last_12_months', monthly: true },
+            intent: { period: p('last_12_months'), monthly: true },
         });
         // An account in no group: this year, or today for a position.
-        expect(await named('owner', unnamed)).toMatchObject({ intent: { period: 'today' } });
+        expect(await named('owner', unnamed)).toMatchObject({ intent: { period: p('today') } });
     });
 
     it('keeps Jev’s period and judgments', async () => {
         expect(
             await named('food', { period: sure('2026-10'), chart_named: sure('pie') })
-        ).toMatchObject({ intent: { target: 'a-food', period: '2026-10', chart: 'pie' } });
+        ).toMatchObject({ intent: { target: 'a-food', period: p('2026-10'), chart: 'pie' } });
     });
 
     it('leaves the root to Jev when the request names nothing of the Book', async () => {
@@ -501,7 +509,7 @@ describe('resolveIntent', () => {
             recognized: true,
             intent: {
                 root: 'g-revenue',
-                period: '2026-10',
+                period: p('2026-10'),
                 monthly: false,
                 view: 'breakdown',
                 hashtags: ['extra'],
@@ -541,7 +549,7 @@ describe('resolveIntent', () => {
                 root: 'g-expenses',
                 target: 'a-food',
                 alongside: [{ root: 'g-expenses', target: 'a-rent' }],
-                period: '2026-10',
+                period: p('2026-10'),
                 hashtags: ['extra'],
             },
             trace: { names: ['Food', 'Rent'] },

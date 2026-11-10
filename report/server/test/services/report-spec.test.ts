@@ -3,8 +3,11 @@ import { isolate } from 'report-shared/bidi';
 import { addAllLocales } from 'report-shared/locales';
 import { addLocale, t } from 'report-shared/strings';
 import { describe, expect, it } from 'vitest';
+import { RELATIVE_PERIODS } from 'report-shared/report-intent';
+import { reportText } from 'report-shared/report-state';
 import { buildReport, planQueries, planReport, type ReportData } from '../../src/services/report';
-import type { ReportIntent } from '../../src/services/report-intent';
+import type { PeriodParts } from 'report-shared/report-intent';
+import { reportIntentOf, type ReportIntent } from '../../src/services/report-intent';
 import { buildReportSpec } from '../../src/services/report-spec';
 import type { Snapshot } from '../../src/services/snapshot';
 import type { FakeLedger } from '../fixtures/ledger';
@@ -15,8 +18,13 @@ import {
     simpleRootsLedger,
 } from '../fixtures/snapshot-book';
 
-function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
-    return { root, period, monthly: false, ...extra };
+/** An intent of a period id, as older intents wrote it, or of parts. */
+function intent(
+    root: string,
+    period: string | PeriodParts,
+    extra: Partial<ReportIntent> = {}
+): ReportIntent {
+    return reportIntentOf({ root, period, monthly: false, ...extra });
 }
 
 /** The report of an intent on a ledger (the fixture's by default), and its map unless given. */
@@ -215,6 +223,181 @@ describe('buildReportSpec', () => {
             );
             const chart = element(built, 'Chart').props;
             expect('periods' in chart && chart.periods, what).toEqual({ current, previous });
+        }
+    });
+
+    it('names a whole period of the kind asked by its name, and a running one by its months', async () => {
+        const quarter = (q: string, year: string) => `Q${isolate(q)} ${isolate(year)}`;
+        const at = async (today: string, request: ReportIntent) => {
+            const ledger = fixtureLedger();
+            ledger.today = today;
+            const built = await spec({ ...request, chart: 'compare' }, 'en', undefined, ledger);
+            const chart = Object.values(built.elements).find(one => one.type === 'Chart');
+            const periods =
+                chart?.type === 'Chart' && 'periods' in chart.props
+                    ? chart.props.periods
+                    : undefined;
+            return {
+                subtitle: element(built, 'Report').props.subtitle,
+                comparison: element(built, 'Answer').props.comparison,
+                periods,
+            };
+        };
+        const forms: [string, ReportIntent, string, string][] = [
+            // This year in March read three months, a range, never a quarter's name.
+            [
+                '2026-03-15',
+                intent('g-expenses', 'this_year'),
+                `Jan${TO}Mar 2026`,
+                `Jan${TO}Mar 2025`,
+            ],
+            ['2026-03-15', intent('g-expenses', 'ytd'), `Jan${TO}Mar 2026`, `Jan${TO}Mar 2025`],
+            // This quarter in March is all of it.
+            [
+                '2026-03-15',
+                intent('g-expenses', 'this_quarter'),
+                quarter('1', '2026'),
+                quarter('4', '2025'),
+            ],
+            [
+                '2026-03-15',
+                intent('g-expenses', 'last_quarter'),
+                quarter('4', '2025'),
+                quarter('3', '2025'),
+            ],
+            ['2026-03-15', intent('g-expenses', 'this_month'), 'March 2026', 'February 2026'],
+            [
+                '2026-03-15',
+                intent('g-expenses', 'last_12_months'),
+                `Apr 2025${TO}Mar 2026`,
+                `Apr 2024${TO}Mar 2025`,
+            ],
+            // In December this year is whole, while the last 12 months stay a range.
+            ['2026-12-20', intent('g-expenses', 'this_year'), '2026', '2025'],
+            [
+                '2026-12-20',
+                intent('g-expenses', 'last_12_months'),
+                `Jan${TO}Dec 2026`,
+                `Jan${TO}Dec 2025`,
+            ],
+            // A whole year compared with a quarter's months would be no name: a year earlier keeps it.
+            [
+                '2026-11-05',
+                intent('g-expenses', 'this_quarter', { compareWith: 'year_earlier' }),
+                `Oct${TO}Nov 2026`,
+                `Oct${TO}Nov 2025`,
+            ],
+        ];
+        for (const [today, request, current, previous] of forms) {
+            const what = `${today} ${JSON.stringify(request.period)}`;
+            const { subtitle, comparison, periods } = await at(today, request);
+            expect(subtitle, what).toBe(current);
+            expect(comparison, what).toBe(`vs. ${isolate(previous)}`);
+            // The legend of compared parts, when the months read have any.
+            if (periods) expect(periods, what).toEqual({ current, previous });
+        }
+    });
+
+    it('says when the comparison asked for cannot be made, and what it compares with', async () => {
+        const mismatch = await spec(
+            intent('g-expenses', { span: 'year', year: 2025 }, { compared: { month: 3 } })
+        );
+        expect(element(mismatch, 'Report').props.notice).toBe(
+            t('notice_comparison_fallback', 'en', { period: isolate('2024') })
+        );
+        expect(element(mismatch, 'Answer').props.comparison).toBe(`vs. ${isolate('2024')}`);
+        const all = await spec(
+            intent('g-expenses', { span: 'all_time' }, { compareWith: 'year_earlier' })
+        );
+        expect(element(all, 'Report').props.notice).toBe(t('notice_comparison_none', 'en'));
+        const fine = await spec(
+            intent('g-expenses', { span: 'year', year: 'previous' }, { compared: { year: 2023 } })
+        );
+        expect(element(fine, 'Report').props.notice).toBeUndefined();
+        expect(element(fine, 'Answer').props.comparison).toBe(`vs. ${isolate('2023')}`);
+    });
+
+    it('writes the request a report answers with its period as asked, relative words relative', async () => {
+        const texts: [ReportIntent, string][] = [
+            [intent('g-expenses', 'this_year'), 'Expenses this year'],
+            [intent('g-expenses', 'last_year'), 'Expenses last year'],
+            [
+                intent(
+                    'g-expenses',
+                    { span: 'year', year: 'previous' },
+                    { compared: { year: 2023 } }
+                ),
+                'Expenses last year vs. 2023',
+            ],
+            [
+                intent(
+                    'g-expenses',
+                    { span: 'quarter', year: 2024, quarter: 3 },
+                    {
+                        compared: { quarter: 1 },
+                    }
+                ),
+                'Expenses Q3 2024 vs. Q1 2024',
+            ],
+            [
+                intent('g-expenses', { quarter: 3 }, { compared: { quarter: 1 } }),
+                'Expenses Q3 vs. Q1',
+            ],
+            [
+                intent('g-expenses', { month: 1 }, { compared: { year: 2019 } }),
+                'Expenses January vs. January 2019',
+            ],
+            [
+                intent('g-expenses', { span: 'month', month: 1, year: 'previous' }),
+                'Expenses January last year',
+            ],
+            [
+                intent('g-expenses', 'this_quarter', { compareWith: 'year_earlier' }),
+                'Expenses this quarter vs. the same period a year earlier',
+            ],
+            [intent('g-expenses', 'last_month'), 'Expenses last month'],
+            [intent('g-expenses', '2026-09'), 'Expenses September 2026'],
+            [intent('g-expenses', 'ytd'), 'Expenses year to date'],
+            [intent('g-expenses', 'last_12_months'), 'Expenses last 12 months'],
+            [intent('g-expenses', 'all'), 'Expenses all time'],
+            [intent('g-assets', 'today'), 'Assets now'],
+            [intent('g-assets', 'last_year'), 'Assets last year'],
+            [intent('net-result', 'this_month'), 'Net income this month'],
+        ];
+        for (const [request, text] of texts) {
+            const built = await spec(request);
+            expect(reportText(built), JSON.stringify(request.period)).toBe(text);
+        }
+    });
+
+    it('writes a quarter’s year once, in languages whose quarter names it with a word', async () => {
+        addAllLocales();
+        const quarter = await spec(intent('g-expenses', '2026-Q3'), 'ja');
+        expect(element(quarter, 'Report').props.subtitle).toBe(
+            t('period_quarter', 'ja', { quarter: isolate('3'), year: isolate('2026') })
+        );
+        const compared = await spec(
+            intent(
+                'g-expenses',
+                { span: 'quarter', year: 2024, quarter: 3 },
+                {
+                    compared: { quarter: 1 },
+                }
+            ),
+            'ja'
+        );
+        expect(reportText(compared)).toBe('Expenses 2024年第3四半期と2024年第1四半期の比較');
+    });
+
+    it('keeps relative periods relative in the request, in every language', async () => {
+        addAllLocales();
+        for (const lang of ['en', 'pt', 'ja', 'ar']) {
+            for (const id of RELATIVE_PERIODS) {
+                const built = await spec(intent('g-expenses', id), lang);
+                // A written year would turn the request into a fixed one.
+                expect(reportText(built), `${lang} ${id}`).not.toMatch(/\p{Nd}{4}/u);
+                expect(reportText(built), `${lang} ${id}`).toMatch(/^Expenses /);
+            }
         }
     });
 

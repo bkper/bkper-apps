@@ -11,6 +11,8 @@
  * nothing, and counts as none. A position today always shows its balance, so it never moves.
  */
 import { groupBalances, accountBalances, type QueryBalances } from './balances.js';
+import { samePeriodParts, type PeriodParts } from 'report-shared/report-intent';
+import { periodRequestOf } from './period-query.js';
 import { defaultPeriod, isPlausibleYear, type IsoMonth } from './periods.js';
 import { historyQuery, planQueries, planReport, planSubjects, type ReportPlan } from './report.js';
 import type { ReportIntent } from './report-intent.js';
@@ -41,25 +43,27 @@ export async function readReport(
     const balances = await options.loadBalances(planQueries(plan));
     const context = {
         nature: plan.nature,
-        trend: intent.period === 'last_12_months',
+        trend: intent.period.span === 'last_12_months',
         today: snapshot.today,
     };
     if (
         !options.defaultPeriod ||
         // Only this year or the last 12 months move, and only as the default of the report.
-        defaultPeriod(context) !== intent.period ||
-        intent.period === 'today' ||
+        !samePeriodParts(partsOf(defaultPeriod(context)), intent.period) ||
+        intent.period.span === 'now' ||
         hasMovements(plan, snapshot, balances)
     ) {
         return { intent, plan, balances };
     }
 
     const [history] = await options.loadBalances([historyQuery(plan, snapshot)]);
-    const period = defaultPeriod({
-        ...context,
-        lastActiveMonth: lastMovedMonth(plan, snapshot, history),
-    });
-    if (period === intent.period) {
+    const period = partsOf(
+        defaultPeriod({
+            ...context,
+            lastActiveMonth: lastMovedMonth(plan, snapshot, history),
+        })
+    );
+    if (samePeriodParts(period, intent.period)) {
         return { intent, plan, balances };
     }
     const moved = { ...intent, period };
@@ -69,6 +73,15 @@ export async function readReport(
         plan: movedPlan,
         balances: await options.loadBalances(planQueries(movedPlan)),
     };
+}
+
+/** The parts of a default period's id. */
+function partsOf(id: string): PeriodParts {
+    const request = periodRequestOf(id);
+    if (!request) {
+        throw new Error(`Invalid default period: ${id}`);
+    }
+    return request.period;
 }
 
 /** Whether the report's own answers have movements within its period. */

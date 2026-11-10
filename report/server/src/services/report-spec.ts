@@ -18,7 +18,9 @@ import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
 import type { ReadDays } from './bkper-dates.js';
 import { addDays, type IsoDate } from './periods.js';
+import type { PeriodSpan } from './period-query.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
+import { requestText } from './request-text.js';
 import {
     viewKindOf,
     type ChartSeries,
@@ -133,6 +135,8 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
                     locale: lang,
                     dir: textDirection(lang),
                     fractionDigits: report.book.fractionDigits ?? 2,
+                    request: requestText(report.intent, title, lang),
+                    ...(report.comparisonError ? { notice: comparisonNotice(report, labels) } : {}),
                 },
                 children: Object.keys(elements),
             },
@@ -144,6 +148,18 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
         throw new Error(`Invalid report spec: ${validation.issues.join('; ')}`);
     }
     return validation.spec;
+}
+
+/**
+ * Why the report does not compare with the period asked for, and what it compares with
+ * instead: the previous period, or nothing for all time.
+ */
+function comparisonNotice(report: ReportData, labels: Labels): string {
+    return report.previous
+        ? fill('notice_comparison_fallback', labels.lang, {
+              period: labels.previous(report, report.previous),
+          })
+        : t('notice_comparison_none', labels.lang);
 }
 
 /**
@@ -414,6 +430,8 @@ class Labels {
     private readonly day: Intl.DateTimeFormat;
     private readonly monthRange: Intl.DateTimeFormat;
     private readonly number: Intl.NumberFormat;
+    /** A year's digits alone: a quarter's label writes its own words around them. */
+    private readonly digits: Intl.NumberFormat;
 
     constructor(readonly lang: string) {
         this.day = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' });
@@ -423,11 +441,12 @@ class Labels {
             timeZone: 'UTC',
         });
         this.number = new Intl.NumberFormat(lang);
+        this.digits = new Intl.NumberFormat(lang, { useGrouping: false });
     }
 
     /**
-     * The months an activity read, by the days Bkper read (all time by its name); the date of a
-     * position.
+     * The months an activity read, by the days Bkper read (all time by its name), in the form
+     * of the period asked for ({@link form}); the date of a position.
      */
     period(report: ReportData): string {
         if (report.nature === 'position') {
@@ -435,14 +454,17 @@ class Labels {
         }
         return report.period.after === undefined
             ? t('period_all', this.lang)
-            : this.months(report.period.after, report.period.before);
+            : this.months(report.period.after, report.period.before, this.form(report));
     }
 
-    /** What a report compares with: an earlier date for a position, else the months read. */
+    /**
+     * What a report compares with: an earlier date for a position, else the months read, in the
+     * same form as the period.
+     */
     previous(report: ReportData, previous: ReadDays): string {
         return report.nature === 'position' || previous.after === undefined
             ? this.date(lastDay(previous.before))
-            : this.months(previous.after, previous.before);
+            : this.months(previous.after, previous.before, this.form(report));
     }
 
     /** The exact dates an activity covers; all time starts with the first month of data. */
@@ -455,29 +477,40 @@ class Labels {
     }
 
     /**
-     * Whole months by their calendar name, short: a year (`2025`), a quarter (`Q3 2024`), a
-     * month (`January 2025`), or a range of months (`Jan – Nov 2026`); days that are no whole
-     * months by their dates.
+     * How both sides of a comparison are named: by the name of the kind of period asked for when
+     * each reads one whole (a year, a quarter or a month), else by their range of months, as a
+     * running period, which reads only the months so far (this year in March is Jan – Mar).
      */
-    private months(after: IsoDate, before: IsoDate): string {
+    private form(report: ReportData): MonthsForm {
+        const sides = [report.period, ...(report.previous ? [report.previous] : [])];
+        const whole = WHOLE_FORMS[report.period.kind];
+        return whole && sides.every(side => side.after && fits(whole, side.after, side.before))
+            ? whole
+            : 'range';
+    }
+
+    /**
+     * Whole months in a form: a year (`2025`), a quarter (`Q3 2024`), a month (`January 2025`),
+     * or a range of months (`Jan – Nov 2026`); days that are no whole months by their dates.
+     */
+    private months(after: IsoDate, before: IsoDate, form: MonthsForm): string {
         const months = monthsBetween(after, before);
-        const month = Number(after.slice(5, 7));
-        if (months === 12 && month === 1) {
-            return this.format(after, { year: 'numeric' });
+        if (months === 0) {
+            return this.day.formatRange(utc(after), utc(lastDay(before)));
         }
-        if (months === 3 && month % 3 === 1) {
-            return fill('period_quarter', this.lang, {
-                quarter: this.number.format((month + 2) / 3),
-                year: this.format(after, { year: 'numeric' }),
-            });
+        switch (form) {
+            case 'year':
+                return this.format(after, { year: 'numeric' });
+            case 'quarter':
+                return fill('period_quarter', this.lang, {
+                    quarter: this.number.format((Number(after.slice(5, 7)) + 2) / 3),
+                    year: this.digits.format(Number(after.slice(0, 4))),
+                });
+            case 'month':
+                return this.format(after, { month: 'long', year: 'numeric' });
+            case 'range':
+                return this.monthRange.formatRange(utc(after), utc(lastDay(before)));
         }
-        if (months === 1) {
-            return this.format(after, { month: 'long', year: 'numeric' });
-        }
-        if (months > 1) {
-            return this.monthRange.formatRange(utc(after), utc(lastDay(before)));
-        }
-        return this.day.formatRange(utc(after), utc(lastDay(before)));
     }
 
     /** An amount with the Book's decimal places, exactly, in the language's digits. */
@@ -504,6 +537,34 @@ class Labels {
         return new Intl.DateTimeFormat(this.lang, { ...options, timeZone: 'UTC' }).format(
             utc(date)
         );
+    }
+}
+
+/** How whole months are named: by a calendar period's name, or as a range of months. */
+type MonthsForm = 'year' | 'quarter' | 'month' | 'range';
+
+/** The name a whole period of each kind has; the others are ranges of months. */
+const WHOLE_FORMS: Partial<Record<PeriodSpan, MonthsForm>> = {
+    year: 'year',
+    year_to_date: 'year',
+    quarter: 'quarter',
+    month: 'month',
+    now: 'month',
+};
+
+/** Whether the months from `after` to `before` are one whole period of a form. */
+function fits(form: MonthsForm, after: IsoDate, before: IsoDate): boolean {
+    const months = monthsBetween(after, before);
+    const month = Number(after.slice(5, 7));
+    switch (form) {
+        case 'year':
+            return months === 12 && month === 1;
+        case 'quarter':
+            return months === 3 && month % 3 === 1;
+        case 'month':
+            return months === 1;
+        case 'range':
+            return months > 0;
     }
 }
 

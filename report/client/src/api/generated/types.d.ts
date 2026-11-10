@@ -753,14 +753,18 @@ export interface components {
             /** @description More groups or Accounts to show side by side with the first (`root` and `target`), in order: each with its own Bkper balance, never added up, with no total and no shares of one. All balances at a date (Asset, Liability) or all activity in a period (Incoming, Outgoing), else `mixed_targets`. One asked for twice shows once. Only charts that imply no whole fit: by month, area, ranked bars, compared and the table; a pie, donut or stacked chart shows dimmed with why. To show their total, the person adds a group that holds them in Bkper. Not with `net-result`. */
             alongside?: components["schemas"]["ReportSubject"][];
             /**
-             * @description The period, in the Book’s time zone: `today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year (`2025`), a quarter (`2025-Q3`) or a month (`2025-10`). Periods are whole months: a current one runs through the end of this month (activity `today` reads this month, balances `today` are as of today); past ones are whole calendar periods.
-             * @example this_year
+             * @description The period, in the Book’s time zone, as its parts, as the person said them: relative words stay relative (`{ "span": "year", "year": "previous" }` is last year whenever it is read) and written years stay written (`{ "span": "quarter", "year": 2024, "quarter": 3 }` is Q3 2024). Periods are whole months: a running one (this month, quarter or year, year to date, the last 12 months) runs through the end of this month, and its comparison covers the same months; past ones are whole calendar periods. Responses always give parts; the period ids of older intents (`today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year `2025`, a quarter `2025-Q3` or a month `2025-10`) are still accepted.
+             * @example {
+             *       "span": "year",
+             *       "year": "previous"
+             *     }
              */
-            period: string;
+            period: components["schemas"]["PeriodParts"] | string;
+            compared?: components["schemas"]["ComparedParts"];
             /** @description Show the period month by month. */
             monthly: boolean;
             /**
-             * @description What the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year, the same days of the previous month for this month so far), or `year_earlier`, the same period a year earlier (January last year for January, the same days a year earlier for a period not yet over). A balance at a date (Asset, Liability) compares with the balance at the start of the period, or a year before its date. `all` compares with nothing. Left out, `previous`.
+             * @description Without `compared`, what the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year; for a running period the same months of the previous one), or `year_earlier`, the same months a year earlier. A balance at a date (Asset, Liability) compares with the balance at the end of the previous period, or a year before its date. All time compares with nothing. Left out, `previous`.
              * @example year_earlier
              * @enum {string}
              */
@@ -796,6 +800,34 @@ export interface components {
              * @example 6235671829479424
              */
             target?: string;
+        };
+        /** @description A period as its parts; at least one. Without `span`, a month when `month` is given, else a quarter when `quarter` is, else a year. Examples: last year `{ "span": "year", "year": "previous" }`; this year to date `{ "span": "year_to_date" }`; Q3 2024 `{ "span": "quarter", "year": 2024, "quarter": 3 }`; March `{ "span": "month", "month": 3 }`; January last year `{ "span": "month", "month": 1, "year": "previous" }`; a balance now `{ "span": "now" }`. */
+        PeriodParts: {
+            /**
+             * @description The kind of period: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, or `now` (a balance today; activity reads this month).
+             * @enum {string}
+             */
+            span?: "month" | "quarter" | "year" | "year_to_date" | "last_12_months" | "all_time" | "now";
+            /** @description A year relative to today’s (`current`, `previous`, or `before_previous`: the year before last) or a year as written, such as `2023`. */
+            year?: ("current" | "previous" | "before_previous") | number;
+            /** @description A month: `1` (January) to `12`, or the `current` or `previous` one. A named month without a year is the latest one that has started. */
+            month?: ("current" | "previous") | (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
+            /** @description A calendar quarter: `1` to `4`, or the `current` or `previous` one. A named quarter without a year is the latest one that has started. */
+            quarter?: ("current" | "previous") | (1 | 2 | 3 | 4);
+        };
+        /**
+         * @description The period to compare with, as its parts; those left out are the period’s own, and a month or quarter without a year is the latest one before the period. It must be the same kind of period: `{ "year": 2023 }` compares last year with 2023, `{ "quarter": 1 }` compares Q3 with Q1, `{ "year": 2019 }` compares January with January 2019. Named later than the period, the two swap, so change reads from the earlier to the later. A comparison of another kind, one that overlaps the period, or one with all time cannot be made: the report then compares with the previous period instead (all time with nothing) and says so (`trace.comparisonError`, and a notice in the spec). Left out, `compareWith` says what the period is compared with.
+         * @example {
+         *       "year": 2023
+         *     }
+         */
+        ComparedParts: {
+            /** @description A year relative to today’s (`current`, `previous`, or `before_previous`: the year before last) or a year as written, such as `2023`. */
+            year?: ("current" | "previous" | "before_previous") | number;
+            /** @description A month: `1` (January) to `12`, or the `current` or `previous` one. A named month without a year is the latest one that has started. */
+            month?: ("current" | "previous") | (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
+            /** @description A calendar quarter: `1` to `4`, or the `current` or `previous` one. A named quarter without a year is the latest one that has started. */
+            quarter?: ("current" | "previous") | (1 | 2 | 3 | 4);
         };
         /** @description Why the Book cannot have the report, found by fixed rules from its groups and Accounts, and what is involved. Every case but `empty_book` is fixed by organizing the Book’s groups, never its transactions. */
         BookProblem: {
@@ -964,7 +996,7 @@ export interface components {
              */
             url: string;
         };
-        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every other chart that fits, with its data, and a preferred chart that does not fit with why), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -978,6 +1010,8 @@ export interface components {
                         /** @enum {string} */
                         dir: "ltr" | "rtl";
                         fractionDigits: number;
+                        request?: string;
+                        notice?: string;
                     };
                     children: string[];
                 } | {
@@ -1267,6 +1301,12 @@ export interface components {
              * @enum {string}
              */
             rule?: "named" | "bridge" | "versus_earlier" | "over_time_composition" | "over_time" | "composition" | "auto";
+            /**
+             * @description Present when the comparison the intent asks for cannot be made: `comparison_kind_mismatch` (another kind of period, such as a month for a year), `comparison_not_earlier` (it overlaps the period) or `comparison_unavailable` (all time has nothing before it). The report then compares with the previous period instead (all time with nothing), and the spec’s `Report` says so in its `notice`.
+             * @example comparison_kind_mismatch
+             * @enum {string}
+             */
+            comparisonError?: "comparison_unavailable" | "comparison_kind_mismatch" | "comparison_not_earlier";
             /** @description The facts of the report’s numbers that decide which charts fit. */
             facts: {
                 /**
@@ -1422,6 +1462,8 @@ export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportSubject = components['schemas']['ReportSubject'];
+export type PeriodParts = components['schemas']['PeriodParts'];
+export type ComparedParts = components['schemas']['ComparedParts'];
 export type BookProblem = components['schemas']['BookProblem'];
 export type BookNamesResponse = components['schemas']['BookNamesResponse'];
 export type BookName = components['schemas']['BookName'];

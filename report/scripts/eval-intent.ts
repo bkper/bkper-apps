@@ -46,6 +46,7 @@ import {
     readIntent,
     type IntentAnswers,
 } from '../server/src/services/intent-resolver.ts';
+import { periodIdOf } from 'report-shared/report-intent';
 import { periodRequestOf } from '../server/src/services/period-query.ts';
 import {
     PERIOD_QUESTION_IDS,
@@ -1027,9 +1028,14 @@ const accepts = (accepted: Accepted | undefined, value: string | undefined) =>
 /** A year compared with the year before or a year earlier is the same comparison. */
 const WHOLE_YEAR = /^(?:\d{4}|this_year|last_year|ytd)$/;
 
+/** An intent's period as the id the cases expect, or its parts when no id says them. */
+function periodText(intent: ReportIntent): string {
+    return periodIdOf({ period: intent.period }) ?? JSON.stringify(intent.period);
+}
+
 /** What an intent's period is compared with, the same for a year either way. */
 function comparison(intent: ReportIntent | undefined): CompareWith {
-    return intent && !WHOLE_YEAR.test(intent.period)
+    return intent && !WHOLE_YEAR.test(periodText(intent))
         ? (intent.compareWith ?? 'previous')
         : 'previous';
 }
@@ -1274,7 +1280,7 @@ async function main(): Promise<void> {
                 intent !== undefined &&
                 (meaning && !meaning.reason
                     ? checks.period
-                    : accepts(expectedPeriod, intent.period) && (!meaning || checks.period));
+                    : accepts(expectedPeriod, periodText(intent)) && (!meaning || checks.period));
             checks.intent =
                 intent !== undefined &&
                 checks.root &&
@@ -1309,9 +1315,9 @@ async function main(): Promise<void> {
                       .join(
                           ' '
                       )}${atomic.trace.rules.length > 0 ? ` rules=${atomic.trace.rules.join(',')}` : ''}` +
-                  ` → ${meaning ? describeMeaning(meaning) : '-'}${meaning?.reason ? ` → ${intent?.period ?? '-'}` : ''}`
+                  ` → ${meaning ? describeMeaning(meaning) : '-'}${meaning?.reason ? ` → ${intent ? periodText(intent) : '-'}` : ''}`
                 : ` period=${answers.period.choice}(${answers.period.confidence.toFixed(2)})` +
-                  `→${intent?.period ?? '-'}`) +
+                  `→${intent ? periodText(intent) : '-'}`) +
             ` over_time=${yes(answers.over_time)} composition=${yes(answers.composition)}` +
             ` versus_earlier=${yes(answers.versus_earlier)} year_earlier=${yes(answers.year_earlier)}` +
             ` bridge=${yes(answers.bridge)}` +

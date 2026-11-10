@@ -146,6 +146,11 @@ export class ReportView extends LitElement {
                 <header class="report-header">
                     <h1>${props.title}</h1>
                     <p class="subtitle">${props.subtitle}</p>
+                    ${
+                        props.notice
+                            ? html`<p class="report-notice" role="note">${props.notice}</p>`
+                            : nothing
+                    }
                 </header>
                 ${root.children.map(id => {
                     const element = spec.elements[id];

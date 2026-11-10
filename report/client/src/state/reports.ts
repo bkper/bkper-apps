@@ -487,22 +487,35 @@ function promptKey(text: string): string {
 }
 
 function intentKey(intent: ReportIntent, language: string): string {
-    const { root, target, alongside, period, monthly, view, hashtags } = intent;
+    const { root, target, alongside, period, compared, monthly, view, hashtags } = intent;
     const tags = hashtags?.length ? [...hashtags].sort() : undefined;
-    // No chart is the same as `auto`.
+    // No chart is the same as `auto`, and no comparison the same as the previous period.
     const chart = intent.chart === 'auto' ? undefined : intent.chart;
+    const compareWith = intent.compareWith === 'year_earlier' ? 'year_earlier' : null;
     const parts = [
         root,
         target ?? null,
         // In order: the targets side by side show in it.
         alongside?.map(subject => [subject.root, subject.target ?? null]) ?? null,
-        period,
+        typeof period === 'string' ? period : periodKey(period),
+        compared ? periodKey(compared) : null,
+        compareWith,
         monthly,
         view ?? null,
         tags ?? null,
         chart ?? null,
     ];
     return `intent:${language}:${JSON.stringify(parts)}`;
+}
+
+/** The parts of a period in one order, whatever order they were written in. */
+function periodKey(parts: Exclude<ReportIntent['period'], string>): unknown[] {
+    return [
+        'span' in parts ? (parts.span ?? null) : null,
+        parts.year ?? null,
+        parts.month ?? null,
+        parts.quarter ?? null,
+    ];
 }
 
 function isAbort(error: unknown): boolean {

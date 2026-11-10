@@ -105,7 +105,7 @@ describe('report file', () => {
         const snapshot = await ledgerSnapshot(ledger);
         const intent = {
             root: 'g-expenses',
-            period: 'this_year',
+            period: { span: 'year', year: 'current' },
             monthly: false,
             chart: 'compare',
         } as const;
@@ -193,7 +193,11 @@ describe('report file', () => {
 });
 
 describe('reportFileOpen', () => {
-    const intent = { root: 'g-expenses', period: '2017', monthly: true };
+    const intent = {
+        root: 'g-expenses',
+        period: { span: 'year' as const, year: 2017 },
+        monthly: true,
+    };
 
     it('gives the report’s state, and the state of each other chart that fits', () => {
         const open = reportFileOpen('book-1', {

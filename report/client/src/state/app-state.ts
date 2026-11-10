@@ -5,6 +5,7 @@ import {
 } from '../auth/auth-session';
 import { personLanguage } from './language';
 import { decodeReportState, encodeReportState, type ReportState } from 'report-shared/report-state';
+import { intentWithParts } from 'report-shared/report-intent';
 import { createAppApi, type AppApi, type BookProblem, type ReportResponse } from '../api/app-api';
 import { agentPrompt, agentUrl } from '../agent-link';
 import { PRODUCTION_BKPER_ORIGIN } from '../bkper-host';
@@ -194,8 +195,9 @@ export class AppState {
         if (!report || (report === this.synced?.report && chart === this.synced.chart)) return;
         if (this.embedded && !this.host.acceptsState) return;
         this.synced = { report, chart };
-        const intent = chart ? { ...report.intent, chart } : report.intent;
-        const state = encodeReportState({ intent, language: report.language });
+        // Answers give the period as parts; an id of an older intent reads as its parts.
+        const intent = intentWithParts(chart ? { ...report.intent, chart } : report.intent);
+        const state = intent && encodeReportState({ intent, language: report.language });
         if (state === this.route.state) return;
         this.route.setState(state);
         this.host.sendState(state ?? '');

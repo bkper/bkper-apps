@@ -195,6 +195,65 @@
             "date": "the date, already formatted in the language, such as Dec 31, 2026"
         }
     },
+    "request_year_to_date": {
+        "text": "year to date",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. The period from the start of the current year through the current month, as in Expenses year to date."
+    },
+    "request_last_12_months": {
+        "text": "last 12 months",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. The 12 months through the current month, as in Expenses last 12 months."
+    },
+    "request_all_time": {
+        "text": "all time",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. The whole history of the Book, every date up to today, as in Expenses all time."
+    },
+    "request_quarter": {
+        "text": "Q{quarter}",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A calendar quarter named without its year, such as Q3 for July to September. Use the language's usual short form for a quarter, the same as in a quarter with its year.",
+        "placeholders": {
+            "quarter": "number of the quarter, 1 to 4"
+        }
+    },
+    "request_in_year": {
+        "text": "{period} {year}",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A period within a year: a month, a quarter, year to date or this month, then a year that is either written in digits or said relative to today, such as January last year, Q1 this year or year to date 2024. Add a word between them only where the language needs one, and keep both placeholders.",
+        "placeholders": {
+            "period": "a month (January), a quarter (Q1), year to date, or this month or last month, already in the language",
+            "year": "a year in digits (2024) or relative to today (this year, last year, 2 years ago), already in the language"
+        }
+    },
+    "request_year_earlier": {
+        "text": "the same period a year earlier",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. What a period is compared with: the same months one year before, as in Expenses this quarter vs. the same period a year earlier. Short noun phrase."
+    },
+    "request_versus": {
+        "text": "{period} vs. {compared}",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it, after the report's title (the name of a Group, such as Expenses). Write it as typed, lowercase where the language allows, no ending punctuation. A period compared with another, as in Revenue last year vs. 2023 or Expenses Q3 vs. Q1. Write the connective a person would type to ask for a comparison, keeping both placeholders; the order may change as the language needs.",
+        "placeholders": {
+            "period": "the period of the report, already in the language, such as last year or Q3",
+            "compared": "the period it is compared with, already in the language, such as 2023, Q1 or the same period a year earlier"
+        }
+    },
+    "notice_comparison_fallback": {
+        "text": "The comparison asked for isn’t an earlier period of the same kind, so this compares with {period}.",
+        "role": "message",
+        "context": "Note under a report's title when the request compared its period with another that cannot be compared: a period of another kind (a month for a year) or one that is not earlier (it overlaps). The report then compares with the period right before instead, named in the placeholder. One short sentence.",
+        "placeholders": {
+            "period": "the period the report compares with instead, already formatted, such as 2024, Q2 2026, October 2026 or Oct 31, 2026"
+        }
+    },
+    "notice_comparison_none": {
+        "text": "All time has nothing before it to compare with, so nothing is compared.",
+        "role": "message",
+        "context": "Note under a report's title when the request compared the whole history of the Book (all time) with another period: there is nothing earlier, so the report shows no comparison. One short sentence."
+    },
     "answer_compared_with": {
         "text": "vs. {period}",
         "role": "label",

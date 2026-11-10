@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Browser, Frame, FrameLocator, Page } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../../client/src/api/app-api.ts';
+import { intentWithParts } from '../../shared/src/report-intent.ts';
 import { encodeReportState, reportText } from '../../shared/src/report-state.ts';
 
 export interface Fixture {
@@ -127,7 +128,8 @@ export async function verifyAutoOpen(
     const titles = new Set(Object.values(reports).map(titleOf));
     assert.equal(titles.size, Object.keys(reports).length, 'Each report has its own title');
     // A state holds a Bkper language, such as `ar` for a report recorded in `ar-EG`.
-    const state = encodeReportState({ intent: reports.state.intent, language });
+    const intent = intentWithParts(reports.state.intent);
+    const state = intent && encodeReportState({ intent, language });
     assert(state, 'The state fits the URL');
     const context = await env.browser.newContext({
         viewport: { width, height: 800 },

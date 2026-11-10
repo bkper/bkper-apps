@@ -14,7 +14,8 @@ import {
     type ReportRow,
     type ViewKind,
 } from '../../src/services/report';
-import type { ReportIntent } from '../../src/services/report-intent';
+import type { PeriodParts } from 'report-shared/report-intent';
+import { reportIntentOf, type ReportIntent } from '../../src/services/report-intent';
 import type { Snapshot } from '../../src/services/snapshot';
 import type { FakeLedger } from '../fixtures/ledger';
 import {
@@ -26,8 +27,13 @@ import {
     simpleRootsLedger,
 } from '../fixtures/snapshot-book';
 
-function intent(root: string, period: string, extra: Partial<ReportIntent> = {}): ReportIntent {
-    return { root, period, monthly: false, ...extra };
+/** An intent of a period id, as older intents wrote it, or of parts. */
+function intent(
+    root: string,
+    period: string | PeriodParts,
+    extra: Partial<ReportIntent> = {}
+): ReportIntent {
+    return reportIntentOf({ root, period, monthly: false, ...extra });
 }
 
 /** The balances of every query a report plans, read from the ledger as Bkper answers them. */
@@ -154,6 +160,69 @@ describe('planReport', () => {
         expect(await queries(intent('g-expenses', 'all', yearEarlier))).toEqual([
             "group:'Expenses' before:$m+1 by:m",
         ]);
+    });
+
+    it('reads the period compared with as the intent names it', async () => {
+        // Revenue last year vs 2023: both whole years, each as written.
+        expect(
+            await queries(
+                intent(
+                    'g-expenses',
+                    { span: 'year', year: 'previous' },
+                    { compared: { year: 2023 } }
+                )
+            )
+        ).toEqual(["group:'Expenses' on:$y-1 by:m", "group:'Expenses' on:2023 by:m"]);
+        // Q3 vs Q1, in no year: the latest of each before.
+        expect(
+            await queries(intent('g-expenses', { quarter: 3 }, { compared: { quarter: 1 } }))
+        ).toEqual([
+            "group:'Expenses' after:2026-07 before:2026-10 by:m",
+            "group:'Expenses' after:2026-01 before:2026-04 by:m",
+        ]);
+    });
+
+    it('compares with the previous period when the comparison asked for cannot be made', async () => {
+        const snapshot = await fixtureSnapshot();
+        // A month is another kind of period than a year.
+        const mismatch = planReport(
+            intent('g-expenses', { span: 'year', year: 2025 }, { compared: { month: 3 } }),
+            snapshot
+        );
+        expect(planQueries(mismatch)).toEqual([
+            "group:'Expenses' on:2025 by:m",
+            "group:'Expenses' on:2024 by:m",
+        ]);
+        expect(mismatch.period.comparisonError).toBe('comparison_kind_mismatch');
+        // A comparison that overlaps the period is no earlier period.
+        const overlap = planReport(
+            intent('g-expenses', { span: 'year', year: 2025 }, { compared: { year: 2025 } }),
+            snapshot
+        );
+        expect(planQueries(overlap)).toEqual([
+            "group:'Expenses' on:2025 by:m",
+            "group:'Expenses' on:2024 by:m",
+        ]);
+        expect(overlap.period.comparisonError).toBe('comparison_not_earlier');
+        // All time has nothing before it.
+        const all = planReport(
+            intent('g-expenses', { span: 'all_time' }, { compareWith: 'year_earlier' }),
+            snapshot
+        );
+        expect(planQueries(all)).toEqual(["group:'Expenses' before:$m+1 by:m"]);
+        expect(all.period.comparisonError).toBe('comparison_unavailable');
+        // A comparison that can be made says nothing.
+        expect(
+            planReport(intent('g-expenses', '2025', { compareWith: 'year_earlier' }), snapshot)
+                .period.comparisonError
+        ).toBeUndefined();
+        const data = await report(
+            intent('g-expenses', { span: 'year', year: 2025 }, { compared: { month: 3 } })
+        );
+        expect(data.comparisonError).toBe('comparison_kind_mismatch');
+        expect(data.previous).toMatchObject({ dates: 'on:2024 by:m' });
+        // What was asked for stays the intent's.
+        expect(data.intent.compared).toEqual({ month: 3 });
     });
 
     it('reads the group that combines Incoming and Outgoing for a net result', async () => {
@@ -295,12 +364,15 @@ describe('buildReport: activity', () => {
             after: '2026-10-01',
             before: '2026-11-01',
             dates: 'on:$m-1 by:m',
+            kind: 'month',
         });
         expect(data.previous).toEqual({
             after: '2026-09-01',
             before: '2026-10-01',
             dates: 'on:$m-2 by:m',
+            kind: 'month',
         });
+        expect(data.comparisonError).toBeUndefined();
         expect(data.answer).toEqual({ amount: '1200.5', previous: '0' });
         // The archived account without movements in either period is left out.
         expect(rows(data.breakdown)).toEqual([
@@ -333,11 +405,13 @@ describe('buildReport: activity', () => {
             after: '2026-11-01',
             before: '2026-12-01',
             dates: 'on:$m by:m',
+            kind: 'month',
         });
         expect(data.previous).toEqual({
             after: '2026-10-01',
             before: '2026-11-01',
             dates: 'on:$m-1 by:m',
+            kind: 'month',
         });
         expect(data.answer).toEqual({
             amount: '1059.25',
@@ -352,17 +426,19 @@ describe('buildReport: activity', () => {
 
     it('reads a calendar period that has not ended through this month, like its current period', async () => {
         const data = await report(intent('g-expenses', '2026', { monthly: true }));
-        expect(data.intent.period).toBe('2026');
+        expect(data.intent.period).toEqual({ span: 'year', year: 2026 });
         expect(data.period).toEqual({
             after: '2026-01-01',
             before: '2026-12-01',
             dates: 'after:2026-01 before:2026-12 by:m',
+            kind: 'year',
         });
         // The same months of the year before.
         expect(data.previous).toEqual({
             after: '2025-01-01',
             before: '2025-12-01',
             dates: 'after:2025-01 before:2025-12 by:m',
+            kind: 'year',
         });
         expect(data.answer).toEqual({ amount: '3250.75', previous: '1000', change: '2.2508' });
         expect(data.query).toBe("group:'Expenses' after:2026-01 before:2026-12 by:m");
@@ -383,7 +459,11 @@ describe('buildReport: activity', () => {
 
     it('has nothing to compare all time with', async () => {
         const data = await report(intent('g-expenses', 'all'));
-        expect(data.period).toEqual({ before: '2026-12-01', dates: 'before:$m+1 by:m' });
+        expect(data.period).toEqual({
+            before: '2026-12-01',
+            dates: 'before:$m+1 by:m',
+            kind: 'all_time',
+        });
         expect(data.previous).toBeUndefined();
         expect(data.answer).toEqual({ amount: '4260.75' });
         expect(data.query).toBe("group:'Expenses' before:$m+1 by:m");
@@ -421,8 +501,16 @@ describe('buildReport: position', () => {
         expect(data.nature).toBe('position');
         expect(data.root.color).toBe('blue');
         // A position reads every movement before its day: from the start of the Book.
-        expect(data.period).toEqual({ before: '2026-11-06', dates: 'before:$d+1 by:m' });
-        expect(data.previous).toEqual({ before: '2026-11-01', dates: 'before:$m by:m' });
+        expect(data.period).toEqual({
+            before: '2026-11-06',
+            dates: 'before:$d+1 by:m',
+            kind: 'now',
+        });
+        expect(data.previous).toEqual({
+            before: '2026-11-01',
+            dates: 'before:$m by:m',
+            kind: 'now',
+        });
         expect(data.answer).toEqual({ amount: '7849.25', previous: '3899.5', change: '1.0129' });
         expect(rows(data.breakdown)).toEqual([
             'Banks 7749.25 (prev 3799.5, change 1.0395, share 0.9873)',
@@ -436,9 +524,17 @@ describe('buildReport: position', () => {
 
     it('shows positions at the end of each month on a line', async () => {
         const data = await report(intent('g-assets', '2026-Q4', { monthly: true }));
-        expect(data.period).toEqual({ before: '2026-11-06', dates: 'before:$d+1 by:m' });
+        expect(data.period).toEqual({
+            before: '2026-11-06',
+            dates: 'before:$d+1 by:m',
+            kind: 'quarter',
+        });
         // The end of the same months of the quarter before: July and August.
-        expect(data.previous).toEqual({ before: '2026-09-01', dates: 'before:2026-09 by:m' });
+        expect(data.previous).toEqual({
+            before: '2026-09-01',
+            dates: 'before:2026-09 by:m',
+            kind: 'quarter',
+        });
         expect(data.answer).toEqual({ amount: '7849.25', previous: '100', change: '77.4925' });
         expect(data.months).toEqual(['2026-10', '2026-11']);
         expect(data.chart).toMatchObject({
@@ -1497,11 +1593,13 @@ describe('buildReport: any period and hashtags', () => {
                 after: '2026-10-01',
                 before: '2026-12-01',
                 dates: 'after:2026-10 before:2026-12 by:m',
+                kind: 'quarter',
             });
             expect(activity.previous, pattern).toEqual({
                 after: '2026-07-01',
                 before: '2026-09-01',
                 dates: 'after:2026-07 before:2026-09 by:m',
+                kind: 'quarter',
             });
             const position = await report(intent('g-assets', 'today'), ledger);
             expect(position.period, pattern).toMatchObject({ before: '2026-11-06' });
@@ -1543,11 +1641,13 @@ describe('buildReport: any period and hashtags', () => {
             after: '2026-11-01',
             before: '2026-12-01',
             dates: 'on:$m by:m',
+            kind: 'now',
         });
         expect(data.previous).toEqual({
             after: '2026-10-01',
             before: '2026-11-01',
             dates: 'on:$m-1 by:m',
+            kind: 'now',
         });
         expect(data.answer).toEqual({ amount: '1050.25', previous: '1200.5', change: '-0.1252' });
         expect(rows(data.breakdown)).toEqual([

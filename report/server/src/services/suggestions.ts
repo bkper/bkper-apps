@@ -9,6 +9,7 @@
  * year has no movements, the last year with them, which the suggestion's text then names; a
  * position today.
  */
+import type { PeriodParts } from 'report-shared/report-intent';
 import { t, type StringKey } from 'report-shared/strings';
 import type { QueryBalances } from './balances.js';
 import { bookProblem, type BookProblem } from './book-problems.js';
@@ -66,7 +67,7 @@ export async function readSuggestions(
     );
     return Promise.all(
         suggestions.map(async suggestion => {
-            if (suggestion.intent.period === 'today') {
+            if (suggestion.intent.period.span === 'now') {
                 return suggestion;
             }
             try {
@@ -153,9 +154,15 @@ function accountsUnder(snapshot: Snapshot, group: SnapshotGroup): Set<string> {
     return accounts;
 }
 
+/** This year, relative: it stays this year whenever the suggestion is chosen. */
+const THIS_YEAR: PeriodParts = { span: 'year', year: 'current' };
+
+/** A balance now. */
+const NOW: PeriodParts = { span: 'now' };
+
 /** Activity this year, by month or not, or a position today. */
 function rootSuggestion(group: SnapshotGroup, monthly: boolean, lang: string): Suggestion {
-    const intent = { root: group.id, period: group.permanent ? 'today' : 'this_year', monthly };
+    const intent = { root: group.id, period: group.permanent ? NOW : THIS_YEAR, monthly };
     return { text: textOf(group, intent, lang), intent };
 }
 
@@ -166,9 +173,12 @@ function suggestionText(snapshot: Snapshot, intent: ReportIntent, lang: string):
         : textOf(snapshot.groups[intent.root], intent, lang);
 }
 
-/** A root's activity this year or in a year `YYYY`, by month or not, or its position today. */
+/**
+ * A root's activity this year or in a written year, by month or not, or its position today: a
+ * relative period in relative words, a written year as written.
+ */
 function textOf(group: SnapshotGroup, { period, monthly }: ReportIntent, lang: string): string {
-    const thisYear = period === 'this_year';
+    const thisYear = period.year === 'current';
     const key: StringKey = group.permanent
         ? 'suggestion_position_today'
         : monthly
@@ -178,7 +188,7 @@ function textOf(group: SnapshotGroup, { period, monthly }: ReportIntent, lang: s
           : thisYear
             ? 'suggestion_breakdown_this_year'
             : 'suggestion_breakdown_year';
-    return t(key, lang, { root: group.name, year: period });
+    return t(key, lang, { root: group.name, year: String(period.year) });
 }
 
 /**
@@ -209,14 +219,14 @@ function netResult(snapshot: Snapshot): { roots: SnapshotGroup[] } | undefined {
 
 function netSuggestion(lang: string): Suggestion {
     return {
-        text: netText('this_year', lang),
-        intent: { root: NET_RESULT_ROOT, period: 'this_year', monthly: false },
+        text: netText(THIS_YEAR, lang),
+        intent: { root: NET_RESULT_ROOT, period: THIS_YEAR, monthly: false },
     };
 }
 
-/** The net result this year or in a year `YYYY`. */
-function netText(period: string, lang: string): string {
-    return period === 'this_year'
+/** The net result this year or in a written year. */
+function netText(period: PeriodParts, lang: string): string {
+    return period.year === 'current'
         ? t('suggestion_net_result_this_year', lang)
-        : t('suggestion_net_result_year', lang, { year: period });
+        : t('suggestion_net_result_year', lang, { year: String(period.year) });
 }

@@ -451,8 +451,22 @@ describe('AppState', () => {
         const FIRST = { id: 'f'.repeat(64), prompt: 'Saved first' };
         const SECOND = { id: 'e'.repeat(64), prompt: 'Saved second' };
         const SUGGESTED: Suggestion[] = [
-            { text: 'Suggested first', intent: { root: 'g-1', period: '2011', monthly: true } },
-            { text: 'Suggested second', intent: { root: 'g-2', period: '2011', monthly: false } },
+            {
+                text: 'Suggested first',
+                intent: {
+                    root: 'g-1',
+                    period: { span: 'year' as const, year: 2011 },
+                    monthly: true,
+                },
+            },
+            {
+                text: 'Suggested second',
+                intent: {
+                    root: 'g-2',
+                    period: { span: 'year' as const, year: 2011 },
+                    monthly: false,
+                },
+            },
         ];
         const PROBLEM: BookProblem = {
             code: 'empty_book',
@@ -524,10 +538,15 @@ describe('AppState', () => {
         }
 
         function reportOf(body: ReportRequest): ReportResponse {
-            const intent = body.intent ?? { root: 'g-9', period: '2012', monthly: false };
+            const intent = body.intent ?? {
+                root: 'g-9',
+                period: { span: 'year' as const, year: 2012 },
+                monthly: false,
+            };
             const props = {
                 title: body.prompt ?? intent.root,
-                subtitle: intent.period,
+                subtitle:
+                    typeof intent.period === 'string' ? intent.period : `${intent.period.year}`,
                 locale: 'en',
                 dir: 'ltr' as const,
                 fractionDigits: 2,
@@ -650,7 +669,11 @@ describe('AppState', () => {
 
         it('opens nothing when the URL asks for a request or a state', async () => {
             const revenue = encodeReportState({
-                intent: { root: 'g-2', period: '2012', monthly: false },
+                intent: {
+                    root: 'g-2',
+                    period: { span: 'year' as const, year: 2012 },
+                    monthly: false,
+                },
             });
             for (const query of ['q=net%20result', `state=${revenue}`]) {
                 const { app, shelf, suggestions, signIn, selected, prompts, settle } = openingApp(
@@ -727,8 +750,17 @@ describe('AppState', () => {
 
     describe('in a Book that keeps the report’s state', () => {
         const BKPER = 'https://bkper.app';
-        const EXPENSES = { root: 'g-1', period: '2011', monthly: true, chart: 'area' as const };
-        const REVENUE = { root: 'g-2', period: '2012', monthly: false };
+        const EXPENSES = {
+            root: 'g-1',
+            period: { span: 'year' as const, year: 2011 },
+            monthly: true,
+            chart: 'area' as const,
+        };
+        const REVENUE = {
+            root: 'g-2',
+            period: { span: 'year' as const, year: 2012 },
+            monthly: false,
+        };
         const state = (intent: ReportResponse['intent'], language = 'pt') =>
             encodeReportState({ intent, language }) ?? '';
 
@@ -742,7 +774,10 @@ describe('AppState', () => {
                     const intent = body.intent ?? REVENUE;
                     const props = {
                         title: body.intent ? `By intent ${intent.root}` : `Typed ${body.prompt}`,
-                        subtitle: intent.period,
+                        subtitle:
+                            typeof intent.period === 'string'
+                                ? intent.period
+                                : `${intent.period.year}`,
                         locale: 'pt',
                         dir: 'ltr' as const,
                         fractionDigits: 2,
@@ -918,7 +953,11 @@ describe('AppState', () => {
 
             // Another report drops the chart chosen at once: one state, its own.
             app.reports.chooseChart('pie');
-            const other = { root: 'g-3', period: '2013', monthly: false };
+            const other = {
+                root: 'g-3',
+                period: { span: 'year' as const, year: 2013 },
+                monthly: false,
+            };
             app.reports.openState({ intent: other, language: 'pt' });
             await vi.waitFor(() => expect(app.reports.report?.intent).toEqual(other));
             expect(app.reports.chart).toBeUndefined();

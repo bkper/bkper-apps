@@ -3,9 +3,12 @@
         "id": "mixed-group",
         "intent": {
             "root": "g-net",
-            "period": "last_month",
             "monthly": false,
-            "view": "breakdown"
+            "view": "breakdown",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -18,7 +21,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Net income last month"
                     },
                     "children": [
                         "answer",
@@ -237,8 +241,11 @@
         "id": "expenses-last-month",
         "intent": {
             "root": "g-expenses",
-            "period": "last_month",
-            "monthly": false
+            "monthly": false,
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -251,7 +258,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Expenses last month"
                     },
                     "children": [
                         "answer",
@@ -447,9 +455,12 @@
         "id": "net-result-group",
         "intent": {
             "root": "net-result",
-            "period": "last_month",
             "monthly": false,
-            "chart": "waterfall"
+            "chart": "waterfall",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -462,7 +473,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Net income last month"
                     },
                     "children": [
                         "answer",
@@ -686,8 +698,10 @@
         "id": "assets-today-pt",
         "intent": {
             "root": "g-assets",
-            "period": "today",
-            "monthly": false
+            "monthly": false,
+            "period": {
+                "span": "now"
+            }
         },
         "lang": "pt-BR",
         "spec": {
@@ -700,7 +714,8 @@
                         "subtitle": "Em ⁨5 de nov. de 2026⁩",
                         "locale": "pt-BR",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Assets agora"
                     },
                     "children": [
                         "answer",
@@ -958,8 +973,10 @@
         "id": "net-income-last-12-months-ar",
         "intent": {
             "root": "net-result",
-            "period": "last_12_months",
-            "monthly": true
+            "monthly": true,
+            "period": {
+                "span": "last_12_months"
+            }
         },
         "lang": "ar",
         "spec": {
@@ -972,7 +989,8 @@
                         "subtitle": "ديسمبر 2025 – نوفمبر 2026",
                         "locale": "ar",
                         "dir": "rtl",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Net income آخر 12 شهرًا"
                     },
                     "children": [
                         "answer",
@@ -1302,8 +1320,11 @@
         "id": "card-empty",
         "intent": {
             "root": "g-card",
-            "period": "last_year",
-            "monthly": false
+            "monthly": false,
+            "period": {
+                "span": "year",
+                "year": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -1316,7 +1337,8 @@
                         "subtitle": "As of ⁨Dec 31, 2025⁩",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Card last year"
                     },
                     "children": [
                         "answer",
@@ -1402,9 +1424,11 @@
         "id": "banks-target-today",
         "intent": {
             "root": "g-assets",
-            "period": "today",
             "monthly": false,
-            "target": "g-banks"
+            "target": "g-banks",
+            "period": {
+                "span": "now"
+            }
         },
         "lang": "en",
         "spec": {
@@ -1417,7 +1441,8 @@
                         "subtitle": "As of ⁨Nov 5, 2026⁩",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Banks now"
                     },
                     "children": [
                         "answer",
@@ -1569,9 +1594,12 @@
         "id": "rent-account-by-month",
         "intent": {
             "root": "g-expenses",
-            "period": "this_year",
             "monthly": true,
-            "target": "a-rent"
+            "target": "a-rent",
+            "period": {
+                "span": "year",
+                "year": "current"
+            }
         },
         "lang": "en",
         "spec": {
@@ -1584,7 +1612,8 @@
                         "subtitle": "Jan – Nov 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Rent this year"
                     },
                     "children": [
                         "answer",
@@ -1739,8 +1768,11 @@
         "id": "expenses-this-year-he",
         "intent": {
             "root": "g-expenses",
-            "period": "this_year",
-            "monthly": false
+            "monthly": false,
+            "period": {
+                "span": "year",
+                "year": "current"
+            }
         },
         "lang": "he",
         "spec": {
@@ -1753,7 +1785,8 @@
                         "subtitle": "ינו׳–נוב׳ 2026",
                         "locale": "he",
                         "dir": "rtl",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Expenses השנה"
                     },
                     "children": [
                         "answer",
@@ -2101,9 +2134,12 @@
         "id": "mixed-pie-fallback",
         "intent": {
             "root": "g-net",
-            "period": "last_month",
             "monthly": false,
-            "chart": "pie"
+            "chart": "pie",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -2116,7 +2152,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Net income last month"
                     },
                     "children": [
                         "answer",
@@ -2340,9 +2377,12 @@
         "id": "mixed-compare",
         "intent": {
             "root": "g-net",
-            "period": "last_month",
             "monthly": false,
-            "chart": "compare"
+            "chart": "compare",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -2355,7 +2395,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Net income last month"
                     },
                     "children": [
                         "answer",
@@ -2574,7 +2615,6 @@
         "id": "targets-pie-unfit",
         "intent": {
             "root": "g-expenses",
-            "period": "last_month",
             "monthly": false,
             "target": "a-food",
             "alongside": [
@@ -2583,7 +2623,11 @@
                     "target": "a-rent"
                 }
             ],
-            "chart": "pie"
+            "chart": "pie",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -2596,7 +2640,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "⁨Food⁩ and ⁨Rent⁩ last month"
                     },
                     "children": [
                         "answer-1",
@@ -2814,9 +2859,12 @@
         "id": "expenses-pie-negative",
         "intent": {
             "root": "g-expenses",
-            "period": "last_month",
             "monthly": false,
-            "chart": "pie"
+            "chart": "pie",
+            "period": {
+                "span": "month",
+                "month": "previous"
+            }
         },
         "lang": "en",
         "spec": {
@@ -2829,7 +2877,8 @@
                         "subtitle": "October 2026",
                         "locale": "en",
                         "dir": "ltr",
-                        "fractionDigits": 2
+                        "fractionDigits": 2,
+                        "request": "Expenses last month"
                     },
                     "children": [
                         "answer",

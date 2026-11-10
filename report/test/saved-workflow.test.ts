@@ -207,7 +207,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(b.state.reports.report).toBe(first);
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
-        expect(later.intent.period).toBe('last_month');
+        expect(later.intent.period).toEqual({ span: 'month', month: 'previous' });
         // The same query, which Bkper reads on the Book's new day.
         expect(later.query).toBe(first.query);
         expect(sourcePeriod(later)).toMatch(/^Nov 1\s–\s30, 2026$/);
@@ -271,7 +271,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(named.intent).toEqual({
             root: 'g-expenses',
             target: 'a-food',
-            period: 'last_month',
+            period: { span: 'month', month: 'previous' },
             monthly: false,
         });
         expect(title(named)).toMatchObject({ title: 'Food' });
@@ -284,7 +284,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         const renamed = await click(state, saved.id);
         expect(renamed.intent).toEqual({
             root: 'g-expenses',
-            period: 'last_month',
+            period: { span: 'month', month: 'previous' },
             monthly: false,
         });
         expect(title(renamed)).toMatchObject({ title: 'Expenses' });
@@ -429,7 +429,7 @@ describe('completed names, through the real routes, reports, the shelf and other
         expect(named.intent).toEqual({
             root: 'g-expenses',
             target: 'a-food',
-            period: 'last_month',
+            period: { span: 'month', month: 'previous' },
             monthly: false,
         });
         expect(named.trace.names).toEqual(['Food']);
@@ -497,7 +497,7 @@ describe('completed names, through the real routes, reports, the shelf and other
             root: 'g-expenses',
             target: 'a-food',
             alongside: [{ root: 'g-expenses', target: 'a-rent' }],
-            period: 'last_month',
+            period: { span: 'month', month: 'previous' },
         });
         expect(shown.trace.names).toEqual(['Food', 'Rent']);
         expect(shown.query).toBe("(account:'Food' OR account:'Rent') on:$m-1 by:m");

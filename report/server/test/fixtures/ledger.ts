@@ -4,7 +4,8 @@
  *
  * Each transaction moves an amount from one account to another: the `from` account's raw
  * balance (credit minus debit) goes up, the `to` account's goes down, so the ledger always
- * adds up to zero. A query reads one group or account, with optional hashtags, and the dates
+ * adds up to zero. A query reads one group or account, with an optional hashtag (two or more
+ * filter nothing, as in Bkper), and the dates
  * the app writes (`on:`, `after:`, `before:`, then `by:m`), resolved from the ledger's today as
  * Bkper resolves them (`resolveQueryDates`): bare `$y`, `$m` and `$d+1`, and ISO `yyyy` and
  * `yyyy-mm`. `after:` is inclusive, `before:` exclusive.
@@ -207,7 +208,10 @@ export class FakeLedger {
             .filter(transaction => transaction.date < query.before)
             .flatMap(transaction => {
                 const raw = new Amount(transaction.amount);
-                const tagged = query.hashtags.every(tag => transaction.hashtags?.includes(tag));
+                // Bkper filters by a hashtag only when the query has exactly one.
+                const tagged =
+                    query.hashtags.length !== 1 ||
+                    (transaction.hashtags ?? []).includes(query.hashtags[0]);
                 return [
                     ...(transaction.from === account.name
                         ? [{ date: transaction.date, raw, tagged }]

@@ -7,7 +7,7 @@
  * an earlier period or a bridge. This code makes the decisions: it applies the thresholds, reads
  * the period's parts (`readPeriod`), decides how to show the report with the rule table
  * {@link SHOW_RULES}, picks the default period when the request names none, and reads from the
- * request text itself its hashtags and the exact names of the
+ * request text itself its first hashtag and the exact names of the
  * Book's groups and accounts (`prompt-names.ts`), which the report is of whenever the request
  * writes any: the model's root is read only when it writes none. Which charts fit the numbers
  * is decided afterwards, by `buildReport`, from the facts of the report.
@@ -38,6 +38,7 @@ import {
     type ReportView,
 } from './report-intent.js';
 import { HASHTAG, findPromptNames, type PromptName } from './prompt-names.js';
+import { MAX_HASHTAGS, MAX_HASHTAG_LENGTH } from 'report-shared/report-intent';
 import type { Snapshot } from './snapshot.js';
 import type { Timing } from './timing.js';
 
@@ -195,15 +196,15 @@ export interface IntentTrace {
     names?: string[];
 }
 
-const MAX_HASHTAGS = 10;
-const MAX_HASHTAG_CHARACTERS = 100;
-
-/** The `#hashtags` of a request, without `#`, each once, in order. */
+/**
+ * The first `#hashtag` of a request, without `#`: Bkper's balances filter by a hashtag only
+ * when a query has exactly one, so the others are left out.
+ */
 export function extractHashtags(prompt: string): string[] {
-    const hashtags = [...prompt.matchAll(HASHTAG)]
+    return [...prompt.matchAll(HASHTAG)]
         .map(match => match[1])
-        .filter(tag => tag.length <= MAX_HASHTAG_CHARACTERS);
-    return [...new Set(hashtags)].slice(0, MAX_HASHTAGS);
+        .filter(tag => tag.length <= MAX_HASHTAG_LENGTH)
+        .slice(0, MAX_HASHTAGS);
 }
 
 export interface ResolveIntentOptions {

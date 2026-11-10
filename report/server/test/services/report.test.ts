@@ -241,12 +241,10 @@ describe('planReport', () => {
         ]);
     });
 
-    it('filters the queries by the hashtags', async () => {
-        expect(
-            await queries(intent('g-expenses', 'last_month', { hashtags: ['trip', 'q4'] }))
-        ).toEqual([
-            "group:'Expenses' #trip #q4 on:$m-1 by:m",
-            "group:'Expenses' #trip #q4 on:$m-2 by:m",
+    it('filters the queries by the hashtag', async () => {
+        expect(await queries(intent('g-expenses', 'last_month', { hashtags: ['trip'] }))).toEqual([
+            "group:'Expenses' #trip on:$m-1 by:m",
+            "group:'Expenses' #trip on:$m-2 by:m",
         ]);
     });
 

@@ -526,6 +526,23 @@ describe('createReport by prompt', () => {
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
     });
 
+    it('reads only the first hashtag of a prompt, as Bkper filters balances by exactly one', async () => {
+        const test = harness({ root: 'Expenses', period: 'last_month' });
+        const result = await createReport(
+            await fixtureSnapshot(),
+            { prompt: 'expenses last month #trip #other' },
+            {},
+            test.options
+        );
+
+        expect(test.queries).toEqual([
+            "group:'Expenses' #trip on:$m-1 by:m",
+            "group:'Expenses' #trip on:$m-2 by:m",
+        ]);
+        expect(result.intent).toEqual(intent('g-expenses', 'last_month', { hashtags: ['trip'] }));
+        expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
+    });
+
     it('reports the group or account the prompt names, titled by it, from its group', async () => {
         // Jev chose another root: the name the prompt writes decides.
         const test = harness({ root: 'Revenue', period: '2026-10', language: 'pt' });

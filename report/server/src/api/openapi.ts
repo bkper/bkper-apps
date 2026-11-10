@@ -25,7 +25,7 @@ This one call is the whole task, and the deterministic route to the report: ever
 - What the period is compared with: the previous period, the same period a year earlier, or any other period of the same kind the prompt names (last year vs 2023, Q3 vs Q1; an intent's \`compared\` parts). A comparison that cannot be made, such as a month against a year, compares with the previous period instead and says so in the report.
 - By month, or a breakdown, a trend or a total.
 - A chart, when the person names one: a pie or donut, bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it. A chart that does not fit the numbers (such as a pie with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and the asked-for one dimmed with why. Every chart that fits is offered as a preview in the report, so there is no need to ask again for another chart.
-- \`#hashtags\`: only transactions with all of them.
+- A \`#hashtag\`: only transactions with it. One per report, as Bkper filters balances by one; a prompt's first hashtag is read and the others are left out.
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.
 

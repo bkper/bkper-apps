@@ -31,7 +31,7 @@ describe('ReportIntentSchema', () => {
             monthly: true,
             view: 'breakdown',
             chart: 'waterfall',
-            hashtags: ['travel', 'viagem_2026', 'ação'],
+            hashtags: ['ação'],
         };
         expect(ReportIntentSchema.parse(intent)).toEqual(intent);
     });
@@ -78,6 +78,16 @@ describe('ReportIntentSchema', () => {
         ).toBe(false);
         expect(ReportIntentSchema.safeParse({ root: 'a', monthly: false }).success).toBe(false);
         expect(ReportIntentSchema.safeParse({ root: 'a', period: 'ytd' }).success).toBe(false);
+    });
+
+    it('rejects more than one hashtag, which Bkper would ignore in balances', () => {
+        const result = ReportIntentSchema.safeParse({
+            root: 'a',
+            period: 'ytd',
+            monthly: false,
+            hashtags: ['travel', 'viagem_2026'],
+        });
+        expect(result.success).toBe(false);
     });
 
     it('rejects hashtags that could escape the Bkper query', () => {
@@ -176,7 +186,7 @@ describe('report state', () => {
                 period: p(period),
                 monthly: false,
             })),
-            { root: 'a', period: p('2019-03'), monthly: false, hashtags: ['trip', 'ação'] },
+            { root: 'a', period: p('2019-03'), monthly: false, hashtags: ['ação'] },
             {
                 root: 'a',
                 period: { span: 'year', year: 'previous' },

@@ -77,7 +77,7 @@ describe('report state', () => {
         }
     });
 
-    it('round-trips hashtags, the language and any root id', () => {
+    it('round-trips a hashtag, the language and any root id', () => {
         const state: ReportState = {
             intent: {
                 root: 'grupo-ÿ.com/é|x',
@@ -85,7 +85,7 @@ describe('report state', () => {
                 monthly: true,
                 view: 'trend',
                 chart: 'stacked',
-                hashtags: ['viagem', 'trip_2019', 'çà-ü'],
+                hashtags: ['çà-ü'],
             },
             language: 'pt',
         };
@@ -273,12 +273,20 @@ describe('report state', () => {
             monthly: true,
             view: 'trend' as const,
             chart: 'stacked' as const,
-            hashtags: ['viagem', 'trip_2019'],
+            hashtags: ['viagem_trip_2019'],
         };
         expect(roundTrip({ intent, language: 'pt' })).toEqual({ intent, language: 'pt' });
         expect(encodeReportState({ intent: { ...intent, target: 't'.repeat(80) } })).toBe(
             undefined
         );
+    });
+
+    it('gives no state for more than one hashtag, which Bkper would ignore', () => {
+        expect(
+            encodeReportState({
+                intent: { root: 'r', period: p('2018'), monthly: false, hashtags: ['a', 'b'] },
+            })
+        ).toBe(undefined);
     });
 
     it('ignores states that are not one it wrote', () => {

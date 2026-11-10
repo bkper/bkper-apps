@@ -111,7 +111,7 @@ export const ReportIntentSchema = z.object({
     view: z.enum(REPORT_VIEWS).optional(),
     /** The chart the person prefers; left out, `auto`. */
     chart: z.enum(REPORT_CHARTS).optional(),
-    /** Limit to transactions with all these hashtags. */
+    /** Limit to transactions with this hashtag: at most one, as Bkper's balances filter by one. */
     hashtags: z
         .array(z.string().max(MAX_HASHTAG_LENGTH).regex(HASHTAG_PATTERN))
         .max(MAX_HASHTAGS)

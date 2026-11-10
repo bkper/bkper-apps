@@ -184,7 +184,8 @@ const IntentSchema = ReportIntentSchema.extend({
         example: 'pie',
     }),
     hashtags: shape.hashtags.meta({
-        description: 'Only transactions with all these hashtags, without `#`.',
+        description:
+            'Only transactions with this hashtag, without `#`: at most one, as Bkper filters balances by one.',
         example: ['travel'],
     }),
 }).meta({
@@ -327,7 +328,7 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: ReportPromptSchema.optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and `#hashtags`; leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision.',
             example: 'show my expenses by category this year',
         }),
         intent: IntentSchema.optional(),

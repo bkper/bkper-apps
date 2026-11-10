@@ -43,8 +43,11 @@ export type ChartPreference = (typeof REPORT_CHARTS)[number];
  */
 export const HASHTAG_PATTERN = /^[^\s#,.'"]+$/;
 
-/** The most hashtags an intent accepts, and the longest of them. */
-export const MAX_HASHTAGS = 10;
+/**
+ * The most hashtags an intent accepts, and the longest of them. Bkper's balances filter by a
+ * hashtag only when a query has exactly one; with more, they ignore them all.
+ */
+export const MAX_HASHTAGS = 1;
 export const MAX_HASHTAG_LENGTH = 100;
 
 /**

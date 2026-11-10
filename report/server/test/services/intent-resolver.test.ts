@@ -97,18 +97,19 @@ async function laterSnapshot(): Promise<Snapshot> {
 }
 
 describe('extractHashtags', () => {
-    it('reads each hashtag once, without # and trailing punctuation', () => {
+    it('reads a hashtag without # and trailing punctuation', () => {
+        expect(extractHashtags('despesas #ação_2026, por mês')).toEqual(['ação_2026']);
+        expect(extractHashtags('despesas #a-b.')).toEqual(['a-b']);
+    });
+
+    it('reads only the first hashtag, as Bkper filters balances by exactly one', () => {
         expect(extractHashtags('despesas #viagem e #ação_2026, #viagem! #a-b.')).toEqual([
             'viagem',
-            'ação_2026',
-            'a-b',
         ]);
     });
 
-    it('finds none in a plain request and caps how many it reads', () => {
+    it('finds none in a plain request', () => {
         expect(extractHashtags('expenses # by month')).toEqual([]);
-        const many = Array.from({ length: 12 }, (_, i) => `#t${i}`).join(' ');
-        expect(extractHashtags(many)).toHaveLength(10);
     });
 });
 

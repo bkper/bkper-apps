@@ -61,9 +61,9 @@ const ORGANIZE =
 const REPORT_ERROR_MESSAGES = {
     future_period: 'The period has not started yet.',
     unknown_root:
-        'The intent names no root group of this Book, no Account in no group, nor `net-result`.',
+        'The group or Account asked for is not in this Book. Send the person’s words, or a suggestion, as `prompt`.',
     unknown_target:
-        'The intent’s target is no group or Account under its root group. Take the intent of an earlier report, or send the person’s words, or a suggestion, as `prompt`.',
+        'The group or Account asked for is not in this Book. Send the person’s words, or a suggestion, as `prompt`.',
     mixed_targets:
         'Balances at a date (Asset, Liability) and activity in a period (Incoming, Outgoing) cannot be side by side. Ask for them in separate reports.',
     no_net_result: `This Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts. Reports of one of its groups still work. To have a net result, income and expenses must meet in one top-level group. ${ORGANIZE}`,
@@ -124,7 +124,7 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
             ? respond(
                   429,
                   'ai_allowance_exhausted',
-                  'The Bkper AI allowance is used up. Suggestions sent as they are, and reports by `intent`, still work.'
+                  'The Bkper AI allowance is used up. Suggestions sent as they are still work.'
               )
             : respond(502, 'upstream_error', 'Bkper AI failed to answer.');
     }

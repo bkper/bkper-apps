@@ -29,7 +29,6 @@ const screenshots =
     '/tmp/report-saved-shelf';
 const fixtures = JSON.parse(await readFile('client/dev/specs/studio.json', 'utf8')) as {
     id: string;
-    intent: ReportResponse['intent'];
     spec: ReportResponse['spec'];
     lang: string;
 }[];
@@ -77,28 +76,11 @@ try {
                 assert(fixture);
                 const response: ReportResponse = {
                     spec: fixture.spec,
-                    intent: fixture.intent,
                     text: reportText(fixture.spec),
                     language: fixture.lang,
                     query: 'mock-only',
                     dataAt: '2025-12-31T21:00:00Z',
                     chart: { kind: language === 'ar' ? 'ranked-bar' : 'bar', fallback: false },
-                    trace: {
-                        facts: {
-                            rows: 7,
-                            negative: 0,
-                            mixed: false,
-                            months: 12,
-                            previous: true,
-                            net: false,
-                            permanent: false,
-                        },
-                        chart: {
-                            fitting: ['bar', 'ranked-bar', 'table'],
-                            main: language === 'ar' ? 'ranked-bar' : 'bar',
-                            rule: 'rules',
-                        },
-                    },
                     url: `${APP}/?book=fixture-book`,
                 };
                 const prompt =
@@ -522,24 +504,11 @@ try {
                 screenshots,
                 report: {
                     spec: dragFixture.spec,
-                    intent: dragFixture.intent,
                     text: reportText(dragFixture.spec),
                     language: dragFixture.lang,
                     query: 'mock-only',
                     dataAt: '2025-12-31T21:00:00Z',
                     chart: { kind: 'bar', fallback: false },
-                    trace: {
-                        facts: {
-                            rows: 7,
-                            negative: 0,
-                            mixed: false,
-                            months: 12,
-                            previous: true,
-                            net: false,
-                            permanent: false,
-                        },
-                        chart: { fitting: ['bar', 'table'], main: 'bar', rule: 'rules' },
-                    },
                     url: `${APP}/?book=fixture-book`,
                 },
             },
@@ -797,12 +766,6 @@ try {
     await field.pressSequentially('last month');
     await field.press('Enter');
     const named = (await (await namedResponse).json()) as ReportResponse;
-    assert.deepEqual(named.intent, {
-        root: 'g-expenses',
-        target: 'a-food',
-        period: { span: 'month', month: 'previous' },
-        monthly: false,
-    });
     assert.equal(named.query, "account:'Food' on:$m-1 by:m");
     await a.frame.locator('report-view').getByText('50.25').first().waitFor();
     await a.shelf.locator('.save:not([disabled])').click();
@@ -820,7 +783,7 @@ try {
     );
     await b.shelf.locator('.saved-prompt').click();
     const reopened = (await (await reopenedResponse).json()) as ReportResponse;
-    assert.deepEqual(reopened.intent, named.intent);
+    assert.equal(reopened.text, named.text);
     assert.equal(reopened.query, named.query);
     await b.frame.locator('report-view').getByText('50.25').first().waitFor();
     await captureWorkflow('named-reopened');

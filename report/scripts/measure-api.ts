@@ -5,19 +5,19 @@
  *     npx tsx scripts/measure-api.ts --flow [--base=<url>] [--cold=<n>] [--runs=<n>] [--offset=<n>] <bookId>...
  *
  * `--base` is the app (default the local `bkper app dev` Worker, `http://localhost:8809`). For
- * each Book it asks for the suggestions, then times four paths, `--runs` times each (default 10):
- * a report by each suggestion's text (no AI), once, then by its intent from that answer (no AI),
- * by a prompt (one Jev decision, then the report's balances queries), and by a prompt with
- * `#<hashtag>` (default `trip`). Intents vary their period and prompts name a root group with a
- * period, so each run reads balances of other periods: the app caches each exact query for 60
- * seconds. Prompts are each sent once: Bkper AI caches identical requests for 15 minutes, so a
- * rerun within that time measures the cache.
+ * each Book it asks for the suggestions, then times three paths, `--runs` times each (default
+ * 10): a report by each suggestion's text (no AI), by a prompt (one Jev decision, then the
+ * report's balances queries), and by a prompt with `#<hashtag>` (default `trip`). Prompts name a
+ * root group with a period, so each run reads balances of other periods: the app caches each
+ * exact query for 60 seconds, so a suggestion asked again within it reads none. Prompts are each
+ * sent once: Bkper AI caches identical requests for 15 minutes, so a rerun within that time
+ * measures the cache.
  *
  * Samples are `cold` when the snapshot (the Book's map, also cached for 60 seconds) had expired
  * and was loaded from Bkper (`book` in `Server-Timing`), `warm` when it was cached and the
  * report's balances were read from Bkper (`balances`), and `cached` when they were too. With
  * `--cold`, it then waits for the caches to expire before each of that many rounds, alternating
- * the intent and prompt paths. Uses your `bkper auth token`; the app never
+ * the suggestion and prompt paths. Uses your `bkper auth token`; the app never
  * writes to a Book.
  *
  * `--flow` measures instead what a person experiences (`measure-api/flow.ts`): opening each Book
@@ -30,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { measureFlow } from './measure-api/flow';
 import { percentile, readTiming } from './measure-api/timing';
 
-type Path = 'suggestions' | 'suggestion' | 'intent' | 'prompt' | 'hashtag';
+type Path = 'suggestions' | 'suggestion' | 'prompt' | 'hashtag';
 
 /** The caches a request found: none, the snapshot only, or the snapshot and every balance. */
 type Cache = 'cold' | 'warm' | 'cached';
@@ -45,19 +45,6 @@ interface Sample {
 
 /** A little longer than the app caches a snapshot and balances (60 s), to be sure they expired. */
 const SNAPSHOT_EXPIRY_MS = 65_000;
-
-/** The periods intents are asked for, after each suggestion's own. */
-const INTENT_PERIODS = [
-    'last_month',
-    'last_quarter',
-    'last_year',
-    'this_year',
-    'ytd',
-    'last_12_months',
-    'this_quarter',
-    'this_month',
-    'today',
-];
 
 /** The periods prompts name, after a root group's name. */
 const PROMPT_PERIODS = [
@@ -136,36 +123,17 @@ async function main(): Promise<void> {
         suggestions.set(book, body.suggestions ?? []);
         console.log(`${book}: ${(body.suggestions ?? []).join(' | ')}`);
     }
-    // The intent of each suggestion, from its report asked for by its text.
-    const intents = new Map<string, unknown[]>();
     const prompts = (book: string, round: number, suffix = '') => {
         const names = roots.get(book) ?? [];
         const root = names[round % names.length] ?? 'expenses';
         const period = PROMPT_PERIODS[Math.floor(round / names.length) % PROMPT_PERIODS.length];
         return `${root} ${period}${suffix}`;
     };
-    const intentOf = (intent: unknown, run: number): unknown => {
-        if (typeof intent !== 'object' || intent === null) {
-            return intent;
-        }
-        return { ...intent, period: INTENT_PERIODS[run % INTENT_PERIODS.length] };
-    };
-
     for (const book of books) {
         const list = suggestions.get(book) ?? [];
-        const found: unknown[] = [];
-        for (const suggestion of list) {
-            const answer = await call('suggestion', book, { prompt: suggestion });
-            found.push(
-                typeof answer === 'object' && answer && 'intent' in answer
-                    ? answer.intent
-                    : undefined
-            );
-        }
-        intents.set(book, found);
         for (let run = 0; run < runs; run++) {
-            for (const intent of found) {
-                await call('intent', book, { intent: intentOf(intent, run) });
+            for (const suggestion of list) {
+                await call('suggestion', book, { prompt: suggestion });
             }
             await call('prompt', book, { prompt: prompts(book, run) });
             await call('hashtag', book, { prompt: prompts(book, run, ` #${hashtag}`) });
@@ -177,9 +145,9 @@ async function main(): Promise<void> {
         await sleep(SNAPSHOT_EXPIRY_MS);
         await Promise.all(
             books.map((book, index) => {
-                const list = intents.get(book) ?? [];
-                return (round + index) % 2 === 0
-                    ? call('intent', book, { intent: intentOf(list[round % list.length], round) })
+                const list = suggestions.get(book) ?? [];
+                return (round + index) % 2 === 0 && list.length > 0
+                    ? call('suggestion', book, { prompt: list[round % list.length] })
                     : call('prompt', book, { prompt: prompts(book, runs + round, ' (cold)') });
             })
         );

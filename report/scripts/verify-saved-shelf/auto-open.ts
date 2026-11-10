@@ -15,7 +15,6 @@ import { encodeUrlState } from '../../shared/src/url-state.ts';
 
 export interface Fixture {
     id: string;
-    intent: ReportResponse['intent'];
     spec: ReportResponse['spec'];
     lang: string;
 }
@@ -431,41 +430,26 @@ function queryOf(panel: Frame): Promise<string | null> {
     return panel.evaluate(() => new URL(location.href).searchParams.get('q'));
 }
 
-/** The same intent, whatever the order of its fields, with no chart and `auto` alike. */
+/** The title of a recorded report, which tells it apart from the others. */
 function titleOf(fixture: Fixture): string {
     const root = fixture.spec.elements[fixture.spec.root];
     assert(root?.type === 'Report');
     return root.props.title;
 }
 
-/** The API's answer with a recorded spec: its charts as the spec offers them. */
+/** The API's answer with a recorded spec: its main chart as the spec offers it. */
 function responseOf(fixture: Fixture, app: string): ReportResponse {
     const choices = Object.values(fixture.spec.elements).find(
         element => element.type === 'Visualizations'
     );
-    const fitting =
-        choices?.type === 'Visualizations' ? choices.props.views.map(view => view.kind) : [];
     const main = choices?.type === 'Visualizations' ? choices.props.main : 'table';
     return {
         spec: fixture.spec,
-        intent: fixture.intent,
         text: reportText(fixture.spec),
         language: fixture.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',
         chart: { kind: main === 'table' ? 'none' : main, fallback: false },
-        trace: {
-            facts: {
-                rows: 0,
-                negative: 0,
-                mixed: false,
-                months: 0,
-                previous: false,
-                net: false,
-                permanent: false,
-            },
-            chart: { fitting, main, rule: 'rules' },
-        },
         url: `${app}/?book=fixture-book`,
     };
 }

@@ -1,4 +1,3 @@
-import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { decodeUrlState } from 'report-shared/url-state';
 import { BalancesReport, Book, BkperError, User, type Config } from 'bkper-js';
 import { addLocale } from 'report-shared/strings';
@@ -12,14 +11,8 @@ import type { FakeLedger } from '../fixtures/ledger';
 import { fixtureLedger, simpleRootsLedger } from '../fixtures/snapshot-book';
 import { createTestEnv } from '../test-env';
 import { periodChoices } from '../fixtures/period-answers';
+import type { PeriodQuestionId } from '../../src/services/period-questions';
 import { asksRanking, rankingResponse } from '../fixtures/suggestion-answers';
-
-/** The parts of a period id, as intents now hold them. */
-function p(id: string): PeriodParts {
-    const request = periodRequestOf(id);
-    if (!request) throw new Error(`Not a period id: ${id}`);
-    return request.period;
-}
 
 const BOOK = 'book-1';
 const REPORT_URL = `http://localhost:8809/api/v1/books/${BOOK}/report`;
@@ -73,6 +66,8 @@ class FakeBkper {
 interface JevAnswers {
     root: string;
     period?: string;
+    /** Parts of the period or of the one compared with, over those of `period`. */
+    parts?: Partial<Record<PeriodQuestionId, string>>;
     language?: string;
 }
 
@@ -88,10 +83,9 @@ function jevResponse(answers: JevAnswers): Response {
         answers: {
             root: choice(answers.root),
             ...Object.fromEntries(
-                Object.entries(periodChoices(answers.period)).map(([id, label]) => [
-                    id,
-                    choice(label),
-                ])
+                Object.entries({ ...periodChoices(answers.period), ...answers.parts }).map(
+                    ([id, label]) => [id, choice(label)]
+                )
             ),
             over_time: { type: 'noul', noul: 0.01 },
             composition: { type: 'noul', noul: 0.01 },
@@ -373,83 +367,68 @@ describe('GET /api/v1/books/{bookId}/suggestions', () => {
 });
 
 describe('POST /api/v1/books/{bookId}/report', () => {
-    it('builds a report by intent without Bkper AI', async () => {
-        const test = harness();
-        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
-        const response = await post(test, { intent }, { headers: { 'Accept-Language': 'pt-BR' } });
+    it('answers only the report, its text and how to open it again, never its intent or trace', async () => {
+        const test = harness({ jev: { root: 'Revenue', period: '2026-10', language: 'pt' } });
+        const response = await post(
+            test,
+            { prompt: 'receitas de outubro' },
+            { headers: { 'Accept-Language': 'pt-BR' } }
+        );
 
         expect(response.status).toBe(200);
         const body = (await response.json()) as Record<string, unknown>;
-        expect(test.jevCalls).toBe(0);
+        expect(Object.keys(body).sort()).toEqual([
+            'chart',
+            'dataAt',
+            'language',
+            'query',
+            'spec',
+            'text',
+            'url',
+        ]);
         expect(body).toMatchObject({
-            intent,
             language: 'pt',
-            query: "group:'Expenses' on:2026-10 by:m",
-            text: 'Expenses outubro de 2026',
-            url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+outubro+de+2026`,
+            query: "group:'Revenue' on:2026-10 by:m",
+            text: 'Revenue outubro de 2026',
+            url: `https://report.bkper.app/?book=${BOOK}&q=receitas+de+outubro`,
+            chart: { kind: 'none', fallback: false },
         });
         expect(typeof body.dataAt).toBe('string');
         expect(validateReportSpec(body.spec).valid).toBe(true);
-        expect(timings(response)).toEqual([
-            'user',
-            'kv',
-            'book',
-            'balances',
-            'compute',
-            'render',
-            'total',
-        ]);
         expect(test.queries).toEqual([
-            "group:'Expenses' on:2026-10 by:m",
-            "group:'Expenses' on:2026-09 by:m",
+            "group:'Revenue' on:2026-10 by:m",
+            "group:'Revenue' on:2026-09 by:m",
         ]);
     });
 
-    it('takes the period id of an older intent, and answers with its parts', async () => {
+    it('builds a suggestion’s text without Bkper AI', async () => {
         const test = harness();
-        const response = await post(test, {
-            intent: {
-                root: 'g-expenses',
-                period: '2026-10',
-                compareWith: 'year_earlier',
-                monthly: false,
-            },
-        });
+        const response = await post(test, { prompt: 'Assets today', language: 'en' });
 
         expect(response.status).toBe(200);
+        expect(test.jevCalls).toBe(0);
         expect(await response.json()).toMatchObject({
-            intent: {
-                root: 'g-expenses',
-                period: { span: 'month', year: 2026, month: 10 },
-                compareWith: 'year_earlier',
-                monthly: false,
-            },
-            query: "group:'Expenses' on:2026-10 by:m",
+            text: 'Assets now',
+            query: "group:'Assets' before:$d+1 by:m",
         });
-        expect(test.queries).toEqual([
-            "group:'Expenses' on:2026-10 by:m",
-            "group:'Expenses' on:2025-10 by:m",
-        ]);
+        // Bkper AI only ranked the suggestions, once for the Book's map.
+        expect(test.rankings).toBe(1);
     });
 
-    it('compares the period with the one the intent names, and links to it as asked', async () => {
-        const test = harness();
-        const intent = {
-            root: 'g-expenses',
-            period: { span: 'year', year: 'previous' },
-            compared: { year: 2023 },
-            monthly: false,
-        };
-        const response = await post(test, { intent });
+    it('compares the period with the one the prompt names, and links to it as asked', async () => {
+        const test = harness({
+            jev: { root: 'Expenses', period: 'last_year', parts: { compared_year: '2023' } },
+        });
+        const response = await post(test, { prompt: 'expenses last year vs 2023' });
 
         expect(response.status).toBe(200);
-        const body = (await response.json()) as { trace: Record<string, unknown> };
+        const body = (await response.json()) as { spec: ReportSpec };
         expect(body).toMatchObject({
-            intent,
             query: "group:'Expenses' on:$y-1 by:m",
-            url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+last+year+vs.+2023`,
+            text: 'Expenses last year vs. 2023',
+            url: `https://report.bkper.app/?book=${BOOK}&q=expenses+last+year+vs+2023`,
         });
-        expect(body.trace.comparisonError).toBeUndefined();
+        expect(elementOf(body.spec, 'Report').props.notice).toBeUndefined();
         expect(test.queries).toEqual([
             "group:'Expenses' on:$y-1 by:m",
             "group:'Expenses' on:2023 by:m",
@@ -457,23 +436,14 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it('says why it compares with the previous period when the one named cannot be', async () => {
-        const test = harness();
-        const response = await post(test, {
-            intent: {
-                root: 'g-expenses',
-                period: { span: 'year', year: 2025 },
-                compared: { month: 3 },
-                monthly: false,
-            },
+        const test = harness({
+            jev: { root: 'Expenses', period: '2025', parts: { compared_month: 'March' } },
         });
+        const response = await post(test, { prompt: 'expenses 2025 vs March' });
 
         expect(response.status).toBe(200);
-        const body = (await response.json()) as {
-            spec: { root: string; elements: Record<string, { props: { notice?: string } }> };
-            trace: { comparisonError?: string };
-        };
-        expect(body.trace.comparisonError).toBe('comparison_kind_mismatch');
-        expect(body.spec.elements[body.spec.root].props.notice).toBeTruthy();
+        const body = (await response.json()) as { spec: ReportSpec };
+        expect(elementOf(body.spec, 'Report').props.notice).toBeTruthy();
         expect(test.queries).toEqual([
             "group:'Expenses' on:2025 by:m",
             "group:'Expenses' on:2024 by:m",
@@ -481,13 +451,18 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it('reuses the balances of the same queries within a minute, for the same user', async () => {
-        const test = harness();
-        const october = { root: 'g-expenses', period: p('2026-10'), monthly: false };
-        const first = await post(test, { intent: october });
+        const answers: JevAnswers[] = [
+            { root: 'Expenses', period: '2026-10' },
+            { root: 'Expenses', period: '2026-10' },
+            { root: 'Expenses', period: '2026-09' },
+        ];
+        let call = 0;
+        const test = harness({ jev: () => jevResponse(answers[call++]) });
+        const first = await post(test, { prompt: 'expenses october 2026' });
         // The same report, drawn another way: the same queries.
-        const again = await post(test, { intent: { ...october, chart: 'table' } });
+        const again = await post(test, { prompt: 'expenses october 2026', chart: 'table' });
         // September is October's previous period: only its own previous one is read.
-        await post(test, { intent: { ...october, period: p('2026-09') } });
+        await post(test, { prompt: 'expenses september 2026' });
 
         expect([first.status, again.status]).toEqual([200, 200]);
         expect(test.queries).toEqual([
@@ -500,82 +475,60 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         );
     });
 
-    it('draws the chart an intent prefers, and tells when it does not fit', async () => {
+    it('draws the chart a request asks for, and tells when it does not fit', async () => {
         const test = harness();
         const ask = async (chart: string) => {
-            const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false, chart };
-            const response = await post(test, { intent });
+            const response = await post(test, { prompt: 'expenses october 2026', chart });
             expect(response.status).toBe(200);
-            const body = (await response.json()) as { intent: unknown; chart: unknown };
-            expect(body.intent).toEqual(intent);
-            return body.chart;
+            return (await response.json()) as { chart: unknown; spec: ReportSpec };
         };
 
-        expect(await ask('pie')).toEqual({ kind: 'pie', fallback: false });
-        expect(await ask('table')).toEqual({ kind: 'none', fallback: false });
-        expect(await ask('stacked')).toEqual({ kind: 'donut', fallback: true });
-        const traced = await post(test, {
-            intent: { root: 'g-expenses', period: p('2026-10'), monthly: false, chart: 'area' },
+        expect((await ask('pie')).chart).toEqual({ kind: 'pie', fallback: false, asked: 'pie' });
+        expect((await ask('table')).chart).toEqual({
+            kind: 'none',
+            fallback: false,
+            asked: 'table',
         });
-        expect(((await traced.json()) as { trace: unknown }).trace).toEqual({
-            facts: {
-                rows: 2,
-                negative: 0,
-                mixed: false,
-                months: 1,
-                previous: true,
-                net: false,
-                permanent: false,
-            },
-            chart: {
-                fitting: ['bar', 'ranked-bar', 'donut', 'pie', 'compare', 'table'],
-                main: 'donut',
-                rule: 'closest',
-                unfit: { kind: 'area', reason: { code: 'few_months' } },
-            },
-        });
-        const invalid = await post(test, {
-            intent: { root: 'g-expenses', period: p('2026-10'), monthly: false, chart: 'bars' },
-        });
+        expect((await ask('auto')).chart).toEqual({ kind: 'donut', fallback: false });
+        const area = await ask('area');
+        expect(area.chart).toEqual({ kind: 'donut', fallback: true, asked: 'area' });
+        const choices = elementOf(area.spec, 'Visualizations').props;
+        expect(choices.main).toBe('donut');
+        expect(choices.views.map(view => view.kind)).toEqual([
+            'bar',
+            'ranked-bar',
+            'donut',
+            'pie',
+            'compare',
+            'table',
+        ]);
+        expect(choices.unfit).toMatchObject({ kind: 'area' });
+
+        const invalid = await post(test, { prompt: 'expenses october 2026', chart: 'bars' });
         expect(invalid.status).toBe(400);
     });
 
     it('still takes a waterfall, and offers the closest chart with why it draws none', async () => {
-        const test = harness();
-        const intent = {
-            root: 'net-result',
-            period: p('2026-10'),
-            monthly: false,
-            chart: 'waterfall',
-        };
-        const response = await post(test, { intent });
+        const test = harness({ jev: { root: 'net-result', period: '2026-10' } });
+        const response = await post(test, { prompt: 'profit october 2026', chart: 'waterfall' });
         expect(response.status).toBe(200);
-        const body = (await response.json()) as {
-            intent: unknown;
-            chart: unknown;
-            trace: { chart: { unfit?: unknown; fitting: string[] } };
-            spec: ReportSpec;
-        };
-        expect(body.intent).toEqual(intent);
-        expect(body.chart).toEqual({ kind: 'compare', fallback: true });
-        expect(body.trace.chart.unfit).toEqual({
-            kind: 'waterfall',
-            reason: { code: 'no_bridge' },
-        });
-        expect(body.trace.chart.fitting).not.toContain('waterfall');
-        expect(elementOf(body.spec, 'Visualizations').props.unfit).toMatchObject({
-            kind: 'waterfall',
-        });
+        const body = (await response.json()) as { chart: unknown; spec: ReportSpec };
+        expect(body.chart).toEqual({ kind: 'compare', fallback: true, asked: 'waterfall' });
+        const choices = elementOf(body.spec, 'Visualizations').props;
+        expect(choices.unfit).toMatchObject({ kind: 'waterfall' });
+        expect(choices.views.map(view => view.kind)).not.toContain('waterfall');
     });
 
     it('labels a net result Report calculates, in the spec and in the file', async () => {
-        const test = harness({ bkper: new FakeBkper({ ledger: simpleRootsLedger() }) });
-        const intent = { root: 'net-result', period: p('2026-10'), monthly: false };
-        const response = await post(test, { intent });
+        const test = harness({
+            bkper: new FakeBkper({ ledger: simpleRootsLedger() }),
+            jev: { root: 'net-result', period: '2026-10' },
+        });
+        const response = await post(test, { prompt: 'profit october 2026' });
         expect(response.status).toBe(200);
         const body = (await response.json()) as { spec: ReportSpec };
         expect(elementOf(body.spec, 'Source').props.calculated?.label).toBe('Calculated by Report');
-        const file = await post(test, { intent, format: 'html' });
+        const file = await post(test, { prompt: 'profit october 2026', format: 'html' });
         expect(file.status).toBe(200);
         expect(await file.text()).toContain('Calculated by Report');
     });
@@ -592,10 +545,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             },
             ['a-food']
         );
-        const test = harness({ bkper: new FakeBkper({ ledger }) });
-        const response = await post(test, {
-            intent: { root: 'net-result', period: p('2026-10'), monthly: false },
+        const test = harness({
+            bkper: new FakeBkper({ ledger }),
+            jev: { root: 'net-result', period: '2026-10' },
         });
+        const response = await post(test, { prompt: 'profit october 2026' });
         expect(response.status).toBe(422);
         const body = (await response.json()) as {
             error: { code: string; message: string };
@@ -621,11 +575,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 account.groups = [...(account.groups ?? []), { id: 'g-assets' }];
             }
         }
-        const test = harness({ bkper: new FakeBkper({ ledger, permission: 'EDITOR' }) });
-        const response = await post(test, {
-            intent: { root: 'g-assets', period: p('today'), monthly: false },
-            format: 'html',
+        const test = harness({
+            bkper: new FakeBkper({ ledger, permission: 'EDITOR' }),
+            jev: { root: 'Assets', period: 'today' },
         });
+        const response = await post(test, { prompt: 'assets now', format: 'html' });
         expect(response.status).toBe(422);
         const body = (await response.json()) as {
             error: { code: string; message: string };
@@ -664,7 +618,6 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(response.status).toBe(200);
         expect(test.jevCalls).toBe(1);
         expect(await response.json()).toMatchObject({
-            intent: { root: 'g-revenue', period: p('2026-10'), monthly: false },
             language: 'es',
             query: "group:'Revenue' on:2026-10 by:m",
             // The report's own text, which builds the same report as a prompt; the link keeps
@@ -692,8 +645,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
     it('returns a self-contained HTML file of the report that links to the Report app', async () => {
         const test = harness();
-        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
-        const response = await post(test, { intent, language: 'en', format: 'html' });
+        const response = await post(test, {
+            prompt: 'expenses october 2026',
+            language: 'en',
+            format: 'html',
+        });
 
         expect(response.status).toBe(200);
         expect(response.headers.get('Content-Type')).toMatch(/^text\/html; charset=utf-8$/i);
@@ -705,12 +661,12 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 ''
         ) as ReportFileData;
         expect(validateReportSpec(data.spec).valid).toBe(true);
-        // The trace is for callers of the API, not for the person reading the file.
+        // The intent and the trace stay in the Worker.
         expect(html).not.toContain('"trace"');
-        expect(Object.keys(data)).not.toContain('trace');
+        expect(html).not.toContain('"intent"');
         expect(elementOf(data.spec, 'Source').on).toBeUndefined();
         expect(data.link).toEqual({
-            url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+October+2026`,
+            url: `https://report.bkper.app/?book=${BOOK}&q=expenses+october+2026`,
             label: 'Open in Report',
         });
         // Where the Agent lets it, the file opens the same report in the Report app in the Book.
@@ -731,6 +687,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             'user',
             'kv',
             'book',
+            'jev',
             'balances',
             'compute',
             'render',
@@ -740,15 +697,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
 
     it('draws the chart a request asks for, and the file opens the report with it', async () => {
         const test = harness();
-        const intent = { root: 'g-expenses', period: p('2026-10'), monthly: false };
-        const response = await post(test, { intent, chart: 'ranked-bar', language: 'en' });
+        const prompt = 'expenses october 2026';
+        const response = await post(test, { prompt, chart: 'ranked-bar', language: 'en' });
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({
-            chart: { kind: 'ranked-bar', fallback: false },
+            chart: { kind: 'ranked-bar', fallback: false, asked: 'ranked-bar' },
             text: 'Expenses October 2026',
         });
 
-        const file = await post(test, { intent, chart: 'ranked-bar', format: 'html' });
+        const file = await post(test, { prompt, chart: 'ranked-bar', format: 'html' });
         const data = JSON.parse(
             /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
                 await file.text()
@@ -760,18 +717,18 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             chart: 'ranked-bar',
         });
 
-        const invalid = await post(test, { intent, chart: 'radar' });
+        const invalid = await post(test, { prompt, chart: 'radar' });
         expect(invalid.status).toBe(400);
     });
 
     it('builds a report of a group target from its own queries, titled by the target', async () => {
-        const test = harness();
-        const intent = { root: 'g-assets', target: 'g-banks', period: p('today'), monthly: false };
-        const response = await post(test, { intent, language: 'en' });
+        const test = harness({ jev: { root: 'Assets', period: 'today' } });
+        const prompt = 'Banks now';
+        const response = await post(test, { prompt, language: 'en' });
 
         expect(response.status).toBe(200);
         const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
-        expect(body).toMatchObject({ intent, query: "group:'Banks' before:$d+1 by:m" });
+        expect(body).toMatchObject({ query: "group:'Banks' before:$d+1 by:m" });
         expect(elementOf(body.spec, 'Report').props.title).toBe('Banks');
         expect(elementOf(body.spec, 'Answer').props.amount).toBe('7749.25');
         expect(test.queries).toEqual([
@@ -780,7 +737,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ]);
 
         // The report file opens the same target again.
-        const file = await post(test, { intent, language: 'en', format: 'html' });
+        const file = await post(test, { prompt, language: 'en', format: 'html' });
         const data = JSON.parse(
             /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
                 await file.text()
@@ -794,23 +751,16 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it('shows targets side by side, one query per group, and opens them again by text', async () => {
-        const test = harness();
-        const intent = {
-            root: 'g-expenses',
-            target: 'a-food',
-            alongside: [{ root: 'g-revenue' }, { root: 'g-expenses', target: 'a-rent' }],
-            period: p('last_month'),
-            monthly: false,
-        };
-        const response = await post(test, { intent, language: 'en' });
+        const test = harness({ jev: { root: 'Expenses', period: 'last_month' } });
+        const prompt = 'Food, Revenue and Rent last month';
+        const response = await post(test, { prompt, language: 'en' });
 
         expect(response.status).toBe(200);
         const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
         expect(body).toMatchObject({
-            intent,
             query: "(account:'Food' OR group:'Revenue' OR account:'Rent') on:$m-1 by:m",
-            trace: { facts: { sideBySide: true } },
         });
+        expect(elementOf(body.spec, 'BreakdownTable').props.total).toBeUndefined();
         const answers = Object.values(body.spec.elements).flatMap(element =>
             element.type === 'Answer' ? [[element.props.label, element.props.amount]] : []
         );
@@ -826,7 +776,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             "group:'Revenue' on:$m-2 by:m",
         ]);
 
-        const file = await post(test, { intent, language: 'en', format: 'html' });
+        const file = await post(test, { prompt, language: 'en', format: 'html' });
         const data = JSON.parse(
             /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
                 await file.text()
@@ -840,10 +790,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it('builds a report of an account in no group with a query of its own', async () => {
-        const test = harness();
-        const response = await post(test, {
-            intent: { root: 'a-owner', period: p('today'), monthly: false },
-        });
+        const test = harness({ jev: { root: 'Assets', period: 'today' } });
+        const response = await post(test, { prompt: 'Owner now' });
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({
@@ -861,10 +809,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         // Bkper answers no balances at all for an account it does not find.
         ledger.balances = query =>
             query.startsWith('account:') ? { periodicity: 'MONTHLY' } : answer(query);
-        const test = harness({ bkper: new FakeBkper({ ledger }) });
-        const response = await post(test, {
-            intent: { root: 'a-owner', period: p('today'), monthly: false },
+        const test = harness({
+            bkper: new FakeBkper({ ledger }),
+            jev: { root: 'Assets', period: 'today' },
         });
+        const response = await post(test, { prompt: 'Owner now' });
 
         expect(response.status).toBe(502);
         expect(await response.json()).toMatchObject({ error: { code: 'upstream_error' } });
@@ -880,19 +829,19 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             "group:'Expenses' #trip on:$m-2 by:m",
         ]);
         expect(await response.json()).toMatchObject({
-            intent: { hashtags: ['trip'] },
             query: "group:'Expenses' #trip on:$m-1 by:m",
+            text: 'Expenses last month #trip',
         });
     });
 
     it.each([
-        ['neither prompt nor intent', {}],
+        ['no prompt', {}],
+        ['an intent', { intent: { root: 'g-expenses', period: 'last_month', monthly: false } }],
         [
-            'both prompt and intent',
-            { prompt: 'x', intent: { root: 'r', period: p('all'), monthly: false } },
+            'a prompt with an intent',
+            { prompt: 'x', intent: { root: 'g-expenses', period: 'last_month', monthly: false } },
         ],
         ['a blank prompt', { prompt: '   ' }],
-        ['an invalid period', { intent: { root: 'g-expenses', period: 'soon', monthly: false } }],
         ['a language that is not BCP 47', { prompt: 'expenses', language: 'not a tag' }],
         ['a format not served', { prompt: 'expenses', format: 'pdf' }],
     ])('rejects %s', async (_case, body) => {
@@ -908,28 +857,9 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it.each([
-        [{}, 'Send exactly one of `prompt` or `intent`.'],
-        [
-            { prompt: 'x', intent: { root: 'r', period: p('all'), monthly: false } },
-            'Send exactly one of `prompt` or `intent`.',
-        ],
+        [{}, 'prompt: '],
         [{ prompt: 'expenses', format: 'pdf' }, 'format: '],
-        [{ intent: { root: 'g-expenses', period: 'soon', monthly: false } }, 'intent.period: '],
-        [
-            { intent: { root: 'g-expenses', period: { month: 13 }, monthly: false } },
-            'intent.period',
-        ],
-        [
-            {
-                intent: {
-                    root: 'g-expenses',
-                    period: { year: 2023 },
-                    compared: {},
-                    monthly: false,
-                },
-            },
-            'intent.compared',
-        ],
+        [{ prompt: 'expenses', intent: { root: 'g-expenses' } }, 'intent'],
     ])('tells what is invalid in %j', async (body, message) => {
         const response = await post(harness(), body);
 
@@ -955,24 +885,15 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     });
 
     it.each([
-        ['future_period', { root: 'g-expenses', period: p('2099'), monthly: false }],
-        ['unknown_root', { root: 'g-missing', period: p('this_year'), monthly: false }],
-        [
-            'unknown_target',
-            { root: 'g-expenses', target: 'a-salary', period: p('this_year'), monthly: false },
-        ],
+        ['future_period', 'expenses 2099', { root: 'Expenses', period: '2099' }],
         [
             'mixed_targets',
-            {
-                root: 'g-expenses',
-                alongside: [{ root: 'g-assets' }],
-                period: p('this_year'),
-                monthly: false,
-            },
+            'Expenses and Assets this year',
+            { root: 'Expenses', period: 'this_year' },
         ],
-    ])('answers %s for an intent the Book cannot have', async (code, intent) => {
-        const test = harness();
-        const response = await post(test, { intent });
+    ])('answers %s for a report the Book cannot have', async (code, prompt, jev) => {
+        const test = harness({ jev });
+        const response = await post(test, { prompt });
 
         expect(response.status).toBe(422);
         expect(await response.json()).toMatchObject({ error: { code } });

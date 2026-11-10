@@ -55,9 +55,9 @@ interface Case {
     defaultPeriod?: boolean;
 }
 
+/** A recorded spec: the report, as the API answers it, by an id and its language. */
 export interface GalleryEntry {
     id: string;
-    intent: ReportIntent;
     lang: string;
     spec: ReportSpec;
 }
@@ -248,7 +248,7 @@ async function entries(
             defaultPeriod: asked.defaultPeriod,
         });
         const report = buildReport(intent, snapshot, balances);
-        built.push({ id, intent, lang, spec: buildReportSpec(report, lang) });
+        built.push({ id, lang, spec: buildReportSpec(report, lang) });
     }
     return built;
 }

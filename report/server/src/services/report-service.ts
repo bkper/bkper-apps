@@ -42,9 +42,10 @@ import type { Timing } from './timing.js';
 export const DEFAULT_LANGUAGE = 'en';
 
 /**
- * A report request: a text in any language, or an intent, such as a suggestion's, its period
- * as parts or as a period id of older intents; and the chart to show when it fits, over the one
- * the request names. How to show a report is not what it is.
+ * A report request: a text in any language, as the API takes it, or, within the Worker and its
+ * scripts, an intent, such as a suggestion's, its period as parts or as a period id; and the
+ * chart to show when it fits, over the one the request names. How to show a report is not what
+ * it is.
  */
 export type ReportRequest = ({ prompt: string } | { intent: ReportIntentInput }) & {
     chart?: ChartPreference;
@@ -87,6 +88,12 @@ export interface ReportTrace extends Partial<IntentTrace> {
     };
 }
 
+/** A chart a request asks for: any but `auto`, which asks for none. */
+export type AskedChart = Exclude<ChartPreference, 'auto'>;
+
+/**
+ * A report, with its intent and trace, which stay in the Worker: the API answers the rest.
+ */
 export interface ReportResult {
     spec: ReportSpec;
     /** The intent read, its period as parts. */
@@ -97,8 +104,11 @@ export interface ReportResult {
     query: string;
     /** When the balances were read, as an ISO instant. */
     dataAt: string;
-    /** The chart drawn, and whether it stands in for the intent's `chart`, which does not fit. */
-    chart: { kind: ReportChart['kind']; fallback: boolean };
+    /**
+     * The chart drawn, whether it stands in for the chart asked for, which does not fit, and the
+     * chart asked for (the intent's `chart`, but `auto`).
+     */
+    chart: { kind: ReportChart['kind']; fallback: boolean; asked?: AskedChart };
     /**
      * The report's own short text, in its language, as a person would type it: its title, by
      * month or not, its period as asked, what it is compared with and its hashtag. Sent back as a
@@ -184,7 +194,11 @@ export async function createReport(
         language,
         query: report.query,
         dataAt: report.dataAt,
-        chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
+        chart: {
+            kind: report.chart.kind,
+            fallback: report.chart.fallback === true,
+            ...(intent.chart && intent.chart !== 'auto' ? { asked: intent.chart } : {}),
+        },
         text: reportText(spec),
         trace: {
             ...intentTrace,

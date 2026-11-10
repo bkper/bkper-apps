@@ -1,14 +1,6 @@
 [
     {
         "id": "expenses-by-month",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": true,
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -901,16 +893,6 @@
     },
     {
         "id": "expenses-breakdown",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "view": "breakdown",
-            "chart": "ranked-bar",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -1803,16 +1785,6 @@
     },
     {
         "id": "taxes-donut",
-        "intent": {
-            "root": "g-taxes",
-            "monthly": false,
-            "view": "breakdown",
-            "period": {
-                "span": "quarter",
-                "year": 2025,
-                "quarter": 4
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2210,14 +2182,6 @@
     },
     {
         "id": "bank-accounts-by-month",
-        "intent": {
-            "root": "g-bank-accounts",
-            "monthly": true,
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2700,13 +2664,6 @@
     },
     {
         "id": "loans-today",
-        "intent": {
-            "root": "g-loans",
-            "monthly": false,
-            "period": {
-                "span": "now"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2960,14 +2917,6 @@
     },
     {
         "id": "net-result-by-month-pt",
-        "intent": {
-            "root": "net-result",
-            "monthly": true,
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "pt-BR",
         "spec": {
             "root": "report",
@@ -4007,15 +3956,6 @@
     },
     {
         "id": "revenue-donut-ja",
-        "intent": {
-            "root": "g-revenue",
-            "monthly": false,
-            "view": "breakdown",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "ja",
         "spec": {
             "root": "report",
@@ -4567,17 +4507,6 @@
     },
     {
         "id": "expenses-breakdown-ar",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "view": "breakdown",
-            "chart": "ranked-bar",
-            "period": {
-                "span": "month",
-                "year": 2025,
-                "month": 11
-            }
-        },
         "lang": "ar-EG",
         "spec": {
             "root": "report",
@@ -5102,15 +5031,6 @@
     },
     {
         "id": "revenue-total",
-        "intent": {
-            "root": "g-revenue",
-            "monthly": false,
-            "view": "total",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -5438,15 +5358,6 @@
     },
     {
         "id": "revenue-pie",
-        "intent": {
-            "root": "g-revenue",
-            "monthly": false,
-            "chart": "pie",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -5998,15 +5909,6 @@
     },
     {
         "id": "expenses-stacked",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": true,
-            "chart": "stacked",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -6899,15 +6801,6 @@
     },
     {
         "id": "expenses-stacked-he",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": true,
-            "chart": "stacked",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "he",
         "spec": {
             "root": "report",
@@ -7800,15 +7693,6 @@
     },
     {
         "id": "bank-accounts-area",
-        "intent": {
-            "root": "g-bank-accounts",
-            "monthly": true,
-            "chart": "area",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -8291,15 +8175,6 @@
     },
     {
         "id": "net-result-area-ar",
-        "intent": {
-            "root": "net-result",
-            "monthly": true,
-            "chart": "area",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "ar",
         "spec": {
             "root": "report",
@@ -9339,15 +9214,6 @@
     },
     {
         "id": "expenses-compare",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "chart": "compare",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -10240,18 +10106,6 @@
     },
     {
         "id": "expenses-compare-fallback",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "chart": "compare",
-            "compared": {
-                "month": 3
-            },
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -11145,15 +10999,6 @@
     },
     {
         "id": "bank-accounts-compare-ar",
-        "intent": {
-            "root": "g-bank-accounts",
-            "monthly": false,
-            "chart": "compare",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "ar-EG",
         "spec": {
             "root": "report",
@@ -11636,15 +11481,6 @@
     },
     {
         "id": "net-result-compare",
-        "intent": {
-            "root": "net-result",
-            "monthly": false,
-            "chart": "compare",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -12684,15 +12520,6 @@
     },
     {
         "id": "net-result-loss-ar",
-        "intent": {
-            "root": "net-result",
-            "monthly": false,
-            "period": {
-                "span": "month",
-                "year": 2025,
-                "month": 9
-            }
-        },
         "lang": "ar",
         "spec": {
             "root": "report",
@@ -13278,16 +13105,6 @@
     },
     {
         "id": "bank-accounts-bridge-unfit",
-        "intent": {
-            "root": "g-bank-accounts",
-            "monthly": false,
-            "chart": "waterfall",
-            "period": {
-                "span": "quarter",
-                "year": 2025,
-                "quarter": 3
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -13667,15 +13484,6 @@
     },
     {
         "id": "expenses-table",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "chart": "table",
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -14564,24 +14372,6 @@
     },
     {
         "id": "targets-by-month",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": true,
-            "target": "g-people",
-            "alongside": [
-                {
-                    "root": "g-expenses",
-                    "target": "g-office"
-                },
-                {
-                    "root": "g-taxes"
-                }
-            ],
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -15277,20 +15067,6 @@
     },
     {
         "id": "targets-compare-ar",
-        "intent": {
-            "root": "g-revenue",
-            "monthly": false,
-            "chart": "compare",
-            "alongside": [
-                {
-                    "root": "g-expenses"
-                }
-            ],
-            "period": {
-                "span": "year",
-                "year": 2025
-            }
-        },
         "lang": "ar",
         "spec": {
             "root": "report",

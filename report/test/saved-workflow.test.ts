@@ -132,6 +132,15 @@ function breakdown(report: ReportResponse) {
     return element.props;
 }
 
+/** The charts that fit the report, as its previews offer them. */
+function views(report: ReportResponse) {
+    const element = Object.values(report.spec.elements).find(
+        item => item.type === 'Visualizations'
+    );
+    if (element?.type !== 'Visualizations') throw new Error('Missing visualizations');
+    return element.props.views.map(view => view.kind);
+}
+
 /** The session's API, counting the routes each client calls. */
 function counted(session: Session, calls: string[]): Session {
     const request = (input: Request) => {
@@ -208,7 +217,7 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(b.state.reports.report).toBe(first);
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
-        expect(later.intent.period).toEqual({ span: 'month', month: 'previous' });
+        expect(later.text).toBe(first.text);
         // The same query, which Bkper reads on the Book's new day.
         expect(later.query).toBe(first.query);
         expect(sourcePeriod(later)).toMatch(/^Nov 1\s–\s30, 2026$/);
@@ -276,28 +285,17 @@ describe('saved-prompt route/service and independent app clients', () => {
 
         const named = state.reports.report!;
         expect(state.reports.originalPrompt).toBe(prompt);
-        expect(named.intent).toEqual({
-            root: 'g-expenses',
-            target: 'a-food',
-            period: { span: 'month', month: 'previous' },
-            monthly: false,
-        });
+        expect(named.query).toBe("account:'Food' on:$m-1 by:m");
         expect(title(named)).toMatchObject({ title: 'Food' });
         expect(answer(named).amount).toBe('200.5');
-        expect(named.trace.names).toEqual(['Food']);
 
         // Renamed in the Book: the saved text no longer names it, and Jev's root is read.
         await fixture.renameAccount('a-food', 'Groceries');
         clock.now += CACHE_MS;
         const renamed = await click(state, saved.id);
-        expect(renamed.intent).toEqual({
-            root: 'g-expenses',
-            period: { span: 'month', month: 'previous' },
-            monthly: false,
-        });
+        expect(renamed.query).toBe("group:'Expenses' on:$m-1 by:m");
         expect(title(renamed)).toMatchObject({ title: 'Expenses' });
         expect(answer(renamed).amount).toBe('1200.5');
-        expect(renamed.trace.names).toBeUndefined();
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([JSON.stringify(prompt)]);
         state.disconnect();
     });
@@ -434,13 +432,6 @@ describe('completed names, through the real routes, reports, the shelf and other
         // The debounce asks for the completed request, as for typing.
         await vi.waitFor(() => expect(a.state.reports.originalPrompt).toBe('Food last month'));
         const named = a.state.reports.report!;
-        expect(named.intent).toEqual({
-            root: 'g-expenses',
-            target: 'a-food',
-            period: { span: 'month', month: 'previous' },
-            monthly: false,
-        });
-        expect(named.trace.names).toEqual(['Food']);
         expect(named.spec.elements[named.spec.root].props).toMatchObject({ title: 'Food' });
         expect(answer(named)).toMatchObject({ amount: '200.5', label: 'Food' });
         expect(named.query).toBe("account:'Food' on:$m-1 by:m");
@@ -462,7 +453,8 @@ describe('completed names, through the real routes, reports, the shelf and other
         const b = await client(editor);
         expect(b.state.savedPrompts.items).toEqual([item]);
         const reopened = b.state.reports.report!;
-        expect(reopened.intent).toEqual(named.intent);
+        expect(reopened.query).toBe(named.query);
+        expect(reopened.text).toBe(named.text);
         expect(answer(reopened).amount).toBe('200.5');
         expect(b.state.reports.originalPrompt).toBe('Food last month');
         const asked = fixture.requests.filter(request => request.session === 'editor').length;
@@ -476,7 +468,7 @@ describe('completed names, through the real routes, reports, the shelf and other
         fixture.advance();
         clock.now += CACHE_MS;
         const later = await click(b.state, item.id);
-        expect(later.intent).toEqual(named.intent);
+        expect(later.text).toBe(named.text);
         expect(later.query).toBe(named.query);
         expect(sourcePeriod(later)).toMatch(/^Nov 1\s–\s30, 2026$/);
         expect(answer(later).amount).toBe('50.25');
@@ -501,13 +493,6 @@ describe('completed names, through the real routes, reports, the shelf and other
             expect(a.state.reports.originalPrompt).toBe('Food versus Rent last month')
         );
         const shown = a.state.reports.report!;
-        expect(shown.intent).toMatchObject({
-            root: 'g-expenses',
-            target: 'a-food',
-            alongside: [{ root: 'g-expenses', target: 'a-rent' }],
-            period: { span: 'month', month: 'previous' },
-        });
-        expect(shown.trace.names).toEqual(['Food', 'Rent']);
         expect(shown.query).toBe("(account:'Food' OR account:'Rent') on:$m-1 by:m");
         // Each its own Bkper balance; nothing for them together (their group is 1200.5).
         expect(answers(shown).map(({ label, amount }) => [label, amount])).toEqual([
@@ -520,9 +505,10 @@ describe('completed names, through the real routes, reports, the shelf and other
             ['Food', '200.5', undefined],
             ['Rent', '1000', undefined],
         ]);
-        expect(shown.trace.chart.fitting).not.toContain('donut');
-        expect(shown.trace.chart.fitting).not.toContain('pie');
-        expect(shown.trace.chart.fitting).not.toContain('stacked');
+        const fitting = views(shown);
+        expect(fitting).not.toContain('donut');
+        expect(fitting).not.toContain('pie');
+        expect(fitting).not.toContain('stacked');
 
         await a.state.savedPrompts.save();
         const [item] = a.state.savedPrompts.items;
@@ -537,7 +523,7 @@ describe('completed names, through the real routes, reports, the shelf and other
         );
         const typed = b.state.reports.report!;
         const reopened = await click(b.state, item.id);
-        expect(reopened.intent).toEqual(typed.intent);
+        expect(reopened.text).toBe(typed.text);
         expect(reopened.query).toBe(shown.query);
         expect(answers(reopened)).toEqual(answers(typed));
         expect(b.state.savedPrompts.canSave).toBe(false);

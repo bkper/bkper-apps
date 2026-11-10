@@ -1,15 +1,6 @@
 [
     {
         "id": "mixed-group",
-        "intent": {
-            "root": "g-net",
-            "monthly": false,
-            "view": "breakdown",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -239,14 +230,6 @@
     },
     {
         "id": "expenses-last-month",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -453,15 +436,6 @@
     },
     {
         "id": "net-result-group",
-        "intent": {
-            "root": "net-result",
-            "monthly": false,
-            "chart": "waterfall",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -696,13 +670,6 @@
     },
     {
         "id": "assets-today-pt",
-        "intent": {
-            "root": "g-assets",
-            "monthly": false,
-            "period": {
-                "span": "now"
-            }
-        },
         "lang": "pt-BR",
         "spec": {
             "root": "report",
@@ -971,13 +938,6 @@
     },
     {
         "id": "net-income-last-12-months-ar",
-        "intent": {
-            "root": "net-result",
-            "monthly": true,
-            "period": {
-                "span": "last_12_months"
-            }
-        },
         "lang": "ar",
         "spec": {
             "root": "report",
@@ -1318,14 +1278,6 @@
     },
     {
         "id": "card-empty",
-        "intent": {
-            "root": "g-card",
-            "monthly": false,
-            "period": {
-                "span": "year",
-                "year": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -1422,14 +1374,6 @@
     },
     {
         "id": "banks-target-today",
-        "intent": {
-            "root": "g-assets",
-            "monthly": false,
-            "target": "g-banks",
-            "period": {
-                "span": "now"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -1592,15 +1536,6 @@
     },
     {
         "id": "rent-account-by-month",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": true,
-            "target": "a-rent",
-            "period": {
-                "span": "year",
-                "year": "current"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -1766,14 +1701,6 @@
     },
     {
         "id": "expenses-this-year-he",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "period": {
-                "span": "year",
-                "year": "current"
-            }
-        },
         "lang": "he",
         "spec": {
             "root": "report",
@@ -2132,15 +2059,6 @@
     },
     {
         "id": "mixed-pie-fallback",
-        "intent": {
-            "root": "g-net",
-            "monthly": false,
-            "chart": "pie",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2375,15 +2293,6 @@
     },
     {
         "id": "mixed-compare",
-        "intent": {
-            "root": "g-net",
-            "monthly": false,
-            "chart": "compare",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2613,22 +2522,6 @@
     },
     {
         "id": "targets-pie-unfit",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "target": "a-food",
-            "alongside": [
-                {
-                    "root": "g-expenses",
-                    "target": "a-rent"
-                }
-            ],
-            "chart": "pie",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",
@@ -2857,15 +2750,6 @@
     },
     {
         "id": "expenses-pie-negative",
-        "intent": {
-            "root": "g-expenses",
-            "monthly": false,
-            "chart": "pie",
-            "period": {
-                "span": "month",
-                "month": "previous"
-            }
-        },
         "lang": "en",
         "spec": {
             "root": "report",

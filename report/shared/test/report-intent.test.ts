@@ -4,8 +4,6 @@ import {
     intentWithParts,
     periodIdOf,
     periodRequestOf,
-    validComparedParts,
-    validPeriodParts,
 } from '../src/report-intent';
 
 describe('period ids and parts', () => {
@@ -32,18 +30,6 @@ describe('period ids and parts', () => {
         expect(
             periodIdOf({ period: { span: 'all_time' }, compareWith: 'year_earlier' })
         ).toBeUndefined();
-    });
-
-    it('validates the parts of a period and of a comparison', () => {
-        expect(validPeriodParts({ span: 'year', year: 'previous' })).toBe(true);
-        expect(validPeriodParts({ span: 'all_time' })).toBe(true);
-        expect(validPeriodParts({ month: 12, year: 2999 })).toBe(true);
-        expect(validPeriodParts({})).toBe(false);
-        expect(validPeriodParts({ year: 999 })).toBe(false);
-        expect(validPeriodParts({ month: 13 as 1 })).toBe(false);
-        expect(validPeriodParts({ quarter: 0 as 1 })).toBe(false);
-        expect(validComparedParts({ quarter: 'previous' })).toBe(true);
-        expect(validComparedParts({})).toBe(false);
     });
 
     it('translates the period id of an older intent, with its comparison', () => {

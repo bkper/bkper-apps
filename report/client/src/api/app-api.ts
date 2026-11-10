@@ -6,7 +6,6 @@ export type ApiErrorResponse = ErrorResponse;
 export type SuggestionsResponse = components['schemas']['SuggestionsResponse'];
 export type BookProblem = components['schemas']['BookProblem'];
 export type BookName = components['schemas']['BookName'];
-export type ReportIntent = components['schemas']['ReportIntent'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type ReportResponse = components['schemas']['ReportResponse'];
 export type SavedPrompt = components['schemas']['SavedPrompt'];
@@ -205,9 +204,8 @@ export function createAppApi(options: AppApiOptions) {
         },
 
         /**
-         * A report of the Book, by `prompt` (one AI decision, none for a suggestion's text) or
-         * by `intent` (no AI), as a spec: the web client renders it, so it never asks for the
-         * HTML file.
+         * A report of the Book, by `prompt` (one AI decision, none for a suggestion's text), as
+         * a spec: the web client renders it, so it never asks for the HTML file.
          */
         async report(
             bookId: string,

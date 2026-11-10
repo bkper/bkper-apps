@@ -322,14 +322,15 @@ try {
                 assert(timings.length >= 20, `Enough keystrokes timed: ${timings.length}`);
                 if (scenarios === 0) {
                     book = 'alike';
-                    await panel.goto(panel.url());
+                    // Opened afresh, with nothing asked: a state in the URL would open its report.
+                    await panel.goto(`${APP}/?book=fixture-book`);
                     await shelf.locator('.saved-prompt').waitFor();
                     await panel.evaluate(installProbes);
                     await namesLoaded();
                     await autoOpened();
                     timings.push(...(await time(typedRequests(book, language))));
                     book = 'madeUp';
-                    await panel.goto(panel.url());
+                    await panel.goto(`${APP}/?book=fixture-book`);
                     await shelf.locator('.saved-prompt').waitFor();
                     await panel.evaluate(installProbes);
                     await namesLoaded();

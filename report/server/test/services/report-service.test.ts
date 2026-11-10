@@ -409,7 +409,7 @@ describe('createReport by prompt', () => {
             test.options
         );
         expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'table' }));
-        expect(result.chart).toEqual({ kind: 'none', fallback: false });
+        expect(result.chart).toEqual({ kind: 'none', fallback: false, asked: 'table' });
     });
 
     it('draws the chart the request asks for over the one the prompt names', async () => {
@@ -421,7 +421,7 @@ describe('createReport by prompt', () => {
             test.options
         );
         expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'ranked-bar' }));
-        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: false });
+        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: false, asked: 'ranked-bar' });
         // How to show a report is not what it is: its text names no chart.
         expect(result.text).toBe('Expenses October 2026');
     });
@@ -491,7 +491,7 @@ describe('createReport by prompt', () => {
                 unfit: { kind: 'pie', reason: { code: 'net_result' } },
             },
         });
-        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true });
+        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true, asked: 'pie' });
         // An intent asks no judgments.
         expect(result.trace).not.toHaveProperty('judgments');
         expect(result.trace).not.toHaveProperty('rule');

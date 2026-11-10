@@ -37,6 +37,24 @@ describe('server OpenAPI contract', () => {
         });
     });
 
+    it('keeps intents and traces out of the public contract', async () => {
+        const response = await app.request('/openapi.json');
+        const spec = (await response.json()) as { components?: { schemas?: object } };
+        const schemas = Object.keys(spec.components?.schemas ?? {});
+
+        for (const name of [
+            'ReportIntent',
+            'ReportSubject',
+            'PeriodParts',
+            'ComparedParts',
+            'ReportTrace',
+        ]) {
+            expect(schemas).not.toContain(name);
+        }
+        const report = JSON.stringify(spec.components?.schemas);
+        expect(report).not.toMatch(/"(intent|trace)":/);
+    });
+
     it('matches the committed public API contract snapshot', async () => {
         const response = await app.request('/openapi.json');
         expect(response.status).toBe(200);

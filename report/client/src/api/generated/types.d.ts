@@ -245,7 +245,7 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.
          *
-         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report, and `chart` shows it as another chart. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.
+         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.
          *
          *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
@@ -265,7 +265,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, text, language, query, chart, trace and link (`format: spec`) */
+                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, text, language, query, chart and link (`format: spec`) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -302,7 +302,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions */
+                /** @description Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), groups or Accounts side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -311,7 +311,7 @@ export interface paths {
                         "application/json": components["schemas"]["ReportErrorResponse"];
                     };
                 };
-                /** @description The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); suggestions sent as they are, and requests by `intent`, still work */
+                /** @description The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); suggestions sent as they are still work */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -712,7 +712,7 @@ export interface components {
             success: false;
             error: {
                 /**
-                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or send a suggestion), `future_period` (422, the period has not started), `unknown_root` (422, the intent names no root group of the Book), `unknown_target` (422, the intent’s `target`, or one `alongside`, is no group or Account under its root group), `mixed_targets` (422, the intent’s `alongside` mixes balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it), `empty_book` (422, the Book has no transactions yet), `nothing_to_report` (422, the Book has no groups, or most of its Accounts with transactions are in no group; organizing them into groups fixes it), `mixed_group` (422, the group asked for holds both balances, Asset or Liability, and activity, Incoming or Outgoing; separating them into groups of their own fixes it), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: suggestions sent as they are, and requests by `intent`, still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
+                 * @description What failed: `invalid_request` (400, the message names the field), `unauthorized` (401, no valid Bkper token), `forbidden` (403, the person cannot view the Book), `not_found` (404, no such API route), `book_not_found` (404, no such Book, or not shared with the person), `not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or send a suggestion), `future_period` (422, the period has not started), `mixed_targets` (422, the groups or Accounts the prompt names side by side mix balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports), `no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it), `empty_book` (422, the Book has no transactions yet), `nothing_to_report` (422, the Book has no groups, or most of its Accounts with transactions are in no group; organizing them into groups fixes it), `mixed_group` (422, the group asked for holds both balances, Asset or Liability, and activity, Incoming or Outgoing; separating them into groups of their own fixes it), `ai_allowance_exhausted` (429, the person’s Bkper AI allowance is used up: suggestions sent as they are still work), `upstream_error` (502, Bkper or Bkper AI failed: try again) or `internal_error` (500).
                  * @example book_not_found
                  */
                 code: string;
@@ -859,7 +859,6 @@ export interface components {
         /** @description The report, with `format: spec`. */
         ReportResponse: {
             spec: components["schemas"]["ReportSpec"];
-            intent: components["schemas"]["ReportIntent"];
             /**
              * @description The Bkper language of the report’s texts.
              * @example pt
@@ -875,7 +874,7 @@ export interface components {
              * @example 2026-11-05T14:03:12.345Z
              */
             dataAt: string;
-            /** @description The chart drawn, and whether the one asked for fit. */
+            /** @description The chart drawn, and the one asked for, if any. */
             chart: {
                 /**
                  * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.
@@ -884,17 +883,22 @@ export interface components {
                  */
                 kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall";
                 /**
-                 * @description True when the intent’s `chart` does not fit this report, so `kind` is the closest chart that fits, or the one the report picks (see `trace.chart`).
+                 * @description True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Visualizations` offers the asked-for chart dimmed with why.
                  * @example false
                  */
                 fallback: boolean;
+                /**
+                 * @description The chart asked for: the request’s `chart`, else the one its `prompt` names; left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.
+                 * @example pie
+                 * @enum {string}
+                 */
+                asked?: "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             };
             /**
              * @description The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag. Send it as `prompt` to ask for the same report again, or show it to the person to edit.
              * @example Expenses by month this year
              */
             text: string;
-            trace: components["schemas"]["ReportTrace"];
             /**
              * @description The same report in the Report app, to open or share with the person.
              * @example https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year
@@ -1131,342 +1135,19 @@ export interface components {
             months: string[];
             children: components["schemas"]["BreakdownRow"][];
         };
-        /** @description Exactly what to report, with no AI needed: a root group (or a `target` under it), an Account in no group or `net-result`, others `alongside` it, a period, whether by month, what it is compared with, an optional view, chart and hashtags. Take it from an earlier report’s `intent`. */
-        ReportIntent: {
-            /**
-             * @description Id of a root (top-level) group of the Book, as in `bkper group list`, or `net-result` for income versus expenses: the net result Bkper calculates for the root group that combines Incoming and Outgoing groups; without one, the Incoming roots minus the Outgoing roots, labelled as calculated by Report, when each root is purely Incoming or Outgoing and no two share an Account. Also the id of an Account in no group (`bkper account list`), reported alone.
-             * @example net-result
-             */
-            root: string;
-            /**
-             * @description Id of a group or Account under the root group, at any depth (`bkper group list`, `bkper account list`), to report instead of the whole root: its own Bkper balance and its own subgroups and Accounts, read from the root’s balances. Left out, the root. Not with `net-result` or an Account in no group.
-             * @example 5687803178385408
-             */
-            target?: string;
-            /** @description More groups or Accounts to show side by side with the first (`root` and `target`), in order: each with its own Bkper balance, never added up, with no total and no shares of one. All balances at a date (Asset, Liability) or all activity in a period (Incoming, Outgoing), else `mixed_targets`. One asked for twice shows once. Only charts that imply no whole fit: by month, area, ranked bars, compared and the table; a pie, donut or stacked chart shows dimmed with why. To show their total, the person adds a group that holds them in Bkper. Not with `net-result`. */
-            alongside?: components["schemas"]["ReportSubject"][];
-            /**
-             * @description The period, in the Book’s time zone, as its parts, as the person said them: relative words stay relative (`{ "span": "year", "year": "previous" }` is last year whenever it is read) and written years stay written (`{ "span": "quarter", "year": 2024, "quarter": 3 }` is Q3 2024). Periods are whole months: a running one (this month, quarter or year, year to date, the last 12 months) runs through the end of this month, and its comparison covers the same months; past ones are whole calendar periods. Responses always give parts; the period ids of older intents (`today`, `this_month`, `last_month`, `this_quarter`, `last_quarter`, `this_year`, `last_year`, `ytd`, `last_12_months`, `all`, a year `2025`, a quarter `2025-Q3` or a month `2025-10`) are still accepted.
-             * @example {
-             *       "span": "year",
-             *       "year": "previous"
-             *     }
-             */
-            period: components["schemas"]["PeriodParts"] | string;
-            compared?: components["schemas"]["ComparedParts"];
-            /** @description Show the period month by month. */
-            monthly: boolean;
-            /**
-             * @description Without `compared`, what the period is compared with: `previous`, the period right before it (December for January, the previous quarter or year; for a running period the same months of the previous one), or `year_earlier`, the same months a year earlier. A balance at a date (Asset, Liability) compares with the balance at the end of the previous period, or a year before its date. All time compares with nothing. Left out, `previous`.
-             * @example year_earlier
-             * @enum {string}
-             */
-            compareWith?: "previous" | "year_earlier";
-            /**
-             * @description The layout asked for: `trend` (over time), `breakdown` (what makes up the amount: a donut of a few parts, a pie of more, else ranked bars) or `total` (the amount alone). Left out, the report picks one.
-             * @enum {string}
-             */
-            view?: "trend" | "breakdown" | "total";
-            /**
-             * @description The chart the person asked for: `bar` or `line` (by month), `area` (by month), `stacked` (the parts by month), `ranked-bar`, `donut` or `pie` (the parts of the total), `compare` (each part against the period compared with, see `compareWith`), `table` (no chart) or `auto`. `waterfall` (a bridge) is accepted but never drawn, as its bars would not be Bkper balances: the report shows it dimmed with why. Left out or `auto`, the report picks one; a chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (see the response’s `chart` and `trace.chart`).
-             * @example pie
-             * @enum {string}
-             */
-            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
-            /**
-             * @description Only transactions with this hashtag, without `#`: at most one, as Bkper filters balances by one.
-             * @example [
-             *       "travel"
-             *     ]
-             */
-            hashtags?: string[];
-        };
-        /** @description A group or Account to show side by side: a root, or a `target` under it. */
-        ReportSubject: {
-            /**
-             * @description Id of a root (top-level) group of the Book, or of an Account in no group, as in `bkper group list` and `bkper account list`.
-             * @example 5687803178385408
-             */
-            root: string;
-            /**
-             * @description Id of a group or Account under the root group, at any depth, to show instead of the whole root. Left out, the root.
-             * @example 6235671829479424
-             */
-            target?: string;
-        };
-        /** @description A period as its parts; at least one. Without `span`, a month when `month` is given, else a quarter when `quarter` is, else a year. Examples: last year `{ "span": "year", "year": "previous" }`; this year to date `{ "span": "year_to_date" }`; Q3 2024 `{ "span": "quarter", "year": 2024, "quarter": 3 }`; March `{ "span": "month", "month": 3 }`; January last year `{ "span": "month", "month": 1, "year": "previous" }`; a balance now `{ "span": "now" }`. */
-        PeriodParts: {
-            /**
-             * @description The kind of period: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, or `now` (a balance today; activity reads this month).
-             * @enum {string}
-             */
-            span?: "month" | "quarter" | "year" | "year_to_date" | "last_12_months" | "all_time" | "now";
-            /** @description A year relative to today’s (`current`, `previous`, or `before_previous`: the year before last) or a year as written, such as `2023`. */
-            year?: ("current" | "previous" | "before_previous") | number;
-            /** @description A month: `1` (January) to `12`, or the `current` or `previous` one. A named month without a year is the latest one that has started. */
-            month?: ("current" | "previous") | (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
-            /** @description A calendar quarter: `1` to `4`, or the `current` or `previous` one. A named quarter without a year is the latest one that has started. */
-            quarter?: ("current" | "previous") | (1 | 2 | 3 | 4);
-        };
-        /**
-         * @description The period to compare with, as its parts; those left out are the period’s own, and a month or quarter without a year is the latest one before the period. It must be the same kind of period: `{ "year": 2023 }` compares last year with 2023, `{ "quarter": 1 }` compares Q3 with Q1, `{ "year": 2019 }` compares January with January 2019. Named later than the period, the two swap, so change reads from the earlier to the later. A comparison of another kind, one that overlaps the period, or one with all time cannot be made: the report then compares with the previous period instead (all time with nothing) and says so (`trace.comparisonError`, and a notice in the spec). Left out, `compareWith` says what the period is compared with.
-         * @example {
-         *       "year": 2023
-         *     }
-         */
-        ComparedParts: {
-            /** @description A year relative to today’s (`current`, `previous`, or `before_previous`: the year before last) or a year as written, such as `2023`. */
-            year?: ("current" | "previous" | "before_previous") | number;
-            /** @description A month: `1` (January) to `12`, or the `current` or `previous` one. A named month without a year is the latest one that has started. */
-            month?: ("current" | "previous") | (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12);
-            /** @description A calendar quarter: `1` to `4`, or the `current` or `previous` one. A named quarter without a year is the latest one that has started. */
-            quarter?: ("current" | "previous") | (1 | 2 | 3 | 4);
-        };
-        /** @description How the report chose its charts: the judgments of the request and the rule they fired, then the facts of its numbers, from which code decides which charts fit. */
-        ReportTrace: {
-            /** @description With a `prompt`: what Bkper AI recognized in it, each answer with its score. Code decides the report from these. */
-            judgments?: {
-                /** @description The group asked about, by name, `net-result` or `none`. */
-                root: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                };
-                /** @description How long the period asked about is: `month`, `quarter`, `year`, `year_to_date`, `last_12_months`, `all_time`, `now` or `unspecified`. With the parts below, code builds the period; a request that names none reads the default period. */
-                period: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The year said for the period: `this_year`, `last_year`, `year_before_last`, `next_year`, a year the request writes, or `unspecified`. */
-                year?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The month said for the period: `January` to `December`, `this_month`, `last_month`, `next_month` or `unspecified`. */
-                month?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The quarter said for the period: `Q1` to `Q4`, `this_quarter`, `last_quarter`, `next_quarter` or `unspecified`. */
-                quarter?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The year said for a second period the request compares with. */
-                compared_year?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The month said for a second period the request compares with. */
-                compared_month?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description The quarter said for a second period the request compares with. */
-                compared_quarter?: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                    /** @description The value read, after its threshold and `periodRules`, as the intent’s period parts write it (`next`: the next year, month or quarter, a period that has not started); left out, the part is unspecified. */
-                    read?: string | number;
-                };
-                /** @description Whether it compares with the same period a year earlier; read only when it names no second period. */
-                year_earlier?: {
-                    /** @description Yes, from the threshold of the question on. */
-                    answer: boolean;
-                    /** @description The probability of yes. */
-                    score: number;
-                };
-                /** @description Whether the request asks how the amounts change over time. */
-                over_time: {
-                    /** @description Yes, from the threshold of the question on. */
-                    answer: boolean;
-                    /** @description The probability of yes. */
-                    score: number;
-                };
-                /** @description Whether it asks what makes up the amount. */
-                composition: {
-                    /** @description Yes, from the threshold of the question on. */
-                    answer: boolean;
-                    /** @description The probability of yes. */
-                    score: number;
-                };
-                /** @description Whether it compares with an earlier period. */
-                versus_earlier: {
-                    /** @description Yes, from the threshold of the question on. */
-                    answer: boolean;
-                    /** @description The probability of yes. */
-                    score: number;
-                };
-                /** @description Whether it asks how one amount leads to another, step by step. */
-                bridge: {
-                    /** @description Yes, from the threshold of the question on. */
-                    answer: boolean;
-                    /** @description The probability of yes. */
-                    score: number;
-                };
-                /** @description The chart word it uses: `pie`, `bars`, `line`, `area`, `stacked`, `waterfall`, `table` (just the numbers) or `none`. */
-                chart_named: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                };
-                /** @description The language it is written in. */
-                language: {
-                    /** @description The option chosen. */
-                    answer: string;
-                    /** @description How sure the model is of it. */
-                    score: number;
-                };
-            };
-            /**
-             * @description With a `prompt` that writes names of the Book’s groups or Accounts: those names, as the Book writes them, in order. The report is of them (side by side when several), not of the `root` judgment.
-             * @example [
-             *       "Food",
-             *       "Rent"
-             *     ]
-             */
-            names?: string[];
-            /**
-             * @description With a `prompt`: the rules that changed the parts of the period read, in order: `span_alone` (a month, quarter or year with nothing saying which is no period), `rolling_period` (the last 12 months ignore a relative year), `kind_of_period` (a second period said as a month and a quarter is of the period’s kind), `same_as_period` (compared parts equal to the period’s say no other period) or `previous_of_period` (the previous month or quarter of a second period is the default comparison; last year counts back from a written year).
-             * @example [
-             *       "same_as_period"
-             *     ]
-             */
-            periodRules?: ("span_alone" | "rolling_period" | "kind_of_period" | "same_as_period" | "previous_of_period")[];
-            /**
-             * @description With a `prompt`: the first rule that applied to the judgments, in order: `named` (the chart word), `bridge` (a waterfall), `versus_earlier` (a comparison), `over_time_composition` (stacked parts), `over_time` (by month), `composition` (the parts) or `auto` (the report picks).
-             * @example named
-             * @enum {string}
-             */
-            rule?: "named" | "bridge" | "versus_earlier" | "over_time_composition" | "over_time" | "composition" | "auto";
-            /**
-             * @description Present when the comparison the intent asks for cannot be made: `comparison_kind_mismatch` (another kind of period, such as a month for a year), `comparison_not_earlier` (it overlaps the period) or `comparison_unavailable` (all time has nothing before it). The report then compares with the previous period instead (all time with nothing), and the spec’s `Report` says so in its `notice`.
-             * @example comparison_kind_mismatch
-             * @enum {string}
-             */
-            comparisonError?: "comparison_unavailable" | "comparison_kind_mismatch" | "comparison_not_earlier";
-            /** @description The facts of the report’s numbers that decide which charts fit. */
-            facts: {
-                /**
-                 * @description Top-level parts with an amount in the period.
-                 * @example 6
-                 */
-                rows: number;
-                /**
-                 * @description Of those, the parts below zero, in the sense of the report.
-                 * @example 1
-                 */
-                negative: number;
-                /**
-                 * @description Whether the parts are of different types, as under a mixed group or in a net result.
-                 * @example false
-                 */
-                mixed: boolean;
-                /**
-                 * @description Months of the period.
-                 * @example 12
-                 */
-                months: number;
-                /**
-                 * @description Whether there is a previous period to compare with.
-                 * @example true
-                 */
-                previous: boolean;
-                /**
-                 * @description Whether the report is a net result (income versus expenses).
-                 * @example false
-                 */
-                net: boolean;
-                /**
-                 * @description Whether the report is a balance at the end of the period (Assets, Liabilities) rather than activity within it.
-                 * @example false
-                 */
-                permanent: boolean;
-                /**
-                 * @description Present when the report shows several groups or Accounts side by side (the parts are those), which are no parts of one whole.
-                 * @enum {boolean}
-                 */
-                sideBySide?: true;
-            };
-            /** @description The charts that fit, and how the main one was chosen. */
-            chart: {
-                /** @description Every chart that fits the report, in the order to offer them; the spec’s `Visualizations` carries the data of each. */
-                fitting: ("bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table")[];
-                /**
-                 * @description The chart shown first.
-                 * @example donut
-                 * @enum {string}
-                 */
-                main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
-                /**
-                 * @description What chose `main`: `preference` (the intent’s `chart`, which fits), `closest` (the fitting chart closest to a preference that does not fit) or `rules` (the report’s own choice, with no preference or nothing close).
-                 * @example closest
-                 * @enum {string}
-                 */
-                rule: "preference" | "closest" | "rules";
-                /** @description The preferred chart, when it does not fit the report, and why; the spec shows it dimmed with the reason in words. */
-                unfit?: {
-                    /**
-                     * @description The chart the intent prefers.
-                     * @example donut
-                     * @enum {string}
-                     */
-                    kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "pie" | "compare" | "waterfall" | "table";
-                    reason: {
-                        /**
-                         * @description Why it does not fit: `net_result`, `negative_part` (a part below zero, `rowId`), `mixed_parts`, `few_parts`, `too_many_parts`, `few_months`, `no_amounts`, `no_previous`, `not_a_whole` (the parts Bkper returns do not add up to the total), `no_bridge` (a bridge is never drawn) or `side_by_side` (groups or Accounts side by side are no parts of one whole). `not_a_bridge` and `no_change` are no longer given.
-                         * @example negative_part
-                         * @enum {string}
-                         */
-                        code: "net_result" | "negative_part" | "mixed_parts" | "few_parts" | "too_many_parts" | "few_months" | "no_amounts" | "no_previous" | "not_a_whole" | "no_bridge" | "side_by_side" | "not_a_bridge" | "no_change";
-                        /** @description The breakdown row that is the reason. */
-                        rowId?: string;
-                    };
-                };
-            };
-        };
         /** @description An error of a report request; with `not_a_report`, `suggestions`; with `empty_book`, `nothing_to_report`, `no_net_result` and `mixed_group`, `problem`: what is involved, and whether the person may organize the Book’s groups. */
         ReportErrorResponse: components["schemas"]["ErrorResponse"] & {
             /** @description With `not_a_report`: reports this Book can have, to offer the person instead; send one as `prompt`, with the same `language`, to build it with no AI. */
             suggestions?: string[];
             problem?: components["schemas"]["BookProblem"];
         };
-        /** @description Exactly one of `prompt` (the person’s request, in any language) or `intent` (from an earlier report, with no AI); a suggestion is sent as `prompt`. Usually `{ "prompt": "…", "format": "html" }`. */
+        /** @description A `prompt`: the person’s request, in any language, or a suggestion’s or a report’s own `text`. Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
             /**
              * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none.
              * @example show my expenses by category this year
              */
-            prompt?: string;
-            intent?: components["schemas"]["ReportIntent"];
+            prompt: string;
             /**
              * @description The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month; `ranked-bar`, `donut` or `pie` of the parts; `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and offers the asked-for chart dimmed with why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.
              * @example pie
@@ -1479,7 +1160,7 @@ export interface components {
              */
             language?: string;
             /**
-             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, text, language, query, data time, chart, trace and link.
+             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its text, language, query, data time, chart and link.
              * @example html
              * @enum {string}
              */
@@ -1535,11 +1216,6 @@ export type ReportResponse = components['schemas']['ReportResponse'];
 export type ReportSpec = components['schemas']['ReportSpec'];
 export type ChartProps = components['schemas']['ChartProps'];
 export type BreakdownRow = components['schemas']['BreakdownRow'];
-export type ReportIntent = components['schemas']['ReportIntent'];
-export type ReportSubject = components['schemas']['ReportSubject'];
-export type PeriodParts = components['schemas']['PeriodParts'];
-export type ComparedParts = components['schemas']['ComparedParts'];
-export type ReportTrace = components['schemas']['ReportTrace'];
 export type ReportErrorResponse = components['schemas']['ReportErrorResponse'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 export type SavedPromptsResponse = components['schemas']['SavedPromptsResponse'];

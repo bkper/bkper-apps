@@ -226,67 +226,6 @@ export function samePeriodParts(a: PeriodParts, b: PeriodParts): boolean {
     return a.span === b.span && a.year === b.year && a.month === b.month && a.quarter === b.quarter;
 }
 
-/** Whether parts name a period, each part valid; a period names at least one part. */
-export function validPeriodParts(parts: PeriodParts): boolean {
-    return (
-        (parts.span === undefined || (PERIOD_SPANS as readonly string[]).includes(parts.span)) &&
-        validComparedParts(parts, parts.span !== undefined)
-    );
-}
-
-/** Whether compared parts name a period, each part valid; they name at least one part. */
-export function validComparedParts(parts: ComparedParts, named = false): boolean {
-    const { year, month, quarter } = parts;
-    return (
-        (named || year !== undefined || month !== undefined || quarter !== undefined) &&
-        (year === undefined ||
-            (RELATIVE_YEARS as readonly unknown[]).includes(year) ||
-            (Number.isInteger(year) && Number(year) >= MIN_YEAR && Number(year) <= MAX_YEAR)) &&
-        (month === undefined ||
-            (RELATIVE_UNITS as readonly unknown[]).includes(month) ||
-            (MONTHS_OF_YEAR as readonly unknown[]).includes(month)) &&
-        (quarter === undefined ||
-            (RELATIVE_UNITS as readonly unknown[]).includes(quarter) ||
-            (QUARTERS_OF_YEAR as readonly unknown[]).includes(quarter))
-    );
-}
-
-/** A group or account a report is of: a root group or an account in no group, or a target under a root group. */
-export interface ReportSubjectData {
-    /** Root group id, or the id of an account in no group. */
-    root: string;
-    /** A group or account under the root group to report instead of the whole root. */
-    target?: string;
-}
-
-/** What to report, fully resolved, as plain data. */
-export interface ReportIntentData {
-    /** Root group id, the id of an account in no group, or {@link NET_RESULT_ROOT}. */
-    root: string;
-    /** A group or account under the root group to report instead of the whole root. */
-    target?: string;
-    /**
-     * More groups or accounts to show side by side with the first (`root`, `target`), each
-     * with its own amount, in order; never added up.
-     */
-    alongside?: ReportSubjectData[];
-    /** The period, as its parts. */
-    period: PeriodParts;
-    /** The period compared with, as its parts; those left out are the period's own. */
-    compared?: ComparedParts;
-    monthly: boolean;
-    /** Without `compared`, what the period is compared with; left out, `previous`. */
-    compareWith?: CompareWith;
-    view?: ReportView;
-    chart?: ChartPreference;
-    hashtags?: string[];
-}
-
-/** An intent as callers may still send it: its period as parts, or as the id of older intents. */
-export type ReportIntentInputData = Omit<ReportIntentData, 'period'> & {
-    period: PeriodParts | string;
-};
-
 /**
  * An intent with its period as parts: a period id of older intents, with its `compareWith`,
  * translated by {@link periodRequestOf}; `undefined` for an id that is none.

@@ -2,10 +2,9 @@ import { createRoute } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { supportedLanguage } from 'report-shared/languages';
 import { t } from 'report-shared/strings';
-import { HTTPException } from 'hono/http-exception';
 import type { AppContext, AppEnv } from '../app-context.js';
 import { buildReportFile, reportFileOpen } from '../services/report-file.js';
-import { createReport, DEFAULT_LANGUAGE, type ReportRequest } from '../services/report-service.js';
+import { createReport, DEFAULT_LANGUAGE } from '../services/report-service.js';
 import { loadBalances } from '../services/balances-loader.js';
 import type { QueryBalances } from '../services/balances.js';
 import type { Snapshot } from '../services/snapshot.js';
@@ -32,9 +31,7 @@ import {
     PingResponseSchema,
     ReportErrorResponseSchema,
     ReportFileSchema,
-    EXACTLY_ONE_REQUEST,
     ReportRequestSchema,
-    type ReportRequestBody,
     ReportResponseSchema,
     SuggestionsQuerySchema,
     SuggestionsResponseSchema,
@@ -97,7 +94,7 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
-        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report, and `chart` shows it as another chart. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
+        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.',
         '',
         'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
@@ -111,18 +108,18 @@ const reportRoute = createRoute({
     responses: {
         200: {
             description:
-                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, text, language, query, chart, trace and link (`format: spec`)',
+                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, text, language, query, chart and link (`format: spec`)',
             content: {
                 'application/json': { schema: ReportResponseSchema },
                 'text/html': { schema: ReportFileSchema },
             },
         },
         422: jsonResponse(
-            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), an intent whose root is not a root group of the Book (`unknown_root`) or whose target is not under its root (`unknown_target`), targets side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions',
+            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), groups or Accounts side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions',
             ReportErrorResponseSchema
         ),
         429: jsonResponse(
-            'The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); suggestions sent as they are, and requests by `intent`, still work',
+            'The person’s Bkper AI allowance is used up (`ai_allowance_exhausted`); suggestions sent as they are still work',
             ErrorResponseSchema
         ),
         ...bookErrorResponses,
@@ -257,7 +254,7 @@ export function registerApiRoutes(app: App): void {
         const { snapshot, userId } = await readableSnapshot(context, bookId);
         const report = await createReport(
             snapshot,
-            reportRequest(body),
+            { prompt: body.prompt, ...(body.chart ? { chart: body.chart } : {}) },
             {
                 requested: body.language && supportedLanguage(body.language),
                 accepted: acceptedLanguage(c.req.header('Accept-Language')),
@@ -269,13 +266,13 @@ export function registerApiRoutes(app: App): void {
                 cache: context.env.KV,
             }
         );
-        // The link keeps the person's own words; a report by intent opens with its own text.
-        const url = reportAppUrl(c.req.url, bookId, body.prompt ?? report.text);
+        // The link keeps the person's own words.
+        const url = reportAppUrl(c.req.url, bookId, body.prompt);
         if (body.format === 'html') {
             const open = reportFileOpen(bookId, {
                 text: report.text,
                 language: report.language,
-                chart: report.intent.chart,
+                chart: report.chart.asked,
                 charts: report.trace.chart,
             });
             const file = await context.timing.measure('render', async () =>
@@ -286,7 +283,9 @@ export function registerApiRoutes(app: App): void {
             );
             return c.html(file, 200);
         }
-        return c.json({ ...report, url }, 200);
+        // The intent and how the charts were chosen stay in the Worker: callers send prompts.
+        const { spec, text, language, query, dataAt, chart } = report;
+        return c.json({ spec, text, language, query, dataAt, chart, url }, 200);
     });
 
     app.openapi(listSavedPromptsRoute, async c => {
@@ -337,18 +336,6 @@ export function registerApiRoutes(app: App): void {
     app.all('/api/*', c =>
         c.json(buildApiError('not_found', `Route not found: ${c.req.method} ${c.req.path}`), 404)
     );
-}
-
-/** The request of a validated body, which has exactly one of `prompt` and `intent`. */
-function reportRequest({ prompt, intent, chart }: ReportRequestBody): ReportRequest {
-    const options = chart ? { chart } : {};
-    if (intent) {
-        return { intent, ...options };
-    }
-    if (prompt !== undefined) {
-        return { prompt, ...options };
-    }
-    throw new HTTPException(400, { message: EXACTLY_ONE_REQUEST });
 }
 
 /** The Book snapshot, for a user who may read the Book's balances, and that user. */

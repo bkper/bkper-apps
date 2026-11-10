@@ -267,14 +267,14 @@ export async function measureFlow(options: FlowOptions): Promise<void> {
             }
             const answer = await send(book, 'report', { prompt });
             record(`prompt ${kind}`, answer);
-            const trace =
-                isRecord(answer.json) && isRecord(answer.json.trace) ? answer.json.trace : {};
-            const intent =
-                isRecord(answer.json) && isRecord(answer.json.intent) ? answer.json.intent : {};
-            const found = Array.isArray(trace.names) ? trace.names.join(', ') : '';
+            // The report's own text says what it is of.
+            const text =
+                isRecord(answer.json) && typeof answer.json.text === 'string'
+                    ? answer.json.text
+                    : '-';
             console.log(
                 `  prompt ${kind} "${prompt}": ${answer.status} ${Math.round(answer.request)} ms, ` +
-                    (found ? `names ${found}` : `root ${String(intent.root ?? '-')}`)
+                    `"${text}"`
             );
         }
         lastSeen.set(book, performance.now());

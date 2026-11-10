@@ -6,7 +6,14 @@ import {
     type ReportResponse,
 } from '../../src/api/app-api';
 import { CACHE_MS } from '../../src/state/cache-window';
-import { DEBOUNCE_MS, Reports, SELECT_TEXT, type ReportApi } from '../../src/state/reports';
+import type { StateChart } from 'report-shared/url-state';
+import {
+    DEBOUNCE_MS,
+    Reports,
+    SELECT_TEXT,
+    type ChartKind,
+    type ReportApi,
+} from '../../src/state/reports';
 import { Route, type RoutePage } from '../../src/state/route';
 
 function createPage(href: string): RoutePage {
@@ -35,7 +42,6 @@ function response(title: string, subtitle = ''): ReportResponse {
                 },
             },
         },
-        intent: { root: 'net-result', period: '2011', monthly: false },
         text: subtitle ? `${title} ${subtitle}` : title,
         language: 'en',
         query: 'q',
@@ -606,11 +612,8 @@ describe('Reports', () => {
         reports.input('despesas em pizza');
         reports.submit();
         const asked = withMain(
-            {
-                ...response('Despesas', 'este ano'),
-                intent: { root: 'g-1', period: '2011', monthly: false, chart: 'pie' },
-                language: 'pt',
-            },
+            { ...response('Despesas', 'este ano'), language: 'pt' },
+            'pie',
             'pie'
         );
         calls[0].resolve(asked);
@@ -628,10 +631,7 @@ describe('Reports', () => {
 
         reports.input('receitas este ano');
         reports.submit();
-        calls[1].resolve({
-            ...withMain(response('Receitas', 'este ano'), 'bar'),
-            intent: { root: 'g-2', period: '2011', monthly: false, chart: 'auto' },
-        });
+        calls[1].resolve(withMain(response('Receitas', 'este ano'), 'bar'));
         await settle();
         expect(reports.reopen).toEqual({ text: 'Receitas este ano', language: 'en' });
     });
@@ -1050,20 +1050,14 @@ function title(report: ReportResponse | undefined): string | undefined {
     return root?.type === 'Report' ? root.props.title : undefined;
 }
 
-/** A report whose main chart is `main`, as its trace says. */
-function withMain(report: ReportResponse, main: ReportResponse['trace']['chart']['main']) {
+/** A report whose main chart is `main` (`table` for none), asked for as `asked`, if any. */
+function withMain(report: ReportResponse, main: ChartKind, asked?: StateChart) {
     return {
         ...report,
-        trace: { facts: FACTS, chart: { fitting: [main, 'pie', 'table'], main, rule: 'rules' } },
+        chart: {
+            kind: main === 'table' ? 'none' : main,
+            fallback: false,
+            ...(asked ? { asked } : {}),
+        },
     } satisfies ReportResponse;
 }
-
-const FACTS: ReportResponse['trace']['facts'] = {
-    rows: 3,
-    negative: 0,
-    mixed: false,
-    months: 12,
-    previous: true,
-    net: false,
-    permanent: false,
-};

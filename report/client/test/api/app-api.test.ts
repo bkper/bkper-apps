@@ -196,8 +196,6 @@ describe('saved-prompt API', () => {
 });
 
 describe('report API', () => {
-    const intent = { root: 'net-result', period: '2011', monthly: false };
-
     it('asks for the suggestions of a Book in a language', async () => {
         const requests: Request[] = [];
         const api = createAppApi({
@@ -243,7 +241,6 @@ describe('report API', () => {
                 requests.push(request);
                 return jsonResponse({
                     spec: {},
-                    intent,
                     language: 'en',
                     query: 'q',
                     dataAt: 'x',

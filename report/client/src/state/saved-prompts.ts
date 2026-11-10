@@ -104,7 +104,7 @@ export class SavedPrompts extends Store {
         if (bookId) void this.load();
     }
 
-    /** AppState keeps the shown report's provenance here; a restored intent has no source. */
+    /** AppState keeps the shown report's provenance here; with no report shown, there is none. */
     setSource(bookId: string | undefined, prompt: string | undefined): void {
         this.source = bookId === this.bookId ? prompt?.trim() || undefined : undefined;
     }

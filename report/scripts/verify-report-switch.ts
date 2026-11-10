@@ -35,7 +35,6 @@ const screenshots =
 
 interface Fixture {
     id: string;
-    intent: ReportResponse['intent'];
     spec: ReportResponse['spec'];
     lang: string;
 }
@@ -61,10 +60,8 @@ const fixtures = ORDER.map(id => {
     assert(fixture, `Recorded spec ${id}`);
     return fixture;
 });
-const byIntent = new Map(fixtures.map(fixture => [JSON.stringify(fixture.intent), fixture]));
 /** Reports hundreds of rows tall, on a 2x screen. */
 let tall = false;
-assert.equal(byIntent.size, fixtures.length, 'Each recorded report has its own intent');
 
 const themeUrl =
     'https://cdn.jsdelivr.net/npm/@bkper/web-components@0.2.0/dist/theme-init.global.js';
@@ -538,15 +535,13 @@ async function open(
                     capabilities: { list: true, save: true, remove: true, move: true },
                 });
             if (path.endsWith('/report')) {
-                const body = req.postDataJSON() as { intent?: unknown; prompt?: string };
+                const body = req.postDataJSON() as { prompt: string };
                 // A suggestion's text is its report; another request the network answers takes
                 // a moment, as Bkper AI's would.
                 const suggested = fixtures.find(item => body.prompt === item.id);
-                if (body.prompt && !suggested)
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                const fixture = body.prompt
-                    ? (suggested ?? fixtures.find(item => body.prompt?.endsWith(` ${item.id}`)))
-                    : byIntent.get(JSON.stringify(body.intent));
+                if (!suggested) await new Promise(resolve => setTimeout(resolve, 200));
+                const fixture =
+                    suggested ?? fixtures.find(item => body.prompt.endsWith(` ${item.id}`));
                 assert(fixture, `A recorded report for ${JSON.stringify(body)}`);
                 return json(responseOf(tall ? tallOf(fixture) : fixture));
             }
@@ -594,34 +589,19 @@ declare global {
     }
 }
 
-/** The API's answer with a recorded spec: its charts as the spec offers them. */
+/** The API's answer with a recorded spec: its main chart as the spec offers it. */
 function responseOf(fixture: Fixture): ReportResponse {
     const choices = Object.values(fixture.spec.elements).find(
         element => element.type === 'Visualizations'
     );
-    const fitting =
-        choices?.type === 'Visualizations' ? choices.props.views.map(view => view.kind) : [];
     const main = choices?.type === 'Visualizations' ? choices.props.main : 'table';
     return {
         spec: fixture.spec,
-        intent: fixture.intent,
         text: reportText(fixture.spec),
         language: fixture.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',
         chart: { kind: main === 'table' ? 'none' : main, fallback: false },
-        trace: {
-            facts: {
-                rows: 0,
-                negative: 0,
-                mixed: false,
-                months: 0,
-                previous: false,
-                net: false,
-                permanent: false,
-            },
-            chart: { fitting, main, rule: 'rules' },
-        },
         url: `${APP}/?book=fixture-book`,
     };
 }

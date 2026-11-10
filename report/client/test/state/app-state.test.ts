@@ -522,15 +522,9 @@ describe('AppState', () => {
         }
 
         function reportOf(body: ReportRequest): ReportResponse {
-            const intent = body.intent ?? {
-                root: 'g-9',
-                period: { span: 'year' as const, year: 2012 },
-                monthly: false,
-            };
             const props = {
-                title: body.prompt ?? intent.root,
-                subtitle:
-                    typeof intent.period === 'string' ? intent.period : `${intent.period.year}`,
+                title: body.prompt,
+                subtitle: '2012',
                 locale: 'en',
                 dir: 'ltr' as const,
                 fractionDigits: 2,
@@ -540,24 +534,11 @@ describe('AppState', () => {
                     root: 'report',
                     elements: { report: { type: 'Report', props, children: [] } },
                 },
-                intent,
-                text: body.prompt ?? intent.root,
+                text: body.prompt,
                 language: 'en',
                 query: 'q',
                 dataAt: '2026-11-05T00:00:00Z',
                 chart: { kind: 'none', fallback: false },
-                trace: {
-                    facts: {
-                        rows: 2,
-                        negative: 0,
-                        mixed: false,
-                        months: 12,
-                        previous: true,
-                        net: false,
-                        permanent: false,
-                    },
-                    chart: { fitting: ['table'], main: 'none', rule: 'rules' },
-                },
                 url: 'https://report.bkper.app/',
             };
         }
@@ -747,7 +728,7 @@ describe('AppState', () => {
 
         /**
          * A report API that answers each request at once: its text is the request's, capitalized,
-         * so a report's text, sent back, answers the same; the chart asked for is its intent's.
+         * so a report's text, sent back, answers the same; the chart asked for is the request's.
          */
         function answeringApi() {
             const bodies: ReportRequest[] = [];
@@ -755,7 +736,7 @@ describe('AppState', () => {
                 suggestions: async () => ({ suggestions: [] }),
                 report: async (_bookId, body) => {
                     bodies.push(body);
-                    const prompt = body.prompt ?? '';
+                    const prompt = body.prompt;
                     const text = prompt.charAt(0).toUpperCase() + prompt.slice(1);
                     const props = {
                         title: `Asked ${text}`,
@@ -769,28 +750,14 @@ describe('AppState', () => {
                             root: 'report',
                             elements: { report: { type: 'Report', props, children: [] } },
                         },
-                        intent: {
-                            root: 'g-2',
-                            period: { span: 'year' as const, year: 2012 },
-                            monthly: false,
-                            ...(body.chart ? { chart: body.chart } : {}),
-                        },
                         text,
                         language: body.language ?? 'pt',
                         query: 'q',
                         dataAt: '2026-11-05T00:00:00Z',
-                        chart: { kind: 'bar', fallback: false },
-                        trace: {
-                            facts: {
-                                rows: 2,
-                                negative: 0,
-                                mixed: false,
-                                months: 12,
-                                previous: true,
-                                net: false,
-                                permanent: false,
-                            },
-                            chart: { fitting: ['bar', 'pie', 'table'], main: 'bar', rule: 'rules' },
+                        chart: {
+                            kind: 'bar',
+                            fallback: false,
+                            ...(body.chart && body.chart !== 'auto' ? { asked: body.chart } : {}),
                         },
                         url: 'https://report.bkper.app/',
                     } satisfies ReportResponse;

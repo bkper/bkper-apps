@@ -37,23 +37,11 @@ function report(title: string): ReportResponse {
                 },
             },
         },
-        intent: { root: 'net-result', period: '2011', monthly: false },
+        text: `${title} 2011`,
         language: 'en',
         query: 'q',
         dataAt: '2026-11-05T00:00:00Z',
         chart: { kind: 'bar', fallback: false },
-        trace: {
-            facts: {
-                rows: 2,
-                negative: 0,
-                mixed: false,
-                months: 12,
-                previous: true,
-                net: false,
-                permanent: false,
-            },
-            chart: { fitting: ['bar', 'pie', 'table'], main: 'bar', rule: 'rules' },
-        },
         url: 'https://report.bkper.app/',
     };
 }

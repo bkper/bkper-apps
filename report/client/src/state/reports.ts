@@ -1,3 +1,4 @@
+import type { ViewKind } from 'report-shared/catalog';
 import type { StringKey } from 'report-shared/strings';
 import type { StateChart, UrlState } from 'report-shared/url-state';
 import {
@@ -24,7 +25,7 @@ export const SELECT_TEXT = 'select-text';
 export type ReportApi = Pick<AppApi, 'suggestions' | 'report'>;
 
 /** A way to show a report: one of its charts, or `table` for none. */
-export type ChartKind = ReportResponse['trace']['chart']['main'];
+export type ChartKind = ViewKind;
 
 /** The message shown under the input: a quiet hint or what went wrong, as a string key. */
 export type Notice = Extract<StringKey, 'hint_not_a_report' | `error_${string}`>;
@@ -136,8 +137,7 @@ export class Reports extends Store {
     get reopen(): UrlState | undefined {
         const report = this.report;
         if (!report) return undefined;
-        const asked = report.intent.chart;
-        const chart = this.chart ?? (asked && asked !== 'auto' ? asked : undefined);
+        const chart = this.chart ?? report.chart.asked;
         return { text: report.text, language: report.language, ...(chart ? { chart } : {}) };
     }
 
@@ -273,7 +273,7 @@ export class Reports extends Store {
     chooseChart(kind: ChartKind): void {
         const report = this.report;
         if (!report) return;
-        this.choice = kind === report.trace.chart.main ? undefined : { report, kind };
+        this.choice = kind === mainChart(report) ? undefined : { report, kind };
     }
 
     /** Something outside the requests failed, such as loading the report renderer. */
@@ -505,6 +505,11 @@ function promptKey(text: string, chart?: StateChart): string {
     const words = text.trim().replace(/\s+/g, ' ');
     // Collapsed words hold no line break, so no request reads as another with a chart.
     return chart ? `prompt:${words}\n${chart}` : `prompt:${words}`;
+}
+
+/** The chart a report shows first: its chart, or `table` for none. */
+function mainChart(report: ReportResponse): ChartKind {
+    return report.chart.kind === 'none' ? 'table' : report.chart.kind;
 }
 
 function isAbort(error: unknown): boolean {

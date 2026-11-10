@@ -1,32 +1,34 @@
 /**
- * Read-only check of reports of Bkper queries against the bkper CLI on live Books.
+ * Read-only check of reports of Bkper queries against the bkper CLI on live Books: a query is
+ * read exactly as sent, so the report must show, to the cent, what Bkper answers that very query.
  *
  *     npx tsx scripts/verify-query.ts [--api=http://localhost:8809] <bookId> [<bookId> ...]
  *
  * For each Book it picks, from its map, an activity root group, a position root group, two
  * accounts and a subgroup under the activity root, and the last year before this one the
- * activity root moved in and its last month with movements (from the CLI), and writes queries the way a Book writes them, its dates in the Book's
- * date format: the year, the month and the quarter of activity; days of that month (which the
- * report reads as the whole month, so the CLI reads the month); accounts and a subgroup side by
+ * activity root moved in and its last month with movements (from the CLI), and writes queries the
+ * way a Book writes them, its dates in the Book's date format: the year, the month and the
+ * quarter of activity; days of that month, read as written; accounts and a subgroup side by
  * side; terms Bkper's balances ignore (amounts, `is:`, two hashtags); the same year with `on:` in
- * ISO; a balance at the end of the year; and a balance now, with no dates. Each goes to the app
- * as `POST /api/v1/books/{bookId}/report { query }` (default the local Worker, `npm run
- * dev:server`), and every amount the report shows, each Answer and every breakdown row at any
- * depth, must equal the balance of its group or account the CLI lists for the same query (its
- * dates as Bkper reads them, by month, so the CLI lists months), to the cent; every group or
- * account the CLI lists with an amount must be shown. A query of no group or account must answer
+ * ISO; this whole year, through its last day (future-dated transactions included); a balance at
+ * the end of that past year and at the end of this one; and a balance with no dates. Each goes to
+ * the app as `POST /api/v1/books/{bookId}/report { query }` (default the local Worker, `npm run
+ * dev:server`), which must answer with that very query as its `query` and `text`, and every
+ * amount the report shows, each Answer and every breakdown row at any depth, must equal the
+ * balance of its group or account the CLI lists for the same query, sent as is, to the cent;
+ * every group or account the CLI lists with an amount must be shown. Known references of a Book
+ * ({@link REFERENCES}) must be its headline exactly. A query of no group or account must answer
  * `query_not_a_report`.
  *
  * The CLI shows raw balances negated for permanent accounts; a CLI amount is flipped when its
  * row's `credit` equals its `permanent`, as reports show amounts as Bkper charts do. A query with
- * `after:` lists activity in each month (summed), any other the running balance (the last).
- * Some accounts of older Books are not found by `account:'<name>'`, by Bkper and the CLI alike;
- * such a case is skipped and said. Uses your `bkper auth token`; never writes to a Book.
+ * `after:` or `on:` lists activity in each column (summed), any other the running balance (the
+ * last). Some accounts of older Books are not found by `account:'<name>'`, by Bkper and the CLI
+ * alike; such a case is skipped and said. Uses your `bkper auth token`; never writes to a Book.
  */
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Amount, Bkper } from 'bkper-js';
-import { addDays } from '../server/src/services/periods.ts';
 import { quote, type Snapshot, type SnapshotNode } from '../server/src/services/snapshot.ts';
 import {
     currentUserId,
@@ -36,6 +38,17 @@ import {
 import { ServerTiming } from '../server/src/services/timing.ts';
 
 const run = promisify(execFile);
+
+/**
+ * Headlines of queries of known Books, as Bkper's sidebar shows them: Bkper Finances has
+ * transactions dated after today (amortization), which a report of the whole year includes.
+ */
+const REFERENCES: Record<string, { query: string; amount: string }[]> = {
+    agtzfmJrcGVyLWhyZHITCxIGTGVkZ2VyGICAgKTP5LcJDA: [
+        { query: "group:'Net Income' after:01/2026 before:01/2027", amount: '-3584.16' },
+        { query: "group:'Bkper Balance Sheet' before:01/2027", amount: '-17669.04' },
+    ],
+};
 
 class MemoryStore implements SnapshotStore {
     private readonly values = new Map<string, string>();
@@ -96,11 +109,13 @@ function monthStart(year: number, month: number): string {
 
 interface Case {
     name: string;
-    /** The query sent to the app. */
+    /** The query sent to the app, and to the CLI as is. */
     query: string;
-    /** The same query for the CLI: its dates as Bkper reads them, by month. */
-    cli: string;
-    activity: boolean;
+}
+
+/** Whether the CLI lists a query's activity by column, rather than its running balance. */
+function listsActivity(query: string): boolean {
+    return /(^|[\s(])(after|on):/i.test(query);
 }
 
 /** Accounts with transactions under a group, at any depth, in the map's order. */
@@ -155,7 +170,7 @@ async function lastMoved(
     if (!years) {
         return undefined;
     }
-    // Past periods only: a report never reads months after this one, which the CLI would.
+    // A past year: this one is a case of its own.
     const year = Math.min(Number(years.slice(0, 4)), Number(today.slice(0, 4)) - 1);
     const months = lastNonZero(
         await cliBalances(
@@ -170,9 +185,12 @@ async function casesOf(bookId: string, snapshot: Snapshot): Promise<Case[]> {
     const pattern = snapshot.book.datePattern;
     const d = (day: string) => written(day, pattern);
     const range = (from: string, to: string) => `after:${d(from)} before:${d(to)}`;
-    const cliRange = (from: string, to: string) => `${range(from, to)} by:m`;
     const cases: Case[] = [];
+    const add = (name: string, query: string) => cases.push({ name, query });
+    const thisYear = Number(snapshot.today.slice(0, 4));
     const activity = rootOf(snapshot, false);
+    const position = rootOf(snapshot, true);
+    const positionGroup = position && `group:${quote(snapshot.groups[position].name)}`;
     if (activity) {
         const name = snapshot.groups[activity].name;
         const group = `group:${quote(name)}`;
@@ -180,81 +198,61 @@ async function casesOf(bookId: string, snapshot: Snapshot): Promise<Case[]> {
         if (moved) {
             const { year, month } = moved;
             const quarter = month - ((month - 1) % 3);
-            const yearRange = [monthStart(year, 1), monthStart(year + 1, 1)] as const;
-            const add = (caseName: string, terms: string, from: string, to: string) =>
-                cases.push({
-                    name: caseName,
-                    query: `${terms} ${range(from, to)}`,
-                    cli: `${terms} ${cliRange(from, to)}`,
-                    activity: true,
-                });
-            add('activity, a year', group, ...yearRange);
-            add('activity, a month', group, monthStart(year, month), monthStart(year, month + 1));
+            const yearRange = range(monthStart(year, 1), monthStart(year + 1, 1));
+            add('activity, a year', `${group} ${yearRange}`);
+            add(
+                'activity, a month',
+                `${group} ${range(monthStart(year, month), monthStart(year, month + 1))}`
+            );
             add(
                 'activity, a quarter',
-                group,
-                monthStart(year, quarter),
-                monthStart(year, quarter + 3)
+                `${group} ${range(monthStart(year, quarter), monthStart(year, quarter + 3))}`
             );
-            // Days of a month read as the whole month, the smallest period that contains them.
-            cases.push({
-                name: 'activity, days of a month, read as the month',
-                query: `${group} ${range(
+            add(
+                'activity, days of a month, as written',
+                `${group} ${range(
                     monthStart(year, month).replace(/01$/, '10'),
                     monthStart(year, month).replace(/01$/, '20')
-                )}`,
-                cli: `${group} ${cliRange(monthStart(year, month), monthStart(year, month + 1))}`,
-                activity: true,
-            });
-            cases.push({
-                name: 'activity, ignored terms',
-                query: `${group} ${range(...yearRange)} amount>0 is:posted #a #b text`,
-                cli: `${group} ${cliRange(...yearRange)}`,
-                activity: true,
-            });
-            cases.push({
-                name: 'activity, a year in ISO',
-                query: `${group} on:${year}`,
-                cli: `${group} after:${year}-01-01 before:${year + 1}-01-01 by:m`,
-                activity: true,
-            });
+                )}`
+            );
+            add('activity, ignored terms', `${group} ${yearRange} amount>0 is:posted #a #b text`);
+            add('activity, a year in ISO', `${group} on:${year}`);
             const accounts = postedAccounts(snapshot, activity).slice(0, 2);
             if (accounts.length > 0) {
                 add(
                     'activity, accounts side by side',
-                    accounts.map(id => `account:${quote(snapshot.accounts[id].name)}`).join(' '),
-                    ...yearRange
+                    `${accounts.map(id => `account:${quote(snapshot.accounts[id].name)}`).join(' ')} ${yearRange}`
                 );
             }
             const [subgroup] = snapshot.groups[activity].groups;
             if (subgroup) {
                 add(
                     'activity, a subgroup',
-                    `group:${quote(snapshot.groups[subgroup].name)}`,
-                    ...yearRange
+                    `group:${quote(snapshot.groups[subgroup].name)} ${yearRange}`
                 );
             }
-            const position = rootOf(snapshot, true);
-            if (position) {
-                const positionGroup = `group:${quote(snapshot.groups[position].name)}`;
-                cases.push({
-                    name: 'position, the end of a year',
-                    query: `${positionGroup} before:${d(monthStart(year + 1, 1))}`,
-                    cli: `${positionGroup} before:${d(monthStart(year + 1, 1))} by:m`,
-                    activity: false,
-                });
+            if (positionGroup) {
+                add(
+                    'position, the end of a past year',
+                    `${positionGroup} before:${d(monthStart(year + 1, 1))}`
+                );
             }
         }
+        // The whole of this year, future-dated transactions and all.
+        add(
+            'activity, this whole year',
+            `${group} ${range(monthStart(thisYear, 1), monthStart(thisYear + 1, 1))}`
+        );
     }
-    const position = rootOf(snapshot, true);
-    if (position) {
-        const positionGroup = `group:${quote(snapshot.groups[position].name)}`;
-        cases.push({
-            name: 'position, now',
-            query: positionGroup,
-            cli: `${positionGroup} before:${d(addDays(snapshot.today, 1))} by:m`,
-            activity: false,
-        });
+    if (positionGroup) {
+        add(
+            'position, the end of this year',
+            `${positionGroup} before:${d(monthStart(thisYear + 1, 1))}`
+        );
+        add('position, no dates', positionGroup);
+    }
+    for (const reference of REFERENCES[bookId] ?? []) {
+        add('reference', reference.query);
     }
     return cases;
 }
@@ -332,8 +330,11 @@ async function verifyCase(
         check(false, `answered ${response.status} ${body.error?.code ?? ''}`);
         return;
     }
-    console.log(`    → ${body.text} (${body.query})`);
-    const totals = cliTotals(await cliBalances(bookId, test.cli), test.activity);
+    check(
+        body.query === test.query && body.text === test.query,
+        `read as ${body.query}, its text ${body.text}`
+    );
+    const totals = cliTotals(await cliBalances(bookId, test.query), listsActivity(test.query));
     if (totals.size === 0) {
         console.log(
             '    skipped: the CLI lists nothing for it (an account Bkper does not find by name)'
@@ -349,6 +350,14 @@ async function verifyCase(
         nodes.set(node.name, node);
     }
     const shown = shownAmounts(body.spec.elements);
+    const reference = (REFERENCES[bookId] ?? []).find(({ query }) => query === test.query);
+    if (reference) {
+        const headline = shown[0]?.amount;
+        check(
+            headline !== undefined && new Amount(headline).eq(reference.amount),
+            `the headline is ${headline}, Bkper's sidebar ${reference.amount}`
+        );
+    }
     for (const { label, amount } of shown) {
         const cli = totals.get(label);
         const node = nodes.get(label);

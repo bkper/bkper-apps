@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import type { BookProblem } from '../services/book-problems.js';
 import { BkperAiError } from '../services/decision-client.js';
 import { MissingBalancesError, ReportError } from '../services/report.js';
-import { QueryNotAReportError } from '../services/query-intent.js';
+import { QueryNotAReportError } from '../services/query-report.js';
 import { NotAReportError } from '../services/report-service.js';
 import { SavedPromptsError } from '../services/saved-prompts.js';
 
@@ -116,7 +116,7 @@ export function apiErrorResponse(error: unknown): ApiErrorResponse | undefined {
         return respond(
             422,
             'query_not_a_report',
-            "The query names no group or Account of this Book (`group:'…'` or `account:'…'`), so it has no report. Send a query that names one, or the person’s words as `prompt`."
+            "The query names no group or Account of this Book (`group:'…'` or `account:'…'`), or Bkper finds none of those it names, so it has no report. Send a query that names one, or the person’s words as `prompt`."
         );
     }
     if (error instanceof ReportError && error.reason !== 'no_activity_roots') {

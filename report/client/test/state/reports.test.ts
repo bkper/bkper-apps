@@ -388,6 +388,17 @@ describe('Reports', () => {
         expect(prompts()).toEqual(['net result', 'net result']);
     });
 
+    it('hints quietly when a typed Bkper query names no group or Account of the Book', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.input("group:'Nope' on:2026");
+        reports.submit();
+        calls[0].reject(new AppApiError('No group', 422, 'query_not_a_report'));
+        await settle();
+
+        expect(reports.notice).toBe('hint_not_a_report');
+    });
+
     it('keeps the last report and hints with the suggestions when a request is not a report', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
         reports.open('book-1');

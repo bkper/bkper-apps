@@ -33,7 +33,7 @@ export const ErrorResponseSchema = z
                         '`not_found` (404, no such API route),',
                         '`book_not_found` (404, no such Book, or not shared with the person),',
                         '`not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or send a suggestion),',
-                        '`query_not_a_report` (422, the `query` names no group or Account of the Book),',
+                        '`query_not_a_report` (422, the `query` names no group or Account of the Book, or none Bkper finds),',
                         '`future_period` (422, the period has not started),',
                         '`mixed_targets` (422, the groups or Accounts the prompt names side by side mix balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports),',
                         '`no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it),',
@@ -227,12 +227,12 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: ReportPromptSchema.optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:` or `account:` term, such as a query report’s own `text`), which is read as `query`.',
             example: 'show my expenses by category this year',
         }),
         query: ReportQuerySchema.optional().openapi({
             description:
-                'Instead of `prompt`: a Bkper query, such as the one a Book shows its transactions with, read by fixed rules, with no AI, as Bkper’s balances read it. Its `group:` and `account:` names (case and accents aside) are what the report is of, several side by side (up to six, the first found); names the Book does not have are left out, and with none the answer is 422 `query_not_a_report`. Exactly one `#hashtag` filters the report (Bkper ignores two or more, and so does the report). Its `after:`, `before:` and `on:` dates, in the Book’s date format, ISO or as Bkper’s `$d`, `$m` and `$y` variables, become the smallest period of whole months a report has that contains them (a month, a quarter, a year, the last 12 months or all time; a balance at the end of the dates, or now); with no dates, a balance now and activity of all time. Everything else (amounts, text, `is:`) is left out.',
+                'Instead of `prompt`: a Bkper query, such as the one a Book shows its transactions with, read exactly as sent, with no AI: every amount the report shows is Bkper’s balance for that very query, as the Book’s sidebar shows it, future-dated transactions included; nothing is rewritten or cut off. Its `group:` and `account:` names (case and accents aside) are what the report is of, several side by side (up to six, the first found); names the Book does not have, or Bkper does not find, are left out, and with none the answer is 422 `query_not_a_report`. Its period is the days Bkper read, as written (`after:01/01/2026 before:01/01/2027` is Jan 1 – Dec 31, 2026; `before:` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month (`by:m`), only when Bkper gives it the same totals; the comparison, from the same query with its dates moved to the period before, only when it has an end. The report’s `text` is the query itself.',
             example: "group:'Expenses' after:01/01/2026 before:01/04/2026",
         }),
         chart: z.enum(REPORT_CHARTS).optional().openapi({
@@ -347,7 +347,7 @@ export const ReportResponseSchema = z
         }),
         query: z.string().openapi({
             description:
-                'The Bkper query of exactly the report’s transactions and dates, the one its balances were read with, to list them or check balances in Bkper. Relative periods keep Bkper’s date variables (`$y`, `$m`, `$d`), which Bkper resolves from the Book’s today.',
+                'The Bkper query of exactly the report’s transactions and dates, the one its balances were read with, to list them or check balances in Bkper; of a `query`, that query as sent. Relative periods keep Bkper’s date variables (`$y`, `$m`, `$d`), which Bkper resolves from the Book’s today.',
             example: "group:'Expenses' after:$y before:$m+1 by:m",
         }),
         dataAt: z.string().openapi({
@@ -376,7 +376,7 @@ export const ReportResponseSchema = z
             .openapi({ description: 'The chart drawn, and the one asked for, if any.' }),
         text: z.string().openapi({
             description:
-                'The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag. Send it as `prompt` to ask for the same report again, or show it to the person to edit.',
+                'The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag; of a `query`, the query itself. Send it as `prompt` to ask for the same report again, or show it to the person to edit.',
             example: 'Expenses by month this year',
         }),
         url: z.string().openapi({

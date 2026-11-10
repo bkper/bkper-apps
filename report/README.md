@@ -12,7 +12,7 @@ Type what you want to know about your Book, in your own language, and see the re
 2. Choose **Report** from the Book menu.
 3. Report opens with the first request saved for the Book, else the first suggested report, its words selected: start typing to ask your own instead. There is no button: the report appears as you type. Press **Enter** to ask at once.
 
-**Report follows the Book.** Choose a group or Account in the Book's sidebar, or change the Book's search, and Report shows the report of what the Book shows: its groups and Accounts, one hashtag, and its dates as the smallest whole period that contains them, keeping the chart you chose when it fits. Opened while the Book shows a group or Account, Report starts with its report. A search with no group or Account, or of a period that hasn't started, leaves the report on screen as it is; what you type stays until the Book shows something else.
+**Report follows the Book.** Choose a group or Account in the Book's sidebar, or change the Book's search, and Report shows the report of exactly what the Book shows: the same query, so the same balances as the sidebar, future-dated transactions included, with its dates as written (such as Jan 1 – Dec 31, 2026), keeping the chart you chose when it fits. Opened while the Book shows a group or Account, Report starts with its report. A search with no group or Account leaves the report on screen as it is; what you type stays until the Book shows something else.
 
 Report speaks the language you chose in Bkper, else your browser's. A typed request gets its report in the language you typed it in. The page's address keeps your report and the chart you chose, so reloading, bookmarking or sharing the link with someone who can view the Book opens it again with the latest balances.
 
@@ -126,7 +126,7 @@ curl -X POST \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
 
-To report a Bkper query, such as the one a Book shows its transactions with, send it as `query` instead of `prompt`: its groups and Accounts, one hashtag and its dates are read by rules, with no AI, and its dates become the smallest period of whole months that contains them.
+To report a Bkper query, such as the one a Book shows its transactions with, send it as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper shows for that query, and the report's `text` is the query itself.
 
 To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt`, with its `language` and the chart it was asked for (`chart.asked`) as `chart`, to ask for the same report again; another `chart` shows it as another chart.
 

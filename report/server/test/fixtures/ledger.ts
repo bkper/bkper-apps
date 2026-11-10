@@ -4,11 +4,12 @@
  *
  * Each transaction moves an amount from one account to another: the `from` account's raw
  * balance (credit minus debit) goes up, the `to` account's goes down, so the ledger always
- * adds up to zero. A query reads one group or account, with an optional hashtag (two or more
- * filter nothing, as in Bkper), and the dates
- * the app writes (`on:`, `after:`, `before:`, then `by:m`), resolved from the ledger's today as
- * Bkper resolves them (`resolveQueryDates`): bare `$y`, `$m` and `$d+1`, and ISO `yyyy` and
- * `yyyy-mm`. `after:` is inclusive, `before:` exclusive.
+ * adds up to zero. A query reads its groups and accounts (each a container of its own, as an
+ * `OR` of them; names Bkper does not find are left out), an optional hashtag (two or more
+ * filter nothing, as in Bkper), and its dates (`on:`, `after:`, `before:`), in the Book's date
+ * format, ISO or as Bkper's variables, resolved from the ledger's today as the app reads them
+ * (`queryDays`); every other term is ignored. `after:` is inclusive, `before:` exclusive, and a
+ * query with no `before:` reads every later date too.
  *
  * Like Bkper, monthly buckets are sparse: a query with `after:` has a bucket for its first
  * month (carrying the position before it) and for every month up to the last one with
@@ -19,7 +20,8 @@
  * answer carries the range and its labels in the Book's date format, as Bkper writes them.
  */
 import { Amount } from 'bkper-js';
-import { resolveQueryDates } from '../../src/services/period-query';
+import { isBookDatePattern } from '../../src/services/bkper-dates';
+import { bkperName, parseQuery as parseTerms, queryDays } from '../../src/services/query-report';
 
 export interface LedgerTransaction {
     /** `YYYY-MM-DD`, in the Book time zone. */
@@ -32,11 +34,10 @@ export interface LedgerTransaction {
 }
 
 interface BalancesQuery {
-    kind: 'group' | 'account';
-    name: string;
+    names: { kind: 'group' | 'account'; name: string }[];
     hashtags: string[];
     after?: string;
-    before: string;
+    before?: string;
 }
 
 interface Movement {
@@ -63,21 +64,21 @@ export class FakeLedger {
     /** The Bkper API's payload of a balances query. */
     balances(query: string): bkper.Balances {
         this.queries.push(query);
-        const parsed = parseQuery(query, this.today);
-        const dates = rangeOf(parsed, this.book.datePattern ?? 'dd/MM/yyyy');
-        if (parsed.kind === 'account') {
-            const account = this.account(parsed.name);
-            return {
-                periodicity: 'MONTHLY',
-                ...dates,
-                accountBalances: [this.accountBalances(account, parsed)],
-            };
-        }
-        const group = this.group(parsed.name);
+        const pattern = this.book.datePattern ?? 'dd/MM/yyyy';
+        const parsed = parseQuery(query, this.today, pattern);
+        const groups = parsed.names.flatMap(({ kind, name }) => {
+            const group = kind === 'group' ? this.group(name) : undefined;
+            return group ? [this.groupBalances(group, parsed)] : [];
+        });
+        const accounts = parsed.names.flatMap(({ kind, name }) => {
+            const account = kind === 'account' ? this.account(name) : undefined;
+            return account ? [this.accountBalances(account, parsed)] : [];
+        });
         return {
             periodicity: 'MONTHLY',
-            ...dates,
-            groupBalances: [this.groupBalances(group, parsed)],
+            ...rangeOf(parsed, pattern, /\bby:m\b/.test(query)),
+            ...(groups.length > 0 ? { groupBalances: groups } : {}),
+            ...(accounts.length > 0 ? { accountBalances: accounts } : {}),
         };
     }
 
@@ -137,20 +138,17 @@ export class FakeLedger {
         }
     }
 
-    private group(name: string): bkper.Group {
-        const group = this.book.groups?.find(candidate => candidate.name === name);
-        if (!group) {
-            throw new Error(`No group ${name} in the ledger`);
-        }
-        return group;
+    /** A group by its name, as Bkper finds it; none when it does not. */
+    private group(name: string): bkper.Group | undefined {
+        return this.book.groups?.find(
+            candidate => bkperName(candidate.name ?? '') === bkperName(name)
+        );
     }
 
-    private account(name: string): bkper.Account {
-        const account = this.book.accounts?.find(candidate => candidate.name === name);
-        if (!account) {
-            throw new Error(`No account ${name} in the ledger`);
-        }
-        return account;
+    private account(name: string): bkper.Account | undefined {
+        return this.book.accounts?.find(
+            candidate => bkperName(candidate.name ?? '') === bkperName(name)
+        );
     }
 
     private groupBalances(group: bkper.Group, query: BalancesQuery): bkper.GroupBalances {
@@ -205,7 +203,7 @@ export class FakeLedger {
     /** The raw movements of an account before the query's `before`. */
     private movements(account: bkper.Account, query: BalancesQuery): Movement[] {
         return this.transactions
-            .filter(transaction => transaction.date < query.before)
+            .filter(transaction => query.before === undefined || transaction.date < query.before)
             .flatMap(transaction => {
                 const raw = new Amount(transaction.amount);
                 // Bkper filters by a hashtag only when the query has exactly one.
@@ -249,7 +247,9 @@ function buckets(counted: Movement[], inRange: Movement[], query: BalancesQuery)
         }
     } else if (moved.length > 0) {
         // Without `after:`, Bkper also lists the month of `before:`, even after the range.
-        listed = [...new Set([...moved, query.before.slice(0, 7)])].sort();
+        listed = [
+            ...new Set([...moved, ...(query.before ? [query.before.slice(0, 7)] : [])]),
+        ].sort();
     }
     const balances: bkper.Balance[] = [];
     for (const month of listed) {
@@ -272,32 +272,27 @@ function buckets(counted: Movement[], inRange: Movement[], query: BalancesQuery)
     return balances;
 }
 
-function parseQuery(query: string, today: string): BalancesQuery {
-    const match = /^(group|account):(?:'([^']*)'|"([^"]*)")((?: \S+)*)$/.exec(query);
-    if (!match) {
-        throw new Error(`The ledger does not read the query ${query}`);
-    }
-    const tokens = match[4].trim().split(' ').filter(Boolean);
-    const dates = resolveQueryDates(
-        tokens.filter(token => !token.startsWith('#')).join(' '),
-        today
-    );
-    if (dates.last === undefined) {
-        throw new Error(`The app always bounds its queries with before: ${query}`);
+function parseQuery(query: string, today: string, pattern: string): BalancesQuery {
+    const terms = parseTerms(query);
+    const days = queryDays(terms.dates, isBookDatePattern(pattern) ? pattern : undefined, today);
+    if (!days) {
+        throw new Error(`The ledger does not read the dates of ${query}`);
     }
     return {
-        kind: match[1] === 'group' ? 'group' : 'account',
-        name: match[2] ?? match[3],
-        hashtags: tokens.filter(token => token.startsWith('#')).map(token => token.slice(1)),
-        ...(dates.first === undefined ? {} : { after: `${dates.first}-01` }),
-        before: dates.beforeDay ?? `${nextMonth(dates.last)}-01`,
+        names: terms.names,
+        hashtags: [...query.matchAll(/(?:^|[\s(])#([^\s()]+)/g)].map(match => match[1]),
+        ...days,
     };
 }
 
-/** The range of a query and its labels, written in the Book's date format as Bkper writes them. */
+/**
+ * The range of a query and its labels, written in the Book's date format as Bkper writes them:
+ * an open end has an empty label.
+ */
 function rangeOf(
     query: BalancesQuery,
-    pattern: string
+    pattern: string,
+    byMonth: boolean
 ): Pick<bkper.Balances, 'range' | 'rangeBeginLabel' | 'rangeEndLabel'> {
     const write = (date: string, day: boolean) => {
         const [year, month, dayOfMonth] = date.split('-');
@@ -308,12 +303,18 @@ function rangeOf(
             .map(part => parts[part])
             .join('/');
     };
-    const daily = !query.before.endsWith('-01');
-    const after = query.after === undefined ? '' : `after:${write(query.after, false)} `;
+    const after =
+        query.after === undefined
+            ? ''
+            : ` after:${write(query.after, !query.after.endsWith('-01'))}`;
+    const before =
+        query.before === undefined
+            ? ''
+            : ` before:${write(query.before, !query.before.endsWith('-01'))}`;
     return {
-        range: ` ${after}before:${write(query.before, daily)} by:m`,
+        range: `${after}${before}${byMonth ? ' by:m' : ''}`,
         rangeBeginLabel: query.after === undefined ? '' : write(query.after, true),
-        rangeEndLabel: write(previousDay(query.before), true),
+        rangeEndLabel: query.before === undefined ? '' : write(previousDay(query.before), true),
     };
 }
 

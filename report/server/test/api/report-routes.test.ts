@@ -796,12 +796,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
     });
 
-    it('builds the report of a Bkper query by rules, with no Bkper AI', async () => {
+    it('builds the report of a Bkper query read as sent, with no Bkper AI', async () => {
         const test = harness();
-        const response = await post(test, {
-            query: "(account:'Food' OR account:'Rent') #trip #other amount>5 after:01/10/2026 before:01/11/2026",
-            language: 'en',
-        });
+        const query =
+            "(account:'Food' OR account:'Rent') #trip #other amount>5 after:01/10/2026 before:01/11/2026";
+        const response = await post(test, { query, language: 'en' });
 
         expect(response.status).toBe(200);
         expect(test.jevCalls).toBe(0);
@@ -809,9 +808,9 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
         // Side by side, of October as written; two hashtags filter nothing, as in Bkper.
         expect(body).toMatchObject({
-            query: "(account:'Food' OR account:'Rent') on:2026-10 by:m",
-            text: 'Food and Rent October 2026',
-            url: `https://report.bkper.app/?book=${BOOK}&q=Food+and+Rent+October+2026`,
+            query,
+            text: query,
+            url: `https://report.bkper.app/?${new URLSearchParams({ book: BOOK, q: query })}`,
         });
         const answers = Object.values(body.spec.elements).flatMap(element =>
             element.type === 'Answer' ? [[element.props.label, element.props.amount]] : []
@@ -820,13 +819,21 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             ['Food', '200.5'],
             ['Rent', '1000'],
         ]);
+        // The query itself, by month, and with the dates of September in place of its own.
         expect(test.queries).toEqual([
-            "group:'Expenses' on:2026-10 by:m",
-            "group:'Expenses' on:2026-09 by:m",
+            query,
+            `${query} by:m`,
+            "(account:'Food' OR account:'Rent') #trip #other amount>5 after:01/09/2026 before:01/10/2026",
         ]);
+
+        // Its text, sent back as a prompt, is the same report, with no Bkper AI.
+        const again = await post(test, { prompt: String(body.text), language: 'en' });
+        expect(again.status).toBe(200);
+        expect(await again.json()).toMatchObject({ query, text: query, spec: body.spec });
+        expect(test.jevCalls).toBe(0);
     });
 
-    it('reads one hashtag of a query, its relative dates and the chart asked for', async () => {
+    it('reads a query’s hashtag and dates as Bkper does, with the chart asked for', async () => {
         const test = harness();
         const response = await post(test, {
             query: "group:'Expenses' #trip after:$m-1",
@@ -835,12 +842,21 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toMatchObject({
-            // The current quarter, which Bkper has no variable for.
-            query: "group:'Expenses' #trip after:2026-10 before:2026-12 by:m",
-            text: 'Expenses this quarter #trip',
+        const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
+        expect(body).toMatchObject({
+            query: "group:'Expenses' #trip after:$m-1",
+            text: "group:'Expenses' #trip after:$m-1",
             chart: { asked: 'donut' },
         });
+        // October's Food and November's Rent with #trip; with no end, nothing to compare with.
+        expect(body.spec.elements.answer.props).toEqual(
+            expect.objectContaining({ amount: '1200.5' })
+        );
+        expect(body.spec.elements.answer.props).not.toHaveProperty('previous');
+        expect(test.queries).toEqual([
+            "group:'Expenses' #trip after:$m-1",
+            "group:'Expenses' #trip after:$m-1 by:m",
+        ]);
     });
 
     it('answers a query that names no group or Account of the Book with query_not_a_report', async () => {

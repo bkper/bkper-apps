@@ -37,7 +37,7 @@ import {
     type NodeBalances,
     type QueryBalances,
 } from './balances.js';
-import { readDays, type ReadDays } from './bkper-dates.js';
+import { readDays, readQueryDays, type QueryDays, type ReadDays } from './bkper-dates.js';
 import {
     buildPeriodQuery,
     resolveQueryDates,
@@ -46,6 +46,7 @@ import {
     type PeriodSpan,
 } from './period-query.js';
 import {
+    addDays,
     isoMonth,
     isPlausibleYear,
     type IsoDate,
@@ -285,20 +286,30 @@ export type ReportData = ReportBase &
           }
     );
 
+/**
+ * The period of a request's report: whole months, through the end of the current month when it
+ * is running. `dates` is the date part of its queries, and `after` and `before` the days Bkper
+ * says its answer read (see {@link readDays}): all time and a position have no `after`, and a
+ * position is measured at `before`, the end of its last month, or tomorrow when running.
+ */
+export type PeriodRead = ReadDays & { dates: string; kind: PeriodSpan };
+
+/**
+ * The period of a Bkper query's report, read as sent: the days Bkper says it read (see
+ * {@link readQueryDays}), either end open, and `dates`, the range Bkper read, as it writes it.
+ */
+export type QueryRead = QueryDays & { dates: string; kind: 'query' };
+
 export interface ReportBase {
     book: { id: string; name: string; timeZone?: string; fractionDigits?: number };
-    intent: ReportIntent;
+    /** The intent of a request's report; none for a Bkper query's, which is read as sent. */
+    intent?: ReportIntent;
     /** Activity within a period (Incoming, Outgoing, net result), or a position at its end (Asset, Liability). */
     nature: ReportNature;
-    /**
-     * The period read: whole months, through the end of the current month when it is running.
-     * `dates` is the date part of its queries, and `after` and `before` the days Bkper says its
-     * answer read (see {@link readDays}): all time and a position have no `after`, and a
-     * position is measured at `before`, the end of its last month, or tomorrow when running.
-     */
-    period: ReadDays & { dates: string; kind: PeriodSpan };
+    /** The period read. */
+    period: PeriodRead | QueryRead;
     /** The period compared with, the same way; a position compares with the position at its `before`. */
-    previous?: ReadDays & { dates: string; kind: PeriodSpan };
+    previous?: PeriodRead | QueryRead;
     /**
      * Why the comparison the intent asks for cannot be made: the report then compares with the
      * previous period instead (all time with nothing), and says so.
@@ -372,6 +383,17 @@ export function assertReportable(snapshot: Snapshot): void {
     const problem = bookProblem(snapshot);
     if (problem) {
         throw bookProblemError(problem);
+    }
+}
+
+/**
+ * The query names no group or account of the Book, or Bkper's answer holds none of those it
+ * names (as for an account Bkper does not find by its name), so it has no report.
+ */
+export class QueryNotAReportError extends Error {
+    constructor() {
+        super('The query names no group or account of the Book.');
+        this.name = 'QueryNotAReportError';
     }
 }
 
@@ -553,11 +575,11 @@ export function buildReport(
     );
     assertAccountsRead(snapshot, plan, sources);
     const months = reportMonths(period.read, nature, [...sources.values()]);
-    const reader = new RowReader(snapshot, nature, period, months);
+    const reader = new RowReader(snapshot, nature, period.comparison !== undefined, months);
     const view = intent.view ?? (intent.monthly ? 'trend' : undefined);
     // Every query of a period has the same dates, so the first source's answers say what each read.
     const [answers] = sources.values();
-    const days = (dates: PeriodDates, answer: QueryBalances | undefined) => ({
+    const days = (dates: PeriodDates, answer: QueryBalances | undefined): PeriodRead => ({
         ...readDaysOf(dates, answer, snapshot),
         dates: dates.dates,
         kind: dates.kind,
@@ -666,6 +688,228 @@ function assertAccountsRead(
     }
 }
 
+/**
+ * The report of a Bkper query, read as sent (`query-report.ts`): what it is of, and the queries
+ * it reads.
+ */
+export interface QueryReportPlan {
+    /** The query as sent: every amount the report shows is Bkper's balance in its answer. */
+    query: string;
+    /**
+     * The groups and accounts it names that the Book has, in the order written: one, or several
+     * side by side. Those Bkper's answer leaves out are left out of the report.
+     */
+    nodes: ReportNode[];
+    nature: ReportNature;
+    /** The days its dates name, read here, when it has dates and each could be read. */
+    days?: QueryDays;
+    /**
+     * The query by month (`by:m`): its months are shown only when its totals are the query's;
+     * the query itself when it is already by month.
+     */
+    monthsQuery: string;
+    /** The same query with its dates moved to the period before, and the days they name. */
+    comparison?: { query: string; days: QueryDays };
+}
+
+/** Every query a query's report reads, each once. */
+export function queryReportQueries(plan: QueryReportPlan): string[] {
+    return [
+        ...new Set([
+            plan.query,
+            plan.monthsQuery,
+            ...(plan.comparison ? [plan.comparison.query] : []),
+        ]),
+    ];
+}
+
+/**
+ * Computes the report of a Bkper query, read as sent, from the balances of its
+ * {@link queryReportQueries}: every total, row and share is Bkper's balance in the answer to the
+ * query itself, as Bkper's own sidebar shows it, its period balance for activity and its
+ * cumulative balance for a position. The other two queries never change them:
+ *
+ * - **Months** come from the query by month only when Bkper answers it with the same total for
+ *   every group and account; otherwise the report shows no months, and no chart by month.
+ * - **The comparison** is the same query with its dates moved to the period before (see
+ *   `query-report.ts`), shown only when Bkper says it read the days meant for both.
+ *
+ * The period is named by the days Bkper says the query read. A query whose answer holds none of
+ * the groups and accounts it names, as when Bkper does not find an account by its name, has no
+ * report ({@link QueryNotAReportError}).
+ */
+export function buildQueryReport(
+    plan: QueryReportPlan,
+    snapshot: Snapshot,
+    balances: QueryBalances[],
+    chart: ChartPreference = 'auto'
+): ReportData {
+    const byQuery = new Map(balances.map(entry => [entry.query, entry]));
+    const read = (query: string): QueryBalances => {
+        const entry = byQuery.get(query);
+        if (!entry) {
+            throw new Error(`The balances of a report query were not read: ${query}`);
+        }
+        return entry;
+    };
+    const current = read(plan.query);
+    const nodes = plan.nodes.filter(node =>
+        node.kind === 'group'
+            ? groupBalances(current, node.name) !== undefined
+            : accountBalances(current, node.name) !== undefined
+    );
+    if (nodes.length === 0) {
+        throw new QueryNotAReportError();
+    }
+    const pattern = snapshot.book.datePattern;
+    const days = readQueryDays(current, pattern) ?? plan.days ?? {};
+    const byMonth = read(plan.monthsQuery);
+    const months = sameTotals(current, byMonth) ? byMonth : undefined;
+    const previous = plan.comparison && read(plan.comparison.query);
+    // Only a comparison of exactly the days meant: the query's, and the period before them.
+    const compared =
+        plan.comparison &&
+        previous &&
+        plan.days &&
+        sameDays(readQueryDays(current, pattern), plan.days) &&
+        sameDays(readQueryDays(previous, pattern), plan.comparison.days)
+            ? previous
+            : undefined;
+    const shown = queryMonths(plan.nature, days, months);
+    const reader = new RowReader(snapshot, plan.nature, compared !== undefined, shown);
+    const source: SourceBalances = {
+        current,
+        ...(compared ? { previous: compared } : {}),
+        ...(months ? { months } : {}),
+    };
+    const lines = nodes.map(node => nodeLine(node, source, reader));
+    const base: Omit<ReportBase, 'chart' | 'charts' | 'breakdown'> = {
+        book: {
+            id: snapshot.book.id,
+            name: snapshot.book.name,
+            timeZone: snapshot.book.timeZone,
+            fractionDigits: snapshot.book.fractionDigits,
+        },
+        nature: plan.nature,
+        period: { ...days, dates: rangeOf(current), kind: 'query' },
+        ...(compared && plan.comparison
+            ? {
+                  previous: {
+                      ...plan.comparison.days,
+                      dates: rangeOf(compared),
+                      kind: 'query' as const,
+                  },
+              }
+            : {}),
+        months: shown,
+        query: plan.query,
+        url: `https://bkper.app/books/${encodeURIComponent(snapshot.book.id)}/transactions?query=${encodeURIComponent(plan.query)}`,
+        dataAt: [current, byMonth, compared ?? []]
+            .flat()
+            .map(entry => entry.dataAt)
+            .sort()[0],
+    };
+    if (lines.length > 1) {
+        const targets = lines.map(line => toRow(line, undefined));
+        const types = new Set(lines.map(line => line.type));
+        const charts = reportCharts(chart, undefined, {
+            nature: plan.nature,
+            type: types.size === 1 ? lines[0].type : 'MIXED',
+            previous: compared !== undefined,
+            net: false,
+            sideBySide: true,
+            rows: targets,
+            series: lines.map(lineSeries),
+            months: shown,
+        });
+        return { ...base, targets, chart: charts.chart, charts: charts.charts, breakdown: targets };
+    }
+    const [line] = lines;
+    const [node] = nodes;
+    const total = reportAmounts(line.measure);
+    const rows = toRows(line.children, line);
+    const charts = reportCharts(chart, undefined, {
+        nature: plan.nature,
+        type: node.type,
+        total,
+        previous: compared !== undefined,
+        net: node.type === 'MIXED' && plan.nature === 'activity',
+        sideBySide: false,
+        rows,
+        series: [lineSeries(line)],
+        months: shown,
+    });
+    return {
+        ...base,
+        root: { id: node.id, name: node.name, type: node.type, color: TYPE_COLORS[node.type] },
+        ...(node.kind === 'account' ? { account: true as const } : {}),
+        answer: total,
+        chart: charts.chart,
+        charts: charts.charts,
+        breakdown: rows,
+    };
+}
+
+/** The range Bkper read, as it writes it, without its periodicity. */
+function rangeOf(answer: QueryBalances): string {
+    return (answer.range ?? '').replace(/\s*by:\S+/g, '').trim();
+}
+
+/** Whether two answers hold the same groups and accounts, each with the same totals. */
+function sameTotals(a: QueryBalances, b: QueryBalances): boolean {
+    const same = (x: Record<string, NodeBalances>, y: Record<string, NodeBalances>) =>
+        Object.keys(x).length === Object.keys(y).length &&
+        Object.entries(x).every(
+            ([name, node]) =>
+                Object.hasOwn(y, name) &&
+                new Amount(node.period).eq(y[name].period) &&
+                new Amount(node.cumulative).eq(y[name].cumulative)
+        );
+    return (
+        (b.periodicity === undefined || b.periodicity === 'MONTHLY') &&
+        same(a.groups, b.groups) &&
+        same(a.accounts, b.accounts)
+    );
+}
+
+function sameDays(read: QueryDays | undefined, meant: QueryDays): boolean {
+    return read !== undefined && read.after === meant.after && read.before === meant.before;
+}
+
+/**
+ * The months a query's report shows, from the answer by month: those of the days read, from
+ * the month of `after` (else the first month with a bucket, in a plausible year) to the month
+ * of the last day read (else the last month with a bucket); a position read up to a day, with no
+ * `after`, the {@link BALANCE_LINE_MONTHS} month-ends ending then. None without the answer by
+ * month.
+ */
+function queryMonths(
+    nature: ReportNature,
+    days: QueryDays,
+    answer: QueryBalances | undefined
+): IsoMonth[] {
+    if (!answer) {
+        return [];
+    }
+    const buckets = [...Object.values(answer.groups), ...Object.values(answer.accounts)]
+        .flatMap(node => node.months.map(({ month }) => month))
+        .filter(month => isPlausibleYear(Number(month.slice(0, 4))))
+        .sort();
+    const last = days.before ? addDays(days.before, -1).slice(0, 7) : buckets.at(-1);
+    if (last === undefined) {
+        return [];
+    }
+    const first =
+        nature === 'position' && days.after === undefined
+            ? monthsBefore(last, BALANCE_LINE_MONTHS - 1)
+            : (days.after?.slice(0, 7) ?? buckets.find(month => month <= last));
+    const months: IsoMonth[] = [];
+    for (let month = first; month !== undefined && month <= last; month = nextMonth(month)) {
+        months.push(month);
+    }
+    return months;
+}
+
 /** A query filter for transactions in any of the groups, for the report's link to Bkper. */
 function groupsFilter(snapshot: Snapshot, groupIds: string[]): string {
     const filters = groupIds.map(id => `group:${quote(snapshot.groups[id].name)}`);
@@ -722,6 +966,16 @@ function rejectMixedGroups(subject: ReportSubject, snapshot: Snapshot): void {
             throw bookProblemError(problem);
         }
     }
+}
+
+/**
+ * The groups and accounts of subjects named side by side, as an intent's are checked: each
+ * once, in order, all positions or all activity, and no group that mixes them.
+ */
+export function subjectNodes(subjects: ReportSubjectData[], snapshot: Snapshot): ReportNode[] {
+    const subject = sideBySide(subjects, snapshot);
+    rejectMixedGroups(subject, snapshot);
+    return subject.node ? [subject.node] : (subject.targets ?? []).map(({ node }) => node);
 }
 
 /**
@@ -1041,6 +1295,11 @@ interface Measure {
 interface SourceBalances {
     current: QueryBalances;
     previous?: QueryBalances;
+    /**
+     * The answer the months are read from, when not `current`'s: of a Bkper query's report, the
+     * query by month, whose totals are the query's.
+     */
+    months?: QueryBalances;
 }
 
 function balancesOf(sources: ReadonlyMap<string, SourceBalances>, id: string): SourceBalances {
@@ -1064,7 +1323,8 @@ class RowReader {
     constructor(
         snapshot: Snapshot,
         private readonly nature: ReportNature,
-        private readonly period: ReportPeriod,
+        /** Whether there is a previous period to compare with. */
+        private readonly compared: boolean,
         private readonly months: IsoMonth[]
     ) {
         this.groups = new Map(Object.values(snapshot.groups).map(group => [group.name, group]));
@@ -1077,6 +1337,7 @@ class RowReader {
     group(name: string, source: SourceBalances): Line {
         const current = groupBalances(source.current, name);
         const previous = source.previous && groupBalances(source.previous, name);
+        const monthly = source.months ? groupBalances(source.months, name) : current;
         const listed = (pick: (balances: GroupNodeBalances) => string[]) => [
             ...new Set([current, previous].flatMap(balances => (balances ? pick(balances) : []))),
         ];
@@ -1086,7 +1347,7 @@ class RowReader {
             kind: 'group',
             name,
             type: known?.type ?? nodeType(current ?? previous),
-            measure: this.measure(current, previous),
+            measure: this.measure(current, previous, monthly),
             children: [
                 ...listed(balances => balances.groups).map(child => this.group(child, source)),
                 ...listed(balances => balances.accounts).map(child => this.account(child, source)),
@@ -1098,25 +1359,30 @@ class RowReader {
     account(name: string, source: SourceBalances): Line {
         const current = accountBalances(source.current, name);
         const previous = source.previous && accountBalances(source.previous, name);
+        const monthly = source.months ? accountBalances(source.months, name) : current;
         const known = this.accounts.get(name);
         return {
             id: known?.id ?? `account:${name}`,
             kind: 'account',
             name,
             type: known?.type ?? nodeType(current ?? previous),
-            measure: this.measure(current, previous),
+            measure: this.measure(current, previous, monthly),
             children: [],
         };
     }
 
-    private measure(current?: NodeBalances, previous?: NodeBalances): Measure {
+    private measure(
+        current?: NodeBalances,
+        previous?: NodeBalances,
+        monthly?: NodeBalances
+    ): Measure {
         return {
             amount: this.total(current),
-            ...(this.period.comparison ? { previous: this.total(previous) } : {}),
+            ...(this.compared ? { previous: this.total(previous) } : {}),
             months: this.months.map(month =>
                 this.nature === 'activity'
-                    ? new Amount(monthPeriod(current, month))
-                    : new Amount(monthPosition(current, month))
+                    ? new Amount(monthPeriod(monthly, month))
+                    : new Amount(monthPosition(monthly, month))
             ),
         };
     }

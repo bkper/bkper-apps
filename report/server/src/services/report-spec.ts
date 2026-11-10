@@ -16,14 +16,15 @@ import {
 } from 'report-shared/catalog';
 import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
-import type { ReadDays } from './bkper-dates.js';
-import { addDays, type IsoDate } from './periods.js';
+import { addDays, type IsoDate, type IsoMonth } from './periods.js';
 import type { PeriodSpan } from './period-query.js';
 import { NET_RESULT_ROOT } from './report-intent.js';
 import { requestText } from './request-text.js';
 import {
     viewKindOf,
     type ChartSeries,
+    type PeriodRead,
+    type QueryRead,
     type ReportAmounts,
     type ReportChart,
     type ReportData,
@@ -134,7 +135,8 @@ export function buildReportSpec(report: ReportData, lang: string): ReportSpec {
                     locale: lang,
                     dir: textDirection(lang),
                     fractionDigits: report.book.fractionDigits ?? 2,
-                    request: requestText(report.intent, title, lang),
+                    // A query's report stands for its query, read as sent.
+                    request: report.intent ? requestText(report.intent, title, lang) : report.query,
                     ...notice(report, labels),
                 },
                 children: Object.keys(elements),
@@ -352,10 +354,7 @@ function chartProps(
                 // Both by the months each read, in the same form.
                 periods: {
                     current: labels.period(report),
-                    previous:
-                        report.nature === 'position'
-                            ? labels.asOf(previous.before)
-                            : labels.previous(report, previous),
+                    previous: labels.legend(report, previous),
                 },
                 items: chart.rows.map(id => {
                     const row = breakdownRowOf(report, id);
@@ -458,6 +457,9 @@ class Labels {
      * of the period asked for ({@link form}); the date of a position.
      */
     period(report: ReportData): string {
+        if (report.period.kind === 'query') {
+            return this.query(report, report.period, true);
+        }
         if (report.nature === 'position') {
             return this.asOf(report.period.before);
         }
@@ -470,14 +472,55 @@ class Labels {
      * What a report compares with: an earlier date for a position, else the months read, in the
      * same form as the period.
      */
-    previous(report: ReportData, previous: ReadDays): string {
+    previous(report: ReportData, previous: PeriodRead | QueryRead): string {
+        if (previous.kind === 'query') {
+            return this.query(report, previous, false);
+        }
         return report.nature === 'position' || previous.after === undefined
             ? this.date(lastDay(previous.before))
             : this.months(previous.after, previous.before, this.form(report));
     }
 
+    /** The name of the period compared with in a chart's legend: a position's as of its date. */
+    legend(report: ReportData, previous: PeriodRead | QueryRead): string {
+        if (previous.kind === 'query') {
+            return this.query(report, previous, true);
+        }
+        return report.nature === 'position'
+            ? this.asOf(previous.before)
+            : this.previous(report, previous);
+    }
+
+    /**
+     * The days a query read as sent, from Bkper's labels: a range of days for activity; a
+     * position, or anything read from the start of the Book, as of its last day (`asOf`, else
+     * its date alone); activity with no end through the last month shown; with no dates, all
+     * time. Days Bkper did not label in the Book's date format show its range as it wrote it.
+     */
+    private query(report: ReportData, days: QueryRead, asOf: boolean): string {
+        const { after, before } = days;
+        if (after === undefined && before === undefined) {
+            return days.dates || t('period_all', this.lang);
+        }
+        if (report.nature === 'position' || after === undefined) {
+            if (before === undefined) {
+                return t('period_all', this.lang);
+            }
+            return asOf ? this.asOf(before) : this.date(lastDay(before));
+        }
+        const until = before ?? afterMonth(report.months.at(-1));
+        return until ? this.days(after, until) : this.date(after);
+    }
+
     /** The exact dates an activity covers; all time starts with the first month of data. */
     dates(report: ReportData): string {
+        if (report.period.kind === 'query') {
+            const after = report.period.after ?? (report.months[0] && `${report.months[0]}-01`);
+            const before = report.period.before ?? afterMonth(report.months.at(-1));
+            return after && before
+                ? this.days(after, before)
+                : this.query(report, report.period, true);
+        }
         const after = report.period.after ?? (report.months[0] && `${report.months[0]}-01`);
         const last = lastDay(report.period.before);
         return after
@@ -492,8 +535,17 @@ class Labels {
      */
     private form(report: ReportData): MonthsForm {
         const sides = [report.period, ...(report.previous ? [report.previous] : [])];
+        if (report.period.kind === 'query') {
+            return 'range';
+        }
         const whole = WHOLE_FORMS[report.period.kind];
-        return whole && sides.every(side => side.after && fits(whole, side.after, side.before))
+        return whole &&
+            sides.every(
+                side =>
+                    side.after !== undefined &&
+                    side.before !== undefined &&
+                    fits(whole, side.after, side.before)
+            )
             ? whole
             : 'range';
     }
@@ -531,6 +583,11 @@ class Labels {
             minimumFractionDigits: fractionDigits,
             maximumFractionDigits: fractionDigits,
         }).format(value);
+    }
+
+    /** The days from `after` to before `before`, as a range. */
+    private days(after: IsoDate, before: IsoDate): string {
+        return this.day.formatRange(utc(after), utc(lastDay(before)));
     }
 
     /** The date of a position at the start of `before`. */
@@ -590,6 +647,17 @@ function monthsBetween(after: IsoDate, before: IsoDate): number {
     const [afterYear, afterMonth] = after.split('-').map(Number);
     const [beforeYear, beforeMonth] = before.split('-').map(Number);
     return (beforeYear - afterYear) * 12 + beforeMonth - afterMonth;
+}
+
+/** The first day after a month, or `undefined` for none. */
+function afterMonth(month: IsoMonth | undefined): IsoDate | undefined {
+    if (month === undefined) {
+        return undefined;
+    }
+    const [year, monthOfYear] = month.split('-').map(Number);
+    return monthOfYear === 12
+        ? `${String(year + 1).padStart(4, '0')}-01-01`
+        : `${month.slice(0, 4)}-${String(monthOfYear + 1).padStart(2, '0')}-01`;
 }
 
 /** The last day a range ending at `before` (exclusive) includes. */

@@ -1,8 +1,9 @@
 /**
  * Builds a report of a Book: by intent, by a request in any language that one decision
  * request, whose options come from the Book snapshot (its map), turns into an intent, or by a
- * Bkper query, read by rules with no decision (`query-intent.ts`). A request of exactly one of
- * the Book's suggestions is its intent, with no decision.
+ * Bkper query, read exactly as sent, with no decision (`query-report.ts`); a prompt that is a
+ * Bkper query, such as a query's report's own text, is read as that query. A request of
+ * exactly one of the Book's suggestions is its intent, with no decision.
  *
  * The intent names the report's balances queries (its period and the previous one, per
  * root), which run in parallel; every amount of the report comes from their responses. A
@@ -24,7 +25,9 @@ import type { QueryBalances } from './balances.js';
 import {
     ReportError,
     assertReportable,
+    buildQueryReport,
     buildReport,
+    queryReportQueries,
     shownPreference,
     viewKindOf,
     type ChartFacts,
@@ -35,7 +38,7 @@ import {
     type ShownPreference,
     type ViewKind,
 } from './report.js';
-import { queryIntent } from './query-intent.js';
+import { isBkperQuery, planQueryReport } from './query-report.js';
 import { reportIntentOf, type ReportIntent, type ReportIntentInput } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
@@ -102,8 +105,8 @@ export type AskedChart = Exclude<ShownPreference, 'auto'>;
  */
 export interface ReportResult {
     spec: ReportSpec;
-    /** The intent read, its period as parts. */
-    intent: ReportIntent;
+    /** The intent read, its period as parts; none for a Bkper query, read as sent. */
+    intent?: ReportIntent;
     /** The language of the spec's texts. */
     language: string;
     /** The Bkper query of exactly the report's transactions and dates. */
@@ -117,8 +120,8 @@ export interface ReportResult {
     chart: { kind: ReportChart['kind']; fallback: boolean; asked?: AskedChart };
     /**
      * The report's own short text, in its language, as a person would type it: its title, by
-     * month or not, its period as asked, what it is compared with and its hashtag. Sent back as a
-     * prompt, it asks for the same report.
+     * month or not, its period as asked, what it is compared with and its hashtag; of a Bkper
+     * query, the query. Sent back as a prompt, it asks for the same report.
      */
     text: string;
     trace: ReportTrace;
@@ -141,6 +144,16 @@ export async function createReport(
     const { timing } = options;
     assertReportable(snapshot);
     options = { ...options, loadBalances: readOnce(options.loadBalances) };
+    const query =
+        'query' in request
+            ? request.query
+            : 'prompt' in request && isBkperQuery(request.prompt)
+              ? request.prompt.trim()
+              : undefined;
+    if (query !== undefined) {
+        const language = languages.requested ?? languages.accepted ?? DEFAULT_LANGUAGE;
+        return queryReport(snapshot, query, request.chart, language, options);
+    }
     let intent: ReportIntent;
     let intentTrace: IntentTrace | undefined;
     let detected: string | undefined;
@@ -153,8 +166,8 @@ export async function createReport(
             : undefined;
     if ('intent' in request) {
         intent = reportIntentOf(request.intent);
-    } else if ('query' in request) {
-        intent = queryIntent(request.query, snapshot);
+    } else if (!('prompt' in request)) {
+        throw new Error('A query is read as sent');
     } else if (suggestion) {
         intent = suggestion.intent;
         detected = suggested;
@@ -214,6 +227,36 @@ export async function createReport(
             ...(report.comparisonError ? { comparisonError: report.comparisonError } : {}),
             ...reportTrace(report.charts),
         },
+    };
+}
+
+/** The report of a Bkper query, read exactly as sent (`query-report.ts`), in a language. */
+async function queryReport(
+    snapshot: Snapshot,
+    query: string,
+    chart: ChartPreference | undefined,
+    language: string,
+    { loadBalances, timing }: ReportServiceOptions
+): Promise<ReportResult> {
+    const plan = planQueryReport(query, snapshot);
+    const balances = await loadBalances(queryReportQueries(plan));
+    const report = await timing.measure('compute', async () =>
+        buildQueryReport(plan, snapshot, balances, chart)
+    );
+    const spec = await timing.measure('render', async () => buildReportSpec(report, language));
+    const asked = chart && shownPreference(chart);
+    return {
+        spec,
+        language,
+        query: report.query,
+        dataAt: report.dataAt,
+        chart: {
+            kind: report.chart.kind,
+            fallback: report.chart.fallback === true,
+            ...(asked && asked !== 'auto' ? { asked } : {}),
+        },
+        text: reportText(spec),
+        trace: reportTrace(report.charts),
     };
 }
 

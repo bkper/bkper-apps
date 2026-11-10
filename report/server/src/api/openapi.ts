@@ -31,7 +31,7 @@ Activity groups (Incoming, Outgoing) report what moved within the period; balanc
 
 ## Report a Bkper query
 
-To report what a Book shows, send its Bkper query as \`query\` instead of \`prompt\`; a person's words always go as \`prompt\`. A query is read by fixed rules, with no AI, as Bkper's balances read it: its \`group:\` and \`account:\` names are what the report is of (several side by side, up to six), exactly one \`#hashtag\` filters it, and its \`after:\`, \`before:\` and \`on:\` dates become the smallest period of whole months that contains them (no dates: activity of all time, balances now). Everything else is left out. A query that names no group or Account of the Book answers 422 \`query_not_a_report\`.
+To report what a Book shows, send its Bkper query as \`query\` instead of \`prompt\`; a person's words always go as \`prompt\`. A query is read exactly as sent, with no AI: every amount is Bkper's balance for that very query, as the Book's sidebar shows it, future-dated transactions included, and nothing in it is rewritten or cut off. Its \`group:\` and \`account:\` names are what the report is of (several side by side, up to six); its period is the days Bkper read (\`after:01/01/2026 before:01/01/2027\` is Jan 1 – Dec 31, 2026; \`before:\` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month, and the comparison from the same query with its dates moved to the period before; each is left out unless it reads as the query does. The report's \`text\` is the query, which sent back as \`prompt\` is read as that query. A query that names no group or Account Bkper finds answers 422 \`query_not_a_report\`.
 
 ## Saved prompts
 

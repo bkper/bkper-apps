@@ -33,6 +33,8 @@ export type Notice = Extract<StringKey, 'hint_not_a_report' | `error_${string}`>
 /** The notice of each API error code; any other failure is `error_unexpected`. */
 const NOTICES: Partial<Record<string, Notice>> = {
     not_a_report: 'hint_not_a_report',
+    // A Bkper query typed or reopened that names no group or Account of the Book.
+    query_not_a_report: 'hint_not_a_report',
     ai_allowance_exhausted: 'error_ai_allowance_exhausted',
     book_not_found: 'error_book_not_found',
     forbidden: 'error_forbidden',
@@ -287,7 +289,7 @@ export class Reports extends Store {
      * The Book shows its transactions with `query`: show its report, asked for in the
      * interface's language, as the chart chosen when it offers it, with its text in the input.
      * The Book changed, so it replaces whatever was typed or asked. Any failure, such as a query
-     * of no group or Account, or of a period not started, leaves the report shown as it is,
+     * of no group or Account, or one Bkper fails to answer, leaves the report shown as it is,
      * silently: the person changed the Book, not the request. The Book stays untouched until
      * the report shows, so a Book opened on a query of no report opens its first report.
      */

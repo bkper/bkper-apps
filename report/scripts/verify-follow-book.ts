@@ -18,7 +18,7 @@
  * - another query (an Account, another period) shows its report with a view transition scoped to
  *   the report's scroll area, the input showing its text and its state sent once, keeping the
  *   chart chosen from the previews when the next report offers it, else showing its main one;
- * - a query of no group or Account, or of a period not started, leaves the report and the input
+ * - a query of no group or Account, or of balances side by side with activity, leaves the report and the input
  *   as they are, with no notice and no state sent;
  * - a URL repeated by the Book never asks again, so a typed request stays, while a real change of
  *   the query replaces it (from memory within a minute);
@@ -54,7 +54,7 @@ const QUERIES = {
     period: "group:'Expenses' after:01/01/2025 before:01/01/2026",
     other: "group:'Net result'",
     none: 'is:draft amount>10',
-    future: "group:'Expenses' after:01/01/2099",
+    mixed: "group:'Expenses' group:'Assets'",
 } as const;
 const ANSWERS: Record<string, string | { status: number; code: string }> = {
     [QUERIES.group]: 'expenses-by-month',
@@ -62,7 +62,7 @@ const ANSWERS: Record<string, string | { status: number; code: string }> = {
     [QUERIES.period]: 'expenses-breakdown',
     [QUERIES.other]: 'net-result-compare',
     [QUERIES.none]: { status: 422, code: 'query_not_a_report' },
-    [QUERIES.future]: { status: 422, code: 'future_period' },
+    [QUERIES.mixed]: { status: 422, code: 'mixed_targets' },
 };
 /** Suggestions, and the report a typed request asks for. */
 const SUGGESTED = ['revenue-donut', 'loans-today'];
@@ -228,7 +228,7 @@ async function following(name: string, width: number, theme: 'light' | 'dark'): 
     await follow(app, `${name} other group`, QUERIES.other, 'net-result-compare');
     await shot(page, `${name}-3-main-chart`);
 
-    for (const query of [QUERIES.none, QUERIES.future]) await unchanged(app, `${name}`, query);
+    for (const query of [QUERIES.none, QUERIES.mixed]) await unchanged(app, `${name}`, query);
     await shot(page, `${name}-4-no-report`);
 
     // A typed request stays when the Book repeats its URL, and a real change replaces it.

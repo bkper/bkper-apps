@@ -92,6 +92,49 @@ export function readDays(
     };
 }
 
+/**
+ * The days a query read as sent: from `after` (none when from the start of the Book) to before
+ * `before` (none when it reads every later date too, as a query with no dates does).
+ */
+export interface QueryDays {
+    after?: IsoDate;
+    before?: IsoDate;
+}
+
+/**
+ * The days Bkper says a query read as sent, from its labels, either of which may be empty (an
+ * open end); `undefined` when the Book's date format is unknown or a label is not a day in it.
+ */
+export function readQueryDays(
+    labels: { rangeBeginLabel?: string; rangeEndLabel?: string },
+    pattern: string | undefined
+): QueryDays | undefined {
+    const { rangeBeginLabel: begin, rangeEndLabel: end } = labels;
+    if (!isBookDatePattern(pattern) || (begin && !isDay(begin, pattern))) {
+        return undefined;
+    }
+    if (end && !isDay(end, pattern)) {
+        return undefined;
+    }
+    return {
+        ...(begin ? { after: parseBookDate(begin, pattern) } : {}),
+        ...(end ? { before: addDays(parseBookDate(end, pattern), 1) } : {}),
+    };
+}
+
+/** A day written in a Book's date format, as Bkper reads it in a query. */
+export function writeBookDate(date: IsoDate, pattern: BookDatePattern): string {
+    const [year, month, day] = date.split('-');
+    switch (pattern) {
+        case 'dd/MM/yyyy':
+            return `${day}/${month}/${year}`;
+        case 'MM/dd/yyyy':
+            return `${month}/${day}/${year}`;
+        case 'yyyy/MM/dd':
+            return `${year}/${month}/${day}`;
+    }
+}
+
 /** A whole day written in the Book's date format: three parts, never a month or a year. */
 function isDay(text: string | undefined, pattern: BookDatePattern): text is string {
     if (text?.split('/').length !== 3) {

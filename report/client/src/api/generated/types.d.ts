@@ -245,7 +245,7 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.
          *
-         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.
+         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt`, it asks for the same report. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.
          *
          *     Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.
          */
@@ -265,7 +265,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query, chart, trace and link (`format: spec`) */
+                /** @description The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, text, language, query, chart, trace and link (`format: spec`) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -889,6 +889,11 @@ export interface components {
                  */
                 fallback: boolean;
             };
+            /**
+             * @description The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag. Send it as `prompt` to ask for the same report again, or show it to the person to edit.
+             * @example Expenses by month this year
+             */
+            text: string;
             trace: components["schemas"]["ReportTrace"];
             /**
              * @description The same report in the Report app, to open or share with the person.
@@ -1468,7 +1473,7 @@ export interface components {
              */
             language?: string;
             /**
-             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.
+             * @description What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, text, language, query, data time, chart, trace and link.
              * @example html
              * @enum {string}
              */

@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Чистый результат",
     "request_all_time": "за всё время",
+    "request_by_month": "{name} по месяцам",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "последние 12 месяцев",
     "request_quarter": "{quarter} кв.",

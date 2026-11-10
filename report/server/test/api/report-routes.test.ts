@@ -385,6 +385,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             intent,
             language: 'pt',
             query: "group:'Expenses' on:2026-10 by:m",
+            text: 'Expenses outubro de 2026',
             url: `https://report.bkper.app/?book=${BOOK}&q=Expenses+outubro+de+2026`,
         });
         expect(typeof body.dataAt).toBe('string');
@@ -666,6 +667,9 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             intent: { root: 'g-revenue', period: p('2026-10'), monthly: false },
             language: 'es',
             query: "group:'Revenue' on:2026-10 by:m",
+            // The report's own text, which builds the same report as a prompt; the link keeps
+            // the person's words.
+            text: 'Revenue octubre de 2026',
             url: `https://report.bkper.app/?book=${BOOK}&q=ingresos+de+octubre`,
         });
         expect(timings(response)).toContain('jev');

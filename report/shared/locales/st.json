@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Sephetho se hloekileng",
     "request_all_time": "nako eohle",
+    "request_by_month": "{name} ka khoeli",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "dikgwedi tse 12 tse fetileng",
     "request_quarter": "Q{quarter}",

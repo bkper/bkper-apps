@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Qhov tshwm sim net",
     "request_all_time": "txhua lub sijhawm",
+    "request_by_month": "{name} txhua lub hlis",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "12 lub hlis dhau los",
     "request_quarter": "Q{quarter}",

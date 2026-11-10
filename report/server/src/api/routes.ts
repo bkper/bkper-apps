@@ -97,7 +97,7 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
-        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, language, query, data time, chart, trace (how its charts were chosen) and link. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
+        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), intent, text, language, query, data time, chart, trace (how its charts were chosen) and link. `text` is the report’s own short text in its language; sent back as `prompt`, it asks for the same report. An `intent`, such as a previous report’s, builds the report without AI, and so does a suggestion’s text sent as `prompt`.',
         '',
         'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
@@ -111,7 +111,7 @@ const reportRoute = createRoute({
     responses: {
         200: {
             description:
-                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, language, query, chart, trace and link (`format: spec`)',
+                'The report: one self-contained HTML file (`format: html`), or JSON with its spec, intent, text, language, query, chart, trace and link (`format: spec`)',
             content: {
                 'application/json': { schema: ReportResponseSchema },
                 'text/html': { schema: ReportFileSchema },
@@ -255,7 +255,7 @@ export function registerApiRoutes(app: App): void {
         const { bookId } = c.req.valid('param');
         const body = c.req.valid('json');
         const { snapshot, userId } = await readableSnapshot(context, bookId);
-        const result = await createReport(
+        const report = await createReport(
             snapshot,
             reportRequest(body),
             {
@@ -269,8 +269,8 @@ export function registerApiRoutes(app: App): void {
                 cache: context.env.KV,
             }
         );
-        const { text, ...report } = result;
-        const url = reportAppUrl(c.req.url, bookId, text);
+        // The link keeps the person's own words; a report by intent opens with its own text.
+        const url = reportAppUrl(c.req.url, bookId, body.prompt ?? report.text);
         if (body.format === 'html') {
             const open = reportFileOpen(bookId, { ...report, charts: report.trace.chart });
             const file = await context.timing.measure('render', async () =>

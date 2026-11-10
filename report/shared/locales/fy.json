@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Netto resultaat",
     "request_all_time": "alle tiid",
+    "request_by_month": "{name} per moanne",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "lêste 12 moannen",
     "request_quarter": "K{quarter}",

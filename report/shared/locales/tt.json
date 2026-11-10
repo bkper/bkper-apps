@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Чиста нәтиҗә",
     "request_all_time": "бөтен вакыт",
+    "request_by_month": "{name} айлар буенча",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "соңгы 12 ай",
     "request_quarter": "{quarter} чирек",

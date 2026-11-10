@@ -332,7 +332,7 @@ export const ReportRequestSchema = z
         }),
         format: z.enum(['spec', 'html']).optional().openapi({
             description:
-                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, language, query, data time, chart, trace and link.',
+                'What to return. `html` to show the report to a person: one self-contained, interactive HTML file (`text/html`) that loads nothing and links to the report in the Report app; save it and publish or share it as it is, without asking for `spec` first or re-checking its amounts. `spec` (the default) for JSON, which Report’s own web client renders: the report as a json-render spec with its intent, text, language, query, data time, chart, trace and link.',
             example: 'html',
         }),
     })
@@ -646,6 +646,11 @@ export const ReportResponseSchema = z
                 }),
             })
             .openapi({ description: 'The chart drawn, and whether the one asked for fit.' }),
+        text: z.string().openapi({
+            description:
+                'The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag. Send it as `prompt` to ask for the same report again, or show it to the person to edit.',
+            example: 'Expenses by month this year',
+        }),
         trace: ReportTraceSchema,
         url: z.string().openapi({
             description: 'The same report in the Report app, to open or share with the person.',

@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "sof نەتىجە",
     "request_all_time": "بارلىق ۋاقىت",
+    "request_by_month": "{name} ئاي بويىچە",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "ئاخىرقى 12 ئاي",
     "request_quarter": "Q{quarter}",

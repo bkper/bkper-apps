@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "शुद्ध परिणाम",
     "request_all_time": "संपूर्ण अवधि",
+    "request_by_month": "{name} माह के अनुसार",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "पिछले 12 महीने",
     "request_quarter": "तिमाही {quarter}",

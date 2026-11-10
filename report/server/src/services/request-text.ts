@@ -1,10 +1,12 @@
 /**
- * The request a report stands for, as a person would type it: its title, then its period as the
- * intent's parts say it, then what it is compared with. It is the text a link to the report
- * opens with in the app's input and the `q` of its link, so a person can edit it and ask again:
- * relative parts stay in relative words (`Expenses this year`, `Revenue last year vs. 2023`,
- * `Bank now`), never the dates they read today, and written ones stay as written
- * (`Expenses Q3 2024 vs. Q1 2024`).
+ * The request a report stands for, as a person would type it: its title (by month, when the
+ * report is), then its period as the intent's parts say it, then what it is compared with, then
+ * its hashtag. It is the report's own text, which the app's input shows and a link opens with,
+ * so a person can edit it and ask again, and which, sent back as a request, asks for the same
+ * report: relative parts stay in relative words (`Expenses by month this year`,
+ * `Revenue last year vs. 2023`, `Bank now`), never the dates they read today, and written ones
+ * stay as written (`Expenses Q3 2024 vs. Q1 2024 #travel`). Names stay apart from the words
+ * around them, so a request finds each.
  *
  * Relative words come from `Intl.RelativeTimeFormat` (this year, last quarter, now…) in the
  * report's language; the others from the strings. Values written into a text are isolated, as in
@@ -22,12 +24,30 @@ import {
 } from 'report-shared/report-intent';
 import { t, type StringKey } from 'report-shared/strings';
 
+/** What a request says of a report: its period, whether it is by month, and its hashtag. */
+export interface RequestParts extends PeriodRequest {
+    monthly?: boolean;
+    hashtags?: readonly string[];
+}
+
 /** The request of a report titled `title`, in a language. */
-export function requestText(request: PeriodRequest, title: string, lang: string): string {
+export function requestText(request: RequestParts, title: string, lang: string): string {
     const { period, compared } = periodTexts(request, lang);
-    return `${title} ${
-        compared === undefined ? period : fill('request_versus', lang, { period, compared })
-    }`;
+    const subject = request.monthly ? fill('request_by_month', lang, { name: title }) : title;
+    const when =
+        compared === undefined ? period : fill('request_versus', lang, { period, compared });
+    const tags = (request.hashtags ?? []).map(tag => ` ${isolate(`#${tag}`)}`).join('');
+    return `${apart(subject)} ${when}${tags}`;
+}
+
+/**
+ * Values written apart from the letters around them: a list or a phrase may join a word to a
+ * name (the Arabic و, the Thai และ), where a request finds no name.
+ */
+function apart(text: string): string {
+    return text
+        .replace(/([\p{L}\p{M}\p{N}])\u2068/gu, '$1 \u2068')
+        .replace(/\u2069([\p{L}\p{M}\p{N}])/gu, '\u2069 $1');
 }
 
 /**

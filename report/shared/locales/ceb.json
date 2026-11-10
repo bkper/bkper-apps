@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Net nga resulta",
     "request_all_time": "tanang panahon",
+    "request_by_month": "{name} matag bulan",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "milabay nga 12 ka bulan",
     "request_quarter": "Q{quarter}",

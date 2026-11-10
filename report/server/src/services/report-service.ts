@@ -95,7 +95,11 @@ export interface ReportResult {
     dataAt: string;
     /** The chart drawn, and whether it stands in for the intent's `chart`, which does not fit. */
     chart: { kind: ReportChart['kind']; fallback: boolean };
-    /** The request as a person would type it: the prompt, or the report's title and period. */
+    /**
+     * The report's own short text, in its language, as a person would type it: its title, by
+     * month or not, its period as asked, what it is compared with and its hashtag. Sent back as a
+     * prompt, it asks for the same report.
+     */
     text: string;
     trace: ReportTrace;
 }
@@ -176,7 +180,7 @@ export async function createReport(
         query: report.query,
         dataAt: report.dataAt,
         chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
-        text: 'prompt' in request ? request.prompt : reportText(spec),
+        text: reportText(spec),
         trace: {
             ...intentTrace,
             ...(report.comparisonError ? { comparisonError: report.comparisonError } : {}),

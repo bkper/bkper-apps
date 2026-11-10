@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "நிகர முடிவு",
     "request_all_time": "எல்லா காலமும்",
+    "request_by_month": "மாதவாரியாக {name}",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "கடந்த 12 மாதங்கள்",
     "request_quarter": "Q{quarter}",

@@ -990,7 +990,7 @@
                         "locale": "ar",
                         "dir": "rtl",
                         "fractionDigits": 2,
-                        "request": "Net income آخر 12 شهرًا"
+                        "request": "⁨Net income⁩ شهرًا بشهر آخر 12 شهرًا"
                     },
                     "children": [
                         "answer",
@@ -1613,7 +1613,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Rent this year"
+                        "request": "⁨Rent⁩ by month this year"
                     },
                     "children": [
                         "answer",

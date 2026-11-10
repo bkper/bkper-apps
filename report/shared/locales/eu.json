@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Emaitza garbia",
     "request_all_time": "denbora guztia",
+    "request_by_month": "{name} hilabeteka",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "azken 12 hilabeteak",
     "request_quarter": "{quarter}. hiruhilekoa",

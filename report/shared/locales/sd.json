@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "خالص نتيجو",
     "request_all_time": "سڄو وقت",
+    "request_by_month": "{name} مهيني جي حساب سان",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "گذريل 12 مهينا",
     "request_quarter": "Q{quarter}",

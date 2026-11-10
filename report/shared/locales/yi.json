@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "נעטאָ רעזולטאַט",
     "request_all_time": "אַלע צײַט",
+    "request_by_month": "{name} לויט חודש",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "לעצטע 12 חדשים",
     "request_quarter": "Q{quarter}",

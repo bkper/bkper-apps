@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Vokatra net",
     "request_all_time": "ny fotoana rehetra",
+    "request_by_month": "{name} isam-bolana",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "volana 12 farany",
     "request_quarter": "T{quarter}",

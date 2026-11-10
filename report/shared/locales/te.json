@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "నికర ఫలితం",
     "request_all_time": "మొత్తం కాలం",
+    "request_by_month": "నెలవారీ {name}",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "గత 12 నెలలు",
     "request_quarter": "Q{quarter}",

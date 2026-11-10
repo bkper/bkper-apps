@@ -21,7 +21,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Expenses 2025"
+                        "request": "⁨Expenses⁩ by month 2025"
                     },
                     "children": [
                         "answer",
@@ -2230,7 +2230,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Bank accounts 2025"
+                        "request": "⁨Bank accounts⁩ by month 2025"
                     },
                     "children": [
                         "answer",
@@ -2980,7 +2980,7 @@
                         "locale": "pt-BR",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Resultado líquido 2025"
+                        "request": "⁨Resultado líquido⁩ por mês 2025"
                     },
                     "children": [
                         "answer",
@@ -6019,7 +6019,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Expenses 2025"
+                        "request": "⁨Expenses⁩ by month 2025"
                     },
                     "children": [
                         "answer",
@@ -6920,7 +6920,7 @@
                         "locale": "he",
                         "dir": "rtl",
                         "fractionDigits": 2,
-                        "request": "Expenses 2025"
+                        "request": "⁨Expenses⁩ לפי חודשים 2025"
                     },
                     "children": [
                         "answer",
@@ -7821,7 +7821,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "Bank accounts 2025"
+                        "request": "⁨Bank accounts⁩ by month 2025"
                     },
                     "children": [
                         "answer",
@@ -8312,7 +8312,7 @@
                         "locale": "ar",
                         "dir": "rtl",
                         "fractionDigits": 2,
-                        "request": "صافي النتيجة 2025"
+                        "request": "⁨صافي النتيجة⁩ شهرًا بشهر 2025"
                     },
                     "children": [
                         "answer",
@@ -14594,7 +14594,7 @@
                         "locale": "en",
                         "dir": "ltr",
                         "fractionDigits": 2,
-                        "request": "⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩ 2025"
+                        "request": "⁨⁨People⁩, ⁨Office⁩, and ⁨Taxes⁩⁩ by month 2025"
                     },
                     "children": [
                         "answer-1",
@@ -15303,7 +15303,7 @@
                         "locale": "ar",
                         "dir": "rtl",
                         "fractionDigits": 2,
-                        "request": "⁨Revenue⁩ و⁨Expenses⁩ 2025"
+                        "request": "⁨Revenue⁩ و ⁨Expenses⁩ 2025"
                     },
                     "children": [
                         "answer-1",

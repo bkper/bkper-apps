@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "शुद्ध नतीजा",
     "request_all_time": "सारा समां",
+    "request_by_month": "{name} महीने मुताबक",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "पिछले 12 म्हीने",
     "request_quarter": "तिमाही {quarter}",

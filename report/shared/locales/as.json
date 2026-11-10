@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "নিট ফলাফল",
     "request_all_time": "সকলো সময়",
+    "request_by_month": "{name} মাহ অনুসৰি",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "যোৱা ১২ মাহ",
     "request_quarter": "Q{quarter}",

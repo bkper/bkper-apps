@@ -1,9 +1,12 @@
-import { withoutIsolates } from 'report-shared/bidi';
+import { isolate, withoutIsolates } from 'report-shared/bidi';
 import { addAllLocales } from 'report-shared/locales';
 import type { PeriodRequest } from 'report-shared/report-intent';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { extractHashtags } from '../../src/services/intent-resolver';
+import { findPromptNames } from '../../src/services/prompt-names';
 import { periodTexts, requestText } from '../../src/services/request-text';
 import { periodCombinations } from '../fixtures/period-combinations';
+import { fixtureSnapshot } from '../fixtures/snapshot-book';
 
 const LANGUAGES = ['en', 'pt', 'es', 'ja', 'ar'];
 const COMBINATIONS = periodCombinations('2026-11-09');
@@ -138,6 +141,37 @@ describe('request text', () => {
             expect(plain(requestText(request, 'Capital', 'en')), JSON.stringify(request)).toBe(
                 text
             );
+        }
+    });
+
+    it('says a report by month and its hashtag, which a request reads back', () => {
+        const thisYear: PeriodRequest = { period: { span: 'year', year: 'current' } };
+        expect(
+            plain(requestText({ ...thisYear, monthly: true, hashtags: ['travel'] }, 'Food', 'en'))
+        ).toBe('Food by month this year #travel');
+        for (const lang of LANGUAGES) {
+            const monthly = plain(requestText({ ...thisYear, monthly: true }, 'Food', lang));
+            expect(monthly, lang).not.toBe(plain(requestText(thisYear, 'Food', lang)));
+            expect(monthly, lang).toContain('Food');
+            const tagged = plain(requestText({ ...thisYear, hashtags: ['viagem'] }, 'Food', lang));
+            expect(extractHashtags(tagged), lang).toEqual(['viagem']);
+        }
+    });
+
+    it('writes names side by side apart from the words a list joins to them', async () => {
+        const snapshot = await fixtureSnapshot();
+        // Arabic and Thai join their "and" to the next word, where no name is found.
+        for (const lang of [...LANGUAGES, 'th', 'zh-CN', 'he', 'hi']) {
+            const title = new Intl.ListFormat(lang, { type: 'conjunction' }).format(
+                ['Expenses', 'Revenue'].map(isolate)
+            );
+            for (const monthly of [false, true]) {
+                const text = plain(requestText({ period: { span: 'now' }, monthly }, title, lang));
+                expect(
+                    findPromptNames(text, snapshot).map(name => name.name),
+                    `${lang}: ${text}`
+                ).toEqual(['Expenses', 'Revenue']);
+            }
         }
     });
 });

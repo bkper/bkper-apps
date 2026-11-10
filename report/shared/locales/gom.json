@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "निव्वळ निकाल",
     "request_all_time": "सगळो काळ",
+    "request_by_month": "{name} म्हयन्या प्रमाण",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "निमाणे 12 म्हयने",
     "request_quarter": "तिमाही {quarter}",

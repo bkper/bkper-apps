@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "លទ្ធផលសុទ្ធ",
     "request_all_time": "គ្រប់ពេលវេលា",
+    "request_by_month": "{name} តាមខែ",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "១២ ខែចុងក្រោយ",
     "request_quarter": "ត្រីមាសទី {quarter}",

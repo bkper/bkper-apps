@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "शुद्ध परिणाम",
     "request_all_time": "सभ समय",
+    "request_by_month": "{name} मास अनुसार",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "पछिला 12 मास",
     "request_quarter": "तिमाही {quarter}",

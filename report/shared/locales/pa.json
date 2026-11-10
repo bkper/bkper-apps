@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "ਸ਼ੁੱਧ ਨਤੀਜਾ",
     "request_all_time": "ਸਾਰਾ ਸਮਾਂ",
+    "request_by_month": "ਮਹੀਨੇ ਅਨੁਸਾਰ {name}",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "ਪਿਛਲੇ 12 ਮਹੀਨੇ",
     "request_quarter": "ਤਿਮਾਹੀ {quarter}",

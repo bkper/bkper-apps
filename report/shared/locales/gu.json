@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "ચોખ્ખું પરિણામ",
     "request_all_time": "સર્વ સમય",
+    "request_by_month": "{name} મહિના મુજબ",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "છેલ્લા 12 મહિના",
     "request_quarter": "Q{quarter}",

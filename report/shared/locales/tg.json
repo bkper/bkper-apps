@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Натиҷаи холис",
     "request_all_time": "тамоми давра",
+    "request_by_month": "{name} аз рӯи моҳ",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "12 моҳи охир",
     "request_quarter": "Чоряки {quarter}",

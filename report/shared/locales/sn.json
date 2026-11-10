@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Mhedzisiro yakachena",
     "request_all_time": "nguva yose",
+    "request_by_month": "{name} nemwedzi",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "mwedzi 12 yapfuura",
     "request_quarter": "Q{quarter}",

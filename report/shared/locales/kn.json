@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "ನಿವ್ವಳ ಫಲಿತಾಂಶ",
     "request_all_time": "ಎಲ್ಲಾ ಅವಧಿ",
+    "request_by_month": "{name} ತಿಂಗಳ ಪ್ರಕಾರ",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "ಕಳೆದ 12 ತಿಂಗಳು",
     "request_quarter": "ತ್ರೈಮಾಸಿಕ {quarter}",

@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Taunuuga mama",
     "request_all_time": "taimi uma",
+    "request_by_month": "{name} i masina taʻitasi",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "masina e 12 ua mavae",
     "request_quarter": "Q{quarter}",

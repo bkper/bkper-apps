@@ -396,7 +396,7 @@ describe('createReport by prompt', () => {
         expect(test.jevCalls).toBe(1);
         expect(result.intent).toEqual(intent('g-expenses', '2026-10'));
         expect(result.language).toBe('es');
-        expect(result.text).toBe('gastos en octubre');
+        expect(result.text).toBe('Expenses octubre de 2026');
         expect(test.options.timing.header()).toMatch(/^jev;dur=.*compute;dur=.*render;dur=/);
     });
 
@@ -573,7 +573,7 @@ describe('createReport by prompt', () => {
         expect(result.spec.elements.answer).toMatchObject({ props: { amount: '200.5' } });
         expect(result.query).toBe("account:'Food' on:2026-10 by:m");
         expect(result.trace).toMatchObject({ names: ['Food'] });
-        expect(result.text).toBe('quanto gastei com food em outubro');
+        expect(result.text).toBe('Food outubro de 2026');
     });
 
     it('shows the names a prompt writes side by side, each its own balance', async () => {

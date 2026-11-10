@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "ꯅꯦꯠ ꯔꯤꯖꯨꯂꯠ",
     "request_all_time": "ꯃꯇꯝ ꯄꯨꯝꯅꯃꯛ",
+    "request_by_month": "{name} ꯊꯥ ꯈꯨꯗꯝ ꯑꯣꯢꯅꯥ",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "ꯍꯧꯈꯤꯕ ꯊꯥ 12",
     "request_quarter": "Q{quarter}",

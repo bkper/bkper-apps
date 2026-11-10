@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Sof natija",
     "request_all_time": "butun davr",
+    "request_by_month": "{name} oylar bo‘yicha",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "so'nggi 12 oy",
     "request_quarter": "{quarter}-chorak",

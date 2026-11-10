@@ -273,6 +273,14 @@
             "compared": "the period it is compared with, already in the language, such as 2023, Q1 or the same period a year earlier"
         }
     },
+    "request_by_month": {
+        "text": "{name} by month",
+        "role": "label",
+        "context": "Part of the request a report stands for, written into the app's input when a report is opened from a link and sent to the decision model when the person edits it, so it must read as a person would type it. Write it as typed, lowercase where the language allows, no ending punctuation. A report shown month by month: what the report is of, then how it is shown, followed in the request by its period, as in Expenses by month this year or Expenses by month last 12 months. Write the words a person types to ask for amounts month by month, keeping the name apart from them with a space where the language allows.",
+        "placeholders": {
+            "name": "what the report is of: the name of a Group or Account of the Book, verbatim, the names of several Groups or Accounts joined as a list, or the translated words Net result"
+        }
+    },
     "notice_comparison_fallback": {
         "text": "The comparison asked for isn’t an earlier period of the same kind, so this compares with {period}.",
         "role": "message",

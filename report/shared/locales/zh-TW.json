@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "淨損益",
     "request_all_time": "所有時間",
+    "request_by_month": "{name} 按月",
     "request_in_year": "{year}{period}",
     "request_last_12_months": "過去 12 個月",
     "request_quarter": "第 {quarter} 季",

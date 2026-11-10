@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Net sonuç",
     "request_all_time": "tüm zamanlar",
+    "request_by_month": "Aylara göre {name}",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "son 12 ay",
     "request_quarter": "{quarter}. çeyrek",

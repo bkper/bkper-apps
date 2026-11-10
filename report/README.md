@@ -124,7 +124,7 @@ curl -X POST \
   "https://report.bkper.app/api/v1/books/<bookId>/report" > report.html
 ```
 
-To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI.
+To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt` to ask for the same report again.
 
 See the [OpenAPI specification](https://report.bkper.app/openapi.json) for every field, error and what to do about it.
 

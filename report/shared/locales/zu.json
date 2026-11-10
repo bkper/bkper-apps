@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Umphumela ohlanzekile",
     "request_all_time": "sonke isikhathi",
+    "request_by_month": "{name} ngenyanga",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "izinyanga ezingu-12 ezedlule",
     "request_quarter": "Q{quarter}",

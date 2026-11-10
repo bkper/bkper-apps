@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "खुद नतिजा",
     "request_all_time": "सबै समय",
+    "request_by_month": "{name} महिना अनुसार",
     "request_in_year": "{year} {period}",
     "request_last_12_months": "पछिल्लो 12 महिना",
     "request_quarter": "त्रैमासिक {quarter}",

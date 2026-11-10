@@ -86,6 +86,7 @@
     "report_document_title": "{report} · {book}",
     "report_net_result": "Nettoresultat",
     "request_all_time": "all tid",
+    "request_by_month": "{name} per månad",
     "request_in_year": "{period} {year}",
     "request_last_12_months": "senaste 12 månaderna",
     "request_quarter": "kvartal {quarter}",

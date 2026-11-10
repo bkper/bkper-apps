@@ -3,7 +3,7 @@
 
 id: report
 name: Report
-description: Ask in any language and see a financial report of your Book as you type, with a chart, a breakdown and a comparison. Read-only.
+description: Financial reports of your Book, from a request in any language. Read-only, with every number from Bkper.
 
 logoUrl: https://report.bkper.app/images/logo-light.svg
 logoUrlDark: https://report.bkper.app/images/logo-dark.svg

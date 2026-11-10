@@ -64,6 +64,7 @@
     "error_mixed_targets": "Isigaranira ry'umutungo cyangwa imyenda ntirishobora gushyirwa iruhande rw'amafaranga yinjiye cyangwa yasohotse. Ribaze muri raporo zitandukanye.",
     "error_no_activity_roots": "Iki gitabo cya konti nta matsinda y'inyungu cyangwa y'ibyakoreshejwe gifite ngo habarwe umusaruro nyirizina.",
     "error_no_net_result": "Iki Gitabo cya konti nta Itsinda gifite rihuriza hamwe inyungu n'ibiyikoreshwa. Ongeramo rimwe muri Bkper kugira ngo urebe umusaruro rusange.",
+    "error_query_not_a_report": "Hitamo itsinda cyangwa konti mu Gitabo cya konti kugira ngo urebe raporo yabyo.",
     "error_unexpected": "Hari ikitagenze neza. Ongera ugerageze.",
     "error_unknown_root": "Iryo tsinda si itsinda rikuru ry'iki Gitabo cya konti.",
     "error_unknown_target": "Iri tsinda cyangwa iyi konti ntibikiri aho iyi raporo yabisanze mu Gitabo cya konti.",

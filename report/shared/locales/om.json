@@ -64,6 +64,7 @@
     "error_mixed_targets": "Madaallii qabeenyaa yookaan liqaa galiiwwan yookaan baasiiwwan wajjin wal-qabatee argisiifamuu hin danda'u. Gabaasa adda addaatiin gaafadhu.",
     "error_no_activity_roots": "Kitaabni herregaa kun garee galii yookaan baasii bu'aa waliigalaaf hin qabu.",
     "error_no_net_result": "Kitaabni herregaa kun garee galii fi baasii walitti makuu hin qabu. Bu'aa isaa dhuma argachuuf Bkper keessatti tokko dabali.",
+    "error_query_not_a_report": "Gabaasa isaa ilaaluuf Kitaaba herregaa keessaa garee ykn herrega filadhu.",
     "error_unexpected": "Wanti tokko dogoggore. Irra deebi'ii yaali.",
     "error_unknown_root": "Garaan sun garee sadarkaa ol aanaa Kitaaba herregaa kanaa miti.",
     "error_unknown_target": "Garreen ykn herregni sun bakka gabaasni kun Kitaaba herregaa keessatti itti argate sanatti hin jiru.",

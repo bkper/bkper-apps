@@ -64,6 +64,7 @@
     "error_mixed_targets": "Zostatky aktív alebo záväzkov nemožno zobraziť vedľa príjmov alebo výdavkov. Vyžiadajte si ich v samostatných reportoch.",
     "error_no_activity_roots": "Táto Kniha nemá žiadne skupiny príjmov ani výdavkov na výpočet čistého výsledku.",
     "error_no_net_result": "Táto Kniha nemá skupinu, ktorá spája príjmy a výdavky. Pridajte ju v Bkper, aby ste videli čistý výsledok.",
+    "error_query_not_a_report": "Vyberte v Knihe skupinu alebo účet a zobrazte jeho prehľad.",
     "error_unexpected": "Niečo sa pokazilo. Skúste to znova.",
     "error_unknown_root": "Táto skupina nie je skupinou najvyššej úrovne tejto Knihy.",
     "error_unknown_target": "Táto skupina alebo tento účet už nie je tam, kde ich tento report našiel v Knihe.",

@@ -64,6 +64,7 @@
     "error_mixed_targets": "Varojen tai velkojen saldoja ei voi näyttää rinnakkain tulojen tai menojen kanssa. Pyydä ne erillisissä raporteissa.",
     "error_no_activity_roots": "Tässä Kirjassa ei ole tulo- tai menoryhmiä nettotulosta varten.",
     "error_no_net_result": "Tässä Kirjassa ei ole ryhmää, joka yhdistää tulot ja menot. Lisää sellainen Bkperissä nähdäksesi nettotuloksen.",
+    "error_query_not_a_report": "Valitse Kirjasta ryhmä tai tili nähdäksesi sen raportin.",
     "error_unexpected": "Jokin meni pieleen. Yritä uudelleen.",
     "error_unknown_root": "Tuo ryhmä ei ole tämän Kirjan ylimmän tason ryhmä.",
     "error_unknown_target": "Tuo ryhmä tai tili ei ole enää siellä, mistä tämä raportti sen Kirjasta löysi.",

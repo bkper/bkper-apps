@@ -64,6 +64,7 @@
     "error_mixed_targets": "Aktīvu vai saistību atlikumus nevar rādīt līdzās ienākumiem vai izdevumiem. Pieprasiet tos atsevišķos pārskatos.",
     "error_no_activity_roots": "Šajā grāmatā nav ieņēmumu vai izdevumu grupu neto rezultātam.",
     "error_no_net_result": "Šajā grāmatā nav grupas, kas apvieno ieņēmumus un izdevumus. Pievienojiet to Bkper, lai redzētu neto rezultātu.",
+    "error_query_not_a_report": "Izvēlieties grupu vai kontu Grāmatā, lai redzētu tā pārskatu.",
     "error_unexpected": "Radās kļūda. Mēģiniet vēlreiz.",
     "error_unknown_root": "Šī grupa nav šīs grāmatas augšējā līmeņa grupa.",
     "error_unknown_target": "Šī grupa vai konts vairs nav tur, kur šis pārskats to atrada Grāmatā.",

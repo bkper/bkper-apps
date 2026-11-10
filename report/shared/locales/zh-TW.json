@@ -64,6 +64,7 @@
     "error_mixed_targets": "資產或負債的餘額無法與收入或支出並列顯示。請分別在不同的報表中查詢。",
     "error_no_activity_roots": "此帳簿沒有可用於計算淨結果的收入或支出群組。",
     "error_no_net_result": "此帳簿沒有同時合併收入與支出的群組。請在 Bkper 中新增一個，以查看其淨結果。",
+    "error_query_not_a_report": "在帳簿中選擇一個群組或帳戶以查看其報表。",
     "error_unexpected": "發生錯誤,請再試一次。",
     "error_unknown_root": "該群組不是此帳簿的頂層群組。",
     "error_unknown_target": "此群組或帳戶已不在該報表於帳簿中找到它的位置。",

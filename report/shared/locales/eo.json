@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldoj de aktivoj aŭ pasivoj ne povas stari flanke de enspezoj aŭ elspezoj. Petu ilin en apartaj raportoj.",
     "error_no_activity_roots": "Ĉi tiu Libro ne havas grupojn de enspezoj aŭ elspezoj por neta rezulto.",
     "error_no_net_result": "Ĉi tiu Libro ne havas grupon, kiu kombinas enspezojn kaj elspezojn. Aldonu unu en Bkper por vidi ĝian netan rezulton.",
+    "error_query_not_a_report": "Elektu grupon aŭ konton en la Libro por vidi ĝian raporton.",
     "error_unexpected": "Io misfunkciis. Provu denove.",
     "error_unknown_root": "Tiu grupo ne estas supranivela grupo de ĉi tiu Libro.",
     "error_unknown_target": "Tiu grupo aŭ konto ne plu troviĝas tie, kie ĉi tiu raporto trovis ĝin en la Libro.",

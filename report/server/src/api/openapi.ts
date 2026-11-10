@@ -29,6 +29,10 @@ This one call is the whole task, and the deterministic route to the report: ever
 
 Activity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end. Balances may be up to 60 seconds old.
 
+## Report a Bkper query
+
+To report what a Book shows, send its Bkper query as \`query\` instead of \`prompt\`; a person's words always go as \`prompt\`. A query is read by fixed rules, with no AI, as Bkper's balances read it: its \`group:\` and \`account:\` names are what the report is of (several side by side, up to six), exactly one \`#hashtag\` filters it, and its \`after:\`, \`before:\` and \`on:\` dates become the smallest period of whole months that contains them (no dates: activity of all time, balances now). Everything else is left out. A query that names no group or Account of the Book answers 422 \`query_not_a_report\`.
+
 ## Saved prompts
 
 \`/api/v1/books/{bookId}/prompts\` is a Book-shared shelf of original prompts, not computed reports. \`GET\` lists \`prompts: [{ id, prompt }]\` in the shelf's order and fresh \`capabilities: { list, save, remove, move }\`. Every known non-\`NONE\` role may list, including \`RECORDER\`; only \`OWNER\` and \`EDITOR\` may save, remove or move. \`POST\` accepts exactly \`{ "prompt": "…" }\` and returns the saved \`{ id, prompt }\` (200), a new prompt last and one saved again in its place; \`DELETE /api/v1/books/{bookId}/prompts/{promptId}\` returns 204, including when absent; \`PUT /api/v1/books/{bookId}/prompts/{promptId}/position\` accepts exactly \`{ "before": "<id>" | null }\` (\`null\`: the end) and returns the whole shelf in its new order, as \`GET\` does (404 \`prompt_not_found\`, 409 \`shelf_changed\` when \`before\` is gone: list again). All three are idempotent for identical input.

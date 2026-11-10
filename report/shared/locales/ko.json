@@ -64,6 +64,7 @@
     "error_mixed_targets": "자산이나 부채의 잔액은 수입이나 지출과 나란히 볼 수 없어요. 별도의 보고서로 요청해 주세요.",
     "error_no_activity_roots": "이 장부에는 순결과를 계산할 수입 또는 지출 그룹이 없어요.",
     "error_no_net_result": "이 장부에는 수입과 지출을 합친 그룹이 없어요. 순결과를 보려면 Bkper에서 그룹을 추가해 주세요.",
+    "error_query_not_a_report": "보고서를 보려면 장부에서 그룹 또는 계정을 선택해 주세요.",
     "error_unexpected": "문제가 발생했어요. 다시 시도해 주세요.",
     "error_unknown_root": "해당 그룹은 이 장부의 최상위 그룹이 아니에요.",
     "error_unknown_target": "이 그룹 또는 계정이 장부에서 이 보고서가 찾았던 위치에 더 이상 없어요.",

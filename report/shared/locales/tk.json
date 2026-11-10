@@ -64,6 +64,7 @@
     "error_mixed_targets": "Aktiwleriň ýa-da jogapkärçilikleriň galyndysyny girdeji ýa-da çykdajylar bilen ýanaşyk görkezmek mümkin däl. Olary aýry hasabatlarda soraň.",
     "error_no_activity_roots": "Bu hasap kitabynda arassa netije üçin girdeji ýa-da çykdajy toparlary ýok.",
     "error_no_net_result": "Bu hasap kitabynda girdejini we çykdajylary birleşdirýän topar ýok. Arassa netijäni görmek üçin Bkper-de bir topar goşuň.",
+    "error_query_not_a_report": "Hasabatyny görmek üçin Hasap kitabynda topar ýa-da hasap saýlaň.",
     "error_unexpected": "Nämedir ýalňyşlyk boldy. Gaýtadan synanyşyň.",
     "error_unknown_root": "Bu topar şu Hasap kitabynyň iň ýokary derejeli topary däl.",
     "error_unknown_target": "Bu topar ýa-da hasap bu hasabatyň Hasap kitabynda tapan ýerinde indi ýok.",

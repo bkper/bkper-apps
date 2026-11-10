@@ -64,6 +64,7 @@
     "error_mixed_targets": "Solde ya biloko to modette ekoki te kozala vandi na vandi na bingumba to mikolo. Senga yango na rapɔ ya bokeseni.",
     "error_no_activity_roots": "Buku ya kontabilité oyo ezali na lisanga ya mozwi to ya mbongo ebimaka te mpo na rezilta nete.",
     "error_no_net_result": "Buku oyo ezali na lisanga te oyo ekangisi mbongo ekɔtaka na oyo ewutaka. Bakisa moko na Bkper po omona ndenge esali nɛti.",
+    "error_query_not_a_report": "Pona lisanga to kont na Buku ya kontabilité mpo na komona lapɔ na yango.",
     "error_unexpected": "Likambo moko ekómaki mabe. Meka lisusu.",
     "error_unknown_root": "Lisanga yango ezali lisanga ya likoló ya Buku ya kontabilité oyo te.",
     "error_unknown_target": "Lisanga to kont yango ezali lisusu te esika lapɔ yango ekutaki yango na Buku ya kontabilité.",

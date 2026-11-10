@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldo aset atau liabilitas tidak dapat disandingkan dengan pendapatan atau beban. Minta dalam laporan terpisah.",
     "error_no_activity_roots": "Buku ini tidak memiliki grup pendapatan atau beban untuk hasil bersih.",
     "error_no_net_result": "Buku ini tidak memiliki grup yang menggabungkan pendapatan dan beban. Tambahkan satu di Bkper untuk melihat hasil bersihnya.",
+    "error_query_not_a_report": "Pilih grup atau akun di Buku untuk melihat laporannya.",
     "error_unexpected": "Terjadi kesalahan. Coba lagi.",
     "error_unknown_root": "Grup itu bukan grup tingkat teratas dari Buku ini.",
     "error_unknown_target": "Grup atau akun itu tidak lagi berada di tempat laporan ini menemukannya di Buku.",

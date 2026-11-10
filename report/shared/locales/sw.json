@@ -64,6 +64,7 @@
     "error_mixed_targets": "Salio za mali au madeni haziwezi kuwekwa pamoja na mapato au matumizi. Ziombe katika ripoti tofauti.",
     "error_no_activity_roots": "Daftari hili halina vikundi vya mapato au gharama kwa ajili ya matokeo halisi.",
     "error_no_net_result": "Daftari hili halina kundi linalounganisha mapato na matumizi. Ongeza moja katika Bkper ili uone matokeo halisi.",
+    "error_query_not_a_report": "Chagua kundi au akaunti katika Daftari ili kuona ripoti yake.",
     "error_unexpected": "Kuna hitilafu imetokea. Jaribu tena.",
     "error_unknown_root": "Kundi hilo si kundi la ngazi ya juu la Daftari hili.",
     "error_unknown_target": "Kundi au akaunti hii haipo tena mahali ripoti hii ilipoipata katika Daftari.",

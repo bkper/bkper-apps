@@ -89,9 +89,15 @@ export function findPromptNames(prompt: string, snapshot: Snapshot): PromptName[
             chosen.push(candidate);
         }
     }
-    const named = chosen.slice(0, MAX_NAMED);
+    return placeNames(chosen.slice(0, MAX_NAMED));
+}
 
-    // Roots that names of the request can only be read from.
+/**
+ * Groups and accounts named together, each under its root: a group's, or, for an account under
+ * several roots, one that another of the names can only be under, else the first in Book order.
+ */
+export function placeNames(named: MapName[]): PromptName[] {
+    // Roots that the names can only be read from.
     const namedRoots = new Set(
         named.filter(candidate => candidate.roots.length === 1).map(({ roots }) => roots[0])
     );

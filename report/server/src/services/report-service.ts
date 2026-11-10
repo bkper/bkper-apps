@@ -1,7 +1,8 @@
 /**
- * Builds a report of a Book: by intent, or by a request in any language that one decision
- * request, whose options come from the Book snapshot (its map), turns into an intent. A
- * request of exactly one of the Book's suggestions is its intent, with no decision.
+ * Builds a report of a Book: by intent, by a request in any language that one decision
+ * request, whose options come from the Book snapshot (its map), turns into an intent, or by a
+ * Bkper query, read by rules with no decision (`query-intent.ts`). A request of exactly one of
+ * the Book's suggestions is its intent, with no decision.
  *
  * The intent names the report's balances queries (its period and the previous one, per
  * root), which run in parallel; every amount of the report comes from their responses. A
@@ -32,6 +33,7 @@ import {
     type ReportData,
     type ViewKind,
 } from './report.js';
+import { queryIntent } from './query-intent.js';
 import { reportIntentOf, type ReportIntent, type ReportIntentInput } from './report-intent.js';
 import { buildReportSpec } from './report-spec.js';
 import type { Snapshot } from './snapshot.js';
@@ -42,12 +44,14 @@ import type { Timing } from './timing.js';
 export const DEFAULT_LANGUAGE = 'en';
 
 /**
- * A report request: a text in any language, as the API takes it, or, within the Worker and its
- * scripts, an intent, such as a suggestion's, its period as parts or as a period id; and the
- * chart to show when it fits, over the one the request names. How to show a report is not what
- * it is.
+ * A report request: a text in any language or a Bkper query, as the API takes them, or, within
+ * the Worker and its scripts, an intent, such as a suggestion's, its period as parts or as a
+ * period id; and the chart to show when it fits, over the one the request names. How to show a
+ * report is not what it is.
  */
-export type ReportRequest = ({ prompt: string } | { intent: ReportIntentInput }) & {
+export type ReportRequest = (
+    { prompt: string } | { query: string } | { intent: ReportIntentInput }
+) & {
     chart?: ChartPreference;
 };
 
@@ -147,6 +151,8 @@ export async function createReport(
             : undefined;
     if ('intent' in request) {
         intent = reportIntentOf(request.intent);
+    } else if ('query' in request) {
+        intent = queryIntent(request.query, snapshot);
     } else if (suggestion) {
         intent = suggestion.intent;
         detected = suggested;

@@ -64,6 +64,7 @@
     "error_mixed_targets": "Hindi maaaring ipakita nang magkatabi ang mga balanse ng asset o pananagutan at ang kita o gastos. Hilingin ang mga ito sa magkakahiwalay na ulat.",
     "error_no_activity_roots": "Walang income o expense na Grupo ang Ledger na ito para sa net result.",
     "error_no_net_result": "Walang Grupo ang Ledger na ito na pinagsasama ang kita at gastos. Magdagdag ng isa sa Bkper para makita ang net result nito.",
+    "error_query_not_a_report": "Pumili ng Grupo o account sa Ledger para makita ang ulat nito.",
     "error_unexpected": "May nangyaring mali. Subukan mo ulit.",
     "error_unknown_root": "Hindi top-level na Grupo ng Ledger na ito ang grupong iyon.",
     "error_unknown_target": "Wala na ang group o account na ito kung saan ito nakita ng report na ito sa Ledger.",

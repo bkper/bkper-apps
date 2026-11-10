@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldos de ativos ou passivos não podem ficar lado a lado com receitas ou despesas. Peça-os em relatórios separados.",
     "error_no_activity_roots": "Este Livro não tem grupos de receitas ou despesas para um resultado líquido.",
     "error_no_net_result": "Este Livro não tem nenhum Grupo que combine receitas e despesas. Adicione um no Bkper para ver o resultado líquido.",
+    "error_query_not_a_report": "Escolha um grupo ou uma conta no Livro para ver o relatório.",
     "error_unexpected": "Algo deu errado. Tente novamente.",
     "error_unknown_root": "Esse grupo não é um grupo de nível superior deste Livro.",
     "error_unknown_target": "Esse grupo ou essa conta não está mais onde este relatório os encontrou no Livro.",

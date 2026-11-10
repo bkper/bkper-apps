@@ -64,6 +64,7 @@
     "error_mixed_targets": "Hadhaagga hantida ama deymaha lama soo bandhigi karo isku mar dakhliga ama kharashyada. Ku weydii warbixinno kala duwan.",
     "error_no_activity_roots": "Buug xisaabtan kani ma laha kooxo akoonno dakhli ama kharash ah oo loogu talagalay natiijo saafi ah.",
     "error_no_net_result": "Buugan xisaabta ma laha Kooxda akoonnada oo isku daraysa dakhliga iyo kharashyada. Ku dar mid Bkper si aad u aragto natiijada saafiga ah.",
+    "error_query_not_a_report": "Dooro koox ama akoon ku jira Buugga xisaabta si aad u aragto warbixinteeda.",
     "error_unexpected": "Wax qalad ah ayaa dhacay. Mar kale isku day.",
     "error_unknown_root": "Kooxdaas ma aha kooxda heerka ugu sarreeya ee Buug xisaabkan.",
     "error_unknown_target": "Kooxdan ama akoonkan hadda ma jiro meeshii warbixintan ku heshay Buugga xisaabta.",

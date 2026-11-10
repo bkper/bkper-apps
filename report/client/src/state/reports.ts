@@ -33,6 +33,7 @@ export type Notice = Extract<StringKey, 'hint_not_a_report' | `error_${string}`>
 /** The notice of each API error code; any other failure is `error_unexpected`. */
 const NOTICES: Partial<Record<string, Notice>> = {
     not_a_report: 'hint_not_a_report',
+    query_not_a_report: 'error_query_not_a_report',
     ai_allowance_exhausted: 'error_ai_allowance_exhausted',
     book_not_found: 'error_book_not_found',
     forbidden: 'error_forbidden',

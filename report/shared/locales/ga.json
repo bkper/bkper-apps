@@ -64,6 +64,7 @@
     "error_mixed_targets": "Ní féidir iarmhéideanna sócmhainní nó dliteanais a chur taobh le hioncam nó caiteachas. Iarr iad i dtuarascálacha ar leith.",
     "error_no_activity_roots": "Níl aon ghrúpa ioncaim ná costas sa Leabhar cuntas seo le haghaidh toradh glan.",
     "error_no_net_result": "Níl aon ghrúpa sa Leabhar cuntas seo a chomhcheanglaíonn ioncam agus costais. Cuir ceann leis in Bkper chun an toradh glan a fheiceáil.",
+    "error_query_not_a_report": "Roghnaigh grúpa nó cuntas sa Leabhar cuntas chun a thuarascáil a fheiceáil.",
     "error_unexpected": "Chuaigh rud éigin cearr. Bain triail eile as.",
     "error_unknown_root": "Ní grúpa uachtarach den Leabhar cuntas seo an grúpa sin.",
     "error_unknown_target": "Níl an grúpa nó an cuntas sin san áit inar aimsigh an tuarascáil seo é sa Leabhar cuntas a thuilleadh.",

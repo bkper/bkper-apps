@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldi for aktiver eller passiver kan ikke stå side om side med indtægter eller udgifter. Bed om dem i separate rapporter.",
     "error_no_activity_roots": "Dette Regnskab har ingen indtægts- eller udgiftsgrupper til et nettoresultat.",
     "error_no_net_result": "Dette Regnskab har ingen gruppe, der kombinerer indtægter og udgifter. Tilføj en i Bkper for at se nettoresultatet.",
+    "error_query_not_a_report": "Vælg en gruppe eller konto i Regnskabet for at se dens rapport.",
     "error_unexpected": "Noget gik galt. Prøv igen.",
     "error_unknown_root": "Den gruppe er ikke en topgruppe i dette Regnskab.",
     "error_unknown_target": "Den gruppe eller konto er ikke længere dér, hvor denne rapport fandt den i Regnskabet.",

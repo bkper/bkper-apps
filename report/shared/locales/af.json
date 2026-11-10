@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldo's van bates of laste kan nie langs inkomste of uitgawes gewys word nie. Vra hulle in afsonderlike verslae.",
     "error_no_activity_roots": "Hierdie Boek het geen inkomste- of uitgawegroepe vir 'n netto resultaat nie.",
     "error_no_net_result": "Hierdie Boek het geen groep wat inkomste en uitgawes kombineer nie. Voeg een in Bkper by om die netto resultaat te sien.",
+    "error_query_not_a_report": "Kies 'n groep of rekening in die Boek om sy verslag te sien.",
     "error_unexpected": "Iets het skeefgeloop. Probeer weer.",
     "error_unknown_root": "Daardie groep is nie 'n topvlak-groep van hierdie Boek nie.",
     "error_unknown_target": "Daardie groep of rekening is nie meer waar hierdie verslag dit in die Boek gevind het nie.",

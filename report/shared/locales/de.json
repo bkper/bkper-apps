@@ -64,6 +64,7 @@
     "error_mixed_targets": "Salden von Vermögenswerten oder Verbindlichkeiten können nicht neben Erträgen oder Aufwendungen stehen. Fordern Sie sie in separaten Berichten an.",
     "error_no_activity_roots": "Dieses Buch hat keine Einnahmen- oder Ausgabengruppen für ein Nettoergebnis.",
     "error_no_net_result": "Dieses Buch hat keine Gruppe, die Einnahmen und Ausgaben zusammenfasst. Fügen Sie in Bkper eine hinzu, um das Nettoergebnis zu sehen.",
+    "error_query_not_a_report": "Wählen Sie eine Gruppe oder ein Konto im Buch, um den Bericht zu sehen.",
     "error_unexpected": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
     "error_unknown_root": "Diese Gruppe ist keine oberste Gruppe dieses Buchs.",
     "error_unknown_target": "Diese Gruppe oder dieses Konto befindet sich nicht mehr dort, wo dieser Bericht sie im Buch gefunden hat.",

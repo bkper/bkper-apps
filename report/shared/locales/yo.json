@@ -64,6 +64,7 @@
     "error_mixed_targets": "Ìyókù àwọn ohun-ìní tàbí gbèsè kò lè wà lẹ́gbẹ̀ẹ́ owó tó wọlé tàbí ìnáwó. Ẹ béèrè wọn nínú àwọn ìròyìn tó yàtọ̀.",
     "error_no_activity_roots": "Ìwé ìṣirò yìí kò ní ẹgbẹ́ owó tí ń wọlé tàbí owó ìnáwó fún èsì àpapọ̀.",
     "error_no_net_result": "Ìwé ìṣirò yìí kò ní Ẹgbẹ́ kan tó para pọ̀ owó tí ń wọlé àti owó tí ń jáde. Ẹ fi ọ̀kan kún un nínú Bkper kí ẹ lè rí èsì àpapọ̀ rẹ̀.",
+    "error_query_not_a_report": "Ẹ yan Ẹgbẹ́ tàbí Àkántì kan nínú Ìwé ìṣirò láti rí ìròyìn rẹ̀.",
     "error_unexpected": "Nǹkan kan ṣẹlẹ̀ tí kò tọ́. Ẹ gbìyànjú lẹ́ẹ̀kan sí i.",
     "error_unknown_root": "Ẹgbẹ́ yẹn kì í ṣe ẹgbẹ́ ipele àkọ́kọ́ ti Ìwé ìṣirò yìí.",
     "error_unknown_target": "Ẹgbẹ́ tàbí Àkántì yìí kò sí níbi tí ìròyìn yìí ti rí i nínú Ìwé ìṣirò mọ́.",

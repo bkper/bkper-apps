@@ -64,6 +64,7 @@
     "error_mixed_targets": "I saldi di attività o passività non possono essere affiancati a entrate o uscite. Richiedili in report separati.",
     "error_no_activity_roots": "Questo libro contabile non ha gruppi di entrate o uscite per un risultato netto.",
     "error_no_net_result": "Questo libro contabile non ha un gruppo che combini entrate e uscite. Aggiungine uno in Bkper per vedere il suo risultato netto.",
+    "error_query_not_a_report": "Scegli un gruppo o un conto nel Libro contabile per vederne il report.",
     "error_unexpected": "Qualcosa è andato storto. Riprova.",
     "error_unknown_root": "Quel gruppo non è un gruppo di primo livello di questo libro contabile.",
     "error_unknown_target": "Quel gruppo o conto non si trova più dove questo report lo aveva trovato nel Libro contabile.",

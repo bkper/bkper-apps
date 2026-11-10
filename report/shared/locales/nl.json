@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldi van activa of passiva kunnen niet naast inkomsten of uitgaven staan. Vraag ze op in aparte rapporten.",
     "error_no_activity_roots": "Dit boek heeft geen inkomsten- of uitgavengroepen voor een nettoresultaat.",
     "error_no_net_result": "Dit Boek heeft geen groep die inkomsten en uitgaven combineert. Voeg er een toe in Bkper om het nettoresultaat te zien.",
+    "error_query_not_a_report": "Kies een groep of rekening in het Boek om het rapport ervan te zien.",
     "error_unexpected": "Er is iets misgegaan. Probeer het opnieuw.",
     "error_unknown_root": "Die groep is geen hoofdgroep van dit boek.",
     "error_unknown_target": "Die groep of rekening staat niet meer waar dit rapport hem in het Boek had gevonden.",

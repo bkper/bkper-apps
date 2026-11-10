@@ -64,6 +64,7 @@
     "error_mixed_targets": "Chan urrainnear cothromachadh maoin no uallaichean a shealltainn ri taobh teachd-a-steach no cosgaisean. Iarr iad ann an aithisgean air leth.",
     "error_no_activity_roots": "Chan eil buidheann teachd-a-steach no cosgais sa Leabhar-cunntais seo airson toradh lom.",
     "error_no_net_result": "Chan eil buidheann sam bith aig an Leabhar-cunntais seo a cho-cheanglas teachd-a-steach is cosgaisean. Cuir fear ann am Bkper gus an toradh lom fhaicinn.",
+    "error_query_not_a_report": "Tagh buidheann no cunntas san Leabhar-cunntais gus an aithisg aige fhaicinn.",
     "error_unexpected": "Chaidh rudeigin cearr. Feuch a-rithist e.",
     "error_unknown_root": "Chan e buidheann àrd-ìre dhen Leabhar-chunntais seo a th' anns a' bhuidheann sin.",
     "error_unknown_target": "Chan eil a' bhuidheann no an cunntas sin ann far an d' lorg an aithisg seo e san Leabhar-cunntais tuilleadh.",

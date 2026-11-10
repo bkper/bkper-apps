@@ -789,6 +789,77 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
     });
 
+    it('builds the report of a Bkper query by rules, with no Bkper AI', async () => {
+        const test = harness();
+        const response = await post(test, {
+            query: "(account:'Food' OR account:'Rent') #trip #other amount>5 after:01/10/2026 before:01/11/2026",
+            language: 'en',
+        });
+
+        expect(response.status).toBe(200);
+        expect(test.jevCalls).toBe(0);
+        expect(test.rankings).toBe(0);
+        const body = (await response.json()) as { spec: ReportSpec } & Record<string, unknown>;
+        // Side by side, of October as written; two hashtags filter nothing, as in Bkper.
+        expect(body).toMatchObject({
+            query: "(account:'Food' OR account:'Rent') on:2026-10 by:m",
+            text: 'Food and Rent October 2026',
+            url: `https://report.bkper.app/?book=${BOOK}&q=Food+and+Rent+October+2026`,
+        });
+        const answers = Object.values(body.spec.elements).flatMap(element =>
+            element.type === 'Answer' ? [[element.props.label, element.props.amount]] : []
+        );
+        expect(answers).toEqual([
+            ['Food', '200.5'],
+            ['Rent', '1000'],
+        ]);
+        expect(test.queries).toEqual([
+            "group:'Expenses' on:2026-10 by:m",
+            "group:'Expenses' on:2026-09 by:m",
+        ]);
+    });
+
+    it('reads one hashtag of a query, its relative dates and the chart asked for', async () => {
+        const test = harness();
+        const response = await post(test, {
+            query: "group:'Expenses' #trip after:$m-1",
+            chart: 'pie',
+            language: 'en',
+        });
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+            // The current quarter, which Bkper has no variable for.
+            query: "group:'Expenses' #trip after:2026-10 before:2026-12 by:m",
+            text: 'Expenses this quarter #trip',
+            chart: { asked: 'pie' },
+        });
+    });
+
+    it('answers a query that names no group or Account of the Book with query_not_a_report', async () => {
+        const test = harness();
+        for (const query of ['after:01/10/2026 #trip', "group:'Nope' is:checked"]) {
+            const response = await post(test, { query });
+
+            expect(response.status).toBe(422);
+            const body = await response.json();
+            expect(body).toMatchObject({ error: { code: 'query_not_a_report' } });
+            expect(JSON.stringify(body)).not.toContain('Nope');
+        }
+        expect(test.jevCalls).toBe(0);
+        expect(test.queries).toEqual([]);
+    });
+
+    it('takes exactly one of a prompt or a query', async () => {
+        const test = harness();
+        for (const body of [{}, { prompt: 'expenses', query: "group:'Expenses'" }]) {
+            const response = await post(test, body);
+
+            expect(response.status).toBe(400);
+            expect(await response.json()).toMatchObject({ error: { code: 'invalid_request' } });
+        }
+    });
+
     it('builds a report of an account in no group with a query of its own', async () => {
         const test = harness({ jev: { root: 'Assets', period: 'today' } });
         const response = await post(test, { prompt: 'Owner now' });

@@ -4,7 +4,7 @@ import { supportedLanguage } from 'report-shared/languages';
 import { REPORT_CHARTS } from 'report-shared/report-intent';
 import type { ZodType } from 'zod';
 import { CHART_KINDS } from '../services/report.js';
-import { ReportPromptSchema } from '../services/report-prompt.js';
+import { ReportPromptSchema, ReportQuerySchema } from '../services/report-prompt.js';
 
 const JSON_CONTENT_TYPE = 'application/json';
 
@@ -33,6 +33,7 @@ export const ErrorResponseSchema = z
                         '`not_found` (404, no such API route),',
                         '`book_not_found` (404, no such Book, or not shared with the person),',
                         '`not_a_report` (422, the request names nothing this Book can report: ask for a root group or income versus expenses with a period, or send a suggestion),',
+                        '`query_not_a_report` (422, the `query` names no group or Account of the Book),',
                         '`future_period` (422, the period has not started),',
                         '`mixed_targets` (422, the groups or Accounts the prompt names side by side mix balances at a date, Asset and Liability, with activity in a period, Incoming and Outgoing: ask for them in separate reports),',
                         '`no_net_result` (422, the Book has no net result: no group combines its Incoming and Outgoing groups, or its activity groups share Accounts; organizing its groups fixes it),',
@@ -224,10 +225,15 @@ export const BookNamesResponseSchema = z
 
 export const ReportRequestSchema = z
     .strictObject({
-        prompt: ReportPromptSchema.openapi({
+        prompt: ReportPromptSchema.optional().openapi({
             description:
                 'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none.',
             example: 'show my expenses by category this year',
+        }),
+        query: ReportQuerySchema.optional().openapi({
+            description:
+                'Instead of `prompt`: a Bkper query, such as the one a Book shows its transactions with, read by fixed rules, with no AI, as Bkper’s balances read it. Its `group:` and `account:` names (case and accents aside) are what the report is of, several side by side (up to six, the first found); names the Book does not have are left out, and with none the answer is 422 `query_not_a_report`. Exactly one `#hashtag` filters the report (Bkper ignores two or more, and so does the report). Its `after:`, `before:` and `on:` dates, in the Book’s date format, ISO or as Bkper’s `$d`, `$m` and `$y` variables, become the smallest period of whole months a report has that contains them (a month, a quarter, a year, the last 12 months or all time; a balance at the end of the dates, or now); with no dates, a balance now and activity of all time. Everything else (amounts, text, `is:`) is left out.',
+            example: "group:'Expenses' after:01/01/2026 before:01/04/2026",
         }),
         chart: z.enum(REPORT_CHARTS).optional().openapi({
             description:
@@ -244,9 +250,13 @@ export const ReportRequestSchema = z
             example: 'html',
         }),
     })
+    .refine(body => (body.prompt === undefined) !== (body.query === undefined), {
+        message: 'Expected exactly one of prompt or query',
+        path: ['prompt'],
+    })
     .openapi('ReportRequest', {
         description:
-            'A `prompt`: the person’s request, in any language, or a suggestion’s or a report’s own `text`. Usually `{ "prompt": "…", "format": "html" }`.',
+            'Exactly one of `prompt` (the person’s request, in any language, or a suggestion’s or a report’s own `text`) or `query` (a Bkper query). Usually `{ "prompt": "…", "format": "html" }`.',
     });
 
 export type ReportRequestBody = z.infer<typeof ReportRequestSchema>;

@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldoe vun Aktiver oder Passiver kënnen net niewend Akommes oder Ausgabe stoen. Frot se a getrennte Rapporte un.",
     "error_no_activity_roots": "Dëst Buch huet keng Akommes- oder Ausgabegruppen fir en Nettoresultat.",
     "error_no_net_result": "Dëst Buch huet keng Grupp, déi Akommes an Ausgaben kombinéiert. Füg eng am Bkper derbäi, fir säin Nettoresultat ze gesinn.",
+    "error_query_not_a_report": "Wiel eng Grupp oder e Konto am Buch, fir säi Rapport ze gesinn.",
     "error_unexpected": "Et ass eppes schiefgaang. Probéier nach eng Kéier.",
     "error_unknown_root": "Dee Grupp ass kee Grupp vun der éischter Ebene vun dësem Buch.",
     "error_unknown_target": "Dee Grupp oder dee Konto ass net méi do, wou dëse Rapport en am Buch fonnt huet.",

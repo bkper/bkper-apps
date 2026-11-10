@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldo imovine ili obveza ne može biti uz prihode ili rashode. Zatraži ih u odvojenim izvješćima.",
     "error_no_activity_roots": "Ova knjiga nema grupe prihoda ili rashoda za neto rezultat.",
     "error_no_net_result": "Ova knjiga nema grupu koja kombinira prihode i rashode. Dodaj je u Bkperu da vidiš njezin neto rezultat.",
+    "error_query_not_a_report": "Odaberi grupu ili račun u Knjizi da vidiš njegovo izvješće.",
     "error_unexpected": "Nešto je pošlo po zlu. Pokušaj ponovo.",
     "error_unknown_root": "Ta grupa nije grupa najviše razine u ovoj knjizi.",
     "error_unknown_target": "Ta grupa ili račun više nije na mjestu na kojem ga je ovo izvješće pronašlo u Knjizi.",

@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldon för tillgångar eller skulder kan inte visas sida vid sida med intäkter eller utgifter. Be om dem i separata rapporter.",
     "error_no_activity_roots": "Den här Boken har inga intäkts- eller kostnadsgrupper för ett nettoresultat.",
     "error_no_net_result": "Den här Boken har ingen grupp som kombinerar intäkter och kostnader. Lägg till en i Bkper för att se nettoresultatet.",
+    "error_query_not_a_report": "Välj en grupp eller ett konto i Boken för att se dess rapport.",
     "error_unexpected": "Något gick fel. Försök igen.",
     "error_unknown_root": "Den gruppen är inte en toppnivågrupp i den här Boken.",
     "error_unknown_target": "Den här gruppen eller det här kontot finns inte längre där rapporten hittade det i Boken.",

@@ -64,6 +64,7 @@
     "error_mixed_targets": "Saldoer for eiendeler eller gjeld kan ikke stå side om side med inntekter eller utgifter. Be om dem i separate rapporter.",
     "error_no_activity_roots": "Denne regnskapsboken har ingen inntekts- eller utgiftsgrupper for et nettoresultat.",
     "error_no_net_result": "Denne regnskapsboken har ingen gruppe som kombinerer inntekter og utgifter. Legg til en i Bkper for å se nettoresultatet.",
+    "error_query_not_a_report": "Velg en gruppe eller konto i Regnskapsboken for å se rapporten.",
     "error_unexpected": "Noe gikk galt. Prøv igjen.",
     "error_unknown_root": "Den gruppen er ikke en toppnivågruppe i denne regnskapsboken.",
     "error_unknown_target": "Den gruppen eller kontoen er ikke lenger der denne rapporten fant den i regnskapsboken.",

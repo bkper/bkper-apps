@@ -64,6 +64,7 @@
     "error_mixed_targets": "Số dư của tài sản hoặc nợ phải trả không thể hiển thị cạnh thu nhập hoặc chi phí. Hãy yêu cầu chúng trong các báo cáo riêng.",
     "error_no_activity_roots": "Sổ cái này không có nhóm thu nhập hoặc chi phí nào để tính kết quả ròng.",
     "error_no_net_result": "Sổ cái này không có nhóm nào kết hợp thu nhập và chi phí. Hãy thêm một nhóm trong Bkper để xem kết quả ròng.",
+    "error_query_not_a_report": "Hãy chọn một nhóm hoặc tài khoản trong Sổ cái để xem báo cáo của nó.",
     "error_unexpected": "Đã xảy ra lỗi. Hãy thử lại.",
     "error_unknown_root": "Nhóm đó không phải là nhóm cấp cao nhất của Sổ cái này.",
     "error_unknown_target": "Nhóm hoặc tài khoản này không còn ở nơi báo cáo này tìm thấy nó trong Sổ cái.",

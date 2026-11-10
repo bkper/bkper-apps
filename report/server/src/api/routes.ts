@@ -88,13 +88,15 @@ const reportRoute = createRoute({
     method: 'post',
     path: '/api/v1/books/{bookId}/report',
     tags: ['Reports'],
-    summary: 'Build a financial report of a Book from a request in any language',
+    summary: 'Build a financial report of a Book from a request in any language or a query',
     description: [
         'Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for one `#hashtag`. Read-only: the Book is never changed.',
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
         'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.',
+        '',
+        'To follow what a Book shows, send its Bkper query as `query` instead of `prompt`: it is read by fixed rules, with no AI (its groups and Accounts, one hashtag, and its dates as the smallest period that contains them), and a query that names no group or Account answers `query_not_a_report`.',
         '',
         'Every amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.',
     ].join('\n'),
@@ -115,7 +117,7 @@ const reportRoute = createRoute({
             },
         },
         422: jsonResponse(
-            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a period that has not started (`future_period`), groups or Accounts side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions',
+            'Not a report this Book can have (`not_a_report`, with `suggestions` to offer instead), a `query` that names no group or Account of the Book (`query_not_a_report`), a period that has not started (`future_period`), groups or Accounts side by side that mix balances with activity (`mixed_targets`), a net result the Book does not have (`no_net_result`: no group combines its Incoming and Outgoing groups, or they share Accounts), a group that mixes balances with activity (`mixed_group`), or a Book with no reports at all (`empty_book`: no transactions yet; `nothing_to_report`: no groups to report on). The last four carry `problem`: what is involved and whether the person may organize the Book’s groups (`canOrganize`), which fixes all but `empty_book`; offer it, changing groups only, never transactions',
             ReportErrorResponseSchema
         ),
         429: jsonResponse(
@@ -252,9 +254,11 @@ export function registerApiRoutes(app: App): void {
         const { bookId } = c.req.valid('param');
         const body = c.req.valid('json');
         const { snapshot, userId } = await readableSnapshot(context, bookId);
+        const asked =
+            body.query === undefined ? { prompt: body.prompt ?? '' } : { query: body.query };
         const report = await createReport(
             snapshot,
-            { prompt: body.prompt, ...(body.chart ? { chart: body.chart } : {}) },
+            { ...asked, ...(body.chart ? { chart: body.chart } : {}) },
             {
                 requested: body.language && supportedLanguage(body.language),
                 accepted: acceptedLanguage(c.req.header('Accept-Language')),
@@ -266,8 +270,8 @@ export function registerApiRoutes(app: App): void {
                 cache: context.env.KV,
             }
         );
-        // The link keeps the person's own words.
-        const url = reportAppUrl(c.req.url, bookId, body.prompt);
+        // The link keeps the person's own words; a query's report, its own text.
+        const url = reportAppUrl(c.req.url, bookId, body.prompt ?? report.text);
         if (body.format === 'html') {
             const open = reportFileOpen(bookId, {
                 text: report.text,

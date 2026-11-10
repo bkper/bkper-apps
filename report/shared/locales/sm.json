@@ -64,6 +64,7 @@
     "error_mixed_targets": "E le mafai ona tuʻufaʻatasia le totogi totoe o aseta po o noataga ma tupe maua po o tupe faʻaalu.Ole atu iai i lipoti eseese.",
     "error_no_activity_roots": "E leai ni vaega o tupe maua po o tupe faaalu i lenei Tusi tala o tupe mo se taunuuga mama.",
     "error_no_net_result": "E leai se Vaega i lenei Tusi tala o tupe e tuufaatasia ai tupe maua ma tupe faaalu. Faaopoopo se tasi i le Bkper e va'ai ai i le taunuuga aoga.",
+    "error_query_not_a_report": "Filifili se Vaega po o se Teugatupe i le Tusi tala o tupe e vaai ai i lona lipoti.",
     "error_unexpected": "Na i ai se mea na sese. Toe taumafai.",
     "error_unknown_root": "E le o se vaega maualuga o lenei Tusi tala o tupe lena vaega.",
     "error_unknown_target": "O lenei Vaega po o le Teugatupe e le o iai nei i le mea na maua ai e lenei lipoti i le Tusi tala o tupe.",

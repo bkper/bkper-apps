@@ -93,7 +93,7 @@ describe('EventHandlerFileCreated - file properties', () => {
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
                 lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => {
                     if (purpose === 'transactions') {

@@ -84,7 +84,7 @@ describe('EventHandlerFileCreated - operation ordering', () => {
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
                 lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => purpose === 'transactions' ? ({
                     url: 'https://extractor.example.com/extract',

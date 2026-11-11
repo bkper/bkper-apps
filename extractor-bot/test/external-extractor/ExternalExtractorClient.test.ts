@@ -362,6 +362,22 @@ describe('ExternalExtractorClient', () => {
             expect(request.account.properties).not.toHaveProperty('agent_parser_url');
         });
 
+        it('should filter out extractor_ and bookbot_ prefixed properties from account', async () => {
+            const file = createMockFile('statement.csv', 'base64content==', 'text/csv');
+            const book = createMockBook();
+            const account = createMockAccount('acc_1', 'Bank', {
+                bank_code: '001',
+                extractor_prompt_transactions: 'Custom prompt',
+                extractor_url_transactions: 'https://parser.example.com',
+                bookbot_discovery_examples: 'Examples',
+            });
+
+            const lookup = { url: TEST_URL, source: 'account' as const, account };
+            const request = await (client as any).buildRequest(file, book, account, lookup);
+
+            expect(request.account.properties).toEqual({ bank_code: '001' });
+        });
+
         // Verifies group-scoped parser requests include the group that owns the parser URL.
         it('should include group context when parser URL is configured on a group', async () => {
             const file = createMockFile('statement.csv', 'base64content==', 'text/csv');

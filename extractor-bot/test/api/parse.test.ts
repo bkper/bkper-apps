@@ -167,6 +167,38 @@ describe('read-only parse', () => {
         expect(await parse({ ...request, transaction: { amount: '10', date: '2024-01-01', description: 'Supplied' } }, context)).toEqual({ transactions: [], outcome: 'parsed', fileProperties: { issuer: 'Bank', pages: '2', transactions_summary: 'raw parser property' } });
     });
 
+    it('returns extraction provenance under the new property names only', async () => {
+        const { book, context } = setup();
+        book.getFile = mock(async () => new File(book, { id: 'file_1', ...file }));
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [{ date: null, description: 'Row', amount: -1, properties: {} }] })) }) as unknown as ExtractorStatementCSV;
+        const result = await parse({ bookId: 'book_1', file: { id: 'file_1' } }, context);
+        const properties = result.transactions[0].transaction.properties ?? {};
+        expect(properties.extractor_file_id_).toBe('file_1');
+        expect(JSON.parse(properties.extractor_extracted_!)).toMatchObject({ description: 'Row' });
+        expect(Object.keys(properties).filter(key => key.startsWith('agent_'))).toEqual([]);
+    });
+
+    it('keeps a supplied extraction stored under its old name', async () => {
+        const { book, context } = setup();
+        book.getFile = mock(async () => new File(book, { id: 'file_1', ...file }));
+        context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: null, description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
+        context.createExtractorDate = () => ({ extract: mock(async () => undefined) }) as unknown as ExtractorDate;
+        const result = await parse({ bookId: 'book_1', transaction: { files: [{ id: 'file_1' }], properties: { agent_extracted_: '{"earlier":true}' } } }, context);
+        expect(result.transactions[0].transaction.properties).toEqual({ agent_extracted_: '{"earlier":true}' });
+    });
+
+    it('drops app-owned keys returned by file metadata extraction on both paths', async () => {
+        const { book, context } = setup();
+        const account = new Account(book, { id: 'account_1', properties: { extractor_prompt_file: 'Extract metadata' } });
+        account.getGroups = mock(async () => []);
+        book.getAccount = mock(async () => account);
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [] })) }) as unknown as ExtractorStatementCSV;
+        context.createExtractorFileProperties = () => ({ extract: mock(async () => ({ properties: { issuer: 'Bank', extractor_transactions_summary: '[]', bookbot_x: 'y' } })) }) as unknown as ExtractorFileProperties;
+        const request = { bookId: 'book_1', file: { ...file, properties: { account_id: 'account_1' } } };
+        expect((await parse(request, context)).fileProperties).toEqual({ issuer: 'Bank' });
+        expect((await parse({ ...request, transaction: { amount: '10', date: '2024-01-01', description: 'Supplied' } }, context)).fileProperties).toEqual({ issuer: 'Bank' });
+    });
+
     it('keeps zero amounts and legacy prompts without lazy migration writes', async () => {
         const { book, context } = setup();
         const account = new Account(book, { id: 'account_1', type: 'ASSET', properties: { agent_prompt_transactions: 'Legacy instructions' } });

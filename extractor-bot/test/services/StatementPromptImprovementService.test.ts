@@ -2,8 +2,9 @@ import { describe, it, expect, mock, spyOn, beforeEach } from 'bun:test';
 import { Book, Account, Group, Transaction, File } from 'bkper-js';
 import { StatementPromptImprovementService } from '../../src/services/StatementPromptImprovementService.js';
 import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
-import { AGENT_PROMPT_PROPERTY, AGENT_FILE_ID_PROPERTY, AGENT_EXTRACTED_PROPERTY } from '../../src/constants.js';
+import { LEGACY_AGENT_PROMPT_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY } from '../../src/constants.js';
 import { AppContext } from '../../src/AppContext.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 function createMockContext(overrides: Partial<{
     flagManagementService: any;
@@ -110,14 +111,14 @@ describe('StatementPromptImprovementService - improveStatementPrompt', () => {
         it('should clear flag and return null when file not found', async () => {
             // Mock: Has prompt and file ID on account
             spyOn(account, 'getProperty').mockImplementation((key: string) => {
-                if (key === AGENT_PROMPT_PROPERTY) return 'Extract transactions from statement';
-                if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
+                if (key === LEGACY_AGENT_PROMPT_PROPERTY) return 'Extract transactions from statement';
+                if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
                 return undefined;
             });
 
             // Mock: Transaction with file ID
             const mockTransaction = {
-                getProperty: (key: string) => (key === AGENT_FILE_ID_PROPERTY ? 'file123' : undefined),
+                getProperty: firstNonBlank((key: string) => (key === LEGACY_AGENT_FILE_ID_PROPERTY ? 'file123' : undefined)),
             } as Transaction;
 
             const mockListTransactions = mock().mockResolvedValue({
@@ -146,7 +147,7 @@ describe('StatementPromptImprovementService - improveStatementPrompt', () => {
             spyOn(account, 'getProperty').mockReturnValue('Extract transactions');
 
             const mockTransaction = {
-                getProperty: (key: string) => (key === AGENT_FILE_ID_PROPERTY ? 'file123' : undefined),
+                getProperty: firstNonBlank((key: string) => (key === LEGACY_AGENT_FILE_ID_PROPERTY ? 'file123' : undefined)),
             } as Transaction;
 
             const mockListTransactions = mock();
@@ -168,6 +169,33 @@ describe('StatementPromptImprovementService - improveStatementPrompt', () => {
 
             // Should query for account transactions
             expect(mockListTransactions).toHaveBeenCalled();
+        });
+
+        it('finds the file\'s drafts under both file ID names, once each', async () => {
+            const extracted = JSON.stringify({ date: '2025-01-10', description: 'Row', amount: 1, properties: {} });
+            const draft = (id: string) => ({
+                getId: () => id,
+                getProperty: firstNonBlank((key: string) => (key === 'extractor_extracted_' ? extracted : undefined)),
+            });
+            const queries: string[] = [];
+            book.listTransactions = mock(async (query: string) => {
+                queries.push(query);
+                const items = query.includes('is:trashed') ? [] : query.includes('extractor_file_id_:') ? [draft('new'), draft('both')] : [draft('old'), draft('both')];
+                return { getItems: () => items };
+            }) as unknown as Book['listTransactions'];
+            book.getAccounts = mock(async () => []) as unknown as Book['getAccounts'];
+            spyOn(service as any, 'transactionToExtractedTransaction').mockResolvedValue({ date: null, description: 'Row', amount: 1, properties: {} });
+
+            const dataset = await (service as any).buildTransactionDataset(book, { getId: () => 'file123' }, account, true);
+
+            expect(queries.sort()).toEqual([
+                "account:'Bank Account' agent_file_id_:file123",
+                "account:'Bank Account' agent_file_id_:file123 is:trashed",
+                "account:'Bank Account' extractor_file_id_:file123",
+                "account:'Bank Account' extractor_file_id_:file123 is:trashed",
+            ]);
+            expect(dataset.aiExtracted).toHaveLength(3);
+            expect(dataset.userCorrected).toHaveLength(3);
         });
     });
 });
@@ -369,7 +397,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
             getProperties: () => ({ ref: '123', category: 'food' }),
             getCreditAccountName: async () => undefined,
             getDebitAccountName: async () => undefined,
-            getProperty: (key: string) => {
+            getProperty: firstNonBlank((key: string) => {
                 if (key === 'agent_extracted_') {
                     return JSON.stringify({
                         date: '2025-01-10',
@@ -379,7 +407,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
                     });
                 }
                 return undefined;
-            },
+            }),
         } as unknown as Transaction;
 
         const result = await (service as any).transactionToExtractedTransaction(mockTransaction, null);
@@ -400,7 +428,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
             getProperties: () => ({}),
             getCreditAccountName: async () => undefined,
             getDebitAccountName: async () => undefined,
-            getProperty: (key: string) => {
+            getProperty: firstNonBlank((key: string) => {
                 if (key === 'agent_extracted_') {
                     return JSON.stringify({
                         date: '2025-01-15',
@@ -410,7 +438,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
                     });
                 }
                 return undefined;
-            },
+            }),
         } as unknown as Transaction;
 
         const result = await (service as any).transactionToExtractedTransaction(mockTransaction, null);
@@ -431,7 +459,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
             }),
             getCreditAccountName: async () => undefined,
             getDebitAccountName: async () => undefined,
-            getProperty: (key: string) => {
+            getProperty: firstNonBlank((key: string) => {
                 if (key === 'agent_extracted_') {
                     return JSON.stringify({
                         date: '2025-01-15',
@@ -441,7 +469,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
                     });
                 }
                 return undefined;
-            },
+            }),
         } as unknown as Transaction;
 
         const result = await (service as any).transactionToExtractedTransaction(mockTransaction, null);
@@ -462,7 +490,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
             getProperties: () => ({}),
             getCreditAccountName: async () => undefined,
             getDebitAccountName: async () => undefined,
-            getProperty: (key: string) => {
+            getProperty: firstNonBlank((key: string) => {
                 if (key === 'agent_extracted_') {
                     return JSON.stringify({
                         date: '2025-01-20',
@@ -472,7 +500,7 @@ describe('PromptImprovementServiceBase - transactionToExtractedTransaction', () 
                     });
                 }
                 return undefined;
-            },
+            }),
         } as unknown as Transaction;
 
         const result = await (service as any).transactionToExtractedTransaction(mockTransaction, null);

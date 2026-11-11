@@ -6,8 +6,10 @@ import { BkperError, Book, File, Account, Transaction, TransactionList } from 'b
 import { AppContext } from '../../src/AppContext.js';
 import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
-const SUMMARY_PROPERTY_KEY = 'transactions_summary';
+const SUMMARY_PROPERTY_KEY = 'extractor_transactions_summary';
+const LEGACY_SUMMARY_PROPERTY_KEY = 'transactions_summary';
 
 type SummaryEntry = {
     bookId: string;
@@ -129,7 +131,7 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
                 lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => {
                     if (purpose === 'transactions' && useExternalTransactionsParser) {
@@ -595,5 +597,28 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
         const hasSummary = fileSetPropertyCalls.some(([key]) => key === SUMMARY_PROPERTY_KEY);
         expect(hasSummary).toBe(false);
         expect(fileUpdateCallCount).toBe(0);
+    });
+
+    it('skips parsing when the file has a transactions_summary under its old name', async () => {
+        mockFile.getProperty = mock(firstNonBlank((key: string) => key === LEGACY_SUMMARY_PROPERTY_KEY ? '[]' : undefined));
+
+        const result = await eventHandler.handleEvent(mockBook, makeEvent());
+
+        expect(result.result).toBe(false);
+        expect(mockBook.batchCreateTransactions).not.toHaveBeenCalled();
+        expect(fileUpdateCallCount).toBe(0);
+    });
+
+    it('records the summary and the drafts\' provenance only under the new names', async () => {
+        await eventHandler.handleEvent(mockBook, makeEvent());
+
+        const drafts = (mockBook.batchCreateTransactions as ReturnType<typeof mock>).mock.calls[0][0] as Transaction[];
+        expect(fileSetPropertyCalls.map(([key]) => key)).not.toContain(LEGACY_SUMMARY_PROPERTY_KEY);
+        expect(drafts.length).toBeGreaterThan(0);
+        for (const draft of drafts) {
+            expect(draft.getProperty('extractor_file_id_')).toBe('file_1');
+            expect(draft.getProperty('extractor_extracted_')).toBeDefined();
+            expect(Object.keys(draft.getProperties()).filter(key => key.startsWith('agent_'))).toEqual([]);
+        }
     });
 });

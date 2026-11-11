@@ -30,7 +30,7 @@ sequenceDiagram
 
 CSV files are always read as statements. PDFs and images are analyzed to decide whether they hold a statement table or a single invoice or receipt.
 
-Each uploaded file is read once. After recording its drafts, Extractor Bot stores a `transactions_summary` property on the file and skips files that already have one. When extraction fails, no drafts are created, and the error appears in the book activity as Extractor Bot's response to the event. When a statement sends rows to several books, each book is recorded in turn: if one fails, drafts already created in the other books remain and the file gets no `transactions_summary`, so check those books before replaying the event.
+Each uploaded file is read once. After recording its drafts, Extractor Bot stores an `extractor_transactions_summary` property on the file and skips files that already have one (or the earlier `transactions_summary`). When extraction fails, no drafts are created, and the error appears in the book activity as Extractor Bot's response to the event. When a statement sends rows to several books, each book is recorded in turn: if one fails, drafts already created in the other books remain and the file gets no summary, so check those books before replaying the event.
 
 ## Accounts come from Bookbot
 
@@ -42,13 +42,13 @@ If Bookbot cannot be reached, Extractor Bot still records the drafts, without su
 
 When you correct an extracted draft and post it, Extractor Bot compares it with the original extraction. If the data changed significantly, it writes improved extraction instructions and keeps them only when re-extracting the document gives better results without regressions.
 
-Instructions are saved on the account or group the document came through: `agent_parser_transaction` for invoices and receipts, `agent_parser_transactions` for statements. They are plain text that you can read and edit.
+Instructions are saved on the account or group the document came through: `extractor_prompt_transaction` for invoices and receipts, `extractor_prompt_transactions` for statements. They are plain text that you can read and edit.
 
 - **Invoices and receipts** are learned from right after posting.
 - **Statements** flag their account or group; each book audit (`BOOK_AUDITED`) improves one flagged account or group. Deleting a draft extracted from a statement also flags it, because that row should not have been extracted.
 - **No instructions yet**: the first posted transaction through an account or group can set baseline instructions, even without corrections.
 - **Account corrections** teach Bookbot, not Extractor Bot. When Bookbot is installed, it re-checks other pending drafts that received the same account.
-- **Older books**: instructions in the legacy `agent_prompt`, `agent_prompt_transaction`, `agent_prompt_transactions`, and `agent_prompt_file` properties move to the matching `agent_parser_*` properties the next time Extractor Bot uses the account or group.
+- **Older books**: instructions in the earlier `agent_parser_*` properties, and in the legacy `agent_prompt`, `agent_prompt_transaction`, `agent_prompt_transactions`, and `agent_prompt_file` properties, move to the matching `extractor_prompt_*` properties the next time Extractor Bot uses the account or group.
 
 ## AI allowance behavior
 
@@ -68,20 +68,22 @@ When the allowance is exhausted:
 
 | Property | Set on | Description |
 |---|---|---|
-| `agent_parser_transaction` | Account, group | Extraction instructions for invoices and receipts |
-| `agent_parser_transactions` | Account, group | Extraction instructions for statements and CSVs. Learned statement instructions are appended here |
-| `agent_parser_file` | Account, group | Instructions for file-level properties, such as invoice numbers, statement periods, or bank names |
-| `agent_parser_url_transaction` | Account, group, book | [External service](#configuration) for invoices and receipts |
-| `agent_parser_url_transactions` | Account, group, book | External service for statements and CSVs |
-| `agent_parser_url_file` | Account, group, book | External service for file-level properties |
+| `extractor_prompt_transaction` | Account, group | Extraction instructions for invoices and receipts |
+| `extractor_prompt_transactions` | Account, group | Extraction instructions for statements and CSVs. Learned statement instructions are appended here |
+| `extractor_prompt_file` | Account, group | Instructions for file-level properties, such as invoice numbers, statement periods, or bank names |
+| `extractor_url_transaction` | Account, group, book | [External service](#configuration) for invoices and receipts |
+| `extractor_url_transactions` | Account, group, book | External service for statements and CSVs |
+| `extractor_url_file` | Account, group, book | External service for file-level properties |
 | `agent_excluded_properties` | Account, group, book | Comma- or whitespace-separated property keys left out of extraction comparison and learning. Bookbot also honors it when copying properties |
 
-Extractor Bot uses the first non-empty value from the account, then its first group with a value, then the book; values are not merged. Property keys in `agent_excluded_properties` match case-insensitively and exactly, so `category` does not exclude `category_code`.
+Extractor Bot uses the first non-empty value from the account, then its first group with a value, then the book; values are not merged.
+
+Properties set under their earlier names (`agent_parser_transaction`, `agent_parser_transactions`, `agent_parser_file`, `agent_parser_url_transaction`, `agent_parser_url_transactions`, `agent_parser_url_file`) keep working; the new name wins when an account, group, or book has both. Instructions move to the new names the next time Extractor Bot uses them; parser URLs are never rewritten. Property keys in `agent_excluded_properties` match case-insensitively and exactly, so `category` does not exclude `category_code`.
 
 **Example — statement instructions:**
 
 ```yaml
-agent_parser_transactions: |-
+extractor_prompt_transactions: |-
   Extract transactions from the statement table.
   - Do not include header rows
   - Include the reference number as a property called "ref"
@@ -125,9 +127,9 @@ agent_excluded_properties: "trade_date, settlement_date"
 
 A parser URL property replaces built-in AI extraction for its purpose:
 
-- `agent_parser_url_transaction` — the service returns `data.transaction` for invoices and receipts.
-- `agent_parser_url_transactions` — the service returns `data.transactions` for statements and CSVs.
-- `agent_parser_url_file` — the service returns `file.properties` for file-level properties.
+- `extractor_url_transaction` — the service returns `data.transaction` for invoices and receipts.
+- `extractor_url_transactions` — the service returns `data.transactions` for statements and CSVs.
+- `extractor_url_file` — the service returns `file.properties` for file-level properties.
 
 The URL is looked up on the account, then its first group with a value, then the group the file was uploaded to, then the book. The service receives a POST with the base64 file content, book metadata, and the account context when available, plus the group context when the URL is set on a group. One endpoint can serve several purposes; Extractor Bot reads only the section for the configured purpose.
 
@@ -144,11 +146,13 @@ Extractor Bot stores internal properties (suffixed with `_`) on drafts for learn
 
 | Property | Description |
 |---|---|
-| `agent_extracted_` | Original extraction (JSON), compared with the posted transaction to detect corrections |
-| `agent_file_id_` | ID of the source file, linking statement drafts to their document |
-| `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, `agent_discovered_properties_` | Bookbot's suggestions, kept so Bookbot can re-check drafts after a correction |
+| `extractor_extracted_` | Original extraction (JSON), compared with the posted transaction to detect corrections |
+| `extractor_file_id_` | ID of the source file, linking statement drafts to their document |
+| `bookbot_*` (earlier `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, `agent_discovered_properties_`) | Bookbot's suggestions, kept so Bookbot can re-check drafts after a correction |
 
-On the file, `transactions_summary` lists, per target book and account, the expected number of non-zero transactions and the IDs of the drafts created. Zero-amount drafts are created but not counted, so a file with only zero-amount transactions gets no summary. ID order is not significant. Only Extractor Bot writes this property; external services cannot set it.
+Drafts recorded before these names existed keep `agent_extracted_` and `agent_file_id_`, and are still read.
+
+On the file, `extractor_transactions_summary` (earlier `transactions_summary`) lists, per target book and account, the expected number of non-zero transactions and the IDs of the drafts created. Zero-amount drafts are created but not counted, so a file with only zero-amount transactions gets no summary. ID order is not significant. Only Extractor Bot writes this property; external services cannot set it.
 
 </details>
 
@@ -178,9 +182,9 @@ Send a `file`, a `transaction`, or both:
 
 The response lists `transactions`, each with its target `bookId`, optional `fileProperties`, and an `outcome`: `parsed`, `empty`, or `error`. Valid requests return HTTP 200 even when extraction fails, so check `outcome` and `error.code`, such as `FORBIDDEN` or `usage_limit_exceeded`. Malformed requests return HTTP 400.
 
-To record the results, ask [Bookbot's API](https://bkper.com/apps/bookbot) for accounts, then create the drafts in each returned `bookId`. Keep the returned `agent_extracted_` and `agent_file_id_` properties so Extractor Bot, when installed, can learn when the drafts are posted.
+To record the results, ask [Bookbot's API](https://bkper.com/apps/bookbot) for accounts, then create the drafts in each returned `bookId`. Keep the returned `extractor_extracted_` and `extractor_file_id_` properties so Extractor Bot, when installed, can learn when the drafts are posted.
 
-Avoid duplicate drafts: when Extractor Bot is installed, uploading a file already records its drafts, so do not also record API results for that file. The API does not skip files that already have `transactions_summary`; check that property first.
+Avoid duplicate drafts: when Extractor Bot is installed, uploading a file already records its drafts, so do not also record API results for that file. The API does not skip files that already have `extractor_transactions_summary` or `transactions_summary`; check those properties first.
 
 Minimal extraction example:
 

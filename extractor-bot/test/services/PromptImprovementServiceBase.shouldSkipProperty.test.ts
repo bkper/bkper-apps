@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { Account, Group } from 'bkper-js';
 import { PromptImprovementServiceBase, JaroWinklerStringComparator } from '../../src/services/PromptImprovementServiceBase.js';
-import { AGENT_PARSER_TRANSACTIONS_PROPERTY } from '../../src/constants.js';
+import { LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY } from '../../src/constants.js';
 
 /**
  * Test subclass to expose protected methods for testing
@@ -31,9 +31,9 @@ describe('PromptImprovementServiceBase.shouldSkipProperty', () => {
                 update: mock().mockResolvedValue(undefined),
             } as unknown as Account;
 
-            await service.testSaveImprovedPrompt(account, AGENT_PARSER_TRANSACTIONS_PROPERTY, 'Improved prompt', 'Because tests');
+            await service.testSaveImprovedPrompt(account, LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY, 'Improved prompt', 'Because tests');
 
-            expect(account.setProperty).toHaveBeenCalledWith(AGENT_PARSER_TRANSACTIONS_PROPERTY, 'Improved prompt');
+            expect(account.setProperty).toHaveBeenCalledWith(LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY, 'Improved prompt');
             expect(account.setProperty).not.toHaveBeenCalledWith('agent_prompt', 'Improved prompt');
         });
     });

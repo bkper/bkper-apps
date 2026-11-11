@@ -1,4 +1,5 @@
 import { File } from 'bkper-js';
+import { APP_PROPERTY_PREFIXES, LEGACY_TRANSACTIONS_SUMMARY_PROPERTY } from '../constants.js';
 
 export function isCSVFile(file: File): boolean {
     const contentType = file.getContentType();
@@ -29,8 +30,8 @@ function shouldSkipFileProperty(key: string): boolean {
     if (!key.trim()) {
         return true;
     }
-    if (key === 'transactions_summary') {
+    if (key === LEGACY_TRANSACTIONS_SUMMARY_PROPERTY) {
         return true;
     }
-    return ['agent_', 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'].some((prefix) => key.startsWith(prefix));
+    return [...APP_PROPERTY_PREFIXES, 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'].some((prefix) => key.startsWith(prefix));
 }

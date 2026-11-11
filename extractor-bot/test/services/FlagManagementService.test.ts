@@ -24,7 +24,7 @@ describe('FlagManagementService', () => {
             // Capture the timestamp that was set
             let capturedTimestamp: string | undefined;
             (mockAccount.setProperty as any).mockImplementation((key: string, value: string) => {
-                if (key === 'agent_prompt_improve_') {
+                if (key === 'extractor_prompt_improve_') {
                     capturedTimestamp = value;
                 }
                 return mockAccount;
@@ -32,7 +32,7 @@ describe('FlagManagementService', () => {
 
             await service.setImprovementFlag(mockAccount, mockFile);
 
-            expect(mockAccount.setProperty).toHaveBeenCalledWith('agent_prompt_improve_', expect.any(String));
+            expect(mockAccount.setProperty).toHaveBeenCalledWith('extractor_prompt_improve_', expect.any(String));
             expect(mockAccount.update).toHaveBeenCalled();
 
             // Verify the timestamp is a valid ISO string
@@ -54,7 +54,7 @@ describe('FlagManagementService', () => {
 
             let capturedTimestamp: string | undefined;
             (mockGroup.setProperty as any).mockImplementation((key: string, value: string) => {
-                if (key === 'agent_prompt_improve_') {
+                if (key === 'extractor_prompt_improve_') {
                     capturedTimestamp = value;
                 }
                 return mockGroup;
@@ -62,7 +62,7 @@ describe('FlagManagementService', () => {
 
             await service.setImprovementFlag(mockGroup, mockFile);
 
-            expect(mockGroup.setProperty).toHaveBeenCalledWith('agent_prompt_improve_', expect.any(String));
+            expect(mockGroup.setProperty).toHaveBeenCalledWith('extractor_prompt_improve_', expect.any(String));
             expect(mockGroup.update).toHaveBeenCalled();
 
             expect(capturedTimestamp).toBeDefined();

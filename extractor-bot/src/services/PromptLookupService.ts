@@ -2,19 +2,25 @@ import { Account, Book, Transaction, File, Group } from 'bkper-js';
 import {
     ACCOUNT_ID_PROPERTY,
     PARSED_ACCOUNT_NAME_PROPERTY,
-    AGENT_PROMPT_PROPERTY,
     AGENT_PROMPT_SKIP_PROPERTY,
     AGENT_EXCLUDED_PROPERTIES_PROPERTY,
-    AGENT_PROMPT_TRANSACTION_PROPERTY,
-    AGENT_PROMPT_TRANSACTIONS_PROPERTY,
-    AGENT_PROMPT_FILE_PROPERTY,
-    AGENT_PARSER_TRANSACTION_PROPERTY,
-    AGENT_PARSER_TRANSACTIONS_PROPERTY,
-    AGENT_PARSER_FILE_PROPERTY,
+    EXTRACTOR_PROMPT_TRANSACTION_PROPERTY,
+    EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
+    EXTRACTOR_PROMPT_FILE_PROPERTY,
+    EXTRACTOR_URL_TRANSACTION_PROPERTY,
+    EXTRACTOR_URL_TRANSACTIONS_PROPERTY,
+    EXTRACTOR_URL_FILE_PROPERTY,
     GROUP_ID_PROPERTY,
-    AGENT_PARSER_URL_TRANSACTION_PROPERTY,
-    AGENT_PARSER_URL_TRANSACTIONS_PROPERTY,
-    AGENT_PARSER_URL_FILE_PROPERTY,
+    LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY,
+    LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PARSER_FILE_PROPERTY,
+    LEGACY_AGENT_PARSER_URL_TRANSACTION_PROPERTY,
+    LEGACY_AGENT_PARSER_URL_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PARSER_URL_FILE_PROPERTY,
+    LEGACY_AGENT_PROMPT_PROPERTY,
+    LEGACY_AGENT_PROMPT_TRANSACTION_PROPERTY,
+    LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PROMPT_FILE_PROPERTY,
 } from '../constants.js';
 import { LegacyPromptPropertyMigration } from './LegacyPromptPropertyMigration.js';
 
@@ -61,6 +67,17 @@ interface StoredPrompt {
     group?: Group;
 }
 
+/** The first of the names, in order, holding a non-blank value on the resource, with that value. */
+function findProperty(resource: Account | Group | Book, properties: readonly string[]): { property: string; value: string } | undefined {
+    for (const property of properties) {
+        const value = resource.getProperty(property);
+        if (value) {
+            return { property, value };
+        }
+    }
+    return undefined;
+}
+
 export class PromptLookupContext {
     readonly account?: Account | undefined;
     readonly group?: Group | undefined;
@@ -79,13 +96,15 @@ export class PromptLookupContext {
 
     getPrompt(purpose: PromptPurpose): PromptResolution {
         const targetProperty = PromptLookupService.getPromptProperty(purpose);
+        // A renamed prompt is the same setting: read both names before falling back to legacy prompts.
+        const purposeProperties = [targetProperty, PromptLookupService.getRenamedPromptProperty(purpose)];
         const legacyProperty = PromptLookupService.getLegacyPromptProperty(purpose);
 
         if (this.directAccount) {
-            return this.resolveAccountPrompt(this.directAccount, targetProperty, legacyProperty);
+            return this.resolveAccountPrompt(this.directAccount, targetProperty, purposeProperties, legacyProperty);
         }
 
-        const transactionSidePrompt = this.resolveTransactionSidePrompt(targetProperty, legacyProperty);
+        const transactionSidePrompt = this.resolveTransactionSidePrompt(purposeProperties, legacyProperty);
         if (transactionSidePrompt) {
             return {
                 targetProperty,
@@ -94,37 +113,37 @@ export class PromptLookupContext {
         }
 
         if (this.explicitGroup) {
-            return this.resolveGroupPrompt(this.explicitGroup, targetProperty, legacyProperty);
+            return this.resolveGroupPrompt(this.explicitGroup, targetProperty, purposeProperties, legacyProperty);
         }
 
         if (this.filenameAccount) {
-            return this.resolveAccountPrompt(this.filenameAccount, targetProperty, legacyProperty);
+            return this.resolveAccountPrompt(this.filenameAccount, targetProperty, purposeProperties, legacyProperty);
         }
 
         return { targetProperty };
     }
 
-    private resolveAccountPrompt(candidate: AccountCandidate, targetProperty: string, legacyProperty: string): PromptResolution {
-        const accountPurposePrompt = candidate.account.getProperty(targetProperty);
+    private resolveAccountPrompt(candidate: AccountCandidate, targetProperty: string, purposeProperties: readonly string[], legacyProperty: string): PromptResolution {
+        const accountPurposePrompt = findProperty(candidate.account, purposeProperties);
         if (accountPurposePrompt) {
             return {
-                prompt: accountPurposePrompt,
+                prompt: accountPurposePrompt.value,
                 account: candidate.account,
                 promptEntity: candidate.account,
-                sourceProperty: targetProperty,
+                sourceProperty: accountPurposePrompt.property,
                 targetProperty,
             };
         }
 
         for (const group of candidate.groups) {
-            const groupPurposePrompt = group.getProperty(targetProperty);
+            const groupPurposePrompt = findProperty(group, purposeProperties);
             if (groupPurposePrompt) {
                 return {
-                    prompt: groupPurposePrompt,
+                    prompt: groupPurposePrompt.value,
                     account: candidate.account,
                     group,
                     promptEntity: group,
-                    sourceProperty: targetProperty,
+                    sourceProperty: groupPurposePrompt.property,
                     targetProperty,
                 };
             }
@@ -155,26 +174,26 @@ export class PromptLookupContext {
             }
         }
 
-        const accountLegacyPrompt = candidate.account.getProperty(AGENT_PROMPT_PROPERTY);
+        const accountLegacyPrompt = candidate.account.getProperty(LEGACY_AGENT_PROMPT_PROPERTY);
         if (accountLegacyPrompt) {
             return {
                 prompt: accountLegacyPrompt,
                 account: candidate.account,
                 promptEntity: candidate.account,
-                sourceProperty: AGENT_PROMPT_PROPERTY,
+                sourceProperty: LEGACY_AGENT_PROMPT_PROPERTY,
                 targetProperty,
             };
         }
 
         for (const group of candidate.groups) {
-            const groupLegacyPrompt = group.getProperty(AGENT_PROMPT_PROPERTY);
+            const groupLegacyPrompt = group.getProperty(LEGACY_AGENT_PROMPT_PROPERTY);
             if (groupLegacyPrompt) {
                 return {
                     prompt: groupLegacyPrompt,
                     account: candidate.account,
                     group,
                     promptEntity: group,
-                    sourceProperty: AGENT_PROMPT_PROPERTY,
+                    sourceProperty: LEGACY_AGENT_PROMPT_PROPERTY,
                     targetProperty,
                 };
             }
@@ -187,14 +206,14 @@ export class PromptLookupContext {
         };
     }
 
-    private resolveGroupPrompt(group: Group, targetProperty: string, legacyProperty: string): PromptResolution {
-        const groupPurposePrompt = group.getProperty(targetProperty);
+    private resolveGroupPrompt(group: Group, targetProperty: string, purposeProperties: readonly string[], legacyProperty: string): PromptResolution {
+        const groupPurposePrompt = findProperty(group, purposeProperties);
         if (groupPurposePrompt) {
             return {
-                prompt: groupPurposePrompt,
+                prompt: groupPurposePrompt.value,
                 group,
                 promptEntity: group,
-                sourceProperty: targetProperty,
+                sourceProperty: groupPurposePrompt.property,
                 targetProperty,
             };
         }
@@ -210,13 +229,13 @@ export class PromptLookupContext {
             };
         }
 
-        const groupLegacyPrompt = group.getProperty(AGENT_PROMPT_PROPERTY);
+        const groupLegacyPrompt = group.getProperty(LEGACY_AGENT_PROMPT_PROPERTY);
         if (groupLegacyPrompt) {
             return {
                 prompt: groupLegacyPrompt,
                 group,
                 promptEntity: group,
-                sourceProperty: AGENT_PROMPT_PROPERTY,
+                sourceProperty: LEGACY_AGENT_PROMPT_PROPERTY,
                 targetProperty,
             };
         }
@@ -228,83 +247,83 @@ export class PromptLookupContext {
         };
     }
 
-    private resolveTransactionSidePrompt(targetProperty: string, legacyProperty: string): StoredPrompt | undefined {
-        const accountPurposePrompt = this.resolveSideAccountPrompt(targetProperty);
+    private resolveTransactionSidePrompt(purposeProperties: readonly string[], legacyProperty: string): StoredPrompt | undefined {
+        const accountPurposePrompt = this.resolveSideAccountPrompt(purposeProperties);
         if (accountPurposePrompt) {
             return accountPurposePrompt;
         }
 
-        const groupPurposePrompt = this.resolveSideGroupPrompt(targetProperty);
+        const groupPurposePrompt = this.resolveSideGroupPrompt(purposeProperties);
         if (groupPurposePrompt) {
             return groupPurposePrompt;
         }
 
-        const accountLegacyPurposePrompt = this.resolveSideAccountPrompt(legacyProperty);
+        const accountLegacyPurposePrompt = this.resolveSideAccountPrompt([legacyProperty]);
         if (accountLegacyPurposePrompt) {
             return accountLegacyPurposePrompt;
         }
 
-        const groupLegacyPurposePrompt = this.resolveSideGroupPrompt(legacyProperty);
+        const groupLegacyPurposePrompt = this.resolveSideGroupPrompt([legacyProperty]);
         if (groupLegacyPurposePrompt) {
             return groupLegacyPurposePrompt;
         }
 
-        const accountLegacyPrompt = this.resolveSideAccountPrompt(AGENT_PROMPT_PROPERTY);
+        const accountLegacyPrompt = this.resolveSideAccountPrompt([LEGACY_AGENT_PROMPT_PROPERTY]);
         if (accountLegacyPrompt) {
             return accountLegacyPrompt;
         }
 
-        return this.resolveSideGroupPrompt(AGENT_PROMPT_PROPERTY);
+        return this.resolveSideGroupPrompt([LEGACY_AGENT_PROMPT_PROPERTY]);
     }
 
-    private resolveSideAccountPrompt(property: string): StoredPrompt | undefined {
-        const creditPrompt = this.getAccountStoredPrompt(this.creditAccount, property);
+    private resolveSideAccountPrompt(properties: readonly string[]): StoredPrompt | undefined {
+        const creditPrompt = this.getAccountStoredPrompt(this.creditAccount, properties);
         if (creditPrompt) {
             return creditPrompt;
         }
-        return this.getAccountStoredPrompt(this.debitAccount, property);
+        return this.getAccountStoredPrompt(this.debitAccount, properties);
     }
 
-    private resolveSideGroupPrompt(property: string): StoredPrompt | undefined {
-        const creditPrompt = this.getGroupStoredPrompt(this.creditAccount, property);
+    private resolveSideGroupPrompt(properties: readonly string[]): StoredPrompt | undefined {
+        const creditPrompt = this.getGroupStoredPrompt(this.creditAccount, properties);
         if (creditPrompt) {
             return creditPrompt;
         }
-        return this.getGroupStoredPrompt(this.debitAccount, property);
+        return this.getGroupStoredPrompt(this.debitAccount, properties);
     }
 
-    private getAccountStoredPrompt(candidate: AccountCandidate | undefined, property: string): StoredPrompt | undefined {
+    private getAccountStoredPrompt(candidate: AccountCandidate | undefined, properties: readonly string[]): StoredPrompt | undefined {
         if (!candidate) {
             return undefined;
         }
 
-        const prompt = candidate.account.getProperty(property);
+        const prompt = findProperty(candidate.account, properties);
         if (!prompt) {
             return undefined;
         }
 
         return {
-            prompt,
+            prompt: prompt.value,
             account: candidate.account,
             promptEntity: candidate.account,
-            sourceProperty: property,
+            sourceProperty: prompt.property,
         };
     }
 
-    private getGroupStoredPrompt(candidate: AccountCandidate | undefined, property: string): StoredPrompt | undefined {
+    private getGroupStoredPrompt(candidate: AccountCandidate | undefined, properties: readonly string[]): StoredPrompt | undefined {
         if (!candidate) {
             return undefined;
         }
 
         for (const group of candidate.groups) {
-            const prompt = group.getProperty(property);
+            const prompt = findProperty(group, properties);
             if (prompt) {
                 return {
-                    prompt,
+                    prompt: prompt.value,
                     account: candidate.account,
                     group,
                     promptEntity: group,
-                    sourceProperty: property,
+                    sourceProperty: prompt.property,
                 };
             }
         }
@@ -313,39 +332,40 @@ export class PromptLookupContext {
     }
 
     getParserUrl(purpose: PromptPurpose, book: Book): ExtractorUrlLookupResult | null {
-        const property = PromptLookupService.getParserUrlProperty(purpose);
+        // Customers configure parser URLs; both names keep working and neither is ever rewritten.
+        const properties = [PromptLookupService.getParserUrlProperty(purpose), PromptLookupService.getRenamedParserUrlProperty(purpose)];
 
         if (this.directAccount) {
-            const directAccountParserUrl = this.resolveAccountParserUrl(this.directAccount, property);
+            const directAccountParserUrl = this.resolveAccountParserUrl(this.directAccount, properties);
             if (directAccountParserUrl) {
                 return directAccountParserUrl;
             }
         }
 
-        const transactionSideParserUrl = this.resolveTransactionSideParserUrl(property);
+        const transactionSideParserUrl = this.resolveTransactionSideParserUrl(properties);
         if (transactionSideParserUrl) {
             return transactionSideParserUrl;
         }
 
         if (this.explicitGroup) {
-            const explicitGroupParserUrl = this.resolveGroupParserUrl(this.explicitGroup, property);
+            const explicitGroupParserUrl = this.resolveGroupParserUrl(this.explicitGroup, properties);
             if (explicitGroupParserUrl) {
                 return explicitGroupParserUrl;
             }
         }
 
         if (this.filenameAccount) {
-            const filenameAccountParserUrl = this.resolveAccountParserUrl(this.filenameAccount, property);
+            const filenameAccountParserUrl = this.resolveAccountParserUrl(this.filenameAccount, properties);
             if (filenameAccountParserUrl) {
                 return filenameAccountParserUrl;
             }
         }
 
-        const bookUrl = book.getProperty(property);
+        const bookUrl = findProperty(book, properties);
         if (bookUrl) {
-            if (this.log) console.log(`Found ${property} on book: ${book.getName?.() || book.getId?.() || ''}`);
+            if (this.log) console.log(`Found ${bookUrl.property} on book: ${book.getName?.() || book.getId?.() || ''}`);
             const account = this.getParserAccountContext();
-            return account ? { url: bookUrl, source: 'book', account } : { url: bookUrl, source: 'book' };
+            return account ? { url: bookUrl.value, source: 'book', account } : { url: bookUrl.value, source: 'book' };
         }
 
         return null;
@@ -355,78 +375,78 @@ export class PromptLookupContext {
         return this.directAccount?.account ?? this.creditAccount?.account ?? this.debitAccount?.account ?? (!this.explicitGroup ? this.filenameAccount?.account : undefined);
     }
 
-    private resolveAccountParserUrl(candidate: AccountCandidate, property: string): ExtractorUrlLookupResult | null {
-        const accountUrl = candidate.account.getProperty(property);
+    private resolveAccountParserUrl(candidate: AccountCandidate, properties: readonly string[]): ExtractorUrlLookupResult | null {
+        const accountUrl = findProperty(candidate.account, properties);
         if (accountUrl) {
-            if (this.log) console.log(`Found ${property} on account: ${candidate.account.getName()}`);
-            return { url: accountUrl, source: 'account', account: candidate.account };
+            if (this.log) console.log(`Found ${accountUrl.property} on account: ${candidate.account.getName()}`);
+            return { url: accountUrl.value, source: 'account', account: candidate.account };
         }
 
         for (const group of candidate.groups) {
-            const groupUrl = group.getProperty(property);
+            const groupUrl = findProperty(group, properties);
             if (groupUrl) {
-                if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
-                return { url: groupUrl, source: 'group', account: candidate.account, group };
+                if (this.log) console.log(`Found ${groupUrl.property} on group: ${group.getName()}`);
+                return { url: groupUrl.value, source: 'group', account: candidate.account, group };
             }
         }
 
         return null;
     }
 
-    private resolveGroupParserUrl(group: Group, property: string): ExtractorUrlLookupResult | null {
-        const groupUrl = group.getProperty(property);
+    private resolveGroupParserUrl(group: Group, properties: readonly string[]): ExtractorUrlLookupResult | null {
+        const groupUrl = findProperty(group, properties);
         if (groupUrl) {
-            if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
-            return { url: groupUrl, source: 'group', group };
+            if (this.log) console.log(`Found ${groupUrl.property} on group: ${group.getName()}`);
+            return { url: groupUrl.value, source: 'group', group };
         }
         return null;
     }
 
-    private resolveTransactionSideParserUrl(property: string): ExtractorUrlLookupResult | null {
-        const accountParserUrl = this.resolveSideAccountParserUrl(property);
+    private resolveTransactionSideParserUrl(properties: readonly string[]): ExtractorUrlLookupResult | null {
+        const accountParserUrl = this.resolveSideAccountParserUrl(properties);
         if (accountParserUrl) {
             return accountParserUrl;
         }
-        return this.resolveSideGroupParserUrl(property);
+        return this.resolveSideGroupParserUrl(properties);
     }
 
-    private resolveSideAccountParserUrl(property: string): ExtractorUrlLookupResult | null {
-        const creditParserUrl = this.getAccountParserUrl(this.creditAccount, property);
+    private resolveSideAccountParserUrl(properties: readonly string[]): ExtractorUrlLookupResult | null {
+        const creditParserUrl = this.getAccountParserUrl(this.creditAccount, properties);
         if (creditParserUrl) {
             return creditParserUrl;
         }
-        return this.getAccountParserUrl(this.debitAccount, property);
+        return this.getAccountParserUrl(this.debitAccount, properties);
     }
 
-    private resolveSideGroupParserUrl(property: string): ExtractorUrlLookupResult | null {
-        const creditParserUrl = this.getGroupParserUrl(this.creditAccount, property);
+    private resolveSideGroupParserUrl(properties: readonly string[]): ExtractorUrlLookupResult | null {
+        const creditParserUrl = this.getGroupParserUrl(this.creditAccount, properties);
         if (creditParserUrl) {
             return creditParserUrl;
         }
-        return this.getGroupParserUrl(this.debitAccount, property);
+        return this.getGroupParserUrl(this.debitAccount, properties);
     }
 
-    private getAccountParserUrl(candidate: AccountCandidate | undefined, property: string): ExtractorUrlLookupResult | null {
+    private getAccountParserUrl(candidate: AccountCandidate | undefined, properties: readonly string[]): ExtractorUrlLookupResult | null {
         if (!candidate) {
             return null;
         }
-        const url = candidate.account.getProperty(property);
+        const url = findProperty(candidate.account, properties);
         if (!url) {
             return null;
         }
-        if (this.log) console.log(`Found ${property} on account: ${candidate.account.getName()}`);
-        return { url, source: 'account', account: candidate.account };
+        if (this.log) console.log(`Found ${url.property} on account: ${candidate.account.getName()}`);
+        return { url: url.value, source: 'account', account: candidate.account };
     }
 
-    private getGroupParserUrl(candidate: AccountCandidate | undefined, property: string): ExtractorUrlLookupResult | null {
+    private getGroupParserUrl(candidate: AccountCandidate | undefined, properties: readonly string[]): ExtractorUrlLookupResult | null {
         if (!candidate) {
             return null;
         }
         for (const group of candidate.groups) {
-            const url = group.getProperty(property);
+            const url = findProperty(group, properties);
             if (url) {
-                if (this.log) console.log(`Found ${property} on group: ${group.getName()}`);
-                return { url, source: 'group', account: candidate.account, group };
+                if (this.log) console.log(`Found ${url.property} on group: ${group.getName()}`);
+                return { url: url.value, source: 'group', account: candidate.account, group };
             }
         }
         return null;
@@ -494,33 +514,55 @@ export class PromptLookupService {
     static getPromptProperty(purpose: PromptPurpose): string {
         switch (purpose) {
             case 'transaction':
-                return AGENT_PARSER_TRANSACTION_PROPERTY;
+                return EXTRACTOR_PROMPT_TRANSACTION_PROPERTY;
             case 'transactions':
-                return AGENT_PARSER_TRANSACTIONS_PROPERTY;
+                return EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY;
             case 'file':
-                return AGENT_PARSER_FILE_PROPERTY;
+                return EXTRACTOR_PROMPT_FILE_PROPERTY;
+        }
+    }
+
+    static getRenamedPromptProperty(purpose: PromptPurpose): string {
+        switch (purpose) {
+            case 'transaction':
+                return LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY;
+            case 'transactions':
+                return LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY;
+            case 'file':
+                return LEGACY_AGENT_PARSER_FILE_PROPERTY;
         }
     }
 
     static getLegacyPromptProperty(purpose: PromptPurpose): string {
         switch (purpose) {
             case 'transaction':
-                return AGENT_PROMPT_TRANSACTION_PROPERTY;
+                return LEGACY_AGENT_PROMPT_TRANSACTION_PROPERTY;
             case 'transactions':
-                return AGENT_PROMPT_TRANSACTIONS_PROPERTY;
+                return LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY;
             case 'file':
-                return AGENT_PROMPT_FILE_PROPERTY;
+                return LEGACY_AGENT_PROMPT_FILE_PROPERTY;
         }
     }
 
     static getParserUrlProperty(purpose: PromptPurpose): string {
         switch (purpose) {
             case 'transaction':
-                return AGENT_PARSER_URL_TRANSACTION_PROPERTY;
+                return EXTRACTOR_URL_TRANSACTION_PROPERTY;
             case 'transactions':
-                return AGENT_PARSER_URL_TRANSACTIONS_PROPERTY;
+                return EXTRACTOR_URL_TRANSACTIONS_PROPERTY;
             case 'file':
-                return AGENT_PARSER_URL_FILE_PROPERTY;
+                return EXTRACTOR_URL_FILE_PROPERTY;
+        }
+    }
+
+    static getRenamedParserUrlProperty(purpose: PromptPurpose): string {
+        switch (purpose) {
+            case 'transaction':
+                return LEGACY_AGENT_PARSER_URL_TRANSACTION_PROPERTY;
+            case 'transactions':
+                return LEGACY_AGENT_PARSER_URL_TRANSACTIONS_PROPERTY;
+            case 'file':
+                return LEGACY_AGENT_PARSER_URL_FILE_PROPERTY;
         }
     }
 
@@ -661,13 +703,16 @@ export class PromptLookupService {
 
     private hasAnyPromptOnEntity(entity: Account | Group): boolean {
         return !!(
-            entity.getProperty(AGENT_PARSER_TRANSACTION_PROPERTY) ||
-            entity.getProperty(AGENT_PARSER_TRANSACTIONS_PROPERTY) ||
-            entity.getProperty(AGENT_PARSER_FILE_PROPERTY) ||
-            entity.getProperty(AGENT_PROMPT_TRANSACTION_PROPERTY) ||
-            entity.getProperty(AGENT_PROMPT_TRANSACTIONS_PROPERTY) ||
-            entity.getProperty(AGENT_PROMPT_FILE_PROPERTY) ||
-            entity.getProperty(AGENT_PROMPT_PROPERTY)
+            entity.getProperty(EXTRACTOR_PROMPT_TRANSACTION_PROPERTY) ||
+            entity.getProperty(EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY) ||
+            entity.getProperty(EXTRACTOR_PROMPT_FILE_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PARSER_FILE_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PROMPT_TRANSACTION_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PROMPT_FILE_PROPERTY) ||
+            entity.getProperty(LEGACY_AGENT_PROMPT_PROPERTY)
         );
     }
 }

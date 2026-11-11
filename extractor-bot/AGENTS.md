@@ -13,7 +13,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Extractor Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
 - Keep README content public-facing; development information belongs here.
-- Existing technical names and `agent_*` properties stay unchanged. The app ID, directory and URLs say `extractor-bot`; `agent_parser_*` properties, `/api/v1/parse` and code names (`FileParserRouter`, `ExternalExtractorClient`, …) still say parser.
+- Existing technical names stay unchanged. The app ID, directory, URLs and properties say `extractor`; `/api/v1/parse` and code names (`FileParserRouter`, `ExternalExtractorClient`, …) still say parser.
 - Every Bkper AI request, from events and the parse API alike, carries `bkper-ai-source: extractor-bot` (`BKPER_AI_SOURCE`). The Bkper AI usage dashboard groups usage by this label; Bookbot labels its own requests `bookbot`.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
@@ -35,7 +35,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
 - Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication.
 - Bookbot discovery: Extractor Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Extractor Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Bookbot Worker is only a rollback target and is never called). The address is one constant. Bookbot's discovery API contract is in [Bookbot's AGENTS.md](../bookbot/AGENTS.md).
-- Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance, including Bookbot's `agent_credit_account_id_` and `agent_debit_account_id_` read by statement learning.
+- Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance, including Bookbot's credit and debit Account suggestions (`bookbot_*`, earlier `agent_*`) read by statement learning.
 - Do not log credentials, document content, transaction descriptions, or private Book data.
 
 ## Responsibilities
@@ -45,7 +45,7 @@ Extractor Bot owns:
 - File classification and transaction extraction for one transaction, multiple transactions, and file metadata.
 - Amount and date extraction from descriptions.
 - External parser connectors, preserving their request contract. Top-level group context is sent only when the parser URL is configured on that group.
-- Imported draft recording, attachments, target Books, and `transactions_summary`.
+- Imported draft recording, attachments, target Books, and `extractor_transactions_summary`.
 - Extraction provenance, correction learning, statement flags, and audit processing.
 - Coordinating transaction-created events: extract, call Bookbot discovery, then perform the single draft update. Bookbot does not separately enrich the same event.
 
@@ -55,8 +55,8 @@ Extractor Bot does not implement discovery. Its duplicated discovery code was re
 
 | Event | Behavior to preserve | Writes |
 | --- | --- | --- |
-| `FILE_CREATED` | Skip attachment uploads and files with `transactions_summary`; parse; discover per target Book; create drafts sequentially by target Book; record file metadata and summary. | Drafts in any target Book, file update |
-| `TRANSACTION_CREATED` with attachment | Use the first attachment; require `upload_method=attachment`; concurrently extract the transaction (only when amount or description is missing) and file metadata (only when a file parser URL or `agent_parser_file` is configured); fill missing fields, falling back to description extraction for amount and date; set the amount-side Account; discover; record `agent_extracted_` when extracted values apply. | Transaction update, then file update |
+| `FILE_CREATED` | Skip attachment uploads and files with `extractor_transactions_summary` or `transactions_summary`; parse; discover per target Book; create drafts sequentially by target Book; record file metadata and summary. | Drafts in any target Book, file update |
+| `TRANSACTION_CREATED` with attachment | Use the first attachment; require `upload_method=attachment`; concurrently extract the transaction (only when amount or description is missing) and file metadata (only when a file parser URL or `extractor_prompt_file` is configured); fill missing fields, falling back to description extraction for amount and date; set the amount-side Account; discover; record `extractor_extracted_` when extracted values apply. | Transaction update, then file update |
 | `TRANSACTION_CREATED` without attachment | Discover first; extract amount only when missing and date only when `auto_filled_date_` exists; update once. | Transaction update |
 | `TRANSACTION_POSTED` / `TRANSACTION_UPDATED` | Posted transactions only: invoice learning and statement flagging. Bookbot also subscribes for rediscovery. | Prompt and flag updates |
 | `TRANSACTION_DELETED` | Flag statement learning from the event payload. | Flag update |
@@ -68,12 +68,14 @@ Every row except transaction-created without an attachment looks up prompts or p
 
 | Properties | Role |
 | --- | --- |
-| `agent_parser_transaction`, `agent_parser_transactions`, `agent_parser_file`, `agent_parser_url_*` | Parser configuration. Legacy `agent_prompt*` properties migrate lazily during lookup; legacy `agent_parser_url` is intentionally unsupported. |
+| `extractor_prompt_transaction`, `extractor_prompt_transactions`, `extractor_prompt_file`, `extractor_url_*` | Parser configuration. Earlier `agent_parser_*` prompts and legacy `agent_prompt*` properties migrate lazily during lookup; `agent_parser_url_*` URLs are read after `extractor_url_*` and never rewritten; legacy `agent_parser_url` is intentionally unsupported. |
 | `upload_method`, `account_id`, `group_id` (and legacy `upload_method_`, `account_id_`, `group_id_`), `auto_filled_date_` | Source and context inputs read by extraction. |
-| `agent_extracted_`, `agent_file_id_`, `agent_prompt_improve_`, `transactions_summary`, extracted transaction and file properties | Extraction provenance, learning state, and recording receipts. |
+| `extractor_extracted_`, `extractor_file_id_`, `extractor_prompt_improve_`, `extractor_transactions_summary`, extracted transaction and file properties | Extraction provenance, learning state, and recording receipts. Earlier names (`agent_extracted_`, `agent_file_id_`, `agent_prompt_improve_`, `transactions_summary`) are read after the new ones; transactions and files keep them, and flag writes delete them on Accounts and Groups. |
 | `parsed_account_name_` | Set by Bkper when a created transaction's description names one Account. Prompt and parser-URL lookup reads it; Bookbot discovery uses it and removes it locally. |
-| `agent_credit_account_id_`, `agent_debit_account_id_` | Bookbot provenance read by statement learning. |
+| `bookbot_credit_account_id_`, `bookbot_debit_account_id_` (earlier `agent_credit_account_id_`, `agent_debit_account_id_`) | Bookbot provenance read by statement learning. |
 | `agent_excluded_properties`, legacy `agent_prompt_skip` | Exclusions shared with Bookbot. Both read; neither writes. |
+
+Property names: read the new name first, then the old one (`getProperty(NEW, OLD)`), and write only the new name. When writing a prompt or flag on an Account or Group, delete its old name in the same `update()`. Never rewrite parser URLs, transactions or files to rename keys. Keys starting with `agent_`, `extractor_` or `bookbot_` (`APP_PROPERTY_PREFIXES`) are app-owned: never sent to external parsers on Accounts and Groups, never learned from, and dropped from extracted file properties. New keys have at most 30 characters; `test/property-names.test.ts` checks it. Statement learning finds a file's drafts with one query per file ID name.
 
 ## Parse API
 
@@ -95,7 +97,7 @@ The initial route, request/result/error shapes, and shared authentication bounda
 - An `account_name` that is not in the target Book records that row without the Account and logs a warning; the rest of the import continues. `book.getAccount`, `getFile` and `getGroup` raise a 404 `BkperError` for a missing resource instead of returning undefined (bkper-js 2.37 to 2.45). Lookups by an extracted name or a caller-supplied ID go through `findAccount`, `findFile` and `findGroup` in `src/utils/lookup-utils.ts`, so a missing resource is "not found" (no Account for an import row, `INVALID_CONTEXT` in the parse API) rather than a failure or `FORBIDDEN`.
 - Multi-Book imports are not atomic: drafts are created per target Book in sequence; if a later Book fails, earlier drafts remain and no summary or file update is written.
 - The posted/updated handler runs invoice learning and statement flagging; rediscovery was removed and belongs to Bookbot.
-- The attachment path retains its own file-metadata filter, moved verbatim into `AttachmentExtractionService`. Unlike the import path's `filterFileProperties`, it does not drop `transactions_summary`. Do not merge the two.
+- The attachment path retains its own file-metadata filter, moved verbatim into `AttachmentExtractionService`. Unlike the import path's `filterFileProperties`, it does not drop the earlier `transactions_summary` (both drop `extractor_*`). Do not merge the two.
 
 ## Local verification
 

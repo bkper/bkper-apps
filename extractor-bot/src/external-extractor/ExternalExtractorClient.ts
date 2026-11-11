@@ -1,5 +1,6 @@
 import { File, Book, Account, Group } from 'bkper-js';
 import { ExternalExtractorRequest, ExternalExtractorResponse, ExternalExtractorResult } from './ExternalExtractorTypes.js';
+import { APP_PROPERTY_PREFIXES } from '../constants.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { ExtractorUrlLookupResult } from '../services/PromptLookupService.js';
 
@@ -271,15 +272,15 @@ export class ExternalExtractorClient {
     }
 
     /**
-     * Filter visible properties to exclude agent-specific keys.
-     * Excludes properties starting with 'agent_' to avoid sending
+     * Filter visible properties to exclude app-owned keys.
+     * Excludes properties starting with 'agent_', 'extractor_' or 'bookbot_' to avoid sending
      * internal system properties to external parsers.
      */
     private filterVisibleProperties(properties: Record<string, string>): Record<string, string> {
         const filtered: Record<string, string> = {};
 
         for (const [key, value] of Object.entries(properties)) {
-            if (!key.startsWith('agent_')) {
+            if (!APP_PROPERTY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
                 filtered[key] = value;
             }
         }

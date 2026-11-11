@@ -26,7 +26,7 @@ export const QUESTIONS = {
 
 /**
  * Instructions shaped like those Extractor Bot learns from corrections and keeps on an Account or
- * Group (`agent_parser_transaction`): plain bullets covering every field. The first four address
+ * Group (`extractor_prompt_transaction`): plain bullets covering every field. The first four address
  * the tuned request's misses on these documents, to see whether Clairic follows notes in its state.
  * The last two come from the bot's Gemini prompt and do not apply to Clairic's questions, to see
  * whether notes that do not apply do harm.

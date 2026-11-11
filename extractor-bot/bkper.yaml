@@ -27,27 +27,27 @@ events: []
 propertiesSchema:
   account:
     keys:
-      - agent_parser_transaction
-      - agent_parser_transactions
-      - agent_parser_file
-      - agent_parser_url_transaction
-      - agent_parser_url_transactions
-      - agent_parser_url_file
+      - extractor_prompt_transaction
+      - extractor_prompt_transactions
+      - extractor_prompt_file
+      - extractor_url_transaction
+      - extractor_url_transactions
+      - extractor_url_file
       - agent_excluded_properties
   group:
     keys:
-      - agent_parser_transaction
-      - agent_parser_transactions
-      - agent_parser_file
-      - agent_parser_url_transaction
-      - agent_parser_url_transactions
-      - agent_parser_url_file
+      - extractor_prompt_transaction
+      - extractor_prompt_transactions
+      - extractor_prompt_file
+      - extractor_url_transaction
+      - extractor_url_transactions
+      - extractor_url_file
       - agent_excluded_properties
   book:
     keys:
-      - agent_parser_url_transaction
-      - agent_parser_url_transactions
-      - agent_parser_url_file
+      - extractor_url_transaction
+      - extractor_url_transactions
+      - extractor_url_file
       - agent_excluded_properties
 
 filePatterns:

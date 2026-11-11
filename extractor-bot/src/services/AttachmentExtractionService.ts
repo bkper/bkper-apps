@@ -1,6 +1,6 @@
 import { Account, Book, File, Group, Transaction } from 'bkper-js';
 import { AppContext } from '../AppContext.js';
-import { AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
+import { APP_PROPERTY_PREFIXES, EXTRACTOR_PROMPT_FILE_PROPERTY, LEGACY_AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
 import { ExternalExtractorClient } from '../external-extractor/ExternalExtractorClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { ExtractorUrlLookupResult, PromptResolution } from './PromptLookupService.js';
@@ -57,7 +57,7 @@ export class AttachmentExtractionService {
             return this.filterFileProperties(await client.extractFileProperties(file, book, account ?? parserLookup.account, parserLookup));
         }
 
-        if (filePrompt?.sourceProperty !== AGENT_PARSER_FILE_PROPERTY || !filePrompt.prompt) {
+        if ((filePrompt?.sourceProperty !== EXTRACTOR_PROMPT_FILE_PROPERTY && filePrompt?.sourceProperty !== LEGACY_AGENT_PARSER_FILE_PROPERTY) || !filePrompt.prompt) {
             return undefined;
         }
 
@@ -87,6 +87,6 @@ export class AttachmentExtractionService {
         if (!key.trim()) {
             return true;
         }
-        return ['agent_', 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'].some((prefix) => key.startsWith(prefix));
+        return [...APP_PROPERTY_PREFIXES, 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'].some((prefix) => key.startsWith(prefix));
     }
 }

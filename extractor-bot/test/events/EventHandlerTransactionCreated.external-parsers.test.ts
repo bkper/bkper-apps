@@ -6,8 +6,9 @@ import { AppContext } from '../../src/AppContext.js';
 import { EventHandlerTransactionCreated } from '../../src/events/EventHandlerTransactionCreated.js';
 import { ExternalExtractorClient } from '../../src/external-extractor/ExternalExtractorClient.js';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
-import { AGENT_PARSER_URL_TRANSACTION_PROPERTY, AUTO_FILLED_DATE_PROPERTY } from '../../src/constants.js';
+import { LEGACY_AGENT_PARSER_URL_TRANSACTION_PROPERTY, AUTO_FILLED_DATE_PROPERTY } from '../../src/constants.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 const UPLOAD_METHOD_PROPERTY = 'upload_method';
 
@@ -162,7 +163,7 @@ describe('EventHandlerTransactionCreated - external parsers', () => {
             getAccount: mock(async (id: string) => id === 'acc_1' ? mockAccount : undefined),
             getAccounts: mock(async () => []),
             getGroup: mock(async () => undefined),
-            getProperty: (key: string) => key === AGENT_PARSER_URL_TRANSACTION_PROPERTY ? 'https://parser.example.com/book-transaction' : undefined,
+            getProperty: firstNonBlank((key: string) => key === LEGACY_AGENT_PARSER_URL_TRANSACTION_PROPERTY ? 'https://parser.example.com/book-transaction' : undefined),
             getFractionDigits: () => 2,
             getTimeZone: () => 'UTC',
             getMostRecentLockDate_: () => undefined,

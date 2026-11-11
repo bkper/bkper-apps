@@ -1,10 +1,13 @@
 import { Account, Group, Transaction } from 'bkper-js';
-import { AGENT_EXTRACTED_PROPERTY } from '../constants.js';
+import { APP_PROPERTY_PREFIXES, EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY } from '../constants.js';
+import { PromptLookupService, type PromptPurpose } from './PromptLookupService.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { isExactMatch, isSimilarString, stripAccountNamesFromDescription } from '../utils.js';
 import { getAmountSignFromAccountSide } from '../utils/transaction-utils.js';
 import { GenAIRequestContext } from '../genai/GenAITelemetry.js';
 import type { InvoiceDescriptionPair, SemanticEvaluationService } from '../genai/JevEvaluationService.js';
+
+const PROMPT_PURPOSES: PromptPurpose[] = ['transaction', 'transactions', 'file'];
 
 /**
  * Details about a specific field regression.
@@ -73,7 +76,7 @@ export abstract class PromptImprovementServiceBase {
      * Properties to skip when filtering transaction properties.
      * These are internal/structural properties that should not trigger prompt improvements.
      */
-    protected static readonly SKIP_PROPERTIES = ['agent_', 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'];
+    protected static readonly SKIP_PROPERTIES = [...APP_PROPERTY_PREFIXES, 'parsed_', 'account_id', 'group_id', 'upload_method', 'auto_filled_date_'];
 
     /**
      * Thresholds for prompt size monitoring.
@@ -240,7 +243,7 @@ export abstract class PromptImprovementServiceBase {
      */
     async needsPromptImprovement(transaction: Transaction, userDefinedSkipKeys?: string[]): Promise<boolean> {
         // Get the original AI extracted data from property
-        const extractedJson = transaction.getProperty(AGENT_EXTRACTED_PROPERTY);
+        const extractedJson = transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY);
 
         if (!extractedJson) {
             return false; // No AI extraction stored, can't improve
@@ -294,7 +297,7 @@ export abstract class PromptImprovementServiceBase {
 
             return false; // Nothing changed significantly, no improvement needed
         } catch (e) {
-            console.error('Failed to parse AGENT_EXTRACTED_PROPERTY:', e);
+            console.error('Failed to parse EXTRACTOR_EXTRACTED_PROPERTY:', e);
             return false;
         }
     }
@@ -610,6 +613,11 @@ export abstract class PromptImprovementServiceBase {
     protected async saveImprovedPrompt(entity: Account | Group | undefined, promptProperty: string, improvedPrompt: string, reasoning: string): Promise<string | null> {
         if (entity) {
             entity.setProperty(promptProperty, improvedPrompt);
+            // The prompt's previous name would otherwise linger beside it: delete it in the same update.
+            const purpose = PROMPT_PURPOSES.find((candidate) => PromptLookupService.getPromptProperty(candidate) === promptProperty);
+            if (purpose) {
+                entity.deleteProperty(PromptLookupService.getRenamedPromptProperty(purpose));
+            }
             await entity.update();
             console.log(`🎉 ACE: Prompt updated on ${entity.getName()} (${promptProperty})`);
         } else {

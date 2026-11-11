@@ -3,8 +3,9 @@
 import { describe, it, expect, mock, spyOn, beforeEach } from 'bun:test';
 import { StatementPromptImprovementService } from '../../src/services/StatementPromptImprovementService.js';
 import { Book, Transaction, Account, Group, File } from 'bkper-js';
-import { AGENT_CREDIT_ACCOUNT_ID_PROPERTY, AGENT_FILE_ID_PROPERTY, AGENT_EXCLUDED_PROPERTIES_PROPERTY, AGENT_EXTRACTED_PROPERTY, AGENT_PROMPT_IMPROVE_PROPERTY } from '../../src/constants.js';
+import { EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, AGENT_EXCLUDED_PROPERTIES_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY, LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY } from '../../src/constants.js';
 import { AppContext } from '../../src/AppContext.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 function createMockContext(overrides: Partial<{
     flagManagementService: any;
@@ -56,16 +57,16 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             const result = await service.flagStatementForImprovement(mockBook, mockTransaction);
 
             expect(result).toBe(null);
-            expect(mockTransaction.getProperty).toHaveBeenCalledWith(AGENT_FILE_ID_PROPERTY);
+            expect(mockTransaction.getProperty).toHaveBeenCalledWith(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY);
         });
 
         it('should return null when transaction has no agent_extracted_ property', async () => {
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return undefined;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return undefined;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
             } as unknown as Transaction;
 
@@ -83,11 +84,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1'),
@@ -99,8 +100,8 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             // Should return null because no changes detected (transaction is identical to AI extraction)
             expect(result).toBe(null);
-            expect(mockTransaction.getProperty).toHaveBeenCalledWith(AGENT_FILE_ID_PROPERTY);
-            expect(mockTransaction.getProperty).toHaveBeenCalledWith(AGENT_EXTRACTED_PROPERTY);
+            expect(mockTransaction.getProperty).toHaveBeenCalledWith(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY);
+            expect(mockTransaction.getProperty).toHaveBeenCalledWith(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY);
         });
     });
 
@@ -114,11 +115,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1'),
@@ -142,7 +143,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             // Mock PromptLookupService to return account
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -169,11 +170,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-20'), // Changed from 15 to 20
                 getDescription: mock().mockReturnValue('Transaction 1'),
@@ -196,7 +197,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -223,11 +224,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'), // Same
                 getDescription: mock().mockReturnValue('Transaction 1'), // Same
@@ -252,11 +253,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1'),
@@ -266,10 +267,10 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockAccount = {
                 getName: mock().mockReturnValue('Test Account'),
-                getProperty: mock((key: string) => {
+                getProperty: mock(firstNonBlank((key: string) => {
                     if (key === AGENT_EXCLUDED_PROPERTIES_PROPERTY) return 'statement_note';
                     return undefined;
-                }),
+                })),
                 setProperty: mock().mockReturnThis(),
                 update: mock().mockResolvedValue(undefined),
             } as unknown as Account;
@@ -282,7 +283,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set(['statement_note'])),
@@ -313,20 +314,20 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const flaggedAccount = {
                 getName: mock().mockReturnValue('Bank'),
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_PROMPT_IMPROVE_PROPERTY) return '2026-06-16T10:00:00.000Z';
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY) return '2026-06-16T10:00:00.000Z';
                     return undefined;
-                }),
+                })),
             } as unknown as Account;
 
             const getCreditAccount = mock().mockResolvedValue(flaggedAccount);
             const getDebitAccount = mock().mockResolvedValue(undefined);
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(true),
                 getCreditAccount,
                 getDebitAccount,
@@ -354,10 +355,10 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             const flaggedCounterpartyAccount = {
                 getId: mock().mockReturnValue('category'),
                 getName: mock().mockReturnValue('Category'),
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_PROMPT_IMPROVE_PROPERTY) return '2026-06-16T10:00:00.000Z';
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY) return '2026-06-16T10:00:00.000Z';
                     return undefined;
-                }),
+                })),
             } as unknown as Account;
 
             const statementAccount = {
@@ -367,12 +368,12 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             } as unknown as Account;
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
-                    if (key === AGENT_CREDIT_ACCOUNT_ID_PROPERTY) return 'category';
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                    if (key === LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY) return 'category';
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(true),
                 getCreditAccount: mock().mockResolvedValue(flaggedCounterpartyAccount),
                 getDebitAccount: mock().mockResolvedValue(statementAccount),
@@ -386,7 +387,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: statementAccount, promptEntity: statementAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: statementAccount, promptEntity: statementAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -414,11 +415,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(true), // Transaction is trashed
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1'),
@@ -443,7 +444,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -472,11 +473,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1 CHANGED'), // Changed
@@ -499,7 +500,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -526,11 +527,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1 CHANGED'), // Changed
@@ -553,7 +554,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ group: mockGroup, promptEntity: mockGroup, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ group: mockGroup, promptEntity: mockGroup, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue(null),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -580,11 +581,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1 CHANGED'),
@@ -605,7 +606,7 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             const mockLookupService = {
                 lookupPrompts: mock().mockResolvedValue({
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 }),
                 lookupTransactionsParserUrl: mock().mockResolvedValue({ url: 'https://parser.example.com', source: 'account' as const, account: mockAccount }),
                 lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
@@ -632,11 +633,11 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
             });
 
             const mockTransaction = {
-                getProperty: mock((key: string) => {
-                    if (key === AGENT_FILE_ID_PROPERTY) return 'file123';
-                    if (key === AGENT_EXTRACTED_PROPERTY) return aiExtracted;
+                getProperty: mock(firstNonBlank((key: string) => {
+                    if (key === LEGACY_AGENT_FILE_ID_PROPERTY) return 'file123';
+                    if (key === LEGACY_AGENT_EXTRACTED_PROPERTY) return aiExtracted;
                     return undefined;
-                }),
+                })),
                 isTrashed: mock().mockReturnValue(false),
                 getDate: mock().mockReturnValue('2025-01-15'),
                 getDescription: mock().mockReturnValue('Transaction 1 CHANGED'), // Changed
@@ -657,5 +658,72 @@ describe('StatementPromptImprovementService - flagStatementForImprovement', () =
 
             expect(result).toBe(null);
         });
+    });
+});
+
+describe('StatementPromptImprovementService - new property names', () => {
+    const aiExtracted = JSON.stringify({ date: '2025-01-15', description: 'Transaction 1', amount: 100, properties: {} });
+
+    function draft(properties: Record<string, string>, creditAccount: Account | undefined, debitAccount: Account | undefined): Transaction {
+        return {
+            getProperty: mock(firstNonBlank((key: string) => properties[key])),
+            isTrashed: mock().mockReturnValue(true),
+            getCreditAccount: mock().mockResolvedValue(creditAccount),
+            getDebitAccount: mock().mockResolvedValue(debitAccount),
+        } as unknown as Transaction;
+    }
+
+    function account(id: string, properties: Record<string, string> = {}): Account {
+        return {
+            getId: mock().mockReturnValue(id),
+            getName: mock().mockReturnValue(id),
+            getProperty: mock(firstNonBlank((key: string) => properties[key])),
+        } as unknown as Account;
+    }
+
+    it('skips a deleted draft whose Account carries the new improvement flag', async () => {
+        const context = createMockContext();
+        const book = { getFile: mock() } as unknown as Book;
+        const flagged = account('bank', { extractor_prompt_improve_: '2026-06-16T10:00:00.000Z' });
+
+        const result = await new StatementPromptImprovementService(context).flagStatementForImprovement(
+            book,
+            draft({ extractor_file_id_: 'file123', extractor_extracted_: aiExtracted }, flagged, undefined)
+        );
+
+        expect(result).toBe(null);
+        expect(book.getFile).not.toHaveBeenCalled();
+        expect(context.flagManagementService.setImprovementFlag).not.toHaveBeenCalled();
+    });
+
+    it('reads Bookbot\'s provenance under bookbot_* before agent_*', async () => {
+        const counterparty = account('category', { extractor_prompt_improve_: '2026-06-16T10:00:00.000Z' });
+        const statementAccount = account('bank');
+        const file = { getId: () => 'file123' } as File;
+        const book = { getFile: mock().mockResolvedValue(file) } as unknown as Book;
+        const setImprovementFlag = mock().mockResolvedValue(undefined);
+        const context = createMockContext({
+            flagManagementService: { setImprovementFlag },
+            promptLookupService: {
+                lookupPrompts: mock().mockResolvedValue({
+                    getPrompt: () => ({ account: statementAccount, promptEntity: statementAccount, targetProperty: 'extractor_prompt_transactions' }),
+                }),
+                lookupTransactionsParserUrl: mock().mockResolvedValue(null),
+                lookupPropertySkipKeys: mock().mockResolvedValue(new Set<string>()),
+            },
+        });
+
+        const result = await new StatementPromptImprovementService(context).flagStatementForImprovement(
+            book,
+            draft({
+                extractor_file_id_: 'file123',
+                extractor_extracted_: aiExtracted,
+                bookbot_credit_account_id_: 'category',
+                agent_credit_account_id_: 'stale',
+            }, counterparty, statementAccount)
+        );
+
+        expect(result).toContain('Prompt flagged for improvement');
+        expect(setImprovementFlag).toHaveBeenCalledWith(statementAccount, file);
     });
 });

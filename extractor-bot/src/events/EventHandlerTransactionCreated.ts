@@ -1,5 +1,5 @@
 import { Book, File, Transaction } from 'bkper-js';
-import { AGENT_EXTRACTED_PROPERTY, AUTO_FILLED_DATE_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
@@ -138,7 +138,7 @@ export class EventHandlerTransactionCreated extends EventHandler {
                 warning = this.discoveryWarning(discoveryResult.error);
 
                 if (updatedFile) {
-                    transaction.setProperty(AGENT_EXTRACTED_PROPERTY, JSON.stringify(extractedTransaction));
+                    transaction.setProperty(EXTRACTOR_EXTRACTED_PROPERTY, JSON.stringify(extractedTransaction));
                 }
 
                 if (updatedFile || updatedProp) {

@@ -1,5 +1,5 @@
 import { Account, Book, File, Transaction } from 'bkper-js';
-import { AGENT_EXTRACTED_PROPERTY } from '../constants.js';
+import { EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY } from '../constants.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { CuratorInvoice } from '../genai/invoice/CuratorInvoice.js';
 import { ExtractorInvoice } from '../genai/invoice/ExtractorInvoice.js';
@@ -198,7 +198,7 @@ export class InvoicePromptImprovementService extends PromptImprovementServiceBas
         if (!transaction.getFiles() || transaction.getFiles().length === 0) {
             return null;
         }
-        if (!transaction.getProperty(AGENT_EXTRACTED_PROPERTY)) {
+        if (!transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY)) {
             return null;
         }
 
@@ -368,10 +368,10 @@ export class InvoicePromptImprovementService extends PromptImprovementServiceBas
         const userCorrected = await this.transactionToExtractedTransaction(transaction, account, userDefinedSkipKeys);
 
         // Get AI extracted data from property
-        const extractedJson = transaction.getProperty(AGENT_EXTRACTED_PROPERTY);
+        const extractedJson = transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY);
 
         if (!extractedJson) {
-            throw new Error('AGENT_EXTRACTED_PROPERTY not found');
+            throw new Error('EXTRACTOR_EXTRACTED_PROPERTY not found');
         }
 
         const aiExtracted = JSON.parse(extractedJson) as ExtractedTransaction;

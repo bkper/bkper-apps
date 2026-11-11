@@ -3,7 +3,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { Account, Book, File } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { AGENT_PARSER_TRANSACTION_PROPERTY, AGENT_PARSER_TRANSACTIONS_PROPERTY } from '../../src/constants.js';
+import { EXTRACTOR_PROMPT_TRANSACTION_PROPERTY, EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY, LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY, LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY } from '../../src/constants.js';
 import { FileParserGenAIFileProperties } from '../../src/file-parsers/FileParserGenAIFileProperties.js';
 import { FileParserGenAITransaction } from '../../src/file-parsers/FileParserGenAITransaction.js';
 import { FileParserGenAITransactions } from '../../src/file-parsers/FileParserGenAITransactions.js';
@@ -56,14 +56,14 @@ describe('FileParsers', () => {
                 account,
                 promptEntity: account,
                 sourceProperty: 'agent_prompt',
-                targetProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                targetProperty: EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
             },
             transactionPrompt: {
                 prompt: 'receipt prompt',
                 account,
                 promptEntity: account,
-                sourceProperty: AGENT_PARSER_TRANSACTION_PROPERTY,
-                targetProperty: AGENT_PARSER_TRANSACTION_PROPERTY,
+                sourceProperty: LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY,
+                targetProperty: EXTRACTOR_PROMPT_TRANSACTION_PROPERTY,
             },
         });
 
@@ -99,8 +99,8 @@ describe('FileParsers', () => {
                 prompt: 'statement prompt',
                 account,
                 promptEntity: account,
-                sourceProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
-                targetProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                sourceProperty: LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                targetProperty: EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
             },
         });
 
@@ -137,8 +137,8 @@ describe('FileParsers', () => {
                 prompt: 'statement prompt',
                 account,
                 promptEntity: account,
-                sourceProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
-                targetProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                sourceProperty: LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                targetProperty: EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
             },
         });
 
@@ -168,18 +168,18 @@ describe('FileParsers', () => {
                         prompt: 'receipt prompt',
                         account,
                         promptEntity: account,
-                        sourceProperty: AGENT_PARSER_TRANSACTION_PROPERTY,
-                        targetProperty: AGENT_PARSER_TRANSACTION_PROPERTY,
+                        sourceProperty: LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY,
+                        targetProperty: EXTRACTOR_PROMPT_TRANSACTION_PROPERTY,
                     };
                 }
                 if (purpose === 'transactions') {
                     return {
                         account,
                         promptEntity: account,
-                        targetProperty: AGENT_PARSER_TRANSACTIONS_PROPERTY,
+                        targetProperty: EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
                     };
                 }
-                return { targetProperty: 'agent_parser_file' };
+                return { targetProperty: 'extractor_prompt_file' };
             },
         };
 

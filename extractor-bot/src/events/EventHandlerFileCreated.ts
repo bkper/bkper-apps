@@ -1,5 +1,5 @@
 import { Account, Amount, Book, File, Transaction } from 'bkper-js';
-import { AGENT_EXTRACTED_PROPERTY, AGENT_FILE_ID_PROPERTY, TRANSACTIONS_SUMMARY_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, LEGACY_TRANSACTIONS_SUMMARY_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
@@ -56,7 +56,7 @@ export class EventHandlerFileCreated extends EventHandler {
             return { result: false };
         }
 
-        if (file.getProperty(TRANSACTIONS_SUMMARY_PROPERTY)) {
+        if (file.getProperty(EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, LEGACY_TRANSACTIONS_SUMMARY_PROPERTY)) {
             console.log('File already has a transactions summary; skipping extraction');
             return { result: false };
         }
@@ -233,7 +233,7 @@ export class EventHandlerFileCreated extends EventHandler {
      * Tags the transaction with the originating file ID.
      */
     private async enrichTransaction(transaction: Transaction, file: File): Promise<void> {
-        transaction.setProperty(AGENT_FILE_ID_PROPERTY, file.getId() || '');
+        transaction.setProperty(EXTRACTOR_FILE_ID_PROPERTY, file.getId() || '');
     }
 
     /**
@@ -284,7 +284,7 @@ export class EventHandlerFileCreated extends EventHandler {
     }
 
     /**
-     * Build and save the one-entry transactions_summary for a single transaction extraction.
+     * Build and save the one-entry extractor_transactions_summary for a single transaction extraction.
      */
     private recordSingleTransactionSummaryToFile(recording: TransactionRecording, book: Book, file: File, account: Account | undefined): boolean {
         if (this.isZeroAmount(recording.extracted.amount)) {
@@ -297,12 +297,12 @@ export class EventHandlerFileCreated extends EventHandler {
             total_transactions: 1,
             transactionIds: [recording.transactionId!],
         }];
-        file.setProperty(TRANSACTIONS_SUMMARY_PROPERTY, JSON.stringify(summary));
+        file.setProperty(EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, JSON.stringify(summary));
         return true;
     }
 
     /**
-     * Build and save a transactions_summary property on the file —
+     * Build and save an extractor_transactions_summary property on the file —
      * one entry per (bookId, accountId) pair describing how many non-zero transactions were recorded
      */
     private async recordSummaryToFile(recordings: TransactionRecording[], book: Book, file: File, account: Account | undefined): Promise<boolean> {
@@ -365,7 +365,7 @@ export class EventHandlerFileCreated extends EventHandler {
             }
         }
 
-        file.setProperty(TRANSACTIONS_SUMMARY_PROPERTY, JSON.stringify(summary));
+        file.setProperty(EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, JSON.stringify(summary));
         return true;
     }
 
@@ -458,7 +458,7 @@ export class EventHandlerFileCreated extends EventHandler {
         }
 
         const transaction = new Transaction(book, tx);
-        transaction.setProperty(AGENT_EXTRACTED_PROPERTY, JSON.stringify(extractedTransaction));
+        transaction.setProperty(EXTRACTOR_EXTRACTED_PROPERTY, JSON.stringify(extractedTransaction));
         if (account && extractedTransaction.amount) {
             const amount = new Amount(extractedTransaction.amount);
             setAccountBasedOnAmount(transaction, account, amount);

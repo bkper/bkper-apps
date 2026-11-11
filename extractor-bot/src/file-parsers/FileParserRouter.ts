@@ -1,6 +1,6 @@
 import { Account, Book, File, Group } from 'bkper-js';
 import { AppContext } from '../AppContext.js';
-import { AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
+import { EXTRACTOR_PROMPT_FILE_PROPERTY, LEGACY_AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
 import { ExtractorUrlLookupResult, PromptResolution } from '../services/PromptLookupService.js';
 import { FileParserExternalFileProperties } from './FileParserExternalFileProperties.js';
 import { FileParserExternalTransaction } from './FileParserExternalTransaction.js';
@@ -134,7 +134,8 @@ export class FileParserRouter {
             return new FileParserExternalFileProperties(parserContext.fileParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
         }
 
-        if (parserContext.filePrompt?.sourceProperty === AGENT_PARSER_FILE_PROPERTY && parserContext.filePrompt.prompt) {
+        const fileSource = parserContext.filePrompt?.sourceProperty;
+        if ((fileSource === EXTRACTOR_PROMPT_FILE_PROPERTY || fileSource === LEGACY_AGENT_PARSER_FILE_PROPERTY) && parserContext.filePrompt?.prompt) {
             return new FileParserGenAIFileProperties(this.context);
         }
 

@@ -62,7 +62,7 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'agent_parser_transactions' }),
+                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
                 lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => purpose === 'transactions' ? ({ url: 'https://extractor.example.com/extract', source: 'account' as const, account: mockAccount }) : null),
                 lookupTransactionsParserUrl: mock(async () => ({ url: 'https://extractor.example.com/extract', source: 'account' as const, account: mockAccount })),
@@ -93,7 +93,7 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
         expect(firstBookId).toBe('book_1');
         expect(firstItems.map(item => item.transaction.getDescription())).toEqual(['Adobe subscription', 'Monthly rent']);
         expect(firstItems.every(item => item.sourceAccount === mockAccount)).toBe(true);
-        expect(firstItems[0].transaction.getProperty('agent_file_id_')).toBe('file_1');
+        expect(firstItems[0].transaction.getProperty('extractor_file_id_')).toBe('file_1');
 
         const [secondBookId, secondItems] = discover.mock.calls[1];
         expect(secondBookId).toBe('book_2');

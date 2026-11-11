@@ -1,5 +1,20 @@
 import { Account, Book, File, Group, Transaction } from 'bkper-js';
-import { AGENT_CREDIT_ACCOUNT_ID_PROPERTY, AGENT_DEBIT_ACCOUNT_ID_PROPERTY, AGENT_EXTRACTED_PROPERTY, AGENT_FILE_ID_PROPERTY, AGENT_PARSER_TRANSACTIONS_PROPERTY, AGENT_PROMPT_IMPROVE_PROPERTY, AGENT_PROMPT_PROPERTY, AGENT_PROMPT_TRANSACTIONS_PROPERTY } from '../constants.js';
+import {
+    BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY,
+    BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY,
+    EXTRACTOR_EXTRACTED_PROPERTY,
+    EXTRACTOR_FILE_ID_PROPERTY,
+    EXTRACTOR_PROMPT_IMPROVE_PROPERTY,
+    EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_EXTRACTED_PROPERTY,
+    LEGACY_AGENT_FILE_ID_PROPERTY,
+    LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY,
+    LEGACY_AGENT_PROMPT_PROPERTY,
+    LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY,
+} from '../constants.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { CuratorStatementIMG } from '../genai/statement/img/CuratorStatementIMG.js';
 import { ExtractorStatementIMG } from '../genai/statement/img/ExtractorStatementIMG.js';
@@ -53,15 +68,15 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
      * @returns Promise<boolean> - True if statement was flagged, false otherwise
      */
     async flagStatementForImprovement(book: Book, transaction: Transaction): Promise<null | string> {
-        // Step 1: Pre-checks - must have agent_file_id_ property (statement indicator)
-        const fileId = transaction.getProperty(AGENT_FILE_ID_PROPERTY);
+        // Step 1: Pre-checks - must have the source file ID property (statement indicator)
+        const fileId = transaction.getProperty(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY);
         if (!fileId) {
-            console.log('Transaction has no agent_file_id_ property');
+            console.log('Transaction has no source file ID property');
             return null; // Not a statement transaction
         }
 
         // Step 2: Must have baseline AI extraction stored
-        const aiExtractedJson = transaction.getProperty(AGENT_EXTRACTED_PROPERTY);
+        const aiExtractedJson = transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY);
         if (!aiExtractedJson) {
             console.log('Transaction has no baseline AI extraction');
             return null; // No baseline to compare against
@@ -142,7 +157,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
         const accounts = this.getStatementAccountCandidates(transaction, creditAccount, debitAccount);
 
         for (const account of accounts) {
-            if (account.getProperty(AGENT_PROMPT_IMPROVE_PROPERTY)) {
+            if (account.getProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY, LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY)) {
                 console.log(`Statement already flagged for improvement on transaction account: ${account.getName()}`);
                 return true;
             }
@@ -153,8 +168,8 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
 
     private getStatementAccountCandidates(transaction: Transaction, creditAccount: Account | undefined, debitAccount: Account | undefined): Account[] {
         const candidates: Account[] = [];
-        const agentCreditAccountId = transaction.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
-        const agentDebitAccountId = transaction.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
+        const agentCreditAccountId = transaction.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
+        const agentDebitAccountId = transaction.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
 
         if (creditAccount && (!agentCreditAccountId || creditAccount.getId() !== agentCreditAccountId)) {
             candidates.push(creditAccount);
@@ -270,7 +285,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
                 if (validationResult.passed) {
                     // Validation passed - save and return success
                     aceResult = { kind: 'statement', outcome: 'save_failed', epochsAttempted, reason: 'save_error' };
-                    const response = await this.saveImprovedPrompt(entity, AGENT_PARSER_TRANSACTIONS_PROPERTY, improvedPrompt, reasoning);
+                    const response = await this.saveImprovedPrompt(entity, EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY, improvedPrompt, reasoning);
 
                     aceResult = response
                         ? { kind: 'statement', outcome: 'prompt_updated', epochsAttempted, successfulEpoch: epochNum }
@@ -336,7 +351,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
         let fileId: string | undefined = undefined;
 
         for (const txn of transactions) {
-            const fileIdValue = txn.getProperty(AGENT_FILE_ID_PROPERTY);
+            const fileIdValue = txn.getProperty(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY);
             if (fileIdValue) {
                 fileId = fileIdValue;
                 break;
@@ -374,7 +389,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
     }
 
     private getStoredTransactionsPrompt(entity: Account | Group): string | undefined {
-        return entity.getProperty(AGENT_PARSER_TRANSACTIONS_PROPERTY) || entity.getProperty(AGENT_PROMPT_TRANSACTIONS_PROPERTY) || entity.getProperty(AGENT_PROMPT_PROPERTY);
+        return entity.getProperty(EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY, LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY) || entity.getProperty(LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY) || entity.getProperty(LEGACY_AGENT_PROMPT_PROPERTY);
     }
 
     private async lookupTransactionsParserForEntity(book: Book, entity: Account | Group, isAccount: boolean): Promise<ExtractorUrlLookupResult | null> {
@@ -382,6 +397,21 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
             return this.context.promptLookupService.lookupTransactionsParserUrl({ book, account: entity as Account });
         }
         return this.context.promptLookupService.lookupTransactionsParserUrl({ book, group: entity as Group });
+    }
+
+    /**
+     * Lists the file's drafts under each name of the file ID property, once each: one query per name
+     * rather than an OR, whose precedence next to the other conditions the query language leaves open.
+     */
+    private async listFileTransactions(book: Book, prefix: string, fileId: string | undefined, suffix: string): Promise<Transaction[]> {
+        const transactions = new Map<string, Transaction>();
+        for (const property of [EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY]) {
+            const list = await book.listTransactions(`${prefix} ${property}:${fileId}${suffix}`, STATEMENT_TRANSACTION_LIMIT);
+            for (const transaction of list.getItems()) {
+                transactions.set(transaction.getId() ?? `${property}:${transactions.size}`, transaction);
+            }
+        }
+        return [...transactions.values()];
     }
 
     /**
@@ -397,11 +427,8 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
             prefix = `group:'${entity.getName()}'`;
         }
 
-        const postedTransactionsList = await book.listTransactions(`${prefix} agent_file_id_:${fileId}`, STATEMENT_TRANSACTION_LIMIT);
-        const postedTransactions = postedTransactionsList.getItems();
-
-        const trashedTransactionsList = await book.listTransactions(`${prefix} agent_file_id_:${fileId} is:trashed`, STATEMENT_TRANSACTION_LIMIT);
-        const trashedTransactions = trashedTransactionsList.getItems();
+        const postedTransactions = await this.listFileTransactions(book, prefix, fileId, '');
+        const trashedTransactions = await this.listFileTransactions(book, prefix, fileId, ' is:trashed');
 
         const allTransactions = [...postedTransactions, ...trashedTransactions];
 
@@ -418,7 +445,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
 
         const aiExtracted: ExtractedTransaction[] = [];
         for (const txn of allTransactions) {
-            const aiExtractedJson = txn.getProperty(AGENT_EXTRACTED_PROPERTY);
+            const aiExtractedJson = txn.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY);
             if (aiExtractedJson) {
                 try {
                     const extracted = JSON.parse(aiExtractedJson) as ExtractedTransaction;

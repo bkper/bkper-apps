@@ -3,7 +3,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { Account, Book, File, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { AGENT_EXTRACTED_PROPERTY } from '../../src/constants.js';
+import { EXTRACTOR_EXTRACTED_PROPERTY } from '../../src/constants.js';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
@@ -97,7 +97,7 @@ describe('EventHandlerFileCreated null dates', () => {
         expect(createdTransactions[0].getDate()).toBeUndefined();
         expect(createdTransactions[0].json().date).toBeUndefined();
 
-        const extractedJson = createdTransactions[0].getProperty(AGENT_EXTRACTED_PROPERTY);
+        const extractedJson = createdTransactions[0].getProperty(EXTRACTOR_EXTRACTED_PROPERTY);
         expect(extractedJson).toBeDefined();
         const auditedExtraction = JSON.parse(extractedJson ?? '{}') as ExtractedTransaction;
         expect(auditedExtraction.date).toBeNull();

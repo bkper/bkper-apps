@@ -106,7 +106,7 @@ describe('structured ACE terminal results', () => {
         spyOn(seams, 'lookupPromptLocation').mockResolvedValue({
             prompt: '- original',
             promptEntity: entity,
-            targetProperty: 'agent_parser_transaction',
+            targetProperty: 'extractor_prompt_transaction',
         });
         spyOn(seams, 'needsPromptImprovement').mockResolvedValue(true);
         spyOn(seams, 'buildTransactionComparison').mockResolvedValue({ aiExtracted: original, userCorrected: corrected });
@@ -142,7 +142,7 @@ describe('structured ACE terminal results', () => {
 
         spyOn(seams, 'validateTransactionPrerequisites').mockResolvedValue({} as File);
         spyOn(seams, 'lookupPromptLocation').mockResolvedValue({
-            prompt: '- original', promptEntity: entity, targetProperty: 'agent_parser_transaction',
+            prompt: '- original', promptEntity: entity, targetProperty: 'extractor_prompt_transaction',
         });
         spyOn(seams, 'needsPromptImprovement').mockResolvedValue(true);
         spyOn(seams, 'buildTransactionComparison').mockResolvedValue({
@@ -170,7 +170,7 @@ describe('structured ACE terminal results', () => {
         const entity = { getProperty: () => undefined } as unknown as Account;
         spyOn(seams, 'validateTransactionPrerequisites').mockResolvedValue(file);
         spyOn(seams, 'lookupPromptLocation').mockResolvedValue({
-            prompt: '- original', promptEntity: entity, targetProperty: 'agent_parser_transaction',
+            prompt: '- original', promptEntity: entity, targetProperty: 'extractor_prompt_transaction',
         });
         spyOn(seams, 'needsPromptImprovement').mockResolvedValue(true);
         spyOn(seams, 'buildTransactionComparison').mockResolvedValue({

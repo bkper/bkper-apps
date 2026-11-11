@@ -1,5 +1,10 @@
 import { Account, Group, Book, File } from 'bkper-js';
-import { AGENT_FILE_ID_PROPERTY, AGENT_PROMPT_IMPROVE_PROPERTY } from '../constants.js';
+import {
+    EXTRACTOR_FILE_ID_PROPERTY,
+    EXTRACTOR_PROMPT_IMPROVE_PROPERTY,
+    LEGACY_AGENT_FILE_ID_PROPERTY,
+    LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY,
+} from '../constants.js';
 
 /**
  * Service to manage improvement flags on accounts and groups.
@@ -14,11 +19,11 @@ export class FlagManagementService {
      */
     async setImprovementFlag(entity: Account | Group, file: File): Promise<void> {
         const timestamp = new Date().toISOString();
-        if (entity.getProperty(AGENT_PROMPT_IMPROVE_PROPERTY)) {
+        if (entity.getProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY, LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY)) {
             // Flag already set, no need to update
             return;
         }
-        entity.setProperty(AGENT_PROMPT_IMPROVE_PROPERTY, timestamp);
+        entity.setProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY, timestamp);
         await entity.update();
     }
 
@@ -28,8 +33,10 @@ export class FlagManagementService {
      * @param entity - The Account or Group to clear flag from
      */
     async clearImprovementFlag(entity: Account | Group): Promise<void> {
-        entity.deleteProperty(AGENT_PROMPT_IMPROVE_PROPERTY);
-        entity.deleteProperty(AGENT_FILE_ID_PROPERTY);
+        entity.deleteProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY);
+        entity.deleteProperty(LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY);
+        entity.deleteProperty(EXTRACTOR_FILE_ID_PROPERTY);
+        entity.deleteProperty(LEGACY_AGENT_FILE_ID_PROPERTY);
         await entity.update();
     }
 
@@ -48,7 +55,7 @@ export class FlagManagementService {
         // Query all accounts and filter for flagged ones
         const accounts = await book.getAccounts();
         for (const account of accounts) {
-            const timestamp = account.getProperty(AGENT_PROMPT_IMPROVE_PROPERTY);
+            const timestamp = account.getProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY, LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY);
             if (timestamp) {
                 result.push({
                     entity: account,
@@ -60,7 +67,7 @@ export class FlagManagementService {
         // Query all groups and filter for flagged ones
         const groups = await book.getGroups();
         for (const group of groups) {
-            const timestamp = group.getProperty(AGENT_PROMPT_IMPROVE_PROPERTY);
+            const timestamp = group.getProperty(EXTRACTOR_PROMPT_IMPROVE_PROPERTY, LEGACY_AGENT_PROMPT_IMPROVE_PROPERTY);
             if (timestamp) {
                 result.push({
                     entity: group,

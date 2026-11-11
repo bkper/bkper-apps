@@ -3,7 +3,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { Book, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { AGENT_FILE_ID_PROPERTY } from '../../src/constants.js';
+import { LEGACY_AGENT_FILE_ID_PROPERTY } from '../../src/constants.js';
 import { EventHandlerTransactionDeleted } from '../../src/events/EventHandlerTransactionDeleted.js';
 
 function createHandler(flagStatementForImprovement: (book: Book, transaction: Transaction) => Promise<string | null>): EventHandlerTransactionDeleted {
@@ -37,7 +37,7 @@ describe('EventHandlerTransactionDeleted', () => {
                         amount: '42.00',
                         trashed: false,
                         properties: {
-                            [AGENT_FILE_ID_PROPERTY]: 'file_1',
+                            [LEGACY_AGENT_FILE_ID_PROPERTY]: 'file_1',
                         },
                     },
                 } as bkper.TransactionOperation,
@@ -49,7 +49,7 @@ describe('EventHandlerTransactionDeleted', () => {
         expect(getTransaction).not.toHaveBeenCalled();
         expect(flagStatementForImprovement).toHaveBeenCalledTimes(1);
         expect(capturedTransaction?.getId()).toBe('tx_1');
-        expect(capturedTransaction?.getProperty(AGENT_FILE_ID_PROPERTY)).toBe('file_1');
+        expect(capturedTransaction?.getProperty(LEGACY_AGENT_FILE_ID_PROPERTY)).toBe('file_1');
         expect(capturedTransaction?.isTrashed()).toBe(true);
         expect(result).toEqual({ result: 'Statement flagged for improvement after transaction deletion' });
     });
@@ -62,7 +62,7 @@ describe('EventHandlerTransactionDeleted', () => {
                 object: {
                     transaction: {
                         properties: {
-                            [AGENT_FILE_ID_PROPERTY]: 'file_1',
+                            [LEGACY_AGENT_FILE_ID_PROPERTY]: 'file_1',
                         },
                     },
                 } as bkper.TransactionOperation,

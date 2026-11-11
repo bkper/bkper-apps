@@ -1,7 +1,7 @@
 import { Account, BkperError, Book, File, Permission, Transaction } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import { AppContext } from '../AppContext.js';
-import { AGENT_EXTRACTED_PROPERTY, AGENT_FILE_ID_PROPERTY, AUTO_FILLED_DATE_PROPERTY } from '../constants.js';
+import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY } from '../constants.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
 import { BkperAIClientError } from '../genai/BkperAIClientError.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
@@ -115,8 +115,8 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
                 if (account?.getId()) await requireAccount(targetBook, account.getId()!);
                 const transaction = new Transaction(targetBook, {});
                 applyExtraction(transaction, extracted);
-                transaction.setProperty(AGENT_EXTRACTED_PROPERTY, JSON.stringify(extracted));
-                if (file.getId()) transaction.setProperty(AGENT_FILE_ID_PROPERTY, file.getId()!);
+                transaction.setProperty(EXTRACTOR_EXTRACTED_PROPERTY, JSON.stringify(extracted));
+                if (file.getId()) transaction.setProperty(EXTRACTOR_FILE_ID_PROPERTY, file.getId()!);
                 transactions.push({ bookId, transaction: asDraft(transaction, account) });
             }
         } else if (request.transaction) {
@@ -145,7 +145,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
                 if (date) transaction.payload.date = date;
             }
             if (JSON.stringify(transaction.json()) !== before) {
-                if (extracted && !transaction.getProperty(AGENT_EXTRACTED_PROPERTY)) transaction.setProperty(AGENT_EXTRACTED_PROPERTY, JSON.stringify(extracted));
+                if (extracted && !transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY)) transaction.setProperty(EXTRACTOR_EXTRACTED_PROPERTY, JSON.stringify(extracted));
                 transactions.push({ bookId: request.bookId, transaction: asDraft(transaction, account) });
             }
         }

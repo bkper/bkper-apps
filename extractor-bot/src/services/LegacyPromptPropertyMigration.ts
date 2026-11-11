@@ -1,19 +1,25 @@
 import { Account, Group } from 'bkper-js';
 import {
-    AGENT_PROMPT_PROPERTY,
-    AGENT_PROMPT_TRANSACTION_PROPERTY,
-    AGENT_PROMPT_TRANSACTIONS_PROPERTY,
-    AGENT_PROMPT_FILE_PROPERTY,
-    AGENT_PARSER_TRANSACTION_PROPERTY,
-    AGENT_PARSER_TRANSACTIONS_PROPERTY,
-    AGENT_PARSER_FILE_PROPERTY,
+    EXTRACTOR_PROMPT_FILE_PROPERTY,
+    EXTRACTOR_PROMPT_TRANSACTION_PROPERTY,
+    EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PARSER_FILE_PROPERTY,
+    LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY,
+    LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY,
+    LEGACY_AGENT_PROMPT_FILE_PROPERTY,
+    LEGACY_AGENT_PROMPT_PROPERTY,
+    LEGACY_AGENT_PROMPT_TRANSACTION_PROPERTY,
+    LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY,
 } from '../constants.js';
 
+// Old names of each prompt property, most recent first.
 const PROMPT_PROPERTY_MIGRATIONS = [
-    { target: AGENT_PARSER_TRANSACTION_PROPERTY, legacy: AGENT_PROMPT_TRANSACTION_PROPERTY },
-    { target: AGENT_PARSER_TRANSACTIONS_PROPERTY, legacy: AGENT_PROMPT_TRANSACTIONS_PROPERTY },
-    { target: AGENT_PARSER_FILE_PROPERTY, legacy: AGENT_PROMPT_FILE_PROPERTY },
+    { target: EXTRACTOR_PROMPT_TRANSACTION_PROPERTY, legacy: [LEGACY_AGENT_PARSER_TRANSACTION_PROPERTY, LEGACY_AGENT_PROMPT_TRANSACTION_PROPERTY] },
+    { target: EXTRACTOR_PROMPT_TRANSACTIONS_PROPERTY, legacy: [LEGACY_AGENT_PARSER_TRANSACTIONS_PROPERTY, LEGACY_AGENT_PROMPT_TRANSACTIONS_PROPERTY] },
+    { target: EXTRACTOR_PROMPT_FILE_PROPERTY, legacy: [LEGACY_AGENT_PARSER_FILE_PROPERTY, LEGACY_AGENT_PROMPT_FILE_PROPERTY] },
 ] as const;
+
+const LEGACY_PROMPT_PROPERTIES = [...PROMPT_PROPERTY_MIGRATIONS.flatMap((migration) => migration.legacy), LEGACY_AGENT_PROMPT_PROPERTY];
 
 export class LegacyPromptPropertyMigration {
     async migrateLegacyPromptProperties(entity: Account | Group | undefined): Promise<void> {
@@ -21,23 +27,22 @@ export class LegacyPromptPropertyMigration {
             return;
         }
 
-        const legacyProperties = [AGENT_PROMPT_TRANSACTION_PROPERTY, AGENT_PROMPT_TRANSACTIONS_PROPERTY, AGENT_PROMPT_FILE_PROPERTY, AGENT_PROMPT_PROPERTY];
-        if (!legacyProperties.some((property) => entity.getProperty(property) !== undefined)) {
+        if (!LEGACY_PROMPT_PROPERTIES.some((property) => entity.getProperty(property) !== undefined)) {
             return;
         }
 
         try {
-            const genericPrompt = entity.getProperty(AGENT_PROMPT_PROPERTY);
+            const genericPrompt = entity.getProperty(LEGACY_AGENT_PROMPT_PROPERTY);
             for (const migration of PROMPT_PROPERTY_MIGRATIONS) {
                 if (!entity.getProperty(migration.target)) {
-                    const legacyPrompt = entity.getProperty(migration.legacy) || genericPrompt;
+                    const legacyPrompt = entity.getProperty(...migration.legacy) || genericPrompt;
                     if (legacyPrompt) {
                         entity.setProperty(migration.target, legacyPrompt);
                     }
                 }
             }
 
-            for (const property of legacyProperties) {
+            for (const property of LEGACY_PROMPT_PROPERTIES) {
                 entity.deleteProperty(property);
             }
 

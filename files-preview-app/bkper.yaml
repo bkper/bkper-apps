@@ -11,6 +11,7 @@ ownerWebsite: https://bkper.com
 
 developers: mael *@bkper.com
 users: mael *@bkper.com
+hidden: true
 
 deployment:
   web:

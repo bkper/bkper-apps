@@ -61,8 +61,6 @@ OpenAPI:    https://report.bkper.app/openapi.json
 
 Agents: the OpenAPI document explains how to show a person a report in one call.
 
-Agents: the OpenAPI document explains how to show a person a report in one call.
-
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $(bkper auth token)" \

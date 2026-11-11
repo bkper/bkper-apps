@@ -1,7 +1,7 @@
 import { periodRequestOf, type PeriodParts } from 'report-shared/report-intent';
 import { describe, expect, it } from 'vitest';
 import { BkperAiError, createDecisionClient } from '../../src/services/decision-client';
-import { THRESHOLDS, WHOLE, buildIntentRequest } from '../../src/services/intent-questions';
+import { THRESHOLDS, buildIntentRequest } from '../../src/services/intent-questions';
 import { PERIOD_THRESHOLDS } from '../../src/services/period-questions';
 import { ReportError } from '../../src/services/report';
 import {
@@ -59,8 +59,7 @@ const OCTOBER_2026 = {
 
 function answers(overrides: Partial<IntentAnswers> = {}): IntentAnswers {
     return {
-        root: sure('Expenses'),
-        target: sure(WHOLE),
+        group: sure('Expenses'),
         ...Q3_2026,
         over_time: no,
         composition: no,
@@ -181,7 +180,7 @@ describe('readIntent', () => {
         const book = await fixtureSnapshot();
         const { request: _, ...options } = buildIntentRequest('request', book);
         const result = readIntent(
-            answers({ root: sure('net-result'), over_time: { noul: THRESHOLDS.over_time } }),
+            answers({ group: sure('net-result'), over_time: { noul: THRESHOLDS.over_time } }),
             options,
             book,
             ['travel']
@@ -208,8 +207,7 @@ describe('readIntent', () => {
         expect(result).toMatchObject({
             trace: {
                 judgments: {
-                    root: { answer: 'Expenses', score: 0.99 },
-                    target: { answer: 'whole', score: 0.99 },
+                    group: { answer: 'Expenses', score: 0.99 },
                     period: { answer: 'quarter', score: 0.99, read: 'quarter' },
                     year: { answer: '2026', score: 0.99, read: 2026 },
                     month: { answer: 'unspecified', score: 0.99 },
@@ -335,7 +333,7 @@ describe('readIntent', () => {
         }
         // Not a report of the Book first.
         expect(
-            await read({ ...UNNAMED, root: sure('none'), year: sure('next_year') })
+            await read({ ...UNNAMED, group: sure('none'), year: sure('next_year') })
         ).toMatchObject({ recognized: false });
     });
 
@@ -376,9 +374,9 @@ describe('readIntent', () => {
     });
 
     it('is not a report for no root or an unsure root', async () => {
-        expect(await read({ root: sure('none') })).toEqual({ recognized: false, language: 'pt' });
+        expect(await read({ group: sure('none') })).toEqual({ recognized: false, language: 'pt' });
         expect(
-            await read({ root: { choice: 'Expenses', confidence: THRESHOLDS.root - 0.01 } })
+            await read({ group: { choice: 'Expenses', confidence: THRESHOLDS.root - 0.01 } })
         ).toEqual({ recognized: false, language: 'pt' });
     });
 
@@ -399,10 +397,10 @@ describe('readIntent', () => {
             intent: { period: p('this_year') },
             defaultPeriod: true,
         });
-        expect(await read({ ...unnamed, root: sure('Assets') })).toMatchObject({
+        expect(await read({ ...unnamed, group: sure('Assets') })).toMatchObject({
             intent: { period: p('today') },
         });
-        expect(await read({ ...unnamed, root: sure('net-result') })).toMatchObject({
+        expect(await read({ ...unnamed, group: sure('net-result') })).toMatchObject({
             intent: { period: p('this_year') },
         });
     });
@@ -425,10 +423,10 @@ describe('readIntent', () => {
             intent: { period: p('this_year') },
             defaultPeriod: true,
         });
-        expect(await read({ ...unnamed, root: sure('net-result') }, later)).toMatchObject({
+        expect(await read({ ...unnamed, group: sure('net-result') }, later)).toMatchObject({
             intent: { period: p('this_year') },
         });
-        expect(await read({ ...unnamed, root: sure('Assets') }, later)).toMatchObject({
+        expect(await read({ ...unnamed, group: sure('Assets') }, later)).toMatchObject({
             intent: { period: p('today') },
         });
     });
@@ -440,12 +438,12 @@ describe('readIntent', () => {
             intent: { period: p('last_12_months'), monthly: true },
         });
         expect(
-            await read({ ...overTime, root: sure('Assets') }, await laterSnapshot())
+            await read({ ...overTime, group: sure('Assets') }, await laterSnapshot())
         ).toMatchObject({ intent: { period: p('last_12_months') }, defaultPeriod: true });
     });
 
     it('anchors a root without movements to this year or today', async () => {
-        const unnamed = { ...UNNAMED, root: sure('Card') };
+        const unnamed = { ...UNNAMED, group: sure('Card') };
         expect(await read(unnamed, await laterSnapshot())).toMatchObject({
             intent: { period: p('today') },
         });
@@ -455,79 +453,106 @@ describe('readIntent', () => {
     });
 });
 
-describe('readIntent with a group or account the request means', () => {
-    const unsure = (choice: string) => ({ choice, confidence: THRESHOLDS.target - 0.1 });
+describe('readIntent with the group the request means', () => {
+    /** An answer with the probability of each option, the most probable chosen. */
+    const probable = (probabilities: Record<string, number>) => {
+        const [choice, confidence] = Object.entries(probabilities).sort(([, a], [, b]) => b - a)[0];
+        return { choice, confidence, probabilities };
+    };
 
-    it('reads a sure target under the root Jev chose', async () => {
-        expect(await read({ target: sure('Rent') })).toMatchObject({
-            intent: { root: 'g-expenses', target: 'a-rent' },
-            trace: { judgments: { target: { answer: 'Rent', score: 0.99 } }, targetRule: 'target' },
+    /** The fixture with Banks split: Checking holds Bank A, Savings holds Bank B. */
+    async function deepSnapshot(): Promise<Snapshot> {
+        const snapshot = await fixtureSnapshot();
+        const banks = snapshot.groups['g-banks'];
+        const child = (id: string, name: string, account: string) => ({
+            ...banks,
+            id,
+            name,
+            parent: 'g-banks',
+            groups: [],
+            accounts: [account],
         });
-        expect(await read({ root: sure('Assets'), target: sure('Banks') })).toMatchObject({
+        return {
+            ...snapshot,
+            groups: {
+                ...snapshot.groups,
+                'g-banks': { ...banks, groups: ['g-checking', 'g-savings'] },
+                'g-checking': child('g-checking', 'Checking', 'a-bank-a'),
+                'g-savings': child('g-savings', 'Savings', 'a-bank-b'),
+            },
+        };
+    }
+
+    it('reads a sure group below a root as a target under that root', async () => {
+        expect(await read({ group: sure('Banks') })).toMatchObject({
             intent: { root: 'g-assets', target: 'g-banks' },
+            trace: { judgments: { group: { answer: 'Banks', score: 0.99 } }, targetRule: 'group' },
         });
-        // Rent is under both Expenses and Net income: the root chosen holds it.
-        expect(await read({ root: sure('Net income'), target: sure('Rent') })).toMatchObject({
-            intent: { root: 'g-net', target: 'a-rent' },
+        expect(await read({ group: sure('Checking') }, await deepSnapshot())).toMatchObject({
+            intent: { root: 'g-assets', target: 'g-checking' },
         });
     });
 
-    it('reads the root alone for an unsure target, or the whole', async () => {
-        for (const target of [unsure('Rent'), sure(WHOLE), sure('Unknown')]) {
-            const result = await read({ target });
-            expect(result).toMatchObject({
-                intent: { root: 'g-expenses' },
-                trace: { targetRule: 'root' },
-            });
-            expect(result.recognized && result.intent).not.toHaveProperty('target');
-        }
+    it('reads a root chosen as the root alone', async () => {
+        const result = await read({ group: sure('Expenses') });
+        expect(result).toMatchObject({
+            intent: { root: 'g-expenses' },
+            trace: { targetRule: 'root' },
+        });
+        expect(result.recognized && result.intent).not.toHaveProperty('target');
     });
 
-    it('reads a sure target under its own root when Jev finds no root, or is unsure', async () => {
-        expect(await read({ root: sure('none'), target: sure('Rent') })).toMatchObject({
-            recognized: true,
-            intent: { root: 'g-expenses', target: 'a-rent' },
-            trace: { targetRule: 'target_root' },
+    it('reads the closest group above an unsure one that is sure with the groups below it', async () => {
+        const deep = await deepSnapshot();
+        // Split between Checking and Savings: the request means Banks, which holds both.
+        expect(
+            await read({ group: probable({ Checking: 0.4, Savings: 0.35, none: 0.25 }) }, deep)
+        ).toMatchObject({
+            intent: { root: 'g-assets', target: 'g-banks' },
+            trace: { targetRule: 'group' },
         });
+        // Unsure of any group below the root: the root alone.
+        const root = await read(
+            { group: probable({ Checking: 0.4, Assets: 0.3, none: 0.3 }) },
+            deep
+        );
+        expect(root).toMatchObject({ intent: { root: 'g-assets' }, trace: { targetRule: 'root' } });
+        expect(root.recognized && root.intent).not.toHaveProperty('target');
+        // A group alone, without probabilities, is as sure as its confidence.
         expect(
-            await read({
-                root: { choice: 'Net income', confidence: THRESHOLDS.root - 0.1 },
-                target: sure('Rent'),
-            })
-        ).toMatchObject({ intent: { root: 'g-net', target: 'a-rent' } });
+            await read({ group: { choice: 'Banks', confidence: THRESHOLDS.group - 0.01 } })
+        ).toMatchObject({ intent: { root: 'g-assets' }, trace: { targetRule: 'root' } });
+    });
+
+    it('is no report when unsure even of the root, or of none', async () => {
+        const deep = await deepSnapshot();
         expect(
-            await read({
-                root: { choice: 'Card', confidence: THRESHOLDS.root - 0.1 },
-                target: sure('Salary'),
-            })
-        ).toMatchObject({ intent: { root: 'g-revenue', target: 'a-salary' } });
-        // Unsure of both: no report.
-        expect(await read({ root: sure('none'), target: unsure('Rent') })).toEqual({
+            await read({ group: probable({ Checking: 0.3, Card: 0.25, none: 0.45 }) }, deep)
+        ).toEqual({
+            recognized: false,
+            language: 'pt',
+        });
+        expect(await read({ group: sure('none') })).toEqual({ recognized: false, language: 'pt' });
+        expect(await read({ group: sure('Unknown') })).toEqual({
             recognized: false,
             language: 'pt',
         });
     });
 
-    it('reads the root a sure target is not under, alone', async () => {
-        const result = await read({ root: sure('Revenue'), target: sure('Rent') });
-        expect(result).toMatchObject({
-            intent: { root: 'g-revenue' },
-            trace: { targetRule: 'other_root' },
-        });
-        expect(result.recognized && result.intent).not.toHaveProperty('target');
-    });
-
     it('keeps the net result whole', async () => {
-        const result = await read({ root: sure('net-result'), target: sure('Rent') });
+        const result = await read({ group: sure('net-result') });
         expect(result).toMatchObject({
             intent: { root: 'net-result' },
             trace: { targetRule: 'net_result' },
         });
         expect(result.recognized && result.intent).not.toHaveProperty('target');
+        expect(
+            await read({ group: { choice: 'net-result', confidence: THRESHOLDS.root - 0.01 } })
+        ).toEqual({ recognized: false, language: 'pt' });
     });
 
-    it('reads the default period of the target', async () => {
-        const result = await read({ ...UNNAMED, root: sure('none'), target: sure('Banks') });
+    it('reads the default period of the group', async () => {
+        const result = await read({ ...UNNAMED, group: sure('Banks') });
         expect(result).toMatchObject({ intent: { target: 'g-banks', period: p('today') } });
     });
 });
@@ -540,30 +565,30 @@ describe('readIntent with names the request writes', () => {
         return readIntent(answers(overrides), options, snapshot, [], names);
     }
 
-    it('reports what the request names, over the root Jev chose', async () => {
-        expect(await named('food in 2026-Q3', { root: sure('Revenue') })).toMatchObject({
+    it('reports what the request names, over the group Jev chose', async () => {
+        expect(await named('food in 2026-Q3', { group: sure('Revenue') })).toMatchObject({
             recognized: true,
             intent: { root: 'g-expenses', target: 'a-food', period: p('2026-Q3'), monthly: false },
-            trace: { names: ['Food'], judgments: { root: { answer: 'Revenue' } } },
+            trace: { names: ['Food'], judgments: { group: { answer: 'Revenue' } } },
         });
-        expect(await named('banks', { root: sure('Assets') })).toMatchObject({
+        expect(await named('banks', { group: sure('Assets') })).toMatchObject({
             intent: { root: 'g-assets', target: 'g-banks' },
         });
-        expect(await named('owner', { root: sure('Card') })).toMatchObject({
+        expect(await named('owner', { group: sure('Card') })).toMatchObject({
             intent: { root: 'a-owner' },
         });
-        const root = await named('Expenses', { root: sure('net-result') });
+        const root = await named('Expenses', { group: sure('net-result') });
         expect(root).toMatchObject({ intent: { root: 'g-expenses' } });
         expect(root.recognized && root.intent).not.toHaveProperty('target');
     });
 
-    it('is a report of the names even when Jev finds no root, or is unsure', async () => {
-        expect(await named('food', { root: sure('none') })).toMatchObject({
+    it('is a report of the names even when Jev finds no group, or is unsure', async () => {
+        expect(await named('food', { group: sure('none') })).toMatchObject({
             recognized: true,
             intent: { root: 'g-expenses', target: 'a-food' },
         });
         expect(
-            await named('rent', { root: { choice: 'Revenue', confidence: THRESHOLDS.root - 0.1 } })
+            await named('rent', { group: { choice: 'Revenue', confidence: THRESHOLDS.root - 0.1 } })
         ).toMatchObject({ recognized: true, intent: { target: 'a-rent' } });
     });
 
@@ -604,7 +629,7 @@ describe('readIntent with names the request writes', () => {
     });
 
     it('reads the default period of what the request names', async () => {
-        const unnamed = { ...UNNAMED, root: sure('Expenses') };
+        const unnamed = { ...UNNAMED, group: sure('Expenses') };
         expect(await named('banks', unnamed)).toMatchObject({ intent: { period: p('today') } });
         expect(await named('cash and banks', unnamed)).toMatchObject({
             intent: { period: p('today') },
@@ -628,15 +653,15 @@ describe('readIntent with names the request writes', () => {
         });
     });
 
-    it('reports what the request writes over the target Jev chose', async () => {
-        expect(await named('food', { target: sure('Rent') })).toMatchObject({
+    it('reports what the request writes over the group Jev chose', async () => {
+        expect(await named('food', { group: sure('Banks') })).toMatchObject({
             intent: { root: 'g-expenses', target: 'a-food' },
             trace: { names: ['Food'], targetRule: 'written' },
         });
     });
 
     it('leaves the root to Jev when the request names nothing of the Book', async () => {
-        const result = await named('what we spent on groceries', { root: sure('Expenses') });
+        const result = await named('what we spent on groceries', { group: sure('Expenses') });
         expect(result).toMatchObject({ intent: { root: 'g-expenses' } });
         expect(result.recognized && result.intent).not.toHaveProperty('target');
         expect(result.recognized && result.trace).not.toHaveProperty('names');
@@ -660,8 +685,7 @@ function answerBody() {
     return {
         model: 'jev-1.13.0',
         answers: {
-            root: choice('Revenue'),
-            target: choice('whole'),
+            group: choice('Revenue'),
             span: choice('month'),
             year: choice('2026'),
             month: choice('October'),

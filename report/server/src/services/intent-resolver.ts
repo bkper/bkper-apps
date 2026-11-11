@@ -1,8 +1,8 @@
 /**
  * Intent resolution: a report request, in any language, becomes a {@link ReportIntent} with one
- * decision request. The model makes judgments: it chooses the root, the group or account below
- * it (the target), the chart word and the language among the options of
- * {@link buildIntentRequest}, the parts of the period (its span,
+ * decision request. The model makes judgments: it chooses the group the request is about (a
+ * root or a group below one, never an account), the chart word and the language among the
+ * options of {@link buildIntentRequest}, the parts of the period (its span,
  * year, month and quarter, and those of the period it compares with, `period-questions.ts`),
  * and answers whether the request asks about change over time, a composition, a comparison with
  * an earlier period or a bridge. This code makes the decisions: it applies the thresholds, reads
@@ -10,7 +10,7 @@
  * {@link SHOW_RULES}, picks the default period when the request names none, and reads from the
  * request text itself its first hashtag and the exact names of the
  * Book's groups and accounts (`prompt-names.ts`), which the report is of whenever the request
- * writes any: the model's root and target are read only when it writes none, by the rules of
+ * writes any: the model's group is read only when it writes none, by the rules of
  * {@link TARGET_RULE_NAMES}. Which charts fit the numbers
  * is decided afterwards, by `buildReport`, from the facts of the report.
  */
@@ -22,7 +22,6 @@ import {
     THRESHOLDS,
     type ChartWord,
     type IntentOptions,
-    type TargetOption,
 } from './intent-questions.js';
 import {
     readPeriod,
@@ -64,6 +63,8 @@ export type IntentResolution =
 interface ChoiceAnswer {
     choice: string;
     confidence: number;
+    /** The probability of each option; the choice alone has its confidence when absent. */
+    probabilities?: Readonly<Record<string, number>>;
 }
 
 interface NoulAnswer {
@@ -72,8 +73,7 @@ interface NoulAnswer {
 
 /** The answers {@link readIntent} needs, as the decision model returns them. */
 export type IntentAnswers = PeriodAnswers & {
-    root: ChoiceAnswer;
-    target: ChoiceAnswer;
+    group: ChoiceAnswer;
     over_time: NoulAnswer;
     composition: NoulAnswer;
     versus_earlier: NoulAnswer;
@@ -170,25 +170,15 @@ export function decideShown(judgments: Judgments): Shown & { rule: ShowRule } {
  *
  * - `written`: the request writes names of the Book, and the report is of them, whatever the
  *   model chose.
- * - `net_result`: the model is sure of the net result, which stays whole: no target.
- * - `root`: the model is unsure of a target, or chose the whole: the root alone.
- * - `target`: a sure target under the sure root.
- * - `other_root`: a sure target not under the sure root, which is read alone: of two sure
- *   answers that disagree, the root is the one the model chooses from the Book's top level,
- *   as before targets were asked.
- * - `target_root`: a sure target, and no root or an unsure one: the target under the root it
- *   chose when that root holds it, else under the first root in Book order that holds it.
+ * - `net_result`: the model is sure of the net result, which stays whole.
+ * - `group`: a group below a root: the one the model chose when it is sure of it and the groups
+ *   below it together, else the closest group above it that is that sure.
+ * - `root`: the root holding the group the model chose, when no group below it is sure enough
+ *   and the model is sure of the root and the groups below it together.
  *
- * Neither a sure root nor a sure target is no report.
+ * Anything else (`none`, or a root the model is unsure of) is no report.
  */
-export const TARGET_RULE_NAMES = [
-    'written',
-    'net_result',
-    'root',
-    'target',
-    'other_root',
-    'target_root',
-] as const;
+export const TARGET_RULE_NAMES = ['written', 'net_result', 'group', 'root'] as const;
 
 export type TargetRule = (typeof TARGET_RULE_NAMES)[number];
 
@@ -198,36 +188,44 @@ interface Subject {
 }
 
 /**
- * The subject the model's answers mean, by the rules of {@link TARGET_RULE_NAMES} but
- * `written`, or undefined when it is no report of the Book.
+ * The subject the model's answer means, by the rules of {@link TARGET_RULE_NAMES} but
+ * `written`, or undefined when it is no report of the Book. How sure the model is of a group is
+ * the probability of it and of every group below it, so a request split between groups of one
+ * parent is of the parent.
  */
 function judgedSubject(
-    answers: IntentAnswers,
+    answer: ChoiceAnswer,
     options: IntentOptions
 ): (Subject & { rule: TargetRule }) | undefined {
-    const chosen = Object.hasOwn(options.roots, answers.root.choice)
-        ? options.roots[answers.root.choice]
-        : NO_ROOT;
-    const root = chosen === NO_ROOT ? undefined : chosen;
-    const sureRoot = root !== undefined && answers.root.confidence >= THRESHOLDS.root;
-    const target: TargetOption | undefined =
-        Object.hasOwn(options.targets, answers.target.choice) &&
-        answers.target.confidence >= THRESHOLDS.target
-            ? options.targets[answers.target.choice]
-            : undefined;
-    if (sureRoot && root === NET_RESULT_ROOT) {
-        return { root, rule: target ? 'net_result' : 'root' };
+    if (!Object.hasOwn(options.groups, answer.choice)) {
+        return undefined;
     }
-    if (!target) {
-        return sureRoot ? { root, rule: 'root' } : undefined;
+    const probabilities = answer.probabilities ?? { [answer.choice]: answer.confidence };
+    const sure = new Map<string, number>();
+    for (const [label, probability] of Object.entries(probabilities)) {
+        for (
+            let at: string | undefined = label;
+            at !== undefined && Object.hasOwn(options.groups, at);
+            at = options.groups[at].parent
+        ) {
+            sure.set(at, (sure.get(at) ?? 0) + probability);
+        }
     }
-    if (sureRoot) {
-        return target.roots.includes(root)
-            ? { root, target: target.id, rule: 'target' }
-            : { root, rule: 'other_root' };
+    let label = answer.choice;
+    let option = options.groups[label];
+    while (option.parent !== undefined && (sure.get(label) ?? 0) < THRESHOLDS.group) {
+        label = option.parent;
+        option = options.groups[label];
     }
-    const holding = root !== undefined && target.roots.includes(root) ? root : target.roots[0];
-    return { root: holding, target: target.id, rule: 'target_root' };
+    if (option.parent !== undefined) {
+        return { root: option.root, target: option.id, rule: 'group' };
+    }
+    if ((sure.get(label) ?? 0) < THRESHOLDS.root) {
+        return undefined;
+    }
+    return option.id === NET_RESULT_ROOT
+        ? { root: NET_RESULT_ROOT, rule: 'net_result' }
+        : { root: option.id, rule: 'root' };
 }
 
 /** Charts drawn by month, which read a trend's default period. */
@@ -245,8 +243,7 @@ export interface JudgmentTrace<T> {
  */
 export interface IntentTrace {
     judgments: {
-        root: JudgmentTrace<string>;
-        target: JudgmentTrace<string>;
+        group: JudgmentTrace<string>;
         period: PeriodPartTrace;
         year: PeriodPartTrace;
         month: PeriodPartTrace;
@@ -267,7 +264,7 @@ export interface IntentTrace {
     targetRule: TargetRule;
     /** The rules of `readPeriod` that changed the period's parts, when any did. */
     periodRules?: PeriodRule[];
-    /** The Book's names the request writes, which the report is of instead of the root judgment. */
+    /** The Book's names the request writes, which the report is of instead of the group judgment. */
     names?: string[];
 }
 
@@ -308,13 +305,13 @@ export async function resolveIntent(
 }
 
 /**
- * Turns answers into an intent, or into no report when the request names no root or target of
- * the Book confidently enough. When the request writes names of the Book (`names`), the report
- * is of them, side by side when several, whatever the root and target judgments. A request for
+ * Turns answers into an intent, or into no report when the request names no group of the Book
+ * confidently enough. When the request writes names of the Book (`names`), the report is of
+ * them, side by side when several, whatever the group judgment. A request for
  * the next year, month or quarter is a report whose period has not started: `ReportError`
  * `future_period`.
  *
- * @param options What each root and target option stands for, from {@link buildIntentRequest}.
+ * @param options What each group option stands for, from {@link buildIntentRequest}.
  * @param names The Book's groups and accounts the request writes, from `findPromptNames`.
  */
 export function readIntent(
@@ -327,7 +324,7 @@ export function readIntent(
     const language =
         answers.language.confidence >= THRESHOLDS.language ? answers.language.choice : undefined;
     const languageField = language ? { language } : {};
-    const judged = names.length === 0 ? judgedSubject(answers, options) : undefined;
+    const judged = names.length === 0 ? judgedSubject(answers.group, options) : undefined;
     if (names.length === 0 && !judged) {
         return { recognized: false, ...languageField };
     }
@@ -441,8 +438,7 @@ function traceJudgments(answers: IntentAnswers, period: PeriodTrace): IntentTrac
         score: answers[question].noul,
     });
     return {
-        root: choice(answers.root),
-        target: choice(answers.target),
+        group: choice(answers.group),
         period: period.span,
         year: period.year,
         month: period.month,

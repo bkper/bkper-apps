@@ -91,8 +91,9 @@ type Accepted = string | string[];
 /**
  * A request and what it should resolve to. Roots are group names (or the name of an account
  * in no group), `net-result` or `none`; `targets` are the names of the groups and accounts
- * the report is of, in order, when the request writes them or means one below its root
- * (left out: the root itself);
+ * the report is of, in order, when the request writes them, or the closest group below its
+ * root that holds what it means (an account meant but not written gives the group it is in;
+ * left out: the root itself);
  * `period` is the model's expected choice (`unspecified` when the request names none), and
  * `intentPeriod` the intent's period when it differs (the default period). `monthly`, `view`,
  * `chart` and `compareWith` are the intent's (`view` is `unspecified` when left out, `chart` is
@@ -175,7 +176,6 @@ const CASES: Case[] = [
         book: 'nimbus',
         prompt: 'gastos en comidas en 2014',
         root: 'Despesas',
-        targets: ['Refeições'],
         period: '2014',
         language: 'es',
     },
@@ -183,7 +183,6 @@ const CASES: Case[] = [
         book: 'nimbus',
         prompt: 'how much did we spend on office supplies in 2016?',
         root: 'Despesas',
-        targets: ['Mat. Escritório'],
         period: '2016',
         view: ['total', UNSPECIFIED],
         language: 'en',
@@ -290,7 +289,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'Kontostand meiner Bankkonten',
         root: 'Assets',
-        targets: ['Bank Account'],
         period: UNSPECIFIED,
         intentPeriod: 'today',
         view: ['total', UNSPECIFIED],
@@ -307,7 +305,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'dépenses de transport en juillet 2019',
         root: ['Expenses', 'Net income'],
-        targets: ['Transportation'],
         period: '2019-07',
         language: 'fr',
     },
@@ -470,7 +467,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'Kontostand meiner Bankkonten Monat für Monat 2019 als Flächendiagramm',
         root: 'Assets',
-        targets: ['Bank Account'],
         period: '2019',
         monthly: true,
         view: ['trend', UNSPECIFIED],
@@ -543,7 +539,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'mes comptes bancaires mois par mois en 2019, en graphique en aires',
         root: 'Assets',
-        targets: ['Bank Account'],
         period: '2019',
         monthly: true,
         view: ['trend', UNSPECIFIED],
@@ -594,7 +589,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: '2019年の銀行口座の残高',
         root: 'Assets',
-        targets: ['Bank Account'],
         period: ['2019', '2019-12', '2019-Q4'],
         view: ['total', UNSPECIFIED],
         language: 'ja',
@@ -603,7 +597,6 @@ const CASES: Case[] = [
         book: 'personal',
         prompt: 'كم أنفقت على الطعام في 2019؟',
         root: ['Expenses', 'Net income'],
-        targets: ['Food'],
         period: '2019',
         view: ['total', UNSPECIFIED],
         language: 'ar',
@@ -1010,8 +1003,9 @@ const CASES: Case[] = [
         language: 'pt',
     },
     // A group or account below a root, meant but not written as the Book writes it: in another
-    // language or in other words. The report is of what the request means, not of its root.
-    // Appended last, so the cases before keep their numbers.
+    // language or in other words. The report is of the closest group holding what it means,
+    // not of its root; an account meant (Rent) gives the group it is in (Expenses), where it is
+    // a row. Appended last, so the cases before keep their numbers.
     {
         book: 'template',
         prompt: 'How much did we spend last year?',
@@ -1066,7 +1060,7 @@ const CASES: Case[] = [
         book: 'template',
         prompt: '¿cuánto gastamos en alquiler en 2025?',
         root: 'Net Income',
-        targets: ['Rent'],
+        targets: ['Expenses'],
         period: '2025',
         view: ['total', UNSPECIFIED],
         language: 'es',
@@ -1075,7 +1069,7 @@ const CASES: Case[] = [
         book: 'template',
         prompt: 'what did we pay for housing in 2025',
         root: 'Net Income',
-        targets: ['Rent'],
+        targets: ['Expenses'],
         period: '2025',
         view: ['total', UNSPECIFIED],
         language: 'en',
@@ -1118,6 +1112,85 @@ const CASES: Case[] = [
         prompt: 'cash today',
         root: 'Total Equity',
         targets: ['Cash'],
+        period: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    // The closest group, at any depth, holding what a request means but does not write: deeper
+    // groups of the template's Total Equity (Assets › Current Assets › Receivables and Cash;
+    // Liabilities › Current and Non Current Liabilities), and the root itself when the request
+    // means all of it. Accounts meant give their group.
+    {
+        book: 'template',
+        prompt: 'how much do our customers owe us?',
+        root: 'Total Equity',
+        targets: ['Receivables'],
+        period: UNSPECIFIED,
+        intentPeriod: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'quanto temos no banco hoje',
+        root: 'Total Equity',
+        targets: ['Cash'],
+        period: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'pt',
+    },
+    {
+        book: 'template',
+        prompt: 'what do we owe?',
+        root: 'Total Equity',
+        targets: ['Liabilities'],
+        period: UNSPECIFIED,
+        intentPeriod: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'deudas con proveedores',
+        root: 'Total Equity',
+        targets: ['Current Liabilities'],
+        period: UNSPECIFIED,
+        intentPeriod: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'es',
+    },
+    {
+        book: 'template',
+        prompt: 'long-term debt',
+        root: 'Total Equity',
+        targets: ['Non Current Liabilities'],
+        period: UNSPECIFIED,
+        intentPeriod: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'en',
+    },
+    {
+        book: 'template',
+        prompt: 'tudo o que temos',
+        root: 'Total Equity',
+        targets: ['Assets'],
+        period: UNSPECIFIED,
+        intentPeriod: 'today',
+        view: ['total', UNSPECIFIED],
+        language: 'pt',
+    },
+    {
+        book: 'template',
+        prompt: 'ventas de productos en 2025',
+        root: 'Net Income',
+        targets: ['Revenue'],
+        period: '2025',
+        language: 'es',
+    },
+    {
+        book: 'template',
+        prompt: 'balance sheet today',
+        root: 'Total Equity',
         period: 'today',
         view: ['total', UNSPECIFIED],
         language: 'en',
@@ -1438,8 +1511,11 @@ async function main(): Promise<void> {
         const yes = (answer: { noul: number }) => answer.noul.toFixed(2);
         const named = got.targets.length > 0 ? ` targets=${got.targets.join('|')}` : '';
         const detail =
-            `root=${got.root}(${answers.root.choice} ${answers.root.confidence.toFixed(2)})` +
-            ` target=${answers.target.choice}(${answers.target.confidence.toFixed(2)})` +
+            `root=${got.root} group=${Object.entries(answers.group.probabilities)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 3)
+                .map(([label, probability]) => `${label}(${probability.toFixed(2)})`)
+                .join(',')}` +
             `${resolution.recognized ? `:${resolution.trace.targetRule}` : ''}${named}` +
             ` ${PERIOD_QUESTION_IDS.filter(id => atomic.trace[id].answer !== UNSPECIFIED)
                 .map(id => `${id}=${atomic.trace[id].answer}(${atomic.trace[id].score.toFixed(2)})`)

@@ -60,8 +60,7 @@ function jevBody(answers: JevAnswers) {
     return {
         model: 'jev',
         answers: {
-            root: choice(answers.root, answers.rootConfidence),
-            target: choice('whole'),
+            group: choice(answers.root, answers.rootConfidence),
             ...Object.fromEntries(
                 Object.entries({
                     ...periodChoices(answers.period),
@@ -450,7 +449,7 @@ describe('createReport by prompt', () => {
         );
         expect(result.trace).toMatchObject({
             judgments: {
-                root: { answer: 'Expenses', score: 0.99 },
+                group: { answer: 'Expenses', score: 0.99 },
                 period: { answer: 'month', score: 0.99, read: 'month' },
                 year: { answer: '2026', score: 0.99, read: 2026 },
                 month: { answer: 'October', score: 0.99, read: 10 },

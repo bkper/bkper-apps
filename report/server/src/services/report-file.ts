@@ -71,17 +71,18 @@ export function buildReportFile(
 }
 
 /**
- * What opens the file's report in the Report app: the Book and the report's state (its text,
- * language and the chart it shows first), and the state of the same report as each other chart
- * that fits, for a chart chosen in the file. None when the report's state does not fit; a chart
- * whose state does not fit opens the report's.
+ * What opens the file's report in the Report app: the Book and the report's state, the words
+ * asked for it (a prompt, or a Bkper query) and its language, which ask for the same report as
+ * the chart it shows first, and the state of the same words as each other chart that fits, for
+ * a chart chosen in the file. None when the state does not fit; a chart whose state does not
+ * fit opens the report's.
  */
 export function reportFileOpen(
     bookId: string,
-    report: { text: string; language: string; charts: { fitting: ViewKind[]; main: ViewKind } }
+    report: { prompt: string; language: string; charts: { fitting: ViewKind[]; main: ViewKind } }
 ): ReportFileData['open'] {
-    const { text, language, charts } = report;
-    const state = encodeUrlState({ text, language, chart: charts.main });
+    const { prompt: text, language, charts } = report;
+    const state = encodeUrlState({ text, language });
     if (!state) return undefined;
     const others = charts.fitting.flatMap(kind => {
         const chosen =

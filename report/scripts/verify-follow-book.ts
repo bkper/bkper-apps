@@ -15,11 +15,12 @@
  * and dark, it checks that:
  *
  * - opened on a query of a group, the app shows that query's report (asked for by the query,
- *   never its first saved prompt), with its text in the input and its state kept by the Book;
+ *   never its first saved prompt), with the query in the input and kept by the Book as its state;
  * - the Book telling the URL back with that state asks for nothing;
  * - another query (an Account, another period) shows its report with a view transition scoped to
- *   the report's scroll area, the input showing its text and its state sent once, keeping the
- *   chart chosen from the previews when the next report offers it, else showing its main one;
+ *   the report's scroll area, the input showing the query and its state (the query, and the
+ *   chart chosen from the previews) sent once, keeping that chart when the next report offers
+ *   it, else showing its main one;
  * - a query of no group or Account, or of balances side by side with activity, leaves the report and the input
  *   as they are, with no notice and no state sent;
  * - a URL repeated by the Book never asks again, so a typed request stays, while a real change of
@@ -202,12 +203,12 @@ async function following(name: string, width: number, theme: 'light' | 'dark'): 
     const app = await open({ width, theme, saved, query: QUERIES.group });
     const { page, panel, bodies } = app;
 
-    await shows(panel, `${name} opened`, 'expenses-by-month');
+    await shows(panel, `${name} opened`, 'expenses-by-month', QUERIES.group);
     check(
         bodies.length === 1 && bodies[0].query === QUERIES.group && !bodies[0].prompt,
         `${name} opened: asked ${JSON.stringify(bodies)}, not the group’s query alone`
     );
-    await stateKept(page, `${name} opened`, 'expenses-by-month');
+    await stateKept(page, `${name} opened`, QUERIES.group, 'expenses-by-month');
     await shot(page, `${name}-1-group`);
 
     // The Book tells the app its URL with the state it keeps: nothing more is asked.
@@ -223,7 +224,7 @@ async function following(name: string, width: number, theme: 'light' | 'dark'): 
         `${name}: choosing ${CHOSEN}`,
         CHOSEN
     );
-    await stateKept(page, `${name} chose ${CHOSEN}`, 'expenses-by-month', CHOSEN);
+    await stateKept(page, `${name} chose ${CHOSEN}`, QUERIES.group, 'expenses-by-month', CHOSEN);
 
     await follow(app, `${name} Account`, QUERIES.account, 'taxes-donut', CHOSEN);
     await shot(page, `${name}-2-account`);
@@ -277,7 +278,7 @@ async function standalone(): Promise<void> {
         query: QUERIES.account,
         embedded: false,
     });
-    await shows(app.panel, 'Standalone', 'taxes-donut');
+    await shows(app.panel, 'Standalone', 'taxes-donut', QUERIES.account);
     check(app.bodies[0]?.query === QUERIES.account, 'Standalone: the query was not asked');
     const state = await waitFor(
         app.panel,
@@ -286,7 +287,7 @@ async function standalone(): Promise<void> {
     );
     const decoded = decodeUrlState(String(state));
     check(
-        decoded?.text === textOf(fixture('taxes-donut')),
+        decoded?.text === QUERIES.account,
         `Standalone: the app’s URL keeps ${JSON.stringify(decoded)}`
     );
     await shot(app.page, 'standalone');
@@ -310,7 +311,7 @@ async function follow(
     const transitions = await panel.evaluate(() => window.transitions.length);
     const sent = await states(page);
     await page.evaluate(next => window.showQuery(next), query);
-    await shows(panel, label, id);
+    await shows(panel, label, id, query);
     const fit = fixture(id);
     const main = mainOf(fit);
     await waitFor(
@@ -328,7 +329,7 @@ async function follow(
         scopes.length === 1 && scopes[0] === 'main',
         `${label}: transitions ${JSON.stringify(scopes)}, not one scoped to the report`
     );
-    await stateKept(page, label, id, chart);
+    await stateKept(page, label, query, id, chart);
     const after = await states(page);
     check(after.length === sent.length + 1, `${label}: ${after.length - sent.length} states sent`);
     check((await notice(panel)) === '', `${label}: a notice shows`);
@@ -374,13 +375,21 @@ async function shows(panel: Frame, label: string, id: string, input?: string): P
     );
 }
 
-/** The Book keeps the state of `id`'s report, as `chart`, by default the one it shows first. */
-async function stateKept(page: Page, label: string, id: string, chart?: string): Promise<void> {
-    const fit = fixture(id);
+/**
+ * The Book keeps the state of `id`'s report: the words that opened it, in its language, and
+ * `chart` when one was chosen from the previews.
+ */
+async function stateKept(
+    page: Page,
+    label: string,
+    words: string,
+    id: string,
+    chart?: string
+): Promise<void> {
     const expected: UrlState = {
-        text: textOf(fit),
-        language: fit.lang,
-        chart: (chart ?? mainOf(fit)) as UrlState['chart'],
+        text: words,
+        language: fixture(id).lang,
+        ...(chart ? { chart: chart as UrlState['chart'] } : {}),
     };
     const deadline = Date.now() + TIMEOUT_MS;
     let kept: UrlState | undefined;
@@ -511,7 +520,8 @@ async function open(options: {
                             { success: false, error: { code: answer.code, message: 'Stub' } },
                             answer.status
                         );
-                    return json(responseOf(fixture(answer)));
+                    // A query's report stands for the query, as the Worker writes it.
+                    return json(responseOf(fixture(answer), body.query));
                 }
                 const id =
                     SUGGESTED.find(item => body.prompt === item) ??
@@ -565,11 +575,11 @@ declare global {
 }
 
 /** The API's answer with a recorded spec, its main chart as the spec offers it. */
-function responseOf(fit: Fixture): ReportResponse {
+function responseOf(fit: Fixture, text = textOf(fit)): ReportResponse {
     const main = mainOf(fit);
     return {
         spec: fit.spec,
-        text: textOf(fit),
+        text,
         language: fit.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',

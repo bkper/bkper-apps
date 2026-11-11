@@ -896,7 +896,7 @@ export interface components {
              */
             text: string;
             /**
-             * @description The same report in the Report app, to open or share with the person.
+             * @description The same report in the Report app, to open or share with the person: it asks again with the words sent (the `prompt`, or the `query`).
              * @example https://report.bkper.app/?book=abc123&q=expenses+by+month+this+year
              */
             url: string;

@@ -126,7 +126,7 @@ async function recordedFiles(): Promise<ReportFile[]> {
             const report = validation.spec.elements[validation.spec.root];
             const locale = report?.type === 'Report' ? report.props.locale : 'en';
             const open = reportFileOpen(OPEN_BOOK_ID, {
-                text: reportText(validation.spec),
+                prompt: reportText(validation.spec),
                 language: supportedLanguage(locale) ?? 'en',
                 charts:
                     choices?.type === 'Visualizations'

@@ -3,11 +3,12 @@
  * most {@link MAX_STATE_LENGTH} letters, digits, `_` and `-`), so a link, Back or a reload opens
  * the same report again, by asking for its text.
  *
- * The state holds what a person would send to ask for the report: its own text (the response's
- * `text`, which, sent back as a prompt, asks for the same report), the language of its texts
- * (read from a short text, the language can be unsure) and the chart it shows, which the app
- * shows again when the report offers it: the chart is the app's, never asked for. It is a version, then the base64url of the UTF-8 of
- * `<language>.<chart>.<text>`: the chart empty for none, and the text last, so it may hold
+ * The state holds what asks for the report again: the words asked for it (typed, or the text of
+ * the suggestion, saved prompt or Book query that opened it, which name any chart they show),
+ * the language of its texts (read from a short text, the language can be unsure) and the chart
+ * chosen from its previews, which no words name and the app shows again when the report offers
+ * it: the chart is the app's, never asked for. It is a version, then the base64url of the UTF-8
+ * of `<language>.<chart>.<text>`: the chart empty for none, and the text last, so it may hold
  * anything. A state longer than Bkper keeps is no state.
  */
 import { supportedLanguage } from './languages';
@@ -38,11 +39,11 @@ export type StateChart = Exclude<ChartPreference, 'auto'>;
 
 /** A report to open again: what to ask for it. */
 export interface UrlState {
-    /** The report's own text, sent as the prompt. */
+    /** The words asked for the report, sent again as the prompt (a Bkper query is read as one). */
     text: string;
     /** The language of the report's texts. */
     language: string;
-    /** The chart to show, when the report offers it; left out, the report's own. */
+    /** The chart chosen from the previews, shown when the report offers it; left out, its own. */
     chart?: StateChart;
 }
 

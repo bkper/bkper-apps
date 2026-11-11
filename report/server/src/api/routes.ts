@@ -268,11 +268,12 @@ export function registerApiRoutes(app: App): void {
                 cache: context.env.KV,
             }
         );
-        // The link keeps the person's own words; a query's report, its own text.
-        const url = reportAppUrl(c.req.url, bookId, body.prompt ?? report.text);
+        // The link and the file's state reopen the words asked: the prompt, or the query.
+        const asked = body.prompt ?? body.query ?? report.text;
+        const url = reportAppUrl(c.req.url, bookId, asked);
         if (body.format === 'html') {
             const open = reportFileOpen(bookId, {
-                text: report.text,
+                prompt: asked,
                 language: report.language,
                 charts: report.trace.chart,
             });

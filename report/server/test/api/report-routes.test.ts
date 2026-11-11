@@ -685,10 +685,10 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         });
         // Where the Agent lets it, the file opens the same report in the Report app in the Book.
         expect(data.open?.bookId).toBe(BOOK);
-        const opened = { text: 'Expenses October 2026', language: 'en' };
+        // By the words asked, which ask for the same report as the chart it shows first.
+        const opened = { text: 'expenses october 2026', language: 'en' };
         const choices = elementOf(data.spec, 'Visualizations').props;
-        // The report's state holds the chart it shows.
-        expect(decodeUrlState(data.open?.state ?? '')).toEqual({ ...opened, chart: choices.main });
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual(opened);
         // A chart chosen in the file opens as that chart: each other chart that fits has a state.
         const others = choices.views.map(view => view.kind).filter(kind => kind !== choices.main);
         expect(Object.keys(data.open?.charts ?? {}).sort()).toEqual([...others].sort());
@@ -726,10 +726,12 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
-            text: 'Expenses October 2026',
+        // The words that name the chart, so it comes back with no chart in the state.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({ text: prompt, language: 'en' });
+        expect(decodeUrlState(data.open?.charts?.donut ?? '')).toEqual({
+            text: prompt,
             language: 'en',
-            chart: 'ranked-bar',
+            chart: 'donut',
         });
     });
 
@@ -755,12 +757,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        // By its own text, which asks for the same report, as the chart it shows.
-        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
-            text: body.text,
-            language: 'en',
-            chart: elementOf(body.spec, 'Visualizations').props.main,
-        });
+        // By the words asked, which ask for the same report.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({ text: prompt, language: 'en' });
     });
 
     it('shows targets side by side, one query per group, and opens them again by text', async () => {
@@ -795,12 +793,8 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        // By its own text, which asks for the same report, as the chart it shows.
-        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
-            text: body.text,
-            language: 'en',
-            chart: elementOf(body.spec, 'Visualizations').props.main,
-        });
+        // By the words asked, which ask for the same report.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({ text: prompt, language: 'en' });
     });
 
     it('builds the report of a Bkper query read as sent, with no Bkper AI', async () => {
@@ -838,6 +832,26 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(again.status).toBe(200);
         expect(await again.json()).toMatchObject({ query, text: query, spec: body.spec });
         expect(test.jevCalls).toBe(0);
+    });
+
+    it('opens the report of a query by the query, from its file', async () => {
+        const test = harness();
+        const query = "  group:'Expenses'   after:01/10/2026 before:01/11/2026 ";
+        const file = await post(test, { query, language: 'pt', format: 'html' });
+
+        expect(file.status).toBe(200);
+        const data = JSON.parse(
+            /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
+                await file.text()
+            )?.[1] ?? ''
+        ) as ReportFileData;
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({
+            text: query.trim(),
+            language: 'pt',
+        });
+        expect(data.link.url).toBe(
+            `https://report.bkper.app/?${new URLSearchParams({ book: BOOK, q: query.trim() })}`
+        );
     });
 
     it('reads a query’s hashtag and dates as Bkper does', async () => {

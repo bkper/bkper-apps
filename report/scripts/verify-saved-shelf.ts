@@ -17,6 +17,7 @@ import { chromium } from 'playwright-core';
 import type { ReportResponse, SavedPrompt } from '../client/src/api/app-api.ts';
 import { withoutIsolates } from 'report-shared/bidi';
 import { reportText } from '../shared/src/report-text.ts';
+import { encodeUrlState } from '../shared/src/url-state.ts';
 import { CACHE_MS } from '../client/src/state/cache-window.ts';
 import { savedWorkflow, WORKFLOW_PROMPT } from './fixtures/saved-workflow.ts';
 import { verifyAutoOpen, type AutoOpenLayout } from './verify-saved-shelf/auto-open.ts';
@@ -270,6 +271,27 @@ try {
                     .locator('.saved-prompt')
                     .filter({ hasText: prompt.trim() });
                 const prompted = () => requested.filter(isPromptBody).length;
+                // The reload reopens the report on screen by its state, when it fits: the words
+                // typed for it, in its language, which the saved prompt's text is; a click then
+                // shows it from memory. Without one, the reload runs the input's `q`.
+                const kept =
+                    encodeUrlState({ text: prompt.trim(), language: fixture.lang }) !== undefined;
+                for (
+                    let i = 0;
+                    kept &&
+                    !requested.some(
+                        body =>
+                            typeof body === 'object' &&
+                            body !== null &&
+                            'language' in body &&
+                            'prompt' in body &&
+                            body.prompt === prompt.trim()
+                    );
+                    i++
+                ) {
+                    assert(i < 100, 'The reload asks for the words typed, kept in its state');
+                    await page.waitForTimeout(50);
+                }
                 const promptsBefore = prompted();
                 await savedPrompt.click();
                 await page.waitForTimeout(100);
@@ -277,7 +299,7 @@ try {
                 await page.waitForTimeout(100);
                 assert.equal(
                     prompted(),
-                    promptsBefore + 1,
+                    promptsBefore + (kept ? 0 : 1),
                     'A saved click within a minute shows its report from memory'
                 );
                 await context.clock.fastForward(CACHE_MS);
@@ -285,7 +307,7 @@ try {
                 await page.waitForTimeout(100);
                 assert.equal(
                     prompted(),
-                    promptsBefore + 2,
+                    promptsBefore + (kept ? 1 : 2),
                     'After a minute a saved click resolves its text again'
                 );
                 assert.deepEqual(requested.filter(isPromptBody).slice(-2), [

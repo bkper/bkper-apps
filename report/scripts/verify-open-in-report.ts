@@ -25,9 +25,10 @@
  *   link on the Bkper origin.
  *
  * It checks that a chart chosen in the file, then a click on the file's link, opens the Report
- * app in place of the Agent with the state of the report as that chart; that the app shows
- * that report, asked for by its text in its language (never with a chart, which is the app's to
- * show), as that chart, with its text in the input;
+ * app in place of the Agent with the state of the report as that chart, which holds the words
+ * asked for the file; that the app shows that report, asked for by those words in its language
+ * (never with a chart, which the words name, or the app shows), as that chart, with the words in
+ * the input;
  * that choosing another chart, then another report, sends each state to the Book; that a
  * state the Book goes back to shows that report again; and that the file reaches no network
  * and sends nothing before the click.
@@ -162,6 +163,8 @@ function bookPage(menuUrl: string): string {
 
 interface ReportFile {
     html: string;
+    /** The words the file was asked for with. */
+    asked: string;
     data: ReportFileData;
 }
 
@@ -202,7 +205,7 @@ async function reportFile(
     const html = (await response.text()).replace(DEV_RELOAD, '\n');
     const json = /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(html);
     if (!json) throw new Error('The file carries no report data');
-    return { html, data: JSON.parse(json[1]) as ReportFileData };
+    return { html, asked: asked || suggestion || '', data: JSON.parse(json[1]) as ReportFileData };
 }
 
 async function frameOf(page: Page, matches: (url: string) => boolean): Promise<Frame> {
@@ -281,7 +284,9 @@ async function main(): Promise<void> {
     const fileState = open && decodeUrlState(open.state);
     if (!open || !fileState)
         throw new Error(`The file carries no valid report state: ${JSON.stringify(open)}`);
-    // The input shows the report's own text, which its state holds.
+    // The state holds the words asked for the file, which the input shows.
+    if (fileState.text !== file.asked.trim() || fileState.chart !== undefined)
+        throw new Error(`The file's state is not the words asked: ${JSON.stringify(fileState)}`);
     const fileLabel = fileState.text;
     if (!open.charts) throw new Error('The file carries no state for other charts');
 
@@ -403,9 +408,14 @@ async function main(): Promise<void> {
         const appChartState = new URL(page.url()).searchParams.get('appState') ?? '';
         const appChosen = decodeUrlState(appChartState);
         const chartSent = (await log(page, 'bookLog')).filter(entry => entry.app === 'report');
+        // The report's main chart is the words' own: its state names no chart.
+        const main = Object.values(file.data.spec.elements).find(
+            element => element.type === 'Visualizations'
+        );
+        const mainKind = main?.type === 'Visualizations' ? main.props.main : 'table';
         check(
             (await shownChart(app)) === appChart &&
-                appChosen?.chart === appChart &&
+                appChosen?.chart === (appChart === mainKind ? undefined : appChart) &&
                 JSON.stringify({ ...appChosen, chart: fileChosen.chart }) ===
                     JSON.stringify(fileChosen),
             `choosing ${appChart} in the app keeps its state in the Book URL`,

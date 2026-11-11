@@ -193,31 +193,36 @@ describe('report file', () => {
 });
 
 describe('reportFileOpen', () => {
-    const report = { text: 'Gastos por mes en 2017', language: 'es' };
+    const asked = { prompt: 'gastos por mes en 2017 en barras', language: 'es' };
 
-    it('gives the report’s state, as the chart it shows, and the state of each other chart', () => {
+    it('opens the words asked, which show the chart they name, and each other chart chosen', () => {
         const open = reportFileOpen('book-1', {
-            ...report,
+            ...asked,
             charts: { fitting: ['bar', 'donut', 'table'], main: 'bar' },
         });
         expect(open?.bookId).toBe('book-1');
-        expect(decodeUrlState(open?.state ?? '')).toEqual({ ...report, chart: 'bar' });
+        // The words name the chart the report shows first: the state names none.
+        expect(decodeUrlState(open?.state ?? '')).toEqual({ text: asked.prompt, language: 'es' });
         expect(Object.keys(open?.charts ?? {})).toEqual(['donut', 'table']);
-        expect(decodeUrlState(open?.charts?.donut ?? '')).toEqual({ ...report, chart: 'donut' });
+        expect(decodeUrlState(open?.charts?.donut ?? '')).toEqual({
+            text: asked.prompt,
+            language: 'es',
+            chart: 'donut',
+        });
     });
 
-    it('opens a report with no chart as the table', () => {
+    it('opens a report with no chart by its words alone', () => {
         const open = reportFileOpen('book-1', {
-            ...report,
+            ...asked,
             charts: { fitting: ['table'], main: 'table' },
         });
-        expect(decodeUrlState(open?.state ?? '')).toEqual({ ...report, chart: 'table' });
+        expect(decodeUrlState(open?.state ?? '')).toEqual({ text: asked.prompt, language: 'es' });
         expect(open?.charts).toBeUndefined();
     });
 
     it('gives nothing for a report whose state does not fit', () => {
         const open = reportFileOpen('book-1', {
-            text: 'Gastos '.repeat(140).trim(),
+            prompt: 'Gastos '.repeat(140).trim(),
             language: 'es',
             charts: { fitting: ['bar', 'donut'], main: 'bar' },
         });

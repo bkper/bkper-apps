@@ -564,10 +564,8 @@ describe('AppState', () => {
             return root?.type === 'Report' ? root.props.title : undefined;
         };
 
-        /** The state of a report as it shows: these have no chart, so the table. */
-        const stateOf = (report: ReportResponse | undefined) =>
-            report &&
-            encodeUrlState({ text: report.text, language: report.language, chart: 'table' });
+        /** The state of the report the words `text` opened: those words, in its language. */
+        const stateOf = (text: string) => encodeUrlState({ text, language: 'en' });
 
         it('opens the first saved prompt as clicking it, once the shelf settles after the suggestions', async () => {
             const { app, shelf, suggestions, signIn, selected, prompts, settle, url } =
@@ -586,7 +584,7 @@ describe('AppState', () => {
             expect(app.reports.originalPrompt).toBe(FIRST.prompt);
             expect(selected).toEqual([FIRST.prompt]);
             expect(url().get('q')).toBe(FIRST.prompt);
-            expect(url().get('state')).toBe(stateOf(app.reports.report));
+            expect(url().get('state')).toBe(stateOf(FIRST.prompt));
 
             // Within a minute, clicking it shows it from memory: one Bkper AI call in all.
             app.openSavedPrompt(FIRST.id);
@@ -619,7 +617,7 @@ describe('AppState', () => {
                 expect(prompts()).toEqual([]);
                 expect(selected).toEqual([SUGGESTED[0]]);
                 expect(url().get('q')).toBe(SUGGESTED[0]);
-                expect(url().get('state')).toBe(stateOf(app.reports.report));
+                expect(url().get('state')).toBe(stateOf(SUGGESTED[0]));
             }
         });
 
@@ -674,7 +672,8 @@ describe('AppState', () => {
                 await settle();
                 if (report) {
                     expect(title(reportApi.report)).toBe('Report of group:Food');
-                    expect(reportApi.text).toBe('Report of group:Food');
+                    // The query opened it, so it stands for it in the input.
+                    expect(reportApi.text).toBe('group:Food');
                     expect(prompts()).toEqual([]);
                     expect(selected).toEqual([]);
                     expect(url().get('bookQuery')).toBe('group:Food');
@@ -769,6 +768,8 @@ describe('AppState', () => {
         } as const;
         /** The text of the report of `receitas 2012`, as the Worker writes it. */
         const REVENUE = 'Receitas 2012';
+        /** The words asked for it, in the URL's `q`. */
+        const ASKED = 'receitas 2012';
         const state = (text: string, language = 'pt', chart?: 'area' | 'donut' | 'bar') =>
             encodeUrlState({ text, language, ...(chart ? { chart } : {}) }) ?? '';
 
@@ -907,17 +908,13 @@ describe('AppState', () => {
 
             ready();
 
-            const expected = state(REVENUE, 'pt', 'bar');
+            const expected = state(ASKED);
             expect(sent()).toEqual([
                 { message: { type: 'bkper:app-state', state: expected }, origin: BKPER },
             ]);
             expect(new URL(page.location.href).searchParams.get('state')).toBe(expected);
-            // The report's own text, not the words typed, in its language, as the chart it shows.
-            expect(decodeUrlState(expected)).toEqual({
-                text: REVENUE,
-                language: 'pt',
-                chart: 'bar',
-            });
+            // The words asked, not the report's own text, in its language; they name any chart.
+            expect(decodeUrlState(expected)).toEqual({ text: ASKED, language: 'pt' });
 
             // The same report again, or Bkper saying it host-ready again, sends nothing new.
             ready();
@@ -934,24 +931,24 @@ describe('AppState', () => {
             await signIn();
             await vi.waitFor(() => expect(app.reports.report).toBeDefined());
             const stateIn = () => new URL(page.location.href).searchParams.get('state');
-            expect(stateIn()).toBe(state(REVENUE, 'pt', 'bar'));
+            expect(stateIn()).toBe(state(ASKED));
 
             app.reports.chooseChart('donut');
 
-            const donut = state(REVENUE, 'pt', 'donut');
+            const donut = state(ASKED, 'pt', 'donut');
             expect(sent().at(-1)).toEqual({
                 message: { type: 'bkper:app-state', state: donut },
                 origin: BKPER,
             });
             expect(stateIn()).toBe(donut);
 
-            // Back to the main chart: the report's own state.
+            // Back to the main chart: the words' own state.
             app.reports.chooseChart('bar');
             expect(sent().at(-1)?.message).toEqual({
                 type: 'bkper:app-state',
-                state: state(REVENUE, 'pt', 'bar'),
+                state: state(ASKED),
             });
-            expect(stateIn()).toBe(state(REVENUE, 'pt', 'bar'));
+            expect(stateIn()).toBe(state(ASKED));
             expect(sent()).toHaveLength(3);
 
             // Another report drops the chart chosen at once: one state, its own.
@@ -975,13 +972,44 @@ describe('AppState', () => {
             await signIn();
             await vi.waitFor(() => expect(app.reports.report).toBeDefined());
             const stateIn = () => new URL(page.location.href).searchParams.get('state');
-            expect(stateIn()).toBe(state(REVENUE, 'pt', 'bar'));
+            expect(stateIn()).toBe(state(ASKED));
 
             app.reports.chooseChart('donut');
 
-            expect(stateIn()).toBe(state(REVENUE, 'pt', 'donut'));
+            expect(stateIn()).toBe(state(ASKED, 'pt', 'donut'));
             expect(new URL(page.location.href).searchParams.get('q')).toBe('receitas 2012');
             expect(sent()).toEqual([]);
+        });
+
+        it('keeps the words typed for the report shown, which reopen it as the chart they name', async () => {
+            const { app, ready, sent, signIn } = embeddedApp('https://report.bkper.app/?book=b');
+            ready();
+            await signIn();
+            app.reports.input('receitas  2012 em linha');
+            app.reports.submit();
+            await vi.waitFor(() =>
+                expect(app.reports.report?.text).toBe('Receitas  2012 em linha')
+            );
+            const count = sent().length;
+            // Typing after it changes nothing the Book keeps.
+            app.reports.input('receitas 2013 em');
+            const kept = (sent().at(-1)?.message as { state?: string }).state ?? '';
+            expect(sent()).toHaveLength(count);
+            expect(decodeUrlState(kept)).toEqual({
+                text: 'receitas  2012 em linha',
+                language: 'pt',
+            });
+
+            // A reload asks for those words, with no chart: they name it; the input shows them.
+            const reloaded = embeddedApp(`https://report.bkper.app/?book=b&state=${kept}`);
+            reloaded.ready();
+            await reloaded.signIn();
+            await vi.waitFor(() => expect(reloaded.app.reports.report).toBeDefined());
+            expect(reloaded.bodies).toEqual([
+                { prompt: 'receitas  2012 em linha', language: 'pt' },
+            ]);
+            expect(reloaded.app.reports.text).toBe('receitas  2012 em linha');
+            expect(reloaded.sent()).toEqual([]);
         });
 
         it('does not send back the state it opened with, its chart too', async () => {
@@ -1002,20 +1030,20 @@ describe('AppState', () => {
             await signIn();
             await vi.waitFor(() => expect(app.reports.report?.text).toBe('Report of group:Food'));
             expect(bodies).toEqual([{ query: 'group:Food', language: 'en' }]);
-            expect(app.reports.text).toBe('Report of group:Food');
+            expect(app.reports.text).toBe('group:Food');
             const appUrl = (query: string) =>
                 `https://report.bkper.app/?book=b&state=${app.route.state}&bookQuery=${encodeURIComponent(query)}`;
             const lastState = () => (sent().at(-1)?.message as { state?: string }).state;
-            expect(lastState()).toBe(state('Report of group:Food', 'en', 'bar'));
+            expect(lastState()).toBe(state('group:Food', 'en'));
 
             // The Book keeps the state sent, and tells the app its URL again.
             send({ type: 'bkper:app-url-changed', url: appUrl('group:Food') });
             expect(bodies).toHaveLength(1);
 
             send({ type: 'bkper:app-url-changed', url: appUrl("account:'Rent'") });
-            await vi.waitFor(() => expect(app.reports.text).toBe("Report of account:'Rent'"));
+            await vi.waitFor(() => expect(app.reports.text).toBe("account:'Rent'"));
             expect(bodies.at(-1)).toEqual({ query: "account:'Rent'", language: 'en' });
-            expect(lastState()).toBe(state("Report of account:'Rent'", 'en', 'bar'));
+            expect(lastState()).toBe(state("account:'Rent'", 'en'));
 
             app.reports.input('receitas 2012');
             app.reports.submit();

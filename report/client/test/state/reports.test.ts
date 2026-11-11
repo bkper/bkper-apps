@@ -343,8 +343,8 @@ describe('Reports', () => {
         calls[0].resolve(net);
         await settle();
         expect(reports.chart).toBeUndefined();
-        // A state written before states held the chart shown stays as it is.
-        expect(reports.reopen).toEqual({ text: 'Net', language: 'pt' });
+        // A state opened is the state of its report, so going back to it sends no other.
+        expect(reports.reopen).toEqual(NET);
 
         // The chart is the app's to show: the same request, the same report, as that chart.
         reports.openState({ ...NET, chart: 'donut' });
@@ -360,6 +360,12 @@ describe('Reports', () => {
         reports.submit();
         expect(calls).toHaveLength(1);
         expect(title(reports.report)).toBe('Net');
+
+        // A state of it however spaced, in another language, is still that state's report.
+        const spaced = { text: 'Net result  in 2011', language: 'es', chart: 'donut' as const };
+        reports.openState(spaced);
+        expect(calls).toHaveLength(1);
+        expect(reports.reopen).toEqual(spaced);
     });
 
     it('answers a typed suggestion text from memory', async () => {
@@ -619,35 +625,50 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBe(NET.text);
     });
 
-    it('opens the report shown again by its text and language, as the chart shown', async () => {
+    it('opens the report shown again by the words asked for it, as the chart chosen', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
         reports.open('book-1');
         expect(reports.reopen).toBeUndefined();
-        reports.input('despesas em pizza');
+        reports.input('despesas  em pizza ');
         reports.submit();
         const shown = withMain({ ...response('Despesas', 'este ano'), language: 'pt' }, 'donut');
         calls[0].resolve(shown);
         await settle();
-        // Its text names no chart, so the chart it shows goes with it.
-        expect(reports.reopen).toEqual({
-            text: 'Despesas este ano',
-            language: 'pt',
-            chart: 'donut',
-        });
+        // The words name the chart, so they ask for it again: the state names none.
+        expect(reports.reopen).toEqual({ text: 'despesas  em pizza', language: 'pt' });
+        // Typing after it changes the input, not the report shown.
+        reports.input('despesas em barr');
+        expect(reports.reopen).toEqual({ text: 'despesas  em pizza', language: 'pt' });
+        // A chart chosen from the previews is no words: the state keeps it.
         reports.chooseChart('table');
         expect(reports.reopen).toEqual({
-            text: 'Despesas este ano',
+            text: 'despesas  em pizza',
             language: 'pt',
             chart: 'table',
         });
+        // The main chart again is the words' own.
         reports.chooseChart('donut');
-        expect(reports.reopen?.chart).toBe('donut');
+        expect(reports.reopen).toEqual({ text: 'despesas  em pizza', language: 'pt' });
 
         reports.input('receitas este ano');
         reports.submit();
         calls[1].resolve(withMain(response('Receitas', 'este ano'), 'bar'));
         await settle();
-        expect(reports.reopen).toEqual({ text: 'Receitas este ano', language: 'en', chart: 'bar' });
+        expect(reports.reopen).toEqual({ text: 'receitas este ano', language: 'en' });
+    });
+
+    it('opens a suggestion’s or a saved prompt’s report again by its text', async () => {
+        const { reports, calls } = createReports(undefined, createApi([]));
+        reports.open('book-1');
+        reports.choose('Despesas by month in 2011');
+        calls[0].resolve(withMain(response('Despesas', 'por mês'), 'bar'));
+        await settle();
+        expect(reports.reopen).toEqual({ text: 'Despesas by month in 2011', language: 'en' });
+
+        reports.runSaved('Receitas como linha');
+        calls[1].resolve(withMain(response('Receitas', '2026'), 'line'));
+        await settle();
+        expect(reports.reopen).toEqual({ text: 'Receitas como linha', language: 'en' });
     });
 
     it('reuses a saved click’s report for a minute, then resolves its text again', async () => {
@@ -977,7 +998,7 @@ describe('Reports', () => {
 
             expect(reports.report).toBe(report);
             expect(reports.chart).toBe('stacked');
-            expect(reports.reopen).toEqual({ ...STATE, text: report.text });
+            expect(reports.reopen).toEqual(STATE);
             expect(reports.text).toBe(STATE.text);
         });
 
@@ -994,10 +1015,12 @@ describe('Reports', () => {
             expect(reports.chart).toBeUndefined();
             expect(reports.notice).toBeUndefined();
             // Its state stays the one it was opened by, so going back to it sends no other.
-            expect(reports.reopen).toEqual({ ...STATE, text: report.text });
-            // Choosing a chart, even the main one, makes it the report's state.
+            expect(reports.reopen).toEqual(STATE);
+            // Choosing a chart makes it the report's state; its main one, the words' own.
+            reports.chooseChart('area');
+            expect(reports.reopen).toEqual({ ...STATE, chart: 'area' });
             reports.chooseChart('bar');
-            expect(reports.reopen).toEqual({ ...STATE, text: report.text, chart: 'bar' });
+            expect(reports.reopen).toEqual({ text: STATE.text, language: STATE.language });
         });
 
         it('wins over a request in the URL, and its answer never overwrites typing', async () => {
@@ -1038,7 +1061,7 @@ describe('Reports', () => {
         const byQuery = (calls: Call[], query: string) =>
             calls.find(call => call.body.query === query);
 
-        it('asks for the report of the query in the interface’s language, and shows it with its text', async () => {
+        it('asks for the report of the query in the interface’s language, and shows it with the query', async () => {
             const { reports, calls, page } = createReports();
             reports.open('book-1');
             await settle();
@@ -1053,10 +1076,12 @@ describe('Reports', () => {
             await settle();
 
             expect(title(reports.report)).toBe('Food');
-            expect(reports.text).toBe('Food 2011');
-            expect(reports.originalPrompt).toBe('Food 2011');
+            // The query opened it: it stands for the report, in the input, the URL and the state.
+            expect(reports.text).toBe(FOOD);
+            expect(reports.originalPrompt).toBe(FOOD);
+            expect(reports.reopen).toEqual({ text: FOOD, language: 'en' });
             expect(reports.untouched).toBe(false);
-            expect(new URL(page.location.href).searchParams.get('q')).toBe('Food 2011');
+            expect(new URL(page.location.href).searchParams.get('q')).toBe(FOOD);
         });
 
         it('leaves the report shown as it is, silently, when the query is no report', async () => {
@@ -1115,7 +1140,7 @@ describe('Reports', () => {
             expect(prompts()).toEqual(['despesas 2011']);
             byQuery(calls, FOOD)?.resolve(response('Food'));
             await settle();
-            expect(reports.text).toBe('Food');
+            expect(reports.text).toBe(FOOD);
         });
 
         it('keeps the chart chosen when the next report offers it, else shows its main one', async () => {
@@ -1132,7 +1157,7 @@ describe('Reports', () => {
             await settle();
             expect(reports.report).toBe(rent);
             expect(reports.chart).toBe('donut');
-            expect(reports.reopen).toEqual({ text: 'Rent', language: 'en', chart: 'donut' });
+            expect(reports.reopen).toEqual({ text: RENT, language: 'en', chart: 'donut' });
 
             reports.follow('group:Taxes');
             byQuery(calls, 'group:Taxes')?.resolve(offering(response('Taxes'), 'bar', ['area']));

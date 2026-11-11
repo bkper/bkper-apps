@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyCompletion } from 'report-shared/name-index';
-import { reportText } from 'report-shared/report-text';
+import { decodeUrlState } from 'report-shared/url-state';
 import { savedWorkflow, WORKFLOW_PROMPT } from '../scripts/fixtures/saved-workflow';
 import type { AuthSessionCallbacks } from '../client/src/auth/auth-session';
 import { createAppApi, type ReportResponse } from '../client/src/api/app-api';
@@ -243,13 +243,16 @@ describe('saved-prompt route/service and independent app clients', () => {
         expect(fixture.savedValues().map(([, value]) => value)).toEqual([
             JSON.stringify(WORKFLOW_PROMPT),
         ]);
-        // Recreate all stores from the URL: its state asks for the report again by the report's
-        // own text, in its language, a request like any other.
+        // Recreate all stores from the URL: its state asks for the report again by the words
+        // that opened it, the saved prompt's, in its language, a request like any other.
+        expect(
+            decodeUrlState(new URL(b.page.location.href).searchParams.get('state') ?? '')
+        ).toEqual({ text: WORKFLOW_PROMPT, language: 'en' });
         b.state.disconnect();
         const before = fixture.decisions.length;
         const reopened = await client(editor, b.page.location.href);
         const shown = reopened.state.reports.report!;
-        expect(reportText(shown.spec)).toBe(reopened.state.reports.text);
+        expect(reopened.state.reports.text).toBe(WORKFLOW_PROMPT);
         expect(reopened.state.reports.originalPrompt).toBe(WORKFLOW_PROMPT);
         expect(shown.query).toBe(later.query);
         expect(fixture.decisions).toHaveLength(before + 1);

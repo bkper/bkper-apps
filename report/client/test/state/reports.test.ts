@@ -6,7 +6,6 @@ import {
     type ReportResponse,
 } from '../../src/api/app-api';
 import { CACHE_MS } from '../../src/state/cache-window';
-import type { StateChart } from 'report-shared/url-state';
 import {
     DEBOUNCE_MS,
     Reports,
@@ -336,26 +335,30 @@ describe('Reports', () => {
         expect(reports.originalPrompt).toBe('FOOD last month');
     });
 
-    it('remembers reports of one text with different charts apart', async () => {
+    it('answers a state of the same text as another chart from memory, as that chart', async () => {
         const { reports, calls } = createReports(undefined, createApi([]));
         reports.open('book-1');
         reports.openState(NET);
-        calls[0].resolve({ ...response('Net'), language: 'pt' });
+        const net = offering({ ...response('Net'), language: 'pt' }, 'bar', ['donut']);
+        calls[0].resolve(net);
         await settle();
+        expect(reports.chart).toBeUndefined();
+        // A state written before states held the chart shown stays as it is.
+        expect(reports.reopen).toEqual({ text: 'Net', language: 'pt' });
 
-        reports.openState({ ...NET, chart: 'pie' });
-        expect(calls).toHaveLength(2);
-        expect(calls[1].body).toEqual({ prompt: NET.text, language: 'pt', chart: 'pie' });
-        calls[1].resolve({ ...response('Pie'), language: 'pt' });
-        await settle();
-        expect(title(reports.report)).toBe('Pie');
+        // The chart is the app's to show: the same request, the same report, as that chart.
+        reports.openState({ ...NET, chart: 'donut' });
+        expect(calls).toHaveLength(1);
+        expect(reports.report).toBe(net);
+        expect(reports.chart).toBe('donut');
 
         reports.openState(NET);
-        expect(title(reports.report)).toBe('Net');
+        expect(reports.report).toBe(net);
+        expect(reports.chart).toBeUndefined();
         // Typed, however spaced, it is the same request.
         reports.input('Net  result in 2011');
         reports.submit();
-        expect(calls).toHaveLength(2);
+        expect(calls).toHaveLength(1);
         expect(title(reports.report)).toBe('Net');
     });
 
@@ -622,14 +625,10 @@ describe('Reports', () => {
         expect(reports.reopen).toBeUndefined();
         reports.input('despesas em pizza');
         reports.submit();
-        const asked = withMain(
-            { ...response('Despesas', 'este ano'), language: 'pt' },
-            'donut',
-            'donut'
-        );
-        calls[0].resolve(asked);
+        const shown = withMain({ ...response('Despesas', 'este ano'), language: 'pt' }, 'donut');
+        calls[0].resolve(shown);
         await settle();
-        // Its text names no chart, so the chart asked for goes with it.
+        // Its text names no chart, so the chart it shows goes with it.
         expect(reports.reopen).toEqual({
             text: 'Despesas este ano',
             language: 'pt',
@@ -648,7 +647,7 @@ describe('Reports', () => {
         reports.submit();
         calls[1].resolve(withMain(response('Receitas', 'este ano'), 'bar'));
         await settle();
-        expect(reports.reopen).toEqual({ text: 'Receitas este ano', language: 'en' });
+        expect(reports.reopen).toEqual({ text: 'Receitas este ano', language: 'en', chart: 'bar' });
     });
 
     it('reuses a saved click’s report for a minute, then resolves its text again', async () => {
@@ -958,23 +957,47 @@ describe('Reports', () => {
 
     describe('opened by state', () => {
         const STATE = { text: 'Gastos por mes en 2011', language: 'es', chart: 'stacked' as const };
-        const byState = (call: Call) => call.body.chart === 'stacked';
+        const byState = (call: Call) => call.body.prompt === STATE.text;
 
-        it('asks for its text, in its language and with its chart, showing the text at once', async () => {
+        it('asks for its text, in its language, showing the text at once, and then its chart', async () => {
             const { reports, calls, prompts } = createReports();
             reports.open('book-1', '', STATE);
 
             const call = calls.find(byState);
-            expect(call?.body).toEqual({ prompt: STATE.text, language: 'es', chart: 'stacked' });
+            // The chart is the app's to show, never asked for.
+            expect(call?.body).toEqual({ prompt: STATE.text, language: 'es' });
             expect(prompts()).toEqual([]);
             expect(reports.text).toBe(STATE.text);
 
-            const report = { ...response('Gastos', '2011'), language: 'es' };
+            const report = offering({ ...response('Gastos', '2011'), language: 'es' }, 'bar', [
+                'stacked',
+            ]);
             call?.resolve(report);
             await settle();
 
             expect(reports.report).toBe(report);
+            expect(reports.chart).toBe('stacked');
+            expect(reports.reopen).toEqual({ ...STATE, text: report.text });
             expect(reports.text).toBe(STATE.text);
+        });
+
+        it('shows the report’s own chart when it no longer offers the state’s, keeping the state', async () => {
+            const { reports, calls } = createReports();
+            reports.open('book-1', '', STATE);
+            const report = offering({ ...response('Gastos', '2011'), language: 'es' }, 'bar', [
+                'area',
+            ]);
+            calls.find(byState)?.resolve(report);
+            await settle();
+
+            expect(reports.report).toBe(report);
+            expect(reports.chart).toBeUndefined();
+            expect(reports.notice).toBeUndefined();
+            // Its state stays the one it was opened by, so going back to it sends no other.
+            expect(reports.reopen).toEqual({ ...STATE, text: report.text });
+            // Choosing a chart, even the main one, makes it the report's state.
+            reports.chooseChart('bar');
+            expect(reports.reopen).toEqual({ ...STATE, text: report.text, chart: 'bar' });
         });
 
         it('wins over a request in the URL, and its answer never overwrites typing', async () => {
@@ -1116,13 +1139,13 @@ describe('Reports', () => {
             await settle();
             expect(reports.chart).toBeUndefined();
 
-            // A chart asked for with a request counts as chosen.
+            // A chart a request shows as its own is no choice: the next report shows its own.
             reports.input('Food as area');
             reports.submit();
-            calls.at(-1)?.resolve(withMain(response('Food as area'), 'area', 'area'));
+            calls.at(-1)?.resolve(withMain(response('Food as area'), 'area'));
             await settle();
             reports.follow(RENT);
-            expect(reports.chart).toBe('area');
+            expect(reports.chart).toBeUndefined();
             expect(reports.report).toBe(rent);
         });
 
@@ -1236,14 +1259,10 @@ function offering(report: ReportResponse, main: ChartKind, others: ChartKind[]):
     };
 }
 
-/** A report whose main chart is `main` (`table` for none), asked for as `asked`, if any. */
-function withMain(report: ReportResponse, main: ChartKind, asked?: StateChart) {
+/** A report whose main chart is `main` (`table` for none). */
+function withMain(report: ReportResponse, main: ChartKind) {
     return {
         ...report,
-        chart: {
-            kind: main === 'table' ? 'none' : main,
-            fallback: false,
-            ...(asked ? { asked } : {}),
-        },
+        chart: { kind: main === 'table' ? 'none' : main, fallback: false },
     } satisfies ReportResponse;
 }

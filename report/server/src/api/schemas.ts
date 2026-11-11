@@ -1,7 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import { ReportSpecSchema } from 'report-shared/catalog';
 import { supportedLanguage } from 'report-shared/languages';
-import { REPORT_CHARTS } from 'report-shared/report-intent';
 import type { ZodType } from 'zod';
 import { CHART_KINDS } from '../services/report.js';
 import { ReportPromptSchema, ReportQuerySchema } from '../services/report-prompt.js';
@@ -227,18 +226,13 @@ export const ReportRequestSchema = z
     .strictObject({
         prompt: ReportPromptSchema.optional().openapi({
             description:
-                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.',
+                'The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart (such as “as a donut” or “by month in a line”) and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.',
             example: 'show my expenses by category this year',
         }),
         query: ReportQuerySchema.optional().openapi({
             description:
                 'Instead of `prompt`: a Bkper query, such as the one a Book shows its transactions with, read exactly as sent, with no AI: every amount the report shows is Bkper’s balance for that very query, as the Book’s sidebar shows it, future-dated transactions included; nothing is rewritten or cut off. Its `group:` and `account:` names (case and accents aside) are what the report is of, several side by side (up to six, the first found); names the Book does not have, or Bkper does not find, are left out, and with none the answer is 422 `query_not_a_report`. Its period is the days Bkper read, as written (`after:01/01/2026 before:01/01/2027` is Jan 1 – Dec 31, 2026; `before:` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month (`by:m`), only when Bkper gives it the same totals; the comparison, from the same query with its dates moved to the period before, only when it has an end. The report’s `text` is the query itself.',
             example: "group:'Expenses' after:01/01/2026 before:01/04/2026",
-        }),
-        chart: z.enum(REPORT_CHARTS).optional().openapi({
-            description:
-                'The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month (`line` for activity, or `bar` for a balance, in place of the usual one); `ranked-bar` or `donut` of the parts (`pie` is drawn as `donut`); `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and a line under its title says why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.',
-            example: 'donut',
         }),
         language: LanguageSchema.optional().openapi({
             description:
@@ -339,7 +333,7 @@ export const ReportResponseSchema = z
         spec: ReportSpecSchema.meta({
             id: 'ReportSpec',
             description:
-                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare, or draw the chart asked for, as asked, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO.',
+                'The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked, or draw the chart the prompt names, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO.',
         }),
         language: z.string().openapi({
             description: 'The Bkper language of the report’s texts.',
@@ -359,21 +353,19 @@ export const ReportResponseSchema = z
             .object({
                 kind: z.enum(CHART_KINDS).openapi({
                     description:
-                        'The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.',
+                        'The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the period compared with); `none` for no chart.',
                     example: 'donut',
                 }),
                 fallback: z.boolean().openapi({
                     description:
-                        'True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why.',
+                        'True when the `prompt` names a chart that does not fit this report (such as a donut of a part below zero, or a bridge, which reports never draw), so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why, in one line. False when the prompt names no chart, or one that fits.',
                     example: false,
                 }),
-                asked: z.enum(REPORT_CHARTS).exclude(['auto', 'pie']).optional().openapi({
-                    description:
-                        'The chart asked for: the request’s `chart`, else the one its `prompt` names (`donut` for a pie); left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.',
-                    example: 'donut',
-                }),
             })
-            .openapi({ description: 'The chart drawn, and the one asked for, if any.' }),
+            .openapi({
+                description:
+                    'The chart the report shows first, and whether it stands in for the chart its `prompt` names. Every chart that fits is in the spec’s `Visualizations`.',
+            }),
         text: z.string().openapi({
             description:
                 'The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag; of a `query`, the query itself. Send it as `prompt` to ask for the same report again, or show it to the person to edit.',

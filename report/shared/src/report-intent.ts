@@ -17,9 +17,11 @@ export const REPORT_VIEWS = ['trend', 'breakdown', 'total'] as const;
 export type ReportView = (typeof REPORT_VIEWS)[number];
 
 /**
- * The chart a person may prefer: any chart a report can show. `auto` (or none) leaves it to
- * the rules; any other is drawn when it fits the report, else the closest chart that fits.
- * `bar` and `line` are by month; `table` draws no chart.
+ * The chart a person may prefer, as the words of a request name it, kept in an intent and in a
+ * report's state. `auto` (or none) leaves it to the rules; any other is drawn when it fits the
+ * report, else the closest chart that fits. `bar` and `line` are by month; `table` draws no
+ * chart; `pie` is drawn as a donut; `waterfall` never fits, as a bridge's bars would be sums
+ * Report makes, so a report says why and shows the closest chart.
  */
 export const REPORT_CHARTS = [
     'auto',

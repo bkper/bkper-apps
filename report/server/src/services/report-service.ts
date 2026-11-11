@@ -15,7 +15,6 @@
  * answered before anything is asked or read.
  */
 import type { ReportSpec } from 'report-shared/catalog';
-import type { ChartPreference } from 'report-shared/report-intent';
 import { reportText } from 'report-shared/report-text';
 import type { DecisionClient } from './decision-client.js';
 import type { ComparisonError } from './period-query.js';
@@ -28,14 +27,12 @@ import {
     buildQueryReport,
     buildReport,
     queryReportQueries,
-    shownPreference,
     viewKindOf,
     type ChartFacts,
     type ChartRule,
     type ReportChart,
     type ReportCharts,
     type ReportData,
-    type ShownPreference,
     type ViewKind,
 } from './report.js';
 import { isBkperQuery, planQueryReport } from './query-report.js';
@@ -51,14 +48,9 @@ export const DEFAULT_LANGUAGE = 'en';
 /**
  * A report request: a text in any language or a Bkper query, as the API takes them, or, within
  * the Worker and its scripts, an intent, such as a suggestion's, its period as parts or as a
- * period id; and the chart to show when it fits, over the one the request names. How to show a
- * report is not what it is.
+ * period id, with the chart it prefers. A text names its chart in its own words.
  */
-export type ReportRequest = (
-    { prompt: string } | { query: string } | { intent: ReportIntentInput }
-) & {
-    chart?: ChartPreference;
-};
+export type ReportRequest = { prompt: string } | { query: string } | { intent: ReportIntentInput };
 
 /** Languages the caller prefers, each already one of the Bkper languages. */
 export interface ReportLanguages {
@@ -97,9 +89,6 @@ export interface ReportTrace extends Partial<IntentTrace> {
     };
 }
 
-/** A chart a request asks for: any but `auto`, which asks for none, and a pie, asked for as a donut. */
-export type AskedChart = Exclude<ShownPreference, 'auto'>;
-
 /**
  * A report, with its intent and trace, which stay in the Worker: the API answers the rest.
  */
@@ -114,10 +103,10 @@ export interface ReportResult {
     /** When the balances were read, as an ISO instant. */
     dataAt: string;
     /**
-     * The chart drawn, whether it stands in for the chart asked for, which does not fit, and the
-     * chart asked for (the intent's `chart`, but `auto`; a pie as the donut drawn for it).
+     * The chart drawn, and whether it stands in for the chart the request names (the intent's
+     * `chart`), which does not fit.
      */
-    chart: { kind: ReportChart['kind']; fallback: boolean; asked?: AskedChart };
+    chart: { kind: ReportChart['kind']; fallback: boolean };
     /**
      * The report's own short text, in its language, as a person would type it: its title, by
      * month or not, its period as asked, what it is compared with and its hashtag; of a Bkper
@@ -152,7 +141,7 @@ export async function createReport(
               : undefined;
     if (query !== undefined) {
         const language = languages.requested ?? languages.accepted ?? DEFAULT_LANGUAGE;
-        return queryReport(snapshot, query, request.chart, language, options);
+        return queryReport(snapshot, query, language, options);
     }
     let intent: ReportIntent;
     let intentTrace: IntentTrace | undefined;
@@ -188,7 +177,6 @@ export async function createReport(
         intentTrace = resolution.trace;
         defaultPeriod = resolution.defaultPeriod === true;
     }
-    if (request.chart !== undefined) intent = { ...intent, chart: request.chart };
     const language = languages.requested ?? detected ?? languages.accepted ?? DEFAULT_LANGUAGE;
 
     let read: ReadReport;
@@ -209,18 +197,13 @@ export async function createReport(
     );
 
     const spec = await timing.measure('render', async () => buildReportSpec(report, language));
-    const asked = intent.chart && shownPreference(intent.chart);
     return {
         spec,
         intent,
         language,
         query: report.query,
         dataAt: report.dataAt,
-        chart: {
-            kind: report.chart.kind,
-            fallback: report.chart.fallback === true,
-            ...(asked && asked !== 'auto' ? { asked } : {}),
-        },
+        chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: reportText(spec),
         trace: {
             ...intentTrace,
@@ -234,27 +217,21 @@ export async function createReport(
 async function queryReport(
     snapshot: Snapshot,
     query: string,
-    chart: ChartPreference | undefined,
     language: string,
     { loadBalances, timing }: ReportServiceOptions
 ): Promise<ReportResult> {
     const plan = planQueryReport(query, snapshot);
     const balances = await loadBalances(queryReportQueries(plan));
     const report = await timing.measure('compute', async () =>
-        buildQueryReport(plan, snapshot, balances, chart)
+        buildQueryReport(plan, snapshot, balances)
     );
     const spec = await timing.measure('render', async () => buildReportSpec(report, language));
-    const asked = chart && shownPreference(chart);
     return {
         spec,
         language,
         query: report.query,
         dataAt: report.dataAt,
-        chart: {
-            kind: report.chart.kind,
-            fallback: report.chart.fallback === true,
-            ...(asked && asked !== 'auto' ? { asked } : {}),
-        },
+        chart: { kind: report.chart.kind, fallback: report.chart.fallback === true },
         text: reportText(spec),
         trace: reportTrace(report.charts),
     };

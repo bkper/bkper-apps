@@ -63,6 +63,12 @@ export interface ReportsOptions {
     now?: () => number;
 }
 
+/** How a report shows: as `chart` when it offers it, and as the report of a state, if so. */
+interface ShowAs {
+    chart?: StateChart;
+    stated?: boolean;
+}
+
 /** A report asked for, shared by everyone who asks the same; `value` once it answers. */
 interface Entry {
     promise: Promise<ReportResponse>;
@@ -81,8 +87,8 @@ interface Entry {
  *
  * A request goes out {@link DEBOUNCE_MS} after the last keystroke once it has {@link MIN_WORDS}
  * words, or at once on Enter. A newer request cancels the one in flight, and only the latest
- * answer is shown; the last report stays until then. Reports are remembered by request, and
- * the chart asked for with it, for {@link CACHE_MS}, saved requests too, and the suggestions'
+ * answer is shown; the last report stays until then. Reports are remembered by request for
+ * {@link CACHE_MS}, saved requests and states too, and the suggestions'
  * reports are asked for by their texts as soon as the suggestions arrive, so choosing or typing
  * one shows it from memory. The suggestions come from the Book's map: the first request after {@link CACHE_MS}
  * asks them again. The report also follows the query the Book shows its transactions with
@@ -101,6 +107,14 @@ export class Reports extends Store {
      * as never change apart.
      */
     private choice?: { report: ReportResponse; kind: ChartKind };
+    /**
+     * The chart of the state the report shown was opened by, and that report, until a chart is
+     * chosen: its state stays the one it was opened by, even when the report no longer offers
+     * that chart, so going back to a state never sends another.
+     */
+    private stated?: { report: ReportResponse; chart?: StateChart };
+    /** How the report of the request on its way shows: as a state's, or as its own. */
+    private showing?: ShowAs;
     /** A request is on its way. */
     @reactive pending = false;
     /** The request on its way is the Book's query's ({@link follow}). */
@@ -142,12 +156,14 @@ export class Reports extends Store {
 
     /**
      * What asks for the report shown again, as it shows: its own text, its language, and the
-     * chart chosen from its previews, else the one it was asked for.
+     * chart it shows, which its text does not name: the one chosen from its previews, else the
+     * one of the state it was opened by, else its main one.
      */
     get reopen(): UrlState | undefined {
         const report = this.report;
         if (!report) return undefined;
-        const chart = this.chart ?? report.chart.asked;
+        const chart =
+            this.chart ?? (this.stated?.report === report ? this.stated.chart : mainChart(report));
         return { text: report.text, language: report.language, ...(chart ? { chart } : {}) };
     }
 
@@ -212,6 +228,8 @@ export class Reports extends Store {
         this.report = undefined;
         this.source = undefined;
         this.choice = undefined;
+        this.stated = undefined;
+        this.showing = undefined;
         this.quiet();
         this.suggestions = undefined;
         this.bookProblem = undefined;
@@ -226,15 +244,16 @@ export class Reports extends Store {
 
     /**
      * Show the report of a state, such as one Bkper kept in the Book's URL: the input holds its
-     * text, asked for in its language (read from a short text, the language can be unsure) and
-     * with its chart.
+     * text, asked for in its language (read from a short text, the language can be unsure),
+     * and the report shows as the state's chart when it offers it, else as its own. The chart is
+     * the app's to show: it is never asked for.
      */
     openState(state: UrlState): void {
         this.nothingAsked = false;
         this.clearTimer();
         this.text = state.text;
         this.quiet();
-        this.run(state.text, { language: state.language, chart: state.chart });
+        this.run(state.text, { language: state.language, state: { chart: state.chart } });
     }
 
     /** The person typed: keep the request in the URL and ask once typing pauses. */
@@ -287,7 +306,8 @@ export class Reports extends Store {
 
     /**
      * The Book shows its transactions with `query`: show its report, asked for in the
-     * interface's language, as the chart chosen when it offers it, with its text in the input.
+     * interface's language, as the chart chosen from the previews when it offers it, with its
+     * text in the input.
      * The Book changed, so it replaces whatever was typed or asked. Any failure, such as a query
      * of no group or Account, or one Bkper fails to answer, leaves the report shown as it is,
      * silently: the person changed the Book, not the request. The Book stays untouched until
@@ -297,7 +317,7 @@ export class Reports extends Store {
         const bookId = this.openBookId;
         if (!bookId) return;
         this.refreshSuggestions(bookId);
-        const chart = this.chart ?? this.report?.chart.asked;
+        const chart = this.chart;
         this.cancel();
         const sequence = this.sequence;
         const key = queryKey(query);
@@ -312,7 +332,7 @@ export class Reports extends Store {
             this.nothingAsked = false;
             this.text = report.text;
             this.route.setPrompt(report.text);
-            this.show(report, report.text, chart);
+            this.show(report, report.text, { chart });
         };
         if (entry.value) {
             shown(entry.value);
@@ -342,6 +362,7 @@ export class Reports extends Store {
         const report = this.report;
         if (!report) return;
         this.choice = kind === mainChart(report) ? undefined : { report, kind };
+        this.stated = undefined;
         this.changed();
     }
 
@@ -359,43 +380,42 @@ export class Reports extends Store {
 
     /**
      * Ask for the report of `text` in `language` (by default the one the Worker detects), shown
-     * as `chart` when it fits.
+     * as the chart of `state` when it is a state's and offers it.
      */
     private run(
         text: string,
         {
             language,
-            chart,
+            state,
             saved = false,
         }: {
             language?: string;
-            chart?: StateChart;
+            state?: { chart?: StateChart };
             saved?: boolean;
         } = {}
     ): void {
         const bookId = this.openBookId;
         if (!bookId) return;
         this.refreshSuggestions(bookId);
-        const key = promptKey(text, chart);
+        const key = promptKey(text);
         const remembered = this.remembered(key);
         // A saved request is its exact text, so its source stays that text.
         const cached = saved && remembered?.prompt !== text.trim() ? undefined : remembered;
+        const as: ShowAs | undefined = state && { chart: state.chart, stated: true };
         if (cached?.value) {
             this.cancel();
-            this.show(cached.value, cached.prompt ?? cached.value.text);
+            this.show(cached.value, cached.prompt ?? cached.value.text, as);
             return;
         }
+        // The same request on its way answers this one too, as it shows now.
+        this.showing = as;
         if (this.inFlight?.key === key && (cached || !saved)) return;
         this.cancel();
         const sequence = this.sequence;
         let entry = cached;
         if (!entry) {
             const controller = new AbortController();
-            const body = {
-                prompt: text.trim(),
-                ...(language ? { language } : {}),
-                ...(chart ? { chart } : {}),
-            };
+            const body = { prompt: text.trim(), ...(language ? { language } : {}) };
             entry = this.request(key, bookId, body, controller.signal);
             this.inFlight = { key, controller };
         }
@@ -405,7 +425,7 @@ export class Reports extends Store {
             report => {
                 if (sequence !== this.sequence) return;
                 this.inFlight = undefined;
-                this.show(report, originalPrompt);
+                this.show(report, originalPrompt, this.showing);
             },
             (error: unknown) => {
                 if (sequence !== this.sequence) return;
@@ -459,16 +479,19 @@ export class Reports extends Store {
 
     /**
      * Show a report, asked for with the request `prompt`, as `chart` when it offers it, else as
-     * its main chart.
+     * its main chart; as a state's, when it is one ({@link stated}).
      */
-    private show(report: ReportResponse, prompt: string, chart?: ChartKind): void {
+    private show(report: ReportResponse, prompt: string, { chart, stated }: ShowAs = {}): void {
         this.source = { report, prompt };
         this.pending = false;
         this.following = false;
         this.quiet();
         // The chart first, unannounced: the report then shows as it in one change.
-        const kept = chart && chart !== mainChart(report) && offers(report, chart);
-        this.choice = kept ? { report, kind: chart } : undefined;
+        this.choice =
+            chart && chart !== mainChart(report) && offers(report, chart)
+                ? { report, kind: chart }
+                : undefined;
+        this.stated = stated ? { report, chart } : undefined;
         this.report = report;
     }
 
@@ -568,13 +591,11 @@ export function wordCount(text: string): number {
 }
 
 /**
- * A request by its words, however spaced, and the chart asked for. Case stays: it tells apart
- * names of the Book written alike but for it, as the Worker reads them (`report-shared/names`).
+ * A request by its words, however spaced. Case stays: it tells apart names of the Book written
+ * alike but for it, as the Worker reads them (`report-shared/names`).
  */
-function promptKey(text: string, chart?: StateChart): string {
-    const words = text.trim().replace(/\s+/g, ' ');
-    // Collapsed words hold no line break, so no request reads as another with a chart.
-    return chart ? `prompt:${words}\n${chart}` : `prompt:${words}`;
+function promptKey(text: string): string {
+    return `prompt:${text.trim().replace(/\s+/g, ' ')}`;
 }
 
 /** The Book's query, as Bkper wrote it: a query differs from any request. */
@@ -583,7 +604,7 @@ function queryKey(query: string): string {
 }
 
 /** Whether a report offers `kind` among the charts it can show (`Visualizations`). */
-function offers(report: ReportResponse, kind: ChartKind): boolean {
+function offers(report: ReportResponse, kind: StateChart): kind is ChartKind {
     return Object.values(report.spec.elements).some(
         element =>
             element.type === 'Visualizations' &&

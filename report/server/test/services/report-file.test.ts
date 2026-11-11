@@ -195,38 +195,31 @@ describe('report file', () => {
 describe('reportFileOpen', () => {
     const report = { text: 'Gastos por mes en 2017', language: 'es' };
 
-    it('gives the report’s state, and the state of each other chart that fits', () => {
+    it('gives the report’s state, as the chart it shows, and the state of each other chart', () => {
         const open = reportFileOpen('book-1', {
             ...report,
-            charts: { fitting: ['bar', 'pie', 'table'], main: 'bar' },
+            charts: { fitting: ['bar', 'donut', 'table'], main: 'bar' },
         });
         expect(open?.bookId).toBe('book-1');
-        expect(decodeUrlState(open?.state ?? '')).toEqual(report);
-        expect(Object.keys(open?.charts ?? {})).toEqual(['pie', 'table']);
-        expect(decodeUrlState(open?.charts?.pie ?? '')).toEqual({ ...report, chart: 'pie' });
+        expect(decodeUrlState(open?.state ?? '')).toEqual({ ...report, chart: 'bar' });
+        expect(Object.keys(open?.charts ?? {})).toEqual(['donut', 'table']);
+        expect(decodeUrlState(open?.charts?.donut ?? '')).toEqual({ ...report, chart: 'donut' });
     });
 
-    it('opens the report with the chart it was asked for, and none for its own choice', () => {
-        const charts = { fitting: ['pie', 'donut'] as const, main: 'pie' as const };
-        const asked = reportFileOpen('book-1', {
+    it('opens a report with no chart as the table', () => {
+        const open = reportFileOpen('book-1', {
             ...report,
-            chart: 'pie',
-            charts: { ...charts, fitting: [...charts.fitting] },
+            charts: { fitting: ['table'], main: 'table' },
         });
-        expect(decodeUrlState(asked?.state ?? '')).toEqual({ ...report, chart: 'pie' });
-        const auto = reportFileOpen('book-1', {
-            ...report,
-            chart: 'auto',
-            charts: { ...charts, fitting: [...charts.fitting] },
-        });
-        expect(decodeUrlState(auto?.state ?? '')).toEqual(report);
+        expect(decodeUrlState(open?.state ?? '')).toEqual({ ...report, chart: 'table' });
+        expect(open?.charts).toBeUndefined();
     });
 
     it('gives nothing for a report whose state does not fit', () => {
         const open = reportFileOpen('book-1', {
             text: 'Gastos '.repeat(140).trim(),
             language: 'es',
-            charts: { fitting: ['bar', 'pie'], main: 'bar' },
+            charts: { fitting: ['bar', 'donut'], main: 'bar' },
         });
         expect(open).toBeUndefined();
     });

@@ -374,13 +374,13 @@ async function shows(panel: Frame, label: string, id: string, input?: string): P
     );
 }
 
-/** The Book keeps the state of `id`'s report, as `chart`. */
+/** The Book keeps the state of `id`'s report, as `chart`, by default the one it shows first. */
 async function stateKept(page: Page, label: string, id: string, chart?: string): Promise<void> {
     const fit = fixture(id);
     const expected: UrlState = {
         text: textOf(fit),
         language: fit.lang,
-        ...(chart ? { chart: chart as UrlState['chart'] } : {}),
+        chart: (chart ?? mainOf(fit)) as UrlState['chart'],
     };
     const deadline = Date.now() + TIMEOUT_MS;
     let kept: UrlState | undefined;
@@ -496,6 +496,9 @@ async function open(options: {
                 });
             if (path.endsWith('/report')) {
                 const body = req.postDataJSON() as (typeof bodies)[number];
+                // The chart is the app's to show: a request never names one.
+                if ('chart' in body)
+                    failures.push(`A request asks for a chart: ${JSON.stringify(body)}`);
                 // Suggestions' reports are fetched ahead, as the client does; not the Book's.
                 const suggested = body.prompt && SUGGESTED.includes(body.prompt);
                 if (!suggested) bodies.push(body);
@@ -514,7 +517,7 @@ async function open(options: {
                     SUGGESTED.find(item => body.prompt === item) ??
                     [...SUGGESTED, TYPED].find(item => body.prompt?.endsWith(` ${item}`));
                 assert(id, `A recorded report for ${JSON.stringify(body)}`);
-                return json(responseOf(fixture(id), body.chart));
+                return json(responseOf(fixture(id)));
             }
             throw new Error(`Unmocked API: ${req.method()} ${path}`);
         }
@@ -562,7 +565,7 @@ declare global {
 }
 
 /** The API's answer with a recorded spec, its main chart as the spec offers it. */
-function responseOf(fit: Fixture, asked?: string): ReportResponse {
+function responseOf(fit: Fixture): ReportResponse {
     const main = mainOf(fit);
     return {
         spec: fit.spec,
@@ -570,13 +573,7 @@ function responseOf(fit: Fixture, asked?: string): ReportResponse {
         language: fit.lang,
         query: 'mock-only',
         dataAt: '2025-12-31T21:00:00Z',
-        chart: {
-            kind: main === 'table' ? 'none' : main,
-            fallback: false,
-            ...(asked && asked !== 'auto'
-                ? { asked: asked as ReportResponse['chart']['asked'] }
-                : {}),
-        },
+        chart: { kind: main === 'table' ? 'none' : main, fallback: false },
         url: `${APP}/?book=${BOOK}`,
     };
 }

@@ -409,28 +409,16 @@ describe('createReport by prompt', () => {
             test.options
         );
         expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'table' }));
-        expect(result.chart).toEqual({ kind: 'none', fallback: false, asked: 'table' });
-    });
-
-    it('draws the chart the request asks for over the one the prompt names', async () => {
-        const test = harness({ root: 'Expenses', period: '2026-10', chart_named: 'table' });
-        const result = await createReport(
-            await fixtureSnapshot(),
-            { prompt: 'expenses in October, just the numbers', chart: 'ranked-bar' },
-            {},
-            test.options
-        );
-        expect(result.intent).toEqual(intent('g-expenses', '2026-10', { chart: 'ranked-bar' }));
-        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: false, asked: 'ranked-bar' });
+        expect(result.chart).toEqual({ kind: 'none', fallback: false });
         // How to show a report is not what it is: its text names no chart.
         expect(result.text).toBe('Expenses October 2026');
     });
 
     it('shows a chart asked for that does not fit as the closest one that does', async () => {
-        const test = harness({ root: 'Expenses', period: '2026-10' });
+        const test = harness({ root: 'Expenses', period: '2026-10', chart_named: 'waterfall' });
         const result = await createReport(
             await fixtureSnapshot(),
-            { prompt: 'expenses in October', chart: 'waterfall' },
+            { prompt: 'expenses in October as a waterfall' },
             {},
             test.options
         );
@@ -491,8 +479,8 @@ describe('createReport by prompt', () => {
                 unfit: { kind: 'donut', reason: { code: 'net_result' } },
             },
         });
-        // A pie asked for is a donut.
-        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true, asked: 'donut' });
+        // A pie asked for is a donut, which does not fit.
+        expect(result.chart).toEqual({ kind: 'ranked-bar', fallback: true });
         // An intent asks no judgments.
         expect(result.trace).not.toHaveProperty('judgments');
         expect(result.trace).not.toHaveProperty('rule');
@@ -690,23 +678,6 @@ describe('createReport of a suggestion’s text', () => {
         expect(result.query).toBe("group:'Expenses' after:$y before:$m+1 by:m");
         // The suggestions read their reports' queries; the report reads them no more.
         expect(test.queries).toHaveLength(new Set(test.queries).size);
-    });
-
-    it('draws a suggestion with the chart the request asks for', async () => {
-        const snapshot = await fixtureSnapshot();
-        const test = harness();
-        const result = await createReport(
-            snapshot,
-            { prompt: 'Expenses by month this year', chart: 'area' },
-            {},
-            test.options
-        );
-        expect(test.jevCalls).toBe(0);
-        expect(result.intent).toEqual({
-            ...buildSuggestions(snapshot, 'en', RANKED)[2].intent,
-            chart: 'area',
-        });
-        expect(result.chart.kind).toBe('area');
     });
 
     it('reads the suggestions in the language asked for, else the accepted one', async () => {

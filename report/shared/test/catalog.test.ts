@@ -235,13 +235,6 @@ describe('validateReportSpec', () => {
             periods: { current: 'October 2026', previous: 'September 2026' },
             items: [{ ...item('a-1', '3'), previous: '0' }],
         },
-        waterfall: {
-            kind: 'waterfall',
-            label: 'Bridge',
-            start: { label: 'Incoming', color: 'green', value: '5000' },
-            steps: [item('a-1', '-1000'), { label: 'Other', color: 'red', value: '-50.25' }],
-            end: { label: 'Net result', color: 'grey', value: '3949.75' },
-        },
     };
     const withChart = (props: unknown) => {
         const spec = validSpec();
@@ -266,12 +259,17 @@ describe('validateReportSpec', () => {
             },
             { ...(charts.compare as object), items: [item('a-1', '3')] },
             { ...(charts.compare as object), periods: undefined },
-            { ...(charts.waterfall as object), steps: [] },
-            { ...(charts.waterfall as object), end: undefined },
             { ...(charts.donut as object), items: [{ ...item('a-1', '3'), previous: '1' }] },
             { kind: 'table', label: 'None' },
-            // Reports draw a donut for a pie.
+            // Reports draw a donut for a pie, and no bridge.
             { ...(charts.donut as object), kind: 'pie' },
+            {
+                kind: 'waterfall',
+                label: 'Bridge',
+                start: { label: 'Incoming', color: 'green', value: '5000' },
+                steps: [item('a-1', '-1000')],
+                end: { label: 'Net result', color: 'grey', value: '4000' },
+            },
         ];
         for (const props of invalid) {
             expect(issuesOf(withChart(props)), JSON.stringify(props)).not.toEqual([]);
@@ -311,13 +309,6 @@ describe('validateReportSpec', () => {
 
     it('accepts every chart that fits, with the data of each but the main one', () => {
         expect(issuesOf(withViews({}))).toEqual([]);
-        expect(
-            issuesOf(
-                withViews({
-                    unfit: { kind: 'waterfall', name: 'Bridge', reason: 'Nothing changed' },
-                })
-            )
-        ).toEqual([]);
     });
 
     it('accepts the table as the main view, with no Chart', () => {
@@ -369,7 +360,7 @@ describe('validateReportSpec', () => {
                     { kind: 'table', name: 'Table', chart: charts.bar },
                 ],
             },
-            // The main view must be among them, each once, and the unfit one not.
+            // The main view must be among them, each once; a chart that does not fit is no view.
             { main: 'area' },
             {
                 views: [
@@ -377,7 +368,13 @@ describe('validateReportSpec', () => {
                     { kind: 'bar', name: 'By month' },
                 ],
             },
-            { unfit: { kind: 'donut', name: 'Donut', reason: 'No' } },
+            { unfit: { kind: 'stacked', name: 'Stacked', reason: 'No' } },
+            {
+                views: [
+                    { kind: 'bar', name: 'By month' },
+                    { kind: 'waterfall', name: 'Bridge' },
+                ],
+            },
             { views: [] },
         ];
         for (const props of invalid) {

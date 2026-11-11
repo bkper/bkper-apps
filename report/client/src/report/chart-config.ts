@@ -1,34 +1,32 @@
 /**
  * The Chart.js configuration of a report chart, for Web Awesome's chart elements: by month
  * (bars for activity, a line for positions, areas, or parts stacked), the top rows of the
- * breakdown (ranked horizontal bars or a donut), each row now and before (paired
- * horizontal bars), or a bridge (floating horizontal bars). Values are drawn from the spec's
+ * breakdown (ranked horizontal bars or a donut), or each row now and before (paired
+ * horizontal bars). Values are drawn from the spec's
  * decimals; tooltips show the exact amounts. A highlighted breakdown row stands out, and the
  * rest fades.
  */
-import type { ChartConfiguration, ChartDataset, Plugin } from 'chart.js';
+import type { ChartConfiguration, ChartDataset } from 'chart.js';
 import { isolate } from 'report-shared/bidi';
 import { faded, hollow, seriesTones, shades, typeColor } from './colors.js';
 import { ReportFormat } from './format.js';
-import { findRow, topRow, type BreakdownRow, type PropsOf, type TypeColor } from './spec-types.js';
+import { topRow, type BreakdownRow, type PropsOf, type TypeColor } from './spec-types.js';
 
 type ChartProps = PropsOf<'Chart'>;
 type ChartKind<K extends ChartProps['kind']> = Extract<ChartProps, { kind: K }>;
 type ChartElement = 'bar' | 'line' | 'doughnut';
-/** A value, a floating bar's start and end, or nothing to draw. */
-type Datum = number | [number, number] | null;
+/** A value, or nothing to draw. */
+type Datum = number | null;
 type Dataset = ChartDataset<ChartElement, Datum[]>;
 type Config = ChartConfiguration<ChartElement, Datum[], string>;
 
 export interface ChartView {
     /** The Web Awesome chart to draw with: `wa-bar-chart`, `wa-line-chart` or `wa-doughnut-chart`. */
     element: ChartElement;
-    /** Bars along the inline axis, a row each: ranked parts, comparisons and bridges. */
+    /** Bars along the inline axis, a row each: ranked parts and comparisons. */
     horizontal: boolean;
     legend: boolean;
     config: Config;
-    /** The text drawn at the end of each bar, such as a bridge's steps with their sign. */
-    barLabels?: string[];
     /** The tooltip line of a value: its name and exact amount. */
     tooltipLabel(datasetIndex: number, dataIndex: number): string;
     /** A value-axis tick. */
@@ -61,14 +59,8 @@ const MIN_BAR_LENGTH = 3;
 /** Space past the largest values of a ranked chart, as Web Awesome leaves on value axes. */
 const VALUE_GRACE = '5%';
 
-/** Space past the ends of a bridge, for the value labels drawn there. */
-const LABELLED_GRACE = '18%';
-
-/** Width of the outline that marks a previous period, or a step down, in pixels. */
+/** Width of the outline that marks a previous period, in pixels. */
 const OUTLINE_WIDTH = 2;
-
-/** Gap between a bar and its label, in pixels. */
-const LABEL_GAP = 4;
 
 /** A name and its value, each isolated so they read in order in either direction. */
 function valueLabel(name: string, value: string): string {
@@ -88,8 +80,6 @@ export function chartConfig(chart: ChartProps, context: ChartContext): ChartView
             return breakdown(chart, context);
         case 'compare':
             return compare(chart, context);
-        case 'waterfall':
-            return waterfall(chart, context);
     }
 }
 
@@ -413,169 +403,4 @@ function compare(chart: ChartKind<'compare'>, context: ChartContext): ChartView 
         },
     };
     return { element: 'bar', horizontal: true, legend: true, config, tooltipLabel, axisLabel };
-}
-
-interface BridgeBar {
-    label: string;
-    color: TypeColor;
-    value: string;
-    /** The first or last bar, standing on zero; else a step floating from the bar before. */
-    total: boolean;
-    rowId?: string;
-}
-
-/**
- * A bridge as floating bars, one row each: the start and the end stand on zero, solid; each
- * step floats from where the bar before it ended. A step up is solid and a step down outlined,
- * and every bar is labelled with its value, steps with their sign, so the direction never
- * rests on color alone.
- */
-function waterfall(chart: ChartKind<'waterfall'>, context: ChartContext): ChartView {
-    const { format } = context;
-    const bars: BridgeBar[] = [
-        { ...chart.start, total: true },
-        ...chart.steps.map(step => ({ ...step, total: false })),
-        { ...chart.end, total: true },
-    ];
-    let level = 0;
-    const data = bars.map((bar): [number, number] => {
-        const value = ReportFormat.plot(bar.value);
-        const from = bar.total ? 0 : level;
-        level = from + value;
-        return [from, level];
-    });
-    // The rest of the steps is part of a highlighted row that holds steps, such as Outgoing.
-    const holdsSteps = bars.some(
-        bar =>
-            bar.rowId !== undefined &&
-            context.highlight !== undefined &&
-            bar.rowId !== context.highlight.id &&
-            findRow([context.highlight], bar.rowId) !== undefined
-    );
-    const highlighted = bars.map(bar =>
-        bar.total ? false : bar.rowId === undefined ? holdsSteps : isHighlightedStep(bar, context)
-    );
-    const anyHighlighted = highlighted.some(Boolean);
-    const emphasis = (color: string, index: number) =>
-        anyHighlighted && !highlighted[index] ? faded(color) : color;
-    const down = (bar: BridgeBar) => !bar.total && ReportFormat.plot(bar.value) < 0;
-    const fill = (bar: BridgeBar) =>
-        bar.total
-            ? typeColor(bar.color, 'high')
-            : down(bar)
-              ? hollow(typeColor(bar.color, 'medium'))
-              : typeColor(bar.color, 'medium');
-    const tooltipLabel = (_datasetIndex: number, dataIndex: number) => {
-        const bar = bars[dataIndex];
-        return valueLabel(
-            bar.label,
-            bar.total ? format.amount(bar.value) : format.signedAmount(bar.value)
-        );
-    };
-    const axisLabel = (value: number) => format.compact(value);
-    const barLabels = bars.map(bar =>
-        bar.total
-            ? format.compact(ReportFormat.plot(bar.value))
-            : format.signedCompact(ReportFormat.plot(bar.value))
-    );
-    const config: Config = {
-        type: 'bar',
-        data: {
-            labels: bars.map(bar => bar.label),
-            datasets: [
-                {
-                    type: 'bar',
-                    label: chart.label,
-                    data,
-                    backgroundColor: bars.map((bar, index) => emphasis(fill(bar), index)),
-                    borderColor: bars.map((bar, index) =>
-                        emphasis(typeColor(bar.color, 'high'), index)
-                    ),
-                    borderWidth: bars.map(bar => (down(bar) ? OUTLINE_WIDTH : 0)),
-                    borderSkipped: false,
-                    maxBarThickness: 28,
-                    minBarLength: MIN_BAR_LENGTH,
-                },
-            ],
-        },
-        options: {
-            plugins: {
-                title: { display: false },
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        title: () => '',
-                        label: item => tooltipLabel(0, item.dataIndex),
-                    },
-                },
-            },
-            scales: {
-                x: {
-                    grace: LABELLED_GRACE,
-                    ticks: { callback: value => axisLabel(Number(value)) },
-                },
-            },
-        },
-        plugins: [barLabelsPlugin(barLabels)],
-    };
-    return {
-        element: 'bar',
-        horizontal: true,
-        legend: false,
-        config,
-        barLabels,
-        tooltipLabel,
-        axisLabel,
-    };
-}
-
-/** Whether a bridge's bar is a step of the highlighted row, or of a row in it, or holds it. */
-function isHighlightedStep(bar: BridgeBar, { rows, highlight }: ChartContext): boolean {
-    if (!highlight || bar.rowId === undefined) {
-        return false;
-    }
-    const row = findRow(rows, bar.rowId);
-    return (
-        findRow([highlight], bar.rowId) !== undefined ||
-        (row !== undefined && findRow([row], highlight.id) !== undefined)
-    );
-}
-
-/**
- * Draws a label past one end of each bar of the first dataset, in the axis ticks' font and
- * color, so it follows the theme: past the end Chart.js draws the bar to, else, where the label
- * does not fit in the chart, past its other end. Ends are measured in pixels, so it works in
- * either direction.
- */
-function barLabelsPlugin(labels: string[]): Plugin<ChartElement> {
-    return {
-        id: 'reportBarLabels',
-        afterDatasetsDraw(chart) {
-            const ticks = chart.options.scales?.x?.ticks;
-            const font = typeof ticks?.font === 'object' ? ticks.font : {};
-            const size = typeof font.size === 'number' ? font.size : 12;
-            const family = typeof font.family === 'string' ? font.family : 'sans-serif';
-            const { ctx, chartArea } = chart;
-            ctx.save();
-            ctx.font = `${size}px ${family}`;
-            ctx.fillStyle = typeof ticks?.color === 'string' ? ticks.color : 'currentColor';
-            ctx.textBaseline = 'middle';
-            chart.getDatasetMeta(0).data.forEach((bar, index) => {
-                const label = labels[index] ?? '';
-                const { x, y, base } = bar.getProps(['x', 'y', 'base'], true);
-                const end = Number(x);
-                const start = Number(base);
-                const width = ctx.measureText(label).width + LABEL_GAP;
-                const forward = end >= start;
-                const fits = forward
-                    ? end + width <= chartArea.right
-                    : end - width >= chartArea.left;
-                const from = fits ? end : start;
-                const right = fits === forward;
-                ctx.textAlign = right ? 'left' : 'right';
-                ctx.fillText(label, from + (right ? LABEL_GAP : -LABEL_GAP), Number(y));
-            });
-            ctx.restore();
-        },
-    };
 }

@@ -1,14 +1,9 @@
-/**
- * The recorded specs of the gallery, validated, for renderer tests; and recorded bridges
- * (`waterfall-specs.json`), which reports no longer draw but the catalog still holds, so
- * renderers still draw them.
- */
+/** The recorded specs of the gallery, validated, for renderer tests. */
 import { validateReportSpec, type ReportElement, type ReportSpec } from 'report-shared/catalog';
 import ledger from '../../dev/specs/ledger.json';
 import studio from '../../dev/specs/studio.json';
-import waterfall from './waterfall-specs.json';
 
-const entries: unknown[] = [...studio, ...ledger, ...waterfall];
+const entries: unknown[] = [...studio, ...ledger];
 
 export function gallerySpec(id: string): ReportSpec {
     const entry = entries.find(

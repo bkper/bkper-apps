@@ -110,18 +110,6 @@ const CompareItem = z.strictObject({
     previous: Decimal,
 });
 
-/** The first or last bar of a bridge, standing on zero. */
-const WaterfallBar = z.strictObject({ label: Text, color: Color, value: Decimal });
-
-/** A floating bar of a bridge: what it adds to the bars before it, negative when it lowers them. */
-const WaterfallStep = z.strictObject({
-    /** The breakdown row, at any depth; absent for the smaller parts together. */
-    rowId: z.string().min(1).optional(),
-    label: Text,
-    color: Color,
-    value: Decimal,
-});
-
 function oneValuePerMonth(
     chart: { months: string[]; series: { values: string[] }[] },
     context: z.RefinementCtx
@@ -171,14 +159,6 @@ export const ChartProps = z
             periods: z.strictObject({ current: Text, previous: Text }),
             items: z.array(CompareItem).min(1),
         }),
-        /** A bridge: `start`, plus every step, makes `end`. */
-        z.strictObject({
-            kind: z.literal('waterfall'),
-            label: Text,
-            start: WaterfallBar,
-            steps: z.array(WaterfallStep).min(1),
-            end: WaterfallBar,
-        }),
     ])
     // Named, so OpenAPI references it from the Chart and from each view instead of repeating it.
     .meta({ id: 'ChartProps' });
@@ -195,7 +175,6 @@ export const VIEW_KINDS = [
     'ranked-bar',
     'donut',
     'compare',
-    'waterfall',
     'table',
 ] as const satisfies readonly (z.infer<typeof ChartProps>['kind'] | 'table')[];
 
@@ -224,8 +203,6 @@ export const VisualizationsProps = z
         main: ViewKindSchema,
         /** In the order to offer them. */
         views: z.array(ChartView).min(1),
-        /** No longer given: the Report's `notice` says why a chart asked for is not shown. */
-        unfit: z.strictObject({ kind: ViewKindSchema, name: Text, reason: Text }).optional(),
     })
     .superRefine((props, context) => {
         const kinds = props.views.map(view => view.kind);
@@ -234,13 +211,6 @@ export const VisualizationsProps = z
         }
         if (!kinds.includes(props.main)) {
             context.addIssue({ code: 'custom', path: ['main'], message: 'Not among the views' });
-        }
-        if (props.unfit && kinds.includes(props.unfit.kind)) {
-            context.addIssue({
-                code: 'custom',
-                path: ['unfit', 'kind'],
-                message: 'A view that fits is not unfit',
-            });
         }
         props.views.forEach((view, index) => {
             const drawn = view.kind !== 'table' && view.kind !== props.main;
@@ -421,7 +391,7 @@ export const reportCatalog = defineCatalog(reportSchema, {
         Chart: {
             props: ChartProps,
             description:
-                'The amount by month, its largest parts, the parts against the previous period, or a bridge to the amount.',
+                'The amount by month, its largest parts, or the parts against the previous period.',
         },
         Visualizations: {
             props: VisualizationsProps,

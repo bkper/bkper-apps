@@ -2,7 +2,7 @@
     "info": {
         "title": "Report API",
         "version": "1.0.0",
-        "description": "Read-only financial reports of a Bkper Book, from a request in any language or a Bkper query. Report never creates, changes or deletes anything in a Book.\n\n## Show a person a report\n\nWhen a person asks to see a report of a Book (expenses, revenue, income versus expenses, profit and loss, balances, by category, by month, …), unless they ask for a custom report (see Custom reports), call `POST /api/v1/books/{bookId}/report` with:\n\n```json\n{ \"prompt\": \"<the person's request, in their own words and language>\", \"format\": \"html\" }\n```\n\nand give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart with small previews of every other chart that fits, to switch to in place, a breakdown table whose rows open in place, and its source: the period and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:\n\n```bash\nbkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"show my expenses by category this year\",\"format\":\"html\"}' > report.html\n```\n\nThis one call is the whole task, and the deterministic route to the report: every amount is a Bkper balance of one group or Account, as Bkper shows it, read by code, never by AI; Report adds nothing up, but for one labelled case below, and the file shows the exact Bkper query it read, for anyone to audit. So do not compute or query the balances yourself, do not ask for `format: spec` first, and do not re-check the amounts or open the file: publish it and answer in a line, as the report speaks for itself. `format: spec` (the default) is the JSON Report's own web client renders; showing a report never needs it.\n\n## Custom reports\n\nA request for a custom report, or one that says it is not for the Report app, is not for Report: build that report yourself from the Book's Bkper balances (with the Bkper CLI or API), and do not call `POST /api/v1/books/{bookId}/report`. Report's own **Custom report** chip opens the Bkper Agent with such a request started, in the person's language, such as \"Create a custom report, without using the Report app, that …\". Every other report request goes to Report as above.\n\n## What a request can ask\n\n- One top-level (root) group of the Book, such as Expenses or Assets, broken down into the subgroups and Accounts Bkper returns; or income versus expenses (the net result).\n- A subgroup or an Account, by its name as the Book writes it (case and accents aside), such as \"Food this year\"; or several, such as \"Food and Rent by month\" or \"Food versus Rent\": each with its own balance side by side, never added up. They must all be balances (Asset, Liability) or all activity (Incoming, Outgoing), else `mixed_targets`. Keep the names in the prompt as the person wrote them. A request that writes no name of the Book reports the closest group holding what it means (an Account it means is a row of its group), else the root group it is about; groups the Book hides only when named.\n- The net result comes from the group that combines the Book's Incoming and Outgoing groups, as Bkper calculates it. Without one, when each activity root is only Incoming or only Outgoing and no two share an Account, Report subtracts the Outgoing roots from the Incoming roots and labels the result \"Calculated by Report\". Otherwise the Book has no net result (`no_net_result`) until income and expenses meet in one top-level group.\n- A period in whole months: this or last month, quarter or year, the year before last, year to date, the last 12 months, all time, any year, quarter or month the person writes, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data. One that has not started, such as next month, is `future_period`.\n- What the period is compared with: the previous period, the same period a year earlier, or any other period of the same kind the prompt names (last year vs 2023, Q3 vs Q1). A comparison that cannot be made, such as a month against a year, compares with the previous period instead and says so in the report.\n- By month, or a breakdown, a trend or a total.\n- A chart, when the person names one: a donut (a pie is drawn as one), bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it. A line for activity, or bars for balances, replaces the usual chart by month. A chart that does not fit the numbers (such as a donut with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and a line under its title says why. Every chart that fits is offered as a preview beside the report's title (at most six), so there is no need to ask again for another chart.\n- A `#hashtag`: only transactions with it. One per report, as Bkper filters balances by one; a prompt's first hashtag is read and the others are left out.\n\nActivity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end; a balance today, or at the end of a month, also shows a line of the 12 month-ends ending then. Balances may be up to 60 seconds old.\n\n## Report a Bkper query\n\nTo report what a Book shows, send its Bkper query as `query` instead of `prompt`; a person's words always go as `prompt`. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query is read exactly as sent, with no AI: every amount is Bkper's balance for that very query, as the Book's sidebar shows it, future-dated transactions included, and nothing in it is rewritten or cut off. Its `group:` and `account:` names are what the report is of (several side by side, up to six); its period is the days Bkper read (`after:01/01/2026 before:01/01/2027` is Jan 1 – Dec 31, 2026; `before:` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month, and the comparison from the same query with its dates moved to the period before; each is left out unless it reads as the query does. The report's `text` is the query, which sent back as `prompt` is read as that query. A query that names no group or Account Bkper finds answers 422 `query_not_a_report`.\n\n## Saved prompts\n\n`/api/v1/books/{bookId}/prompts` is a Book-shared shelf of original prompts, not computed reports. `GET` lists `prompts: [{ id, prompt }]` in the shelf's order and fresh `capabilities: { list, save, remove, move }`. Every known non-`NONE` role may list, including `RECORDER`; only `OWNER` and `EDITOR` may save, remove or move. `POST` accepts exactly `{ \"prompt\": \"…\" }` and returns the saved `{ id, prompt }` (200), a new prompt last and one saved again in its place; `DELETE /api/v1/books/{bookId}/prompts/{promptId}` returns 204, including when absent; `PUT /api/v1/books/{bookId}/prompts/{promptId}/position` accepts exactly `{ \"before\": \"<id>\" | null }` (`null`: the end) and returns the whole shelf in its new order, as `GET` does (404 `prompt_not_found`, 409 `shelf_changed` when `before` is gone: list again). All three are idempotent for identical input.\n\nSave only when asked: this writes durable app metadata shared with the Book's collaborators, not Book resources or executable saved queries. Only the original text is saved (edges trimmed, 1–1000 characters), never report HTML, resolved intent, dates, amounts, inferred language or a separately selected chart. To open one against current data, send its `prompt` to the existing singular `POST /report`. Every shelf operation reads the Book's role afresh. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Storage visibility is eventually consistent; independent items cannot overwrite each other, while concurrent save/remove of the same item follows KV ordering. Shelf responses must not be cached. A 502 `storage_error` means retry the same operation; a failed write may have reached storage.\n\n## Errors\n\nErrors are JSON, `{ \"success\": false, \"error\": { \"code\", \"message\" } }`. With `not_a_report`, the request names nothing this Book can report: ask the person to name a group of the Book and a period, or offer the reports it carries as `suggestions` (those `GET /api/v1/books/{bookId}/suggestions` lists): each is a request, built with no AI when sent as `prompt` exactly as listed, in the same `language`. Four errors are problems of the Book itself, with a `problem` object naming what is involved: `empty_book` (no transactions yet), `nothing_to_report` (no groups, or most Accounts with transactions in no group), `no_net_result` (no group combines its income and expense groups, or they share Accounts) and `mixed_group` (the group asked for mixes balances with activity). `GET /api/v1/books/{bookId}/suggestions` tells the first two as `problem` when the Book opens. Report never changes the Book: if the person is its OWNER or EDITOR (`problem.canOrganize`), offer to organize its groups for them (for `empty_book`, to help them get started), changing groups only, never transactions, and only once they agree; otherwise, tell them to ask the Book's owner."
+        "description": "Read-only financial reports of a Bkper Book, from a request in any language or a Bkper query. Report never creates, changes or deletes anything in a Book.\n\n## Show a person a report\n\nWhen a person asks to see a report of a Book (expenses, revenue, income versus expenses, profit and loss, balances, by category, by month, …), unless they ask for a custom report (see Custom reports), call `POST /api/v1/books/{bookId}/report` with:\n\n```json\n{ \"prompt\": \"<the person's request, in their own words and language>\", \"format\": \"html\" }\n```\n\nand give them the returned file as it is: one self-contained, interactive HTML report (the answer with its comparison to the previous period, a chart with small previews of every other chart that fits, to switch to in place, a breakdown table whose rows open in place, and its source: the period and the exact Bkper query) that loads nothing and links to the same report in the Report app; shown by the Bkper Agent in a Book, that link opens it in Report in place of the Agent. With the Bkper CLI, save it and publish the file:\n\n```bash\nbkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"show my expenses by category this year\",\"format\":\"html\"}' > report.html\n```\n\nThis one call is the whole task, and the deterministic route to the report: every amount is a Bkper balance of one group or Account, as Bkper shows it, read by code, never by AI; Report adds nothing up, but for one labelled case below, and the file shows the exact Bkper query it read, for anyone to audit. So do not compute or query the balances yourself, do not ask for `format: spec` first, and do not re-check the amounts or open the file: publish it and answer in a line, as the report speaks for itself. `format: spec` (the default) is the JSON Report's own web client renders; showing a report never needs it.\n\n## Custom reports\n\nA request for a custom report, or one that says it is not for the Report app, is not for Report: build that report yourself from the Book's Bkper balances (with the Bkper CLI or API), and do not call `POST /api/v1/books/{bookId}/report`. Report's own **Custom report** chip opens the Bkper Agent with such a request started, in the person's language, such as \"Create a custom report, without using the Report app, that …\". Every other report request goes to Report as above.\n\n## What a request can ask\n\n- One top-level (root) group of the Book, such as Expenses or Assets, broken down into the subgroups and Accounts Bkper returns; or income versus expenses (the net result).\n- A subgroup or an Account, by its name as the Book writes it (case and accents aside), such as \"Food this year\"; or several, such as \"Food and Rent by month\" or \"Food versus Rent\": each with its own balance side by side, never added up. They must all be balances (Asset, Liability) or all activity (Incoming, Outgoing), else `mixed_targets`. Keep the names in the prompt as the person wrote them. A request that writes no name of the Book reports the closest group holding what it means (an Account it means is a row of its group), else the root group it is about; groups the Book hides only when named.\n- The net result comes from the group that combines the Book's Incoming and Outgoing groups, as Bkper calculates it. Without one, when each activity root is only Incoming or only Outgoing and no two share an Account, Report subtracts the Outgoing roots from the Incoming roots and labels the result \"Calculated by Report\". Otherwise the Book has no net result (`no_net_result`) until income and expenses meet in one top-level group.\n- A period in whole months: this or last month, quarter or year, the year before last, year to date, the last 12 months, all time, any year, quarter or month the person writes, or today. Without one: activity this year, balances today, or the last year with movements in Books with old data. One that has not started, such as next month, is `future_period`.\n- What the period is compared with: the previous period, the same period a year earlier, or any other period of the same kind the prompt names (last year vs 2023, Q3 vs Q1). A comparison that cannot be made, such as a month against a year, compares with the previous period instead and says so in the report.\n- By month, or a breakdown, a trend or a total.\n- A chart, when the person names one: a donut (any round chart is drawn as one), bars, a line, an area, stacked by month, versus the previous period, or no chart. Keep it in the prompt as they said it: a request has no separate chart field. A line for activity, or bars for balances, replaces the usual chart by month. A chart that does not fit the numbers (such as a donut with a part below zero, or a bridge, which Report never draws) is not drawn: the report shows the closest chart that fits and a line under its title says why. Every chart that fits is offered as a preview beside the report's title (at most six), so there is no need to ask again for another chart.\n- A `#hashtag`: only transactions with it. One per report, as Bkper filters balances by one; a prompt's first hashtag is read and the others are left out.\n\nActivity groups (Incoming, Outgoing) report what moved within the period; balance groups (Asset, Liability) report the balance at its end; a balance today, or at the end of a month, also shows a line of the 12 month-ends ending then. Balances may be up to 60 seconds old.\n\n## Report a Bkper query\n\nTo report what a Book shows, send its Bkper query as `query` instead of `prompt`; a person's words always go as `prompt`. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query is read exactly as sent, with no AI: every amount is Bkper's balance for that very query, as the Book's sidebar shows it, future-dated transactions included, and nothing in it is rewritten or cut off. Its `group:` and `account:` names are what the report is of (several side by side, up to six); its period is the days Bkper read (`after:01/01/2026 before:01/01/2027` is Jan 1 – Dec 31, 2026; `before:` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month, and the comparison from the same query with its dates moved to the period before; each is left out unless it reads as the query does. The report's `text` is the query, which sent back as `prompt` is read as that query. A query that names no group or Account Bkper finds answers 422 `query_not_a_report`.\n\n## Saved prompts\n\n`/api/v1/books/{bookId}/prompts` is a Book-shared shelf of original prompts, not computed reports. `GET` lists `prompts: [{ id, prompt }]` in the shelf's order and fresh `capabilities: { list, save, remove, move }`. Every known non-`NONE` role may list, including `RECORDER`; only `OWNER` and `EDITOR` may save, remove or move. `POST` accepts exactly `{ \"prompt\": \"…\" }` and returns the saved `{ id, prompt }` (200), a new prompt last and one saved again in its place; `DELETE /api/v1/books/{bookId}/prompts/{promptId}` returns 204, including when absent; `PUT /api/v1/books/{bookId}/prompts/{promptId}/position` accepts exactly `{ \"before\": \"<id>\" | null }` (`null`: the end) and returns the whole shelf in its new order, as `GET` does (404 `prompt_not_found`, 409 `shelf_changed` when `before` is gone: list again). All three are idempotent for identical input.\n\nSave only when asked: this writes durable app metadata shared with the Book's collaborators, not Book resources or executable saved queries. Only the original text is saved (edges trimmed, 1–1000 characters), never report HTML, resolved intent, dates, amounts, inferred language or a separately selected chart. To open one against current data, send its `prompt` to the existing singular `POST /report`. Every shelf operation reads the Book's role afresh. Native saved-query role permissions apply, but its owner-plan billing restriction is not inherited. Storage visibility is eventually consistent; independent items cannot overwrite each other, while concurrent save/remove of the same item follows KV ordering. Shelf responses must not be cached. A 502 `storage_error` means retry the same operation; a failed write may have reached storage.\n\n## Errors\n\nErrors are JSON, `{ \"success\": false, \"error\": { \"code\", \"message\" } }`. With `not_a_report`, the request names nothing this Book can report: ask the person to name a group of the Book and a period, or offer the reports it carries as `suggestions` (those `GET /api/v1/books/{bookId}/suggestions` lists): each is a request, built with no AI when sent as `prompt` exactly as listed, in the same `language`. Four errors are problems of the Book itself, with a `problem` object naming what is involved: `empty_book` (no transactions yet), `nothing_to_report` (no groups, or most Accounts with transactions in no group), `no_net_result` (no group combines its income and expense groups, or they share Accounts) and `mixed_group` (the group asked for mixes balances with activity). `GET /api/v1/books/{bookId}/suggestions` tells the first two as `problem` when the Book opens. Report never changes the Book: if the person is its OWNER or EDITOR (`problem.canOrganize`), offer to organize its groups for them (for `empty_book`, to help them get started), changing groups only, never transactions, and only once they agree; otherwise, tell them to ask the Book's owner."
     },
     "paths": {
         "/api/v1/ping": {
@@ -216,7 +216,7 @@
             "post": {
                 "tags": ["Reports"],
                 "summary": "Build a financial report of a Book from a request in any language or a query",
-                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for one `#hashtag`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.\n\nWith `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.\n\nTo follow what a Book shows, send its Bkper query as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper’s sidebar shows for that query (future-dated transactions included), its period is the days Bkper read, and its `text` is the query. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query that names no group or Account Bkper finds answers `query_not_a_report`.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
+                "description": "Builds a financial report of the Book: of one of its root groups (such as Expenses or Assets, with its subgroups and Accounts), of a group or Account the prompt names, of several side by side, or of income versus expenses, over a period of whole months, by month or not, optionally only for one `#hashtag`. Read-only: the Book is never changed.\n\nTo show a person a report, send `{ \"prompt\": \"<their request, in their own words and language>\", \"format\": \"html\" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{\"prompt\":\"…\",\"format\":\"html\"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.\n\nWith `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report. `chart` is the chart the report shows first, with `fallback` true when the chart the prompt names does not fit (the spec’s `Report` `notice` says why); every chart that fits is in the spec’s `Visualizations`, to show with no new request. A suggestion’s text sent as `prompt` builds the report without AI.\n\nTo follow what a Book shows, send its Bkper query as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper’s sidebar shows for that query (future-dated transactions included), its period is the days Bkper read, and its `text` is the query. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query that names no group or Account Bkper finds answers `query_not_a_report`.\n\nEvery amount is a Bkper balance of one group or Account, as Bkper returns it (but a net result Report calculates, labelled so), read by deterministic code; balances may be up to 60 seconds old. Code finds in the prompt the exact names of the Book’s groups and Accounts it writes, and its first `#hashtag` (Bkper filters balances by one); AI only recognizes the root group when the prompt writes no such name, the parts of the period it says (how long, which year, month and quarter, and those of a period it compares with; never a date), whether it asks about months, parts, an earlier period or a bridge, and which chart it names; code decides the report and its charts from those judgments and the numbers.",
                 "parameters": [
                     {
                         "schema": {
@@ -984,36 +984,19 @@
                                 "stacked",
                                 "ranked-bar",
                                 "donut",
-                                "compare",
-                                "waterfall"
+                                "compare"
                             ],
-                            "description": "The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.",
+                            "description": "The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the period compared with); `none` for no chart.",
                             "example": "donut"
                         },
                         "fallback": {
                             "type": "boolean",
-                            "description": "True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why.",
+                            "description": "True when the `prompt` names a chart that does not fit this report (such as a donut of a part below zero, or a bridge, which reports never draw), so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why, in one line. False when the prompt names no chart, or one that fits.",
                             "example": false
-                        },
-                        "asked": {
-                            "type": "string",
-                            "enum": [
-                                "stacked",
-                                "area",
-                                "compare",
-                                "waterfall",
-                                "table",
-                                "bar",
-                                "line",
-                                "ranked-bar",
-                                "donut"
-                            ],
-                            "description": "The chart asked for: the request’s `chart`, else the one its `prompt` names (`donut` for a pie); left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.",
-                            "example": "donut"
                         }
                     },
                     "required": ["kind", "fallback"],
-                    "description": "The chart drawn, and the one asked for, if any."
+                    "description": "The chart the report shows first, and whether it stands in for the chart its `prompt` names. Every chart that fits is in the spec’s `Visualizations`."
                 },
                 "text": {
                     "type": "string",
@@ -1228,7 +1211,6 @@
                                                     "ranked-bar",
                                                     "donut",
                                                     "compare",
-                                                    "waterfall",
                                                     "table"
                                                 ]
                                             },
@@ -1247,7 +1229,6 @@
                                                                 "ranked-bar",
                                                                 "donut",
                                                                 "compare",
-                                                                "waterfall",
                                                                 "table"
                                                             ]
                                                         },
@@ -1264,37 +1245,6 @@
                                                     "additionalProperties": false
                                                 },
                                                 "minItems": 1
-                                            },
-                                            "unfit": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "kind": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "bar",
-                                                            "line",
-                                                            "area",
-                                                            "stacked",
-                                                            "ranked-bar",
-                                                            "donut",
-                                                            "compare",
-                                                            "waterfall",
-                                                            "table"
-                                                        ]
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "minLength": 1,
-                                                        "maxLength": 1000
-                                                    },
-                                                    "reason": {
-                                                        "type": "string",
-                                                        "minLength": 1,
-                                                        "maxLength": 1000
-                                                    }
-                                                },
-                                                "required": ["kind", "name", "reason"],
-                                                "additionalProperties": false
                                             }
                                         },
                                         "required": ["label", "main", "views"],
@@ -1621,7 +1571,7 @@
             },
             "required": ["root", "elements"],
             "additionalProperties": false,
-            "description": "The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare, or draw the chart asked for, as asked, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO."
+            "description": "The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked, or draw the chart the prompt names, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO."
         },
         "ChartProps": {
             "oneOf": [
@@ -1847,90 +1797,6 @@
                     },
                     "required": ["kind", "label", "periods", "items"],
                     "additionalProperties": false
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "kind": {
-                            "type": "string",
-                            "enum": ["waterfall"]
-                        },
-                        "label": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 1000
-                        },
-                        "start": {
-                            "type": "object",
-                            "properties": {
-                                "label": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 1000
-                                },
-                                "color": {
-                                    "type": "string",
-                                    "enum": ["blue", "yellow", "green", "red", "grey"]
-                                },
-                                "value": {
-                                    "type": "string",
-                                    "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
-                                }
-                            },
-                            "required": ["label", "color", "value"],
-                            "additionalProperties": false
-                        },
-                        "steps": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "rowId": {
-                                        "type": "string",
-                                        "minLength": 1
-                                    },
-                                    "label": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 1000
-                                    },
-                                    "color": {
-                                        "type": "string",
-                                        "enum": ["blue", "yellow", "green", "red", "grey"]
-                                    },
-                                    "value": {
-                                        "type": "string",
-                                        "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
-                                    }
-                                },
-                                "required": ["label", "color", "value"],
-                                "additionalProperties": false
-                            },
-                            "minItems": 1
-                        },
-                        "end": {
-                            "type": "object",
-                            "properties": {
-                                "label": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 1000
-                                },
-                                "color": {
-                                    "type": "string",
-                                    "enum": ["blue", "yellow", "green", "red", "grey"]
-                                },
-                                "value": {
-                                    "type": "string",
-                                    "pattern": "^-?(0|[1-9]\\d*)(\\.\\d+)?$"
-                                }
-                            },
-                            "required": ["label", "color", "value"],
-                            "additionalProperties": false
-                        }
-                    },
-                    "required": ["kind", "label", "start", "steps", "end"],
-                    "additionalProperties": false
                 }
             ]
         },
@@ -2019,7 +1885,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 1000,
-                    "description": "The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.",
+                    "description": "The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart (such as “as a donut” or “by month in a line”) and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.",
                     "example": "show my expenses by category this year"
                 },
                 "query": {
@@ -2028,24 +1894,6 @@
                     "maxLength": 2000,
                     "description": "Instead of `prompt`: a Bkper query, such as the one a Book shows its transactions with, read exactly as sent, with no AI: every amount the report shows is Bkper’s balance for that very query, as the Book’s sidebar shows it, future-dated transactions included; nothing is rewritten or cut off. Its `group:` and `account:` names (case and accents aside) are what the report is of, several side by side (up to six, the first found); names the Book does not have, or Bkper does not find, are left out, and with none the answer is 422 `query_not_a_report`. Its period is the days Bkper read, as written (`after:01/01/2026 before:01/01/2027` is Jan 1 – Dec 31, 2026; `before:` alone, a balance as of its last day; no dates, all time). Months for charts come from the same query by month (`by:m`), only when Bkper gives it the same totals; the comparison, from the same query with its dates moved to the period before, only when it has an end. The report’s `text` is the query itself.",
                     "example": "group:'Expenses' after:01/01/2026 before:01/04/2026"
-                },
-                "chart": {
-                    "type": "string",
-                    "enum": [
-                        "auto",
-                        "pie",
-                        "stacked",
-                        "area",
-                        "compare",
-                        "waterfall",
-                        "table",
-                        "bar",
-                        "line",
-                        "ranked-bar",
-                        "donut"
-                    ],
-                    "description": "The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month (`line` for activity, or `bar` for a balance, in place of the usual one); `ranked-bar` or `donut` of the parts (`pie` is drawn as `donut`); `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and a line under its title says why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.",
-                    "example": "donut"
                 },
                 "language": {
                     "type": "string",

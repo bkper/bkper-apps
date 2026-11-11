@@ -125,10 +125,7 @@ export interface ChartSeries {
     amounts: string[];
 }
 
-/**
- * Every chart kind of the API's contract; `none` for no chart. Reports no longer draw a
- * `waterfall`, which stays in the contract for the clients that know it.
- */
+/** Every chart kind a report draws; `none` for no chart. */
 export const CHART_KINDS = [
     'none',
     'bar',
@@ -138,8 +135,7 @@ export const CHART_KINDS = [
     'ranked-bar',
     'donut',
     'compare',
-    'waterfall',
-] as const satisfies readonly (ReportChart['kind'] | 'waterfall')[];
+] as const satisfies readonly ReportChart['kind'][];
 
 export type ReportChart = (
     | { kind: 'none' }
@@ -157,26 +153,6 @@ export type ReportChart = (
 };
 
 export { VIEW_KINDS, type ViewKind };
-
-/**
- * Every reason code of the API's contract. Since reports draw no bridge, `not_a_bridge` and
- * `no_change` are no longer given; they stay in the contract for the clients that know them.
- */
-export const UNFIT_REASON_CODES = [
-    'net_result',
-    'negative_part',
-    'mixed_parts',
-    'few_parts',
-    'too_many_parts',
-    'few_months',
-    'no_amounts',
-    'no_previous',
-    'not_a_whole',
-    'no_bridge',
-    'side_by_side',
-    'not_a_bridge',
-    'no_change',
-] as const satisfies readonly (UnfitReason['code'] | 'not_a_bridge' | 'no_change')[];
 
 export const CHART_RULES = [
     'preference',
@@ -243,7 +219,7 @@ export interface ReportCharts {
     main: ViewKind;
     rule: ChartRule;
     /** The preferred chart, when it does not fit, and why. */
-    unfit?: { kind: ViewKind; reason: UnfitReason };
+    unfit?: { kind: PreferredChart; reason: UnfitReason };
 }
 
 /** What a report is of, by id, name and type. */
@@ -734,15 +710,15 @@ export function queryReportQueries(plan: QueryReportPlan): string[] {
  * - **The comparison** is the same query with its dates moved to the period before (see
  *   `query-report.ts`), shown only when Bkper says it read the days meant for both.
  *
- * The period is named by the days Bkper says the query read. A query whose answer holds none of
+ * Its charts are the rules', as a query names none. The period is named by the days Bkper says
+ * the query read. A query whose answer holds none of
  * the groups and accounts it names, as when Bkper does not find an account by its name, has no
  * report ({@link QueryNotAReportError}).
  */
 export function buildQueryReport(
     plan: QueryReportPlan,
     snapshot: Snapshot,
-    balances: QueryBalances[],
-    chart: ChartPreference = 'auto'
+    balances: QueryBalances[]
 ): ReportData {
     const byQuery = new Map(balances.map(entry => [entry.query, entry]));
     const read = (query: string): QueryBalances => {
@@ -812,7 +788,7 @@ export function buildQueryReport(
     if (lines.length > 1) {
         const targets = lines.map(line => toRow(line, undefined));
         const types = new Set(lines.map(line => line.type));
-        const charts = reportCharts(chart, undefined, {
+        const charts = reportCharts('auto', undefined, {
             nature: plan.nature,
             type: types.size === 1 ? lines[0].type : 'MIXED',
             previous: compared !== undefined,
@@ -828,7 +804,7 @@ export function buildQueryReport(
     const [node] = nodes;
     const total = reportAmounts(line.measure);
     const rows = toRows(line.children, line);
-    const charts = reportCharts(chart, undefined, {
+    const charts = reportCharts('auto', undefined, {
         nature: plan.nature,
         type: node.type,
         total,
@@ -1599,6 +1575,9 @@ function isFit(fit: Fit | undefined): fit is { chart: ReportChart } {
 /** A chart a report may draw as preferred: a pie is drawn as a donut, the one round chart. */
 export type ShownPreference = Exclude<ChartPreference, 'pie'>;
 
+/** A chart a request prefers: one a report can show, or a bridge, which never fits. */
+export type PreferredChart = Exclude<ShownPreference, 'auto'>;
+
 /** The chart drawn for a preference: a donut for a pie, else the preference itself. */
 export function shownPreference(preference: ChartPreference): ShownPreference {
     return preference === 'pie' ? 'donut' : preference;
@@ -1670,11 +1649,13 @@ function mainChoice(
     if (preference === 'auto') {
         return { main: byRules(), rule: 'rules' };
     }
-    const fit = fits.get(preference);
-    if (!fit || isFit(fit)) {
+    // A bridge's start, steps and end would be sums of Bkper's balances, not balances.
+    const fit = preference === 'waterfall' ? undefined : fits.get(preference);
+    if (preference !== 'waterfall' && (!fit || isFit(fit))) {
         return { main: preference, rule: 'preference' };
     }
-    const unfit = { kind: preference, reason: fit.reason };
+    const reason: UnfitReason = fit && !isFit(fit) ? fit.reason : { code: 'no_bridge' };
+    const unfit = { kind: preference, reason };
     const closest =
         preference === 'table'
             ? undefined
@@ -1815,9 +1796,6 @@ function fitChart(kind: ViewKind, input: ChartInput): Fit {
                 ? { chart: { kind: 'compare', rows: ids(compared) } }
                 : { reason: { code: 'no_amounts' } };
         }
-        case 'waterfall':
-            // Its start, steps and end would be sums of Bkper's balances, not balances.
-            return { reason: { code: 'no_bridge' } };
     }
 }
 

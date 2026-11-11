@@ -5,8 +5,8 @@
  *
  * The state holds what a person would send to ask for the report: its own text (the response's
  * `text`, which, sent back as a prompt, asks for the same report), the language of its texts
- * (read from a short text, the language can be unsure) and the chart to show when the report
- * shows another than its own. It is a version, then the base64url of the UTF-8 of
+ * (read from a short text, the language can be unsure) and the chart it shows, which the app
+ * shows again when the report offers it: the chart is the app's, never asked for. It is a version, then the base64url of the UTF-8 of
  * `<language>.<chart>.<text>`: the chart empty for none, and the text last, so it may hold
  * anything. A state longer than Bkper keeps is no state.
  */
@@ -42,7 +42,7 @@ export interface UrlState {
     text: string;
     /** The language of the report's texts. */
     language: string;
-    /** The chart to show, when it fits; left out, the report's own. */
+    /** The chart to show, when the report offers it; left out, the report's own. */
     chart?: StateChart;
 }
 

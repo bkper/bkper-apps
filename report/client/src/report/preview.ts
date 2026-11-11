@@ -90,16 +90,6 @@ function drawing(chart: ChartProps): SVGTemplateResult[] {
                     color: typeColor(item.color, 'high'),
                 }))
             );
-        case 'waterfall':
-            return bridge(
-                plot(chart.start.value),
-                chart.steps.map(step => ({
-                    value: plot(step.value),
-                    color: typeColor(step.color, 'medium'),
-                })),
-                typeColor(chart.start.color, 'high'),
-                typeColor(chart.end.color, 'high')
-            );
     }
 }
 
@@ -259,35 +249,6 @@ function pairs(parts: (Part & { previous: number })[]): SVGTemplateResult[] {
             ),
         ];
     });
-}
-
-/** From the start, each step floating from where the one before ended, to the end. */
-function bridge(start: number, steps: Part[], startColor: string, endColor: string) {
-    const bars: { from: number; to: number; color: string; down: boolean }[] = [
-        { from: 0, to: start, color: startColor, down: false },
-    ];
-    let level = start;
-    for (const step of steps) {
-        bars.push({ from: level, to: level + step.value, color: step.color, down: step.value < 0 });
-        level += step.value;
-    }
-    bars.push({ from: 0, to: level, color: endColor, down: false });
-    const x = scale(
-        bars.flatMap(entry => [entry.from, entry.to]),
-        PAD,
-        WIDTH - PAD
-    );
-    const row = (HEIGHT - 2 * PAD) / bars.length;
-    return bars.map((entry, index) =>
-        bar(
-            Math.min(x(entry.from), x(entry.to)),
-            PAD + index * row + row * 0.15,
-            Math.abs(x(entry.to) - x(entry.from)),
-            row * 0.7,
-            entry.down ? hollow(entry.color) : entry.color,
-            entry.down ? entry.color : undefined
-        )
-    );
 }
 
 function round(value: number): number {

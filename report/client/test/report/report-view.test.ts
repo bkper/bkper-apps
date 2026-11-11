@@ -135,7 +135,6 @@ describe('<report-view>', () => {
             'expenses-stacked': 'wa-bar-chart',
             'bank-accounts-area': 'wa-line-chart',
             'expenses-compare': 'wa-bar-chart[orientation="horizontal"]',
-            'net-result-waterfall': 'wa-bar-chart[orientation="horizontal"]',
         };
         for (const [id, selector] of Object.entries(drawn)) {
             const view = await mount(gallerySpec(id));
@@ -536,7 +535,7 @@ describe('<report-view> chart previews', () => {
         expect(shownKind(view)).toBe('ranked-bar');
 
         // A chart the report does not offer shows the main one.
-        view.chart = 'waterfall';
+        view.chart = 'line';
         await view.updateComplete;
         expect(shownKind(view)).toBe('ranked-bar');
     });

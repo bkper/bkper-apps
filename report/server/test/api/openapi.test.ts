@@ -55,6 +55,27 @@ describe('server OpenAPI contract', () => {
         expect(report).not.toMatch(/"(intent|trace)":/);
     });
 
+    it('names only the charts a report draws, and takes no chart in a request', async () => {
+        const response = await app.request('/openapi.json');
+        const spec = (await response.json()) as {
+            components?: {
+                schemas?: Record<string, { properties?: Record<string, unknown> }>;
+            };
+        };
+        const schemas = spec.components?.schemas ?? {};
+        const document = JSON.stringify(spec);
+
+        expect(document).not.toMatch(/waterfall/i);
+        expect(document).not.toMatch(/\bpie\b/);
+        expect(document).not.toMatch(/\bunfit\b|"asked"/);
+        expect(Object.keys(schemas.ReportRequest?.properties ?? {}).sort()).toEqual([
+            'format',
+            'language',
+            'prompt',
+            'query',
+        ]);
+    });
+
     // The guide in `info` is what agents read to decide when to call Report: part of the contract.
     it('matches the committed public API contract snapshot', async () => {
         const response = await app.request('/openapi.json');

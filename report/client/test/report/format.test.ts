@@ -11,15 +11,6 @@ describe('ReportFormat', () => {
         expect(new ReportFormat('ar-EG', 2).amount('1234.5')).toBe('١٬٢٣٤٫٥٠');
     });
 
-    it('signs amounts that add to others exactly, and compactly for charts', () => {
-        const format = new ReportFormat('en', 2);
-        expect(format.signedAmount('12345678901234567.8')).toBe('+12,345,678,901,234,567.80');
-        expect(format.signedAmount('-35.5')).toBe('-35.50');
-        expect(format.signedAmount('0')).toBe('0.00');
-        expect(format.signedCompact(12500)).toBe('+12.5K');
-        expect(format.signedCompact(-3940)).toBe('-3.9K');
-    });
-
     it('rejects amounts that are not decimal strings', () => {
         expect(() => new ReportFormat('en', 2).amount('1e3')).toThrow('decimal');
     });

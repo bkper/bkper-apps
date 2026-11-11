@@ -39,14 +39,6 @@ function chartOf<K extends ChartKind>(id: string, kind: K): Extract<ChartProps, 
     return chart as Extract<ChartProps, { kind: K }>;
 }
 
-/** A bar's value, or a floating bar's start and end. */
-function floating(value: unknown): [number, number] {
-    if (!Array.isArray(value) || value.length !== 2) {
-        throw new Error(`Expected a floating bar: ${JSON.stringify(value)}`);
-    }
-    return [Number(value[0]), Number(value[1])];
-}
-
 function option(dataset: object, key: string): unknown {
     return Reflect.get(dataset, key);
 }
@@ -321,123 +313,6 @@ describe('chartConfig', () => {
             expect(colors[1]).toBe(before[1]);
             expect(colors[0]).toBe(faded(before[0]));
         });
-    });
-
-    it('bridges a net result with floating bars from Incoming to the net result', () => {
-        const props = chartOf('net-result-waterfall', 'waterfall');
-        const chart = view('net-result-waterfall');
-        expect(chart).toMatchObject({ element: 'bar', horizontal: true, legend: false });
-        expect(chart.config.data.labels).toEqual([
-            props.start.label,
-            ...props.steps.map(step => step.label),
-            props.end.label,
-        ]);
-        const bars = datasets(chart)[0].data.map(floating);
-        expect(bars[0]).toEqual([0, Number(props.start.value)]);
-        expect(bars[bars.length - 1]).toEqual([0, Number(props.end.value)]);
-        // Each step floats from where the bar before it ended.
-        props.steps.forEach((step, index) => {
-            const [from, to] = bars[index + 1];
-            expect(from).toBeCloseTo(bars[index][1], 6);
-            expect(to - from).toBeCloseTo(Number(step.value), 6);
-        });
-        expect(bars[bars.length - 2][1]).toBeCloseTo(Number(props.end.value), 6);
-    });
-
-    it('tells steps up from steps down without color, and keeps the start and end solid', () => {
-        const props = chartOf('bank-accounts-waterfall', 'waterfall');
-        const ups = props.steps.flatMap((step, index) => (Number(step.value) > 0 ? [index] : []));
-        const downs = props.steps.flatMap((step, index) => (Number(step.value) < 0 ? [index] : []));
-        expect(ups.length).toBeGreaterThan(0);
-        expect(downs.length).toBeGreaterThan(0);
-        const chart = view('bank-accounts-waterfall');
-        const [bars] = datasets(chart);
-        const width = option(bars, 'borderWidth') as number[];
-        const last = props.steps.length + 1;
-        expect([width[0], width[last]]).toEqual([0, 0]);
-        ups.forEach(index => expect(width[index + 1]).toBe(0));
-        downs.forEach(index => expect(width[index + 1]).toBeGreaterThan(0));
-        const fills = bars.backgroundColor as string[];
-        expect(fills[0]).not.toContain('transparent');
-        expect(fills[last]).not.toContain('transparent');
-        downs.forEach(index => expect(fills[index + 1]).toContain('transparent'));
-        // Every bar is labelled with its value, steps with their sign.
-        expect(chart.barLabels).toEqual([
-            en.compact(Number(props.start.value)),
-            ...props.steps.map(step => en.signedCompact(Number(step.value))),
-            en.compact(Number(props.end.value)),
-        ]);
-        expect(chart.config.plugins?.length).toBe(1);
-        expect(chart.tooltipLabel(0, 1)).toBe(
-            `${isolate(props.steps[0].label)}: ${isolate(en.signedAmount(props.steps[0].value))}`
-        );
-    });
-
-    it('labels each bar past its end, or past its other end where the label does not fit', () => {
-        const chart = view('loans-waterfall-pt');
-        const plugin = chart.config.plugins?.[0];
-        const drawn: { text: string; x: number; align: string }[] = [];
-        const ctx = {
-            textAlign: 'start',
-            save() {},
-            restore() {},
-            measureText: (text: string) => ({ width: text.length * 6 }),
-            fillText(text: string, x: number) {
-                drawn.push({ text, x, align: this.textAlign });
-            },
-        };
-        // Pixels of bars: the first ends near the right edge of the chart, the others do not.
-        const bars = [
-            { x: 395, base: 0 },
-            { x: 200, base: 150 },
-            { x: 210, base: 200 },
-            { x: 190, base: 0 },
-        ].map(({ x, base }, index) => ({
-            getProps: () => ({ x, base, y: index * 20 }),
-        }));
-        const fake = {
-            ctx,
-            chartArea: { left: 0, right: 400 },
-            options: { scales: { x: { ticks: { font: { size: 12, family: 'serif' } } } } },
-            getDatasetMeta: () => ({ data: bars }),
-        };
-        plugin?.afterDatasetsDraw?.(
-            fake as unknown as Parameters<NonNullable<typeof plugin.afterDatasetsDraw>>[0],
-            {},
-            {},
-            false
-        );
-        expect(drawn.map(label => label.text)).toEqual(chart.barLabels);
-        expect(drawn[0]).toMatchObject({ align: 'right' });
-        expect(drawn[0].x).toBeLessThan(0);
-        expect(drawn.slice(1).every(label => label.align === 'left')).toBe(true);
-        expect(drawn[1].x).toBeGreaterThan(200);
-    });
-
-    it('bridges to a loss below zero', () => {
-        const props = chartOf('net-result-loss-waterfall-ar', 'waterfall');
-        expect(Number(props.end.value)).toBeLessThan(0);
-        const bars = datasets(view('net-result-loss-waterfall-ar'))[0].data.map(floating);
-        expect(bars[bars.length - 1]).toEqual([0, Number(props.end.value)]);
-        expect(bars[bars.length - 2][1]).toBeCloseTo(Number(props.end.value), 6);
-    });
-
-    it('highlights the steps of a row, at any depth, and fades the rest', () => {
-        const props = chartOf('net-result-waterfall', 'waterfall');
-        const plain = datasets(view('net-result-waterfall'))[0].backgroundColor as string[];
-        const rent = props.steps.findIndex(step => step.rowId === 'a-rent') + 1;
-        const one = datasets(view('net-result-waterfall', 'a-rent'))[0].backgroundColor as string[];
-        expect(one[rent]).toBe(plain[rent]);
-        expect(one[0]).toBe(faded(plain[0]));
-        // Outgoing holds every step of a row.
-        const all = datasets(view('net-result-waterfall', 'outgoing'))[0]
-            .backgroundColor as string[];
-        props.steps.forEach((_step, index) => expect(all[index + 1]).toBe(plain[index + 1]));
-        expect(all[0]).toBe(faded(plain[0]));
-        // A step of its own fades the rest of the steps.
-        const other = props.steps.findIndex(step => step.rowId === undefined) + 1;
-        expect(other).toBeGreaterThan(0);
-        expect(one[other]).toBe(faded(plain[other]));
     });
 
     it('formats tooltips with the exact amounts and axes compactly', () => {

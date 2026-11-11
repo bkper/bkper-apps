@@ -12,7 +12,6 @@ import {
     type BreakdownRow,
     type ReportElement,
     type ReportSpec,
-    type ViewKind,
 } from 'report-shared/catalog';
 import { isolate } from 'report-shared/bidi';
 import { t, textDirection, type StringKey } from 'report-shared/strings';
@@ -28,10 +27,12 @@ import {
     type ReportAmounts,
     type ReportChart,
     type ReportData,
+    type PreferredChart,
     type ReportRow,
     type UnfitReason,
 } from './report.js';
 
+/** The name of each chart, and of a bridge, which a notice names when it is asked for. */
 const VIEW_NAMES = {
     bar: 'chart_name_bar',
     line: 'chart_name_line',
@@ -42,7 +43,7 @@ const VIEW_NAMES = {
     compare: 'chart_name_compare',
     waterfall: 'chart_name_waterfall',
     table: 'chart_name_table',
-} as const satisfies Record<ViewKind, StringKey>;
+} as const satisfies Record<PreferredChart, StringKey>;
 
 const UNFIT_REASONS = {
     negative_part: 'chart_unfit_negative_part',
@@ -289,7 +290,7 @@ function visualizations(
 
 /** Why a chart does not fit, naming the part and its amount where one is the reason. */
 function unfitReason(
-    kind: ViewKind,
+    kind: PreferredChart,
     reason: UnfitReason,
     report: ReportData,
     labels: Labels

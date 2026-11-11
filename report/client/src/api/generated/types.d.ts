@@ -245,7 +245,7 @@ export interface paths {
          *
          *     To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d '{"prompt":"…","format":"html"}' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.
          *
-         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.
+         *     With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report. `chart` is the chart the report shows first, with `fallback` true when the chart the prompt names does not fit (the spec’s `Report` `notice` says why); every chart that fits is in the spec’s `Visualizations`, to show with no new request. A suggestion’s text sent as `prompt` builds the report without AI.
          *
          *     To follow what a Book shows, send its Bkper query as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper’s sidebar shows for that query (future-dated transactions included), its period is the days Bkper read, and its `text` is the query. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query that names no group or Account Bkper finds answers `query_not_a_report`.
          *
@@ -876,25 +876,19 @@ export interface components {
              * @example 2026-11-05T14:03:12.345Z
              */
             dataAt: string;
-            /** @description The chart drawn, and the one asked for, if any. */
+            /** @description The chart the report shows first, and whether it stands in for the chart its `prompt` names. Every chart that fits is in the spec’s `Visualizations`. */
             chart: {
                 /**
-                 * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the previous period); `none` for no chart. `waterfall` is no longer given.
+                 * @description The chart in the spec: `bar`, `line`, `area` or `stacked` by month; `ranked-bar` or `donut` of the parts; `compare` (each part against the period compared with); `none` for no chart.
                  * @example donut
                  * @enum {string}
                  */
-                kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall";
+                kind: "none" | "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare";
                 /**
-                 * @description True when the chart asked for (`asked`) does not fit this report, so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why.
+                 * @description True when the `prompt` names a chart that does not fit this report (such as a donut of a part below zero, or a bridge, which reports never draw), so `kind` is the closest chart that fits, or the one the report picks; the spec’s `Report` `notice` says why, in one line. False when the prompt names no chart, or one that fits.
                  * @example false
                  */
                 fallback: boolean;
-                /**
-                 * @description The chart asked for: the request’s `chart`, else the one its `prompt` names (`donut` for a pie); left out when none was. The report’s `text` never names it, so send it as `chart` with the `text` to show the report the same way again.
-                 * @example donut
-                 * @enum {string}
-                 */
-                asked?: "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             };
             /**
              * @description The report’s own short text, in `language`, as a person would type it: what it is of, how it is shown when by month, its period as asked (relative periods stay relative, such as `this year`) and what it is compared with, and its hashtag; of a `query`, the query itself. Send it as `prompt` to ask for the same report again, or show it to the person to edit.
@@ -907,7 +901,7 @@ export interface components {
              */
             url: string;
         };
-        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare, or draw the chart asked for, as asked, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
+        /** @description The report as a flat json-render spec (`root` and `elements`) of the Report catalog, every text in `language`: `Report` (title, period, the `request` it answers as a person would type it, its period as asked, and a `notice` when it could not compare as asked, or draw the chart the prompt names, with why) holds `Answer` (amount, previous period amount and change; one per group or Account shown side by side, in order, with none for them together), `Chart` (when one fits), `Visualizations` (every chart that fits, at most six, each but the main one with its data), `BreakdownTable` (the subgroups and Accounts Bkper returns, with amount, share and change, nested; for a net result Report calculates, its roots and a total; side by side, the groups and Accounts shown, with no total) and `Source` (with `calculated` when Report calculated the net result). Every amount is a Bkper balance of one group or Account, as Bkper returns it, but a net result Report calculates. Amounts and ratios are exact decimal strings; months and instants are ISO. */
         ReportSpec: {
             root: string;
             elements: {
@@ -957,19 +951,13 @@ export interface components {
                     props: {
                         label: string;
                         /** @enum {string} */
-                        main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
+                        main: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "table";
                         views: {
                             /** @enum {string} */
-                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
+                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "table";
                             name: string;
                             chart?: components["schemas"]["ChartProps"];
                         }[];
-                        unfit?: {
-                            /** @enum {string} */
-                            kind: "bar" | "line" | "area" | "stacked" | "ranked-bar" | "donut" | "compare" | "waterfall" | "table";
-                            name: string;
-                            reason: string;
-                        };
                     };
                     on?: {
                         select: {
@@ -1100,29 +1088,6 @@ export interface components {
                 value: string;
                 previous: string;
             }[];
-        } | {
-            /** @enum {string} */
-            kind: "waterfall";
-            label: string;
-            start: {
-                label: string;
-                /** @enum {string} */
-                color: "blue" | "yellow" | "green" | "red" | "grey";
-                value: string;
-            };
-            steps: {
-                rowId?: string;
-                label: string;
-                /** @enum {string} */
-                color: "blue" | "yellow" | "green" | "red" | "grey";
-                value: string;
-            }[];
-            end: {
-                label: string;
-                /** @enum {string} */
-                color: "blue" | "yellow" | "green" | "red" | "grey";
-                value: string;
-            };
         };
         BreakdownRow: {
             id: string;
@@ -1147,7 +1112,7 @@ export interface components {
         /** @description Exactly one of `prompt` (the person’s request, in any language, or a suggestion’s or a report’s own `text`) or `query` (a Bkper query). Usually `{ "prompt": "…", "format": "html" }`. */
         ReportRequest: {
             /**
-             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.
+             * @description The report the person asked for, in their own words and language: do not translate it. Include what they said about the period, the view, the chart (such as “as a donut” or “by month in a line”) and a `#hashtag` (only the first is read, as Bkper filters balances by one); leave out the Book’s name or id, which the path gives. Names of the Book’s groups and Accounts written exactly (case and accents aside) are reported as such, several side by side. Uses one Bkper AI decision; a suggestion of `GET /api/v1/books/{bookId}/suggestions`, sent as it is (spacing aside, case kept) with the same `language` (else `Accept-Language`, else English), uses none, and so does a Bkper query (a text with a `group:`, `account:` or `acc:` term, such as a query report’s own `text`), which is read as `query`.
              * @example show my expenses by category this year
              */
             prompt?: string;
@@ -1156,12 +1121,6 @@ export interface components {
              * @example group:'Expenses' after:01/01/2026 before:01/04/2026
              */
             query?: string;
-            /**
-             * @description The chart to show, over any the request names: how to show the report, not what it is, so its `text` never names it. `bar`, `line`, `area` or `stacked` by month (`line` for activity, or `bar` for a balance, in place of the usual one); `ranked-bar` or `donut` of the parts (`pie` is drawn as `donut`); `compare` (each part against the period compared with); `table` (no chart); `auto` (the report picks). A chart that does not fit the report is not drawn: the report shows the closest chart that fits, else the one it picks, and a line under its title says why (`waterfall` never fits). To reopen a report as the person last saw it, send its `text` with its `language` and the chart they chose.
-             * @example donut
-             * @enum {string}
-             */
-            chart?: "auto" | "pie" | "stacked" | "area" | "compare" | "waterfall" | "table" | "bar" | "line" | "ranked-bar" | "donut";
             /**
              * @description Language of the report’s texts, as a BCP 47 tag of one of the 133 Bkper languages, such as `pt` or `pt-BR`. Leave it out to write the report in the language of `prompt`, else `Accept-Language`, else English.
              * @example pt-BR

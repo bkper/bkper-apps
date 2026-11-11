@@ -94,7 +94,7 @@ const reportRoute = createRoute({
         '',
         'To show a person a report, send `{ "prompt": "<their request, in their own words and language>", "format": "html" }` and give them the returned HTML file as it is: it is self-contained and interactive. With the Bkper CLI: `bkper app api request report /api/v1/books/<bookId>/report -d \'{"prompt":"…","format":"html"}\' > report.html`, then publish `report.html`. That one call is the whole task: do not ask for `spec` first, query the balances yourself or re-check the amounts; every amount is a Bkper balance read by code, and the file shows the query it read.',
         '',
-        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language` (and the chart asked for, `chart.asked`, as `chart`), it asks for the same report, and `chart` shows it as another chart. A suggestion’s text sent as `prompt` builds the report without AI.',
+        'With `format: spec` (the default) the report is the JSON Report’s own web client renders: its spec (with the data of every chart that fits), text, language, query, data time, chart and link. `text` is the report’s own short text in its language; sent back as `prompt` with its `language`, it asks for the same report. `chart` is the chart the report shows first, with `fallback` true when the chart the prompt names does not fit (the spec’s `Report` `notice` says why); every chart that fits is in the spec’s `Visualizations`, to show with no new request. A suggestion’s text sent as `prompt` builds the report without AI.',
         '',
         'To follow what a Book shows, send its Bkper query as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper’s sidebar shows for that query (future-dated transactions included), its period is the days Bkper read, and its `text` is the query. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too. A query that names no group or Account Bkper finds answers `query_not_a_report`.',
         '',
@@ -254,11 +254,9 @@ export function registerApiRoutes(app: App): void {
         const { bookId } = c.req.valid('param');
         const body = c.req.valid('json');
         const { snapshot, userId } = await readableSnapshot(context, bookId);
-        const asked =
-            body.query === undefined ? { prompt: body.prompt ?? '' } : { query: body.query };
         const report = await createReport(
             snapshot,
-            { ...asked, ...(body.chart ? { chart: body.chart } : {}) },
+            body.query === undefined ? { prompt: body.prompt ?? '' } : { query: body.query },
             {
                 requested: body.language && supportedLanguage(body.language),
                 accepted: acceptedLanguage(c.req.header('Accept-Language')),
@@ -276,7 +274,6 @@ export function registerApiRoutes(app: App): void {
             const open = reportFileOpen(bookId, {
                 text: report.text,
                 language: report.language,
-                chart: report.chart.asked,
                 charts: report.trace.chart,
             });
             const file = await context.timing.measure('render', async () =>

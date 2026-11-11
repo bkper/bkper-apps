@@ -36,8 +36,8 @@
  * - every chart that fits each report, the main one and every other one a renderer may switch
  *   to: each month of a chart by month; the parts of a breakdown chart, exactly the rows with an
  *   amount, positive in a donut and adding up to the root's CLI total; each stacked part
- *   in every month (at most six) and their sum against the root; each compared row; that no
- *   bridge is ever drawn and a bridge asked for is unfit (`no_bridge`); that the main chart is
+ *   in every month (at most six) and their sum against the root; each compared row; that a
+ *   bridge asked for is unfit (`no_bridge`), as reports draw none; that the main chart is
  *   among them, and a preferred chart that does not fit is not, with its reason (a pie asked for
  *   is a donut); that no report offers more than six charts. Each line shows the preference, the
  *   main chart, the rule and the reason.
@@ -986,7 +986,7 @@ async function verifySideBySide(
         })
     );
     const kinds = report.charts.views.map(viewKindOf);
-    for (const whole of ['donut', 'stacked', 'waterfall'] as const) {
+    for (const whole of ['donut', 'stacked'] as const) {
         if (kinds.includes(whole)) problems.push(`${whole} of targets side by side`);
     }
     const preferred = intent.chart;
@@ -1206,8 +1206,7 @@ function rowProblems(report: OneReport, cli: CliCheck): string[] {
 
 /**
  * Whether the main chart is one of the charts that fit, drawn as the report's chart, and a
- * preferred chart that does not fit is left out of them, with the main chart marked `fallback`;
- * and a bridge is never drawn.
+ * preferred chart that does not fit is left out of them, with the main chart marked `fallback`.
  */
 function choiceProblems(report: ReportData): string[] {
     const problems: string[] = [];
@@ -1215,9 +1214,6 @@ function choiceProblems(report: ReportData): string[] {
     const kinds = charts.views.map(viewKindOf);
     if (new Set(kinds).size !== kinds.length) {
         problems.push(`Repeated views: ${kinds.join(', ')}`);
-    }
-    if (kinds.includes('waterfall')) {
-        problems.push('A bridge is among the views');
     }
     const main = charts.views.find(view => viewKindOf(view) === charts.main);
     if (!main || viewKindOf(chart) !== charts.main) {

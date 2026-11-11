@@ -26,7 +26,8 @@
  *
  * It checks that a chart chosen in the file, then a click on the file's link, opens the Report
  * app in place of the Agent with the state of the report as that chart; that the app shows
- * that report, asked for by its text in its language, as that chart, with its text in the input;
+ * that report, asked for by its text in its language (never with a chart, which is the app's to
+ * show), as that chart, with its text in the input;
  * that choosing another chart, then another report, sends each state to the Book; that a
  * state the Book goes back to shows that report again; and that the file reaches no network
  * and sends nothing before the click.
@@ -385,7 +386,7 @@ async function main(): Promise<void> {
         );
         check(
             JSON.stringify(reportBodies[0]) === JSON.stringify(requestOf(fileChosen)),
-            'the app asks for the file’s report by its text, in its language, as the chart chosen',
+            'the app asks for the file’s report by its text, in its language, and no chart',
             JSON.stringify(reportBodies[0])
         );
         await until(async () => (await shownChart(app)) === fileChart);
@@ -474,9 +475,10 @@ async function main(): Promise<void> {
                     typeof body === 'object' &&
                     body !== null &&
                     'prompt' in body &&
-                    'language' in body
+                    'language' in body &&
+                    !('chart' in body)
             ),
-            'every report is asked for by a text in its language: a state’s or a suggestion’s',
+            'every report is asked for by a text in its language, a state’s or a suggestion’s, with no chart',
             JSON.stringify(reportBodies)
         );
         check(fileRequests.length === 0, 'the file reaches no network', fileRequests.join(', '));
@@ -489,13 +491,9 @@ async function main(): Promise<void> {
     process.exitCode = failed > 0 ? 1 : 0;
 }
 
-/** The body the app sends for a state: its text, in its language, as its chart. */
-function requestOf(state: UrlState): { prompt: string; language: string; chart?: string } {
-    return {
-        prompt: state.text,
-        language: state.language,
-        ...(state.chart ? { chart: state.chart } : {}),
-    };
+/** The body the app sends for a state: its text, in its language; its chart is the app's. */
+function requestOf(state: UrlState): { prompt: string; language: string } {
+    return { prompt: state.text, language: state.language };
 }
 
 await main();

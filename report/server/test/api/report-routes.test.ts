@@ -68,6 +68,8 @@ interface JevAnswers {
     period?: string;
     /** Parts of the period or of the one compared with, over those of `period`. */
     parts?: Partial<Record<PeriodQuestionId, string>>;
+    /** The chart the prompt names, such as `pie`; `none` by default. */
+    chart?: string;
     language?: string;
 }
 
@@ -92,7 +94,7 @@ function jevResponse(answers: JevAnswers): Response {
             versus_earlier: { type: 'noul', noul: 0.01 },
             year_earlier: { type: 'noul', noul: 0.01 },
             bridge: { type: 'noul', noul: 0.01 },
-            chart_named: choice('none'),
+            chart_named: choice(answers.chart ?? 'none'),
             language: choice(answers.language ?? 'en'),
         },
         usage: { input_tokens: 1000, output_tokens: 10 },
@@ -453,14 +455,14 @@ describe('POST /api/v1/books/{bookId}/report', () => {
     it('reuses the balances of the same queries within a minute, for the same user', async () => {
         const answers: JevAnswers[] = [
             { root: 'Expenses', period: '2026-10' },
-            { root: 'Expenses', period: '2026-10' },
+            { root: 'Expenses', period: '2026-10', chart: 'table' },
             { root: 'Expenses', period: '2026-09' },
         ];
         let call = 0;
         const test = harness({ jev: () => jevResponse(answers[call++]) });
         const first = await post(test, { prompt: 'expenses october 2026' });
         // The same report, drawn another way: the same queries.
-        const again = await post(test, { prompt: 'expenses october 2026', chart: 'table' });
+        const again = await post(test, { prompt: 'expenses october 2026, just the numbers' });
         // September is October's previous period: only its own previous one is read.
         await post(test, { prompt: 'expenses september 2026' });
 
@@ -475,28 +477,20 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         );
     });
 
-    it('draws the chart a request asks for, and tells when it does not fit', async () => {
-        const test = harness();
+    it('draws the chart a prompt names, and tells when it does not fit', async () => {
         const ask = async (chart: string) => {
-            const response = await post(test, { prompt: 'expenses october 2026', chart });
+            const test = harness({ jev: { root: 'Expenses', period: '2026-10', chart } });
+            const response = await post(test, { prompt: `expenses october 2026 ${chart}` });
             expect(response.status).toBe(200);
             return (await response.json()) as { chart: unknown; spec: ReportSpec };
         };
 
-        // A pie is still asked for, and drawn as a donut.
-        expect((await ask('pie')).chart).toEqual({
-            kind: 'donut',
-            fallback: false,
-            asked: 'donut',
-        });
-        expect((await ask('table')).chart).toEqual({
-            kind: 'none',
-            fallback: false,
-            asked: 'table',
-        });
-        expect((await ask('auto')).chart).toEqual({ kind: 'donut', fallback: false });
+        // A pie is drawn as a donut.
+        expect((await ask('pie')).chart).toEqual({ kind: 'donut', fallback: false });
+        expect((await ask('table')).chart).toEqual({ kind: 'none', fallback: false });
+        expect((await ask('none')).chart).toEqual({ kind: 'donut', fallback: false });
         const area = await ask('area');
-        expect(area.chart).toEqual({ kind: 'donut', fallback: true, asked: 'area' });
+        expect(area.chart).toEqual({ kind: 'donut', fallback: true });
         const choices = elementOf(area.spec, 'Visualizations').props;
         expect(choices.main).toBe('donut');
         // One month by month is no chart.
@@ -506,21 +500,34 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             'compare',
             'table',
         ]);
-        expect(choices.unfit).toBeUndefined();
         expect(elementOf(area.spec, 'Report').props.notice).toBe(
             'Can’t show Area: The period has fewer than two months.'
         );
-
-        const invalid = await post(test, { prompt: 'expenses october 2026', chart: 'bars' });
-        expect(invalid.status).toBe(400);
     });
 
-    it('still takes a waterfall, and offers the closest chart with why it draws none', async () => {
-        const test = harness({ jev: { root: 'net-result', period: '2026-10' } });
-        const response = await post(test, { prompt: 'profit october 2026', chart: 'waterfall' });
+    it('takes no chart in a request: a chart is named in the prompt', async () => {
+        const test = harness();
+        for (const chart of ['donut', 'auto', 'pie']) {
+            const response = await post(test, { prompt: 'expenses october 2026', chart });
+
+            expect(response.status).toBe(400);
+            const { error } = (await response.json()) as {
+                error: { code: string; message: string };
+            };
+            expect(error.code).toBe('invalid_request');
+            expect(error.message).toContain('chart');
+        }
+        expect(test.jevCalls).toBe(0);
+    });
+
+    it('offers the closest chart to a bridge, with why it draws none', async () => {
+        const test = harness({
+            jev: { root: 'net-result', period: '2026-10', chart: 'waterfall' },
+        });
+        const response = await post(test, { prompt: 'profit october 2026 as a waterfall' });
         expect(response.status).toBe(200);
         const body = (await response.json()) as { chart: unknown; spec: ReportSpec };
-        expect(body.chart).toEqual({ kind: 'compare', fallback: true, asked: 'waterfall' });
+        expect(body.chart).toEqual({ kind: 'compare', fallback: true });
         const choices = elementOf(body.spec, 'Visualizations').props;
         expect(elementOf(body.spec, 'Report').props.notice).toMatch(/^Can’t show Bridge: /);
         expect(choices.views.map(view => view.kind)).not.toContain('waterfall');
@@ -679,9 +686,10 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         // Where the Agent lets it, the file opens the same report in the Report app in the Book.
         expect(data.open?.bookId).toBe(BOOK);
         const opened = { text: 'Expenses October 2026', language: 'en' };
-        expect(decodeUrlState(data.open?.state ?? '')).toEqual(opened);
-        // A chart chosen in the file opens as that chart: each other chart that fits has a state.
         const choices = elementOf(data.spec, 'Visualizations').props;
+        // The report's state holds the chart it shows.
+        expect(decodeUrlState(data.open?.state ?? '')).toEqual({ ...opened, chart: choices.main });
+        // A chart chosen in the file opens as that chart: each other chart that fits has a state.
         const others = choices.views.map(view => view.kind).filter(kind => kind !== choices.main);
         expect(Object.keys(data.open?.charts ?? {}).sort()).toEqual([...others].sort());
         for (const kind of others) {
@@ -702,17 +710,17 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ]);
     });
 
-    it('draws the chart a request asks for, and the file opens the report with it', async () => {
-        const test = harness();
-        const prompt = 'expenses october 2026';
-        const response = await post(test, { prompt, chart: 'ranked-bar', language: 'en' });
+    it('draws the chart a prompt names, and the file opens the report as it', async () => {
+        const test = harness({ jev: { root: 'Expenses', period: '2026-10', chart: 'bars' } });
+        const prompt = 'expenses october 2026 in bars';
+        const response = await post(test, { prompt, language: 'en' });
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({
-            chart: { kind: 'ranked-bar', fallback: false, asked: 'ranked-bar' },
+            chart: { kind: 'ranked-bar', fallback: false },
             text: 'Expenses October 2026',
         });
 
-        const file = await post(test, { prompt, chart: 'ranked-bar', format: 'html' });
+        const file = await post(test, { prompt, format: 'html' });
         const data = JSON.parse(
             /<script type="application\/json" id="report-data">(.*?)<\/script>/s.exec(
                 await file.text()
@@ -723,9 +731,6 @@ describe('POST /api/v1/books/{bookId}/report', () => {
             language: 'en',
             chart: 'ranked-bar',
         });
-
-        const invalid = await post(test, { prompt, chart: 'radar' });
-        expect(invalid.status).toBe(400);
     });
 
     it('builds a report of a group target from its own queries, titled by the target', async () => {
@@ -750,10 +755,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        // By its own text, which asks for the same report.
+        // By its own text, which asks for the same report, as the chart it shows.
         expect(decodeUrlState(data.open?.state ?? '')).toEqual({
             text: body.text,
             language: 'en',
+            chart: elementOf(body.spec, 'Visualizations').props.main,
         });
     });
 
@@ -789,10 +795,11 @@ describe('POST /api/v1/books/{bookId}/report', () => {
                 await file.text()
             )?.[1] ?? ''
         ) as ReportFileData;
-        // By its own text, which asks for the same report.
+        // By its own text, which asks for the same report, as the chart it shows.
         expect(decodeUrlState(data.open?.state ?? '')).toEqual({
             text: body.text,
             language: 'en',
+            chart: elementOf(body.spec, 'Visualizations').props.main,
         });
     });
 
@@ -833,11 +840,10 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(test.jevCalls).toBe(0);
     });
 
-    it('reads a query’s hashtag and dates as Bkper does, with the chart asked for', async () => {
+    it('reads a query’s hashtag and dates as Bkper does', async () => {
         const test = harness();
         const response = await post(test, {
             query: "group:'Expenses' #trip after:$m-1",
-            chart: 'pie',
             language: 'en',
         });
 
@@ -846,7 +852,6 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         expect(body).toMatchObject({
             query: "group:'Expenses' #trip after:$m-1",
             text: "group:'Expenses' #trip after:$m-1",
-            chart: { asked: 'donut' },
         });
         // October's Food and November's Rent with #trip; with no end, nothing to compare with.
         expect(body.spec.elements.answer.props).toEqual(
@@ -938,6 +943,7 @@ describe('POST /api/v1/books/{bookId}/report', () => {
         ['a blank prompt', { prompt: '   ' }],
         ['a language that is not BCP 47', { prompt: 'expenses', language: 'not a tag' }],
         ['a format not served', { prompt: 'expenses', format: 'pdf' }],
+        ['a chart', { prompt: 'expenses', chart: 'donut' }],
     ])('rejects %s', async (_case, body) => {
         const test = harness();
         const response = await post(test, body);

@@ -9,7 +9,6 @@
  */
 import type { ReportSpec, ViewKind } from 'report-shared/catalog';
 import { REPORT_FILE_DATA_ID, type ReportFileData } from 'report-shared/report-file';
-import type { ChartPreference } from 'report-shared/report-intent';
 import { encodeUrlState } from 'report-shared/url-state';
 import { REPORT_FILE_SCRIPT, REPORT_FILE_STYLE } from '../generated/report-file-bundle.js';
 
@@ -73,26 +72,16 @@ export function buildReportFile(
 
 /**
  * What opens the file's report in the Report app: the Book and the report's state (its text,
- * language and the chart asked for), and the state of the same report as each other chart that
- * fits, for a chart chosen in the file. None when the report's state does not fit; a chart
+ * language and the chart it shows first), and the state of the same report as each other chart
+ * that fits, for a chart chosen in the file. None when the report's state does not fit; a chart
  * whose state does not fit opens the report's.
  */
 export function reportFileOpen(
     bookId: string,
-    report: {
-        text: string;
-        language: string;
-        /** The chart the report was asked for with; `auto` or none for its own. */
-        chart?: ChartPreference;
-        charts: { fitting: ViewKind[]; main: ViewKind };
-    }
+    report: { text: string; language: string; charts: { fitting: ViewKind[]; main: ViewKind } }
 ): ReportFileData['open'] {
-    const { text, language, chart, charts } = report;
-    const state = encodeUrlState({
-        text,
-        language,
-        ...(chart && chart !== 'auto' ? { chart } : {}),
-    });
+    const { text, language, charts } = report;
+    const state = encodeUrlState({ text, language, chart: charts.main });
     if (!state) return undefined;
     const others = charts.fitting.flatMap(kind => {
         const chosen =

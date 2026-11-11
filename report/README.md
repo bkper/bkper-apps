@@ -133,7 +133,7 @@ curl -X POST \
 
 To report a Bkper query, such as the one a Book shows its transactions with, send it as `query` instead of `prompt`: it is read exactly as sent, with no AI, so every amount is the one Bkper shows for that query, and the report's `text` is the query itself. A `prompt` with a `group:`, `account:` or `acc:` term is read as a query too.
 
-To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt`, with its `language` and the chart it was asked for (`chart.asked`) as `chart`, to ask for the same report again; another `chart` shows it as another chart.
+To open a saved request with current data, send its `prompt` to `/report`. A suggestion, sent as `prompt` exactly as listed and in the same `language`, builds its report without AI. The JSON's `text` is the report's own short text in its language: send it as `prompt`, with its `language`, to ask for the same report again. A request has no chart field: name the chart in the `prompt`, as a person would. The JSON's `chart` is the chart the report shows first, with `fallback` true when the chart the prompt names does not fit; every chart that fits comes with the report, to switch to with no new request.
 
 See the [OpenAPI specification](https://report.bkper.app/openapi.json) for every field, error and what to do about it.
 

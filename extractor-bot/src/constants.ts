@@ -23,6 +23,9 @@ export const AGENT_PARSER_URL_TRANSACTIONS_PROPERTY = 'agent_parser_url_transact
 export const AGENT_PARSER_URL_FILE_PROPERTY = 'agent_parser_url_file';
 export const TRANSACTIONS_SUMMARY_PROPERTY = 'transactions_summary';
 
+// Bkper AI usage label (`bkper-ai-source` header) for every Extractor Bot request, from events and the parse API alike
+export const BKPER_AI_SOURCE = 'extractor-bot';
+
 // Bkper AI language models
 export const GEMINI_MODEL_FLASH_LITE = 'gemini-flash-lite';
 export const GEMINI_MODEL_FLASH = 'gemini-flash';

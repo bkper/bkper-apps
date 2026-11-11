@@ -1,5 +1,8 @@
-# Registered 2026-11-03, published 2026-11-04. Since the 2026-11-05 handover, Extractor Bot reads documents and learns from extraction corrections.
-# Sync, deploy, install, or publish only with separate explicit approval.
+# Retiring registration shell: do not deploy. The app's code lives in ../extractor-bot (app ID `extractor-bot`).
+# This folder only lets `bkper app sync` update the live `parser-bot` registration (it must match it exactly:
+# sync replaces events, properties, webhooks and the README) and keeps the listing's logo URLs resolving.
+# At the switch, set `events: []` here and sync before adding the events to extractor-bot.
+# Sync only with separate explicit approval.
 id: parser-bot
 name: Extractor Bot
 description: Extract draft transactions from invoices, receipts, statements, and other documents, and learn from your corrections.
@@ -63,8 +66,3 @@ filePatterns:
   - '.webp'
 
 apiVersion: v5
-
-deployment:
-  server: src/index.ts
-  secrets: []
-  compatibility_date: '2025-08-23'

@@ -82,7 +82,7 @@ describe('BkperAIResponsesClient', () => {
 
         expect(captured?.url).toBe('http://localhost:8792/v1/responses');
         expect(captured?.headers.get('Authorization')).toBe('Bearer oauth-secret');
-        expect(captured?.headers.get('bkper-ai-source')).toBe('bookbot');
+        expect(captured?.headers.get('bkper-ai-source')).toBe('extractor-bot');
         expect(captured?.headers.get('bkper-agent-id')).toBeNull();
         expect(body).not.toHaveProperty('metadata');
         expect(body).not.toHaveProperty('max_output_tokens');
@@ -98,6 +98,33 @@ describe('BkperAIResponsesClient', () => {
             value: { answer: 'ok' },
             usage: { inputTokens: 10, outputTokens: 3, totalTokens: 13, reasoningTokens: 2 },
         });
+    });
+
+    it('attributes read-only parse API requests to the same Bkper AI source', async () => {
+        let captured: Request | undefined;
+        const client = new BkperAIResponsesClient({
+            readOnly: true,
+            baseUrl: 'http://localhost:8792/v1',
+            oauthToken: 'oauth-secret',
+            fetch: fetchMock(async request => {
+                captured = request;
+                return Response.json({
+                    status: 'completed',
+                    output: [{ type: 'message', content: [{ type: 'output_text', text: '{"answer":"ok"}' }] }],
+                });
+            }),
+        });
+
+        await client.generate({
+            operation: 'transaction_extraction',
+            model: 'gemini-flash',
+            systemPrompt: 'Extract.',
+            contents: [{ text: 'Invoice text' }],
+            responseFormat: { name: 'answer', schema, strict: true },
+            reasoningEffort: 'high',
+        });
+
+        expect(captured?.headers.get('bkper-ai-source')).toBe('extractor-bot');
     });
 
     it('maps PDF, image, and CSV text without provider-native response fields', async () => {

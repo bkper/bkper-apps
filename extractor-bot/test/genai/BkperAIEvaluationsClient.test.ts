@@ -65,7 +65,7 @@ describe('BkperAIEvaluationsClient evaluations', () => {
 
         expect(captured?.url).toBe('https://ai-dev.bkper.app/v1/systemone');
         expect(captured?.headers.get('Authorization')).toBe('Bearer oauth-secret');
-        expect(captured?.headers.get('bkper-ai-source')).toBe('bookbot');
+        expect(captured?.headers.get('bkper-ai-source')).toBe('extractor-bot');
         expect(captured?.headers.get('bkper-agent-id')).toBeNull();
         expect(body).toEqual({
             model: 'jev',

@@ -14,7 +14,8 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
 | Bookbot | Platform app (Cloudflare Workers); finds accounts: discovery API and rediscovery of drafts; never sync from the legacy repository | `bookbot/` |
-| Extractor Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; published | `parser-bot/` |
+| Extractor Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; app ID `extractor-bot` | `extractor-bot/` |
+| Extractor Bot (retiring ID `parser-bot`) | Registration-only shell for the live `parser-bot` app (code frozen at tag `parser-bot-final`); sync only, never deploy | `parser-bot/` |
 | Report | Platform app (Vite + Cloudflare Workers); read-only financial reports from a typed request | `report/` |
 
 ## Plans
@@ -48,7 +49,7 @@ Local ports: clients `5200–5249`, Workers `8800–8849`, inspectors `9600–96
 | App | Worker | Inspector |
 | --- | --- | --- |
 | bookbot | `8807` | `9607` |
-| parser-bot | `8808` | `9608` |
+| extractor-bot | `8808` | `9608` |
 
 These ports are for local development, not live event delivery. Both directories started from the same legacy Bookbot code. Both apps are live on the Platform; sync Bookbot only from this repository. Read each app's `AGENTS.md` before work; do not deploy, sync, install, or publish either app without separate approval.
 

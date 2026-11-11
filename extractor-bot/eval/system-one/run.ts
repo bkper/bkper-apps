@@ -118,7 +118,7 @@ async function callClairic(endpoint: string, token: string, label: string, reque
     const started = performance.now();
     const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'bkper-ai-source': 'parser-bot-eval' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'bkper-ai-source': 'extractor-bot-eval' },
         body: JSON.stringify(request),
     });
     const body = parseBody(await response.text());

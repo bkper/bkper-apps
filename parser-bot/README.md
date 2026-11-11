@@ -133,7 +133,7 @@ The URL is looked up on the account, then its first group with a value, then the
 
 Each statement transaction can include `book_id` to record it in another book, and `account_name` to assign it to an account by name. A name not found in the target book records the row without that account.
 
-See the [external extraction service contract](https://github.com/bkper/bkper-apps/blob/main/parser-bot/docs/TRANSACTIONS_EXTRACTOR_API.md) for the request and response formats.
+See the [external extraction service contract](https://github.com/bkper/bkper-apps/blob/main/extractor-bot/docs/TRANSACTIONS_EXTRACTOR_API.md) for the request and response formats.
 
 </details>
 

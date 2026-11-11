@@ -125,7 +125,7 @@ describe('GenAI Flash-Lite routing', () => {
         expect(requestBody?.model).toBe(GEMINI_MODEL_FLASH_LITE);
         expect(requestBody?.reasoning).toEqual({ effort: 'minimal' });
         expect(requestBody).not.toHaveProperty('temperature');
-        expect(source).toBe('bookbot');
+        expect(source).toBe('extractor-bot');
     });
 
     it('fails closed when Flash-Lite has no request-scoped Bkper AI client', async () => {

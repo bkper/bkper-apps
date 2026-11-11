@@ -1,7 +1,7 @@
 // Local development and dry-run build only. Platform deploys use `bkper app build` and `bkper app deploy`; never `wrangler deploy`.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "parser-bot-local-staging",
+  "name": "extractor-bot-local-staging",
   "main": "src/index.ts",
   "compatibility_date": "2025-08-23",
   "observability": {

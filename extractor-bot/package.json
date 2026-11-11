@@ -1,5 +1,5 @@
 {
-    "name": "parser-bot-staging",
+    "name": "extractor-bot-staging",
     "version": "0.0.0",
     "type": "module",
     "private": true,

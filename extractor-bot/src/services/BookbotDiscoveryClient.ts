@@ -2,7 +2,7 @@ import { Account, Transaction } from 'bkper-js';
 import type { components } from '../clients/bookbot/types.js';
 
 /**
- * Every Parser Bot environment calls only production Bookbot. Production Bookbot has handled all Bookbot events
+ * Every Extractor Bot environment calls only production Bookbot. Production Bookbot has handled all Bookbot events
  * since the 2026-11-03 cutover; the legacy Worker stays only as a rollback target and is never called.
  */
 export const BOOKBOT_API_BASE_URL = 'https://bookbot.bkper.app';

@@ -6,6 +6,7 @@ import {
     type JsonValue,
     type NoulQuestion,
 } from '@typesafe-ai/sdk';
+import { BKPER_AI_SOURCE } from '../constants.js';
 import {
     BkperAIClientError,
     getSafeConnectionErrorDetails,
@@ -138,7 +139,7 @@ export class BkperAIEvaluationsClient {
             // The SDK appends /v1/systemone, Bkper AI's permanent decision path.
             baseURL: new URL(this.baseUrl).origin,
             defaultModel: 'jev',
-            defaultHeaders: { 'bkper-ai-source': 'bookbot' },
+            defaultHeaders: { 'bkper-ai-source': BKPER_AI_SOURCE },
             // The SDK calls fetch as its own method; Workers' fetch rejects a foreign receiver.
             fetch: (input, init) => fetcher(input, init),
         });

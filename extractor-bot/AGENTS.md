@@ -6,13 +6,15 @@ Read the responsibilities, events, properties and parse API below before changin
 
 This directory is the Extractor Bot Platform app, started from the legacy Bookbot extraction automation. It is published, deployed to production and preview, and installed by Bkper wherever Bookbot is installed. It handles file, created, posted/updated (learning), deleted and audit events, and serves the read-only parse API. File-import and transaction-created handlers call Bookbot's discovery API; Extractor Bot has no local discovery or rediscovery. Extractor Bot is distinct from the managed conversational Bkper Agent.
 
-- It is a standard Bkper Platform app (`parser-bot`), deployed with `bkper app build` and `bkper app deploy`. Never use `wrangler deploy`.
-- `bkper.yaml` here is the source of truth for the live `parser-bot` registration.
+- It is a standard Bkper Platform app (`extractor-bot`), deployed with `bkper app build` and `bkper app deploy`. Never use `wrangler deploy`.
+- `bkper.yaml` here is the source of truth for the `extractor-bot` registration.
+- `extractor-bot` replaces the retiring app ID `parser-bot`, which serves the same code frozen at the Git tag `parser-bot-final`. Its registration is synced only from `../parser-bot/` (a metadata shell) and is never deployed from this directory. `extractor-bot` subscribes to no events until the switch from `parser-bot`.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Extractor Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
 - Keep README content public-facing; development information belongs here.
-- Existing technical names and `agent_*` properties stay unchanged. The public name is Extractor Bot; the app id `parser-bot`, directory, URLs, `agent_parser_*` properties, `/api/v1/parse` and code names still say parser.
+- Existing technical names and `agent_*` properties stay unchanged. The app ID, directory and URLs say `extractor-bot`; `agent_parser_*` properties, `/api/v1/parse` and code names (`FileParserRouter`, `ExternalExtractorClient`, …) still say parser.
+- Every Bkper AI request, from events and the parse API alike, carries `bkper-ai-source: extractor-bot` (`BKPER_AI_SOURCE`). The Bkper AI usage dashboard groups usage by this label; Bookbot labels its own requests `bookbot`.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
 - Extractor Bot consumes Bookbot discovery through its API and has no local discovery code. Do not reintroduce it.
@@ -121,15 +123,15 @@ There is no CI workflow for this app. Run these from this directory: check local
 bun install --frozen-lockfile --ignore-scripts
 bun run test              # Build, contract freshness, typechecks and unit tests
 bkper app build           # Platform bundle in dist/; the log must say "Build complete" with no ERROR
-bkper app deploy --preview   # parser-bot-preview.bkper.app
-bkper app deploy             # parser-bot.bkper.app (production)
+bkper app deploy --preview   # extractor-bot-preview.bkper.app
+bkper app deploy             # extractor-bot.bkper.app (production)
 bkper app status
 ```
 
 - Deploy and sync need a clean tree whose commit is pushed to `origin/main`. `bkper app deploy` uploads the existing `dist/`, so build from that commit first.
-- `bkper app sync` replaces the live `parser-bot` registration (events, properties, file patterns, webhooks, README) with this directory's `bkper.yaml` and README. Run it only when they changed.
+- `bkper app sync` replaces the live `extractor-bot` registration (events, properties, file patterns, webhooks, README) with this directory's `bkper.yaml` and README. Run it only when they changed.
 - Never run `wrangler deploy`; `wrangler.jsonc` is for local development and the dry-run build only.
-- After a deploy, check that `https://parser-bot.bkper.app/openapi.json` matches `test/api/openapi.snapshot.json` and read the newest requests with `bkper app logs parser-bot --events`.
+- After a deploy, check that `https://extractor-bot.bkper.app/openapi.json` matches `test/api/openapi.snapshot.json` and read the newest requests with `bkper app logs extractor-bot --events`.
 
 Worker/inspector ports: 8808 / 9608. No UI/client port is needed. Local serving and event delivery are not part of baseline verification.
 

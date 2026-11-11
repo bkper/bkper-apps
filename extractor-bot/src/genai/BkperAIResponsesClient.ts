@@ -9,6 +9,7 @@ import {
     type LanguageModelUsage,
     type UserContent,
 } from 'ai';
+import { BKPER_AI_SOURCE } from '../constants.js';
 import {
     BkperAIClientError,
     getSafeConnectionErrorDetails,
@@ -190,7 +191,7 @@ export class BkperAIResponsesClient {
         this.provider = createOpenAI({
             baseURL: this.baseUrl,
             apiKey: this.oauthToken ?? '',
-            headers: { 'bkper-ai-source': this.readOnly ? 'parser-bot' : 'bookbot' },
+            headers: { 'bkper-ai-source': BKPER_AI_SOURCE },
             fetch: options.fetch ?? fetch,
         });
     }

@@ -97,7 +97,7 @@ export async function callGemini(
     const recordingFetch: typeof fetch = Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
         beforeCall();
         const headers = new Headers(init?.headers);
-        headers.set('bkper-ai-source', 'parser-bot-eval');
+        headers.set('bkper-ai-source', 'extractor-bot-eval');
         const started = performance.now();
         const response = await fetch(input, { ...init, headers });
         const text = await response.clone().text();

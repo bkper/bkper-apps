@@ -2,7 +2,7 @@
 # Full reference: https://raw.githubusercontent.com/bkper/bkper-cli/main/docs/bkper-reference.yaml
 
 id: report
-name: Report
+name: Report App
 description: Financial reports of your Book, from a request in any language. Read-only, with every number from Bkper.
 
 logoUrl: https://report.bkper.app/images/logo-light.svg
@@ -21,7 +21,7 @@ users: '*@bkper.com'
 
 menuUrl: https://report.bkper.app/?book=${book.id}&state=${app.state}&bookQuery=${transactions.query}
 menuUrlDev: https://report-preview.bkper.app/?book=${book.id}&state=${app.state}&bookQuery=${transactions.query}
-menuText: Report
+menuText: Open Report
 menuOpenMode: EXPANDED
 
 deployment:

@@ -1,6 +1,5 @@
-# Extractor Bot's permanent app ID. It replaces the retiring `parser-bot` registration (same public name).
-# Events stay empty until Bkper has installed it next to `parser-bot` in every Book; the switch then adds
-# FILE_CREATED, TRANSACTION_CREATED, TRANSACTION_POSTED, TRANSACTION_UPDATED, TRANSACTION_DELETED and BOOK_AUDITED.
+# Extractor Bot's permanent app ID. It replaces the retiring `parser-bot` registration (same public name):
+# Bkper swaps the two Book by Book, so a Book has one of them and each receives the same events.
 # Sync, deploy, install, or publish only with separate explicit approval.
 id: extractor-bot
 name: Extractor Bot
@@ -16,16 +15,19 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/extractor-bot
 repoPrivate: false
 deprecated: false
-# Hidden from catalog browsing until the switch from `parser-bot`, so the catalog never lists two
-# Extractor Bots; installation is unaffected. The switch sets `hidden: false` here and `hidden: true` on parser-bot.
-hidden: true
+hidden: false
 developers: '*@bkper.com'
 
 webhookUrl: https://extractor-bot.bkper.app/events
 webhookUrlDev: https://extractor-bot-preview.bkper.app/events
 
-# No events until the switch from `parser-bot` (see the header comment).
-events: []
+events:
+  - FILE_CREATED
+  - TRANSACTION_CREATED
+  - TRANSACTION_POSTED
+  - TRANSACTION_UPDATED
+  - TRANSACTION_DELETED
+  - BOOK_AUDITED
 
 propertiesSchema:
   account:

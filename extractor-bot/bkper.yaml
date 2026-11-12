@@ -16,6 +16,9 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/extractor-bot
 repoPrivate: false
 deprecated: false
+# Hidden from catalog browsing until the switch from `parser-bot`, so the catalog never lists two
+# Extractor Bots; installation is unaffected. The switch sets `hidden: false` here and `hidden: true` on parser-bot.
+hidden: true
 developers: '*@bkper.com'
 
 webhookUrl: https://extractor-bot.bkper.app/events

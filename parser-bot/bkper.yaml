@@ -1,7 +1,7 @@
 # Retiring registration shell: do not deploy. The app's code lives in ../extractor-bot (app ID `extractor-bot`).
 # This folder only lets `bkper app sync` update the live `parser-bot` registration (it must match it exactly:
 # sync replaces events, properties, webhooks and the README) and keeps the listing's logo URLs resolving.
-# At the switch, set `events: []` here and sync before adding the events to extractor-bot.
+# Keeps its events for Books Bkper has not yet swapped to extractor-bot.
 # Sync only with separate explicit approval.
 id: parser-bot
 name: Extractor Bot
@@ -17,6 +17,8 @@ ownerWebsite: https://bkper.com
 repoUrl: https://github.com/bkper/bkper-apps/tree/main/parser-bot
 repoPrivate: false
 deprecated: false
+# Hidden from catalog browsing: customers install extractor-bot. Events stay for Books not yet swapped.
+hidden: true
 developers: '*@bkper.com'
 
 webhookUrl: https://parser-bot.bkper.app/events

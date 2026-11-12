@@ -42,12 +42,12 @@ When you correct an account that Bookbot suggested on a posted transaction, Book
 
 ## Customize description matching
 
-Use `agent_discovery_examples` to show Bookbot which recurring parts of a transaction description are useful for finding similar posted transactions. It improves the search terms; it does not assign an account directly.
+Use `bookbot_discovery_examples` to show Bookbot which recurring parts of a transaction description are useful for finding similar posted transactions. It improves the search terms; it does not assign an account directly.
 
 Add one example per line as `full description -> [stable part]`:
 
 ```yaml
-agent_discovery_examples: |-
+bookbot_discovery_examples: |-
   WF HOME MTG DES:AUTO PAY ID:XXXXX37704 CO ID:XXXXX87461 WEB -> WF HOME MTG DES
   AMAZON RETA* NJ1JM7QA0 #goodies -> AMAZON RETA
   1* Product Alpha * 2* Product Beta -> [Product Alpha, Product Beta]
@@ -70,8 +70,10 @@ Discovery uses Bkper AI to pick out the key terms of a description, with Gemini 
 
 | Property | Description |
 |---|---|
-| `agent_discovery_examples` | Examples showing which stable parts of transaction descriptions Bookbot should use to search for similar posted transactions. See [Customize description matching](#customize-description-matching). |
+| `bookbot_discovery_examples` | Examples showing which stable parts of transaction descriptions Bookbot should use to search for similar posted transactions. See [Customize description matching](#customize-description-matching). |
 | `agent_excluded_properties` | Comma- or whitespace-separated property keys that Bookbot never copies from historical transactions, for example `"trade_date, settlement_date"`. The effective value is resolved from the account, then the first matching account group, then the book; the first non-empty value wins. Matching is case-insensitive and exact. |
+
+Examples set as `agent_discovery_examples`, the earlier name, keep working; `bookbot_discovery_examples` wins when an account, group, or book has both.
 
 </details>
 
@@ -92,10 +94,12 @@ Bookbot's suggestions are recorded on drafts as internal properties (suffixed wi
 
 | Property | Description |
 |---|---|
-| `agent_credit_account_id_` | ID of the suggested credit account |
-| `agent_debit_account_id_` | ID of the suggested debit account |
-| `agent_description_part_` | The key term that matched during discovery |
-| `agent_discovered_properties_` | Keys of the properties copied from history |
+| `bookbot_credit_account_id_` | ID of the suggested credit account |
+| `bookbot_debit_account_id_` | ID of the suggested debit account |
+| `bookbot_description_part_` | The key term that matched during discovery |
+| `bookbot_discovered_properties_` | Keys of the properties copied from history |
+
+Drafts from before November 2026 carry these as `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, and `agent_discovered_properties_`; Bookbot still reads them and renames them when it updates the draft.
 
 </details>
 

@@ -1,5 +1,16 @@
 import { Book, Transaction, Account } from 'bkper-js';
-import { AGENT_CREDIT_ACCOUNT_ID_PROPERTY, AGENT_DEBIT_ACCOUNT_ID_PROPERTY, AGENT_DESCRIPTION_PART_PROPERTY, AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../constants.js';
+import {
+    BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY,
+    BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY,
+    BOOKBOT_DESCRIPTION_PART_PROPERTY,
+    BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY,
+    LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_DESCRIPTION_PART_PROPERTY,
+    LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY,
+    PARSED_ACCOUNT_NAME_PROPERTY,
+} from '../constants.js';
+import { setProvenanceProperty } from './ProvenanceProperty.js';
 import { AppContext } from '../AppContext.js';
 import { stripAccountNamesFromDescription } from '../utils.js';
 
@@ -219,7 +230,7 @@ export class Discovery {
             return false;
         }
 
-        if (!draft.payload.creditAccount?.id && (draft.payload.debitAccount?.id !== accountId) && draft.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY) !== accountId) {
+        if (!draft.payload.creditAccount?.id && (draft.payload.debitAccount?.id !== accountId) && draft.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY) !== accountId) {
             const book = draft.getBook();
             draft.setCreditAccount(new Account(book, { id: accountId }));
             return true;
@@ -232,7 +243,7 @@ export class Discovery {
             return false;
         }
 
-        if (!draft.payload.debitAccount?.id && (draft.payload.creditAccount?.id !== accountId) && draft.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY) !== accountId) {
+        if (!draft.payload.debitAccount?.id && (draft.payload.creditAccount?.id !== accountId) && draft.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY) !== accountId) {
             const book = draft.getBook();
             draft.setDebitAccount(new Account(book, { id: accountId }));
             return true;
@@ -267,14 +278,14 @@ export class Discovery {
         draft: Transaction,
         queryPart: string | null): void {
         if (creditAccDiscovered) {
-            draft.setProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY, draft.payload.creditAccount?.id ?? '');
+            setProvenanceProperty(draft, BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY, draft.payload.creditAccount?.id ?? '');
         }
         if (debitAccDiscovered) {
-            draft.setProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY, draft.payload.debitAccount?.id ?? '');
+            setProvenanceProperty(draft, BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY, draft.payload.debitAccount?.id ?? '');
         }
 
         if (queryPart) {
-            draft.setProperty(AGENT_DESCRIPTION_PART_PROPERTY, queryPart);
+            setProvenanceProperty(draft, BOOKBOT_DESCRIPTION_PART_PROPERTY, LEGACY_AGENT_DESCRIPTION_PART_PROPERTY, queryPart);
         }
 
     }
@@ -371,7 +382,7 @@ export class Discovery {
 
     private updateDiscoveredPropertiesLog(draft: Transaction, addedPropertyKeys: string[]): void {
         // Preserve only logged keys that still exist as visible draft properties.
-        const existingLog = draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY);
+        const existingLog = draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY);
         const hasExistingLog = existingLog !== undefined;
         const visiblePropertyKeys = new Set(Object.keys(draft.getVisibleProperties()).map((key) => key.toLowerCase()));
         const discoveredKeys = new Map<string, string>();
@@ -399,7 +410,7 @@ export class Discovery {
         }
 
         const sortedKeys = Array.from(discoveredKeys.values()).sort((leftKey, rightKey) => leftKey.localeCompare(rightKey));
-        draft.setProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY, JSON.stringify(sortedKeys));
+        setProvenanceProperty(draft, BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, JSON.stringify(sortedKeys));
     }
 
     private async getPropertySkipKeys(book: Book, account: Account): Promise<Set<string>> {

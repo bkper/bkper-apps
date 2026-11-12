@@ -4,7 +4,8 @@ import { Book, Transaction, Account, TransactionList } from 'bkper-js';
 import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
 import { AppContext } from '../../src/AppContext.js';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
-import { AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
+import { BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 declare global {
     interface Env {
@@ -106,7 +107,7 @@ describe('Discovery', () => {
             const account = {
                 getId: () => id,
                 getName: () => name,
-                getProperty: (key: string) => properties[key] || undefined,
+                getProperty: firstNonBlank((key: string) => properties[key] || undefined),
                 getGroups: async () => [],
                 setProperty: (key: string, value: string) => {
                     properties[key] = value;
@@ -208,12 +209,12 @@ describe('Discovery', () => {
                 }
                 return visible;
             },
-            getProperty: (key: string) => {
+            getProperty: firstNonBlank((key: string) => {
                 if (key === 'account_name' && (transaction as any).accountNameProperty) {
                     return (transaction as any).accountNameProperty;
                 }
                 return payload.properties[key] || undefined;
-            },
+            }),
             setProperty: (key: string, value: string) => {
                 if (key === 'account_name') {
                     (transaction as any).accountNameProperty = value;
@@ -516,6 +517,67 @@ describe('Discovery', () => {
 
             expect((await draft.getDebitAccount())?.getId()).toBe('gas_id');
             expect((await draft.getCreditAccount())?.getId()).toBe('bank_id');
+        });
+    });
+
+    describe('provenance property names', () => {
+        function keys(draft: Transaction): string[] {
+            return Object.keys((draft as unknown as { payload: { properties: Record<string, string> } }).payload.properties);
+        }
+
+        it('records discovered accounts and the matched description part under bookbot_ names only', async () => {
+            const draft = createMockTransaction('MONTLY paYMent withOUT Taxes');
+
+            await new Discovery(mockContext).discover(draft);
+
+            expect(draft.getProperty('bookbot_credit_account_id_')).toBe((await draft.getCreditAccount())?.getId());
+            expect(draft.getProperty('bookbot_debit_account_id_')).toBe((await draft.getDebitAccount())?.getId());
+            expect(draft.getProperty('bookbot_description_part_')).toBeDefined();
+            expect(keys(draft).filter(key => key.startsWith('agent_'))).toEqual([]);
+        });
+
+        it('replaces the earlier provenance names on a draft it updates', async () => {
+            const draft = createMockTransaction('MONTLY paYMent withOUT Taxes', undefined, undefined, undefined, {
+                agent_credit_account_id_: 'stale_id',
+                agent_debit_account_id_: 'stale_id',
+                agent_description_part_: 'stale',
+            });
+
+            await new Discovery(mockContext).discover(draft);
+
+            expect(draft.getProperty('bookbot_credit_account_id_')).toBeDefined();
+            expect(keys(draft).filter(key => key.startsWith('agent_'))).toEqual([]);
+        });
+
+        it('does not suggest again an account it suggested under the earlier name', async () => {
+            const first = createMockTransaction('MONTLY paYMent withOUT Taxes');
+            await new Discovery(mockContext).discover(first);
+            const creditId = (await first.getCreditAccount())?.getId();
+            expect(creditId).toBeDefined();
+
+            const draft = createMockTransaction('MONTLY paYMent withOUT Taxes', undefined, undefined, undefined, {
+                agent_credit_account_id_: creditId!,
+            });
+            await new Discovery(mockContext).discover(draft);
+
+            expect((await draft.getCreditAccount())?.getId()).toBeUndefined();
+        });
+
+        it('moves the discovered-properties log to its new name', async () => {
+            const testAccount = mockAccounts.get('bank_id')!;
+            const draft = createMockTransaction('test transaction', undefined, undefined, undefined, {
+                category: 'travel',
+                agent_discovered_properties_: '["category"]',
+            });
+            const dataSet = [
+                createMockTransaction('tx1', undefined, undefined, undefined, { project: 'p1' }),
+                createMockTransaction('tx2', undefined, undefined, undefined, { project: 'p1' }),
+            ];
+
+            await new Discovery(mockContext).discoverProperties(testAccount, draft, dataSet);
+
+            expect(draft.getProperty('bookbot_discovered_properties_')).toBe('["category","project"]');
+            expect(keys(draft)).not.toContain('agent_discovered_properties_');
         });
     });
 
@@ -1246,7 +1308,7 @@ describe('Discovery', () => {
             const result = await discovery.discoverProperties(testAccount, draft, dataSet);
 
             expect(result).toBe(true);
-            expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["alpha","zeta"]');
+            expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["alpha","zeta"]');
         });
 
         // Confirms existing provenance is pruned and merged with newly added keys.
@@ -1254,7 +1316,7 @@ describe('Discovery', () => {
             const testAccount = mockAccounts.get('bank_id')!;
             const draft = createMockTransaction('test transaction', testAccount, undefined, undefined, {
                 category: 'travel',
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category","removed"]',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category","removed"]',
             });
             const dataSet = [
                 createMockTransaction('tx1', undefined, undefined, undefined, { category: 'travel', vendor: 'Amazon' }),
@@ -1265,7 +1327,7 @@ describe('Discovery', () => {
             const result = await discovery.discoverProperties(testAccount, draft, dataSet);
 
             expect(result).toBe(true);
-            expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["category","vendor"]');
+            expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["category","vendor"]');
         });
 
         // Confirms an initial no-op does not create an empty provenance log.
@@ -1281,14 +1343,14 @@ describe('Discovery', () => {
             const result = await discovery.discoverProperties(testAccount, draft, dataSet);
 
             expect(result).toBe(false);
-            expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBeUndefined();
+            expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBeUndefined();
         });
 
         // Confirms an existing log is retained as an empty array after its keys are pruned.
         it('should retain an empty provenance log after all logged properties disappear', async () => {
             const testAccount = mockAccounts.get('bank_id')!;
             const draft = createMockTransaction('test transaction', testAccount, undefined, undefined, {
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["removed"]',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["removed"]',
             });
             const dataSet = [
                 createMockTransaction('tx1', undefined, undefined, undefined, { first_only: 'one' }),
@@ -1299,21 +1361,21 @@ describe('Discovery', () => {
             const result = await discovery.discoverProperties(testAccount, draft, dataSet);
 
             expect(result).toBe(false);
-            expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
+            expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
         });
 
         // Confirms stale provenance is pruned even when the evidence set is too small.
         it('should prune stale provenance when there is insufficient evidence', async () => {
             const testAccount = mockAccounts.get('bank_id')!;
             const draft = createMockTransaction('test transaction', testAccount, undefined, undefined, {
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["removed"]',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["removed"]',
             });
 
             const discovery = new Discovery(mockContext);
             const result = await discovery.discoverProperties(testAccount, draft, []);
 
             expect(result).toBe(false);
-            expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
+            expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
         });
     });
 });

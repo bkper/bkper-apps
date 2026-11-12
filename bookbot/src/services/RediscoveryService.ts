@@ -1,5 +1,13 @@
 import { Account, Book, Transaction } from 'bkper-js';
-import { AGENT_CREDIT_ACCOUNT_ID_PROPERTY, AGENT_DEBIT_ACCOUNT_ID_PROPERTY, AGENT_DISCOVERED_PROPERTIES_PROPERTY } from '../constants.js';
+import {
+    BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY,
+    BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY,
+    BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY,
+    LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY,
+    LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY,
+} from '../constants.js';
+import { setProvenanceProperty } from './ProvenanceProperty.js';
 import { AppContext } from '../AppContext.js';
 import { Discovery } from './DiscoveryService.js';
 
@@ -19,8 +27,8 @@ export class RediscoveryService {
             return null;
         }
 
-        const transactionAgentCreditAccId = transaction.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
-        const transactionAgentDebitAccId = transaction.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
+        const transactionAgentCreditAccId = transaction.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
+        const transactionAgentDebitAccId = transaction.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
         const correctedCreditAccId = previousCreditAccId != null && transactionAgentCreditAccId === previousCreditAccId ? previousCreditAccId : undefined;
         const correctedDebitAccId = previousDebitAccId != null && transactionAgentDebitAccId === previousDebitAccId ? previousDebitAccId : undefined;
 
@@ -38,15 +46,15 @@ export class RediscoveryService {
 
         const drafts = (await book.listTransactions('is:draft', 100)).getItems();
         const affectedDrafts = drafts.filter((draft) =>
-            (correctedCreditAccId != null && draft.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY) === correctedCreditAccId) ||
-            (correctedDebitAccId != null && draft.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY) === correctedDebitAccId)
+            (correctedCreditAccId != null && draft.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY) === correctedCreditAccId) ||
+            (correctedDebitAccId != null && draft.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY) === correctedDebitAccId)
         );
         const updatedDrafts: Transaction[] = [];
 
         const discovery: Discovery = this.context.createDiscovery();
         for (const draft of affectedDrafts) {
-            const draftAgentCreditAccId = draft.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
-            const draftAgentDebitAccId = draft.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
+            const draftAgentCreditAccId = draft.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
+            const draftAgentDebitAccId = draft.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
             let sourceAccount: Account | undefined;
 
             // Resolve the original upload account before clearing the discovered side.
@@ -90,8 +98,8 @@ export class RediscoveryService {
 
     private async resolveSourceAccount(book: Book, draft: Transaction, previousCreditAccId?: string, previousDebitAccId?: string): Promise<Account | undefined> {
         const sourceAccountIds = new Set<string>();
-        const draftAgentCreditAccId = draft.getProperty(AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
-        const draftAgentDebitAccId = draft.getProperty(AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
+        const draftAgentCreditAccId = draft.getProperty(BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY);
+        const draftAgentDebitAccId = draft.getProperty(BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY);
 
         // The non-agent account side is the original upload-account context.
         if (previousCreditAccId && draftAgentCreditAccId === previousCreditAccId) {
@@ -116,7 +124,7 @@ export class RediscoveryService {
     }
 
     private clearDiscoveredProperties(draft: Transaction): void {
-        const discoveredProperties = draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY);
+        const discoveredProperties = draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY);
         if (!discoveredProperties) {
             return;
         }
@@ -128,6 +136,6 @@ export class RediscoveryService {
         }
 
         // Keep an explicit empty provenance log until the next discovery pass.
-        draft.setProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY, '[]');
+        setProvenanceProperty(draft, BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, '[]');
     }
 }

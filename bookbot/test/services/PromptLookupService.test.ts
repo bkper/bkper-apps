@@ -5,6 +5,7 @@ import {
     AGENT_PROMPT_SKIP_PROPERTY,
     AGENT_EXCLUDED_PROPERTIES_PROPERTY,
 } from '../../src/constants.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 describe('PromptLookupService', () => {
     let service: PromptLookupService;
@@ -17,7 +18,7 @@ describe('PromptLookupService', () => {
             getId: () => id,
             getName: () => name,
             getProperties: () => properties,
-            getProperty: (key: string) => properties[key] || undefined,
+            getProperty: firstNonBlank((key: string) => properties[key] || undefined),
             setProperty: mock((key: string, value: string | null | undefined) => {
                 if (value) properties[key] = value;
                 else delete properties[key];
@@ -33,7 +34,7 @@ describe('PromptLookupService', () => {
             getId: () => id,
             getName: () => name,
             getProperties: () => properties,
-            getProperty: (key: string) => properties[key] || undefined,
+            getProperty: firstNonBlank((key: string) => properties[key] || undefined),
             setProperty: mock((key: string, value: string | null | undefined) => {
                 if (value) properties[key] = value;
                 else delete properties[key];
@@ -58,7 +59,7 @@ describe('PromptLookupService', () => {
 
     function createMockTransaction(properties: Record<string, string> = {}, creditAccount?: Account, debitAccount?: Account): Transaction {
         return {
-            getProperty: (key: string) => properties[key] || undefined,
+            getProperty: firstNonBlank((key: string) => properties[key] || undefined),
             getCreditAccount: async () => creditAccount,
             getDebitAccount: async () => debitAccount,
         } as unknown as Transaction;
@@ -82,7 +83,7 @@ describe('PromptLookupService', () => {
             }),
             getAccounts: mock(async () => [...mockAccounts.values()]),
             getGroup: mock(async () => undefined),
-            getProperty: (key: string) => mockBookProperties[key] || undefined,
+            getProperty: firstNonBlank((key: string) => mockBookProperties[key] || undefined),
         } as unknown as Book;
     });
 

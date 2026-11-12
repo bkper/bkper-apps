@@ -12,7 +12,7 @@ This directory is the Platform Bookbot. It finds From and To Accounts and histor
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Bookbot's public listing: account discovery, rediscovery and the discovery API.
 - Keep README content public-facing; development information belongs here.
-- Existing technical names and `agent_*` properties stay unchanged.
+- Existing technical names stay unchanged. Bookbot's properties are `bookbot_*`; read the new name first, then the earlier `agent_*` name (`getProperty(NEW, OLD)`), write only the new name, and remove the earlier name from a draft Bookbot updates only when present (`setProvenanceProperty`). `agent_excluded_properties` stays shared and unrenamed.
 - Discovery never posts or writes from the API. Preserve explicit account sides, existing property behavior, legacy provenance, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
 - Bookbot does not read documents or learn from extraction; callers send it drafts. Do not add those jobs here.
@@ -55,8 +55,8 @@ Bookbot does not handle file or transaction-created events. Callers that record 
 
 | Properties | Role |
 | --- | --- |
-| `agent_credit_account_id_`, `agent_debit_account_id_`, `agent_description_part_`, `agent_discovered_properties_`, plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (the caller for API results, Bookbot for rediscovery). Callers may read the account-side provenance, so keep these names stable. |
-| `agent_discovery_examples` | Discovery configuration (Account, then Group, then Book). |
+| `bookbot_credit_account_id_`, `bookbot_debit_account_id_`, `bookbot_description_part_`, `bookbot_discovered_properties_` (earlier `agent_*` names), plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (the caller for API results, Bookbot for rediscovery). When the input draft carries an earlier name, the result returns it as an empty value, the SDK's removal. Extractor Bot reads the account-side provenance under both names; keep these names stable. All keys ≤ 30 characters (`test/property-names.test.ts`). |
+| `bookbot_discovery_examples` (earlier `agent_discovery_examples`, still read) | Discovery configuration (Account, then Group, then Book; on each, the new name first). |
 | `agent_excluded_properties`, legacy `agent_prompt_skip` | Property keys discovery never copies. Bookbot reads them and never writes them; other apps may read the same property. |
 | `parsed_account_name_` | Set by Bkper when a created transaction's description names one Account. Discovery uses it as the known Account and removes it locally. |
 

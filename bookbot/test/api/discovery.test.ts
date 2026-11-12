@@ -3,7 +3,7 @@ import { Account, Bkper, BkperError, Book, Group, Transaction, TransactionList, 
 import { AppContext } from '../../src/AppContext.js';
 import { discoverItems } from '../../src/api/discovery.js';
 import type { components } from '../../src/api/generated/types.js';
-import { AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
+import { BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
 import { BkperAIClientError } from '../../src/genai/BkperAIClientError.js';
 import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
 import { Discovery } from '../../src/services/DiscoveryService.js';
@@ -121,8 +121,9 @@ describe('read-only discovery adapter', () => {
         expect(result.transaction.creditAccount).toEqual(input.transaction.creditAccount);
         expect(result.transaction.debitAccount?.id).toBe('expense');
         expect(result.transaction.properties).toEqual({
-            project: 'caller', department: 'synthetic', agent_description_part_: 'Synthetic purchase',
-            agent_debit_account_id_: 'expense', [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["department"]',
+            project: 'caller', department: 'synthetic', bookbot_description_part_: 'Synthetic purchase',
+            bookbot_debit_account_id_: 'expense', [BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY]: '["department"]',
+            agent_description_part_: '',
         });
         expect(result.transaction.posted).toBe(false);
         expect(input).toEqual(original);
@@ -140,7 +141,7 @@ describe('read-only discovery adapter', () => {
             [PARSED_ACCOUNT_NAME_PROPERTY]: 'bank',
             agent_description_part_: 'old description part',
             agent_debit_account_id_: 'old-expense',
-            [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["missing","project"]',
+            [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["missing","project"]',
         };
         input.sourceAccount = { id: 'bank' };
         const original = structuredClone(input);
@@ -154,8 +155,10 @@ describe('read-only discovery adapter', () => {
         expect(result.transaction).toEqual(draft.json());
         // The SDK encodes property removal as an empty value in the canonical payload.
         expect(result.transaction.properties?.[PARSED_ACCOUNT_NAME_PROPERTY]).toBe('');
-        expect(result.transaction.properties?.agent_debit_account_id_).toBe('expense');
-        expect(result.transaction.properties?.[AGENT_DISCOVERED_PROPERTIES_PROPERTY]).toBe('["department","project"]');
+        expect(result.transaction.properties?.bookbot_debit_account_id_).toBe('expense');
+        expect(result.transaction.properties?.[BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY]).toBe('["department","project"]');
+        expect(result.transaction.properties?.agent_debit_account_id_).toBe('');
+        expect(result.transaction.properties?.[LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]).toBe('');
         expect(input).toEqual(original);
     });
 

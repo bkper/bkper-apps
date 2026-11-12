@@ -27,15 +27,15 @@ events:
 propertiesSchema:
   account:
     keys:
-      - agent_discovery_examples
+      - bookbot_discovery_examples
       - agent_excluded_properties
   group:
     keys:
-      - agent_discovery_examples
+      - bookbot_discovery_examples
       - agent_excluded_properties
   book:
     keys:
-      - agent_discovery_examples
+      - bookbot_discovery_examples
       - agent_excluded_properties
 
 apiVersion: v5

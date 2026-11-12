@@ -1,7 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { Book, Transaction, TransactionList, Account } from 'bkper-js';
 import { RediscoveryService } from '../../src/services/RediscoveryService.js';
-import { AGENT_CREDIT_ACCOUNT_ID_PROPERTY, AGENT_DEBIT_ACCOUNT_ID_PROPERTY, AGENT_DISCOVERED_PROPERTIES_PROPERTY } from '../../src/constants.js';
+import { LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY, BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY } from '../../src/constants.js';
+import { firstNonBlank } from '../helpers/properties.js';
 
 type DiscoverFn = (draft: Transaction) => Promise<{ discovered: boolean; dataSet?: Transaction[] }>;
 type DiscoverPropertiesFn = (account: Account, draft: Transaction, dataSet: Transaction[]) => Promise<boolean>;
@@ -26,7 +27,7 @@ function createMockTransaction(options: {
         payload,
         getId: () => options.id,
         getDescription: () => options.description,
-        getProperty: (key: string) => properties[key] || undefined,
+        getProperty: firstNonBlank((key: string) => properties[key] || undefined),
         getVisibleProperties: () => Object.fromEntries(Object.entries(properties).filter(([key]) => !key.endsWith('_'))),
         setProperty: (key: string, value: string) => {
             properties[key] = value;
@@ -90,8 +91,8 @@ describe('RediscoveryService', () => {
             creditAccountId: 'old-credit-id',
             debitAccountId: 'debit-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
-                [AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'debit-id',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'debit-id',
             },
         });
 
@@ -102,7 +103,7 @@ describe('RediscoveryService', () => {
         const postedTransaction = createMockTransaction({
             id: 'posted-1',
             description: 'posted',
-            properties: { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
+            properties: { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
         });
         const result = await service.rediscover(book, postedTransaction, eventWithAccountChange);
 
@@ -111,7 +112,7 @@ describe('RediscoveryService', () => {
     });
 
     it('should never call batchUpdateTransactions when all drafts return discovered:false', async () => {
-        const affectedProperties = { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' };
+        const affectedProperties = { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' };
         const drafts = [
             createMockTransaction({ id: 'draft-1', description: 'Draft one', creditAccountId: 'c1', debitAccountId: 'd1', properties: affectedProperties }),
             createMockTransaction({ id: 'draft-2', description: 'Draft two', creditAccountId: 'c2', debitAccountId: 'd2', properties: affectedProperties }),
@@ -125,7 +126,7 @@ describe('RediscoveryService', () => {
         const postedTransaction = createMockTransaction({
             id: 'posted-1',
             description: 'posted',
-            properties: { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
+            properties: { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
         });
         const result = await service.rediscover(book, postedTransaction, eventWithAccountChange);
 
@@ -134,7 +135,7 @@ describe('RediscoveryService', () => {
     });
 
     it('should include only discovered drafts in batch update', async () => {
-        const affectedProperties = { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' };
+        const affectedProperties = { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' };
         const draftDiscovered = createMockTransaction({ id: 'draft-discovered', description: 'New draft', properties: affectedProperties });
         const draftNotDiscovered = createMockTransaction({
             id: 'draft-not-discovered',
@@ -157,7 +158,7 @@ describe('RediscoveryService', () => {
         const postedTransaction = createMockTransaction({
             id: 'posted-1',
             description: 'posted',
-            properties: { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
+            properties: { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
         });
         const result = await service.rediscover(book, postedTransaction, eventWithAccountChange);
 
@@ -175,8 +176,8 @@ describe('RediscoveryService', () => {
             creditAccountId: 'credit-id',
             debitAccountId: 'debit-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'credit-id',
-                [AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'debit-id',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'credit-id',
+                [LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'debit-id',
             },
         });
 
@@ -214,8 +215,8 @@ describe('RediscoveryService', () => {
             creditAccountId: 'old-credit-id',
             debitAccountId: 'source-account-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category","vendor"]',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category","vendor"]',
                 category: 'old-category',
                 vendor: 'old-vendor',
             },
@@ -226,8 +227,8 @@ describe('RediscoveryService', () => {
             creditAccountId: 'other-credit-id',
             debitAccountId: 'other-source-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'other-credit-id',
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["project"]',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'other-credit-id',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["project"]',
                 project: 'keep-project',
             },
         });
@@ -248,7 +249,7 @@ describe('RediscoveryService', () => {
                 propertiesDiscoveryCalls++;
                 propertiesDiscoveryAccount = account;
                 draft.setProperty('category', 'new-category');
-                draft.setProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY, '["category"]');
+                draft.setProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, '["category"]');
                 return true;
             }
         );
@@ -257,7 +258,7 @@ describe('RediscoveryService', () => {
         const postedTransaction = createMockTransaction({
             id: 'posted-1',
             description: 'posted',
-            properties: { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
+            properties: { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
         });
         const result = await service.rediscover(book, postedTransaction, eventWithAccountChange);
 
@@ -267,10 +268,10 @@ describe('RediscoveryService', () => {
         expect(propertiesDiscoveryAccount).toBe(sourceAccount);
         expect(observedAffectedProperties.category).toBeUndefined();
         expect(observedAffectedProperties.vendor).toBeUndefined();
-        expect(affectedDraft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["category"]');
+        expect(affectedDraft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["category"]');
         expect(affectedDraft.getProperty('category')).toBe('new-category');
         expect(unrelatedDraft.getProperty('project')).toBe('keep-project');
-        expect(unrelatedDraft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["project"]');
+        expect(unrelatedDraft.getProperty(LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('["project"]');
     });
 
     // Confirms ambiguous source-account context skips property rediscovery while account rediscovery continues.
@@ -281,9 +282,9 @@ describe('RediscoveryService', () => {
             creditAccountId: 'old-credit-id',
             debitAccountId: 'old-debit-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
-                [AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'old-debit-id',
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category"]',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'old-debit-id',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category"]',
                 category: 'old-category',
             },
         });
@@ -302,15 +303,15 @@ describe('RediscoveryService', () => {
             id: 'posted-1',
             description: 'posted',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
-                [AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'old-debit-id',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY]: 'old-debit-id',
             },
         });
         await service.rediscover(book, postedTransaction, createMockEvent({ creditAccId: 'old-credit-id', debitAccId: 'old-debit-id' }));
 
         expect(propertiesDiscoveryCalls).toBe(0);
         expect(draft.getProperty('category')).toBeUndefined();
-        expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
+        expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
         expect(book.batchUpdateTransactions).toHaveBeenCalledTimes(1);
     });
 
@@ -322,8 +323,8 @@ describe('RediscoveryService', () => {
             creditAccountId: 'old-credit-id',
             debitAccountId: 'source-account-id',
             properties: {
-                [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
-                [AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category"]',
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category"]',
                 category: 'old-category',
             },
         });
@@ -335,12 +336,44 @@ describe('RediscoveryService', () => {
         const postedTransaction = createMockTransaction({
             id: 'posted-1',
             description: 'posted',
-            properties: { [AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
+            properties: { [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id' },
         });
         await service.rediscover(book, postedTransaction, eventWithAccountChange);
 
         expect(book.batchUpdateTransactions).not.toHaveBeenCalled();
         expect(draft.getProperty('category')).toBeUndefined();
-        expect(draft.getProperty(AGENT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
+        expect(draft.getProperty(BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY)).toBe('[]');
+    });
+
+    it('finds drafts by either provenance name and rewrites their provenance under the new names', async () => {
+        const oldNamed = createMockTransaction({
+            id: 'draft-old', description: 'Old draft', creditAccountId: 'old-credit-id', debitAccountId: 'debit-id',
+            properties: {
+                [LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY]: 'old-credit-id',
+                [LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY]: '["category"]',
+                category: 'travel',
+            },
+        });
+        const newNamed = createMockTransaction({
+            id: 'draft-new', description: 'New draft', creditAccountId: 'old-credit-id', debitAccountId: 'debit-id',
+            properties: { bookbot_credit_account_id_: 'old-credit-id' },
+        });
+        const book = createMockBook([oldNamed, newNamed]);
+        const context = createMockContext(async () => ({ discovered: true }));
+        const posted = createMockTransaction({
+            id: 'posted-1', description: 'posted',
+            properties: { bookbot_credit_account_id_: 'old-credit-id' },
+        });
+
+        const result = await new RediscoveryService(context as never).rediscover(book, posted, eventWithAccountChange);
+
+        expect(result).toBe('Found account(s) for 2 draft(s)!');
+        expect(book.batchUpdateTransactions).toHaveBeenCalledTimes(1);
+        expect(oldNamed.payload.creditAccount).toBeUndefined();
+        expect(newNamed.payload.creditAccount).toBeUndefined();
+        const oldProperties = (oldNamed.payload as { properties: Record<string, string> }).properties;
+        expect(oldProperties.category).toBeUndefined();
+        expect(oldProperties.bookbot_discovered_properties_).toBe('[]');
+        expect(oldProperties).not.toHaveProperty(LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY);
     });
 });

@@ -531,12 +531,9 @@ export abstract class PromptImprovementServiceBase {
             output += `\n${transactionIdentifier}:\n`;
         }
 
+        // Field names only: extracted and expected values are customer data.
         for (const detail of regressionDetails) {
-            const originalStr = detail.original !== undefined ? JSON.stringify(detail.original) : '<missing>';
-            const improvedStr = detail.improved !== undefined ? JSON.stringify(detail.improved) : '<missing>';
-            const expectedStr = JSON.stringify(detail.expected);
-
-            output += `  ❌ ${detail.field}: ${originalStr} (original) → ${improvedStr} (improved) | expected: ${expectedStr}\n`;
+            output += `  ❌ ${detail.field}: ${detail.improved === undefined ? 'missing' : 'differs'} after the improved prompt\n`;
         }
 
         return output;

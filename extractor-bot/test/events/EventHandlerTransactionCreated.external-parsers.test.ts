@@ -1,6 +1,6 @@
 /// <reference types="@bkper/bkper-api-types" />
 
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { Account, Book, File, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { EventHandlerTransactionCreated } from '../../src/events/EventHandlerTransactionCreated.js';
@@ -221,6 +221,53 @@ describe('EventHandlerTransactionCreated - external parsers', () => {
         expect(transactionUpdated).toBe(true);
         expect(parserAccount).toBe(mockAccount);
         expect(ExternalExtractorClient.prototype.extractTransaction).toHaveBeenCalled();
+    });
+
+    it('logs the attachment file property names, never their values', async () => {
+        const logged: string[] = [];
+        const log = spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+            logged.push(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '));
+        });
+        const mockFile = createAttachmentFile();
+        (mockFile as unknown as { getProperties: () => Record<string, string> }).getProperties = () => ({
+            upload_method: 'attachment',
+            check_saldos: 'SECRET-7781',
+        });
+        const mockBook = {
+            getId: () => 'book_1',
+            getConfig: () => ({}),
+            getFile: mock(async () => mockFile),
+            getFractionDigits: () => 2,
+            getTimeZone: () => 'UTC',
+            getMostRecentLockDate_: () => undefined,
+            getDecimalSeparator: () => 'DOT',
+        } as unknown as Book;
+        const mockContext = {
+            promptLookupService: {
+                lookupPrompts: mock(async () => null),
+                lookupParserUrl: mock(async () => null),
+            },
+            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
+            createExtractorInvoice: () => ({ extract: mock(async () => undefined) }),
+            createExtractorAmount: () => ({ extract: mock(async () => undefined) }),
+            createExtractorDate: () => ({ extract: mock(async () => undefined) }),
+        } as unknown as AppContext;
+        Transaction.prototype.update = mock(async function (this: Transaction) {
+            return this;
+        }) as typeof Transaction.prototype.update;
+        const event = {
+            bookId: 'book_1',
+            data: { object: { transaction: { id: 'tx_1', date: '2024-01-01', description: 'Existing', amount: '100', files: [{ id: 'file_1' }] } } },
+        } as bkper.Event;
+
+        try {
+            await new EventHandlerTransactionCreated(mockContext).handleEvent(mockBook, event);
+        } finally {
+            log.mockRestore();
+        }
+
+        expect(logged.join('\n')).toContain('check_saldos');
+        expect(logged.join('\n')).not.toContain('SECRET-7781');
     });
 
     it('skips attachment extraction while preserving description date extraction', async () => {

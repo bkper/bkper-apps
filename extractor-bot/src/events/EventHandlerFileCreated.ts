@@ -244,7 +244,7 @@ export class EventHandlerFileCreated extends EventHandler {
             // Named override: look up by account_name in the target book
             const account = await findAccount(targetBook, tx.account_name);
             if (!account) {
-                console.warn(`Account '${tx.account_name}' not found in book '${targetBook.getId()}', recording without account`);
+                console.warn(`Extracted account not found in book '${targetBook.getId()}', recording without account`);
             }
             return account;
         }
@@ -425,7 +425,7 @@ export class EventHandlerFileCreated extends EventHandler {
         }
 
         if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
-            console.warn(`Ignoring extracted date that is not ISO YYYY-MM-DD: ${trimmedDate}`);
+            console.warn('Ignoring an extracted date that is not ISO YYYY-MM-DD');
             return undefined;
         }
 

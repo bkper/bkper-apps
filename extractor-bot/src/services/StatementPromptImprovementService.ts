@@ -366,7 +366,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
 
         const file = await book.getFile(fileId);
         if (!file) {
-            console.error(`File ${fileId} not found - Book id ${book.getId()} - Owner ${book.getOwnerName()} - clearing flag`);
+            console.error(`File ${fileId} not found - Book id ${book.getId()} - clearing flag`);
             await this.context.flagManagementService.clearImprovementFlag(entity);
             return null;
         }
@@ -503,10 +503,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
             return null;
         }
 
-        console.log('Reflection results:');
-        console.log('- What worked:', reflection.whatWorked);
-        console.log('- What failed:', reflection.whatFailed);
-        console.log('- Suggestions:', reflection.suggestedImprovements);
+        console.log(`Reflection results: ${reflection.whatWorked.length} worked, ${reflection.whatFailed.length} failed, ${reflection.suggestedImprovements.length} suggestions`);
 
         return reflection;
     }
@@ -556,7 +553,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
 
         console.log('Curation completed:');
         console.log('- Improved prompt length:', improvedPrompt.length);
-        console.log('- Reasoning:', reasoning);
+        console.log('- Reasoning length:', reasoning.length);
 
         this.monitorPromptSize(improvedPrompt, 'Statement Extraction Prompt');
 
@@ -618,7 +615,7 @@ export class StatementPromptImprovementService extends PromptImprovementServiceB
 
                 let transactionNum = 1;
                 for (const { transaction, details } of validationResult.regressionDetails) {
-                    const identifier = `Transaction #${transactionNum} [${transaction.date}, $${Math.abs(transaction.amount).toFixed(2)}]`;
+                    const identifier = `Transaction #${transactionNum}`;
                     warningMsg += this.formatRegressionDetails(details, identifier);
                     transactionNum++;
                 }

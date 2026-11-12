@@ -37,7 +37,7 @@ export class EventHandlerTransactionCreated extends EventHandler {
                     return { result: false };
                 }
 
-                console.log(file.getProperties());
+                console.log('File properties:', Object.keys(file.getProperties()).join(', '));
 
                 // Check UPLOAD_METHOD_PROPERTY
                 if (file.getProperty(UPLOAD_METHOD_PROPERTY, 'upload_method_') != 'attachment') {

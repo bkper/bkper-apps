@@ -36,7 +36,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 - Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication.
 - Bookbot discovery: Extractor Bot calls Bookbot with a plain `fetch`; Platform outbound delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). Both Extractor Bot environments call only `https://bookbot.bkper.app/api/v1/*` (switched from `bookbot-preview` on 2026-11-04, after production Bookbot took over all Bookbot events; the legacy Bookbot Worker is only a rollback target and is never called). The address is one constant. Bookbot's discovery API contract is in [Bookbot's AGENTS.md](../bookbot/AGENTS.md).
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance, including Bookbot's credit and debit Account suggestions (`bookbot_*`, earlier `agent_*`) read by statement learning.
-- Do not log credentials, document content, transaction descriptions, or private Book data.
+- Do not log credentials, document content, transaction descriptions, or private Book data. Log counts, lengths, property names and field names instead of values; log only the host of a customer parser URL (it may carry credentials). `test/privacy-logs.test.ts` guards this.
 
 ## Responsibilities
 

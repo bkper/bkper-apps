@@ -66,7 +66,7 @@ export class ExternalExtractorClient {
                 this.requestSignal?.throwIfAborted();
                 if (attempt > 0) {
                     const delay = this.calculateBackoffDelay(attempt);
-                    if (this.log) console.log(`Retrying external extractor ${this.url} (attempt ${attempt + 1}/${this.MAX_RETRIES + 1}) after ${delay}ms...`);
+                    if (this.log) console.log(`Retrying external extractor ${this.host()} (attempt ${attempt + 1}/${this.MAX_RETRIES + 1}) after ${delay}ms...`);
                     await this.sleep(delay);
                 }
 
@@ -167,7 +167,7 @@ export class ExternalExtractorClient {
         const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
 
         try {
-            if (this.log) console.log(`Calling external extractor: ${this.url}`);
+            if (this.log) console.log(`Calling external extractor: ${this.host()}`);
 
             // Measure external extractor response time.
             const startedAt = Date.now();
@@ -262,6 +262,17 @@ export class ExternalExtractorClient {
             ...group.json(),
             properties: this.filterVisibleProperties(group.getVisibleProperties()),
         };
+    }
+
+    /**
+     * The parser's host, safe to log: customer parser URLs may carry credentials in their path or query.
+     */
+    private host(): string {
+        try {
+            return new URL(this.url).host;
+        } catch {
+            return '(invalid URL)';
+        }
     }
 
     /**

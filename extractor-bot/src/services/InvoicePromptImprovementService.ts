@@ -214,7 +214,7 @@ export class InvoicePromptImprovementService extends PromptImprovementServiceBas
      * Lookup where the prompt is stored (account or group).
      */
     private async lookupPromptLocation(book: Book, transaction: Transaction, file: File): Promise<PromptResolution | null> {
-        console.log(file.getProperties());
+        console.log('File properties:', Object.keys(file.getProperties()).join(', '));
         const promptContext = await this.context.promptLookupService.lookupPrompts({ book, transaction, file });
         const promptResolution = promptContext?.getPrompt('transaction');
         if (!promptResolution?.promptEntity) {
@@ -298,7 +298,7 @@ export class InvoicePromptImprovementService extends PromptImprovementServiceBas
         const improvedPrompt = mergedBullets.map(b => `- ${b}`).join('\n');
         const reasoning = `Added ${newBullets.length} instruction${newBullets.length !== 1 ? 's' : ''} to address failures`;
 
-        console.log(`✅ ACE: Prompt improved - ${reasoning}`);
+        console.log(`✅ ACE: Prompt improved (reasoning: ${reasoning.length} characters)`);
 
         this.monitorPromptSize(improvedPrompt, 'Invoice Extraction Prompt');
 

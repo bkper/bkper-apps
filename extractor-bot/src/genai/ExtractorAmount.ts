@@ -59,7 +59,6 @@ Extract the primary monetary amount or return null:`;
         }
 
         try {
-            if (!this.readOnly) console.log(`AMOUNT EXTRACTOR PROMPT:`, description);
             const result = await this.query([{ text: description }]);
 
             return result ? new Amount(result) : null;

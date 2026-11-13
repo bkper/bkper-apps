@@ -25,7 +25,7 @@ export async function handleEvent(c: Context) {
         console.log('Event received', event.type);
 
         // Bookbot handles only posted/updated events: rediscovery after Account corrections.
-        // Document reading and extraction learning belong to Parser Bot.
+        // Document reading and extraction learning belong to Extractor Bot.
         switch (event.type) {
             case 'TRANSACTION_POSTED':
                 result = await new EventHandlerTransactionPostedOrUpdated(context).handleEvent(book, event);

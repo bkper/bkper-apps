@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document specifies the API interface for a Bkper partner service that will extract transactions from bank statements, compatible with Bookbot. The service should process various file formats (CSV, PDF, images) and return structured transaction data.
+This document specifies the API interface for a Bkper partner service that will extract transactions from bank statements, compatible with Extractor Bot. The service should process various file formats (CSV, PDF, images) and return structured transaction data.
 
 ## Base API Endpoint
 
@@ -397,7 +397,7 @@ Common example keys for `file.properties`:
 - `bank_name`: Name of the issuing bank (e.g. `"Example Bank"`)
 - `account_number`: Bank account number referenced in the file (e.g. `"1234"`)
 
-> **Note**: All values must be strings. The `file` object and its `properties` field may be omitted if there is no file-level metadata to record. The `extractor_transactions_summary` key (earlier `transactions_summary`) is reserved for Bookbot: external file-properties responses cannot set or override it. Bookbot generates the property after creating non-zero transactions, for both multi-transaction and single-transaction extractions. Each entry is grouped by target book/account and contains the non-zero transaction count and native Bkper transaction IDs returned by transaction creation; a single-transaction extraction has one entry. Zero-amount transactions are excluded from the summary, and files containing only zero-amount transactions do not receive one. If the fetched file already has `extractor_transactions_summary` or `transactions_summary`, Bookbot skips parsing it again.
+> **Note**: All values must be strings. The `file` object and its `properties` field may be omitted if there is no file-level metadata to record. The `extractor_transactions_summary` key (earlier `transactions_summary`) is reserved for Extractor Bot: external file-properties responses cannot set or override it. Extractor Bot generates the property after creating non-zero transactions, for both multi-transaction and single-transaction extractions. Each entry is grouped by target book/account and contains the non-zero transaction count and native Bkper transaction IDs returned by transaction creation; a single-transaction extraction has one entry. Zero-amount transactions are excluded from the summary, and files containing only zero-amount transactions do not receive one. If the fetched file already has `extractor_transactions_summary` or `transactions_summary`, Extractor Bot skips parsing it again.
 
 ## Error Handling
 

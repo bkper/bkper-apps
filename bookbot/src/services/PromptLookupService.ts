@@ -6,7 +6,7 @@ import {
     LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY,
 } from '../constants.js';
 
-/** Discovery settings lookup. Prompt and parser URL lookups belong to Parser Bot. */
+/** Discovery settings lookup. Prompt and parser URL lookups belong to Extractor Bot. */
 export interface PropertySkipLookupParams {
     book: Book;
     account?: Account;

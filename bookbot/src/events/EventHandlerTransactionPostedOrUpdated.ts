@@ -2,7 +2,7 @@ import { Book, Transaction } from 'bkper-js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 
-/** Bookbot's posted/updated job: rediscover pending drafts after an Account correction. Extraction learning belongs to Parser Bot. */
+/** Bookbot's posted/updated job: rediscover pending drafts after an Account correction. Extraction learning belongs to Extractor Bot. */
 export class EventHandlerTransactionPostedOrUpdated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
         const operation = event.data?.object as bkper.TransactionOperation;

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { Account, Amount, Bkper, BkperError, Book, File, Group, Permission, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { parse } from '../../src/api/parse.js';
@@ -262,6 +262,37 @@ describe('read-only parse', () => {
             expect(fetchMock).not.toHaveBeenCalled();
         } finally {
             globalThis.fetch = originalFetch;
+        }
+    });
+
+    it('drops extracted dates that are not ISO, as file imports do, without logging them', async () => {
+        const { context } = setup();
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [
+            { date: '02/01/2024', description: 'Slash date', amount: -1, properties: {} },
+            { date: ' 2024-01-03 ', description: 'Padded date', amount: -2, properties: {} },
+            { date: 'null', description: 'Null text', amount: -3, properties: {} },
+            { date: '', description: 'Blank', amount: -4, properties: {} },
+        ] })) }) as unknown as ExtractorStatementCSV;
+        const warn = spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const statement = await parse({ bookId: 'book_1', file }, context);
+            expect(statement.outcome).toBe('parsed');
+            expect(statement.transactions.map(item => item.transaction.date)).toEqual([undefined, '2024-01-03', undefined, undefined]);
+            expect(JSON.parse(statement.transactions[0].transaction.properties!.extractor_extracted_!).date).toBeNull();
+
+            context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: '15/01/2024', description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
+            const dateExtract = mock(async () => '2024-01-20');
+            context.createExtractorDate = () => ({ extract: dateExtract }) as unknown as ExtractorDate;
+            const attachment = await parse({ bookId: 'book_1', transaction: { files: [{ ...file, name: 'invoice.pdf', contentType: 'application/pdf' }] } }, context);
+            expect(attachment).toMatchObject({ outcome: 'parsed', transactions: [{ transaction: { description: 'Invoice', amount: '10', date: '2024-01-20' } }] });
+            expect(dateExtract).toHaveBeenCalledWith('Invoice');
+
+            const logged = JSON.stringify(warn.mock.calls);
+            expect(logged).toContain('not ISO');
+            expect(logged).not.toContain('02/01/2024');
+            expect(logged).not.toContain('15/01/2024');
+        } finally {
+            warn.mockRestore();
         }
     });
 

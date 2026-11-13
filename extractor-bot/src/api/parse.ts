@@ -6,7 +6,7 @@ import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
 import { BkperAIClientError } from '../genai/BkperAIClientError.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
-import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
+import { normalizeExtractedDate, setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { findAccount, findFile, findGroup } from '../utils/lookup-utils.js';
 import { ExtractedTransactionSchema, ParseResultSchema, type ParseRequest, type ParseResult } from './schemas.js';
 
@@ -54,6 +54,11 @@ function apiError(error: unknown): NonNullable<ParseResult['error']> {
     if (error instanceof BkperError && [401, 403, 404].includes(error.code)) return { code: 'FORBIDDEN', message: 'Target Book access is required.' };
     if (error instanceof BkperAIClientError) return { code: error.code, message: error.code === 'usage_limit_exceeded' ? 'Bkper AI allowance is exhausted.' : 'Bkper AI parsing failed.' };
     return { code: 'DEPENDENCY_ERROR', message: 'A parsing dependency failed.' };
+}
+
+/** Validates an extracted row. As in file imports, a date that is not ISO YYYY-MM-DD is dropped, not rejected. */
+function validateExtraction(extracted: ExtractedTransaction): ExtractedTransaction {
+    return ExtractedTransactionSchema.parse({ ...extracted, date: normalizeExtractedDate(extracted.date) ?? null });
 }
 
 function applyExtraction(transaction: Transaction, extracted: ExtractedTransaction): void {
@@ -106,7 +111,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
             const books = new Map<string, Book>([[request.bookId, book]]);
             for (const value of extraction.transactions) {
                 signal?.throwIfAborted();
-                const extracted = ExtractedTransactionSchema.parse(value);
+                const extracted = validateExtraction(value);
                 const bookId = extracted.book_id || request.bookId;
                 let targetBook = books.get(bookId);
                 if (!targetBook) {
@@ -126,6 +131,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
             const before = JSON.stringify(transaction.json());
             let account: Account | undefined;
             let extracted: ExtractedTransaction | undefined;
+            let extractedDate: string | null | undefined;
             if (file) {
                 const prompts = await context.promptLookupService.lookupPrompts({ book, file, transaction });
                 const transactionPrompt = prompts?.getPrompt('transaction');
@@ -135,13 +141,17 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
                     !transaction.getAmount() || !transaction.getDescription().trim() ? service.extractAttachedTransaction(file, transactionPrompt) : Promise.resolve(undefined),
                     service.extractFilePropertiesIfConfigured(file, prompts?.getPrompt('file')),
                 ]);
-                if (extracted) applyExtraction(transaction, ExtractedTransactionSchema.parse(extracted));
+                if (extracted) {
+                    const validated = validateExtraction(extracted);
+                    applyExtraction(transaction, validated);
+                    extractedDate = validated.date;
+                }
             }
             if (transaction.payload.amount === undefined) {
                 const amount = await context.createExtractorAmount().extract(transaction.getDescription() || '');
                 if (amount && amount.gt(0)) transaction.payload.amount = amount.toString();
             }
-            if ((!transaction.payload.date || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) && !extracted?.date) {
+            if ((!transaction.payload.date || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) && !extractedDate) {
                 const date = await context.createExtractorDate().extract(transaction.getDescription() || '');
                 if (date) transaction.payload.date = date;
             }

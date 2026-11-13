@@ -1,4 +1,5 @@
 import { Transaction, Account, Amount, AccountType } from "bkper-js";
+import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 
 export function setAccountBasedOnAmount(transaction: Transaction, account: Account | undefined, amount: Amount | undefined) {
     if (!account || !amount) {
@@ -59,4 +60,22 @@ export async function getAmountSignFromAccountSide(transaction: Transaction, acc
     }
 
     return amount;
+}
+
+export function normalizeExtractedDate(date: ExtractedTransaction['date'] | undefined): string | undefined {
+    if (!date) {
+        return undefined;
+    }
+
+    const trimmedDate = date.trim();
+    if (!trimmedDate || trimmedDate.toLowerCase() === 'null' || trimmedDate.toLowerCase() === 'undefined') {
+        return undefined;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+        console.warn('Ignoring an extracted date that is not ISO YYYY-MM-DD');
+        return undefined;
+    }
+
+    return trimmedDate;
 }

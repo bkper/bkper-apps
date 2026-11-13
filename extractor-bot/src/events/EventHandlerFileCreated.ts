@@ -3,7 +3,7 @@ import { EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, EXTRACTOR_TRA
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
-import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
+import { normalizeExtractedDate, setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { findAccount } from '../utils/lookup-utils.js';
 import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClient.js';
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
@@ -408,8 +408,8 @@ export class EventHandlerFileCreated extends EventHandler {
     }
 
     private compareExtractedTransactionDates(a: ExtractedTransaction, b: ExtractedTransaction): number {
-        const aDate = this.normalizeExtractedDate(a.date);
-        const bDate = this.normalizeExtractedDate(b.date);
+        const aDate = normalizeExtractedDate(a.date);
+        const bDate = normalizeExtractedDate(b.date);
 
         if (aDate && bDate) {
             return aDate.localeCompare(bDate);
@@ -421,24 +421,6 @@ export class EventHandlerFileCreated extends EventHandler {
             return 1;
         }
         return 0;
-    }
-
-    private normalizeExtractedDate(date: ExtractedTransaction['date'] | undefined): string | undefined {
-        if (!date) {
-            return undefined;
-        }
-
-        const trimmedDate = date.trim();
-        if (!trimmedDate || trimmedDate.toLowerCase() === 'null' || trimmedDate.toLowerCase() === 'undefined') {
-            return undefined;
-        }
-
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
-            console.warn('Ignoring an extracted date that is not ISO YYYY-MM-DD');
-            return undefined;
-        }
-
-        return trimmedDate;
     }
 
     /**
@@ -461,7 +443,7 @@ export class EventHandlerFileCreated extends EventHandler {
             draft: true
         };
 
-        const extractedDate = this.normalizeExtractedDate(extractedTransaction.date);
+        const extractedDate = normalizeExtractedDate(extractedTransaction.date);
         if (extractedDate) {
             tx.date = extractedDate;
         }

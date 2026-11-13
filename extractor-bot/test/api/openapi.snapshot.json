@@ -252,6 +252,14 @@
               "type": "string"
             }
           },
+          "kind": {
+            "description": "Set for File requests without a Transaction: transaction when the File was read as one invoice or receipt, transactions when it was read as statement rows.",
+            "type": "string",
+            "enum": [
+              "transaction",
+              "transactions"
+            ]
+          },
           "outcome": {
             "type": "string",
             "enum": [

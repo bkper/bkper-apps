@@ -1,62 +1,17 @@
-import { Account, Book, File, Group, Transaction } from 'bkper-js';
+import { File } from 'bkper-js';
 import { AppContext } from '../AppContext.js';
 import { APP_PROPERTY_PREFIXES, EXTRACTOR_PROMPT_FILE_PROPERTY, LEGACY_AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
-import { ExternalExtractorClient } from '../external-extractor/ExternalExtractorClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
-import { ExtractorUrlLookupResult, PromptResolution } from './PromptLookupService.js';
+import { PromptResolution } from './PromptLookupService.js';
 
 export class AttachmentExtractionService {
     constructor(private readonly context: AppContext) { }
 
-    async extractAttachedTransaction(
-        book: Book,
-        transaction: Transaction,
-        file: File,
-        account: Account | undefined,
-        group: Group | undefined,
-        promptResolution: PromptResolution | undefined
-    ): Promise<ExtractedTransaction | undefined> {
-        const parserLookup = await this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'transaction' });
-        if (parserLookup) {
-            const parserAccount = await this.resolveTransactionParserAccount(transaction, account, parserLookup);
-            if (!parserAccount) {
-                throw new Error('Account is required for external transaction parser');
-            }
-            const client = new ExternalExtractorClient(parserLookup.url, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
-            return client.extractTransaction(file, book, parserAccount, parserLookup);
-        }
-
+    async extractAttachedTransaction(file: File, promptResolution: PromptResolution | undefined): Promise<ExtractedTransaction | undefined> {
         return this.context.createExtractorInvoice(file).extract(promptResolution?.prompt);
     }
 
-    private async resolveTransactionParserAccount(transaction: Transaction, account: Account | undefined, parserLookup: ExtractorUrlLookupResult): Promise<Account | undefined> {
-        if (account) {
-            return account;
-        }
-        if (parserLookup.account) {
-            return parserLookup.account;
-        }
-        const creditAccount = await transaction.getCreditAccount();
-        if (creditAccount) {
-            return creditAccount;
-        }
-        return transaction.getDebitAccount();
-    }
-
-    async extractFilePropertiesIfConfigured(
-        book: Book,
-        transaction: Transaction,
-        file: File,
-        account: Account | undefined,
-        group: Group | undefined,
-        filePrompt: PromptResolution | undefined
-    ): Promise<Record<string, string> | undefined> {
-        const parserLookup = await this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'file' });
-        if (parserLookup) {
-            const client = new ExternalExtractorClient(parserLookup.url, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
-            return this.filterFileProperties(await client.extractFileProperties(file, book, account ?? parserLookup.account, parserLookup));
-        }
-
+    async extractFilePropertiesIfConfigured(file: File, filePrompt: PromptResolution | undefined): Promise<Record<string, string> | undefined> {
         if ((filePrompt?.sourceProperty !== EXTRACTOR_PROMPT_FILE_PROPERTY && filePrompt?.sourceProperty !== LEGACY_AGENT_PARSER_FILE_PROPERTY) || !filePrompt.prompt) {
             return undefined;
         }

@@ -22,7 +22,7 @@ sequenceDiagram
     Extractor->>Extractor: Learn from corrections
 ```
 
-**Upload** — select the account the document belongs to, such as the bank account of a statement, and drop the file into the book. The account sets which learned instructions apply and which side of the drafts it takes. Agents and scripts upload with `bkper file upload <path> -b <bookId> --account "<account>"`. For bank statements and CSVs, Extractor Bot creates one draft per line item. For invoices and receipts, it creates one draft with the file attached. Statement rows can go to another book or account when an [external extraction service](#configuration) says so.
+**Upload** — select the account the document belongs to, such as the bank account of a statement, and drop the file into the book. The account sets which learned instructions apply and which side of the drafts it takes. Agents and scripts upload with `bkper file upload <path> -b <bookId> --account "<account>"`. For bank statements and CSVs, Extractor Bot creates one draft per line item. For invoices and receipts, it creates one draft with the file attached.
 
 **Attach** — drop a file onto an existing transaction. Extractor Bot fills in the missing amount, date, and description, adds extracted custom properties, and updates the transaction. Attached files are always read as one invoice or receipt, even multi-page statements.
 
@@ -71,14 +71,11 @@ When the allowance is exhausted:
 | `extractor_prompt_transaction` | Account, group | Extraction instructions for invoices and receipts |
 | `extractor_prompt_transactions` | Account, group | Extraction instructions for statements and CSVs. Learned statement instructions are appended here |
 | `extractor_prompt_file` | Account, group | Instructions for file-level properties, such as invoice numbers, statement periods, or bank names |
-| `extractor_url_transaction` | Account, group, book | [External service](#configuration) for invoices and receipts |
-| `extractor_url_transactions` | Account, group, book | External service for statements and CSVs |
-| `extractor_url_file` | Account, group, book | External service for file-level properties |
 | `agent_excluded_properties` | Account, group, book | Comma- or whitespace-separated property keys left out of extraction comparison and learning. Bookbot also honors it when copying properties |
 
 Extractor Bot uses the first non-empty value from the account, then its first group with a value, then the book; values are not merged.
 
-Properties set under their earlier names (`agent_parser_transaction`, `agent_parser_transactions`, `agent_parser_file`, `agent_parser_url_transaction`, `agent_parser_url_transactions`, `agent_parser_url_file`) keep working; the new name wins when an account, group, or book has both. Instructions move to the new names the next time Extractor Bot uses them; parser URLs are never rewritten. Property keys in `agent_excluded_properties` match case-insensitively and exactly, so `category` does not exclude `category_code`.
+Properties set under their earlier names (`agent_parser_transaction`, `agent_parser_transactions`, `agent_parser_file`) keep working; the new name wins when an account or group has both. Instructions move to the new names the next time Extractor Bot uses them. Property keys in `agent_excluded_properties` match case-insensitively and exactly, so `category` does not exclude `category_code`.
 
 **Example — statement instructions:**
 
@@ -123,23 +120,6 @@ agent_excluded_properties: "trade_date, settlement_date"
 </details>
 
 <details>
-<summary><strong>External extraction services</strong></summary>
-
-A parser URL property replaces built-in AI extraction for its purpose:
-
-- `extractor_url_transaction` — the service returns `data.transaction` for invoices and receipts.
-- `extractor_url_transactions` — the service returns `data.transactions` for statements and CSVs.
-- `extractor_url_file` — the service returns `file.properties` for file-level properties.
-
-The URL is looked up on the account, then its first group with a value, then the group the file was uploaded to, then the book. The service receives a POST with the base64 file content, book metadata, and the account context when available, plus the group context when the URL is set on a group. One endpoint can serve several purposes; Extractor Bot reads only the section for the configured purpose.
-
-Each statement transaction can include `book_id` to record it in another book, and `account_name` to assign it to an account by name. A name not found in the target book records the row without that account.
-
-See the [external extraction service contract](https://github.com/bkper/bkper-apps/blob/main/extractor-bot/docs/TRANSACTIONS_EXTRACTOR_API.md) for the request and response formats.
-
-</details>
-
-<details>
 <summary><strong>Transaction and file metadata</strong></summary>
 
 Extractor Bot stores internal properties (suffixed with `_`) on drafts for learning and traceability:
@@ -152,7 +132,7 @@ Extractor Bot stores internal properties (suffixed with `_`) on drafts for learn
 
 Drafts recorded before these names existed keep `agent_extracted_` and `agent_file_id_`, and are still read.
 
-On the file, `extractor_transactions_summary` (earlier `transactions_summary`) lists, per target book and account, the expected number of non-zero transactions and the IDs of the drafts created. Zero-amount drafts are created but not counted, so a file with only zero-amount transactions gets no summary. ID order is not significant. Only Extractor Bot writes this property; external services cannot set it.
+On the file, `extractor_transactions_summary` (earlier `transactions_summary`) lists, per target book and account, the expected number of non-zero transactions and the IDs of the drafts created. Zero-amount drafts are created but not counted, so a file with only zero-amount transactions gets no summary. ID order is not significant. Extracted file properties never set it.
 
 </details>
 
@@ -180,7 +160,7 @@ Send a `file`, a `transaction`, or both:
 - A **file** is a file already in the book (`id`) or base64 `content`; its type is detected as for uploads. Its `account_id` property selects the account whose instructions and side apply; files uploaded with an account selected already have it.
 - A **transaction** alone supplies a description, or an attachment, to extract a missing amount and date from.
 
-The response lists `transactions`, each with its target `bookId`, optional `fileProperties`, and an `outcome`: `parsed`, `empty`, or `error`. Valid requests return HTTP 200 even when extraction fails, so check `outcome` and `error.code`, such as `FORBIDDEN` or `usage_limit_exceeded`. Malformed requests return HTTP 400.
+The response lists `transactions`, each with its target `bookId`, optional `fileProperties`, and an `outcome`: `parsed`, `empty`, or `error`. For a file sent without a transaction, `kind` tells whether it was read as one invoice or receipt (`transaction`) or as statement rows (`transactions`). Valid requests return HTTP 200 even when extraction fails, so check `outcome` and `error.code`, such as `FORBIDDEN` or `usage_limit_exceeded`. Malformed requests return HTTP 400.
 
 To record the results, ask [Bookbot's API](https://bkper.com/apps/bookbot) for accounts, then create the drafts in each returned `bookId`. Keep the returned `extractor_extracted_` and `extractor_file_id_` properties so Extractor Bot, when installed, can learn when the drafts are posted.
 

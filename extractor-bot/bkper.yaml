@@ -39,24 +39,15 @@ propertiesSchema:
       - extractor_prompt_transaction
       - extractor_prompt_transactions
       - extractor_prompt_file
-      - extractor_url_transaction
-      - extractor_url_transactions
-      - extractor_url_file
       - agent_excluded_properties
   group:
     keys:
       - extractor_prompt_transaction
       - extractor_prompt_transactions
       - extractor_prompt_file
-      - extractor_url_transaction
-      - extractor_url_transactions
-      - extractor_url_file
       - agent_excluded_properties
   book:
     keys:
-      - extractor_url_transaction
-      - extractor_url_transactions
-      - extractor_url_file
       - agent_excluded_properties
 
 filePatterns:

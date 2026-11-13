@@ -1,11 +1,12 @@
 import { Book, File, Transaction } from 'bkper-js';
-import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { DiscoveryError } from '../services/BookbotDiscoveryClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
+import { PARSER_URL_OWNED_LOG } from './EventHandlerFileCreated.js';
 
 export class EventHandlerTransactionCreated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
@@ -52,14 +53,24 @@ export class EventHandlerTransactionCreated extends EventHandler {
                 const account = promptResolution?.account ?? promptContext?.account;
                 const group = promptResolution?.group ?? promptContext?.group;
 
+                // A parser URL for the attachment gives it to another app.
+                const parserLookups = await Promise.all([
+                    this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'transaction' }),
+                    this.context.promptLookupService.lookupParserUrl({ book, transaction, file, account, group, purpose: 'file' }),
+                ]);
+                if (parserLookups.some(lookup => !!lookup)) {
+                    console.log(PARSER_URL_OWNED_LOG);
+                    return { result: false };
+                }
+
                 const needsTransactionExtraction = !transaction.getAmount() || !transaction.getDescription().trim();
                 let extractedTransaction: ExtractedTransaction | undefined;
                 let fileProperties: Record<string, string> | undefined;
                 const attachmentExtractionService = new AttachmentExtractionService(this.context);
                 try {
                     [extractedTransaction, fileProperties] = await Promise.all([
-                        needsTransactionExtraction ? attachmentExtractionService.extractAttachedTransaction(book, transaction, file, account, group, promptResolution) : Promise.resolve(undefined),
-                        attachmentExtractionService.extractFilePropertiesIfConfigured(book, transaction, file, account, group, filePrompt),
+                        needsTransactionExtraction ? attachmentExtractionService.extractAttachedTransaction(file, promptResolution) : Promise.resolve(undefined),
+                        attachmentExtractionService.extractFilePropertiesIfConfigured(file, filePrompt),
                     ]);
                 } catch (error) {
                     console.error('Attachment extraction failed:', error);
@@ -156,6 +167,11 @@ export class EventHandlerTransactionCreated extends EventHandler {
                     };
                 }
             } else {
+                // Drafts recorded from a file by another app: Extractor Bot does not discover or extract them.
+                if (transaction.getProperty(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY)) {
+                    return { result: false };
+                }
+
                 let updated = false;
                 const discoveryResult = await discovery.discover(book.getId() || '', [{ transaction }]);
                 if (discoveryResult.outcomes[0] === 'changed') {

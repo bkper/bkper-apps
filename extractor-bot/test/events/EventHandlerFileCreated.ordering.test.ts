@@ -1,10 +1,10 @@
 /// <reference types="@bkper/bkper-api-types" />
 
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
+import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 function createTransactionsWithNativeIds(transactions: Transaction[]): Transaction[] {
@@ -14,7 +14,7 @@ function createTransactionsWithNativeIds(transactions: Transaction[]): Transacti
     } as unknown as Transaction));
 }
 
-// Verifies that transactions are recorded before file.update() is called in the external extractor path.
+// Verifies that transactions are recorded before file.update() is called.
 // file.update() fires a FILE_UPDATED event in Bkper, so transactions must already be persisted when it propagates.
 describe('EventHandlerFileCreated - operation ordering', () => {
     let mockBook: Book;
@@ -22,13 +22,14 @@ describe('EventHandlerFileCreated - operation ordering', () => {
     let mockAccount: Account;
     let mockContext: AppContext;
     let eventHandler: EventHandlerFileCreated;
-    let originalExtract: (...args: any[]) => any;
+    let statementRows: ExtractedTransaction[];
 
     // Tracks the sequence in which side-effecting operations are executed
     let callOrder: string[];
 
     beforeEach(() => {
         callOrder = [];
+        statementRows = [];
 
         mockFile = {
             getId: () => 'file_1',
@@ -81,33 +82,17 @@ describe('EventHandlerFileCreated - operation ordering', () => {
                 getBook: mock(async () => mockBook),
             },
             createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
+            createExtractorStatementCSV: () => ({ extract: async () => ({ transactions: statementRows }) }),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
                     getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
-                lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => purpose === 'transactions' ? ({
-                    url: 'https://extractor.example.com/extract',
-                    source: 'account' as const,
-                    account: mockAccount,
-                }) : null),
-                lookupTransactionsParserUrl: mock(async () => ({
-                    url: 'https://extractor.example.com/extract',
-                    source: 'account' as const,
-                    account: mockAccount,
-                })),
+                lookupParserUrl: mock(async () => null),
             },
         } as unknown as AppContext;
 
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        originalExtract = ExternalExtractorClient.prototype.extract;
-
         eventHandler = new EventHandlerFileCreated(mockContext);
-    });
-
-    afterEach(() => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = originalExtract;
     });
 
     function makeEvent(fileId: string): bkper.Event {
@@ -119,7 +104,7 @@ describe('EventHandlerFileCreated - operation ordering', () => {
 
     // Confirms the batch-created transaction results are returned to the orchestration caller.
     it('returns created transaction batches', async () => {
-        const extractorResult: ExternalExtractorResult = {
+        const extractorResult: { transactions: ExtractedTransaction[] } = {
             transactions: [{ date: '2024-01-02', description: 'TREASURY BILL', amount: 179000.0, properties: {} }],
         };
 
@@ -138,12 +123,7 @@ describe('EventHandlerFileCreated - operation ordering', () => {
 
     // Confirms that transaction creation still completes before the FILE_UPDATED-triggering file update.
     it('records transactions before updating the file summary', async () => {
-        const extractorResult: ExternalExtractorResult = {
-            transactions: [{ date: '2024-01-02', description: 'TREASURY BILL', amount: 179000.0, properties: {} }],
-        };
-
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = mock(async () => extractorResult);
+        statementRows = [{ date: '2024-01-02', description: 'TREASURY BILL', amount: 179000.0, properties: {} }];
 
         await eventHandler.handleEvent(mockBook, makeEvent('file_1'));
 

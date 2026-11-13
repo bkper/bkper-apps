@@ -37,12 +37,13 @@ export const ErrorSchema = z.object({ code: z.string(), message: z.string() });
 export const ParseResultSchema = z.object({
     transactions: z.array(z.object({ bookId: z.string(), transaction: TransactionSchema })),
     fileProperties: z.record(z.string(), z.string()).optional(),
+    kind: z.enum(['transaction', 'transactions']).optional().describe('Set for File requests without a Transaction: transaction when the File was read as one invoice or receipt, transactions when it was read as statement rows.'),
     outcome: z.enum(['parsed', 'empty', 'error']),
     error: ErrorSchema.optional(),
 });
 export const ErrorResponseSchema = z.object({ error: ErrorSchema });
 
-// External parsers are untrusted; validate extracted fields before making canonical suggestions.
+// Extracted values are untrusted; validate them before making canonical suggestions.
 export const ExtractedTransactionSchema: z.ZodType<ExtractedTransaction> = z.object({
     date: z.iso.date().nullable(),
     description: z.string(),

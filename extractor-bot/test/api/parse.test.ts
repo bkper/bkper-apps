@@ -9,6 +9,7 @@ import { ExtractorStatementCSV } from '../../src/genai/statement/csv/ExtractorSt
 import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
 import { ExtractorDate } from '../../src/genai/ExtractorDate.js';
 import { ExtractorFileProperties } from '../../src/genai/file/ExtractorFileProperties.js';
+import { ExtractorFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
 
 const originalGenerate = BkperAIResponsesClient.prototype.generate;
 const originalTransactionCreate = Transaction.prototype.create;
@@ -135,7 +136,7 @@ describe('read-only parse', () => {
     it('distinguishes empty results, safe dependency failures, and cancellation', async () => {
         const { context } = setup();
         context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [] })) }) as unknown as ExtractorStatementCSV;
-        expect(await parse({ bookId: 'book_1', file }, context)).toEqual({ transactions: [], outcome: 'empty' });
+        expect(await parse({ bookId: 'book_1', file }, context)).toEqual({ transactions: [], outcome: 'empty', kind: 'transactions' });
         context.createExtractorStatementCSV = () => ({ extract: mock(async () => { throw new Error('private parser response'); }) }) as unknown as ExtractorStatementCSV;
         expect(await parse({ bookId: 'book_1', file }, context)).toEqual({ transactions: [], outcome: 'error', error: { code: 'DEPENDENCY_ERROR', message: 'A parsing dependency failed.' } });
         const signal = AbortSignal.abort();
@@ -163,7 +164,7 @@ describe('read-only parse', () => {
         context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [] })) }) as unknown as ExtractorStatementCSV;
         context.createExtractorFileProperties = () => ({ extract: mock(async () => ({ properties: { issuer: 'Bank', pages: 2, agent_hidden: 'hidden', transactions_summary: 'raw parser property' } })) }) as unknown as ExtractorFileProperties;
         const request = { bookId: 'book_1', file: { ...file, properties: { account_id: 'account_1' } } };
-        expect(await parse(request, context)).toEqual({ transactions: [], outcome: 'parsed', fileProperties: { issuer: 'Bank', pages: '2' } });
+        expect(await parse(request, context)).toEqual({ transactions: [], outcome: 'parsed', kind: 'transactions', fileProperties: { issuer: 'Bank', pages: '2' } });
         expect(await parse({ ...request, transaction: { amount: '10', date: '2024-01-01', description: 'Supplied' } }, context)).toEqual({ transactions: [], outcome: 'parsed', fileProperties: { issuer: 'Bank', pages: '2', transactions_summary: 'raw parser property' } });
     });
 
@@ -241,66 +242,41 @@ describe('read-only parse', () => {
         expect(await parse({ bookId: 'book_1', file: { ...file, properties: { group_id: 'group_1' } } }, context)).toMatchObject({ outcome: 'error', error: { code: 'FORBIDDEN' } });
     });
 
-    it('preserves external parser group ownership in the API without logging private context', async () => {
+    it('E4: never calls a configured parser URL and extracts with AI on both paths', async () => {
         const { book, context } = setup();
-        const group = new Group(book, { id: 'group_1', name: 'PRIVATE GROUP', properties: { agent_parser_url_transactions: 'https://parser.example.com' } });
-        const account = new Account(book, { id: 'account_1', name: 'PRIVATE ACCOUNT', type: 'ASSET' });
+        const group = new Group(book, { id: 'group_1', properties: { extractor_url_transactions: 'https://parser.example.com', extractor_url_file: 'https://parser.example.com' } });
+        const account = new Account(book, { id: 'account_1', type: 'ASSET', properties: { agent_parser_url_transaction: 'https://parser.example.com', agent_parser_url_file: 'https://parser.example.com' } });
         account.getGroups = mock(async () => [group]);
-        group.getAccounts = mock(async () => [account]);
         book.getAccount = mock(async () => account);
+        book.setProperty('agent_parser_url_transactions', 'https://parser.example.com');
         const originalFetch = globalThis.fetch;
-        const originalLog = console.log;
-        const logs: unknown[][] = [];
-        console.log = (...args: unknown[]) => { logs.push(args); };
-        const requests: Array<{ group?: bkper.Group; file: bkper.File }> = [];
-        globalThis.fetch = mock(async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-            requests.push(JSON.parse(String(init?.body)) as { group?: bkper.Group; file: bkper.File });
-            return new Response(JSON.stringify({ success: true, data: { transactions: [{ date: null, description: 'Row', amount: 10, properties: {} }] } }), { headers: { 'Content-Type': 'application/json' } });
-        }) as unknown as typeof fetch;
+        const fetchMock = mock(async () => { throw new Error('Parser URLs must not be called'); });
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [{ date: null, description: 'Row', amount: -10, properties: {} }] })) }) as unknown as ExtractorStatementCSV;
+        context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: '2024-01-02', description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
         try {
-            const request = { bookId: 'book_1', file: { ...file, properties: { account_id: 'account_1' } } };
-            expect((await parse(request, context)).outcome).toBe('parsed');
-            expect(requests[0].group?.id).toBe('group_1');
-            account.setProperty('agent_parser_url_transactions', 'https://parser.example.com');
-            expect((await parse(request, context)).outcome).toBe('parsed');
-            expect(requests[1].group).toBeUndefined();
-            account.deleteProperty('agent_parser_url_transactions');
-            group.deleteProperty('agent_parser_url_transactions');
-            book.setProperty('agent_parser_url_transactions', 'https://parser.example.com');
-            expect((await parse(request, context)).outcome).toBe('parsed');
-            expect(requests[2].group).toBeUndefined();
-            expect(JSON.stringify(logs)).not.toContain('PRIVATE');
-            expect(JSON.stringify(logs)).not.toContain(file.content!);
+            const statement = await parse({ bookId: 'book_1', file: { ...file, properties: { account_id: 'account_1' } } }, context);
+            expect(statement).toMatchObject({ outcome: 'parsed', kind: 'transactions', transactions: [{ transaction: { description: 'Row' } }] });
+            const attachment = await parse({ bookId: 'book_1', transaction: { creditAccount: { id: 'account_1' }, files: [{ ...file, name: 'invoice.pdf', contentType: 'application/pdf' }] } }, context);
+            expect(attachment).toMatchObject({ outcome: 'parsed', transactions: [{ transaction: { description: 'Invoice', amount: '10' } }] });
+            expect(fetchMock).not.toHaveBeenCalled();
         } finally {
             globalThis.fetch = originalFetch;
-            console.log = originalLog;
         }
     });
 
-    it('cancels an in-flight external parser request without retrying the network call', async () => {
-        const { book, bkper } = setup();
-        const account = new Account(book, { id: 'account_1', properties: { agent_parser_url_transactions: 'https://parser.example.com' } });
-        account.getGroups = mock(async () => []);
-        book.getAccount = mock(async () => account);
-        const controller = new AbortController();
-        const context = new AppContext(bkper, {} as Env, 'test-token', controller.signal, true);
-        const originalFetch = globalThis.fetch;
-        let started!: () => void;
-        const fetching = new Promise<void>(resolve => { started = resolve; });
-        const fetchMock = mock(async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-            started();
-            return new Promise<Response>((_resolve, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true }); });
-        });
-        globalThis.fetch = fetchMock as unknown as typeof fetch;
-        try {
-            const result = parse({ bookId: 'book_1', file: { ...file, properties: { account_id: 'account_1' } } }, context, controller.signal);
-            await fetching;
-            controller.abort();
-            expect(await result).toMatchObject({ outcome: 'error', error: { code: 'REQUEST_ABORTED' } });
-            expect(fetchMock).toHaveBeenCalledTimes(1);
-        } finally {
-            globalThis.fetch = originalFetch;
-        }
+    it('reports the kind of extraction for file requests only', async () => {
+        const { context } = setup();
+        context.createExtractorStatementCSV = () => ({ extract: mock(async () => ({ transactions: [] })) }) as unknown as ExtractorStatementCSV;
+        expect(await parse({ bookId: 'book_1', file }, context)).toEqual({ transactions: [], outcome: 'empty', kind: 'transactions' });
+        context.createExtractorFileClassification = () => ({ extract: mock(async () => ({ kind: 'single_transaction' })) }) as unknown as ExtractorFileClassification;
+        context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: '2024-01-02', description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
+        const pdf = { name: 'invoice.pdf', contentType: 'application/pdf', content: 'ZGF0YQ==' };
+        expect(await parse({ bookId: 'book_1', file: pdf }, context)).toMatchObject({ outcome: 'parsed', kind: 'transaction' });
+        const withTransaction = await parse({ bookId: 'book_1', file: pdf, transaction: { description: 'Supplied', amount: '10', date: '2024-01-01' } }, context);
+        expect(withTransaction.kind).toBeUndefined();
+        context.createExtractorDate = () => ({ extract: mock(async () => undefined) }) as unknown as ExtractorDate;
+        expect((await parse({ bookId: 'book_1', transaction: { description: 'Payment', amount: '10' } }, context)).kind).toBeUndefined();
     });
 
     it('keeps default amount/date failure handling unchanged outside the API', async () => {

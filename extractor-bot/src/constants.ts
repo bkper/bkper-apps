@@ -42,7 +42,7 @@ export const LEGACY_TRANSACTIONS_SUMMARY_PROPERTY = 'transactions_summary';
 export const LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY = 'agent_credit_account_id_';
 export const LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY = 'agent_debit_account_id_';
 
-// Prefixes of properties written by Bkper apps, never sent to external parsers nor learned from.
+// Prefixes of properties written by Bkper apps, never learned from nor kept in extracted file properties.
 export const APP_PROPERTY_PREFIXES = ['agent_', 'extractor_', 'bookbot_'] as const;
 
 // Bkper AI usage label (`bkper-ai-source` header) for every Extractor Bot request, from events and the parse API alike

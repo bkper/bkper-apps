@@ -1,10 +1,10 @@
 /// <reference types="@bkper/bkper-api-types" />
 
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
+import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 function createTransactionsWithNativeIds(transactions: Transaction[]): Transaction[] {
@@ -19,11 +19,9 @@ describe('EventHandlerFileCreated - file properties', () => {
     let mockAccount: Account;
     let mockContext: AppContext;
     let eventHandler: EventHandlerFileCreated;
-    let originalExtract: (...args: any[]) => any;
-    let originalExtractFileProperties: (...args: any[]) => any;
 
-    // Controlled stub for what the external extractor returns in each test
-    let extractorResult: ExternalExtractorResult;
+    // Controlled stub for what extraction returns in each test
+    let extractorResult: { transactions: ExtractedTransaction[] };
     let filePropertiesResult: Record<string, string> | undefined;
 
     // Tracks calls to file.setProperty and file.update for assertion
@@ -90,55 +88,20 @@ describe('EventHandlerFileCreated - file properties', () => {
                 getBook: mock(async () => mockBook),
             },
             createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
+            createExtractorStatementCSV: () => ({ extract: async () => extractorResult }),
+            createExtractorFileProperties: () => ({ extract: async () => filePropertiesResult ? { properties: filePropertiesResult } : undefined }),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
+                    getPrompt: (purpose: string) => purpose === 'file'
+                        ? { prompt: 'Extract statement details', account: mockAccount, promptEntity: mockAccount, sourceProperty: 'extractor_prompt_file', targetProperty: 'extractor_prompt_file' }
+                        : { account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' },
                 })),
-                lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => {
-                    if (purpose === 'transactions') {
-                        return {
-                            url: 'https://extractor.example.com/extract-transactions',
-                            source: 'account' as const,
-                            account: mockAccount,
-                        };
-                    }
-                    if (purpose === 'file') {
-                        return {
-                            url: 'https://extractor.example.com/extract-file',
-                            source: 'account' as const,
-                            account: mockAccount,
-                        };
-                    }
-                    return null;
-                }),
-                lookupTransactionsParserUrl: mock(async () => ({
-                    url: 'https://extractor.example.com/extract-transactions',
-                    source: 'account' as const,
-                    account: mockAccount,
-                })),
-                lookupFileParserUrl: mock(async () => ({
-                    url: 'https://extractor.example.com/extract-file',
-                    source: 'account' as const,
-                    account: mockAccount,
-                })),
+                lookupParserUrl: mock(async () => null),
             },
         } as unknown as AppContext;
 
-        // Stub ExternalExtractorClient so tests control the returned result directly
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        originalExtract = ExternalExtractorClient.prototype.extract;
-        originalExtractFileProperties = ExternalExtractorClient.prototype.extractFileProperties;
-        ExternalExtractorClient.prototype.extract = mock(async () => extractorResult);
-        ExternalExtractorClient.prototype.extractFileProperties = mock(async () => filePropertiesResult);
-
         eventHandler = new EventHandlerFileCreated(mockContext);
-    });
-
-    afterEach(() => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = originalExtract;
-        ExternalExtractorClient.prototype.extractFileProperties = originalExtractFileProperties;
     });
 
     function makeEvent(fileId: string): bkper.Event {
@@ -192,9 +155,12 @@ describe('EventHandlerFileCreated - file properties', () => {
 
     // Verifies a file-property parser failure prevents both transaction creation and file updates.
     it('does not record transactions when configured file parser fails before writes', async () => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extractFileProperties = mock(async () => {
-            throw new Error('file parser failed');
+        Object.assign(mockContext, {
+            createExtractorFileProperties: () => ({
+                extract: async () => {
+                    throw new Error('file parser failed');
+                },
+            }),
         });
 
         const result = await eventHandler.handleEvent(mockBook, makeEvent('file_1'));

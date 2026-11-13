@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Account, Book, File, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
+import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
 import type { DiscoveryBatchOutcome, DiscoveryItem } from '../../src/services/BookbotDiscoveryClient.js';
 
 // Verifies that file imports ask Bookbot for discovery once per target Book and still record drafts when discovery fails.
@@ -15,7 +16,7 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
     let created: Map<string, Transaction[]>;
     let discover: ReturnType<typeof mock<(bookId: string, items: DiscoveryItem[]) => Promise<DiscoveryBatchOutcome>>>;
     let eventHandler: EventHandlerFileCreated;
-    let originalExtract: (...args: any[]) => any;
+    let statementRows: ExtractedTransaction[];
     let originalCreate: typeof Transaction.prototype.create;
 
     function createBook(id: string): Book {
@@ -54,30 +55,27 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
         mockBook = createBook('book_1');
         otherBook = createBook('book_2');
         discover = mock(async (_bookId: string, items: DiscoveryItem[]) => ({ outcomes: items.map(() => 'no_match' as const) }));
+        statementRows = [];
 
         const context = {
             env: {},
             bkper: { getBook: mock(async () => otherBook) },
             createBookbotDiscoveryClient: () => ({ discover }),
+            createExtractorStatementCSV: () => ({ extract: async () => ({ transactions: statementRows }) }),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
                     getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
                 })),
-                lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => purpose === 'transactions' ? ({ url: 'https://extractor.example.com/extract', source: 'account' as const, account: mockAccount }) : null),
-                lookupTransactionsParserUrl: mock(async () => ({ url: 'https://extractor.example.com/extract', source: 'account' as const, account: mockAccount })),
+                lookupParserUrl: mock(async () => null),
             },
         } as unknown as AppContext;
 
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        originalExtract = ExternalExtractorClient.prototype.extract;
         originalCreate = Transaction.prototype.create;
         eventHandler = new EventHandlerFileCreated(context);
     });
 
     afterEach(() => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = originalExtract;
         Transaction.prototype.create = originalCreate;
     });
 
@@ -109,13 +107,10 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
             outcomes: items.map(() => 'error' as const),
             error: { code: 'UNAVAILABLE', message: 'Bookbot discovery is unavailable.' },
         }));
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = mock(async () => ({
-            transactions: [
-                { date: '2026-10-28', description: 'Monthly rent', amount: -1500, properties: {} },
-                { date: '2026-10-05', description: 'Adobe subscription', amount: -60, properties: {} },
-            ],
-        }));
+        statementRows = [
+            { date: '2026-10-28', description: 'Monthly rent', amount: -1500, properties: {} },
+            { date: '2026-10-05', description: 'Adobe subscription', amount: -60, properties: {} },
+        ];
 
         const result = await eventHandler.handleEvent(mockBook, { bookId: 'book_1', data: { object: { id: 'file_1' } } } as bkper.Event);
 
@@ -129,10 +124,7 @@ describe('EventHandlerFileCreated - Bookbot discovery', () => {
     });
 
     it('does not warn when Bookbot finds no match', async () => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = mock(async () => ({
-            transactions: [{ date: '2026-10-28', description: 'Monthly rent', amount: -1500, properties: {} }],
-        }));
+        statementRows = [{ date: '2026-10-28', description: 'Monthly rent', amount: -1500, properties: {} }];
 
         const result = await eventHandler.handleEvent(mockBook, { bookId: 'book_1', data: { object: { id: 'file_1' } } } as bkper.Event);
 

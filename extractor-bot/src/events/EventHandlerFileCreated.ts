@@ -9,6 +9,9 @@ import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClien
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
 
+/** Logged when a parser URL gives the extraction to another app. Never log the URL. */
+export const PARSER_URL_OWNED_LOG = 'Parser URL configured; extraction belongs to another app';
+
 interface TransactionRecording {
     extracted: ExtractedTransaction;
     transactionId?: string;
@@ -62,7 +65,13 @@ export class EventHandlerFileCreated extends EventHandler {
         }
 
         try {
-            const extraction = await new FileParserRouter(this.context).parse(book, file);
+            const router = new FileParserRouter(this.context);
+            if (await router.hasParserUrl(book, file)) {
+                console.log(PARSER_URL_OWNED_LOG);
+                return { result: false };
+            }
+
+            const extraction = await router.parse(book, file);
 
             prompt = extraction.prompt;
             transactions = extraction.transactions;

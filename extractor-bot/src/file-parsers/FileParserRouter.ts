@@ -1,14 +1,11 @@
 import { Account, Book, File, Group } from 'bkper-js';
 import { AppContext } from '../AppContext.js';
 import { EXTRACTOR_PROMPT_FILE_PROPERTY, LEGACY_AGENT_PARSER_FILE_PROPERTY } from '../constants.js';
-import { ExtractorUrlLookupResult, PromptResolution } from '../services/PromptLookupService.js';
-import { FileParserExternalFileProperties } from './FileParserExternalFileProperties.js';
-import { FileParserExternalTransaction } from './FileParserExternalTransaction.js';
-import { FileParserExternalTransactions } from './FileParserExternalTransactions.js';
+import { PromptResolution } from '../services/PromptLookupService.js';
 import { FileParserGenAIFileProperties } from './FileParserGenAIFileProperties.js';
 import { FileParserGenAITransaction } from './FileParserGenAITransaction.js';
 import { FileParserGenAITransactions } from './FileParserGenAITransactions.js';
-import { FileParsingResult, FilePropertiesParser, FileTransactionExtraction, FileTransactionParser, FileTransactionsParser } from './FileParserInterfaces.js';
+import { FileParsingResult, FilePropertiesParser, FileTransactionExtraction, FileTransactionsParser } from './FileParserInterfaces.js';
 import { isCSVFile } from './FileParserUtils.js';
 
 interface FileParserContext {
@@ -19,9 +16,6 @@ interface FileParserContext {
     transactionsPrompt?: PromptResolution;
     transactionPrompt?: PromptResolution;
     filePrompt?: PromptResolution;
-    transactionsParserLookup?: ExtractorUrlLookupResult;
-    transactionParserLookup?: ExtractorUrlLookupResult;
-    fileParserLookup?: ExtractorUrlLookupResult;
 }
 
 export class FileParserRouter {
@@ -40,6 +34,20 @@ export class FileParserRouter {
         };
     }
 
+    /**
+     * Whether a parser URL is configured for the file: another app owns its extraction.
+     * Keep these lookups identical to the ones that app performs.
+     */
+    async hasParserUrl(book: Book, file: File): Promise<boolean> {
+        const { account, group } = await this.createParserContext(book, file);
+        const lookups = await Promise.all([
+            this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'transactions' }),
+            isCSVFile(file) ? Promise.resolve(null) : this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'transaction' }),
+            this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'file' }),
+        ]);
+        return lookups.some(lookup => !!lookup);
+    }
+
     private async createParserContext(book: Book, file: File): Promise<FileParserContext> {
         const promptContext = await this.context.promptLookupService.lookupPrompts({ book, file });
         const transactionsPrompt = promptContext?.getPrompt('transactions');
@@ -47,12 +55,6 @@ export class FileParserRouter {
         const filePrompt = promptContext?.getPrompt('file');
         const account = transactionsPrompt?.account ?? transactionPrompt?.account ?? promptContext?.account;
         const group = transactionsPrompt?.group ?? transactionPrompt?.group ?? promptContext?.group;
-
-        const [transactionsParserLookup, transactionParserLookup, fileParserLookup] = await Promise.all([
-            this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'transactions' }),
-            isCSVFile(file) ? Promise.resolve(null) : this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'transaction' }),
-            this.context.promptLookupService.lookupParserUrl({ book, file, account, group, purpose: 'file' }),
-        ]);
 
         return {
             book,
@@ -62,34 +64,10 @@ export class FileParserRouter {
             transactionsPrompt,
             transactionPrompt,
             filePrompt,
-            transactionsParserLookup: transactionsParserLookup ?? undefined,
-            transactionParserLookup: transactionParserLookup ?? undefined,
-            fileParserLookup: fileParserLookup ?? undefined,
         };
     }
 
     private async parseTransactions(parserContext: FileParserContext): Promise<FileTransactionExtraction> {
-        const externalTransactionsParser = this.selectExternalTransactionsParser(parserContext);
-        if (externalTransactionsParser) {
-            return externalTransactionsParser.parse({
-                book: parserContext.book,
-                file: parserContext.file,
-                account: parserContext.account,
-                transactionsPrompt: parserContext.transactionsPrompt,
-                transactionPrompt: parserContext.transactionPrompt,
-            });
-        }
-
-        const transactionParser = this.selectTransactionParser(parserContext);
-        if (transactionParser) {
-            return transactionParser.parse({
-                book: parserContext.book,
-                file: parserContext.file,
-                account: parserContext.transactionParserLookup ? parserContext.account : parserContext.transactionPrompt?.account ?? parserContext.account,
-                prompt: parserContext.transactionPrompt?.prompt,
-            });
-        }
-
         return this.selectDefaultTransactionsParser().parse({
             book: parserContext.book,
             file: parserContext.file,
@@ -113,27 +91,11 @@ export class FileParserRouter {
         });
     }
 
-    private selectExternalTransactionsParser(parserContext: FileParserContext): FileTransactionsParser | undefined {
-        return parserContext.transactionsParserLookup ? new FileParserExternalTransactions(parserContext.transactionsParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined) : undefined;
-    }
-
-    private selectTransactionParser(parserContext: FileParserContext): FileTransactionParser | undefined {
-        if (parserContext.transactionParserLookup) {
-            return new FileParserExternalTransaction(parserContext.transactionParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
-        }
-
-        return undefined;
-    }
-
     private selectDefaultTransactionsParser(): FileTransactionsParser {
         return new FileParserGenAITransactions(this.context, new FileParserGenAITransaction(this.context));
     }
 
     private selectFilePropertiesParser(parserContext: FileParserContext): FilePropertiesParser | undefined {
-        if (parserContext.fileParserLookup) {
-            return new FileParserExternalFileProperties(parserContext.fileParserLookup, !this.context.readOnly, this.context.readOnly ? this.context.requestSignal : undefined);
-        }
-
         const fileSource = parserContext.filePrompt?.sourceProperty;
         if ((fileSource === EXTRACTOR_PROMPT_FILE_PROPERTY || fileSource === LEGACY_AGENT_PARSER_FILE_PROPERTY) && parserContext.filePrompt?.prompt) {
             return new FileParserGenAIFileProperties(this.context);

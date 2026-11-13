@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { EventHandlerFileCreated } from '../../src/events/EventHandlerFileCreated.js';
 import { BkperError, Book, File, Account, Transaction, TransactionList } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
-import { ExternalExtractorResult } from '../../src/external-extractor/ExternalExtractorTypes.js';
+import { ExtractedTransaction } from '../../src/genai/ExtractedTransaction.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 import { firstNonBlank } from '../helpers/properties.js';
 
@@ -42,8 +42,6 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
     let mockAccount: Account;
     let mockContext: AppContext;
     let eventHandler: EventHandlerFileCreated;
-    let originalExtract: (...args: any[]) => any;
-    let originalExtractFileProperties: (...args: any[]) => any;
     let originalTransactionCreate: typeof Transaction.prototype.create;
 
     // Spy surfaces for assertions
@@ -51,10 +49,8 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
     let fileUpdateCallCount: number;
 
     // Controlled extractor result — overridden per test
-    let extractorResult: ExternalExtractorResult;
+    let extractorResult: { transactions: ExtractedTransaction[] };
     let filePropertiesResult: Record<string, string> | undefined;
-    let genAITransactions: ExternalExtractorResult['transactions'];
-    let useExternalTransactionsParser: boolean;
 
     beforeEach(() => {
         fileSetPropertyCalls = [];
@@ -113,8 +109,6 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
             transactions: [{ date: '2024-01-01', description: 'Tx 1', amount: 100, properties: {} }],
         };
         filePropertiesResult = undefined;
-        genAITransactions = [];
-        useExternalTransactionsParser = true;
 
         mockContext = {
             env: {},
@@ -126,51 +120,26 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
                 extract: mock(async () => ({ kind: 'statement' as const })),
             }),
             createExtractorStatementIMG: () => ({
-                extract: mock(async () => ({ transactions: genAITransactions })),
+                extract: mock(async () => ({ transactions: extractorResult.transactions })),
+            }),
+            createExtractorFileProperties: () => ({
+                extract: mock(async () => ({ properties: filePropertiesResult })),
             }),
             promptLookupService: {
                 lookupPrompts: mock(async () => ({
                     account: mockAccount,
-                    getPrompt: () => ({ account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' }),
+                    getPrompt: (purpose: string) => purpose === 'file' && filePropertiesResult
+                        ? { prompt: 'Extract statement details', account: mockAccount, promptEntity: mockAccount, sourceProperty: 'extractor_prompt_file', targetProperty: 'extractor_prompt_file' }
+                        : { account: mockAccount, promptEntity: mockAccount, targetProperty: 'extractor_prompt_transactions' },
                 })),
-                lookupParserUrl: mock(async ({ purpose }: { purpose: string }) => {
-                    if (purpose === 'transactions' && useExternalTransactionsParser) {
-                        return {
-                            url: 'https://extractor.example.com/extract',
-                            source: 'account' as const,
-                            account: mockAccount,
-                        };
-                    }
-                    if (purpose === 'file' && filePropertiesResult) {
-                        return {
-                            url: 'https://extractor.example.com/extract-file',
-                            source: 'account' as const,
-                            account: mockAccount,
-                        };
-                    }
-                    return null;
-                }),
-                lookupTransactionsParserUrl: mock(async () => ({
-                    url: 'https://extractor.example.com/extract',
-                    source: 'account' as const,
-                    account: mockAccount,
-                })),
+                lookupParserUrl: mock(async () => null),
             },
         } as unknown as AppContext;
-
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        originalExtract = ExternalExtractorClient.prototype.extract;
-        originalExtractFileProperties = ExternalExtractorClient.prototype.extractFileProperties;
-        ExternalExtractorClient.prototype.extract = mock(async () => extractorResult);
-        ExternalExtractorClient.prototype.extractFileProperties = mock(async () => filePropertiesResult);
 
         eventHandler = new EventHandlerFileCreated(mockContext);
     });
 
     afterEach(() => {
-        const { ExternalExtractorClient } = require('../../src/external-extractor/ExternalExtractorClient.js');
-        ExternalExtractorClient.prototype.extract = originalExtract;
-        ExternalExtractorClient.prototype.extractFileProperties = originalExtractFileProperties;
         Transaction.prototype.create = originalTransactionCreate;
     });
 
@@ -189,7 +158,6 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
     }
 
     function configureSingleTransactionParser(amount: number): void {
-        useExternalTransactionsParser = false;
         Object.assign(mockContext, {
             createExtractorFileClassification: () => ({
                 extract: async () => ({ kind: 'single_transaction' as const }),
@@ -500,11 +468,12 @@ describe('EventHandlerFileCreated - transactions_summary', () => {
 
     // Verifies GenAI multi-transaction parser results use the same native-ID summary path.
     it('sets the summary property for GenAI multi-transaction parser results', async () => {
-        useExternalTransactionsParser = false;
-        genAITransactions = [
-            { date: '2024-01-01', description: 'AI Tx 1', amount: 100, properties: {} },
-            { date: '2024-01-02', description: 'AI Tx 2', amount: 200, properties: {} },
-        ];
+        extractorResult = {
+            transactions: [
+                { date: '2024-01-01', description: 'AI Tx 1', amount: 100, properties: {} },
+                { date: '2024-01-02', description: 'AI Tx 2', amount: 200, properties: {} },
+            ],
+        };
 
         await eventHandler.handleEvent(mockBook, makeEvent());
         const summary = getSummary();

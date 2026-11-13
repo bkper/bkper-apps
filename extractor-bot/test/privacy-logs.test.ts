@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import { Account, Book, File } from 'bkper-js';
-import { ExternalExtractorClient } from '../src/external-extractor/ExternalExtractorClient.js';
+import { File } from 'bkper-js';
 import { BkperAIResponsesClient } from '../src/genai/BkperAIResponsesClient.js';
 import { ExtractorAmount } from '../src/genai/ExtractorAmount.js';
 import { ExtractorDate } from '../src/genai/ExtractorDate.js';
@@ -81,23 +80,5 @@ describe('Event-mode logs keep customer content out', () => {
 
         expect(output).toContain('description');
         expect(output).not.toContain(SECRET);
-    });
-
-    it('logs only the host of a customer parser URL', async () => {
-        const originalFetch = globalThis.fetch;
-        globalThis.fetch = mock(async () => Response.json({ success: true, data: { transaction: { date: '2026-11-01', description: 'x', amount: 1, properties: {} } } })) as unknown as typeof fetch;
-        try {
-            const url = `https://parser.example.com/extract?key=${SECRET}`;
-            const book = { json: () => ({ id: 'book_1' }), getAccounts: async () => [] } as unknown as Book;
-            const account = { getId: () => 'acc_1', getName: () => 'Bank', getVisibleProperties: () => ({}), json: () => ({ id: 'acc_1' }) } as unknown as Account;
-            const parserFile = { getId: () => 'file_1', getName: () => 'invoice.pdf', getContentType: () => 'application/pdf', getContent: async () => 'base64==', json: () => ({ id: 'file_1' }) } as unknown as File;
-
-            await new ExternalExtractorClient(url).extractTransaction(parserFile, book, account, { url, source: 'account', account });
-        } finally {
-            globalThis.fetch = originalFetch;
-        }
-
-        expect(logged.join('\n')).toContain('parser.example.com');
-        expect(logged.join('\n')).not.toContain(SECRET);
     });
 });

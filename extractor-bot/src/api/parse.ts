@@ -97,10 +97,12 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
         signal?.throwIfAborted();
         const transactions: ParseResult['transactions'] = [];
         let fileProperties: ParseResult['fileProperties'];
+        let kind: ParseResult['kind'];
 
         if (file && !request.transaction) {
             const extraction = await new FileParserRouter(context).parse(book, file);
             fileProperties = extraction.fileProperties;
+            kind = extraction.kind;
             const books = new Map<string, Book>([[request.bookId, book]]);
             for (const value of extraction.transactions) {
                 signal?.throwIfAborted();
@@ -128,11 +130,10 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
                 const prompts = await context.promptLookupService.lookupPrompts({ book, file, transaction });
                 const transactionPrompt = prompts?.getPrompt('transaction');
                 account = transactionPrompt?.account ?? prompts?.account;
-                const group = transactionPrompt?.group ?? prompts?.group;
                 const service = new AttachmentExtractionService(context);
                 [extracted, fileProperties] = await Promise.all([
-                    !transaction.getAmount() || !transaction.getDescription().trim() ? service.extractAttachedTransaction(book, transaction, file, account, group, transactionPrompt) : Promise.resolve(undefined),
-                    service.extractFilePropertiesIfConfigured(book, transaction, file, account, group, prompts?.getPrompt('file')),
+                    !transaction.getAmount() || !transaction.getDescription().trim() ? service.extractAttachedTransaction(file, transactionPrompt) : Promise.resolve(undefined),
+                    service.extractFilePropertiesIfConfigured(file, prompts?.getPrompt('file')),
                 ]);
                 if (extracted) applyExtraction(transaction, ExtractedTransactionSchema.parse(extracted));
             }
@@ -153,6 +154,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
         return ParseResultSchema.parse({
             transactions,
             ...(fileProperties && Object.keys(fileProperties).length ? { fileProperties } : {}),
+            ...(kind ? { kind } : {}),
             outcome: transactions.length || (fileProperties && Object.keys(fileProperties).length) ? 'parsed' : 'empty',
         });
     } catch (error) {

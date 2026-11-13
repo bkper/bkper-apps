@@ -37,6 +37,11 @@ export interface components {
             fileProperties?: {
                 [key: string]: string;
             };
+            /**
+             * @description Set for File requests without a Transaction: transaction when the File was read as one invoice or receipt, transactions when it was read as statement rows.
+             * @enum {string}
+             */
+            kind?: "transaction" | "transactions";
             /** @enum {string} */
             outcome: "parsed" | "empty" | "error";
             error?: {

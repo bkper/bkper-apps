@@ -1,5 +1,5 @@
 import { Account, Amount, Book, File, Transaction } from 'bkper-js';
-import { EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, LEGACY_TRANSACTIONS_SUMMARY_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, EXTRACTOR_TRANSACTIONS_SUMMARY_PROPERTY, LEGACY_TRANSACTIONS_SUMMARY_PROPERTY, PARSER_URL_OWNED_LOG, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
@@ -8,9 +8,6 @@ import { findAccount } from '../utils/lookup-utils.js';
 import { DiscoveryError, DiscoveryItem } from '../services/BookbotDiscoveryClient.js';
 import { FileParsingResult } from '../file-parsers/FileParserInterfaces.js';
 import { FileParserRouter } from '../file-parsers/FileParserRouter.js';
-
-/** Logged when a parser URL gives the extraction to another app. Never log the URL. */
-export const PARSER_URL_OWNED_LOG = 'Parser URL configured; extraction belongs to another app';
 
 interface TransactionRecording {
     extracted: ExtractedTransaction;

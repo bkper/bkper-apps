@@ -42,6 +42,9 @@ export const LEGACY_TRANSACTIONS_SUMMARY_PROPERTY = 'transactions_summary';
 export const LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY = 'agent_credit_account_id_';
 export const LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY = 'agent_debit_account_id_';
 
+// Logged when a parser URL gives the extraction to another app. Never log the URL.
+export const PARSER_URL_OWNED_LOG = 'Parser URL configured; extraction belongs to another app';
+
 // Prefixes of properties written by Bkper apps, never learned from nor kept in extracted file properties.
 export const APP_PROPERTY_PREFIXES = ['agent_', 'extractor_', 'bookbot_'] as const;
 

@@ -1,12 +1,11 @@
 import { Book, File, Transaction } from 'bkper-js';
-import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, PARSER_URL_OWNED_LOG, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { DiscoveryError } from '../services/BookbotDiscoveryClient.js';
 import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
-import { PARSER_URL_OWNED_LOG } from './EventHandlerFileCreated.js';
 
 export class EventHandlerTransactionCreated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {

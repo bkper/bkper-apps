@@ -11,13 +11,16 @@ import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discover
 
 // Ownership rule: another app owns every file whose parser URL lookups, as Extractor Bot performs them,
 // find a URL. Extractor Bot steps aside for those events; that app processes exactly them.
-// The O cases are shared with that app and must keep the same expectations there.
+// O1–O14 and E1–E4 are case IDs shared with the app that owns parser URLs: keep both copies in sync,
+// with the same setups and expectations.
 
 const PARSER_URL = 'https://parser.example.com/extract?key=SECRET-7781';
 
 interface Configuration {
     account?: Record<string, string>;
     group?: Record<string, string>;
+    /** A Group of no Account in the Book, reachable only through a file's group_id. */
+    otherGroup?: Record<string, string>;
     file?: { name?: string; contentType?: string; properties?: Record<string, string> };
 }
 
@@ -63,11 +66,12 @@ afterEach(() => {
 function world(configuration: Configuration): World {
     const book = new Book({ id: 'book_1', name: 'Book', fractionDigits: 2, permission: 'OWNER' });
     const group = new Group(book, { id: 'group_1', name: 'Banks', properties: { ...configuration.group } });
+    const otherGroup = new Group(book, { id: 'group_2', name: 'Imports', properties: { ...configuration.otherGroup } });
     const account = new Account(book, { id: 'account_1', name: 'Checking', type: 'ASSET', properties: { ...configuration.account } });
     account.getGroups = mock(async () => [group]);
     book.getAccount = mock(async (idOrName: string) => idOrName === 'account_1' || idOrName === 'Checking' ? account : undefined);
     book.getAccounts = mock(async () => [account]);
-    book.getGroup = mock(async (id: string) => id === 'group_1' ? group : undefined);
+    book.getGroup = mock(async (id: string) => id === 'group_1' ? group : id === 'group_2' ? otherGroup : undefined);
     const file = new File(book, {
         id: 'file_1',
         name: configuration.file?.name ?? 'statement.pdf',
@@ -165,13 +169,13 @@ describe('External parser ownership', () => {
         expectProcessed(w, 'statement');
     });
 
-    it('O7: a URL on the Group named by the file\'s group_id owns the upload', async () => {
-        const w = world({ group: { agent_parser_url_transactions: PARSER_URL }, file: { properties: { group_id: 'group_1' } } });
+    it('O7: a URL on the Group named by the file\'s group_id, a Group of no named Account, owns the upload', async () => {
+        const w = world({ otherGroup: { agent_parser_url_transactions: PARSER_URL }, file: { properties: { group_id: 'group_2' } } });
         expectOwnedByAnotherApp(w, await fileCreated(w));
     });
 
-    it('O8: a URL on the Account named in the filename owns the upload', async () => {
-        const w = world({ account: { agent_parser_url_transactions: PARSER_URL }, file: { name: 'Checking statement.pdf' } });
+    it('O8: a URL on the Group of the Account named in the filename owns the upload', async () => {
+        const w = world({ group: { agent_parser_url_transactions: PARSER_URL }, file: { name: 'Checking statement.pdf' } });
         expectOwnedByAnotherApp(w, await fileCreated(w));
     });
 

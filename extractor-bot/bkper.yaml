@@ -4,6 +4,10 @@
 id: extractor-bot
 name: Extractor Bot
 description: Extract draft transactions from invoices, receipts, statements, and other documents, and learn from your corrections.
+tags:
+  - AI
+  - Data entry
+  - Bot
 
 logoUrl: https://raw.githubusercontent.com/bkper/bkper-apps/main/extractor-bot/assets/logo-light.svg
 logoUrlDark: https://raw.githubusercontent.com/bkper/bkper-apps/main/extractor-bot/assets/logo-dark.svg

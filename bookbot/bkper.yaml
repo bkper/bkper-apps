@@ -3,6 +3,10 @@
 id: bookbot
 name: Bookbot
 description: Find the right From and To accounts for your transactions, based on how you recorded similar ones before.
+tags:
+  - AI
+  - Data entry
+  - Bot
 
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/bkper-agent-dark.svg

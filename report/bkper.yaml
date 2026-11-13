@@ -4,6 +4,9 @@
 id: report
 name: Report App
 description: Financial reports of your Book, from a request in any language. Read-only, with every number from Bkper.
+tags:
+    - AI
+    - Reporting
 
 logoUrl: https://report.bkper.app/images/logo-light.svg
 logoUrlDark: https://report.bkper.app/images/logo-dark.svg

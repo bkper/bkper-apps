@@ -1,6 +1,10 @@
 id: exchange-bot
 name: Exchange Bot
 description: Convert transactions between currency books using historical rates, and track exchange gains and losses.
+tags:
+    - Multi-currency
+    - Multi-book
+    - Bot
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/exchange-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/exchange-agent-dark.svg
 website: https://bkper.com/apps/exchange-bot

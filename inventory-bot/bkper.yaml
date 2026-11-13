@@ -1,6 +1,10 @@
 id: inventory-bot
 name: Inventory Bot
 description: Track inventory in a dedicated book, sync financial books, and calculate FIFO cost of goods sold.
+tags:
+    - Inventory
+    - Multi-book
+    - Bot
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/inventory-agent-dark.svg
 website: https://bkper.com/apps/inventory-bot

@@ -1,6 +1,10 @@
 id: subledger-bot
 name: Subledger Bot
 description: Synchronize transactions between parent and child books for ledger-subledger consolidation.
+tags:
+    - Consolidation
+    - Multi-book
+    - Bot
 logoUrl: https://storage.googleapis.com/bkper-public/logos/agents/subledger-agent-light.svg
 logoUrlDark: https://storage.googleapis.com/bkper-public/logos/agents/subledger-agent-dark.svg
 website: https://bkper.com/apps/subledger-bot

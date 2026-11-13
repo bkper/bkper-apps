@@ -1,6 +1,8 @@
 id: merge-duplicates
 name: Merge Duplicates
 description: Find and review likely duplicate transactions, then merge only the pairs you confirm.
+tags:
+    - Reconciliation
 logoUrl: https://merge-duplicates.bkper.app/images/logo-light.svg
 logoUrlDark: https://merge-duplicates.bkper.app/images/logo-dark.svg
 website: https://merge-duplicates.bkper.app

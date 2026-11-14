@@ -43,6 +43,8 @@ export interface BookSnapshot {
     bookId: string;
     label: string;
     takenAt: string;
+    /** When searches the snapshot lacked were added, after a change to Bookbot's searches. */
+    filledAt?: string;
     /** Transactions each search read; a search for more needs a new snapshot. */
     searchLimit: number;
     accounts: Record<string, bkper.Account>;

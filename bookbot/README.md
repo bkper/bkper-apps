@@ -26,7 +26,7 @@ sequenceDiagram
 
 When you type a transaction without an amount, Bookbot reads it from the description, such as `25` from `Lunch 25`. When you leave the date for Bkper to fill in, Bookbot reads the date from the description, such as `12/11` from `Lunch on 12/11`. A date you chose is never changed.
 
-Transactions with attached files are completed by Extractor Bot, which reads the document first.
+Transactions with attached files are completed by [Extractor Bot](https://bkper.com/apps/extractor-bot), which reads the document first.
 
 ## Account discovery
 

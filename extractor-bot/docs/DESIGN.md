@@ -1,18 +1,18 @@
 # Extractor Bot design
 
-Extractor Bot reads documents, statements, attachments and descriptions. It extracts transaction fields and file metadata, asks Bookbot for Accounts, records unposted drafts, and learns from extraction corrections.
+Extractor Bot reads documents, statements and attachments. It extracts transaction fields and file metadata, asks Bookbot to complete the drafts, records unposted drafts, and learns from extraction corrections.
 
-Extractor Bot started as a copy of the legacy Bookbot Worker. Account discovery and rediscovery belong to [Bookbot](../../bookbot/docs/DESIGN.md); Extractor Bot calls Bookbot's API and has no discovery code of its own.
+Extractor Bot started as a copy of the legacy Bookbot Worker. Account discovery, rediscovery, reading descriptions and typed transactions belong to [Bookbot](../../bookbot/docs/DESIGN.md); Extractor Bot calls Bookbot's API and has no code of its own for them.
 
-Rules, responsibilities, events, properties, the parse API and known current behavior are in [AGENTS.md](../AGENTS.md). The discovery API Extractor Bot consumes is in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md).
+Rules, responsibilities, events, properties, the extract API and known current behavior are in [AGENTS.md](../AGENTS.md). The completion API Extractor Bot consumes is in [Bookbot's AGENTS.md](../../bookbot/AGENTS.md).
 
 ## Flow
 
 ```text
-File uploaded, or transaction created with an attachment or a description
+File uploaded, or transaction created with an attachment
     -> extraction with Bkper AI (files with a parser URL belong to another app: skipped)
-    -> Bookbot discovery API (one batch per target Book, or one item)
-    -> deterministic merge: keep supplied values, apply only Account sides and properties
+    -> Bookbot completion API (one batch per target Book, or one item)
+    -> deterministic merge: keep supplied values, apply Account sides, properties, and an amount or date the draft lacked
     -> unposted drafts, attachments and the file's extractor_transactions_summary
     -> the user reviews and posts
 
@@ -34,7 +34,7 @@ Bkper Agent, scripts and other apps
 
 ## What tests must cover
 
-- Invoice, receipt, statement, CSV, image, attachment, metadata and description extraction, and stepping aside for files with parser URLs.
+- Invoice, receipt, statement, CSV, image, attachment and metadata extraction, and stepping aside for files with parser URLs.
 - Compatibility with Bookbot's contract and behavior when Bookbot fails.
 - Extraction learning, kept separate from account rediscovery, including legacy transactions and prompt lookup precedence.
 - Event loop prevention, duplicate deliveries, retries, stale snapshots and preservation of user corrections.

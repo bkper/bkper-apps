@@ -33,7 +33,7 @@ This directory is the Platform Bookbot. It completes draft transactions: a missi
 - API calls need authorization for every target Book, not app installation. Event automation requires installation.
 - Hosting: one standard Bkper Platform app serving `/events`, `/api/v1/*`, and `/openapi.json`. Event and API code use `new Bkper()` with Platform outbound authentication. Callers reach `https://bookbot.bkper.app/api/v1/*` through Platform outbound, which delegates user or event context without exposing credentials (app chain, loop and hop limits enforced by Dispatch). The legacy Worker is only a rollback target and is never called.
 - Preserve explicitly supplied accounts and properties, existing `agent_*` properties, and legacy provenance.
-- Do not log credentials, document content, transaction descriptions, or private Book data.
+- Do not log credentials, document content, transaction descriptions, or private Book data. `test/privacy-logs.test.ts` guards amount and date reading.
 
 ## Responsibilities
 

@@ -14,7 +14,7 @@ sequenceDiagram
 
     Book->>Extractor: File uploaded
     Extractor->>Extractor: Extract transactions
-    Extractor->>Bookbot: Which accounts?
+    Extractor->>Bookbot: Complete these drafts
     Bookbot-->>Extractor: Suggested accounts and properties
     Extractor->>Book: Create draft transactions
     Note over Book: Drafts reviewed and posted
@@ -24,9 +24,9 @@ sequenceDiagram
 
 **Upload** — select the account the document belongs to, such as the bank account of a statement, and drop the file into the book. The account sets which learned instructions apply and which side of the drafts it takes. Agents and scripts upload with `bkper file upload <path> -b <bookId> --account "<account>"`. For bank statements and CSVs, Extractor Bot creates one draft per line item. For invoices and receipts, it creates one draft with the file attached.
 
-**Attach** — drop a file onto an existing transaction. Extractor Bot fills in the missing amount, date, and description, adds extracted custom properties, and updates the transaction. Attached files are always read as one invoice or receipt, even multi-page statements.
+**Attach** — drop a file onto an existing transaction. Extractor Bot fills in the missing amount, date, and description from the file, adds extracted custom properties, and updates the transaction. A date read from the file replaces the date Bkper filled in automatically. Attached files are always read as one invoice or receipt, even multi-page statements.
 
-**Type** — create a transaction without an attachment. Extractor Bot fills a missing amount from the description, and a date written in the description replaces the date Bkper filled in automatically.
+Transactions you type without an attachment are completed by [Bookbot](https://bkper.com/apps/bookbot), which reads a missing amount or date from the description and finds the accounts.
 
 CSV files are always read as statements. PDFs and images are analyzed to decide whether they hold a statement table or a single invoice or receipt.
 
@@ -34,7 +34,7 @@ Each uploaded file is read once. After recording its drafts, Extractor Bot store
 
 ## Accounts come from Bookbot
 
-Extractor Bot extracts; [Bookbot](https://bkper.com/apps/bookbot) finds accounts. Before recording drafts, Extractor Bot asks Bookbot for the missing From or To account, based on your posted transactions. When those transactions used different accounts, Bookbot ranks them by comparing amount, date, and properties, and suggests one only when it is confident. When the past transactions of the suggested account share a custom property, such as `category` or `project`, Bookbot copies it onto the draft. Accounts you selected and properties already on the draft are never replaced.
+Extractor Bot reads documents; [Bookbot](https://bkper.com/apps/bookbot) completes the drafts. Before recording drafts, Extractor Bot asks Bookbot for the missing From or To account, based on your posted transactions. When those transactions used different accounts, Bookbot ranks them by comparing amount, date, and properties, and suggests one only when it is confident. When the past transactions of the suggested account share a custom property, such as `category` or `project`, Bookbot copies it onto the draft. Accounts you selected and properties already on the draft are never replaced. When the file has no amount, or no date for a transaction whose date Bkper filled in, Bookbot reads it from the transaction's description.
 
 If Bookbot cannot be reached, Extractor Bot still records the drafts, without suggested accounts, and its response in the book activity includes a warning.
 
@@ -100,7 +100,7 @@ agent_excluded_properties: "trade_date, settlement_date"
 | Event | Behavior |
 |---|---|
 | `FILE_CREATED` | Extracts transactions from the uploaded file, asks Bookbot for accounts, and creates drafts |
-| `TRANSACTION_CREATED` | With an attachment, extracts missing fields and file properties from it, asks Bookbot for accounts, and updates the transaction once. Without one, asks Bookbot for accounts and extracts a missing amount or an automatically filled date from the description |
+| `TRANSACTION_CREATED` | With an attachment, extracts missing fields and file properties from it, asks Bookbot to complete the rest, and updates the transaction once. Transactions without an attachment are left to Bookbot |
 | `TRANSACTION_POSTED` | Compares posted data with the original extraction and improves instructions when it was corrected |
 | `TRANSACTION_UPDATED` | Same as `TRANSACTION_POSTED` |
 | `TRANSACTION_DELETED` | Flags the source account or group when a draft extracted from a statement is deleted |
@@ -141,7 +141,7 @@ On the file, `extractor_transactions_summary` (earlier `transactions_summary`) l
 <details>
 <summary><strong>Endpoints and examples</strong></summary>
 
-Apps, scripts, and agents can extract transactions from documents and descriptions through the public API, without recording anything in the book.
+Apps, scripts, and agents can extract transactions from documents through the public API, without recording anything in the book.
 
 ```text
 Production: https://extractor-bot.bkper.app
@@ -158,11 +158,11 @@ All requests require a Bkper OAuth bearer token for a user with view access to t
 Send a `file`, a `transaction`, or both:
 
 - A **file** is a file already in the book (`id`) or base64 `content`; its type is detected as for uploads. Its `account_id` property selects the account whose instructions and side apply; files uploaded with an account selected already have it.
-- A **transaction** alone supplies a description, or an attachment, to extract a missing amount and date from.
+- A **transaction** alone supplies an attachment to extract missing fields from. Without one, nothing is extracted: [Bookbot's API](https://bkper.com/apps/bookbot) reads an amount or date from a description.
 
 The response lists `transactions`, each with its target `bookId`, optional `fileProperties`, and an `outcome`: `parsed`, `empty`, or `error`. For a file sent without a transaction, `kind` tells whether it was read as one invoice or receipt (`transaction`) or as statement rows (`transactions`). Valid requests return HTTP 200 even when extraction fails, so check `outcome` and `error.code`, such as `FORBIDDEN` or `usage_limit_exceeded`. Malformed requests return HTTP 400.
 
-To record the results, ask [Bookbot's API](https://bkper.com/apps/bookbot) for accounts, then create the drafts in each returned `bookId`. Keep the returned `extractor_extracted_` and `extractor_file_id_` properties so Extractor Bot, when installed, can learn when the drafts are posted.
+To record the results, ask [Bookbot's API](https://bkper.com/apps/bookbot) to complete them, then create the drafts in each returned `bookId`. Keep the returned `extractor_extracted_` and `extractor_file_id_` properties so Extractor Bot, when installed, can learn when the drafts are posted.
 
 Avoid duplicate drafts: when Extractor Bot is installed, uploading a file already records its drafts, so do not also record API results for that file. The API does not skip files that already have `extractor_transactions_summary` or `transactions_summary`; check those properties first.
 
@@ -187,5 +187,5 @@ See the [OpenAPI specification](https://extractor-bot.bkper.app/openapi.json) fo
 
 ## Learn more
 
-- [Bookbot](https://bkper.com/apps/bookbot) — finds accounts for your transactions
+- [Bookbot](https://bkper.com/apps/bookbot) — completes your transactions: accounts, and an amount or date from the description
 - [Recording transactions](https://bkper.com/docs/guides/using-bkper/record-guide) — how to record and manage transactions in Bkper

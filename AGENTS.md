@@ -13,7 +13,7 @@ This repository contains open-source Bkper apps: bots, integrations, and platfor
 | Inventory Bot | Platform app (Vite + Cloudflare Workers) | `inventory-bot/` |
 | Subledger Bot | GCP Cloud Functions (production; Cloudflare migration) | `subledger-bot/` |
 | Tax Bot | Platform app (Cloudflare Workers) | `tax-bot/` |
-| Bookbot | Platform app (Cloudflare Workers); finds accounts: discovery API and rediscovery of drafts; never sync from the legacy repository | `bookbot/` |
+| Bookbot | Platform app (Cloudflare Workers); completes drafts: amount and date from the description, accounts from history; completion API, typed drafts and rediscovery; never sync from the legacy repository | `bookbot/` |
 | Extractor Bot | Platform app (Cloudflare Workers); reads documents into drafts and learns from corrections; app ID `extractor-bot` | `extractor-bot/` |
 | Extractor Bot (retiring ID `parser-bot`) | Registration-only shell for the live `parser-bot` app (code frozen at tag `parser-bot-final`); sync only, never deploy | `parser-bot/` |
 | Report | Platform app (Vite + Cloudflare Workers); read-only financial reports from a typed request | `report/` |

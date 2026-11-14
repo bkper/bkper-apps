@@ -1,15 +1,18 @@
 # Bookbot design
 
-Bookbot finds the From and To Accounts and historical properties for transactions. It serves reusable single and batch discovery to apps, agents and scripts, and re-checks pending drafts after a user corrects an Account that Bookbot suggested.
+Bookbot completes draft transactions: a missing amount and an automatically filled date from the description, then the From and To Accounts and historical properties from posted history. It completes typed drafts when they are created, serves reusable single and batch completion to apps, agents and scripts, and re-checks pending drafts after a user corrects an Account that Bookbot suggested.
 
-Rules, responsibilities, events, properties, the discovery API contract and known current behavior are in [AGENTS.md](../AGENTS.md). Known defects are in [DEFERRED.md](DEFERRED.md).
+Rules, responsibilities, events, properties, the completion API contract and known current behavior are in [AGENTS.md](../AGENTS.md). Known defects are in [DEFERRED.md](DEFERRED.md).
 
 ## Flow
 
 ```text
-Apps, agents and scripts
+Typed transaction, created without files
+    -> Bookbot completes the amount and date, discovers Accounts and properties, and updates it once
+
+Apps, agents and scripts, including Extractor Bot for drafts read from documents
     -> POST /api/v1/complete or /api/v1/complete/batch (one batch per target Book), read-only
-    -> suggested Account sides and properties, per item
+    -> filled amount, date, Account sides and properties, per item
     -> the caller decides what to write, such as unposted drafts
 
 Posted or updated transaction with a corrected, Bookbot-suggested Account

@@ -1,26 +1,32 @@
 # Bookbot
 
-Finds the right accounts for your transactions. Bookbot looks at how you recorded similar transactions before and suggests the missing From or To account, and the custom properties they always share.
+Completes the transactions you type. Bookbot looks at how you recorded similar transactions before and suggests the missing From or To account, and the custom properties they always share. When the description states an amount or a date the transaction lacks, Bookbot fills it in.
 
-Apps, scripts, and agents ask Bookbot for accounts through its [API](#api-access).
+Apps, scripts, and agents ask Bookbot to complete drafts through its [API](#api-access).
 
-Bookbot never posts transactions and never replaces an account or property you already set.
+Bookbot never posts transactions and never replaces an account, property, amount, or date you already set.
 
 ## How it works
 
 ```mermaid
 sequenceDiagram
-    participant App as Your app
+    participant App as You or your app
     participant Bookbot as Bookbot
     participant Book as Bkper Book
 
-    App->>Bookbot: Which accounts for these drafts?
+    App->>Bookbot: A typed draft, or drafts to complete
     Bookbot->>Book: Search posted transactions
-    Bookbot-->>App: Suggested accounts and properties
+    Bookbot-->>App: Amount, date, accounts and properties filled
     Note over Book: Drafts reviewed and posted
     Book->>Bookbot: Account corrected on a posted transaction
     Bookbot->>Book: Re-check pending drafts
 ```
+
+## Amount and date from the description
+
+When you type a transaction without an amount, Bookbot reads it from the description, such as `25` from `Lunch 25`. When you leave the date for Bkper to fill in, Bookbot reads the date from the description, such as `12/11` from `Lunch on 12/11`. A date you chose is never changed.
+
+Transactions with attached files are completed by Extractor Bot, which reads the document first.
 
 ## Account discovery
 
@@ -40,7 +46,7 @@ When you correct an account that Bookbot suggested on a posted transaction, Book
 
 ## AI allowance behavior
 
-Discovery uses Bkper AI twice: Gemini Flash Lite, with minimal reasoning, picks out the key terms of a description, and Jev chooses among the accounts found in your posted transactions. Inference runs with the allowance of the signed-in user, or of the installation principal for event-driven re-checks, and is attributed to Bookbot. For Business and Professional subscriptions, the Bkper AI allowance may be shared across the domain. The Bkper AI usage dashboard shows the usage attributed to Bookbot.
+Bookbot uses Bkper AI for three jobs: Gemini Flash Lite, with minimal reasoning, reads a missing amount or date from a description and picks out its key terms, and Jev chooses among the accounts found in your posted transactions. Inference runs with the allowance of the signed-in user, or of the installation principal for event-driven completion and re-checks, and is attributed to Bookbot. For Business and Professional subscriptions, the Bkper AI allowance may be shared across the domain. The Bkper AI usage dashboard shows the usage attributed to Bookbot.
 
 ## Configuration
 
@@ -60,6 +66,7 @@ Bookbot no longer reads `bookbot_discovery_examples` or `agent_discovery_example
 
 | Event | Behavior |
 |---|---|
+| `TRANSACTION_CREATED` | Completes a transaction without attached files: amount and date from the description, then accounts and properties |
 | `TRANSACTION_POSTED` | If an account that Bookbot suggested was corrected, re-runs discovery on pending drafts that received the same suggestion |
 | `TRANSACTION_UPDATED` | Same as `TRANSACTION_POSTED` |
 
@@ -86,7 +93,7 @@ Drafts from before November 2026 carry these as `agent_credit_account_id_`, `age
 <details>
 <summary><strong>Endpoints and examples</strong></summary>
 
-Apps, scripts, and agents can ask Bookbot for accounts through the public API.
+Apps, scripts, and agents can ask Bookbot to complete drafts through the public API.
 
 ```text
 Production: https://bookbot.bkper.app
@@ -98,12 +105,12 @@ All requests require a Bkper OAuth bearer token for a user with view access to e
 
 | Operation | Route | Effect |
 |---|---|---|
-| Complete one transaction | `POST /api/v1/complete` | Returns the transaction with suggested accounts and properties, without changing the book |
+| Complete one transaction | `POST /api/v1/complete` | Returns the transaction with a missing amount, an automatically filled date, and suggested accounts and properties filled in, without changing the book |
 | Complete several transactions | `POST /api/v1/complete/batch` | Same as above for several items, processed in order |
 
-Each item names the target book and a draft transaction, and can include the source account to enable property copying. Each result has an outcome: `changed`, `no_change`, `no_match`, or `error`.
+Each item names the target book and a draft transaction, and can include the source account to enable property copying. The date is read from the description only when the transaction carries `auto_filled_date_`, which Bkper sets when it filled the date in. Each result has an outcome: `changed`, `no_change`, `no_match`, or `error`.
 
-Minimal discovery example:
+Minimal example:
 
 ```bash
 # Run `bkper auth login` first if needed

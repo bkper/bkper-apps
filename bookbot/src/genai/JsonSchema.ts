@@ -26,6 +26,20 @@ export const DESCRIPTION_PARTS_SCHEMA: JsonSchema = {
     items: { type: 'string' },
 };
 
+const DATE_SCHEMA: JsonSchema = {
+    type: 'string',
+    format: 'date',
+    pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+};
+
+export const AMOUNT_SCHEMA: JsonSchema = {
+    anyOf: [{ type: 'number' }, { type: 'null' }],
+};
+
+export const OPTIONAL_DATE_SCHEMA: JsonSchema = {
+    anyOf: [DATE_SCHEMA, { type: 'null' }],
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

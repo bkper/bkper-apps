@@ -8,6 +8,9 @@ import { BkperAIClientError } from '../../src/genai/BkperAIClientError.js';
 import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
 import type { AccountChooser } from '../../src/genai/AccountChooser.js';
 import { fixedChooser, mostFrequentChooser } from '../helpers/accountChooser.js';
+import { FixedAmountExtractor, FixedDateExtractor } from '../helpers/descriptionExtractors.js';
+import type { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
+import type { ExtractorDate } from '../../src/genai/ExtractorDate.js';
 import { Discovery } from '../../src/services/DiscoveryService.js';
 
 class TestAccount extends Account {
@@ -88,6 +91,18 @@ class TestContext extends AppContext {
 
     override createAccountChooser(): AccountChooser {
         return this.chooser;
+    }
+
+    amount?: string;
+    date?: string;
+    completionError?: Error;
+
+    override createExtractorAmount(onError?: (error: unknown) => void): ExtractorAmount {
+        return new FixedAmountExtractor(this.amount, onError, this.completionError);
+    }
+
+    override createExtractorDate(): ExtractorDate {
+        return new FixedDateExtractor(this.date);
     }
 }
 
@@ -217,6 +232,35 @@ describe('read-only discovery adapter', () => {
         expect(failed[0].outcome).toBe('error');
         expect(failed[0].error?.code).toBe('DEPENDENCY_ERROR');
         expect(JSON.stringify(failed)).not.toContain('Private history');
+    });
+
+    it('completes a missing amount and an automatically filled date, reporting changed even when both sides are supplied', async () => {
+        const { context } = fixture();
+        context.amount = '25';
+        context.date = '2026-11-12';
+        const input = item();
+        input.transaction.debitAccount = { id: 'expense' };
+        input.transaction.date = '2026-11-14';
+        input.transaction.properties = { auto_filled_date_: 'true' };
+        const [result] = await discoverItems([input], context);
+
+        expect(result.outcome).toBe('changed');
+        expect(result.transaction.amount).toBe('25');
+        expect(result.transaction.date).toBe('2026-11-12');
+        expect(result.transaction.creditAccount).toEqual(input.transaction.creditAccount);
+        expect(result.transaction.debitAccount).toEqual(input.transaction.debitAccount);
+    });
+
+    it('reports a completion model failure as an error with the original transaction', async () => {
+        const { context } = fixture();
+        context.completionError = new Error('Private inference failure');
+        const input = item();
+        const [result] = await discoverItems([input], context);
+
+        expect(result.outcome).toBe('error');
+        expect(result.error?.code).toBe('DEPENDENCY_ERROR');
+        expect(result.transaction).toEqual(input.transaction);
+        expect(JSON.stringify(result)).not.toContain('Private inference');
     });
 
     it('reports the Jev ranking with its confidence, an unsure ranking or a label not offered as no-match, and an exhausted allowance as an error', async () => {

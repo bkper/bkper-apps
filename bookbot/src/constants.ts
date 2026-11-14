@@ -1,6 +1,8 @@
 export const PARSED_ACCOUNT_NAME_PROPERTY = 'parsed_account_name_';
 export const AGENT_PROMPT_SKIP_PROPERTY = 'agent_prompt_skip';
 export const AGENT_EXCLUDED_PROPERTIES_PROPERTY = 'agent_excluded_properties';
+/** Set by Bkper when a created transaction's date was filled in automatically, not chosen by the user. */
+export const AUTO_FILLED_DATE_PROPERTY = 'auto_filled_date_';
 
 // Bookbot's properties. Property keys have at most 30 characters.
 export const BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY = 'bookbot_credit_account_id_';

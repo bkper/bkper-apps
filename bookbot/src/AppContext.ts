@@ -3,10 +3,13 @@ import { PromptLookupService } from './services/PromptLookupService.js';
 import { Discovery } from './services/DiscoveryService.js';
 import { RediscoveryService } from './services/RediscoveryService.js';
 import { ExtractorDescriptionParts } from './genai/ExtractorDescriptionParts.js';
+import { ExtractorAmount } from './genai/ExtractorAmount.js';
+import { ExtractorDate } from './genai/ExtractorDate.js';
+import { DescriptionCompletion } from './services/DescriptionCompletion.js';
 import { BkperAIResponsesClient } from './genai/BkperAIResponsesClient.js';
 import { AccountChooser } from './genai/AccountChooser.js';
 
-/** Bookbot's request context: account discovery, rediscovery, and their Bkper AI clients. */
+/** Bookbot's request context: draft completion, account discovery, rediscovery, and their Bkper AI clients. */
 export class AppContext {
     readonly bkper: Bkper;
     readonly env: Env;
@@ -60,6 +63,18 @@ export class AppContext {
 
     createExtractorDescriptionParts(onError?: (error: unknown) => void): ExtractorDescriptionParts {
         return new ExtractorDescriptionParts(this.env, this.bkperAIResponsesClient, onError);
+    }
+
+    createDescriptionCompletion(onError?: (error: unknown) => void): DescriptionCompletion {
+        return new DescriptionCompletion(this, onError);
+    }
+
+    createExtractorAmount(onError?: (error: unknown) => void): ExtractorAmount {
+        return new ExtractorAmount(this.env, this.bkperAIResponsesClient, onError);
+    }
+
+    createExtractorDate(onError?: (error: unknown) => void): ExtractorDate {
+        return new ExtractorDate(this.env, this.bkperAIResponsesClient, onError);
     }
 
     createAccountChooser(): AccountChooser {

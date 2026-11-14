@@ -2,6 +2,7 @@ import { Account, BkperError, Book, Permission, Transaction } from 'bkper-js';
 import { HTTPException } from 'hono/http-exception';
 import { AppContext } from '../AppContext.js';
 import { BkperAIClientError } from '../genai/BkperAIClientError.js';
+import { DescriptionCompletion } from '../services/DescriptionCompletion.js';
 import { Discovery, MAX_EXTERNAL_REQUESTS } from '../services/DiscoveryService.js';
 import type { CompletionItem, CompletionResult } from './schemas.js';
 
@@ -38,9 +39,9 @@ function apiError(error: unknown): NonNullable<CompletionResult['error']> {
     return { code: 'DEPENDENCY_ERROR', message: 'A discovery dependency failed.' };
 }
 
-/** Read-only adapter. Each Book retains its existing discovery caches and request limit. */
+/** Read-only adapter: completes each draft's amount and date, then discovers. Each Book retains its existing discovery caches and request limit. */
 export async function discoverItems(items: CompletionItem[], context: AppContext, signal?: AbortSignal): Promise<CompletionResult[]> {
-    const books = new Map<string, { book: Book; discovery: Discovery }>();
+    const books = new Map<string, { book: Book; discovery: Discovery; completion: DescriptionCompletion }>();
     const results: CompletionResult[] = [];
     let username: Promise<string | undefined> | undefined;
 
@@ -60,10 +61,11 @@ export async function discoverItems(items: CompletionItem[], context: AppContext
                     throw new HTTPException(403, { message: 'Read access to the target Book is required.' });
                 }
                 // Rethrow swallowed failures only for the API; legacy callers keep their existing behavior.
-                state = { book, discovery: new Discovery(context, error => { throw error; }) };
+                const rethrow = (error: unknown) => { throw error; };
+                state = { book, discovery: new Discovery(context, rethrow), completion: context.createDescriptionCompletion(rethrow) };
                 books.set(item.bookId, state);
             }
-            const { book, discovery } = state;
+            const { book, discovery, completion } = state;
             for (const account of [item.transaction.creditAccount, item.transaction.debitAccount]) {
                 if (account?.id) await requireAccount(book, account.id);
             }
@@ -82,6 +84,8 @@ export async function discoverItems(items: CompletionItem[], context: AppContext
             if (discovery.getExternalRequestCount() > MAX_EXTERNAL_REQUESTS) {
                 result.error = { code: 'DISCOVERY_LIMIT', message: 'The existing discovery request limit was reached for this Book.' };
             } else {
+                const completed = await completion.complete(draft);
+                signal?.throwIfAborted();
                 const discoveryResult = await discovery.discover(draft);
                 if (sourceAccount && discoveryResult.dataSet) {
                     await discovery.discoverProperties(sourceAccount, draft, discoveryResult.dataSet);
@@ -96,7 +100,7 @@ export async function discoverItems(items: CompletionItem[], context: AppContext
                 transaction.createdBy = item.transaction.createdBy;
                 if (item.transaction.createdBy === undefined) delete transaction.createdBy;
                 result.transaction = transaction;
-                result.outcome = discoveryResult.discovered ? 'changed' :
+                result.outcome = discoveryResult.discovered || completed ? 'changed' :
                     (item.transaction.creditAccount?.id && item.transaction.debitAccount?.id) || !item.transaction.description?.trim() ? 'no_change' : 'no_match';
             }
         } catch (error) {

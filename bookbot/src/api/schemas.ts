@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Validate the fields discovery uses; retain other canonical payload fields untouched.
+// Validate the fields completion uses; retain other canonical payload fields untouched.
 export const AccountSchema: z.ZodType<bkper.Account> = z.object({
     id: z.string().min(1),
     name: z.string().optional(),
@@ -11,6 +11,8 @@ export const TransactionSchema: z.ZodType<bkper.Transaction> = z.object({
     id: z.string().min(1).optional(),
     createdBy: z.string().optional(),
     description: z.string().optional(),
+    amount: z.string().optional(),
+    date: z.string().optional(),
     tags: z.array(z.string()).optional(),
     creditAccount: AccountSchema.optional(),
     debitAccount: AccountSchema.optional(),

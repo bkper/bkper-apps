@@ -25,6 +25,7 @@ webhookUrlDev: https://bookbot-preview.bkper.app/events
 
 # Bookbot only rediscovers pending drafts after an Account correction.
 events:
+  - TRANSACTION_CREATED
   - TRANSACTION_POSTED
   - TRANSACTION_UPDATED
 

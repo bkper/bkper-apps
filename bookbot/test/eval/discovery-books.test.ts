@@ -143,7 +143,7 @@ describe('replaying a frozen case', () => {
 
     it('uses Jev\'s recorded answer when the search found several options', async () => {
         const { snapshot, evalCase } = snapshotWith({ [FIRST_SEARCH]: ['t1', 't3'] });
-        const replayed = await replayCase(snapshot, evalCase, { recording: new AnswerEveryRequest({ choice: 'To: Rent', confidence: 0.4 }) });
+        const replayed = await replayCase(snapshot, evalCase, { recording: new AnswerEveryRequest({ choice: 'To: Rent', confidence: 0.97 }) });
 
         expect(replayed.verdict).toBe('wrong');
         expect(replayed.suggestedAccountId).toBe(RENT.id);

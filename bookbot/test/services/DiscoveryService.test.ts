@@ -615,8 +615,8 @@ describe('Discovery', () => {
             expect(result.dataSet?.map(transaction => transaction.getDescription())).toEqual(['o rato roeu a roupa do rei de roma']);
         });
 
-        it('asks Jev to rank the Accounts when one part finds several, and fills its choice at any confidence', async () => {
-            const { chooser, choose } = fixedChooser({ choice: 'To: Auto Repair', confidence: 0.41 });
+        it('asks Jev to rank the Accounts when one part finds several, and fills its choice at 0.95 confidence or more', async () => {
+            const { chooser, choose } = fixedChooser({ choice: 'To: Auto Repair', confidence: 0.95 });
             const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
 
             const result = await new Discovery(contextWith(chooser)).discover(draft);
@@ -625,8 +625,28 @@ describe('Discovery', () => {
             expect(result.discovered).toBe(true);
             expect(draft.payload.debitAccount?.id).toBe('auto_repair_id');
             expect(draft.getProperty('bookbot_debit_account_id_')).toBe('auto_repair_id');
-            expect(draft.getProperty('bookbot_confidence_')).toBe('0.41');
+            expect(draft.getProperty('bookbot_confidence_')).toBe('0.95');
             expect(result.dataSet?.map(transaction => transaction.getDescription())).toEqual(['o rato roeu a roupa do rei da grecia']);
+        });
+
+        it('suggests nothing below 0.95 confidence and stops, without trying broader searches', async () => {
+            // On real Books, Jev's picks below 0.95 were wrong too often: no suggestion is better than a wrong one.
+            const listTransactions = spyOn(mockBook, 'listTransactions');
+            let searchesWhenAsked = 0;
+            const { chooser, choose } = fixedChooser({ choice: 'To: Auto Repair', confidence: 0.94 });
+            choose.mockImplementation(async () => {
+                searchesWhenAsked = listTransactions.mock.calls.length;
+                return { choice: 'To: Auto Repair', confidence: 0.94 };
+            });
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            expect(choose).toHaveBeenCalledTimes(1);
+            expect(result).toEqual({ discovered: false });
+            expect(draft.payload.debitAccount).toBeUndefined();
+            expect(draft.getProperty('bookbot_confidence_')).toBeUndefined();
+            expect(listTransactions.mock.calls.length).toBe(searchesWhenAsked);
         });
 
         it('suggests nothing when Jev answers with an Account that was not offered', async () => {

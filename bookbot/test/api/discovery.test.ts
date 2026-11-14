@@ -219,14 +219,20 @@ describe('read-only discovery adapter', () => {
         expect(JSON.stringify(failed)).not.toContain('Private history');
     });
 
-    it('reports the Jev ranking with its confidence, a label not offered as no-match, and an exhausted allowance as an error', async () => {
+    it('reports the Jev ranking with its confidence, an unsure ranking or a label not offered as no-match, and an exhausted allowance as an error', async () => {
         const { book, context } = fixture();
         book.history = [...matchingHistory(), { ...matchingHistory()[0], debitAccount: { id: 'travel' } }];
-        context.chooser = fixedChooser({ choice: 'To: expense', confidence: 0.62 }).chooser;
+        context.chooser = fixedChooser({ choice: 'To: expense', confidence: 0.97 }).chooser;
         const [ranked] = await discoverItems([item()], context);
         expect(ranked.outcome).toBe('changed');
         expect(ranked.transaction.debitAccount?.id).toBe('expense');
-        expect(ranked.transaction.properties).toHaveProperty('bookbot_confidence_', '0.62');
+        expect(ranked.transaction.properties).toHaveProperty('bookbot_confidence_', '0.97');
+
+        context.chooser = fixedChooser({ choice: 'To: expense', confidence: 0.62 }).chooser;
+        const [unsure] = await discoverItems([item()], context);
+        expect(unsure.outcome).toBe('no_match');
+        expect(unsure.transaction.debitAccount).toBeUndefined();
+        expect(unsure.transaction.properties).not.toHaveProperty('bookbot_confidence_');
 
         context.chooser = fixedChooser({ choice: 'To: loans', confidence: 0.99 }).chooser;
         const [unknown] = await discoverItems([item()], context);

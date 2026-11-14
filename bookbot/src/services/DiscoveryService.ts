@@ -19,6 +19,11 @@ import { stripAccountNamesFromDescription } from '../utils.js';
 
 /** Posted transactions read per search for the account choice. */
 const NUMBER_OF_TRANSACTIONS = 15;
+/**
+ * Jev's least confidence for a suggestion. On real Books, picks below it were wrong too often:
+ * no suggestion is better than a wrong one.
+ */
+const MIN_JEV_CONFIDENCE = 0.95;
 const MIN_PROPERTY_DISCOVERY_TRANSACTIONS = 2;
 const MAX_DESCRIPTION_PARTS = 5;
 export const MAX_EXTERNAL_REQUESTS = 950;
@@ -124,6 +129,9 @@ export class Discovery {
                 continue;
             }
             const result = await this.chooseAccounts(draft, options, account);
+            if (result.unsure) {
+                return { discovered: false };
+            }
             if (result.discovered) {
                 return result;
             }
@@ -134,11 +142,15 @@ export class Discovery {
     /**
      * Fills the draft with the only option one search found, or with the option Jev ranks first when
      * the search found several, then applies it in code only to empty sides that pass the checks.
+     * When Jev is unsure, discovery stops without a suggestion instead of trying broader history.
      */
-    private async chooseAccounts(draft: Transaction, options: AccountOption[], account: Account | undefined): Promise<{ discovered: boolean, dataSet?: Transaction[] }> {
+    private async chooseAccounts(draft: Transaction, options: AccountOption[], account: Account | undefined): Promise<{ discovered: boolean, dataSet?: Transaction[], unsure?: boolean }> {
         const decision = options.length === 1 ? { option: options[0], confidence: 1 } : await this.rankAccounts(draft, options, account);
         if (!decision) {
             return { discovered: false };
+        }
+        if (decision.confidence < MIN_JEV_CONFIDENCE) {
+            return { discovered: false, unsure: true };
         }
 
         const creditAccountId = decision.option.creditAccount?.id;

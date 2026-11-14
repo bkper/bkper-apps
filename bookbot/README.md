@@ -28,7 +28,7 @@ Bookbot assigns missing From and To accounts from your book's posted transaction
 
 1. **Identify key terms** — AI picks out meaningful parts of the description (e.g. `Office Depot` from `OFFICE DEPOT #1234 PURCHASE 04/15`)
 2. **Find similar transactions** — searches posted transactions one key term at a time, from the most specific, first scoped to the known account and user, then to the known account, then across the book, and reads up to 15 from the first search that finds an account
-3. **Choose the account** — when those transactions all used the same account, Bookbot suggests it. The same description can also be different operations: a `DEPOSIT` may be a client payment or an owner contribution. When they used different accounts, Bkper AI ranks them by comparing description, amount, date, day of month, hashtags, and properties, and Bookbot suggests the first
+3. **Choose the account** — when those transactions all used the same account, Bookbot suggests it. The same description can also be different operations: a `DEPOSIT` may be a client payment or an owner contribution. When they used different accounts, Bkper AI ranks them by comparing description, amount, date, day of month, hashtags, and properties, and Bookbot suggests the first only when Bkper AI is very confident; otherwise it suggests nothing, since no suggestion is better than a wrong one
 
 Accounts already on the transaction are kept. Bookbot only fills the sides that are missing, and when it re-checks a draft it never suggests again the account you corrected.
 
@@ -74,7 +74,7 @@ Bookbot's suggestions are recorded on drafts as internal properties (suffixed wi
 |---|---|
 | `bookbot_credit_account_id_` | ID of the suggested credit account |
 | `bookbot_debit_account_id_` | ID of the suggested debit account |
-| `bookbot_confidence_` | Bkper AI's confidence when it ranked several accounts, such as `0.93`; `1.00` when similar transactions all used the same account |
+| `bookbot_confidence_` | Bkper AI's confidence when it ranked several accounts, at least `0.95`; `1.00` when similar transactions all used the same account |
 | `bookbot_discovered_properties_` | Keys of the properties copied from history |
 
 Drafts from before November 2026 carry these as `agent_credit_account_id_`, `agent_debit_account_id_`, and `agent_discovered_properties_`; Bookbot still reads them and renames them when it updates the draft. Bookbot no longer records the matched key term: when it fills an account, it removes `bookbot_description_part_` or `agent_description_part_` from the draft.

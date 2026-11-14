@@ -193,9 +193,10 @@ describe('External parser ownership', () => {
 
     it('O11: the same pair does not own a transaction without an attachment', async () => {
         const w = world({ group: { agent_parser_url_transactions: PARSER_URL, agent_parser_url_file: PARSER_URL } });
-        await transactionCreated(w, { id: 'tx_1', date: '2026-11-01', description: 'Coffee', creditAccount: { id: 'account_1' } });
-        expect(w.discover).toHaveBeenCalledTimes(1);
-        expect(fetchMock).not.toHaveBeenCalled();
+        const result = await transactionCreated(w, { id: 'tx_1', date: '2026-11-01', description: 'Coffee', creditAccount: { id: 'account_1' } });
+        // Not owned by the parser, and not Extractor Bot's either: Bookbot completes typed transactions.
+        expectSkipped(w, result);
+        expect(logged).not.toContain('Parser URL configured; extraction belongs to another app');
     });
 
     it('O12: the same pair does not own an attachment whose file was not uploaded as one; both apps skip it', async () => {
@@ -228,11 +229,9 @@ describe('Drafts recorded from a file by another app', () => {
         });
     }
 
-    it('E3: a new transaction without them is discovered and extracted as before', async () => {
+    it('E3: a new transaction without them is left to Bookbot, which completes typed drafts', async () => {
         const w = world({});
-        await transactionCreated(w, { id: 'tx_1', date: '2026-11-01', description: 'Row', creditAccount: { id: 'account_1' }, properties: { auto_filled_date_: 'true' } });
-        expect(w.discover).toHaveBeenCalledTimes(1);
-        expect(w.ai).toHaveBeenCalledWith('amount');
-        expect(w.ai).toHaveBeenCalledWith('date');
+        const result = await transactionCreated(w, { id: 'tx_1', date: '2026-11-01', description: 'Row', creditAccount: { id: 'account_1' }, properties: { auto_filled_date_: 'true' } });
+        expectSkipped(w, result);
     });
 });

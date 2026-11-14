@@ -1,5 +1,5 @@
 import { Book, File, Transaction } from 'bkper-js';
-import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY, PARSER_URL_OWNED_LOG, UPLOAD_METHOD_PROPERTY } from '../constants.js';
+import { AUTO_FILLED_DATE_PROPERTY, EXTRACTOR_EXTRACTED_PROPERTY, PARSER_URL_OWNED_LOG, UPLOAD_METHOD_PROPERTY } from '../constants.js';
 import { Result } from './event-handler.js';
 import { EventHandler } from './EventHandler.js';
 import { setAccountBasedOnAmount } from '../utils/transaction-utils.js';
@@ -9,7 +9,6 @@ import { AttachmentExtractionService } from '../services/AttachmentExtractionSer
 
 export class EventHandlerTransactionCreated extends EventHandler {
     async handleEvent(book: Book, event: bkper.Event): Promise<Result> {
-        const discovery = this.context.createBookbotDiscoveryClient();
         let warning: string | undefined;
 
         if (event.bookId && event.data) {
@@ -22,7 +21,8 @@ export class EventHandlerTransactionCreated extends EventHandler {
 
             // OK to fill out ONLY amount or ONLY description
 
-            // Get attachments
+            // Get attachments. Extractor Bot reads only documents: transactions without files are typed drafts,
+            // which Bookbot completes, or drafts recorded from a file, completed before recording.
             const files = transaction.getFiles();
             if (files && files.length > 0) {
 
@@ -140,7 +140,7 @@ export class EventHandlerTransactionCreated extends EventHandler {
                     fileMetadataUpdated = true;
                 }
 
-                const discoveryResult = await discovery.discover(book.getId() || '', [{ transaction }]);
+                const discoveryResult = await this.context.createBookbotDiscoveryClient().discover(book.getId() || '', [{ transaction }]);
 
                 if (discoveryResult.outcomes[0] === 'changed') {
                     updatedProp = true;
@@ -162,44 +162,6 @@ export class EventHandlerTransactionCreated extends EventHandler {
                 if (updatedFile || updatedProp || fileMetadataUpdated) {
                     return {
                         result: { prompt, transaction: extractedTransaction, fileProperties },
-                        ...(warning ? { warning } : {}),
-                    };
-                }
-            } else {
-                // Drafts recorded from a file by another app: Extractor Bot does not discover or extract them.
-                if (transaction.getProperty(EXTRACTOR_FILE_ID_PROPERTY, LEGACY_AGENT_FILE_ID_PROPERTY)) {
-                    return { result: false };
-                }
-
-                let updated = false;
-                const discoveryResult = await discovery.discover(book.getId() || '', [{ transaction }]);
-                if (discoveryResult.outcomes[0] === 'changed') {
-                    updated = true;
-                }
-                warning = this.discoveryWarning(discoveryResult.error);
-
-                if (transaction.getAmount() == null) {
-                    // Extract amount from description using AI
-                    const extractedAmount = await this.context.createExtractorAmount().extract(transaction.getDescription() || '');
-                    if (extractedAmount && extractedAmount.gt(0)) {
-                        transaction.setAmount(extractedAmount);
-                        updated = true;
-                    }
-                }
-
-                if (transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) {
-                    // Extract date from description using AI
-                    const extractedDate = await this.context.createExtractorDate().extract(transaction.getDescription() || '');
-                    if (extractedDate) {
-                        transaction.setDate(extractedDate);
-                        updated = true;
-                    }
-                }
-
-                if (updated) {
-                    await transaction.update();
-                    return {
-                        result: { transaction: transaction.payload },
                         ...(warning ? { warning } : {}),
                     };
                 }

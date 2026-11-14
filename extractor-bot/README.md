@@ -34,7 +34,7 @@ Each uploaded file is read once. After recording its drafts, Extractor Bot store
 
 ## Accounts come from Bookbot
 
-Extractor Bot extracts; [Bookbot](https://bkper.com/apps/bookbot) finds accounts. Before recording drafts, Extractor Bot asks Bookbot for the missing From or To account, based on your posted transactions. When every matching transaction shares a custom property, such as `category` or `project`, Bookbot copies it onto the draft. Accounts you selected and properties already on the draft are never replaced. To tune how accounts are found, use Bookbot's settings, such as `bookbot_discovery_examples`.
+Extractor Bot extracts; [Bookbot](https://bkper.com/apps/bookbot) finds accounts. Before recording drafts, Extractor Bot asks Bookbot for the missing From or To account, based on your posted transactions. When those transactions used different accounts, Bookbot ranks them by comparing amount, date, and properties. When the past transactions of the suggested account share a custom property, such as `category` or `project`, Bookbot copies it onto the draft. Accounts you selected and properties already on the draft are never replaced.
 
 If Bookbot cannot be reached, Extractor Bot still records the drafts, without suggested accounts, and its response in the book activity includes a warning.
 

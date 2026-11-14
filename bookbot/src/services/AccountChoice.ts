@@ -99,8 +99,10 @@ export function collectAccountOptions(draft: Transaction, dataset: Transaction[]
     return [...options.values()];
 }
 
+/** Cuts whole characters, never half of an emoji: Bkper AI rejects a request holding half of one. */
 function truncate(text: string, maxCharacters: number): string {
-    return text.length > maxCharacters ? `${text.slice(0, maxCharacters)}…` : text;
+    const characters = Array.from(text);
+    return characters.length > maxCharacters ? `${characters.slice(0, maxCharacters).join('')}…` : text;
 }
 
 function operationProperties(properties: bkper.Transaction['properties']): JsonObject | undefined {

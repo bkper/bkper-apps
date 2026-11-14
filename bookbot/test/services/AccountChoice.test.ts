@@ -154,6 +154,17 @@ describe('buildAccountChoiceRequest', () => {
         expect(facts.description.length).toBe(201);
         expect(facts.properties.note.length).toBe(257);
     });
+
+    it('never splits a character at the cut, since Bkper AI rejects a request holding half of one', () => {
+        // An emoji is two UTF-16 code units; here it straddles the 200th unit of each text.
+        const text = `${'x'.repeat(199)}🎉 party`;
+        const subject = draft({ debitAccount: { id: BANK.id }, description: text, properties: { note: `${'y'.repeat(255)}🎉 party` } });
+        const request = buildAccountChoiceRequest(subject, collectAccountOptions(subject, [posted('t1', OWNER, BANK)]));
+        const facts = request.state.draft as { description: string; properties: { note: string } };
+
+        expect(facts.description).toBe(`${'x'.repeat(199)}🎉…`);
+        expect(facts.properties.note).toBe(`${'y'.repeat(255)}🎉…`);
+    });
 });
 
 describe('decideAccountOption', () => {

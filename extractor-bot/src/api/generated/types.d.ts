@@ -1,7 +1,7 @@
 /** Generated from /openapi.json. Do not edit directly. */
 import "@bkper/bkper-api-types";
 export interface paths {
-    "/api/v1/parse": {
+    "/api/v1/extract": {
         parameters: {
             query?: never;
             header?: never;
@@ -10,7 +10,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["parse"];
+        post: operations["extract"];
         delete?: never;
         options?: never;
         head?: never;
@@ -24,12 +24,12 @@ export interface components {
         Account: bkper.Account;
         File: bkper.File;
         Transaction: bkper.Transaction;
-        ParseRequest: {
+        ExtractRequest: {
             bookId: string;
             file?: components["schemas"]["File"];
             transaction?: components["schemas"]["Transaction"];
         } | unknown | unknown;
-        ParseResult: {
+        ExtractResult: {
             transactions: {
                 bookId: string;
                 transaction: components["schemas"]["Transaction"];
@@ -64,7 +64,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    parse: {
+    extract: {
         parameters: {
             query?: never;
             header?: never;
@@ -73,20 +73,20 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ParseRequest"];
+                "application/json": components["schemas"]["ExtractRequest"];
             };
         };
         responses: {
-            /** @description Unrecorded parsing results. Inspect outcome and error. */
+            /** @description Unrecorded extraction results. Inspect outcome and error. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ParseResult"];
+                    "application/json": components["schemas"]["ExtractResult"];
                 };
             };
-            /** @description Invalid parse request. */
+            /** @description Invalid extract request. */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -13,7 +13,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Extractor Bot's public listing: reading documents, statements and descriptions into drafts, and learning from corrections.
 - Keep README content public-facing; development information belongs here.
-- Existing technical names stay unchanged. The app ID, directory, URLs and properties say `extractor`; `/api/v1/parse` and code names (`FileParserRouter`, `lookupParserUrl`, …) still say parser.
+- Existing technical names stay unchanged. The app ID, directory, URLs, API path (`/api/v1/extract`) and properties say `extractor`; code names (`FileParserRouter`, `lookupParserUrl`, `parse`, …) still say parser.
 - Every Bkper AI request, from events and the parse API alike, carries `bkper-ai-source: extractor-bot` (`BKPER_AI_SOURCE`). The Bkper AI usage dashboard groups usage by this label; Bookbot labels its own requests `bookbot`.
 - Neither parser nor discovery should post transactions. Preserve explicit account sides, existing property behavior, legacy provenance, parser URL ownership, and target-Book access.
 - Change only what the task needs. Do not silently implement future API or outage policy.
@@ -92,7 +92,7 @@ Property names: read the new name first, then the old one (`getProperty(NEW, OLD
 ## Parse API
 
 - Follow Bookbot's shared conventions for versioned routes, OpenAPI, canonical Bkper payloads, errors, and target-Book authorization.
-- The initial endpoint is `POST /api/v1/parse`. For files, reuse `FileParserRouter`'s existing automatic detection and routing; callers do not select a parser. One statement can return multiple transactions. Requests containing multiple input files and a separate `/batch` route are deferred.
+- The endpoint is `POST /api/v1/extract`. `POST /api/v1/parse` is its earlier name: the same handler, kept working for existing callers and left out of `/openapi.json`. Remove it only when logs show no callers. For files, reuse `FileParserRouter`'s existing automatic detection and routing; callers do not select a parser. One statement can return multiple transactions. Requests containing multiple input files and a separate `/batch` route are deferred.
 - The request is `{ bookId, file?, transaction? }`, using canonical `bkper.File` and `bkper.Transaction` payloads and requiring at least one. A file uses existing automatic parsing; a transaction supplies description or attachment context; both together use the supplied transaction context for file extraction. No parser-selection field is required.
 - The API never calls parser URLs: it extracts with AI, also where a parser URL is configured. File requests without a transaction return `kind` (`transaction` or `transactions`, the router's result), so a caller can record API results as an import would.
 - The initial API exposes raw extraction only. Composed parse-and-discover is deferred to keep the API small; callers can use Bookbot's discovery API separately.

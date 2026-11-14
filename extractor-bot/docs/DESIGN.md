@@ -20,12 +20,12 @@ Posted correction of extracted fields, deleted imported draft, Book audit
     -> extraction learning (prompt updates, statement flags)
 
 Bkper Agent, scripts and other apps
-    -> POST /api/v1/parse, read-only
+    -> POST /api/v1/extract, read-only
 ```
 
 ## Design choices
 
-- **Read-only API.** `/api/v1/parse` reads and extracts but never writes. Event handlers own persistence.
+- **Read-only API.** `/api/v1/extract` reads and extracts but never writes. Event handlers own persistence.
 - **Discovery outage does not discard parsing.** When Bookbot fails or is unreachable, Extractor Bot still records the parsed items as unposted drafts, keeps supplied fields, and reports the discovery failure as a `warning`. A valid no-match also produces drafts. Authorization or persistence failures still block that target write.
 - **No blind reprocessing.** Files that already have `extractor_transactions_summary` (or the earlier `transactions_summary`) are skipped, and the summary lists only native transaction IDs that were actually recorded. Replays and retries must not duplicate drafts or overwrite later user corrections.
 - **One owner per file.** Another app owns files with parser URLs. Extractor Bot keeps only the URL lookup, steps aside for those files and the drafts recorded from them, and never calls a parser URL.

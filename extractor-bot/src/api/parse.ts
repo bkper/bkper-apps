@@ -8,7 +8,7 @@ import { ExtractedTransaction } from '../genai/ExtractedTransaction.js';
 import { AttachmentExtractionService } from '../services/AttachmentExtractionService.js';
 import { normalizeExtractedDate, setAccountBasedOnAmount } from '../utils/transaction-utils.js';
 import { findAccount, findFile, findGroup } from '../utils/lookup-utils.js';
-import { ExtractedTransactionSchema, ParseResultSchema, type ParseRequest, type ParseResult } from './schemas.js';
+import { ExtractedTransactionSchema, ExtractResultSchema, type ExtractRequest, type ExtractResult } from './schemas.js';
 
 const READ_PERMISSIONS: readonly Permission[] = [Permission.VIEWER, Permission.POSTER, Permission.EDITOR, Permission.OWNER];
 
@@ -49,7 +49,7 @@ async function resolveFile(book: Book, payload: bkper.File): Promise<File> {
     return file;
 }
 
-function apiError(error: unknown): NonNullable<ParseResult['error']> {
+function apiError(error: unknown): NonNullable<ExtractResult['error']> {
     if (error instanceof HTTPException) return { code: error.status === 403 ? 'FORBIDDEN' : 'INVALID_CONTEXT', message: error.message };
     if (error instanceof BkperError && [401, 403, 404].includes(error.code)) return { code: 'FORBIDDEN', message: 'Target Book access is required.' };
     if (error instanceof BkperAIClientError) return { code: error.code, message: error.code === 'usage_limit_exceeded' ? 'Bkper AI allowance is exhausted.' : 'Bkper AI parsing failed.' };
@@ -89,7 +89,7 @@ function asDraft(transaction: Transaction, account?: Account): bkper.Transaction
 }
 
 /** Raw parsing only. Target authorization, inference and local suggestions never record drafts. */
-export async function parse(request: ParseRequest, context: AppContext, signal?: AbortSignal): Promise<ParseResult> {
+export async function parse(request: ExtractRequest, context: AppContext, signal?: AbortSignal): Promise<ExtractResult> {
     try {
         signal?.throwIfAborted();
         if (!context.readOnly) throw new HTTPException(400, { message: 'A read-only parsing context is required.' });
@@ -100,9 +100,9 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
         const filePayload = request.file ?? request.transaction?.files?.[0];
         const file = filePayload ? await resolveFile(book, filePayload) : undefined;
         signal?.throwIfAborted();
-        const transactions: ParseResult['transactions'] = [];
-        let fileProperties: ParseResult['fileProperties'];
-        let kind: ParseResult['kind'];
+        const transactions: ExtractResult['transactions'] = [];
+        let fileProperties: ExtractResult['fileProperties'];
+        let kind: ExtractResult['kind'];
 
         if (file && !request.transaction) {
             const extraction = await new FileParserRouter(context).parse(book, file);
@@ -161,7 +161,7 @@ export async function parse(request: ParseRequest, context: AppContext, signal?:
             }
         }
         signal?.throwIfAborted();
-        return ParseResultSchema.parse({
+        return ExtractResultSchema.parse({
             transactions,
             ...(fileProperties && Object.keys(fileProperties).length ? { fileProperties } : {}),
             ...(kind ? { kind } : {}),

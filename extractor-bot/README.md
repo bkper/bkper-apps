@@ -153,7 +153,7 @@ All requests require a Bkper OAuth bearer token for a user with view access to t
 
 | Operation | Route | Effect |
 |---|---|---|
-| Extract transactions | `POST /api/v1/parse` | Returns extracted drafts and file properties, without changing the book |
+| Extract transactions | `POST /api/v1/extract` | Returns extracted drafts and file properties, without changing the book |
 
 Send a `file`, a `transaction`, or both:
 
@@ -176,10 +176,10 @@ curl -X POST \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{ "bookId": "<book-id>", "file": { "id": "<file-id>" } }' \
-  https://extractor-bot.bkper.app/api/v1/parse
+  https://extractor-bot.bkper.app/api/v1/extract
 ```
 
-Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request extractor-bot /api/v1/parse -d '<json>'`, or pipe larger bodies, such as base64 files, through stdin.
+Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request extractor-bot /api/v1/extract -d '<json>'`, or pipe larger bodies, such as base64 files, through stdin.
 
 See the [OpenAPI specification](https://extractor-bot.bkper.app/openapi.json) for complete request and response schemas.
 

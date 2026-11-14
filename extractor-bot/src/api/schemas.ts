@@ -27,14 +27,14 @@ export const TransactionSchema: z.ZodType<bkper.Transaction> = z.object({
     tags: z.array(z.string()).optional(),
 }).passthrough().meta({ 'x-typescript-type': 'bkper.Transaction' });
 
-export const ParseRequestSchema = z.object({
+export const ExtractRequestSchema = z.object({
     bookId: z.string().min(1),
     file: FileSchema.optional(),
     transaction: TransactionSchema.optional(),
 }).refine(request => !!request.file || !!request.transaction, { message: 'A File or Transaction is required.' }).meta({ anyOf: [{ required: ['file'] }, { required: ['transaction'] }] });
 
 export const ErrorSchema = z.object({ code: z.string(), message: z.string() });
-export const ParseResultSchema = z.object({
+export const ExtractResultSchema = z.object({
     transactions: z.array(z.object({ bookId: z.string(), transaction: TransactionSchema })),
     fileProperties: z.record(z.string(), z.string()).optional(),
     kind: z.enum(['transaction', 'transactions']).optional().describe('Set for File requests without a Transaction: transaction when the File was read as one invoice or receipt, transactions when it was read as statement rows.'),
@@ -53,5 +53,5 @@ export const ExtractedTransactionSchema: z.ZodType<ExtractedTransaction> = z.obj
     account_name: z.string().min(1).optional(),
 });
 
-export type ParseRequest = z.infer<typeof ParseRequestSchema>;
-export type ParseResult = z.infer<typeof ParseResultSchema>;
+export type ExtractRequest = z.infer<typeof ExtractRequestSchema>;
+export type ExtractResult = z.infer<typeof ExtractResultSchema>;

@@ -1,6 +1,7 @@
 /**
  * Scores Bookbot's account discovery on frozen cases from real Books, and compares a variant with a
- * baseline against the agreed target. Pure: no I/O, no Book or model calls.
+ * baseline against the agreed target; also scores what users posted over Bookbot's suggestions in
+ * production. Pure: no I/O, no Book or model calls.
  */
 
 export type Verdict = 'right' | 'wrong' | 'none';
@@ -215,4 +216,98 @@ export function renderReport(label: string, results: CaseResult[], baseline?: { 
         );
     }
     return `${lines.join('\n')}\n`;
+}
+
+/**
+ * Whether users keep Bookbot's suggestions in production, the measure behind
+ * `<data>/production/TARGET.md`: the changed share at least halves, falls in more than half the
+ * Books active in both periods, and coverage keeps at least 75%. Fewer than 3 such Books is inconclusive.
+ */
+export const PRODUCTION_TARGET = { maxChangedShareRatio: 0.5, minCoverageRatio: 0.75, minPostedForActive: 10, minActiveBooks: 3 } as const;
+
+export interface OutcomeTally {
+    book: string;
+    /** Transactions created in the period. */
+    created: number;
+    suggestions: number;
+    /** Posted with every suggested side equal to the posted Account. */
+    kept: number;
+    /** Posted with any suggested side changed. */
+    changed: number;
+    drafts: number;
+}
+
+export interface Period {
+    /** Creation time bounds, in ms: from inclusive, to exclusive. */
+    from: number;
+    to: number;
+}
+
+function suggestedSide(properties: Record<string, string>, side: 'credit' | 'debit'): string | undefined {
+    return properties[`bookbot_${side}_account_id_`] || properties[`agent_${side}_account_id_`] || undefined;
+}
+
+/** Tallies the suggestions on transactions created in the period, by what users posted. */
+export function tallyOutcomes(book: string, transactions: bkper.Transaction[], period: Period): OutcomeTally {
+    const tally: OutcomeTally = { book, created: 0, suggestions: 0, kept: 0, changed: 0, drafts: 0 };
+    for (const transaction of transactions) {
+        const createdAt = Number(transaction.createdAt);
+        if (!(createdAt >= period.from && createdAt < period.to)) continue;
+        tally.created++;
+        const credit = suggestedSide(transaction.properties ?? {}, 'credit');
+        const debit = suggestedSide(transaction.properties ?? {}, 'debit');
+        if (!credit && !debit) continue;
+        tally.suggestions++;
+        if (!transaction.posted) {
+            tally.drafts++;
+        } else if ((!credit || credit === transaction.creditAccount?.id) && (!debit || debit === transaction.debitAccount?.id)) {
+            tally.kept++;
+        } else {
+            tally.changed++;
+        }
+    }
+    return tally;
+}
+
+export interface ProductionCheck {
+    before: { changedShare: number; coverage: number };
+    after: { changedShare: number; coverage: number };
+    /** Books active in both periods, and how many of them changed less after. */
+    activeBooks: number;
+    booksImproved: number;
+    halves: boolean;
+    broad: boolean;
+    coverageHolds: boolean;
+    inconclusive: boolean;
+    meetsTarget: boolean;
+}
+
+function changedShare(tally: Pick<OutcomeTally, 'kept' | 'changed'>): number {
+    const posted = tally.kept + tally.changed;
+    return posted === 0 ? 0 : tally.changed / posted;
+}
+
+function total(rows: OutcomeTally[]): OutcomeTally {
+    return rows.reduce((sum, row) => ({
+        book: 'All', created: sum.created + row.created, suggestions: sum.suggestions + row.suggestions,
+        kept: sum.kept + row.kept, changed: sum.changed + row.changed, drafts: sum.drafts + row.drafts,
+    }), { book: 'All', created: 0, suggestions: 0, kept: 0, changed: 0, drafts: 0 });
+}
+
+export function checkProductionTarget(before: OutcomeTally[], after: OutcomeTally[]): ProductionCheck {
+    const summary = (rows: OutcomeTally[]) => {
+        const all = total(rows);
+        return { changedShare: changedShare(all), coverage: all.created === 0 ? 0 : 100 * all.suggestions / all.created };
+    };
+    const isActive = (row: OutcomeTally | undefined) => !!row && row.kept + row.changed >= PRODUCTION_TARGET.minPostedForActive;
+    const pairs = before
+        .map(row => [row, after.find(other => other.book === row.book)] as const)
+        .filter(([previous, next]) => isActive(previous) && isActive(next));
+    const booksImproved = pairs.filter(([previous, next]) => changedShare(next!) < changedShare(previous)).length;
+    const [b, a] = [summary(before), summary(after)];
+    const halves = a.changedShare <= PRODUCTION_TARGET.maxChangedShareRatio * b.changedShare;
+    const broad = booksImproved > pairs.length / 2;
+    const coverageHolds = a.coverage >= PRODUCTION_TARGET.minCoverageRatio * b.coverage;
+    const inconclusive = pairs.length < PRODUCTION_TARGET.minActiveBooks;
+    return { before: b, after: a, activeBooks: pairs.length, booksImproved, halves, broad, coverageHolds, inconclusive, meetsTarget: !inconclusive && halves && broad && coverageHolds };
 }

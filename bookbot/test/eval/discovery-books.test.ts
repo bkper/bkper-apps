@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import { draftFrom, parseSearch, type BookSnapshot, type EvalCase, type JevAnswer } from '../../eval/discovery-books/frozen.js';
 import { readOnlyFetch } from '../../eval/discovery-books/readOnly.js';
 import { replayCase } from '../../eval/discovery-books/replay.js';
-import { compare, exactMcNemar, tally, verdictOf, type CaseResult, type Verdict } from '../../eval/discovery-books/score.js';
+import { checkProductionTarget, compare, exactMcNemar, tally, tallyOutcomes, verdictOf, type CaseResult, type Verdict } from '../../eval/discovery-books/score.js';
 
 function result(caseId: string, verdict: Verdict, book = 'Book'): CaseResult {
     return { book, caseId, expectedAccountId: 'right', verdict, ...(verdict === 'none' ? {} : { suggestedAccountId: verdict === 'right' ? 'right' : 'other' }) };
@@ -177,5 +177,33 @@ describe('replaying a frozen case', () => {
         const draft = { description: 'ACME HOSTING 123', tags: ['#fees'] };
         expect(parseSearch('account: \'Bank\' "ACME" createdBy:ana is:posted', draft)).toEqual({ level: 'known account and creator', term: 'description part' });
         expect(parseSearch('"fees" is:posted', draft)).toEqual({ level: 'whole Book', term: 'hashtag' });
+    });
+});
+
+describe('production outcomes', () => {
+    const at = (iso: string) => String(Date.parse(iso));
+    const period = { from: Date.parse('2026-11-01T00:00:00Z'), to: Date.parse('2026-11-08T00:00:00Z') };
+
+    it('counts a suggestion kept only when every suggested side was posted, and leaves drafts and older names apart', () => {
+        const transactions: bkper.Transaction[] = [
+            { createdAt: at('2026-11-02T00:00:00Z'), posted: true, debitAccount: { id: 'rent' }, properties: { bookbot_debit_account_id_: 'rent' } },
+            { createdAt: at('2026-11-02T00:00:00Z'), posted: true, creditAccount: { id: 'bank' }, debitAccount: { id: 'food' }, properties: { agent_debit_account_id_: 'rent', agent_credit_account_id_: 'bank' } },
+            { createdAt: at('2026-11-03T00:00:00Z'), posted: false, properties: { bookbot_credit_account_id_: 'bank' } },
+            { createdAt: at('2026-11-04T00:00:00Z'), posted: true },
+            { createdAt: at('2026-11-09T00:00:00Z'), posted: true, debitAccount: { id: 'rent' }, properties: { bookbot_debit_account_id_: 'rent' } },
+        ];
+        expect(tallyOutcomes('Book', transactions, period)).toEqual({ book: 'Book', created: 4, suggestions: 3, kept: 1, changed: 1, drafts: 1 });
+    });
+
+    it('meets the target only when the changed share halves, falls in most active Books, and coverage holds', () => {
+        const row = (book: string, created: number, kept: number, changed: number) => ({ book, created, suggestions: kept + changed, kept, changed, drafts: 0 });
+        const before = [row('A', 100, 30, 10), row('B', 100, 30, 10), row('C', 100, 30, 10)];
+        expect(checkProductionTarget(before, [row('A', 100, 36, 2), row('B', 100, 36, 2), row('C', 100, 30, 6)]).meetsTarget).toBe(true);
+        // Fewer suggestions hide wrong ones: coverage falls below 75%.
+        expect(checkProductionTarget(before, [row('A', 100, 20, 0), row('B', 100, 20, 0), row('C', 100, 20, 0)]).meetsTarget).toBe(false);
+        // The fall is carried by one Book.
+        expect(checkProductionTarget(before, [row('A', 100, 120, 0), row('B', 100, 30, 10), row('C', 100, 30, 10)]).meetsTarget).toBe(false);
+        // Fewer than 3 Books active in both periods.
+        expect(checkProductionTarget(before.slice(0, 2), [row('A', 100, 40, 0), row('B', 100, 40, 0)]).inconclusive).toBe(true);
     });
 });

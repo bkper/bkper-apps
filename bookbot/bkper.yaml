@@ -2,7 +2,7 @@
 # Never sync from the retired legacy bkper-agent repository. Deploy, install, or sync only with separate explicit approval.
 id: bookbot
 name: Bookbot
-description: Find the right From and To accounts for your transactions, based on how you recorded similar ones before.
+description: Complete the transactions you type, with the right From and To accounts based on how you recorded similar ones before, and an amount or date from the description.
 tags:
   - AI
   - Data entry
@@ -23,7 +23,7 @@ developers: '*@bkper.com'
 webhookUrl: https://bookbot.bkper.app/events
 webhookUrlDev: https://bookbot-preview.bkper.app/events
 
-# Bookbot only rediscovers pending drafts after an Account correction.
+# Bookbot completes typed drafts when created and rediscovers pending drafts after an Account correction.
 events:
   - TRANSACTION_CREATED
   - TRANSACTION_POSTED

@@ -8,7 +8,7 @@ Rules, responsibilities, events, properties, the discovery API contract and know
 
 ```text
 Apps, agents and scripts
-    -> POST /api/v1/discovery or /api/v1/discovery/batch (one batch per target Book), read-only
+    -> POST /api/v1/complete or /api/v1/complete/batch (one batch per target Book), read-only
     -> suggested Account sides and properties, per item
     -> the caller decides what to write, such as unposted drafts
 

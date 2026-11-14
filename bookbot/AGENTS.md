@@ -4,7 +4,7 @@
 
 Read the responsibilities, events, properties and discovery API below before changing behavior or ownership.
 
-This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the discovery API (`/api/v1/discovery`, used by apps, agents and scripts) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Bookbot is distinct from the managed conversational Bkper Agent.
+This directory is the Platform Bookbot. It finds From and To Accounts and historical properties for transactions: the completion API (`/api/v1/complete`, used by apps, agents and scripts) and rediscovery of pending drafts on `TRANSACTION_POSTED`/`TRANSACTION_UPDATED` after an Account correction. Bookbot is distinct from the managed conversational Bkper Agent.
 
 - It is a standard Bkper Platform app, deployed with `bkper app build` and `bkper app deploy` (`--preview` for preview). Never use `wrangler deploy`.
 - `bkper.yaml` here is the source of truth for the live `bookbot` registration. Never sync from the retired legacy `bkper-agent` repository: its registration would route events to a Worker that no longer exists. There is no rollback to the legacy Worker.
@@ -74,7 +74,8 @@ Bookbot provides this API to apps, agents and scripts.
 
 ### Contract
 
-- `POST /api/v1/discovery` accepts `{ itemId, bookId, transaction, sourceAccount? }`; batch at `POST /api/v1/discovery/batch` accepts `{ items: [...] }` with unique client item IDs.
+- `POST /api/v1/complete` accepts `{ itemId, bookId, transaction, sourceAccount? }`; batch at `POST /api/v1/complete/batch` accepts `{ items: [...] }` with unique client item IDs.
+- `POST /api/v1/discovery` and `/api/v1/discovery/batch` are the earlier names: same handlers, kept working for existing callers, and left out of `/openapi.json`. Remove them only when logs show no callers.
 - `transaction` is canonical `bkper.Transaction`; `sourceAccount` is canonical `bkper.Account` and enables property enrichment from the history found by account discovery. Account context requires an ID; other resource metadata is not trusted for authorization or configuration.
 - Each result is `{ itemId, bookId, transaction, outcome, error? }`, where outcome is `changed`, `no_change`, `no_match` or `error`, and error is `{ code, message }`. Valid requests return HTTP 200 with per-item outcomes, including partial-batch failures; invalid requests return HTTP 400. No-change means both Account sides are supplied or the description is blank. No-match means no Accounts were discovered. Failed items return their original supplied transaction, not partial suggestions.
 - Platform bearer authentication and outbound authorization are used. Each target Book requires `VIEWER`, `POSTER`, `EDITOR` or `OWNER`; installation is not required for API calls. Legacy event authentication is unchanged.

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, mock, spyOn } from 'bun:test';
 import { Account, Bkper, Book, TransactionList } from 'bkper-js';
 import app from '../../src/index.js';
-import { DiscoveryBatchResultSchema, DiscoveryResultSchema, ErrorResponseSchema } from '../../src/api/schemas.js';
+import { CompletionBatchResultSchema, CompletionResultSchema, ErrorResponseSchema } from '../../src/api/schemas.js';
 import type { components } from '../../src/api/generated/types.js';
 
 const book = new Book({ id: 'synthetic-book', permission: 'VIEWER' });
@@ -12,7 +12,7 @@ afterEach(() => mock.restore());
 it('accepts and returns the canonical transaction without writing when both sides are supplied', async () => {
     const loadBook = spyOn(Bkper.prototype, 'getBook').mockResolvedValue(book);
     spyOn(Book.prototype, 'getAccount').mockImplementation(async id => id ? new Account(book, { id }) : undefined);
-    const input: components['schemas']['DiscoveryItem'] = {
+    const input: components['schemas']['CompletionItem'] = {
         itemId: 'row-1',
         bookId: 'synthetic-book',
         transaction: {
@@ -26,14 +26,14 @@ it('accepts and returns the canonical transaction without writing when both side
             posted: false,
         },
     };
-    const response = await app.request('/api/v1/discovery', {
+    const response = await app.request('/api/v1/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
     }, env);
 
     expect(response.status).toBe(200);
-    expect(DiscoveryResultSchema.parse(await response.json())).toEqual({ ...input, outcome: 'no_change' });
+    expect(CompletionResultSchema.parse(await response.json())).toEqual({ ...input, outcome: 'no_change' });
     expect(loadBook).toHaveBeenCalledWith('synthetic-book');
 });
 
@@ -46,7 +46,7 @@ it('rejects invalid fields and duplicate correlation IDs before Book access', as
         { items: Array.from({ length: 2 }, () => ({ itemId: 'duplicate', bookId: 'synthetic-book', transaction: {} })) },
     ];
     for (const body of bodies) {
-        const response = await app.request('items' in body ? '/api/v1/discovery/batch' : '/api/v1/discovery', {
+        const response = await app.request('items' in body ? '/api/v1/complete/batch' : '/api/v1/complete', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         }, env);
         expect(response.status).toBe(400);
@@ -58,14 +58,14 @@ it('rejects invalid fields and duplicate correlation IDs before Book access', as
 it('uses the same item contract for batches without introducing the proposed small batch cap', async () => {
     spyOn(Bkper.prototype, 'getBook').mockResolvedValue(book);
     spyOn(Book.prototype, 'getAccount').mockImplementation(async id => id ? new Account(book, { id }) : undefined);
-    const inputs: components['schemas']['DiscoveryItem'][] = Array.from({ length: 11 }, (_, index) => ({
+    const inputs: components['schemas']['CompletionItem'][] = Array.from({ length: 11 }, (_, index) => ({
         itemId: `row-${index}`, bookId: 'synthetic-book',
         transaction: { creditAccount: { id: 'bank' }, debitAccount: { id: 'expense' }, posted: false },
     }));
-    const response = await app.request('/api/v1/discovery/batch', {
+    const response = await app.request('/api/v1/complete/batch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: inputs }),
     }, env);
-    const results = DiscoveryBatchResultSchema.parse(await response.json());
+    const results = CompletionBatchResultSchema.parse(await response.json());
 
     expect(response.status).toBe(200);
     expect(results.items).toEqual(inputs.map(input => ({ ...input, outcome: 'no_change' })));
@@ -87,15 +87,15 @@ it('uses Platform SDK configuration and reports an actual swallowed AI allowance
         outbound.push(request);
         return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429 });
     }, { preconnect: globalThis.fetch.preconnect }));
-    const input: components['schemas']['DiscoveryItem'] = {
+    const input: components['schemas']['CompletionItem'] = {
         itemId: 'row', bookId: 'synthetic-book', transaction: { description: 'Synthetic purchase', posted: false },
     };
-    const response = await app.request('/api/v1/discovery', {
+    const response = await app.request('/api/v1/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer never-forward-this', 'bkper-agent-id': 'untrusted-app' },
         body: JSON.stringify(input),
     }, env);
-    const result = DiscoveryResultSchema.parse(await response.json());
+    const result = CompletionResultSchema.parse(await response.json());
 
     expect(result.outcome).toBe('error');
     expect(result.error?.code).toBe('usage_limit_exceeded');
@@ -108,11 +108,29 @@ it('uses Platform SDK configuration and reports an actual swallowed AI allowance
     expect(outbound[0].headers.get('bkper-agent-id')).not.toBe('untrusted-app');
     expect(await outbound[0].text()).not.toContain('never-forward-this');
 
-    const batchResponse = await app.request('/api/v1/discovery/batch', {
+    const batchResponse = await app.request('/api/v1/complete/batch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: [input, { ...input, itemId: 'second-row' }] }),
     }, env);
-    const batch = DiscoveryBatchResultSchema.parse(await batchResponse.json());
+    const batch = CompletionBatchResultSchema.parse(await batchResponse.json());
     expect(batch.items.map(result => result.outcome)).toEqual(['error', 'error']);
     expect(outbound).toHaveLength(3);
+});
+
+it('keeps the earlier /discovery paths answering like /complete, without publishing them', async () => {
+    spyOn(Bkper.prototype, 'getBook').mockResolvedValue(book);
+    spyOn(Book.prototype, 'getAccount').mockImplementation(async id => id ? new Account(book, { id }) : undefined);
+    const input: components['schemas']['CompletionItem'] = {
+        itemId: 'row', bookId: 'synthetic-book',
+        transaction: { description: 'Synthetic purchase', creditAccount: { id: 'bank' }, debitAccount: { id: 'expense' }, posted: false },
+    };
+    const send = async (path: string, body: unknown) => (await app.request(path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }, env)).json();
+
+    expect(await send('/api/v1/discovery', input)).toEqual(await send('/api/v1/complete', input));
+    expect(await send('/api/v1/discovery/batch', { items: [input] })).toEqual(await send('/api/v1/complete/batch', { items: [input] }));
+
+    const document = await (await app.request('/openapi.json')).json() as { paths: Record<string, unknown> };
+    expect(Object.keys(document.paths)).toEqual(['/api/v1/complete', '/api/v1/complete/batch']);
 });

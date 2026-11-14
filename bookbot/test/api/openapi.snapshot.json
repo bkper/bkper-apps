@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Bookbot Discovery API",
+    "title": "Bookbot Completion API",
     "version": "1.0.0",
     "description": "Discovers Accounts and historical properties without Book writes. Canonical transaction payloads are enriched locally. Existing discovery preserves supplied Account sides and visible properties, consumes parsed_account_name_, and updates its internal bookbot_* provenance. sourceAccount enables property enrichment from the history found by account discovery. Items run sequentially, reusing one discovery cache per target Book and its existing request limit. Item IDs are unique within a batch and are unrelated to native transaction IDs. No installation is required; every target Book requires read access. Creator hints are verified and never select permissions or AI allowance. The Platform owns authentication, app-chain attribution and AI allowance. When similar posted history used several Accounts, Jev ranks them; its confidence, or 1.00 for a single Account, is recorded in bookbot_confidence_. No history datasets are returned. no_change means both sides are supplied or the description is blank; no_match means discovery returned no Accounts. Errors return the original supplied transaction, including when only part of discovery succeeded."
   },
@@ -11,26 +11,26 @@
     }
   ],
   "paths": {
-    "/api/v1/discovery": {
+    "/api/v1/complete": {
       "post": {
-        "operationId": "discover",
+        "operationId": "complete",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DiscoveryItem"
+                "$ref": "#/components/schemas/CompletionItem"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Read-only discovery results. Inspect each item outcome and error.",
+            "description": "Read-only completion results. Inspect each item outcome and error.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DiscoveryResult"
+                  "$ref": "#/components/schemas/CompletionResult"
                 }
               }
             }
@@ -51,26 +51,26 @@
         }
       }
     },
-    "/api/v1/discovery/batch": {
+    "/api/v1/complete/batch": {
       "post": {
-        "operationId": "discoverBatch",
+        "operationId": "completeBatch",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DiscoveryBatch"
+                "$ref": "#/components/schemas/CompletionBatch"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Read-only discovery results. Inspect each item outcome and error.",
+            "description": "Read-only completion results. Inspect each item outcome and error.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DiscoveryBatchResult"
+                  "$ref": "#/components/schemas/CompletionBatchResult"
                 }
               }
             }
@@ -168,8 +168,8 @@
         "additionalProperties": {},
         "x-typescript-type": "bkper.Transaction"
       },
-      "DiscoveryItem": {
-        "$id": "#/components/schemas/DiscoveryItem",
+      "CompletionItem": {
+        "$id": "#/components/schemas/CompletionItem",
         "type": "object",
         "properties": {
           "itemId": {
@@ -198,8 +198,8 @@
         ],
         "additionalProperties": false
       },
-      "DiscoveryResult": {
-        "$id": "#/components/schemas/DiscoveryResult",
+      "CompletionResult": {
+        "$id": "#/components/schemas/CompletionResult",
         "type": "object",
         "properties": {
           "itemId": {
@@ -245,15 +245,15 @@
         ],
         "additionalProperties": false
       },
-      "DiscoveryBatch": {
-        "$id": "#/components/schemas/DiscoveryBatch",
+      "CompletionBatch": {
+        "$id": "#/components/schemas/CompletionBatch",
         "type": "object",
         "properties": {
           "items": {
             "minItems": 1,
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DiscoveryItem"
+              "$ref": "#/components/schemas/CompletionItem"
             }
           }
         },
@@ -262,14 +262,14 @@
         ],
         "additionalProperties": false
       },
-      "DiscoveryBatchResult": {
-        "$id": "#/components/schemas/DiscoveryBatchResult",
+      "CompletionBatchResult": {
+        "$id": "#/components/schemas/CompletionBatchResult",
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DiscoveryResult"
+              "$ref": "#/components/schemas/CompletionResult"
             }
           }
         },

@@ -3,7 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 import { AppContext } from '../AppContext.js';
 import { BkperAIClientError } from '../genai/BkperAIClientError.js';
 import { Discovery, MAX_EXTERNAL_REQUESTS } from '../services/DiscoveryService.js';
-import type { DiscoveryItem, DiscoveryResult } from './schemas.js';
+import type { CompletionItem, CompletionResult } from './schemas.js';
 
 const READ_PERMISSIONS: readonly Permission[] = [Permission.VIEWER, Permission.POSTER, Permission.EDITOR, Permission.OWNER];
 
@@ -25,7 +25,7 @@ async function requireAccount(book: Book, id: string): Promise<Account> {
     return account;
 }
 
-function apiError(error: unknown): NonNullable<DiscoveryResult['error']> {
+function apiError(error: unknown): NonNullable<CompletionResult['error']> {
     if (error instanceof HTTPException) {
         return { code: error.status === 403 ? 'FORBIDDEN' : 'INVALID_ACCOUNT', message: error.message };
     }
@@ -39,13 +39,13 @@ function apiError(error: unknown): NonNullable<DiscoveryResult['error']> {
 }
 
 /** Read-only adapter. Each Book retains its existing discovery caches and request limit. */
-export async function discoverItems(items: DiscoveryItem[], context: AppContext, signal?: AbortSignal): Promise<DiscoveryResult[]> {
+export async function discoverItems(items: CompletionItem[], context: AppContext, signal?: AbortSignal): Promise<CompletionResult[]> {
     const books = new Map<string, { book: Book; discovery: Discovery }>();
-    const results: DiscoveryResult[] = [];
+    const results: CompletionResult[] = [];
     let username: Promise<string | undefined> | undefined;
 
     for (const item of items) {
-        const result: DiscoveryResult = {
+        const result: CompletionResult = {
             itemId: item.itemId,
             bookId: item.bookId,
             transaction: structuredClone(item.transaction),

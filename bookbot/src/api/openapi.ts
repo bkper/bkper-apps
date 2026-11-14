@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { AccountSchema, TransactionSchema, DiscoveryItemSchema, DiscoveryResultSchema, DiscoveryBatchSchema, DiscoveryBatchResultSchema, ErrorResponseSchema } from './schemas.js';
+import { AccountSchema, TransactionSchema, CompletionItemSchema, CompletionResultSchema, CompletionBatchSchema, CompletionBatchResultSchema, ErrorResponseSchema } from './schemas.js';
 
 const registry = z.registry<{ id: string }>();
 for (const [id, schema] of Object.entries({
     Account: AccountSchema,
     Transaction: TransactionSchema,
-    DiscoveryItem: DiscoveryItemSchema,
-    DiscoveryResult: DiscoveryResultSchema,
-    DiscoveryBatch: DiscoveryBatchSchema,
-    DiscoveryBatchResult: DiscoveryBatchResultSchema,
+    CompletionItem: CompletionItemSchema,
+    CompletionResult: CompletionResultSchema,
+    CompletionBatch: CompletionBatchSchema,
+    CompletionBatchResult: CompletionBatchResultSchema,
     ErrorResponse: ErrorResponseSchema,
 })) {
     registry.add(schema, { id });
@@ -23,7 +23,7 @@ function operation(operationId: string, request: string, response: string) {
         operationId,
         requestBody: { required: true, content: jsonContent(request) },
         responses: {
-            200: { description: 'Read-only discovery results. Inspect each item outcome and error.', content: jsonContent(response) },
+            200: { description: 'Read-only completion results. Inspect each item outcome and error.', content: jsonContent(response) },
             400: { description: 'Invalid request or duplicate item identifiers.', content: jsonContent('ErrorResponse') },
             401: { description: 'Platform authentication required.' },
         },
@@ -33,14 +33,14 @@ function operation(operationId: string, request: string, response: string) {
 export const openApiDocument = {
     openapi: '3.0.3',
     info: {
-        title: 'Bookbot Discovery API',
+        title: 'Bookbot Completion API',
         version: '1.0.0',
         description: 'Discovers Accounts and historical properties without Book writes. Canonical transaction payloads are enriched locally. Existing discovery preserves supplied Account sides and visible properties, consumes parsed_account_name_, and updates its internal bookbot_* provenance. sourceAccount enables property enrichment from the history found by account discovery. Items run sequentially, reusing one discovery cache per target Book and its existing request limit. Item IDs are unique within a batch and are unrelated to native transaction IDs. No installation is required; every target Book requires read access. Creator hints are verified and never select permissions or AI allowance. The Platform owns authentication, app-chain attribution and AI allowance. When similar posted history used several Accounts, Jev ranks them; its confidence, or 1.00 for a single Account, is recorded in bookbot_confidence_. No history datasets are returned. no_change means both sides are supplied or the description is blank; no_match means discovery returned no Accounts. Errors return the original supplied transaction, including when only part of discovery succeeded.',
     },
     security: [{ bearerAuth: [] }],
     paths: {
-        '/api/v1/discovery': { post: operation('discover', 'DiscoveryItem', 'DiscoveryResult') },
-        '/api/v1/discovery/batch': { post: operation('discoverBatch', 'DiscoveryBatch', 'DiscoveryBatchResult') },
+        '/api/v1/complete': { post: operation('complete', 'CompletionItem', 'CompletionResult') },
+        '/api/v1/complete/batch': { post: operation('completeBatch', 'CompletionBatch', 'CompletionBatchResult') },
     },
     components: {
         securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } },

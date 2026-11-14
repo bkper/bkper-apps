@@ -1,7 +1,7 @@
 /** Generated from /openapi.json. Do not edit directly. */
 import "@bkper/bkper-api-types";
 export interface paths {
-    "/api/v1/discovery": {
+    "/api/v1/complete": {
         parameters: {
             query?: never;
             header?: never;
@@ -10,14 +10,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["discover"];
+        post: operations["complete"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/discovery/batch": {
+    "/api/v1/complete/batch": {
         parameters: {
             query?: never;
             header?: never;
@@ -26,7 +26,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["discoverBatch"];
+        post: operations["completeBatch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -39,13 +39,13 @@ export interface components {
     schemas: {
         Account: bkper.Account;
         Transaction: bkper.Transaction;
-        DiscoveryItem: {
+        CompletionItem: {
             itemId: string;
             bookId: string;
             transaction: components["schemas"]["Transaction"];
             sourceAccount?: components["schemas"]["Account"];
         };
-        DiscoveryResult: {
+        CompletionResult: {
             itemId: string;
             bookId: string;
             transaction: components["schemas"]["Transaction"];
@@ -56,11 +56,11 @@ export interface components {
                 message: string;
             };
         };
-        DiscoveryBatch: {
-            items: components["schemas"]["DiscoveryItem"][];
+        CompletionBatch: {
+            items: components["schemas"]["CompletionItem"][];
         };
-        DiscoveryBatchResult: {
-            items: components["schemas"]["DiscoveryResult"][];
+        CompletionBatchResult: {
+            items: components["schemas"]["CompletionResult"][];
         };
         ErrorResponse: {
             error: {
@@ -77,7 +77,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    discover: {
+    complete: {
         parameters: {
             query?: never;
             header?: never;
@@ -86,17 +86,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DiscoveryItem"];
+                "application/json": components["schemas"]["CompletionItem"];
             };
         };
         responses: {
-            /** @description Read-only discovery results. Inspect each item outcome and error. */
+            /** @description Read-only completion results. Inspect each item outcome and error. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DiscoveryResult"];
+                    "application/json": components["schemas"]["CompletionResult"];
                 };
             };
             /** @description Invalid request or duplicate item identifiers. */
@@ -117,7 +117,7 @@ export interface operations {
             };
         };
     };
-    discoverBatch: {
+    completeBatch: {
         parameters: {
             query?: never;
             header?: never;
@@ -126,17 +126,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DiscoveryBatch"];
+                "application/json": components["schemas"]["CompletionBatch"];
             };
         };
         responses: {
-            /** @description Read-only discovery results. Inspect each item outcome and error. */
+            /** @description Read-only completion results. Inspect each item outcome and error. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DiscoveryBatchResult"];
+                    "application/json": components["schemas"]["CompletionBatchResult"];
                 };
             };
             /** @description Invalid request or duplicate item identifiers. */

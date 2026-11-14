@@ -97,7 +97,7 @@ function fixture(book = new TestBook()) {
     return { book, bkper, context: new TestContext(bkper) };
 }
 
-function item(itemId = 'row-1', bookId = 'synthetic-book'): components['schemas']['DiscoveryItem'] {
+function item(itemId = 'row-1', bookId = 'synthetic-book'): components['schemas']['CompletionItem'] {
     return {
         itemId, bookId,
         transaction: { description: 'Synthetic purchase', creditAccount: { id: 'bank' }, properties: { project: 'caller' }, posted: false },
@@ -292,7 +292,7 @@ describe('read-only discovery adapter', () => {
 
     it('authorizes every target Book with read permissions, without requiring installation', async () => {
         const { bkper, context } = fixture();
-        const inputs: components['schemas']['DiscoveryItem'][] = [];
+        const inputs: components['schemas']['CompletionItem'][] = [];
         for (const permission of ['VIEWER', 'POSTER', 'EDITOR', 'OWNER', 'RECORDER', 'NONE'] as const) {
             const book = new TestBook(permission, permission);
             bkper.books.set(permission, book);

@@ -98,8 +98,8 @@ All requests require a Bkper OAuth bearer token for a user with view access to e
 
 | Operation | Route | Effect |
 |---|---|---|
-| Discover one transaction | `POST /api/v1/discovery` | Returns the transaction with suggested accounts and properties, without changing the book |
-| Discover several transactions | `POST /api/v1/discovery/batch` | Same as above for several items, processed in order |
+| Complete one transaction | `POST /api/v1/complete` | Returns the transaction with suggested accounts and properties, without changing the book |
+| Complete several transactions | `POST /api/v1/complete/batch` | Same as above for several items, processed in order |
 
 Each item names the target book and a draft transaction, and can include the source account to enable property copying. Each result has an outcome: `changed`, `no_change`, `no_match`, or `error`.
 
@@ -117,10 +117,10 @@ curl -X POST \
     "bookId": "<book-id>",
     "transaction": { "description": "Monthly rent", "creditAccount": { "id": "<account-id>" } }
   }' \
-  https://bookbot.bkper.app/api/v1/discovery
+  https://bookbot.bkper.app/api/v1/complete
 ```
 
-Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request bookbot /api/v1/discovery -d '<json>'`.
+Agents and scripts using the Bkper CLI can send the same request as the signed-in user with `bkper app api request bookbot /api/v1/complete -d '<json>'`.
 
 See the [OpenAPI specification](https://bookbot.bkper.app/openapi.json) for complete request and response schemas.
 

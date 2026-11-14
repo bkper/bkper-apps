@@ -25,6 +25,11 @@ const NUMBER_OF_TRANSACTIONS = 15;
  */
 const MIN_JEV_CONFIDENCE = 0.95;
 const MIN_PROPERTY_DISCOVERY_TRANSACTIONS = 2;
+
+/** The API reads every apostrophe in a query as a double quote, so a search term holding either cannot be parsed. */
+function unquote(term: string): string {
+    return /['"]/.test(term) ? term.replace(/['"]/g, ' ').replace(/\s+/g, ' ').trim() : term;
+}
 const MAX_DESCRIPTION_PARTS = 5;
 export const MAX_EXTERNAL_REQUESTS = 950;
 
@@ -104,8 +109,9 @@ export class Discovery {
         const descriptionParts = await this.extractDescriptionParts(discoveryDescription);
         const tags = draft.getTags() || [];
         const queryParts = this.sanitizeQueryParts(descriptionParts, tags);
-        if (discoveryDescription.length < 50 && !queryParts.includes(discoveryDescription)) {
-            queryParts.unshift(discoveryDescription);
+        const fullDescription = unquote(discoveryDescription);
+        if (discoveryDescription.length < 50 && fullDescription && !queryParts.includes(fullDescription)) {
+            queryParts.unshift(fullDescription);
         }
 
         // From the closest history to the whole Book, and from the most specific description part to
@@ -302,7 +308,8 @@ export class Discovery {
         const seen = new Set<string>();
         const result: string[] = [];
 
-        for (const part of descriptionParts.sort((a, b) => b.length - a.length).slice(0, MAX_DESCRIPTION_PARTS)) {
+        const unquoted = descriptionParts.map(unquote).filter(part => part);
+        for (const part of unquoted.sort((a, b) => b.length - a.length).slice(0, MAX_DESCRIPTION_PARTS)) {
             const lowerPart = part.toLowerCase().replace(/^#/, '');
             if (!seen.has(lowerPart)) {
                 seen.add(lowerPart);

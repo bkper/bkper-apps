@@ -615,6 +615,18 @@ describe('Discovery', () => {
             expect(result.dataSet?.map(transaction => transaction.getDescription())).toEqual(['o rato roeu a roupa do rei de roma']);
         });
 
+        it('drops quote marks from search terms and skips terms left empty, since the API reads every apostrophe as a quote', async () => {
+            const listTransactions = spyOn(mockBook, 'listTransactions');
+            const extract = mock(async () => ["'roupa do rei'", "''", 'rei d"a grecia']);
+            const context = { ...mockContext, createExtractorDescriptionParts: () => ({ extract }) } as unknown as AppContext;
+            const draft = createMockTransaction("'roupa do rei'", mockAccounts.get('bank_id')!);
+
+            await new Discovery(context).discover(draft);
+
+            const terms = listTransactions.mock.calls.map(call => /"(.*)"/.exec(call[0] ?? '')?.[1]);
+            expect(new Set(terms)).toEqual(new Set(['roupa do rei', 'rei d a grecia']));
+        });
+
         it('asks Jev to rank the Accounts when one part finds several, and fills its choice at 0.95 confidence or more', async () => {
             const { chooser, choose } = fixedChooser({ choice: 'To: Auto Repair', confidence: 0.95 });
             const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);

@@ -76,14 +76,6 @@ export const CLASSIFICATION_SCHEMA: JsonSchema = {
     additionalProperties: false,
 };
 
-export const AMOUNT_SCHEMA: JsonSchema = {
-    anyOf: [{ type: 'number' }, { type: 'null' }],
-};
-
-export const OPTIONAL_DATE_SCHEMA: JsonSchema = {
-    anyOf: [DATE_SCHEMA, { type: 'null' }],
-};
-
 export const REFLECTION_SCHEMA: JsonSchema = {
     type: 'object',
     properties: {

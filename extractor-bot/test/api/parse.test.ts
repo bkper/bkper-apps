@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import { Account, Amount, Bkper, BkperError, Book, File, Group, Permission, Transaction } from 'bkper-js';
+import { Account, Bkper, BkperError, Book, File, Group, Permission, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { parse } from '../../src/api/parse.js';
 import { BkperAIResponsesClient } from '../../src/genai/BkperAIResponsesClient.js';
 import { BkperAIClientError } from '../../src/genai/BkperAIClientError.js';
 import { ExtractorInvoice } from '../../src/genai/invoice/ExtractorInvoice.js';
 import { ExtractorStatementCSV } from '../../src/genai/statement/csv/ExtractorStatementCSV.js';
-import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
-import { ExtractorDate } from '../../src/genai/ExtractorDate.js';
 import { ExtractorFileProperties } from '../../src/genai/file/ExtractorFileProperties.js';
 import { ExtractorFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
 
@@ -122,15 +120,26 @@ describe('read-only parse', () => {
         expect(writes).not.toHaveBeenCalled();
     });
 
-    it('extracts missing description fields without discovery or writes', async () => {
+    it('reads only documents: a transaction without a file is empty, without AI, discovery or writes', async () => {
         const { context, writes } = setup();
-        context.createExtractorAmount = () => ({ extract: mock(async () => new Amount('12.5')) }) as unknown as ExtractorAmount;
-        context.createExtractorDate = () => ({ extract: mock(async () => '2024-01-02') }) as unknown as ExtractorDate;
+        const generate = mock(async () => { throw new Error('Descriptions are completed by Bookbot'); });
+        BkperAIResponsesClient.prototype.generate = generate;
         context.createBookbotDiscoveryClient = mock(() => { throw new Error('Raw parsing must not discover'); });
-        const result = await parse({ bookId: 'book_1', transaction: { description: 'Payment 12.50 on 2024-01-02' } }, context);
-        expect(result.transactions[0].transaction).toMatchObject({ amount: '12.5', date: '2024-01-02' });
+        const result = await parse({ bookId: 'book_1', transaction: { description: 'Payment 12.50 on 2024-01-02', properties: { auto_filled_date_: 'true' } } }, context);
+        expect(result).toEqual({ transactions: [], outcome: 'empty' });
+        expect(generate).not.toHaveBeenCalled();
         expect(context.createBookbotDiscoveryClient).not.toHaveBeenCalled();
         expect(writes).not.toHaveBeenCalled();
+    });
+
+    it('takes an automatically filled date from the document and marks it no longer automatic', async () => {
+        const { book, context } = setup();
+        book.getFile = mock(async () => new File(book, { id: 'file_1', ...file }));
+        context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: '2024-02-02', description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
+        const result = await parse({ bookId: 'book_1', transaction: { date: '2024-03-01', files: [{ id: 'file_1' }], properties: { auto_filled_date_: 'true' } } }, context);
+        expect(result.transactions[0].transaction.date).toBe('2024-02-02');
+        // The SDK encodes property removal as an empty value.
+        expect(result.transactions[0].transaction.properties?.auto_filled_date_).toBe('');
     });
 
     it('distinguishes empty results, safe dependency failures, and cancellation', async () => {
@@ -149,7 +158,6 @@ describe('read-only parse', () => {
         stored.update = writes;
         book.getFile = mock(async () => stored);
         context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: null, description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
-        context.createExtractorDate = () => ({ extract: mock(async () => undefined) }) as unknown as ExtractorDate;
         const result = await parse({ bookId: 'book_1', transaction: { files: [{ id: 'file_1' }] } }, context);
         expect(result.outcome).toBe('parsed');
         expect(book.getFile).toHaveBeenCalledWith('file_1');
@@ -183,7 +191,6 @@ describe('read-only parse', () => {
         const { book, context } = setup();
         book.getFile = mock(async () => new File(book, { id: 'file_1', ...file }));
         context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: null, description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
-        context.createExtractorDate = () => ({ extract: mock(async () => undefined) }) as unknown as ExtractorDate;
         const result = await parse({ bookId: 'book_1', transaction: { files: [{ id: 'file_1' }], properties: { agent_extracted_: '{"earlier":true}' } } }, context);
         expect(result.transactions[0].transaction.properties).toEqual({ agent_extracted_: '{"earlier":true}' });
     });
@@ -281,11 +288,9 @@ describe('read-only parse', () => {
             expect(JSON.parse(statement.transactions[0].transaction.properties!.extractor_extracted_!).date).toBeNull();
 
             context.createExtractorInvoice = () => ({ extract: mock(async () => ({ date: '15/01/2024', description: 'Invoice', amount: 10, properties: {} })) }) as unknown as ExtractorInvoice;
-            const dateExtract = mock(async () => '2024-01-20');
-            context.createExtractorDate = () => ({ extract: dateExtract }) as unknown as ExtractorDate;
             const attachment = await parse({ bookId: 'book_1', transaction: { files: [{ ...file, name: 'invoice.pdf', contentType: 'application/pdf' }] } }, context);
-            expect(attachment).toMatchObject({ outcome: 'parsed', transactions: [{ transaction: { description: 'Invoice', amount: '10', date: '2024-01-20' } }] });
-            expect(dateExtract).toHaveBeenCalledWith('Invoice');
+            expect(attachment).toMatchObject({ outcome: 'parsed', transactions: [{ transaction: { description: 'Invoice', amount: '10' } }] });
+            expect(attachment.transactions[0].transaction.date).toBeUndefined();
 
             const logged = JSON.stringify(warn.mock.calls);
             expect(logged).toContain('not ISO');
@@ -306,29 +311,10 @@ describe('read-only parse', () => {
         expect(await parse({ bookId: 'book_1', file: pdf }, context)).toMatchObject({ outcome: 'parsed', kind: 'transaction' });
         const withTransaction = await parse({ bookId: 'book_1', file: pdf, transaction: { description: 'Supplied', amount: '10', date: '2024-01-01' } }, context);
         expect(withTransaction.kind).toBeUndefined();
-        context.createExtractorDate = () => ({ extract: mock(async () => undefined) }) as unknown as ExtractorDate;
         expect((await parse({ bookId: 'book_1', transaction: { description: 'Payment', amount: '10' } }, context)).kind).toBeUndefined();
     });
 
-    it('keeps default amount/date failure handling unchanged outside the API', async () => {
-        const { bkper } = setup();
-        const context = new AppContext(bkper, {} as Env, 'test-token');
-        BkperAIResponsesClient.prototype.generate = mock(async () => { throw new BkperAIClientError(429, 'usage_limit_exceeded', 'Limit reached', false); });
-        const originalLog = console.log;
-        const originalWarn = console.warn;
-        const originalError = console.error;
-        console.log = console.warn = console.error = mock(() => {});
-        try {
-            expect(await context.createExtractorAmount().extract('Payment')).toBeNull();
-            expect(await context.createExtractorDate().extract('Payment')).toBeUndefined();
-        } finally {
-            console.log = originalLog;
-            console.warn = originalWarn;
-            console.error = originalError;
-        }
-    });
-
-    it('reports amount inference failures without logging the private description', async () => {
+    it('reports document inference failures without logging the private description', async () => {
         const { context } = setup();
         BkperAIResponsesClient.prototype.generate = mock(async () => { throw new BkperAIClientError(429, 'usage_limit_exceeded', 'Private detail', false); });
         const originalLog = console.log;
@@ -337,7 +323,8 @@ describe('read-only parse', () => {
         const logs = mock(() => {});
         console.log = console.warn = console.error = logs;
         try {
-            const result = await parse({ bookId: 'book_1', transaction: { description: 'PRIVATE DESCRIPTION' } }, context);
+            const pdf = { name: 'invoice.pdf', contentType: 'application/pdf', content: 'ZGF0YQ==' };
+            const result = await parse({ bookId: 'book_1', file: pdf, transaction: { description: 'PRIVATE DESCRIPTION' } }, context);
             expect(result).toMatchObject({ outcome: 'error', error: { code: 'usage_limit_exceeded' } });
             expect(logs).not.toHaveBeenCalled();
         } finally {

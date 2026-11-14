@@ -96,8 +96,6 @@ function world(configuration: Configuration): World {
         createExtractorStatementCSV: () => ({ extract: async () => { ai('csv'); return { transactions: [] }; } }),
         createExtractorInvoice: () => ({ extract: async () => { ai('invoice'); return undefined; } }),
         createExtractorFileProperties: () => ({ extract: async () => { ai('file'); return undefined; } }),
-        createExtractorAmount: () => ({ extract: async () => { ai('amount'); return undefined; } }),
-        createExtractorDate: () => ({ extract: async () => { ai('date'); return undefined; } }),
     } as unknown as AppContext;
 
     return { book, file, context, ai, discover: discoveryClient.discover, lookupParserUrl };

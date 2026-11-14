@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { File } from 'bkper-js';
 import { BkperAIResponsesClient } from '../src/genai/BkperAIResponsesClient.js';
-import { ExtractorAmount } from '../src/genai/ExtractorAmount.js';
-import { ExtractorDate } from '../src/genai/ExtractorDate.js';
 import { ExtractorInvoice } from '../src/genai/invoice/ExtractorInvoice.js';
 import { ExtractorStatementCSV } from '../src/genai/statement/csv/ExtractorStatementCSV.js';
 import { JaroWinklerStringComparator, PromptImprovementServiceBase, type RegressionDetail } from '../src/services/PromptImprovementServiceBase.js';
@@ -56,13 +54,6 @@ class TestablePromptImprovement extends PromptImprovementServiceBase {
 }
 
 describe('Event-mode logs keep customer content out', () => {
-    it('does not log the transaction description when extracting an amount or a date', async () => {
-        await new ExtractorAmount({} as Env, aiClient('12.5')).extract(`Payment ${SECRET} of 12,50`);
-        await new ExtractorDate({} as Env, aiClient('2026-11-01')).extract(`Payment ${SECRET} on 01/11/2026`);
-
-        expect(logged.join('\n')).not.toContain(SECRET);
-    });
-
     it('does not log the extraction prompt for documents or CSV statements', async () => {
         const invoice = new ExtractorInvoice(file('base64==', 'application/pdf'), {} as Env, aiClient('{}'));
         const csv = new ExtractorStatementCSV(file(Buffer.from('date,amount\n2026-11-01,10').toString('base64'), 'text/csv'), {} as Env, aiClient('{"transactions":[]}'));

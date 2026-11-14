@@ -64,8 +64,10 @@ function validateExtraction(extracted: ExtractedTransaction): ExtractedTransacti
 function applyExtraction(transaction: Transaction, extracted: ExtractedTransaction): void {
     if (!transaction.payload.description?.trim()) transaction.payload.description = extracted.description;
     if (transaction.payload.amount === undefined) transaction.payload.amount = String(extracted.amount);
-    if (!transaction.payload.date || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) {
-        if (extracted.date) transaction.payload.date = extracted.date;
+    if ((!transaction.payload.date || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) && extracted.date) {
+        transaction.payload.date = extracted.date;
+        // The document chose the date: it is no longer automatically filled, so completion keeps it.
+        transaction.deleteProperty(AUTO_FILLED_DATE_PROPERTY);
     }
     transaction.payload.properties = {
         ...Object.fromEntries(Object.entries(extracted.properties).map(([key, value]) => [key, String(value)])),
@@ -131,7 +133,6 @@ export async function parse(request: ExtractRequest, context: AppContext, signal
             const before = JSON.stringify(transaction.json());
             let account: Account | undefined;
             let extracted: ExtractedTransaction | undefined;
-            let extractedDate: string | null | undefined;
             if (file) {
                 const prompts = await context.promptLookupService.lookupPrompts({ book, file, transaction });
                 const transactionPrompt = prompts?.getPrompt('transaction');
@@ -141,20 +142,9 @@ export async function parse(request: ExtractRequest, context: AppContext, signal
                     !transaction.getAmount() || !transaction.getDescription().trim() ? service.extractAttachedTransaction(file, transactionPrompt) : Promise.resolve(undefined),
                     service.extractFilePropertiesIfConfigured(file, prompts?.getPrompt('file')),
                 ]);
-                if (extracted) {
-                    const validated = validateExtraction(extracted);
-                    applyExtraction(transaction, validated);
-                    extractedDate = validated.date;
-                }
+                if (extracted) applyExtraction(transaction, validateExtraction(extracted));
             }
-            if (transaction.payload.amount === undefined) {
-                const amount = await context.createExtractorAmount().extract(transaction.getDescription() || '');
-                if (amount && amount.gt(0)) transaction.payload.amount = amount.toString();
-            }
-            if ((!transaction.payload.date || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) && !extractedDate) {
-                const date = await context.createExtractorDate().extract(transaction.getDescription() || '');
-                if (date) transaction.payload.date = date;
-            }
+            // Extraction reads documents only; Bookbot's /complete reads an amount or date from a description.
             if (JSON.stringify(transaction.json()) !== before) {
                 if (extracted && !transaction.getProperty(EXTRACTOR_EXTRACTED_PROPERTY, LEGACY_AGENT_EXTRACTED_PROPERTY)) transaction.setProperty(EXTRACTOR_EXTRACTED_PROPERTY, JSON.stringify(extracted));
                 transactions.push({ bookId: request.bookId, transaction: asDraft(transaction, account) });

@@ -7,8 +7,8 @@ import type { components } from '../clients/bookbot/types.js';
  */
 export const BOOKBOT_API_BASE_URL = 'https://bookbot.bkper.app';
 
-type DiscoveryBatch = components['schemas']['DiscoveryBatch'];
-type DiscoveryResult = components['schemas']['DiscoveryResult'];
+type DiscoveryBatch = components['schemas']['CompletionBatch'];
+type DiscoveryResult = components['schemas']['CompletionResult'];
 export type DiscoveryOutcome = DiscoveryResult['outcome'];
 export type DiscoveryError = { code: string; message: string };
 
@@ -27,7 +27,8 @@ export interface DiscoveryBatchOutcome {
 type Fetcher = (input: string, init: RequestInit) => Promise<Response>;
 
 /**
- * Asks Bookbot to discover Accounts and properties for drafts of one target Book, then applies its suggestions locally.
+ * Asks Bookbot to complete drafts of one target Book (a missing amount, an automatically filled date, Accounts and
+ * properties), then applies its suggestions locally.
  * Platform outbound supplies authorization; this client never reads or sends credentials. It never writes to Books.
  */
 export class BookbotDiscoveryClient {
@@ -56,7 +57,7 @@ export class BookbotDiscoveryClient {
 
         let results: unknown;
         try {
-            const response = await this.fetcher(`${this.baseUrl}/api/v1/discovery/batch`, {
+            const response = await this.fetcher(`${this.baseUrl}/api/v1/complete/batch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(request),
@@ -99,15 +100,24 @@ export class BookbotDiscoveryClient {
     }
 }
 
-/** Discovery reads description, Account sides, properties, tags, ID and creator; attached files are not needed. */
+/** Completion reads description, amount, date, Account sides, properties, tags, ID and creator; attached files are not needed. */
 function requestTransaction(transaction: Transaction): bkper.Transaction {
     const payload = transaction.json();
     delete payload.files;
     return payload;
 }
 
-/** Discovery only fills Account sides and properties; every other local field stays as extracted. */
+/**
+ * Bookbot fills Account sides, properties, and an amount or date the draft lacked; it never replaces a supplied
+ * amount or chosen date. Every other local field stays as extracted.
+ */
 function applyDiscovery(transaction: Transaction, discovered: bkper.Transaction): void {
+    if (discovered.amount) {
+        transaction.payload.amount = discovered.amount;
+    }
+    if (discovered.date) {
+        transaction.payload.date = discovered.date;
+    }
     if (discovered.creditAccount) {
         transaction.payload.creditAccount = discovered.creditAccount;
     }

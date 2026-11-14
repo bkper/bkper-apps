@@ -86,33 +86,17 @@ export class EventHandlerTransactionCreated extends EventHandler {
                     updatedFile = true;
                 }
 
-                if (!transaction.getAmount()) {
-                    if (extractedTransaction?.amount) {
-                        // Update transaction
-                        transaction.setAmount(extractedTransaction.amount);
-                        updatedFile = true;
-                    } else {
-                        // Extract amount from description using AI
-                        const extractedAmount = await this.context.createExtractorAmount().extract(transaction.getDescription() || '');
-                        if (extractedAmount && extractedAmount.gt(0)) {
-                            transaction.setAmount(extractedAmount);
-                            updatedProp = true;
-                        }
-                    }
+                // An amount or date the document lacks is read from the description by Bookbot, which completes the draft below.
+                if (!transaction.getAmount() && extractedTransaction?.amount) {
+                    transaction.setAmount(extractedTransaction.amount);
+                    updatedFile = true;
                 }
 
-                if (!transaction.getDate() || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) {
-                    if (extractedTransaction?.date) {
-                        transaction.setDate(extractedTransaction.date);
-                        updatedFile = true;
-                    } else {
-                        // Extract date from description using AI
-                        const extractedDate = await this.context.createExtractorDate().extract(transaction.getDescription() || '');
-                        if (extractedDate) {
-                            transaction.setDate(extractedDate);
-                            updatedProp = true;
-                        }
-                    }
+                if ((!transaction.getDate() || transaction.getProperty(AUTO_FILLED_DATE_PROPERTY)) && extractedTransaction?.date) {
+                    transaction.setDate(extractedTransaction.date);
+                    // The document chose the date: it is no longer automatically filled, so Bookbot keeps it.
+                    transaction.deleteProperty(AUTO_FILLED_DATE_PROPERTY);
+                    updatedFile = true;
                 }
 
                 if (extractedTransaction?.properties && Object.keys(extractedTransaction.properties).length > 0) {

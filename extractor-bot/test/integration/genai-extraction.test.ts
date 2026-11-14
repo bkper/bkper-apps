@@ -2,8 +2,6 @@ import { describe, it, expect } from 'bun:test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { File } from 'bkper-js';
-import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
-import { ExtractorDate } from '../../src/genai/ExtractorDate.js';
 import { ExtractorFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
 import { ExtractorStatementCSV } from '../../src/genai/statement/csv/ExtractorStatementCSV.js';
 import { ExtractorStatementIMG } from '../../src/genai/statement/img/ExtractorStatementIMG.js';
@@ -113,73 +111,6 @@ const SEMICOLON_CSV = `datum;beschreibung;betrag
 // --- Tests ---
 
 describe('GenAI Extraction (Integration)', () => {
-    // ========================================
-    // Group 1: Field Extractors
-    // ========================================
-
-    describe.skipIf(!bkperAIClient)('ExtractorAmount through Bkper AI', () => {
-        it(
-            'extracts a clear monetary amount',
-            async () => {
-                const extractor = new ExtractorAmount(env, bkperAIClient);
-                const result = await extractor.extract('Payment of $150.50 to vendor');
-
-                expect(result).not.toBeNull();
-                expect(result!.toNumber()).toBeCloseTo(150.5, 1);
-            },
-            { timeout: 30_000 }
-        );
-
-        it(
-            'returns null when no amount is present',
-            async () => {
-                const extractor = new ExtractorAmount(env, bkperAIClient);
-                const result = await extractor.extract('ABSCHLUSS PER 31.08.2025');
-
-                expect(result).toBeNull();
-            },
-            { timeout: 30_000 }
-        );
-
-        it(
-            'picks the main amount when multiple values are present',
-            async () => {
-                const extractor = new ExtractorAmount(env, bkperAIClient);
-                const result = await extractor.extract('Transfer €1,234.56 processing fee €5');
-
-                expect(result).not.toBeNull();
-                expect(result!.toNumber()).toBeCloseTo(1234.56, 1);
-            },
-            { timeout: 30_000 }
-        );
-    });
-
-    describe.skipIf(!bkperAIClient)('ExtractorDate through Bkper AI', () => {
-        it(
-            'extracts a date in European format',
-            async () => {
-                const extractor = new ExtractorDate(env, bkperAIClient);
-                const result = await extractor.extract('ABSCHLUSS PER 31.08.2025');
-
-                expect(result).toBeDefined();
-                expect(result).toBe('2025-08-31');
-            },
-            { timeout: 30_000 }
-        );
-
-        it(
-            'returns null/undefined when no date is present',
-            async () => {
-                const extractor = new ExtractorDate(env, bkperAIClient);
-                const result = await extractor.extract('Monthly subscription payment');
-
-                // Model may return null or undefined — both are acceptable
-                expect(result == null).toBe(true);
-            },
-            { timeout: 30_000 }
-        );
-    });
-
     // ========================================
     // Group 2: CSV Statement Extraction
     // ========================================

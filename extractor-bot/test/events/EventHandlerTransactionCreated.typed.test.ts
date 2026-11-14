@@ -17,8 +17,6 @@ describe('EventHandlerTransactionCreated - typed transactions', () => {
         const record = (name: string) => () => { calls.push(name); throw new Error(`${name} must not be used`); };
         context = {
             createBookbotDiscoveryClient: record('discovery'),
-            createExtractorAmount: record('amount'),
-            createExtractorDate: record('date'),
             promptLookupService: { lookupPrompts: record('prompts'), lookupParserUrl: record('parser URL') },
         } as unknown as AppContext;
         originalUpdate = Transaction.prototype.update;

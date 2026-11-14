@@ -6,8 +6,6 @@ import { JevEvaluationService } from './genai/JevEvaluationService.js';
 import { ExtractorInvoice } from './genai/invoice/ExtractorInvoice.js';
 import { ExtractorStatementCSV } from './genai/statement/csv/ExtractorStatementCSV.js';
 import { ExtractorStatementIMG } from './genai/statement/img/ExtractorStatementIMG.js';
-import { ExtractorAmount } from './genai/ExtractorAmount.js';
-import { ExtractorDate } from './genai/ExtractorDate.js';
 import { ExtractorFileClassification } from './genai/file/ExtractorFileClassification.js';
 import { ExtractorFileProperties } from './genai/file/ExtractorFileProperties.js';
 import { BkperAIEvaluationsClient } from './genai/BkperAIEvaluationsClient.js';
@@ -88,17 +86,5 @@ export class AppContext {
 
     createExtractorFileProperties(file: File): ExtractorFileProperties {
         return new ExtractorFileProperties(file, this.env, this.bkperAIResponsesClient);
-    }
-
-    // ============================================
-    // Factory Methods for Stateless Extractors
-    // ============================================
-
-    createExtractorAmount(): ExtractorAmount {
-        return new ExtractorAmount(this.env, this.bkperAIResponsesClient);
-    }
-
-    createExtractorDate(): ExtractorDate {
-        return new ExtractorDate(this.env, this.bkperAIResponsesClient);
     }
 }

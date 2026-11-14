@@ -41,7 +41,7 @@ describe('BookbotDiscoveryClient', () => {
 
         expect(fetcher).toHaveBeenCalledTimes(1);
         const [url, init] = fetcher.mock.calls[0];
-        expect(url).toBe('https://bookbot.test/api/v1/discovery/batch');
+        expect(url).toBe('https://bookbot.test/api/v1/complete/batch');
         expect(init.method).toBe('POST');
         expect(new Headers(init.headers).get('Authorization')).toBeNull();
         const body = sentBody(fetcher);
@@ -89,6 +89,21 @@ describe('BookbotDiscoveryClient', () => {
         expect(transaction.payload.date).toBe('2026-10-05');
         expect(transaction.payload.draft).toBe(true);
         expect(transaction.payload.files).toEqual([{ id: 'file_1' }]);
+    });
+
+    it('applies an amount and date Bookbot read from the description', async () => {
+        const transaction = draft({ description: 'Lunch 25 on 12/11', date: '2026-11-14', creditAccount: { id: 'bank' }, properties: { auto_filled_date_: 'true' } });
+        const fetcher = respondWith({
+            items: [{
+                itemId: '0', bookId: 'book_1', outcome: 'changed',
+                transaction: { description: 'Lunch 25 on 12/11', amount: '25', date: '2026-11-12', creditAccount: { id: 'bank' }, properties: { auto_filled_date_: 'true' } },
+            }],
+        });
+
+        await new BookbotDiscoveryClient(fetcher).discover('book_1', [{ transaction }]);
+
+        expect(transaction.payload.amount).toBe('25');
+        expect(transaction.payload.date).toBe('2026-11-12');
     });
 
     it('correlates results by item ID and reports per-item failures without touching failed drafts', async () => {

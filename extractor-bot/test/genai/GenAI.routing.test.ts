@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 
 import { GEMINI_MODEL_FLASH, GEMINI_MODEL_FLASH_LITE } from '../../src/constants.js';
 import { BkperAIResponsesClient } from '../../src/genai/BkperAIResponsesClient.js';
-import { ExtractorAmount } from '../../src/genai/ExtractorAmount.js';
+import type { BkperAIReasoningEffort } from '../../src/genai/BkperAIResponsesClient.js';
 import { GenAI } from '../../src/genai/GenAI.js';
 import { JsonSchema } from '../../src/genai/JsonSchema.js';
 
@@ -32,6 +32,28 @@ class FlashRoutingGenAI extends GenAI<{ answer: string }> {
             required: ['answer'],
             additionalProperties: false,
         };
+    }
+}
+
+class FlashLiteRoutingGenAI extends GenAI<number | null> {
+    protected getModel(): string {
+        return GEMINI_MODEL_FLASH_LITE;
+    }
+
+    protected getOperation(): 'file_classification' {
+        return 'file_classification';
+    }
+
+    protected override getReasoningEffort(): BkperAIReasoningEffort {
+        return 'minimal';
+    }
+
+    protected getSystemPrompt(): string {
+        return 'Extract the amount.';
+    }
+
+    protected getResponseSchema(): JsonSchema {
+        return { anyOf: [{ type: 'number' }, { type: 'null' }] };
     }
 }
 
@@ -116,11 +138,11 @@ describe('GenAI Flash-Lite routing', () => {
                 });
             }),
         });
-        const extractor = new ExtractorAmount({} as Env, client);
+        const extractor = new FlashLiteRoutingGenAI({} as Env, client);
 
-        const amount = await extractor.extract('Payment of $150.50 to vendor');
+        const amount = await extractor.query([{ text: 'Payment of $150.50 to vendor' }]);
 
-        expect(amount?.toNumber()).toBe(150.5);
+        expect(amount).toBe(150.5);
         expect(requestUrl).toBe('http://localhost:8792/v1/responses');
         expect(requestBody?.model).toBe(GEMINI_MODEL_FLASH_LITE);
         expect(requestBody?.reasoning).toEqual({ effort: 'minimal' });
@@ -129,7 +151,7 @@ describe('GenAI Flash-Lite routing', () => {
     });
 
     it('fails closed when Flash-Lite has no request-scoped Bkper AI client', async () => {
-        const extractor = new ExtractorAmount({} as Env);
+        const extractor = new FlashLiteRoutingGenAI({} as Env);
 
         await expect(extractor.query([{ text: 'invoice' }])).rejects.toThrow(
             'Bkper AI client is required for language-model inference.'

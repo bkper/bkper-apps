@@ -5,6 +5,7 @@ import { Book, File, Transaction } from 'bkper-js';
 import { AppContext } from '../../src/AppContext.js';
 import { EventHandlerTransactionCreated } from '../../src/events/EventHandlerTransactionCreated.js';
 import { AUTO_FILLED_DATE_PROPERTY } from '../../src/constants.js';
+import type { DiscoveryBatchOutcome, DiscoveryItem } from '../../src/services/BookbotDiscoveryClient.js';
 import { createNoMatchBookbotDiscoveryClient } from '../helpers/bookbot-discovery.js';
 
 const UPLOAD_METHOD_PROPERTY = 'upload_method';
@@ -60,8 +61,6 @@ describe('EventHandlerTransactionCreated - attachments', () => {
             },
             createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
             createExtractorInvoice: () => ({ extract: mock(async () => undefined) }),
-            createExtractorAmount: () => ({ extract: mock(async () => undefined) }),
-            createExtractorDate: () => ({ extract: mock(async () => undefined) }),
         } as unknown as AppContext;
         Transaction.prototype.update = mock(async function (this: Transaction) {
             return this;
@@ -81,60 +80,88 @@ describe('EventHandlerTransactionCreated - attachments', () => {
         expect(logged.join('\n')).not.toContain('SECRET-7781');
     });
 
-    it('skips attachment extraction while preserving description date extraction', async () => {
-        const mockFile = createAttachmentFile();
-        const mockBook = {
+    function createBook(file: File): Book {
+        return {
             getId: () => 'book_1',
             getConfig: () => ({}),
-            getFile: mock(async () => mockFile),
+            getFile: mock(async () => file),
             getFractionDigits: () => 2,
             getTimeZone: () => 'UTC',
             getMostRecentLockDate_: () => undefined,
             getDecimalSeparator: () => 'DOT',
         } as unknown as Book;
-        const invoiceExtract = mock(async () => ({
-            date: '2024-01-01',
-            description: 'Existing description',
-            amount: 100,
-            properties: {},
-        }));
-        const dateExtract = mock(async () => '2024-01-02');
+    }
+
+    function attachmentEvent(transaction: bkper.Transaction): bkper.Event {
+        return {
+            bookId: 'book_1',
+            data: { object: { transaction: { id: 'tx_1', date: '2024-01-01', files: [{ id: 'file_1' }], ...transaction } } },
+        } as bkper.Event;
+    }
+
+    it('leaves a missing amount and an automatically filled date to Bookbot, then updates once', async () => {
+        const invoiceExtract = mock(async () => undefined);
+        const sent: bkper.Transaction[] = [];
+        const discover = mock(async (_bookId: string, items: DiscoveryItem[]): Promise<DiscoveryBatchOutcome> => {
+            sent.push(structuredClone(items[0].transaction.payload));
+            items[0].transaction.payload.date = '2024-01-02';
+            return { outcomes: ['changed'] };
+        });
         const mockContext = {
             promptLookupService: {
                 lookupPrompts: mock(async () => null),
                 lookupParserUrl: mock(async () => null),
             },
-            createBookbotDiscoveryClient: () => createNoMatchBookbotDiscoveryClient(),
+            createBookbotDiscoveryClient: () => ({ discover }),
             createExtractorInvoice: () => ({ extract: invoiceExtract }),
-            createExtractorAmount: () => ({ extract: mock(async () => undefined) }),
-            createExtractorDate: () => ({ extract: dateExtract }),
         } as unknown as AppContext;
-
         Transaction.prototype.update = mock(async function (this: Transaction) {
             return this;
         }) as typeof Transaction.prototype.update;
 
-        const event = {
-            bookId: 'book_1',
-            data: {
-                object: {
-                    transaction: {
-                        id: 'tx_1',
-                        date: '2024-01-01',
-                        description: 'Existing description',
-                        amount: '100',
-                        properties: { [AUTO_FILLED_DATE_PROPERTY]: 'true' },
-                        files: [{ id: 'file_1' }],
-                    },
-                },
-            },
-        } as bkper.Event;
+        const result = await new EventHandlerTransactionCreated(mockContext).handleEvent(createBook(createAttachmentFile()), attachmentEvent({
+            description: 'Existing description',
+            amount: '100',
+            properties: { [AUTO_FILLED_DATE_PROPERTY]: 'true' },
+        }));
 
-        const result = await new EventHandlerTransactionCreated(mockContext).handleEvent(mockBook, event);
-
+        // Amount and description were supplied, so the document is not read.
         expect(invoiceExtract).not.toHaveBeenCalled();
-        expect(dateExtract).toHaveBeenCalledWith('Existing description');
+        expect(sent[0].properties?.[AUTO_FILLED_DATE_PROPERTY]).toBe('true');
         expect(Transaction.prototype.update).toHaveBeenCalledTimes(1);
         expect(result.result).toBeTruthy();
+    });
+
+    it('keeps the date the document gives, marking it no longer automatic before Bookbot completes the draft', async () => {
+        const sent: bkper.Transaction[] = [];
+        const discover = mock(async (_bookId: string, items: DiscoveryItem[]): Promise<DiscoveryBatchOutcome> => {
+            sent.push(structuredClone(items[0].transaction.payload));
+            return { outcomes: ['no_match'] };
+        });
+        const mockContext = {
+            promptLookupService: {
+                lookupPrompts: mock(async () => null),
+                lookupParserUrl: mock(async () => null),
+            },
+            createBookbotDiscoveryClient: () => ({ discover }),
+            createExtractorInvoice: () => ({ extract: mock(async () => ({ date: '2023-12-24', description: 'Invoice', amount: 0, properties: {} })) }),
+        } as unknown as AppContext;
+        let updated: bkper.Transaction | undefined;
+        Transaction.prototype.update = mock(async function (this: Transaction) {
+            updated = structuredClone(this.payload);
+            return this;
+        }) as typeof Transaction.prototype.update;
+
+        await new EventHandlerTransactionCreated(mockContext).handleEvent(createBook(createAttachmentFile()), attachmentEvent({
+            properties: { [AUTO_FILLED_DATE_PROPERTY]: 'true' },
+        }));
+
+        // The document had no amount: Bookbot receives the draft without one, to read it from the description.
+        expect(sent[0].amount).toBeUndefined();
+        expect(sent[0].date).toBe('2023-12-24');
+        // The SDK encodes property removal as an empty value.
+        expect(sent[0].properties?.[AUTO_FILLED_DATE_PROPERTY]).toBe('');
+        expect(updated?.date).toBe('2023-12-24');
+        expect(updated?.description).toBe('Invoice');
     });
 });

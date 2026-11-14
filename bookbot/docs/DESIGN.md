@@ -23,6 +23,7 @@ Posted or updated transaction with a corrected, Bookbot-suggested Account
 - **Distinct outcomes.** `changed`, `no_change`, `no_match` and `error` stay separate, so a dependency failure never looks like a missing match.
 - **Per-Book authorization.** Every target Book needs at least `VIEWER` access for the authenticated principal. API calls do not require installation; event automation does.
 - **No posting.** Discovery never posts. Unresolved drafts stay drafts and do not affect balances.
+- **History decides when it agrees; Jev ranks when it differs.** Code finds posted history with one search at a time, from the closest scope and most specific description part, and fills the only Account it shows. When it shows several, Jev ranks them by amount, dates, hashtags and properties. Code removes options the draft cannot take and fills only empty sides, so Jev can never suggest an Account this history did not use. This replaced counting the 3 most recent transactions after an end-to-end comparison on a real Book, using only history before each transaction: across 1,210 bank transactions it fixed 25–27 suggestions and broke 2, all in mixed history, and made no difference where history agreed.
 
 ## What tests must cover
 
@@ -31,9 +32,10 @@ Posted or updated transaction with a corrected, Bookbot-suggested Account
 - The distinction between no-match, no-change and dependency errors, with safe partial-batch results.
 - Caller authorization, app identity and AI allowance behavior.
 - Rediscovery that never overwrites later user corrections under duplicate deliveries or stale event snapshots.
+- The account choice: one option filled without Jev, several ranked by Jev at any confidence, searches never mixed, options without blocked Accounts, a label that was not offered, and Jev failures.
 
 Tests use doubles and synthetic fixtures. Live Books and paid inference need explicit approval.
 
 ## Out of scope
 
-New discovery algorithms, calibrated confidence, automatic posting and durable background processing, unless a demonstrated need justifies them.
+Calibrated confidence, automatic posting and durable background processing, unless a demonstrated need justifies them. `bookbot_confidence_` is Jev's confidence, not a probability calibrated on real Books.

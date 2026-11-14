@@ -55,8 +55,8 @@ Bookbot does not handle file or transaction-created events. Callers that record 
 
 | Properties | Role |
 | --- | --- |
-| `bookbot_credit_account_id_`, `bookbot_debit_account_id_`, `bookbot_description_part_`, `bookbot_discovered_properties_` (earlier `agent_*` names), plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (the caller for API results, Bookbot for rediscovery). When the input draft carries an earlier name, the result returns it as an empty value, the SDK's removal. Extractor Bot reads the account-side provenance under both names; keep these names stable. All keys ≤ 30 characters (`test/property-names.test.ts`). |
-| `bookbot_discovery_examples` (earlier `agent_discovery_examples`, still read) | Discovery configuration (Account, then Group, then Book; on each, the new name first). |
+| `bookbot_credit_account_id_`, `bookbot_debit_account_id_`, `bookbot_discovered_properties_` (earlier `agent_*` names), `bookbot_confidence_`, plus discovered visible properties | Discovery results and provenance on drafts. Bookbot produces them; whoever records the draft persists them (the caller for API results, Bookbot for rediscovery). `bookbot_confidence_` is Jev's confidence in the option it ranked first, or `1.00` when the search found one option, two decimals, hidden so mirroring apps such as Subledger and Exchange Bot do not copy it. When the input draft carries an earlier name, the result returns it as an empty value, the SDK's removal. Extractor Bot reads the account-side provenance under both names; keep these names stable. All keys ≤ 30 characters (`test/property-names.test.ts`). |
+| `bookbot_description_part_`, `agent_description_part_` | No longer written. Discovery removes either from a draft where it fills a side, only when present. |
 | `agent_excluded_properties`, legacy `agent_prompt_skip` | Property keys discovery never copies. Bookbot reads them and never writes them; other apps may read the same property. |
 | `parsed_account_name_` | Set by Bkper when a created transaction's description names one Account. Discovery uses it as the known Account and removes it locally. |
 
@@ -67,8 +67,8 @@ Bookbot provides this API to apps, agents and scripts.
 - Versioned `/api/v1/*` operations with a published `/openapi.json` and generated client types.
 - Single and batch calls share one item contract and implementation. Stable client item identifiers correlate results.
 - Inputs identify the target Book and include transaction context, known account sides, description and hashtags, relevant properties, and optional verified creator or source context. Do not trust caller-supplied identities to select permissions or an execution principal.
-- Outputs include suggested account sides, proposed historical properties, an outcome, and bounded provenance. Report no-change separately from no-match, and both separately from dependency failures. Do not present frequency counts as calibrated confidence.
-- Validate that suggested Accounts belong to the authorized target Book. Preserve known sides and supplied visible properties. Return the existing discovery `.json()`, including consumed `parsed_account_name_` context and updated internal `agent_*` provenance.
+- Outputs include suggested account sides, proposed historical properties, an outcome, and bounded provenance. Report no-change separately from no-match, and both separately from dependency failures. `bookbot_confidence_` is Jev's confidence, not calibrated on real Books: do not present it as the probability that the suggestion is right. It measures how concentrated Jev's probabilities are, so 0.06 on two options means about 53/47.
+- Validate that suggested Accounts belong to the authorized target Book. Preserve known sides and supplied visible properties. Return the existing discovery `.json()`, including consumed `parsed_account_name_` context and updated internal `bookbot_*` provenance.
 - Use one request-scoped discovery context per target Book to retain cache benefits. Preserve baseline sequential processing, caches and the existing external-request limit; honor request cancellation. No new batch-size, concurrency or deadline controls are introduced in this refactoring.
 - Do not expose raw SDK objects, private event payloads, or full historical datasets.
 
@@ -84,7 +84,9 @@ Bookbot provides this API to apps, agents and scripts.
 
 ## Known current behavior
 
-- Discovery reads Books and runs inference but persists nothing. The API reuses `Discovery.discover` and `Discovery.discoverProperties` without algorithm changes.
+- Discovery reads Books and runs inference but persists nothing. The API reuses `Discovery.discover` and `Discovery.discoverProperties`.
+- Account choice (`src/services/AccountChoice.ts`): searches run one at a time, from the known Account and creator to the whole Book and from the most specific description part to the broadest; the first search that fills the draft decides, and searches are never mixed. Each search reads 15 posted transactions. Options are the Accounts for the draft's empty sides (From → To pairs when both are empty), without an Account already on the other side or the one Bookbot suggested before on that side. A single option is filled without a model call. Several are ranked by Jev (`src/genai/AccountChooser.ts`, `@typesafe-ai/sdk` 0.6.0) in one `choice`, with no "None of these" and no threshold; code fills its first choice through the existing side checks. Property discovery reads only the chosen option's transactions and needs at least 2. A Jev failure is a dependency failure, with no fallback to counting or another model.
+- `bookbot_discovery_examples` and `agent_discovery_examples` are no longer read; description parts use the built-in examples.
 - Legacy dependency failures resemble no-match: discovery catches failures, a failed history query counts as empty, and the concrete description extractor catches inference failures and returns empty parts (so fallback searches can still match). Optional error hooks propagate these failures only for API callers; default event behavior is unchanged. See [deferred behavior](docs/DEFERRED.md).
 - Rediscovery returns `null` when no account changed or the change was not made by discovery, stops when the backlog exceeds 50, and considers one `is:draft` query with limit 100.
 
@@ -104,7 +106,7 @@ Tests for removed code were deleted with it. Short failure characterizations and
 
 ## Evaluations
 
-`eval/system-one/` compares System One decision models on synthetic discovery cases; it is not part of the app bundle. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
+`eval/system-one/` compares System One decision models on synthetic discovery cases. It is not part of the app bundle. `bun run eval:system-one --check` confirms its `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
 
 ## Check and deploy
 

@@ -1,5 +1,6 @@
-import { Book, Transaction, Account } from 'bkper-js';
+import { Book, Transaction, Account, BkperError } from 'bkper-js';
 import {
+    BOOKBOT_CONFIDENCE_PROPERTY,
     BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY,
     BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY,
     BOOKBOT_DESCRIPTION_PART_PROPERTY,
@@ -11,18 +12,16 @@ import {
     PARSED_ACCOUNT_NAME_PROPERTY,
 } from '../constants.js';
 import { setProvenanceProperty } from './ProvenanceProperty.js';
+import { buildAccountChoiceRequest, collectAccountOptions, decideAccountOption, type AccountChoiceDecision, type AccountOption } from './AccountChoice.js';
 import { AppContext } from '../AppContext.js';
+import { AccountChooser } from '../genai/AccountChooser.js';
 import { stripAccountNamesFromDescription } from '../utils.js';
 
-const NUMBER_OF_TRANSACTIONS = 3;
-const MIN_PROPERTY_DISCOVERY_TRANSACTIONS = Math.ceil(NUMBER_OF_TRANSACTIONS / 2);
+/** Posted transactions read per search for the account choice. */
+const NUMBER_OF_TRANSACTIONS = 15;
+const MIN_PROPERTY_DISCOVERY_TRANSACTIONS = 2;
 const MAX_DESCRIPTION_PARTS = 5;
 export const MAX_EXTERNAL_REQUESTS = 950;
-
-interface DiscoveryResult {
-    creditAccDiscovered: boolean;
-    debitAccDiscovered: boolean;
-}
 
 export class Discovery {
     private context: AppContext;
@@ -31,6 +30,7 @@ export class Discovery {
     private descriptionPartsCache: Map<string, string[]>;
     private propertySkipKeysCache: Map<string, Set<string>>;
     private externalRequestCount: number;
+    private accountChooser?: AccountChooser;
 
     constructor(context: AppContext, private readonly onError?: (error: unknown) => void) {
         this.context = context;
@@ -96,50 +96,67 @@ export class Discovery {
             return { discovered: false };
         }
 
-        const discoveryExamples = await this.context.promptLookupService.lookupDiscoveryExamples({ book, account });
-        const descriptionParts = await this.extractDescriptionParts(discoveryDescription, discoveryExamples);
+        const descriptionParts = await this.extractDescriptionParts(discoveryDescription);
         const tags = draft.getTags() || [];
         const queryParts = this.sanitizeQueryParts(descriptionParts, tags);
         if (discoveryDescription.length < 50 && !queryParts.includes(discoveryDescription)) {
             queryParts.unshift(discoveryDescription);
         }
 
+        // From the closest history to the whole Book, and from the most specific description part to
+        // the broadest: the first search that fills the draft decides, and searches are never mixed.
+        const accountName = account?.getName();
         const createdBy = draft.getCreatedBy();
-        if (account && createdBy) {
-            for (const queryPart of queryParts) {
-                const searchQuery = `account: '${account.getName()}' "${queryPart}" createdBy:${createdBy}`;
-                const transactions = await this.listTransactions(book, searchQuery);
-                const discoveryResult = this.discoverAccounts(transactions, draft);
+        const searchQueries: string[] = [];
+        if (accountName && createdBy) {
+            searchQueries.push(...queryParts.map(queryPart => `account: '${accountName}' "${queryPart}" createdBy:${createdBy}`));
+        }
+        if (accountName) {
+            searchQueries.push(...queryParts.map(queryPart => `account: '${accountName}' "${queryPart}"`));
+        }
+        searchQueries.push(...queryParts.map(queryPart => `"${queryPart}"`));
 
-                if (discoveryResult.creditAccDiscovered || discoveryResult.debitAccDiscovered) {
-                    this.logDiscovery(discoveryResult.creditAccDiscovered, discoveryResult.debitAccDiscovered, draft, queryPart);
-                    return { discovered: true, dataSet: transactions };
-                }
+        for (const searchQuery of searchQueries) {
+            const transactions = await this.listTransactions(book, searchQuery);
+            await this.describeAccounts(book, transactions);
+            const options = collectAccountOptions(draft, transactions);
+            if (options.length === 0) {
+                continue;
+            }
+            const result = await this.chooseAccounts(draft, options, account);
+            if (result.discovered) {
+                return result;
             }
         }
-
-        if (account) {
-            for (const queryPart of queryParts) {
-                const searchQuery = `account: '${account.getName()}' "${queryPart}"`;
-                const transactions = await this.listTransactions(book, searchQuery);
-                const discoveryResult = this.discoverAccounts(transactions, draft);
-                if (discoveryResult.creditAccDiscovered || discoveryResult.debitAccDiscovered) {
-                    this.logDiscovery(discoveryResult.creditAccDiscovered, discoveryResult.debitAccDiscovered, draft, queryPart);
-                    return { discovered: true, dataSet: transactions };
-                }
-            }
-        }
-
-        for (const queryPart of queryParts) {
-            const transactions = await this.listTransactions(book, `"${queryPart}"`);
-            const discoveryResult = this.discoverAccounts(transactions, draft);
-            if (discoveryResult.creditAccDiscovered || discoveryResult.debitAccDiscovered) {
-                this.logDiscovery(discoveryResult.creditAccDiscovered, discoveryResult.debitAccDiscovered, draft, queryPart);
-                return { discovered: true, dataSet: transactions };
-            }
-        }
-        this.logDiscovery(false, false, draft, null);
         return { discovered: false };
+    }
+
+    /**
+     * Fills the draft with the only option one search found, or with the option Jev ranks first when
+     * the search found several, then applies it in code only to empty sides that pass the checks.
+     */
+    private async chooseAccounts(draft: Transaction, options: AccountOption[], account: Account | undefined): Promise<{ discovered: boolean, dataSet?: Transaction[] }> {
+        const decision = options.length === 1 ? { option: options[0], confidence: 1 } : await this.rankAccounts(draft, options, account);
+        if (!decision) {
+            return { discovered: false };
+        }
+
+        const creditAccountId = decision.option.creditAccount?.id;
+        const debitAccountId = decision.option.debitAccount?.id;
+        const creditAccDiscovered = !!creditAccountId && this.setCreditAccountId(draft, creditAccountId);
+        const debitAccDiscovered = !!debitAccountId && this.setDebitAccountId(draft, debitAccountId);
+        if (!creditAccDiscovered && !debitAccDiscovered) {
+            return { discovered: false };
+        }
+        this.logDiscovery(creditAccDiscovered, debitAccDiscovered, draft, decision.confidence);
+        return { discovered: true, dataSet: decision.option.transactions };
+    }
+
+    private async rankAccounts(draft: Transaction, options: AccountOption[], account: Account | undefined): Promise<AccountChoiceDecision | undefined> {
+        this.externalRequestCount++;
+        this.accountChooser ??= this.context.createAccountChooser();
+        const answer = await this.accountChooser.choose(buildAccountChoiceRequest(draft, options, account));
+        return decideAccountOption(options, answer);
     }
 
     private async listTransactions(book: Book, searchQuery: string): Promise<Transaction[]> {
@@ -166,16 +183,45 @@ export class Discovery {
         }
     }
 
-    private async extractDescriptionParts(description: string, discoveryExamples?: string): Promise<string[]> {
-        const cacheKey = `${discoveryExamples ?? ''}\u0000${description}`;
-        if (this.descriptionPartsCache.has(cacheKey)) {
-            return this.descriptionPartsCache.get(cacheKey)!;
+    /**
+     * Listed transactions carry only their Accounts' IDs; the choice names them and describes their
+     * type and groups. Account reads are cached and counted like any other.
+     */
+    private async describeAccounts(book: Book, transactions: Transaction[]): Promise<void> {
+        for (const transaction of transactions) {
+            if (transaction.payload.creditAccount) {
+                transaction.payload.creditAccount = await this.describeAccount(book, transaction.payload.creditAccount);
+            }
+            if (transaction.payload.debitAccount) {
+                transaction.payload.debitAccount = await this.describeAccount(book, transaction.payload.debitAccount);
+            }
+        }
+    }
+
+    /**
+     * The Book's Account, or the transaction's own reference when the Book does not have it: callers
+     * that check Book membership then reject the suggestion as an invalid Account.
+     */
+    private async describeAccount(book: Book, account: bkper.Account): Promise<bkper.Account> {
+        try {
+            return (account.id && (await this.getAccount(book, account.id))?.json()) || account;
+        } catch (error) {
+            if (error instanceof BkperError && error.code === 404) {
+                return account;
+            }
+            throw error;
+        }
+    }
+
+    private async extractDescriptionParts(description: string): Promise<string[]> {
+        if (this.descriptionPartsCache.has(description)) {
+            return this.descriptionPartsCache.get(description)!;
         }
 
         this.externalRequestCount++;
 
-        const parts = await this.context.createExtractorDescriptionParts(this.onError).extract(description, discoveryExamples);
-        this.descriptionPartsCache.set(cacheKey, parts);
+        const parts = await this.context.createExtractorDescriptionParts(this.onError).extract(description);
+        this.descriptionPartsCache.set(description, parts);
         return parts;
     }
 
@@ -192,37 +238,6 @@ export class Discovery {
         const account = await book.getAccount(accountIdOrName);
         this.accountCache.set(cacheKey, account);
         return account;
-    }
-
-    private discoverAccounts(transactions: Transaction[], draft: Transaction): DiscoveryResult {
-        if (!transactions || transactions.length === 0) {
-            return { creditAccDiscovered: false, debitAccDiscovered: false };
-        }
-
-        const countCredit = new Map<string, number>();
-        const countDebit = new Map<string, number>();
-        let discovered = { creditAccDiscovered: false, debitAccDiscovered: false };
-
-        for (const tx of transactions) {
-            const creditAccountId = tx.payload.creditAccount?.id;
-            const debitAccountId = tx.payload.debitAccount?.id;
-
-            this.count(countCredit, creditAccountId);
-            this.count(countDebit, debitAccountId);
-        }
-
-        const highestCreditKey = this.getHighestFrequencyKey(countCredit);
-        const highestDebitKey = this.getHighestFrequencyKey(countDebit);
-
-        if (highestCreditKey && this.setCreditAccountId(draft, highestCreditKey)) {
-            discovered.creditAccDiscovered = true;
-        }
-
-        if (highestDebitKey && this.setDebitAccountId(draft, highestDebitKey)) {
-            discovered.debitAccDiscovered = true;
-        }
-
-        return discovered;
     }
 
     private setCreditAccountId(draft: Transaction, accountId: string): boolean {
@@ -251,43 +266,24 @@ export class Discovery {
         return false;
     }
 
-    private count(counts: Map<string, number>, id: string | undefined): void {
-        if (!id) {
-            return;
-        }
-        const current = counts.get(id) || 0;
-        counts.set(id, current + 1);
-    }
-
-    private getHighestFrequencyKey(counts: Map<string, number>): string | undefined {
-        let maxCount = 0;
-        let maxKey: string | undefined;
-
-        for (const [key, count] of counts.entries()) {
-            if (count > maxCount) {
-                maxCount = count;
-                maxKey = key;
-            }
-        }
-
-        return maxKey;
-    }
-
     private logDiscovery(creditAccDiscovered: boolean,
         debitAccDiscovered: boolean,
         draft: Transaction,
-        queryPart: string | null): void {
+        confidence: number): void {
         if (creditAccDiscovered) {
             setProvenanceProperty(draft, BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY, draft.payload.creditAccount?.id ?? '');
         }
         if (debitAccDiscovered) {
             setProvenanceProperty(draft, BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY, LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY, draft.payload.debitAccount?.id ?? '');
         }
+        draft.setProperty(BOOKBOT_CONFIDENCE_PROPERTY, confidence.toFixed(2));
 
-        if (queryPart) {
-            setProvenanceProperty(draft, BOOKBOT_DESCRIPTION_PART_PROPERTY, LEGACY_AGENT_DESCRIPTION_PART_PROPERTY, queryPart);
+        // The matched description part is no longer recorded; remove it, under either name, only when present.
+        for (const property of [BOOKBOT_DESCRIPTION_PART_PROPERTY, LEGACY_AGENT_DESCRIPTION_PART_PROPERTY]) {
+            if (draft.getProperty(property) !== undefined) {
+                draft.deleteProperty(property);
+            }
         }
-
     }
 
     private sanitizeQueryParts(descriptionParts: string[], tags: string[]): string[] {

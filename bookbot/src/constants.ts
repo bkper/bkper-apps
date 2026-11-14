@@ -5,17 +5,18 @@ export const AGENT_EXCLUDED_PROPERTIES_PROPERTY = 'agent_excluded_properties';
 // Bookbot's properties. Property keys have at most 30 characters.
 export const BOOKBOT_CREDIT_ACCOUNT_ID_PROPERTY = 'bookbot_credit_account_id_';
 export const BOOKBOT_DEBIT_ACCOUNT_ID_PROPERTY = 'bookbot_debit_account_id_';
+// No longer written: discovery removes it, under either name, from the drafts where it fills a side.
 export const BOOKBOT_DESCRIPTION_PART_PROPERTY = 'bookbot_description_part_';
 export const BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY = 'bookbot_discovered_properties_';
-export const BOOKBOT_DISCOVERY_EXAMPLES_PROPERTY = 'bookbot_discovery_examples';
+/** Jev's confidence in the Accounts discovery filled, such as `0.93`. */
+export const BOOKBOT_CONFIDENCE_PROPERTY = 'bookbot_confidence_';
 
 // Earlier names of the properties above. Read after the new name, never written; a draft Bookbot
-// updates loses the earlier name of each provenance key it writes. Customer settings keep working.
+// updates loses the earlier name of each provenance key it writes.
 export const LEGACY_AGENT_CREDIT_ACCOUNT_ID_PROPERTY = 'agent_credit_account_id_';
 export const LEGACY_AGENT_DEBIT_ACCOUNT_ID_PROPERTY = 'agent_debit_account_id_';
 export const LEGACY_AGENT_DESCRIPTION_PART_PROPERTY = 'agent_description_part_';
 export const LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY = 'agent_discovered_properties_';
-export const LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY = 'agent_discovery_examples';
 
 // Bkper AI language models
 export const GEMINI_MODEL_FLASH_LITE = 'gemini-flash-lite';

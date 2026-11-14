@@ -24,6 +24,7 @@
     "dependencies": {
         "@ai-sdk/openai": "^4.0.71",
         "@bkper/bkper-api-types": "5.41.0",
+        "@typesafe-ai/sdk": "0.6.0",
         "ai": "^7.0.107",
         "bkper-js": "^2.37.0",
         "hono": "^4.9.5",

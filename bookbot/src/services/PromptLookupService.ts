@@ -2,8 +2,6 @@ import { Account, Book, Group } from 'bkper-js';
 import {
     AGENT_PROMPT_SKIP_PROPERTY,
     AGENT_EXCLUDED_PROPERTIES_PROPERTY,
-    BOOKBOT_DISCOVERY_EXAMPLES_PROPERTY,
-    LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY,
 } from '../constants.js';
 
 /** Discovery settings lookup. Prompt and parser URL lookups belong to Extractor Bot. */
@@ -13,31 +11,7 @@ export interface PropertySkipLookupParams {
     group?: Group;
 }
 
-export interface DiscoveryExamplesLookupParams {
-    book: Book;
-    account?: Account;
-}
-
 export class PromptLookupService {
-    async lookupDiscoveryExamples(params: DiscoveryExamplesLookupParams): Promise<string | undefined> {
-        if (params.account) {
-            const accountExamples = params.account.getProperty(BOOKBOT_DISCOVERY_EXAMPLES_PROPERTY, LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim();
-            if (accountExamples) {
-                return accountExamples;
-            }
-
-            const groups = await params.account.getGroups();
-            for (const group of groups) {
-                const groupExamples = group.getProperty(BOOKBOT_DISCOVERY_EXAMPLES_PROPERTY, LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim();
-                if (groupExamples) {
-                    return groupExamples;
-                }
-            }
-        }
-
-        return params.book.getProperty(BOOKBOT_DISCOVERY_EXAMPLES_PROPERTY, LEGACY_AGENT_DISCOVERY_EXAMPLES_PROPERTY)?.trim() || undefined;
-    }
-
     async lookupPropertySkipKeys(params: PropertySkipLookupParams): Promise<Set<string>> {
         // Resolve the most-specific account-level exclusion list first.
         if (params.account) {

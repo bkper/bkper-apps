@@ -4,12 +4,14 @@ import { Discovery } from './services/DiscoveryService.js';
 import { RediscoveryService } from './services/RediscoveryService.js';
 import { ExtractorDescriptionParts } from './genai/ExtractorDescriptionParts.js';
 import { BkperAIResponsesClient } from './genai/BkperAIResponsesClient.js';
+import { AccountChooser } from './genai/AccountChooser.js';
 
-/** Bookbot's request context: account discovery, rediscovery, and their Bkper AI client. */
+/** Bookbot's request context: account discovery, rediscovery, and their Bkper AI clients. */
 export class AppContext {
     readonly bkper: Bkper;
     readonly env: Env;
     readonly bkperAIResponsesClient: BkperAIResponsesClient;
+    private readonly requestSignal?: AbortSignal;
 
     // Lazy-instantiated stateless services (singleton per request)
     private _promptLookupService?: PromptLookupService;
@@ -17,6 +19,7 @@ export class AppContext {
     constructor(bkper: Bkper, env: Env, oauthToken?: string, requestSignal?: AbortSignal) {
         this.bkper = bkper;
         this.env = env;
+        this.requestSignal = requestSignal;
         const clientOptions = {
             // Platform apps have no plain variables; Wrangler vars or .dev.vars may override for local development.
             baseUrl: env.BKPER_AI_BASE_URL ?? 'https://ai.bkper.app/v1',
@@ -57,5 +60,9 @@ export class AppContext {
 
     createExtractorDescriptionParts(onError?: (error: unknown) => void): ExtractorDescriptionParts {
         return new ExtractorDescriptionParts(this.env, this.bkperAIResponsesClient, onError);
+    }
+
+    createAccountChooser(): AccountChooser {
+        return new AccountChooser({ baseUrl: this.env.BKPER_AI_BASE_URL, signal: this.requestSignal });
     }
 }

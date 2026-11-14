@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn, mock, type Mock } from 'bun:test';
 import { Discovery } from '../../src/services/DiscoveryService.js';
 import { Book, Transaction, Account, TransactionList } from 'bkper-js';
 import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
@@ -6,6 +6,8 @@ import { AppContext } from '../../src/AppContext.js';
 import { PromptLookupService } from '../../src/services/PromptLookupService.js';
 import { BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
 import { firstNonBlank } from '../helpers/properties.js';
+import { fixedChooser, mostFrequentChooser } from '../helpers/accountChooser.js';
+import type { AccountChooser } from '../../src/genai/AccountChooser.js';
 
 declare global {
     interface Env {
@@ -37,6 +39,7 @@ describe('Discovery', () => {
                 },
             }),
             promptLookupService: new PromptLookupService(),
+            createAccountChooser: () => mostFrequentChooser().chooser,
         } as unknown as AppContext;
 
         // Mock the ExtractorDescriptionParts.extract method to return meaningful parts
@@ -84,7 +87,8 @@ describe('Discovery', () => {
     });
 
     afterEach(() => {
-        // Bun test handles mock cleanup automatically
+        // Restore the ExtractorDescriptionParts prototype spy so it does not leak into other test files.
+        mock.restore();
     });
 
     function setupMockAccounts() {
@@ -107,6 +111,7 @@ describe('Discovery', () => {
             const account = {
                 getId: () => id,
                 getName: () => name,
+                json: () => ({ id, name }),
                 getProperty: firstNonBlank((key: string) => properties[key] || undefined),
                 getGroups: async () => [],
                 setProperty: (key: string, value: string) => {
@@ -163,6 +168,8 @@ describe('Discovery', () => {
         );
     }
 
+    let transactionSequence = 0;
+
     function createMockTransaction(
         description: string,
         creditAccount?: Account,
@@ -180,8 +187,11 @@ describe('Discovery', () => {
             properties: properties ? { ...properties } : {},
         };
 
+        const id = `tx_${++transactionSequence}`;
         const transaction = {
             payload,
+            getId: () => id,
+            json: () => payload,
             getDescription: () => description,
             getTags: () => tags,
             getDate: () => '2025-01-01',
@@ -436,7 +446,7 @@ describe('Discovery', () => {
             const discovery = new Discovery(customMockContext);
             await discovery.discover(draft);
 
-            expect(extract).toHaveBeenCalledWith('TESTE', undefined);
+            expect(extract).toHaveBeenCalledWith('TESTE');
             expect((await draft.getCreditAccount())?.getId()).toBe('clients_a_tax_id');
             expect((await draft.getDebitAccount())?.getId()).toBe('client_a_id');
         });
@@ -525,14 +535,15 @@ describe('Discovery', () => {
             return Object.keys((draft as unknown as { payload: { properties: Record<string, string> } }).payload.properties);
         }
 
-        it('records discovered accounts and the matched description part under bookbot_ names only', async () => {
+        it('records discovered accounts and the confidence under bookbot_ names only, without a description part', async () => {
             const draft = createMockTransaction('MONTLY paYMent withOUT Taxes');
 
             await new Discovery(mockContext).discover(draft);
 
             expect(draft.getProperty('bookbot_credit_account_id_')).toBe((await draft.getCreditAccount())?.getId());
             expect(draft.getProperty('bookbot_debit_account_id_')).toBe((await draft.getDebitAccount())?.getId());
-            expect(draft.getProperty('bookbot_description_part_')).toBeDefined();
+            expect(draft.getProperty('bookbot_confidence_')).toBe('1.00');
+            expect(keys(draft)).not.toContain('bookbot_description_part_');
             expect(keys(draft).filter(key => key.startsWith('agent_'))).toEqual([]);
         });
 
@@ -541,12 +552,14 @@ describe('Discovery', () => {
                 agent_credit_account_id_: 'stale_id',
                 agent_debit_account_id_: 'stale_id',
                 agent_description_part_: 'stale',
+                bookbot_description_part_: 'stale',
             });
 
             await new Discovery(mockContext).discover(draft);
 
             expect(draft.getProperty('bookbot_credit_account_id_')).toBeDefined();
             expect(keys(draft).filter(key => key.startsWith('agent_'))).toEqual([]);
+            expect(keys(draft)).not.toContain('bookbot_description_part_');
         });
 
         it('does not suggest again an account it suggested under the earlier name', async () => {
@@ -581,25 +594,124 @@ describe('Discovery', () => {
         });
     });
 
-    describe('custom discovery examples', () => {
-        it('passes examples resolved from the known account context to description extraction', async () => {
+    describe('account choice', () => {
+        function contextWith(chooser: AccountChooser): AppContext {
+            return { ...mockContext, createAccountChooser: () => chooser } as unknown as AppContext;
+        }
+
+        it('searches description parts one at a time, asking for 15, and fills the only Account the first part finds without asking', async () => {
+            const { chooser, choose } = mostFrequentChooser();
+            const listTransactions = spyOn(mockBook, 'listTransactions');
+            const draft = createMockTransaction('roupa do rei de roma', mockAccounts.get('bank_id')!);
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            // A broader part ("roupa") also matches an Auto Repair transaction; it is never mixed in.
+            expect(result.discovered).toBe(true);
+            expect(draft.payload.debitAccount?.id).toBe('gas_id');
+            expect(draft.getProperty('bookbot_confidence_')).toBe('1.00');
+            expect(choose).not.toHaveBeenCalled();
+            expect(listTransactions.mock.calls.every(call => call[1] === 15)).toBe(true);
+            expect(result.dataSet?.map(transaction => transaction.getDescription())).toEqual(['o rato roeu a roupa do rei de roma']);
+        });
+
+        it('asks Jev to rank the Accounts when one part finds several, and fills its choice at any confidence', async () => {
+            const { chooser, choose } = fixedChooser({ choice: 'To: Auto Repair', confidence: 0.41 });
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            expect(choose).toHaveBeenCalledTimes(1);
+            expect(result.discovered).toBe(true);
+            expect(draft.payload.debitAccount?.id).toBe('auto_repair_id');
+            expect(draft.getProperty('bookbot_debit_account_id_')).toBe('auto_repair_id');
+            expect(draft.getProperty('bookbot_confidence_')).toBe('0.41');
+            expect(result.dataSet?.map(transaction => transaction.getDescription())).toEqual(['o rato roeu a roupa do rei da grecia']);
+        });
+
+        it('suggests nothing when Jev answers with an Account that was not offered', async () => {
+            const { chooser } = fixedChooser({ choice: 'To: Loans', confidence: 0.99 });
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            expect(result).toEqual({ discovered: false });
+            expect(draft.payload.debitAccount).toBeUndefined();
+            expect(draft.getProperty('bookbot_confidence_')).toBeUndefined();
+        });
+
+        it('names, types and groups the Accounts in the request, since listed transactions carry only their IDs', async () => {
+            const { chooser, choose } = mostFrequentChooser();
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
+
+            await new Discovery(contextWith(chooser)).discover(draft);
+
+            const request = choose.mock.calls[0][0];
+            expect(Object.keys(request.questions.account.criteria)).toEqual(['To: Gas', 'To: Auto Repair']);
+            const history = request.state.history as Record<string, { transactions: { from?: string; to?: string }[] }>;
+            expect(history['To: Gas'].transactions[0]).toMatchObject({ from: 'Bank', to: 'Gas' });
+            expect(request.state.draft).toMatchObject({ from: 'Bank' });
+        });
+
+        it('leaves the Account the user corrected out of the options, as rediscovery needs', async () => {
+            const { chooser, choose } = mostFrequentChooser();
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!, undefined, undefined, {
+                bookbot_debit_account_id_: 'gas_id',
+            });
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            expect(choose).not.toHaveBeenCalled();
+            expect(result.discovered).toBe(true);
+            expect(draft.payload.debitAccount?.id).toBe('auto_repair_id');
+        });
+
+        it('does not ask when the only options were suggested before and corrected', async () => {
+            const { chooser, choose } = mostFrequentChooser();
+            const draft = createMockTransaction('MONTLY paYMent withOUT Taxes', undefined, undefined, undefined, {
+                bookbot_credit_account_id_: 'job_id',
+            });
+
+            const result = await new Discovery(contextWith(chooser)).discover(draft);
+
+            expect(result).toEqual({ discovered: false });
+            expect(choose).not.toHaveBeenCalled();
+        });
+
+        it('counts the Jev call in the request budget and reports its failure to the caller', async () => {
+            const failure = new Error('Synthetic Jev failure');
+            const chooser = { choose: mock(async () => { throw failure; }) } as unknown as AccountChooser;
+            const onError = mock((_error: unknown) => {});
+            const draft = createMockTransaction('o rato roeu a roupa do rei', mockAccounts.get('bank_id')!);
+            const discovery = new Discovery(contextWith(chooser), onError);
+
+            const result = await discovery.discover(draft);
+
+            expect(result).toEqual({ discovered: false });
+            expect(onError).toHaveBeenCalledWith(failure);
+            expect(draft.payload.debitAccount).toBeUndefined();
+            // Searches, three Account reads (the known one and both options), one extraction and one Jev call.
+            const searches = (mockBook.listTransactions as Mock<Book['listTransactions']>).mock.calls.length;
+            expect(discovery.getExternalRequestCount()).toBe(searches + 3 + 2);
+        });
+    });
+
+    describe('discovery examples', () => {
+        it('ignores examples set on the known account, under either name', async () => {
             const description = 'WF HOME MTG DES:AUTO PAY ID:XXXXX37704 INDN:AMIN MOGHADDAS GHOLAMI CO ID:XXXXX87461 WEB';
-            const examples = `${description} -> WF HOME MTG DES`;
             const extract = mock(async () => ['WF HOME MTG DES']);
-            const lookupDiscoveryExamples = mock(async () => examples);
             const customMockContext = {
                 ...mockContext,
                 createExtractorDescriptionParts: () => ({ extract }),
-                promptLookupService: { lookupDiscoveryExamples },
             } as unknown as AppContext;
             const account = mockAccounts.get('bank_id')!;
+            account.setProperty('bookbot_discovery_examples', `${description} -> WF HOME`);
+            account.setProperty('agent_discovery_examples', `${description} -> WF`);
             const draft = createMockTransaction(description, account);
 
-            const discovery = new Discovery(customMockContext);
-            await discovery.discover(draft);
+            await new Discovery(customMockContext).discover(draft);
 
-            expect(lookupDiscoveryExamples).toHaveBeenCalledWith({ book: mockBook, account });
-            expect(extract).toHaveBeenCalledWith(description, examples);
+            expect(extract).toHaveBeenCalledWith(description);
         });
     });
 
@@ -621,7 +733,7 @@ describe('Discovery', () => {
             const discovery = new Discovery(customMockContext);
             await discovery.discover(draft);
 
-            expect(mockExtract).toHaveBeenCalledWith('#food payment', undefined);
+            expect(mockExtract).toHaveBeenCalledWith('#food payment');
 
             const calls = mockListTransactions.mock.calls;
             const queryParts = calls.map(call => call[0]);

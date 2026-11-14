@@ -31,15 +31,12 @@ events:
 propertiesSchema:
   account:
     keys:
-      - bookbot_discovery_examples
       - agent_excluded_properties
   group:
     keys:
-      - bookbot_discovery_examples
       - agent_excluded_properties
   book:
     keys:
-      - bookbot_discovery_examples
       - agent_excluded_properties
 
 apiVersion: v5

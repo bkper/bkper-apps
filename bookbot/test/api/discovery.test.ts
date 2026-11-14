@@ -6,6 +6,8 @@ import type { components } from '../../src/api/generated/types.js';
 import { BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY, LEGACY_AGENT_DISCOVERED_PROPERTIES_PROPERTY, PARSED_ACCOUNT_NAME_PROPERTY } from '../../src/constants.js';
 import { BkperAIClientError } from '../../src/genai/BkperAIClientError.js';
 import { ExtractorDescriptionParts } from '../../src/genai/ExtractorDescriptionParts.js';
+import type { AccountChooser } from '../../src/genai/AccountChooser.js';
+import { fixedChooser, mostFrequentChooser } from '../helpers/accountChooser.js';
 import { Discovery } from '../../src/services/DiscoveryService.js';
 
 class TestAccount extends Account {
@@ -24,7 +26,7 @@ class TestBook extends Book {
 
     constructor(id = 'synthetic-book', permission: bkper.Book['permission'] = 'VIEWER') {
         super({ id, permission });
-        for (const name of ['bank', 'expense']) {
+        for (const name of ['bank', 'expense', 'travel']) {
             this.accounts.set(name, new TestAccount(this, { id: name, name, properties: { agent_discovery_examples: 'synthetic' } }));
         }
     }
@@ -74,6 +76,7 @@ class TestExtractor extends ExtractorDescriptionParts {
 
 class TestContext extends AppContext {
     readonly extractor = new TestExtractor(this.env);
+    chooser: AccountChooser = mostFrequentChooser().chooser;
 
     constructor(bkper: TestBkper) {
         super(bkper, { BKPER_AI_BASE_URL: 'https://ai.bkper.app/v1' });
@@ -81,6 +84,10 @@ class TestContext extends AppContext {
 
     override createExtractorDescriptionParts(): ExtractorDescriptionParts {
         return this.extractor;
+    }
+
+    override createAccountChooser(): AccountChooser {
+        return this.chooser;
     }
 }
 
@@ -121,7 +128,7 @@ describe('read-only discovery adapter', () => {
         expect(result.transaction.creditAccount).toEqual(input.transaction.creditAccount);
         expect(result.transaction.debitAccount?.id).toBe('expense');
         expect(result.transaction.properties).toEqual({
-            project: 'caller', department: 'synthetic', bookbot_description_part_: 'Synthetic purchase',
+            project: 'caller', department: 'synthetic', bookbot_confidence_: '1.00',
             bookbot_debit_account_id_: 'expense', [BOOKBOT_DISCOVERED_PROPERTIES_PROPERTY]: '["department"]',
             agent_description_part_: '',
         });
@@ -210,6 +217,29 @@ describe('read-only discovery adapter', () => {
         expect(failed[0].outcome).toBe('error');
         expect(failed[0].error?.code).toBe('DEPENDENCY_ERROR');
         expect(JSON.stringify(failed)).not.toContain('Private history');
+    });
+
+    it('reports the Jev ranking with its confidence, a label not offered as no-match, and an exhausted allowance as an error', async () => {
+        const { book, context } = fixture();
+        book.history = [...matchingHistory(), { ...matchingHistory()[0], debitAccount: { id: 'travel' } }];
+        context.chooser = fixedChooser({ choice: 'To: expense', confidence: 0.62 }).chooser;
+        const [ranked] = await discoverItems([item()], context);
+        expect(ranked.outcome).toBe('changed');
+        expect(ranked.transaction.debitAccount?.id).toBe('expense');
+        expect(ranked.transaction.properties).toHaveProperty('bookbot_confidence_', '0.62');
+
+        context.chooser = fixedChooser({ choice: 'To: loans', confidence: 0.99 }).chooser;
+        const [unknown] = await discoverItems([item()], context);
+        expect(unknown.outcome).toBe('no_match');
+        expect(unknown.transaction.debitAccount).toBeUndefined();
+        expect(unknown.transaction.properties).not.toHaveProperty('bookbot_confidence_');
+
+        context.chooser = { choose: async () => { throw new BkperAIClientError(429, 'usage_limit_exceeded', 'Allowance exhausted.', false); } } as unknown as AccountChooser;
+        const input = item();
+        const [exhausted] = await discoverItems([input], context);
+        expect(exhausted.outcome).toBe('error');
+        expect(exhausted.error).toEqual({ code: 'usage_limit_exceeded', message: 'Bkper AI allowance is exhausted.' });
+        expect(exhausted.transaction).toEqual(input.transaction);
     });
 
     it('rejects known, source and suggested Accounts absent from the authorized Book', async () => {

@@ -87,48 +87,6 @@ describe('PromptLookupService', () => {
         } as unknown as Book;
     });
 
-    describe('lookupDiscoveryExamples', () => {
-        it('uses the account examples before group and book examples', async () => {
-            const group = createMockGroup('grp_1', 'Banks', {
-                agent_discovery_examples: 'group input -> group output',
-            });
-            const account = createMockAccount('acc_1', 'Bank', {
-                agent_discovery_examples: 'account input -> account output',
-            }, [group]);
-            mockBookProperties.agent_discovery_examples = 'book input -> book output';
-
-            const result = await service.lookupDiscoveryExamples({ book: mockBook, account });
-
-            expect(result).toBe('account input -> account output');
-        });
-
-        it('uses the first non-empty account group examples before the book examples', async () => {
-            const emptyGroup = createMockGroup('grp_empty', 'Empty', {
-                agent_discovery_examples: '   ',
-            });
-            const configuredGroup = createMockGroup('grp_configured', 'Configured', {
-                agent_discovery_examples: 'group input -> group output',
-            });
-            const laterGroup = createMockGroup('grp_later', 'Later', {
-                agent_discovery_examples: 'later input -> later output',
-            });
-            const account = createMockAccount('acc_1', 'Bank', {}, [emptyGroup, configuredGroup, laterGroup]);
-            mockBookProperties.agent_discovery_examples = 'book input -> book output';
-
-            const result = await service.lookupDiscoveryExamples({ book: mockBook, account });
-
-            expect(result).toBe('group input -> group output');
-        });
-
-        it('uses book examples when no known account examples resolve', async () => {
-            mockBookProperties.agent_discovery_examples = 'book input -> book output';
-
-            const result = await service.lookupDiscoveryExamples({ book: mockBook });
-
-            expect(result).toBe('book input -> book output');
-        });
-    });
-
     describe('lookupPropertySkipKeys', () => {
         // Confirms comma- and whitespace-separated keys are normalized and deduplicated.
         it('parses and normalizes agent_excluded_properties', async () => {

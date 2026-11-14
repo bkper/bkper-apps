@@ -49,11 +49,10 @@ Online Banking payment to CRD 3845 Confirmation# XXXXX32951 -> [Online Banking p
 transferir de cuenta USD a cuenta UYU si corresponde -> [transferir de cuenta USD a cuenta UYU si corresponde]`;
     }
 
-    getUserPrompt(description: string, customExamples?: string): string {
-        const examples = customExamples?.trim() || this.getDefaultUserPrompt();
+    getUserPrompt(description: string): string {
         return `
 EXAMPLES:
-${examples}
+${this.getDefaultUserPrompt()}
 
 DESCRIPTION TO EXTRACT:
 ${description}`;
@@ -64,13 +63,13 @@ ${description}`;
         return DESCRIPTION_PARTS_SCHEMA;
     }
 
-    public async extract(description: string, customExamples?: string): Promise<string[]> {
+    public async extract(description: string): Promise<string[]> {
         if (!description || description.trim().length === 0) {
             return [];
         }
 
         try {
-            return (await this.query([{ text: this.getUserPrompt(description, customExamples) }])) || [];
+            return (await this.query([{ text: this.getUserPrompt(description) }])) || [];
         } catch (error) {
             if (this.onError) {
                 this.onError(error);

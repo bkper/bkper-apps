@@ -71,7 +71,9 @@ Why the other 29% miss, as a share of all cases:
 - Problem: nothing in the past leads to the right account.
 - Approach: instead of guessing, offer the user the top 2–3 candidates; use outside signals when available, such as the document or counterpart IDs from the bank.
 - Gain: less work for the user rather than more automatic accuracy.
-- Status: later.
+- Model, if offered: revive core's per-side suggestion lists on the transaction (stored in core and shown by the legacy editor, but written by nothing and absent from the public API), so any app can offer options. The account stays empty; options never fill it.
+- Check, offline on both halves: when Jev is unsure (about 12% of cases), the right account is among Jev's top 3 options in 68%, against a target of 80%, and in only 4–5 of 12 Books at 70% or more. Target not met: in most of the rest, the right account was not among the options found at all.
+- Status: later; offering options needs better candidates first.
 
 ## Tried and set aside
 

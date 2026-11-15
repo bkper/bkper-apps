@@ -81,3 +81,4 @@ Why the other 29% miss, as a share of all cases:
 - Choosing from the whole chart of accounts with names and groups only: rarely confident, and Jev accepts at most 255 options.
 - The account's name written in the description: present in 2% of misses, and reliable only in some Books.
 - The last same description wins, as a separate memory: about 2.5% more right; posted history already acts as that memory.
+- Reading the 5 most recent matches instead of 15: where only one account remains it is filled without Jev, giving 32 more right and 112 more wrong on the development half; where Jev is unsure today, 99 of the 144 new fills are wrong.

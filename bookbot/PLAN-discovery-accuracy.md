@@ -42,10 +42,11 @@ Why the other 29% miss, as a share of all cases:
 ### 1. Choose better when Bookbot hesitates (the 9%)
 
 - Problem: the right account was among the options, but Jev was unsure or chose another.
-- Approach: learn from users' decisions. Whenever Bookbot hesitated or was wrong, the account the user finally posted becomes a lesson for that bank account, and Jev uses those lessons when it chooses next.
+- Approach: learn from users' decisions. A description of each contra-account, learned from what users post there and sharpened by every case where Bookbot hesitated or was wrong, so Jev knows what each option is for.
 - Why first: the largest fixable group, with no new infrastructure.
 - Possible gain: up to about 4 points.
-- Status: next.
+- First test, plain descriptions written from each account's history: target not met. On 120 hesitations, 7 more right with no more wrong; on 60 cases right today, 5 fewer right, because Jev became less sure.
+- Status: open. Descriptions alone add little; what still tells similar accounts apart is not known yet.
 
 ### 2. Find history when the words differ (the 13%)
 

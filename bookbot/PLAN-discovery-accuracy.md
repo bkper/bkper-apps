@@ -46,7 +46,8 @@ Why the other 29% miss, as a share of all cases:
 - Why first: the largest fixable group, with no new infrastructure.
 - Possible gain: up to about 4 points.
 - First test, plain descriptions written from each account's history: target not met. On 120 hesitations, 7 more right with no more wrong; on 60 cases right today, 5 fewer right, because Jev became less sure.
-- Status: open. Descriptions alone add little; what still tells similar accounts apart is not known yet.
+- Ambiguity check, on 1,133 hesitations: in 62% nothing in the history tells the options apart; in 15% the history points to another account; in 20% a signal points to the right one. The right account is the most recently used in only 27% of the ambiguous cases: these are mostly exceptions only the user can decide.
+- Status: open. Most of the 9% cannot be decided from history.
 
 ### 2. Find history when the words differ (the 13%)
 

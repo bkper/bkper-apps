@@ -8,7 +8,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 
 - It is a standard Bkper Platform app (`extractor-bot`), deployed with `bkper app build` and `bkper app deploy`. Never use `wrangler deploy`.
 - `bkper.yaml` here is the source of truth for the `extractor-bot` registration.
-- `extractor-bot` replaces the retiring app ID `parser-bot`, which serves the same code frozen at the Git tag `parser-bot-final`. Its registration is synced only from `../parser-bot/` (a metadata shell) and is never deployed from this directory. `extractor-bot` subscribes to no events until the switch from `parser-bot`.
+- Formerly app ID `parser-bot`; its last build is tagged `parser-bot-final`.
 - Do not deploy, sync metadata, install, replay events, publish, or send real events without separate explicit approval. Before deploying, confirm the build log reports `Build complete` without errors.
 - Event handlers and API routes use Platform authentication: `new Bkper()` with outbound-injected authorization. Never read `bkper-oauth-token`, `bkper-agent-id`, or `Authorization` headers.
 - The README is Extractor Bot's public listing: reading documents and statements into drafts, and learning from corrections.

@@ -1,5 +1,4 @@
-# Extractor Bot's permanent app ID. It replaces the retiring `parser-bot` registration (same public name):
-# Bkper swaps the two Book by Book, so a Book has one of them and each receives the same events.
+# Extractor Bot's app ID. Formerly app ID `parser-bot`; its last build is tagged `parser-bot-final`.
 # Sync, deploy, install, or publish only with separate explicit approval.
 id: extractor-bot
 name: Extractor Bot

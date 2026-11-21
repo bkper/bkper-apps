@@ -8,14 +8,7 @@ import {
     flashLiteSystemPrompt,
     readFlashLiteAnswer,
 } from '../../eval/classification/flash-lite.js';
-import {
-    buildDecisionRequest,
-    documentContent,
-    FILE_PLACEHOLDER,
-    KIND_CRITERIA,
-    loadDocuments,
-    redactDocument,
-} from '../../eval/classification/request.js';
+import { buildDecisionRequest, documentContent, loadDocuments, redactDocument } from '../../eval/classification/request.js';
 import {
     atThreshold,
     brierScore,
@@ -103,19 +96,6 @@ describe('classification trial cases', () => {
 });
 
 describe('decision request', () => {
-    it('sends a PDF as a file asset and an image as an image asset, named in the state', () => {
-        expect(buildDecisionRequest(PDF).assets[FILE_PLACEHOLDER]).toEqual({ type: 'file', media_type: 'application/pdf', data_base64: PDF.base64 });
-        expect(buildDecisionRequest(PNG).assets[FILE_PLACEHOLDER]).toEqual({ type: 'image', format: 'png', data_base64: PNG.base64 });
-        expect(buildDecisionRequest(PDF).state.document).toBe(FILE_PLACEHOLDER);
-    });
-
-    it('asks one choice between exactly the bot labels', () => {
-        const questions = Object.values(buildDecisionRequest(PDF).questions);
-        expect(questions).toHaveLength(1);
-        expect(Object.keys(questions[0].criteria).sort()).toEqual([...LABELS].sort());
-        expect(questions[0].criteria).toEqual(KIND_CRITERIA);
-    });
-
     it('records the request without the document bytes', () => {
         const recorded = JSON.stringify(decisionRequest());
         expect(recorded).not.toContain(PDF.base64);

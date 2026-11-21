@@ -52,7 +52,7 @@ Instructions are saved on the account or group the document came through: `extra
 
 ## AI allowance behavior
 
-Extractor Bot uses Bkper AI: Gemini Flash for extraction and learning, Gemini Flash Lite for small tasks such as classification, and the decision model for comparisons. Automatic extraction uses the allowance of Extractor Bot's installation; API calls use the allowance of the signed-in user. For Business and Professional subscriptions, the allowance may be shared across the domain. The Bkper AI usage dashboard shows the usage attributed to Extractor Bot; account suggestions are attributed to Bookbot.
+Extractor Bot uses Bkper AI: Gemini Flash for extraction and learning, and decision models for classifying uploaded files and for comparisons. Automatic extraction uses the allowance of Extractor Bot's installation; API calls use the allowance of the signed-in user. For Business and Professional subscriptions, the allowance may be shared across the domain. The Bkper AI usage dashboard shows the usage attributed to Extractor Bot; account suggestions are attributed to Bookbot.
 
 When the allowance is exhausted:
 

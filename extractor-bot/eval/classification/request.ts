@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ClassificationCase, Label } from './cases.js';
+import { FILE_CLASSIFICATION_MODEL } from '../../src/constants.js';
+import {
+    buildFileClassificationRequest,
+    FILE_CLASSIFICATION_QUESTION,
+    type FileClassificationRequest,
+} from '../../src/genai/file/ExtractorFileClassification.js';
+import type { ClassificationCase } from './cases.js';
 
 /** A document as the bot receives it: file bytes with their content type. */
 export interface DocumentContent {
@@ -34,55 +40,18 @@ export async function loadDocuments(cases: ClassificationCase[]): Promise<Map<st
     return new Map(entries);
 }
 
-export const DECISION_MODEL = 'gemini-decision';
+export const DECISION_MODEL = FILE_CLASSIFICATION_MODEL;
 
 /** The question name in every decision request; the answer comes back under the same name. */
-export const KIND_QUESTION = 'kind';
+export const KIND_QUESTION = FILE_CLASSIFICATION_QUESTION;
 
-/** Stands for the uploaded file in the state. */
-export const FILE_PLACEHOLDER = 'uploaded-file';
-
-/**
- * The bot's classification rule as `choice` criteria, in the words of its Flash-Lite system prompt.
- * Its "when uncertain, choose single_transaction" is left to code: a threshold on the probability.
- */
-export const KIND_CRITERIA: Record<Label, string> = {
-    statement: 'A bank statement, credit card statement, or similar document with a table or list of multiple transaction rows.',
-    single_transaction: 'An invoice, receipt, payment confirmation, message screenshot, estimate, quote, or anything else.',
-};
-
-type DecisionAsset =
-    | { type: 'file'; media_type: 'application/pdf'; data_base64: string }
-    | { type: 'image'; format: 'png' | 'jpeg'; data_base64: string };
-
-export interface DecisionRequest {
+export interface DecisionRequest extends FileClassificationRequest {
     model: string;
-    state: { document: string };
-    assets: Record<string, DecisionAsset>;
-    questions: Record<string, { type: 'choice'; instructions: string; criteria: Record<Label, string> }>;
 }
 
-function asset(document: DocumentContent): DecisionAsset {
-    if (document.mediaType === 'application/pdf') {
-        return { type: 'file', media_type: document.mediaType, data_base64: document.base64 };
-    }
-    return { type: 'image', format: document.mediaType === 'image/png' ? 'png' : 'jpeg', data_base64: document.base64 };
-}
-
-/** One Open System One request per document: the file, unchanged, and one `choice` question. */
+/** One Open System One request per document, exactly as Extractor Bot builds it. */
 export function buildDecisionRequest(document: DocumentContent): DecisionRequest {
-    return {
-        model: DECISION_MODEL,
-        state: { document: FILE_PLACEHOLDER },
-        assets: { [FILE_PLACEHOLDER]: asset(document) },
-        questions: {
-            [KIND_QUESTION]: {
-                type: 'choice',
-                instructions: 'Classify `document` for transaction extraction.',
-                criteria: KIND_CRITERIA,
-            },
-        },
-    };
+    return { model: DECISION_MODEL, ...buildFileClassificationRequest(document.mediaType, document.base64) };
 }
 
 /** The request with the document's bytes replaced by their hash, as it is recorded. */

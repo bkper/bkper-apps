@@ -49,7 +49,7 @@ export class FileParserGenAITransactions implements FileTransactionsParser {
     }
 
     private async classifyFile(input: FileTransactionsParserInput): Promise<FileClassificationKind> {
-        const classification = await this.context.createExtractorFileClassification(input.file).extract(undefined);
+        const classification = await this.context.createExtractorFileClassification(input.file).extract();
         return classification?.kind === 'statement' ? 'statement' : 'single_transaction';
     }
 

@@ -1,8 +1,7 @@
 import { File } from 'bkper-js';
-import { GEMINI_MODEL_FLASH_LITE } from '../../constants.js';
-import { BkperAIResponsesClient, type BkperAIReasoningEffort } from '../BkperAIResponsesClient.js';
-import { GenAIFile } from '../GenAIFile.js';
-import { CLASSIFICATION_SCHEMA, JsonSchema } from '../JsonSchema.js';
+import type { ChoiceQuestion } from '@typesafe-ai/sdk';
+import { FILE_CLASSIFICATION_MODEL } from '../../constants.js';
+import type { BkperAIEvaluationsClient, EvaluationAsset } from '../BkperAIEvaluationsClient.js';
 
 export type FileClassificationKind = 'single_transaction' | 'statement';
 
@@ -10,37 +9,85 @@ export interface ExtractedFileClassification {
     kind: FileClassificationKind;
 }
 
-export class ExtractorFileClassification extends GenAIFile<ExtractedFileClassification> {
-    constructor(file: File, env: Env, responsesClient?: BkperAIResponsesClient) {
-        super(file, env, responsesClient);
-    }
+/**
+ * A file is read as a statement, one draft per row, only from this probability up; below it, as
+ * one transaction. Misreading an invoice as a statement creates many wrong drafts, so doubt goes to
+ * one transaction. In the synthetic trial every statement scored at least 0.97 and the closest
+ * other document 0.41, so 0.8 leaves room on both sides.
+ */
+export const STATEMENT_PROBABILITY_THRESHOLD = 0.8;
 
-    getModel(): string {
-        return GEMINI_MODEL_FLASH_LITE;
-    }
+/** The question name; the answer comes back under the same name. */
+export const FILE_CLASSIFICATION_QUESTION = 'kind';
 
-    getOperation(): 'file_classification' {
-        return 'file_classification';
-    }
+/** Stands for the uploaded file in the state. */
+const FILE_PLACEHOLDER = 'uploaded-file';
 
-    protected override getReasoningEffort(): BkperAIReasoningEffort {
-        return 'minimal';
-    }
+const KIND_QUESTION: ChoiceQuestion<Record<FileClassificationKind, string>> = {
+    type: 'choice',
+    instructions: 'Classify `document` for transaction extraction.',
+    criteria: {
+        statement: 'A bank statement, credit card statement, or similar document with a table or list of multiple transaction rows.',
+        single_transaction: 'An invoice, receipt, payment confirmation, message screenshot, estimate, quote, or anything else.',
+    },
+};
 
-    getSystemPrompt(): string {
-        return `
-You classify uploaded files before transaction extraction.
-Return statement only when the file is clearly a bank statement, credit card statement, or similar document with a table/list of multiple transaction rows.
-Return single_transaction for invoices, receipts, payment confirmations, message screenshots, estimates, quotes, or anything unclear.
-When uncertain, choose single_transaction.
-`;
-    }
+export interface FileClassificationRequest {
+    state: { document: string };
+    assets?: Record<string, EvaluationAsset>;
+    questions: Record<string, ChoiceQuestion>;
+}
 
-    getDefaultUserPrompt(): string {
-        return `Classify this file for transaction extraction.`;
-    }
+const IMAGE_FORMATS: Readonly<Record<string, 'png' | 'jpeg' | 'webp'>> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpeg',
+    'image/jpg': 'jpeg',
+    'image/webp': 'webp',
+};
 
-    getResponseSchema(): JsonSchema {
-        return CLASSIFICATION_SCHEMA;
+function decodeBase64Text(data: string): string {
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return new TextDecoder().decode(bytes);
+}
+
+/**
+ * The System One request for a file: text files as the state, other files unchanged as an asset
+ * (PDFs and other documents as files, png, jpeg and webp as images).
+ */
+export function buildFileClassificationRequest(contentType: string, base64: string): FileClassificationRequest {
+    const mediaType = contentType.split(';')[0].trim().toLowerCase() || 'application/octet-stream';
+    const questions = { [FILE_CLASSIFICATION_QUESTION]: KIND_QUESTION };
+    if (mediaType.startsWith('text/')) {
+        return { state: { document: decodeBase64Text(base64) }, questions };
+    }
+    const format = IMAGE_FORMATS[mediaType];
+    const asset: EvaluationAsset = format
+        ? { type: 'image', format, data_base64: base64 }
+        : { type: 'file', media_type: mediaType, data_base64: base64 };
+    return { state: { document: FILE_PLACEHOLDER }, assets: { [FILE_PLACEHOLDER]: asset }, questions };
+}
+
+/** Classifies an uploaded file before extraction with a System One decision model that reads PDFs. */
+export class ExtractorFileClassification {
+    constructor(
+        private readonly file: File,
+        private readonly evaluationsClient: BkperAIEvaluationsClient
+    ) {}
+
+    async extract(): Promise<ExtractedFileClassification | undefined> {
+        const content = await this.file.getContent();
+        if (!content) return undefined;
+
+        const { probabilities } = await this.evaluationsClient.evaluateChoices({
+            evaluationKind: 'file_classification',
+            model: FILE_CLASSIFICATION_MODEL,
+            ...buildFileClassificationRequest(this.file.getContentType() ?? '', content),
+        });
+        const pStatement = probabilities[FILE_CLASSIFICATION_QUESTION]?.statement ?? 0;
+        return { kind: pStatement >= STATEMENT_PROBABILITY_THRESHOLD ? 'statement' : 'single_transaction' };
     }
 }

@@ -67,7 +67,7 @@ describe('FileParsers', () => {
             },
         });
 
-        expect(classifyExtract).toHaveBeenCalledWith(undefined);
+        expect(classifyExtract).toHaveBeenCalledTimes(1);
         expect(statementExtract).not.toHaveBeenCalled();
         expect(invoiceExtract).toHaveBeenCalledWith('receipt prompt');
         expect(result.kind).toBe('transaction');
@@ -104,7 +104,7 @@ describe('FileParsers', () => {
             },
         });
 
-        expect(classifyExtract).toHaveBeenCalledWith(undefined);
+        expect(classifyExtract).toHaveBeenCalledTimes(1);
         expect(statementExtract).not.toHaveBeenCalled();
         expect(invoiceExtract).toHaveBeenCalledWith('statement prompt');
         expect(result.kind).toBe('transaction');
@@ -142,7 +142,7 @@ describe('FileParsers', () => {
             },
         });
 
-        expect(classifyExtract).toHaveBeenCalledWith(undefined);
+        expect(classifyExtract).toHaveBeenCalledTimes(1);
         expect(statementExtract).toHaveBeenCalledWith('statement prompt');
         expect(invoiceExtract).not.toHaveBeenCalled();
         expect(result.kind).toBe('transactions');
@@ -196,7 +196,7 @@ describe('FileParsers', () => {
 
         const result = await new FileParserRouter(context).parse(book, file);
 
-        expect(classifyExtract).toHaveBeenCalledWith(undefined);
+        expect(classifyExtract).toHaveBeenCalledTimes(1);
         expect(statementExtract).toHaveBeenCalledWith(undefined);
         expect(invoiceExtract).not.toHaveBeenCalled();
         expect(result.kind).toBe('transactions');
@@ -252,7 +252,7 @@ describe('FileParsers', () => {
             book: createBook(),
             file: createFile('statement.pdf'),
         })).resolves.toMatchObject({ kind: 'transaction' });
-        expect(classifyExtract).toHaveBeenCalledWith(undefined);
+        expect(classifyExtract).toHaveBeenCalledTimes(1);
     });
 
     it('FileParserGenAIFileProperties filters internal file properties and stringifies scalar values', async () => {

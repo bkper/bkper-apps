@@ -54,3 +54,6 @@ export const BKPER_AI_SOURCE = 'extractor-bot';
 // Bkper AI language models
 export const GEMINI_MODEL_FLASH_LITE = 'gemini-flash-lite';
 export const GEMINI_MODEL_FLASH = 'gemini-flash';
+
+// Bkper AI System One decision model for file classification: the one that reads PDFs
+export const FILE_CLASSIFICATION_MODEL = 'gemini-decision';

@@ -127,6 +127,47 @@ describe('BkperAIEvaluationsClient evaluations', () => {
         expect(telemetry[0]).not.toContain('materially equivalent');
     });
 
+    it('asks choice questions of the requested model with assets, and names it in telemetry', async () => {
+        const logs: string[] = [];
+        spyOn(console, 'log').mockImplementation((...values: unknown[]) => {
+            logs.push(values.map(String).join(' '));
+        });
+        let body: Record<string, unknown> | undefined;
+        const client = new BkperAIEvaluationsClient({
+            baseUrl: 'https://ai-dev.bkper.app/v1',
+            oauthToken: 'oauth-secret',
+            fetch: fetchMock(async request => {
+                body = await request.json() as Record<string, unknown>;
+                return Response.json({
+                    model: 'gemini-decision',
+                    answers: { kind: { type: 'choice', choice: 'b', confidence: 0.7, probabilities: { a: 0.3, b: 0.7 } } },
+                    usage: { input_tokens: 40, output_tokens: 0 },
+                });
+            }),
+        });
+
+        const result = await client.evaluateChoices({
+            evaluationKind: 'file_classification',
+            model: 'gemini-decision',
+            state: { document: 'doc' },
+            assets: { doc: { type: 'file', media_type: 'application/pdf', data_base64: 'UFJJVkFURQ==' } },
+            questions: { kind: { type: 'choice', instructions: 'Which?', criteria: { a: 'A.', b: 'B.' } } },
+        });
+
+        expect(result).toEqual({ probabilities: { kind: { a: 0.3, b: 0.7 } } });
+        expect(body).toEqual({
+            model: 'gemini-decision',
+            state: { document: 'doc' },
+            assets: { doc: { type: 'file', media_type: 'application/pdf', data_base64: 'UFJJVkFURQ==' } },
+            questions: { kind: { type: 'choice', instructions: 'Which?', criteria: { a: 'A.', b: 'B.' } } },
+        });
+        const telemetry = logs.filter(line => line.startsWith('BKPER_AI_RESULT '));
+        expect(telemetry).toHaveLength(1);
+        expect(telemetry[0]).toContain('"evaluation_kind":"file_classification"');
+        expect(telemetry[0]).toContain('"model":"gemini-decision"');
+        expect(telemetry[0]).not.toContain('UFJJVkFURQ==');
+    });
+
     it('preserves safe API errors once SDK retries are exhausted', async () => {
         const cases = [
             { status: 429, code: 'usage_limit_exceeded' },

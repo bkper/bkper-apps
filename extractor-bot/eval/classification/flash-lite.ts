@@ -1,28 +1,61 @@
 import { Book, File } from 'bkper-js';
 
+import { GEMINI_MODEL_FLASH_LITE } from '../../src/constants.js';
 import { isRecord } from '../../src/genai/BkperAIClientError.js';
-import { BkperAIResponsesClient } from '../../src/genai/BkperAIResponsesClient.js';
-import { ExtractorFileClassification, type ExtractedFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
-import { CLASSIFICATION_SCHEMA, validateStructuredValue } from '../../src/genai/JsonSchema.js';
+import { BkperAIResponsesClient, type BkperAIReasoningEffort } from '../../src/genai/BkperAIResponsesClient.js';
+import type { ExtractedFileClassification } from '../../src/genai/file/ExtractorFileClassification.js';
+import { GenAIFile } from '../../src/genai/GenAIFile.js';
+import { CLASSIFICATION_SCHEMA, JsonSchema, validateStructuredValue } from '../../src/genai/JsonSchema.js';
 import { redactDocument, type DocumentContent } from './request.js';
 
 /**
- * Extractor Bot's current file classification, run unchanged: `ExtractorFileClassification` with its
- * system prompt, schema, model and reasoning effort, through `BkperAIResponsesClient` to
- * `POST /v1/responses`. Only the transport is wrapped, to record each exchange.
+ * Extractor Bot's file classification before Gemini Decision replaced it, kept here unchanged as the
+ * trial's baseline: Flash-Lite with this system prompt, schema and minimal reasoning, through
+ * `BkperAIResponsesClient` to `POST /v1/responses`, with the bot's retries. Only the transport is
+ * wrapped, to record each exchange.
  */
+class FlashLiteFileClassification extends GenAIFile<ExtractedFileClassification> {
+    getModel(): string {
+        return GEMINI_MODEL_FLASH_LITE;
+    }
+
+    getOperation(): 'file_classification' {
+        return 'file_classification';
+    }
+
+    protected override getReasoningEffort(): BkperAIReasoningEffort {
+        return 'minimal';
+    }
+
+    getSystemPrompt(): string {
+        return `
+You classify uploaded files before transaction extraction.
+Return statement only when the file is clearly a bank statement, credit card statement, or similar document with a table/list of multiple transaction rows.
+Return single_transaction for invoices, receipts, payment confirmations, message screenshots, estimates, quotes, or anything unclear.
+When uncertain, choose single_transaction.
+`;
+    }
+
+    getDefaultUserPrompt(): string {
+        return `Classify this file for transaction extraction.`;
+    }
+
+    getResponseSchema(): JsonSchema {
+        return CLASSIFICATION_SCHEMA;
+    }
+}
 
 /** Placeholder environment: `GenAI` takes an `Env` but reads nothing from it. */
 const ENV: Env = { BKPER_AI_BASE_URL: 'https://ai-dev.bkper.app/v1' };
 
-function classifier(document: DocumentContent, client?: BkperAIResponsesClient): ExtractorFileClassification {
+function classifier(document: DocumentContent, client?: BkperAIResponsesClient): FlashLiteFileClassification {
     // A File without an id never fetches: getContent returns the content it holds.
     const file = new File(new Book({ id: 'synthetic-book' }), {
         name: 'document',
         contentType: document.mediaType,
         content: document.base64,
     });
-    return new ExtractorFileClassification(file, ENV, client);
+    return new FlashLiteFileClassification(file, ENV, client);
 }
 
 export function flashLiteSystemPrompt(): string {

@@ -43,6 +43,7 @@ This directory is the Extractor Bot Platform app, started from the legacy Bookbo
 Extractor Bot owns:
 
 - File classification and transaction extraction for one transaction, multiple transactions, and file metadata.
+- File classification asks the System One decision model `gemini-decision` (`FILE_CLASSIFICATION_MODEL`), the one on Bkper AI that reads PDFs, to choose `statement` or `single_transaction`; code reads a statement only when its probability reaches `STATEMENT_PROBABILITY_THRESHOLD` (0.8). Text files go as the state, other files unchanged as an asset. A failed call fails the parse, as before.
 - Imported draft recording, attachments, target Books, and `extractor_transactions_summary`.
 - Extraction provenance, correction learning, statement flags, and audit processing.
 - Transaction-created events with an attachment: read the document, place the upload Account by the amount's sign, call Bookbot completion, then perform the single draft update. Bookbot skips drafts with files, so it does not separately complete the same event.
@@ -129,7 +130,7 @@ Event handlers call Bookbot's completion API through `src/services/BookbotDiscov
 
 `eval/system-one/` compares Clairic (Open System One), as first asked and with the bot's context, with the bot's current Gemini extraction on synthetic invoices and receipts; it is not part of the app bundle and reuses `ExtractorInvoice` unchanged. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live`, `--live-clairic` and `--live-new` make paid calls and need separate approval.
 
-`eval/classification/` compares Gemini Decision (Open System One, PDFs and images as assets) with the bot's current Flash-Lite file classification on synthetic statements and single-transaction documents; it is not part of the app bundle and reuses `ExtractorFileClassification` unchanged. `documents/render.py` renders the documents deterministically. `bun run eval:classification --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
+`eval/classification/` compares the bot's file classification, Gemini Decision through Open System One with the file as an asset (`buildFileClassificationRequest`, reused unchanged), with the Flash-Lite classification it replaced, kept frozen in `flash-lite.ts`, on synthetic statements and single-transaction documents; it is not part of the app bundle. `documents/render.py` renders the documents deterministically. `bun run eval:classification --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
 
 Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and that parser URLs are never called. For refactoring, follow the rules above. Run `bun run test` after each step.
 

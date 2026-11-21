@@ -15,7 +15,8 @@ it('ignores event credential headers and relies on Platform outbound authenticat
     const outbound: Request[] = [];
     spyOn(globalThis, 'fetch').mockImplementation(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
         outbound.push(new Request(input, init));
-        return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429 });
+        // `retry-after-ms: 0` keeps SDK retries instant.
+        return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429, headers: { 'retry-after-ms': '0' } });
     }, { preconnect: globalThis.fetch.preconnect }));
     const headers: Record<string, string> = {
         'bkper-oauth-token': 'never-forward-this',
@@ -31,7 +32,7 @@ it('ignores event credential headers and relies on Platform outbound authenticat
 
     const appContext = createAppContext(context);
     const config = appContext.bkper.getConfig();
-    await appContext.createExtractorFileClassification(syntheticFile()).extract(undefined).catch(() => undefined);
+    await appContext.createExtractorFileClassification(syntheticFile()).extract().catch(() => undefined);
 
     expect(config.oauthTokenProvider).toBeUndefined();
     expect(config.apiKeyProvider).toBeUndefined();
@@ -45,14 +46,15 @@ it('calls Bkper AI on the Platform, where no BKPER_AI_BASE_URL variable is confi
     const outbound: Request[] = [];
     spyOn(globalThis, 'fetch').mockImplementation(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
         outbound.push(new Request(input, init));
-        return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429 });
+        // `retry-after-ms: 0` keeps SDK retries instant.
+        return Response.json({ error: { code: 'usage_limit_exceeded', message: 'Allowance exhausted.' } }, { status: 429, headers: { 'retry-after-ms': '0' } });
     }, { preconnect: globalThis.fetch.preconnect }));
     const context = {
         env: {},
         req: { header: () => undefined, raw: { signal: new AbortController().signal } },
     } as unknown as Context;
 
-    await createAppContext(context).createExtractorFileClassification(syntheticFile()).extract(undefined).catch(() => undefined);
+    await createAppContext(context).createExtractorFileClassification(syntheticFile()).extract().catch(() => undefined);
 
     expect(outbound.length).toBeGreaterThan(0);
     expect(new URL(outbound[0].url).origin).toBe('https://ai.bkper.app');

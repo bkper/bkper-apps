@@ -316,12 +316,12 @@ describe('GenAI Extraction (Integration)', () => {
     // ========================================
 
     describe('Invoice/Receipt Extraction (Image/PDF)', () => {
-        it.skipIf(!bkperAIClient)(
+        it.skipIf(!bkperAIEvaluationsClient)(
             'classifies a PNG invoice as a single transaction through Bkper AI',
             async () => {
                 const mockFile = createMockFileFromFixture('invoice.png', 'image/png');
-                const classifier = new ExtractorFileClassification(mockFile, env, bkperAIClient);
-                const result = await classifier.extract(undefined);
+                const classifier = new ExtractorFileClassification(mockFile, bkperAIEvaluationsClient!);
+                const result = await classifier.extract();
 
                 expect(result).toBeDefined();
                 expect(result!.kind).toBe('single_transaction');
@@ -392,12 +392,12 @@ describe('GenAI Extraction (Integration)', () => {
             { timeout: 120_000 }
         );
 
-        it.skipIf(!bkperAIClient)(
+        it.skipIf(!bkperAIEvaluationsClient)(
             'classifies a JPEG receipt as a single transaction through Bkper AI',
             async () => {
                 const mockFile = createMockFileFromFixture('receipt.jpeg', 'image/jpeg');
-                const classifier = new ExtractorFileClassification(mockFile, env, bkperAIClient);
-                const result = await classifier.extract(undefined);
+                const classifier = new ExtractorFileClassification(mockFile, bkperAIEvaluationsClient!);
+                const result = await classifier.extract();
 
                 expect(result).toBeDefined();
                 expect(result!.kind).toBe('single_transaction');
@@ -448,12 +448,12 @@ describe('GenAI Extraction (Integration)', () => {
             { timeout: 120_000 }
         );
 
-        it.skipIf(!bkperAIClient)(
+        it.skipIf(!bkperAIEvaluationsClient)(
             'classifies invoice PDF as a single transaction through Bkper AI',
             async () => {
                 const mockFile = createMockFileFromFixture('invoice.pdf', 'application/pdf');
-                const classifier = new ExtractorFileClassification(mockFile, env, bkperAIClient);
-                const result = await classifier.extract(undefined);
+                const classifier = new ExtractorFileClassification(mockFile, bkperAIEvaluationsClient!);
+                const result = await classifier.extract();
 
                 expect(result).toBeDefined();
                 expect(result!.kind).toBe('single_transaction');

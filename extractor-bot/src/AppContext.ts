@@ -81,7 +81,7 @@ export class AppContext {
     }
 
     createExtractorFileClassification(file: File): ExtractorFileClassification {
-        return new ExtractorFileClassification(file, this.env, this.bkperAIResponsesClient);
+        return new ExtractorFileClassification(file, this.bkperAIEvaluationsClient);
     }
 
     createExtractorFileProperties(file: File): ExtractorFileProperties {

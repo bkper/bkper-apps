@@ -1,0 +1,88 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 4308 >>
+stream
+BT /FB 16 Tf 48.0 721.6 Td (OKAFOR CONSULTING) Tj ET
+BT /FB 16 Tf 346.0 721.6 Td (INVOICE #OC-0931) Tj ET
+BT /FR 9 Tf 48.0 709.0 Td (Ruth Okafor, 410 Elm Ave, Dallas TX) Tj ET
+BT /FR 9 Tf 346.0 709.0 Td (Issued: 10/03/2026   Due: 11/02/2026) Tj ET
+BT /FR 9 Tf 48.0 696.4 Td (Client: Riverbend Design LLC) Tj ET
+BT /FR 9 Tf 346.0 696.4 Td (Services for September 2026) Tj ET
+0.6 w 48.0 690.4 m 564.0 690.4 l S
+0.88 g 44.0 671.2 524.0 13.2 re f 0 g
+BT /FMB 8 Tf 48.0 673.2 Td (Date   Work performed                               Hours    Rate    Amount) Tj ET
+BT /FM 8 Tf 48.0 662.0 Td (09/01  Report development                             0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 650.8 Td (09/01  Report development                               4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 639.6 Td (09/03  Code review                                      3  120.00    360.00) Tj ET
+BT /FM 8 Tf 48.0 628.4 Td (09/05  Deployment support                             0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 617.2 Td (09/06  Code review                                      3  120.00    360.00) Tj ET
+BT /FM 8 Tf 48.0 606.0 Td (09/06  Data model review                                4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 594.8 Td (09/07  Deployment support                               4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 583.6 Td (09/08  API integration                                0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 572.4 Td (09/08  Data model review                                4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 561.2 Td (09/08  Requirements workshop                          0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 550.0 Td (09/10  API integration                                  2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 538.8 Td (09/12  Deployment support                               3  120.00    360.00) Tj ET
+BT /FM 8 Tf 48.0 527.6 Td (09/14  Code review                                      2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 516.4 Td (09/14  API integration                                  1  120.00    120.00) Tj ET
+BT /FM 8 Tf 48.0 505.2 Td (09/14  Requirements workshop                            4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 494.0 Td (09/16  Bug triage and fixes                             2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 482.8 Td (09/16  Bug triage and fixes                           0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 471.6 Td (09/17  User acceptance testing                          1  120.00    120.00) Tj ET
+BT /FM 8 Tf 48.0 460.4 Td (09/17  Data model review                                4  120.00    480.00) Tj ET
+BT /FM 8 Tf 48.0 449.2 Td (09/17  Documentation                                  0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 438.0 Td (09/19  Documentation                                    2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 426.8 Td (09/21  Report development                               6  120.00    720.00) Tj ET
+BT /FM 8 Tf 48.0 415.6 Td (09/23  Deployment support                               1  120.00    120.00) Tj ET
+BT /FM 8 Tf 48.0 404.4 Td (09/23  Documentation                                    1  120.00    120.00) Tj ET
+BT /FM 8 Tf 48.0 393.2 Td (09/25  Status meeting                                   2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 382.0 Td (09/26  Code review                                    1.5  120.00    180.00) Tj ET
+BT /FM 8 Tf 48.0 370.8 Td (09/26  Report development                               3  120.00    360.00) Tj ET
+BT /FM 8 Tf 48.0 359.6 Td (09/26  Code review                                    1.5  120.00    180.00) Tj ET
+BT /FM 8 Tf 48.0 348.4 Td (09/26  Status meeting                                   2  120.00    240.00) Tj ET
+BT /FM 8 Tf 48.0 337.2 Td (09/27  Data model review                              0.5  120.00     60.00) Tj ET
+BT /FM 8 Tf 48.0 326.0 Td (09/30  Code review                                      1  120.00    120.00) Tj ET
+BT /FM 8 Tf 48.0 314.8 Td (09/30  Code review                                    0.5  120.00     60.00) Tj ET
+0.6 w 48.0 308.8 m 564.0 308.8 l S
+BT /FMB 9 Tf 48.0 292.2 Td (Total amount due                                                   7,920.00) Tj ET
+BT /FR 9 Tf 48.0 279.6 Td (Please pay by ACH to account ****8810. Thank you!) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /FR 3 0 R /FB 4 0 R /FM 5 0 R /FMB 6 0 R >>  >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000515 00000 n 
+0000004874 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+5032
+%%EOF

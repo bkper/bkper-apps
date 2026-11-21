@@ -1,0 +1,63 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 1407 >>
+stream
+BT /FB 16 Tf 48.0 721.6 Td (HARBOR FEDERAL BANK) Tj ET
+BT /FR 8 Tf 48.0 710.4 Td (PO Box 4410, Austin TX 78701  |  harborfederal.example) Tj ET
+BT /FB 13 Tf 48.0 682.2 Td (Business Savings Statement) Tj ET
+BT /FB 13 Tf 346.0 682.2 Td (Account number: ****4471) Tj ET
+BT /FR 9 Tf 48.0 669.6 Td (Statement period: September 1, 2026 - September 30, 2026) Tj ET
+BT /FR 9 Tf 346.0 669.6 Td (Customer: Riverbend Design LLC) Tj ET
+0.6 w 48.0 663.6 m 564.0 663.6 l S
+BT /FB 11 Tf 48.0 644.2 Td (Account summary) Tj ET
+BT /FM 9 Tf 48.0 631.6 Td (Beginning balance on 09/01              5,230.18) Tj ET
+BT /FM 9 Tf 48.0 619.0 Td (Deposits and other credits                  0.42) Tj ET
+BT /FM 9 Tf 48.0 606.4 Td (Withdrawals and other debits               -5.00) Tj ET
+BT /FMB 9 Tf 48.0 593.8 Td (Ending balance on 09/30                 5,225.60) Tj ET
+BT /FB 11 Tf 48.0 568.4 Td (Transaction history) Tj ET
+0.88 g 44.0 553.2 524.0 13.2 re f 0 g
+BT /FMB 8 Tf 48.0 555.2 Td (Date   Description                                     Amount      Balance) Tj ET
+BT /FM 8 Tf 48.0 544.0 Td (09/28  INTEREST PAYMENT                                  0.42     5,230.60) Tj ET
+BT /FM 8 Tf 48.0 532.8 Td (09/30  MONTHLY MAINTENANCE FEE                          -5.00     5,225.60) Tj ET
+BT /FB 9 Tf 48.0 514.2 Td (Ending balance 5,225.60) Tj ET
+BT /FR 8 Tf 48.0 38.0 Td (Harbor Federal Bank  -  Member FDIC  -  Page 1 of 1) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /FR 3 0 R /FB 4 0 R /FM 5 0 R /FMB 6 0 R >>  >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000515 00000 n 
+0000001973 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+2131
+%%EOF

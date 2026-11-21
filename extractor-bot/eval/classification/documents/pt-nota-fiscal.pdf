@@ -1,0 +1,66 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 1959 >>
+stream
+BT /FB 11 Tf 48.0 778.6 Td (DANFE - Documento Auxiliar da Nota Fiscal Eletrônica) Tj ET
+BT /FB 9 Tf 48.0 766.0 Td (DISTRIBUIDORA GRÃOS DO SUL LTDA  -  CNPJ 12.345.678/0001-90) Tj ET
+BT /FR 8 Tf 48.0 754.8 Td (Rua das Indústrias, 900 - Chapecó SC) Tj ET
+BT /FR 8 Tf 337.5 754.8 Td (NF-e nº 000.041.227  Série 1) Tj ET
+BT /FR 8 Tf 48.0 743.6 Td (Destinatário: Padaria Pão Quente ME  -  CNPJ 98.765.432/0001-10) Tj ET
+BT /FR 8 Tf 337.5 743.6 Td (Emissão: 08/10/2026) Tj ET
+BT /FR 8 Tf 48.0 732.4 Td (Chave de acesso: 4226 1012 3456 7800 0190 5500 1000 0412 2710 0041 2273) Tj ET
+0.6 w 48.0 726.4 m 547.0 726.4 l S
+0.88 g 44.0 707.2 507.0 13.2 re f 0 g
+BT /FMB 8 Tf 48.0 709.2 Td (Cód.   Descrição do produto                 Qtd  Un   V. unit   V. total) Tj ET
+BT /FM 8 Tf 48.0 698.0 Td (1001   FARINHA DE TRIGO TIPO 1 25KG          12  SC     98,50   1.182,00) Tj ET
+BT /FM 8 Tf 48.0 686.8 Td (1002   AÇÚCAR REFINADO 5KG                   20  PC     21,90     438,00) Tj ET
+BT /FM 8 Tf 48.0 675.6 Td (1003   FERMENTO BIOLÓGICO 500G               15  PC     14,20     213,00) Tj ET
+BT /FM 8 Tf 48.0 664.4 Td (1004   MARGARINA 15KG                         4  BD    189,00     756,00) Tj ET
+BT /FM 8 Tf 48.0 653.2 Td (1005   SAL REFINADO 1KG                      30  PC      2,80      84,00) Tj ET
+BT /FM 8 Tf 48.0 642.0 Td (1006   OVOS BRANCOS CX 30DZ                   2  CX    265,00     530,00) Tj ET
+BT /FM 8 Tf 48.0 630.8 Td (1007   LEITE INTEGRAL 1L                     48  UN      4,90     235,20) Tj ET
+BT /FM 8 Tf 48.0 619.6 Td (1008   CHOCOLATE EM PÓ 1KG                    6  PC     32,50     195,00) Tj ET
+0.6 w 48.0 613.6 m 547.0 613.6 l S
+BT /FM 9 Tf 48.0 597.0 Td (VALOR TOTAL DOS PRODUTOS                                        3.633,20) Tj ET
+BT /FMB 9 Tf 48.0 584.4 Td (VALOR TOTAL DA NOTA                                             3.633,20) Tj ET
+BT /FR 8 Tf 48.0 573.2 Td (Dados adicionais: pagamento em boleto, vencimento 07/11/2026.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /FR 3 0 R /FB 4 0 R /FM 5 0 R /FMB 6 0 R >>  >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000515 00000 n 
+0000002525 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+2683
+%%EOF

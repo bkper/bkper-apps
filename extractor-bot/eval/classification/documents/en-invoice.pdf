@@ -1,0 +1,61 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 1268 >>
+stream
+BT /FB 18 Tf 48.0 718.8 Td (Lumen Studio) Tj ET
+BT /FB 18 Tf 346.0 718.8 Td (INVOICE) Tj ET
+BT /FR 9 Tf 48.0 706.2 Td (88 Alder Street, Portland OR 97205) Tj ET
+BT /FR 9 Tf 346.0 706.2 Td (Invoice no. LS-2026-118) Tj ET
+BT /FR 9 Tf 48.0 693.6 Td (billing@lumenstudio.example) Tj ET
+BT /FR 9 Tf 346.0 693.6 Td (Date: October 14, 2026) Tj ET
+BT /FR 9 Tf 48.0 671.0 Td (Bill to: Riverbend Design LLC, 12 Mill Road, Austin TX) Tj ET
+0.6 w 48.0 665.0 m 564.0 665.0 l S
+0.88 g 44.0 644.4 524.0 14.6 re f 0 g
+BT /FMB 9 Tf 48.0 646.4 Td (Description                                   Qty      Rate      Amount) Tj ET
+BT /FM 9 Tf 48.0 633.8 Td (Brand photography, half day                     1    950.00      950.00) Tj ET
+BT /FM 9 Tf 48.0 621.2 Td (Photo retouching                               24     18.00      432.00) Tj ET
+BT /FM 9 Tf 48.0 608.6 Td (Usage license, 1 year                           1    400.00      400.00) Tj ET
+0.6 w 48.0 602.6 m 564.0 602.6 l S
+BT /FM 9 Tf 48.0 586.0 Td (Subtotal                                                       1,782.00) Tj ET
+BT /FMB 9 Tf 48.0 573.4 Td (Total due \(USD\)                                                1,782.00) Tj ET
+BT /FR 9 Tf 48.0 550.8 Td (Payment due within 30 days. Thank you for your business.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /FR 3 0 R /FB 4 0 R /FM 5 0 R /FMB 6 0 R >>  >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000515 00000 n 
+0000001834 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+1992
+%%EOF

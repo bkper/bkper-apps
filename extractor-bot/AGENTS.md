@@ -129,6 +129,8 @@ Event handlers call Bookbot's completion API through `src/services/BookbotDiscov
 
 `eval/system-one/` compares Clairic (Open System One), as first asked and with the bot's context, with the bot's current Gemini extraction on synthetic invoices and receipts; it is not part of the app bundle and reuses `ExtractorInvoice` unchanged. `bun run eval:system-one --check` confirms `RESULTS.md` matches the recorded responses offline. `--live`, `--live-clairic` and `--live-new` make paid calls and need separate approval.
 
+`eval/classification/` compares Gemini Decision (Open System One, PDFs and images as assets) with the bot's current Flash-Lite file classification on synthetic statements and single-transaction documents; it is not part of the app bundle and reuses `ExtractorFileClassification` unchanged. `documents/render.py` renders the documents deterministically. `bun run eval:classification --check` confirms `RESULTS.md` matches the recorded responses offline. `--live` makes paid calls and needs separate approval.
+
 Existing tests and fixtures remain unchanged. Focused API tests cover read-only behavior, canonical payloads, authorization, error handling, and that parser URLs are never called. For refactoring, follow the rules above. Run `bun run test` after each step.
 
 ## Check and deploy

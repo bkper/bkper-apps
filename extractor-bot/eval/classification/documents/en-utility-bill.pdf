@@ -1,0 +1,66 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 1674 >>
+stream
+BT /FB 16 Tf 48.0 721.6 Td (CITYPOWER UTILITIES) Tj ET
+BT /FB 16 Tf 346.0 721.6 Td (Account 5520-1187-04) Tj ET
+BT /FR 9 Tf 48.0 709.0 Td (Service address: 12 Mill Road, Austin TX) Tj ET
+BT /FR 9 Tf 346.0 709.0 Td (Bill date: 10/06/2026) Tj ET
+BT /FR 9 Tf 48.0 696.4 Td (Customer: Riverbend Design LLC) Tj ET
+BT /FR 9 Tf 346.0 696.4 Td (Due date: 10/27/2026) Tj ET
+0.6 w 48.0 690.4 m 564.0 690.4 l S
+BT /FB 11 Tf 48.0 671.0 Td (Account summary) Tj ET
+BT /FM 9 Tf 48.0 658.4 Td (Previous balance                              212.84) Tj ET
+BT /FM 9 Tf 48.0 645.8 Td (Payment received 09/14 - thank you           -212.84) Tj ET
+BT /FM 9 Tf 48.0 633.2 Td (Balance forward                                 0.00) Tj ET
+BT /FM 9 Tf 48.0 620.6 Td (New charges                                   236.10) Tj ET
+BT /FMB 10 Tf 48.0 606.6 Td (Total amount due                              236.10) Tj ET
+BT /FB 11 Tf 48.0 581.2 Td (New charges detail) Tj ET
+0.88 g 44.0 566.0 524.0 13.2 re f 0 g
+BT /FMB 8 Tf 48.0 568.0 Td (Item                                         Usage      Amount) Tj ET
+BT /FM 8 Tf 48.0 556.8 Td (Electric delivery                        1,420 kWh       71.00) Tj ET
+BT /FM 8 Tf 48.0 545.6 Td (Electric supply                          1,420 kWh      134.90) Tj ET
+BT /FM 8 Tf 48.0 534.4 Td (Customer charge                                          12.50) Tj ET
+BT /FM 8 Tf 48.0 523.2 Td (Fuel adjustment                                           9.10) Tj ET
+BT /FM 8 Tf 48.0 512.0 Td (Sales tax                                                 8.60) Tj ET
+BT /FR 8 Tf 48.0 490.8 Td (Usage history \(kWh\): Oct 1,420  Sep 1,610  Aug 1,880  Jul 1,790  Jun 1,350) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /FR 3 0 R /FB 4 0 R /FM 5 0 R /FMB 6 0 R >>  >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000515 00000 n 
+0000002240 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+2398
+%%EOF
